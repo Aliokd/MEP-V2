@@ -1,0 +1,126 @@
+# schema.gql
+# Data Model for The Conservatory
+# Using Firebase Data Connect (PostgreSQL under the hood)
+
+# --- ENUMS ---
+
+enum InstrumentType {
+  PIANO
+  VIOLIN
+  CELLO
+  GUITAR
+  VOCAL
+  OTHER
+}
+
+enum NoteType {
+  ANECDOTE
+  THEORY
+  SECRET
+}
+
+enum ProgressStatus {
+  LOCKED
+  STARTED
+  MASTERED
+}
+
+enum ReactionType {
+  BRAVO
+  ESPRESSIVO
+  PRECISION
+}
+
+# --- TABLES ---
+
+# The Musician (mapped to Firebase Auth)
+@table(name: "Users", singular: "user", plural: "users", key: ["id"])
+type User {
+  id: String! # Maps to Firebase Auth UID
+  email: String!
+  displayName: String
+  photoURL: String
+  instrument: InstrumentType
+  skillLevel: String
+  synesthesiaSettings: String # JSON/String for custom color mappings
+  currentStreak: Int! @default(value: 0)
+  resonanceScore: Int! @default(value: 0)
+}
+
+# The Curriculum Organizers
+@table(name: "Movements", singular: "movement", plural: "movements")
+type Movement {
+  id: UUID! @default(expr: "uuid_generate_v4()")
+  title: String!
+  order: Int!
+  description: String
+}
+
+# The Lesson Nodes (The Constellation)
+@table(name: "Lessons", singular: "lesson", plural: "lessons")
+type Lesson {
+  id: UUID! @default(expr: "uuid_generate_v4()")
+  movementId: UUID!
+  movement: Movement! @ref
+  title: String!
+  videoUrl: String!
+  midiDataUrl: String
+  durationSeconds: Int!
+  order: Int!
+}
+
+# The Graph Logic: Prerequisites (Self-referencing Many-to-Many)
+@table(name: "LessonPrerequisites", key: ["lessonId", "prerequisiteId"])
+type LessonPrerequisite {
+  lessonId: UUID!
+  lesson: Lesson! @ref(fields: ["lessonId"])
+  prerequisiteId: UUID!
+  prerequisite: Lesson! @ref(fields: ["prerequisiteId"])
+}
+
+# Maestro's Notes (Linked to specific timestamps in lessons)
+@table(name: "MaestroNotes", singular: "maestroNote", plural: "maestroNotes")
+type MaestroNote {
+  id: UUID! @default(expr: "uuid_generate_v4()")
+  lessonId: UUID!
+  lesson: Lesson! @ref
+  timestampSeconds: Int!
+  content: String!
+  noteType: NoteType!
+}
+
+# Learning State (Tracking user journey through the constellation)
+@table(name: "UserLessonProgress", key: ["userId", "lessonId"])
+type UserLessonProgress {
+  userId: String!
+  user: User! @ref(fields: ["userId"])
+  lessonId: UUID!
+  lesson: Lesson! @ref(fields: ["lessonId"])
+  status: ProgressStatus! @default(value: LOCKED)
+  accuracyScore: Int
+  lastPlayedAt: Timestamp! @default(expr: "request.time")
+}
+
+# Community Uploads (The Recital Hall)
+@table(name: "RepertoireItems", singular: "repertoireItem", plural: "repertoireItems")
+type RepertoireItem {
+  id: UUID! @default(expr: "uuid_generate_v4()")
+  userId: String!
+  user: User! @ref(fields: ["userId"])
+  lessonId: UUID!
+  lesson: Lesson! @ref(fields: ["lessonId"])
+  performanceVideoUrl: String
+  performanceMidiUrl: String
+  uploadedAt: Timestamp! @default(expr: "request.time")
+}
+
+# Pure Reactions (Elite feedback, no free text)
+@table(name: "RecitalReactions")
+type RecitalReaction {
+  id: UUID! @default(expr: "uuid_generate_v4()")
+  userId: String!
+  user: User! @ref(fields: ["userId"])
+  repertoireItemId: UUID!
+  repertoireItem: RepertoireItem! @ref(fields: ["repertoireItemId"])
+  reactionType: ReactionType!
+}

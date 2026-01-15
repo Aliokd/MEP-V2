@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-charcoal text-alabaster font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif tracking-wide;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-8 py-4 bg-gold text-charcoal font-semibold rounded-xs transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] hover:bg-gold/90;
+  }
+
+  .btn-outline {
+    @apply px-8 py-4 border border-gold text-gold font-semibold rounded-xs transition-all duration-300 hover:bg-gold/10 active:scale-[0.98];
+  }
+
+  .glass-nav {
+    @apply sticky top-0 z-50 transition-all duration-500 border-b border-white/5;
+  }
+
+  .glass-nav-scrolled {
+    @apply backdrop-blur-md bg-black/80;
+  }
+
+  .section-padding {
+    @apply py-24 px-6 md:px-12 lg:px-24;
+  }
+}
+
+::selection {
+  @apply bg-gold/30 text-gold;
+}

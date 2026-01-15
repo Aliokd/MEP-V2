@@ -1,0 +1,102 @@
+import { motion } from 'framer-motion';
+import { PlayCircle, Clock, FileText, ChevronRight } from 'lucide-react';
+
+const ModuleCard = ({ number, title, level, topics }: { number: string, title: string, level: string, topics: string[] }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        className="group border border-white/5 bg-charcoal p-8 md:p-12 transition-all hover:bg-white/[0.03] hover:border-gold/30"
+    >
+        <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+            <div className="space-y-6 flex-grow">
+                <div className="flex items-center gap-4">
+                    <span className="text-gold font-sans font-bold tracking-[0.2em] text-sm">MODULE {number}</span>
+                    <span className="w-12 h-px bg-white/20" />
+                    <span className="text-alabaster/40 font-sans text-xs tracking-[0.1em] uppercase">{level}</span>
+                </div>
+                <h3 className="text-3xl md:text-4xl font-serif text-alabaster group-hover:text-gold transition-colors">{title}</h3>
+                <p className="text-alabaster/50 text-lg font-sans font-light max-w-2xl leading-relaxed">
+                    Detailed exploration of the harmonic structures and visual patterns specific to this stage of mastery.
+                </p>
+                <div className="flex flex-wrap gap-x-12 gap-y-4 pt-4">
+                    <div className="flex items-center gap-2 text-alabaster/30 text-xs font-sans uppercase tracking-widest font-semibold">
+                        <PlayCircle size={16} className="text-gold" />
+                        24 Sessions
+                    </div>
+                    <div className="flex items-center gap-2 text-alabaster/30 text-xs font-sans uppercase tracking-widest font-semibold">
+                        <Clock size={16} className="text-gold" />
+                        12 Hours
+                    </div>
+                    <div className="flex items-center gap-2 text-alabaster/30 text-xs font-sans uppercase tracking-widest font-semibold">
+                        <FileText size={16} className="text-gold" />
+                        Syllabus PDF
+                    </div>
+                </div>
+            </div>
+
+            <div className="w-full md:w-64 space-y-3">
+                {topics.map((topic, i) => (
+                    <div key={i} className="flex items-center gap-3 text-sm text-alabaster/60 font-sans border-b border-white/5 pb-2">
+                        <div className="w-1 h-1 bg-gold rounded-full" />
+                        {topic}
+                    </div>
+                ))}
+            </div>
+        </div>
+    </motion.div>
+);
+
+const Curriculum = () => {
+    return (
+        <div className="pt-32 pb-24 px-6 md:px-12 lg:px-24">
+            <section className="max-w-7xl mx-auto mb-32">
+                <div className="text-center space-y-6 mb-24">
+                    <span className="text-gold text-xs tracking-[0.4em] uppercase font-bold">THE PATH TO VIRTUOSITY</span>
+                    <h1 className="text-5xl md:text-7xl lg:text-8xl leading-none">A Structured <br /><span className="italic text-gold">Descent into Logic.</span></h1>
+                    <p className="text-alabaster/60 text-xl font-sans font-light max-w-3xl mx-auto leading-relaxed">
+                        From the physics of sound to the complexity of orchestration. Each module is designed to build upon the last, reinforcing the visual language of the Synesthesia Engine.
+                    </p>
+                </div>
+
+                <div className="space-y-4">
+                    <ModuleCard
+                        number="01"
+                        title="The Foundation"
+                        level="Novice to Intermediate"
+                        topics={["Physics of Airwaves", "Intervalic Geometry", "The Circle of Fifths", "Diatonic Harmony"]}
+                    />
+                    <ModuleCard
+                        number="02"
+                        title="The Fluency"
+                        level="Intermediate to Advanced"
+                        topics={["Modal Exploration", "Extended Chords", "Tension and Release", "Rhythmic Architecture"]}
+                    />
+                    <ModuleCard
+                        number="03"
+                        title="The Artistry"
+                        level="Advanced to Virtuoso"
+                        topics={["Improvisation Flows", "Orchestral Layers", "Emotional Dynamics", "Stage Presence"]}
+                    />
+                </div>
+            </section>
+
+            {/* CTA Section */}
+            <section className="max-w-7xl mx-auto bg-gold p-12 md:p-24 text-charcoal flex flex-col md:flex-row justify-between items-center gap-12 rounded-xs overflow-hidden relative group">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-white/20 blur-[100px] rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+                <div className="space-y-6 relative z-10">
+                    <h2 className="text-4xl md:text-5xl font-serif leading-tight">Ready to begin your <br />musical evolution?</h2>
+                    <p className="text-charcoal/70 text-lg font-sans max-w-md">
+                        Join over 10,000 students who have mastered the language of music through our visual curriculum.
+                    </p>
+                </div>
+                <button className="bg-charcoal text-alabaster px-12 py-6 text-sm uppercase font-bold tracking-[0.2em] hover:bg-black transition-colors shrink-0 group flex items-center gap-3">
+                    SECURE ENROLLMENT
+                    <ChevronRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                </button>
+            </section>
+        </div>
+    );
+};
+
+export default Curriculum;
