@@ -27,7 +27,4 @@ dist-ssr
 .gemini
 .agent
 brain
-*.png
-*.webp
-src/assets/maestro.png
-src/assets/synesthesia.png
+
