@@ -23,6 +23,20 @@ dist-ssr
 *.sln
 *.sw?
 
+# Next.js
+.next/
+out/
+
+# Production
+build
+
+# Environment variables
+.env*.local
+
+# Firebase
+firebase-debug.log*
+.firebase/
+
 # Project specific
 .gemini
 .agent

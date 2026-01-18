@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "mep-v2"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

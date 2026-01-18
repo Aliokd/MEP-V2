@@ -1,15 +1,59 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
+import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, googleProvider, db } from '../lib/firebase';
 
 const SignIn = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const navigate = useNavigate();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('SignIn attempt:', { email, password });
+        setError('');
+        setIsLoading(true);
+
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            navigate('/maestro');
+        } catch (err: any) {
+            console.error('SignIn error:', err);
+            setError(err.message || 'Failed to sign in. Please check your credentials.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        setError('');
+        setIsLoading(true);
+        try {
+            const result = await signInWithPopup(auth, googleProvider);
+            const user = result.user;
+
+            // Check if user exists in Firestore, if not create them
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (!userDoc.exists()) {
+                await setDoc(doc(db, "users", user.uid), {
+                    uid: user.uid,
+                    name: user.displayName,
+                    email: user.email,
+                    createdAt: new Date().toISOString(),
+                    tier: 'performer' // Default tier
+                });
+            }
+            navigate('/maestro');
+        } catch (err: any) {
+            console.error('Google Sign-In error:', err);
+            setError(err.message || 'Failed to sign in with Google.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -36,6 +80,16 @@ const SignIn = () => {
 
                 <div className="bg-stone-50 dark:bg-charcoal border border-stone-200 dark:border-white/5 p-10 rounded-xs shadow-2xl transition-colors duration-300">
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {error && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                className="bg-red-500/10 border border-red-500/20 rounded-xs p-4 flex items-center gap-3 text-red-500 text-sm"
+                            >
+                                <AlertCircle size={18} />
+                                {error}
+                            </motion.div>
+                        )}
                         <div className="space-y-2">
                             <label className="text-xs uppercase tracking-[0.2em] text-stone-900/40 dark:text-alabaster/40 font-bold ml-1 transition-colors duration-300">Email Address</label>
                             <div className="relative group">
@@ -69,11 +123,35 @@ const SignIn = () => {
                             </div>
                         </div>
 
-                        <button type="submit" className="btn-primary w-full flex items-center justify-center gap-3 py-5 text-sm tracking-[0.2em]">
-                            RESUME PRACTICE
-                            <ArrowRight size={18} />
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className={`btn-primary w-full flex items-center justify-center gap-3 py-5 text-sm tracking-[0.2em] ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {isLoading ? 'ESTABLISHING CONNECTION...' : 'RESUME PRACTICE'}
+                            {!isLoading && <ArrowRight size={18} />}
                         </button>
                     </form>
+
+                    <div className="mt-6 flex items-center gap-4">
+                        <div className="h-px bg-stone-200 dark:bg-white/5 flex-grow" />
+                        <span className="text-[10px] uppercase tracking-widest text-stone-900/40 dark:text-alabaster/40 font-bold">or</span>
+                        <div className="h-px bg-stone-200 dark:bg-white/5 flex-grow" />
+                    </div>
+
+                    <button
+                        onClick={handleGoogleSignIn}
+                        disabled={isLoading}
+                        className="mt-6 w-full flex items-center justify-center gap-3 py-4 border border-stone-200 dark:border-white/10 rounded-xs text-xs tracking-widest uppercase font-bold text-stone-900 dark:text-alabaster hover:bg-stone-50 dark:hover:bg-white/5 transition-all disabled:opacity-50"
+                    >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
+                            <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                        </svg>
+                        Continue with Google
+                    </button>
 
                     <div className="mt-8 pt-8 border-t border-stone-100 dark:border-white/5 text-center transition-colors duration-300">
                         <p className="text-sm text-stone-900/40 dark:text-alabaster/40 font-sans transition-colors duration-300">

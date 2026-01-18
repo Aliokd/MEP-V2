@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { User, Mail, Lock, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { User, Mail, Lock, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 
 const SignUp = () => {
     const [formData, setFormData] = useState({
@@ -10,10 +13,40 @@ const SignUp = () => {
         password: '',
         tier: 'performer'
     });
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const navigate = useNavigate();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('SignUp attempt:', formData);
+        setError('');
+        setIsLoading(true);
+
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+            const user = userCredential.user;
+
+            // Update Auth Profile
+            await updateProfile(user, {
+                displayName: formData.name
+            });
+
+            // Store in Firestore
+            await setDoc(doc(db, "users", user.uid), {
+                uid: user.uid,
+                name: formData.name,
+                email: formData.email,
+                createdAt: new Date().toISOString(),
+                tier: formData.tier
+            });
+
+            navigate('/maestro');
+        } catch (err: any) {
+            console.error('SignUp error:', err);
+            setError(err.message || 'Failed to create account.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -66,6 +99,16 @@ const SignUp = () => {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5">
+                        {error && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                className="bg-red-500/10 border border-red-500/20 rounded-xs p-4 flex items-center gap-3 text-red-500 text-sm"
+                            >
+                                <AlertCircle size={18} />
+                                {error}
+                            </motion.div>
+                        )}
                         <div className="space-y-1">
                             <label className="text-[10px] uppercase tracking-[0.2em] text-stone-900/40 dark:text-alabaster/40 font-bold ml-1 transition-colors duration-300">Full Name</label>
                             <div className="relative group">
@@ -112,9 +155,13 @@ const SignUp = () => {
                         </div>
 
                         <div className="pt-4">
-                            <button type="submit" className="btn-primary w-full flex items-center justify-center gap-3 py-4 text-xs tracking-[0.2em] font-bold">
-                                BEGIN AUDITION
-                                <ArrowRight size={16} />
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className={`btn-primary w-full flex items-center justify-center gap-3 py-4 text-xs tracking-[0.2em] font-bold ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                {isLoading ? 'PROCESSING APPLICATION...' : 'BEGIN AUDITION'}
+                                {!isLoading && <ArrowRight size={16} />}
                             </button>
                         </div>
 

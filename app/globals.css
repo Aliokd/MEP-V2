@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --charcoal: #0a0a0a;
+    --alabaster: #F0F0F0;
+    --gold: #C5A059;
+}
+
+body {
+    background-color: var(--charcoal);
+    color: var(--alabaster);
+}
+
+/* Custom transitions */
+.transition-luxury {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Glassmorphism utility */
+.glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}

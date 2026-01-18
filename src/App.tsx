@@ -9,6 +9,8 @@ import Curriculum from './pages/Curriculum';
 import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
 import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Scroll to top on route change
 function ScrollToTop() {
@@ -23,24 +25,40 @@ function ScrollToTop() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <Router>
-        <ScrollToTop />
-        <div className="min-h-screen bg-white dark:bg-charcoal text-stone-900 dark:text-alabaster selection:bg-gold/20 selection:text-gold flex flex-col transition-colors duration-300">
-          <Navigation />
-          <main className="flex-grow">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/method" element={<Method />} />
-              <Route path="/maestro" element={<Maestro />} />
-              <Route path="/curriculum" element={<Curriculum />} />
-              <Route path="/signin" element={<SignIn />} />
-              <Route path="/signup" element={<SignUp />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-      </Router>
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider>
+        <Router>
+          <ScrollToTop />
+          <div className="min-h-screen bg-white dark:bg-charcoal text-stone-900 dark:text-alabaster selection:bg-gold/20 selection:text-gold flex flex-col transition-colors duration-300">
+            <Navigation />
+            <main className="flex-grow">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/method" element={<Method />} />
+                <Route
+                  path="/maestro"
+                  element={
+                    <ProtectedRoute>
+                      <Maestro />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/curriculum"
+                  element={
+                    <ProtectedRoute>
+                      <Curriculum />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/signin" element={<SignIn />} />
+                <Route path="/signup" element={<SignUp />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </Router>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }

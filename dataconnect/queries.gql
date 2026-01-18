@@ -1,0 +1,50 @@
+# queries.gql
+
+# Get user progress and the lesson constellation
+query getUserConstellation($uid: String!) {
+  user(id: $uid) {
+    id
+    displayName
+    lessonProgress: lessons_on_user(where: { userId: { eq: $uid } }) {
+      lessonId
+      status
+      accuracyScore
+    }
+  }
+  lessonsList: lessons {
+    id
+    title
+    movementId
+    order
+    durationSeconds
+    # Get prerequisites for each lesson
+    prerequisites: prerequisites_on_lesson {
+      prerequisiteId
+    }
+  }
+  movements {
+    id
+    title
+    order
+  }
+}
+
+# Get specific lesson details
+query getLessonDetails($lessonId: UUID!) {
+  lesson(id: $lessonId) {
+    id
+    title
+    videoUrl
+    midiDataUrl
+    durationSeconds
+    movement {
+      title
+    }
+    prerequisites: prerequisites_on_lesson {
+      prerequisite {
+        id
+        title
+      }
+    }
+  }
+}
