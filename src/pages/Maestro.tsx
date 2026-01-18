@@ -25,44 +25,44 @@ const Maestro = () => {
                 >
                     <div className="space-y-4">
                         <span className="text-gold text-xs tracking-[0.4em] uppercase font-bold">LEGACY & MASTERY</span>
-                        <h1 className="text-5xl md:text-7xl leading-tight">A Lifetime on the <br /><span className="text-gold italic">Global Stage.</span></h1>
+                        <h1 className="text-5xl md:text-7xl leading-tight text-stone-900 dark:text-white transition-colors duration-300">A Lifetime on the <br /><span className="text-gold italic">Global Stage.</span></h1>
                     </div>
-                    <p className="text-alabaster/60 text-lg font-sans font-light leading-relaxed">
+                    <p className="text-stone-900/60 dark:text-alabaster/60 text-lg font-sans font-light leading-relaxed transition-colors duration-300">
                         With over four decades of experience performing in the world's most prestigious concert halls—from Carnegie Hall to the Sydney Opera House—the Maestro has dedicated his life to uncovering the universal laws of musical language.
                     </p>
-                    <p className="text-alabaster/60 text-lg font-sans font-light leading-relaxed">
+                    <p className="text-stone-900/60 dark:text-alabaster/60 text-lg font-sans font-light leading-relaxed transition-colors duration-300">
                         His philosophy is simple: Music is not about notes on a page; it is about the physics of emotion and the geometry of silence. After 40 years of refinement, he is ready to transfer this knowledge to the next generation of virtuosos.
                     </p>
 
-                    <div className="grid grid-cols-2 gap-8 pt-8 border-t border-white/5">
+                    <div className="grid grid-cols-2 gap-8 pt-8 border-t border-stone-200 dark:border-white/5 transition-colors duration-300">
                         <div className="space-y-2">
                             <div className="text-gold flex items-center gap-2">
                                 <Globe size={18} />
-                                <span className="text-xs uppercase font-bold tracking-widest text-alabaster">40+ Countries</span>
+                                <span className="text-xs uppercase font-bold tracking-widest text-stone-900 dark:text-alabaster transition-colors duration-300">40+ Countries</span>
                             </div>
-                            <p className="text-xs text-alabaster/40 font-sans uppercase tracking-[0.1em]">Performed Worldwide</p>
+                            <p className="text-xs text-stone-900/40 dark:text-alabaster/40 font-sans uppercase tracking-[0.1em] transition-colors duration-300">Performed Worldwide</p>
                         </div>
                         <div className="space-y-2">
                             <div className="text-gold flex items-center gap-2">
                                 <Award size={18} />
-                                <span className="text-xs uppercase font-bold tracking-widest text-alabaster">3x Grammy Nominee</span>
+                                <span className="text-xs uppercase font-bold tracking-widest text-stone-900 dark:text-alabaster transition-colors duration-300">3x Grammy Nominee</span>
                             </div>
-                            <p className="text-xs text-alabaster/40 font-sans uppercase tracking-[0.1em]">Technical Achievement</p>
+                            <p className="text-xs text-stone-900/40 dark:text-alabaster/40 font-sans uppercase tracking-[0.1em] transition-colors duration-300">Technical Achievement</p>
                         </div>
                     </div>
                 </motion.div>
             </section>
 
             {/* Philosophy Section */}
-            <section className="bg-white/[0.02] py-48 px-6 text-center border-y border-white/5">
+            <section className="bg-stone-50 dark:bg-white/[0.02] py-48 px-6 text-center border-y border-stone-200 dark:border-white/5 transition-colors duration-300">
                 <div className="max-w-4xl mx-auto space-y-12">
                     <Quote className="text-gold/20 w-24 h-24 mx-auto mb-8" />
-                    <h2 className="text-3xl md:text-5xl lg:text-6xl font-serif italic text-alabaster/90 leading-[1.2]">
+                    <h2 className="text-3xl md:text-5xl lg:text-6xl font-serif italic text-stone-900/90 dark:text-alabaster/90 leading-[1.2] transition-colors duration-300">
                         "The greatest barrier to mastery is not a lack of talent, but the presence of noise. This curriculum is the silence you need to finally hear the music."
                     </h2>
                     <div className="space-y-2">
                         <p className="text-gold tracking-[0.4em] uppercase font-bold text-sm">THE MAESTRO</p>
-                        <p className="text-alabaster/40 text-xs font-sans italic tracking-widest">Grand Conservatory of Sound, Emeritus</p>
+                        <p className="text-stone-900/40 dark:text-alabaster/40 text-xs font-sans italic tracking-widest transition-colors duration-300">Grand Conservatory of Sound, Emeritus</p>
                     </div>
                 </div>
             </section>
@@ -72,25 +72,25 @@ const Maestro = () => {
                 <div className="grid md:grid-cols-3 gap-16">
                     <div className="space-y-4">
                         <BookOpen size={40} className="text-gold" />
-                        <h3 className="text-2xl font-serif">The Pedagogy</h3>
-                        <p className="text-alabaster/50 text-sm font-sans leading-relaxed">
+                        <h3 className="text-2xl font-serif text-stone-900 dark:text-white transition-colors duration-300">The Pedagogy</h3>
+                        <p className="text-stone-900/50 dark:text-alabaster/50 text-sm font-sans leading-relaxed transition-colors duration-300">
                             Moving away from rote memorization towards architectural understanding. Learn why a chord works before you learn its name.
                         </p>
                     </div>
                     <div className="space-y-4">
                         <div className="relative w-10 h-10">
-                            <div className="absolute inset-0 bg-gold/20 blur-lg rounded-full" />
+                            <div className="absolute inset-0 bg-gold/20 blur-lg rounded-full transition-colors duration-300" />
                             <Cpu size={40} className="text-gold relative z-10" />
                         </div>
-                        <h3 className="text-2xl font-serif">The Technology</h3>
-                        <p className="text-alabaster/50 text-sm font-sans leading-relaxed">
+                        <h3 className="text-2xl font-serif text-stone-900 dark:text-white transition-colors duration-300">The Technology</h3>
+                        <p className="text-stone-900/50 dark:text-alabaster/50 text-sm font-sans leading-relaxed transition-colors duration-300">
                             Leveraging real-time visualization technology to provide the kind of instant feedback that used to require a private masterclass.
                         </p>
                     </div>
                     <div className="space-y-4">
                         <Globe size={40} className="text-gold" />
-                        <h3 className="text-2xl font-serif">The Community</h3>
-                        <p className="text-alabaster/50 text-sm font-sans leading-relaxed">
+                        <h3 className="text-2xl font-serif text-stone-900 dark:text-white transition-colors duration-300">The Community</h3>
+                        <p className="text-stone-900/50 dark:text-alabaster/50 text-sm font-sans leading-relaxed transition-colors duration-300">
                             A global network of elite musicians and dedicated students, all speaking the same visual language of harmony.
                         </p>
                     </div>

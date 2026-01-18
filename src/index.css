@@ -4,13 +4,18 @@
 
 @layer base {
   body {
-    @apply bg-charcoal text-alabaster font-sans antialiased;
+    @apply bg-white text-stone-900 font-sans antialiased transition-colors duration-300;
+  }
+
+  .dark body {
+    @apply bg-charcoal text-alabaster;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif tracking-wide;
   }
 }
+
 
 @layer components {
   .btn-primary {

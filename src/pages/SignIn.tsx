@@ -13,7 +13,7 @@ const SignIn = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-6 py-32 bg-[#050505] relative overflow-hidden">
+        <div className="min-h-screen flex items-center justify-center px-6 py-32 bg-white dark:bg-[#050505] relative overflow-hidden transition-colors duration-300">
             {/* Decorative Background Elements */}
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
                 <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-gold/5 blur-[120px] rounded-full" />
@@ -30,21 +30,21 @@ const SignIn = () => {
                     <Link to="/" className="inline-block">
                         <h1 className="text-3xl font-serif text-gold tracking-tighter">THE CONSERVATORY</h1>
                     </Link>
-                    <h2 className="text-4xl font-serif text-alabaster">Welcome Back</h2>
-                    <p className="text-alabaster/50 font-sans font-light">Continue your descent into mastery.</p>
+                    <h2 className="text-4xl font-serif text-stone-900 dark:text-alabaster transition-colors duration-300">Welcome Back</h2>
+                    <p className="text-stone-900/50 dark:text-alabaster/50 font-sans font-light transition-colors duration-300">Continue your descent into mastery.</p>
                 </div>
 
-                <div className="bg-charcoal border border-white/5 p-10 rounded-xs shadow-2xl">
+                <div className="bg-stone-50 dark:bg-charcoal border border-stone-200 dark:border-white/5 p-10 rounded-xs shadow-2xl transition-colors duration-300">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-2">
-                            <label className="text-xs uppercase tracking-[0.2em] text-alabaster/40 font-bold ml-1">Email Address</label>
+                            <label className="text-xs uppercase tracking-[0.2em] text-stone-900/40 dark:text-alabaster/40 font-bold ml-1 transition-colors duration-300">Email Address</label>
                             <div className="relative group">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors text-alabaster/20 group-focus-within:text-gold" size={18} />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors text-stone-900/20 dark:text-alabaster/20 group-focus-within:text-gold" size={18} />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-black/40 border border-white/10 rounded-xs py-4 pl-12 pr-4 text-alabaster font-sans focus:outline-none focus:border-gold/50 transition-all"
+                                    className="w-full bg-white dark:bg-black/40 border border-stone-200 dark:border-white/10 rounded-xs py-4 pl-12 pr-4 text-stone-900 dark:text-alabaster font-sans focus:outline-none focus:border-gold/50 transition-all"
                                     placeholder="maestro@conservatory.com"
                                     required
                                 />
@@ -53,16 +53,16 @@ const SignIn = () => {
 
                         <div className="space-y-2">
                             <div className="flex justify-between items-center ml-1">
-                                <label className="text-xs uppercase tracking-[0.2em] text-alabaster/40 font-bold">Password</label>
+                                <label className="text-xs uppercase tracking-[0.2em] text-stone-900/40 dark:text-alabaster/40 font-bold transition-colors duration-300">Password</label>
                                 <a href="#" className="text-[10px] uppercase tracking-widest text-gold hover:text-gold/80 transition-colors">Forgot?</a>
                             </div>
                             <div className="relative group">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors text-alabaster/20 group-focus-within:text-gold" size={18} />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors text-stone-900/20 dark:text-alabaster/20 group-focus-within:text-gold" size={18} />
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-black/40 border border-white/10 rounded-xs py-4 pl-12 pr-4 text-alabaster font-sans focus:outline-none focus:border-gold/50 transition-all"
+                                    className="w-full bg-white dark:bg-black/40 border border-stone-200 dark:border-white/10 rounded-xs py-4 pl-12 pr-4 text-stone-900 dark:text-alabaster font-sans focus:outline-none focus:border-gold/50 transition-all"
                                     placeholder="••••••••"
                                     required
                                 />
@@ -75,8 +75,8 @@ const SignIn = () => {
                         </button>
                     </form>
 
-                    <div className="mt-8 pt-8 border-t border-white/5 text-center">
-                        <p className="text-sm text-alabaster/40 font-sans">
+                    <div className="mt-8 pt-8 border-t border-stone-100 dark:border-white/5 text-center transition-colors duration-300">
+                        <p className="text-sm text-stone-900/40 dark:text-alabaster/40 font-sans transition-colors duration-300">
                             New to the platform?{' '}
                             <Link to="/signup" className="text-gold hover:text-gold/80 transition-colors underline-offset-4 hover:underline">Begin your audition</Link>
                         </p>
