@@ -1,10 +1,25 @@
-import { getUserConstellation } from '@/app/actions/lesson-actions';
-import ConstellationGraph from './components/ConstellationGraph';
+"use client";
 
-export default async function PlatformPage() {
-    // In a real app, you'd get the UID from the session/auth cookie
-    const mockUid = "user_123";
-    const data = await getUserConstellation(mockUid);
+import { getUserConstellation, ConstellationData } from '@/app/actions/lesson-actions';
+import ConstellationGraph from './components/ConstellationGraph';
+import { useAuth } from '@/context/AuthContext';
+import { useEffect, useState } from 'react';
+
+export default function PlatformPage() {
+    const { user } = useAuth();
+    const [data, setData] = useState<ConstellationData | null>(null);
+
+    useEffect(() => {
+        if (user) {
+            getUserConstellation(user.uid).then(setData);
+        }
+    }, [user]);
+
+    if (!data) return (
+        <div className="h-screen flex items-center justify-center bg-transparent">
+            <div className="w-8 h-8 border-t-2 border-gold-500 rounded-full animate-spin" />
+        </div>
+    );
 
     return (
         <div className="relative min-h-screen">
