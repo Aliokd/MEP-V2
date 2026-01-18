@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: npm ci
-      - run: npm install @next/swc-linux-x64-gnu @next/swc-linux-x64-musl
+      - run: npm install @next/swc-linux-x64-gnu
       - run: npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
