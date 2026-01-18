@@ -45,7 +45,7 @@ export default async function LessonPage({ params }: { params: { lessonId: strin
 
             {/* Bottom: Synesthesia Canvas (40vh) */}
             <div className="h-[40vh] relative">
-                <SynesthesiaCanvas midiDataUrl={lesson.midiDataUrl} />
+                <SynesthesiaCanvas midiDataUrl={lesson.midiDataUrl || undefined} />
             </div>
         </div>
     );

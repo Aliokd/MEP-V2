@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "tsc -b && vite build",
+    "build": "next build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mep/dataconnect": "file:lib/dataconnect-generated",
     "clsx": "^2.1.1",
     "firebase": "^12.8.0",
     "framer-motion": "^12.26.2",

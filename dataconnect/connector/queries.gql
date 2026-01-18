@@ -5,7 +5,7 @@ query getUserConstellation($uid: String!) {
   user(id: $uid) {
     id
     displayName
-    lessonProgress: lessons_on_user(where: { userId: { eq: $uid } }) {
+    lessonProgress: userLessonProgresses_on_user(where: { userId: { eq: $uid } }) {
       lessonId
       status
       accuracyScore
@@ -18,7 +18,7 @@ query getUserConstellation($uid: String!) {
     order
     durationSeconds
     # Get prerequisites for each lesson
-    prerequisites: prerequisites_on_lesson {
+    prerequisites: lessonPrerequisites_on_lesson {
       prerequisiteId
     }
   }
@@ -40,7 +40,7 @@ query getLessonDetails($lessonId: UUID!) {
     movement {
       title
     }
-    prerequisites: prerequisites_on_lesson {
+    prerequisites: lessonPrerequisites_on_lesson {
       prerequisite {
         id
         title

@@ -8,9 +8,45 @@
     --gold: #C5A059;
 }
 
-body {
-    background-color: var(--charcoal);
-    color: var(--alabaster);
+@layer base {
+    body {
+        @apply bg-white text-stone-900 font-sans antialiased transition-colors duration-300;
+    }
+
+    .dark body {
+        @apply bg-charcoal text-alabaster;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        @apply font-serif tracking-tight;
+    }
+}
+
+@layer components {
+    .btn-primary {
+        @apply px-8 py-4 bg-gold-500 text-charcoal font-semibold rounded-xs transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] hover:bg-gold-500/90;
+    }
+
+    .btn-outline {
+        @apply px-8 py-4 border border-gold-500 text-gold-500 font-semibold rounded-xs transition-all duration-300 hover:bg-gold-500/10 active:scale-[0.98];
+    }
+
+    .section-padding {
+        @apply py-24 px-6 md:px-12 lg:px-24;
+    }
+
+    .glass {
+        @apply backdrop-blur-xl bg-black/40 border border-white/5;
+    }
+
+    .glass-card {
+        @apply backdrop-blur-md bg-white/5 border border-white/10 rounded-xs;
+    }
 }
 
 /* Custom transitions */
@@ -18,9 +54,25 @@ body {
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Glassmorphism utility */
-.glass {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+::selection {
+    @apply bg-gold-500/30 text-gold-500;
+}
+
+/* Animations */
+@keyframes pulse-y {
+
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.3;
+    }
+
+    50% {
+        transform: translateY(-10px);
+        opacity: 0.8;
+    }
+}
+
+.animate-pulse-y {
+    animation: pulse-y 3s ease-in-out infinite;
 }

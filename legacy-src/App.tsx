@@ -2,12 +2,12 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { useEffect } from 'react';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
-import Home from './pages/Home';
-import Method from './pages/Method';
-import Maestro from './pages/Maestro';
-import Curriculum from './pages/Curriculum';
-import SignIn from './pages/SignIn';
-import SignUp from './pages/SignUp';
+import Home from './marketing-pages/Home';
+import Method from './marketing-pages/Method';
+import Maestro from './marketing-pages/Maestro';
+import Curriculum from './marketing-pages/Curriculum';
+import SignIn from './marketing-pages/SignIn';
+import SignUp from './marketing-pages/SignUp';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';

@@ -34,9 +34,8 @@ enum ReactionType {
 # --- TABLES ---
 
 # The Musician (mapped to Firebase Auth)
-@table(name: "Users", singular: "user", plural: "users", key: ["id"])
-type User {
-  id: String! # Maps to Firebase Auth UID
+type User @table(name: "Users", singular: "user", plural: "users", key: ["id"]) {
+  id: String! @default(expr: "auth.uid") # Maps to Firebase Auth UID - explicitly default to auth.uid is good practice
   email: String!
   displayName: String
   photoURL: String
@@ -48,20 +47,18 @@ type User {
 }
 
 # The Curriculum Organizers
-@table(name: "Movements", singular: "movement", plural: "movements")
-type Movement {
-  id: UUID! @default(expr: "uuid_generate_v4()")
+type Movement @table(name: "Movements", singular: "movement", plural: "movements") {
+  id: UUID! @default(expr: "uuidV4()")
   title: String!
   order: Int!
   description: String
 }
 
 # The Lesson Nodes (The Constellation)
-@table(name: "Lessons", singular: "lesson", plural: "lessons")
-type Lesson {
-  id: UUID! @default(expr: "uuid_generate_v4()")
+type Lesson @table(name: "Lessons", singular: "lesson", plural: "lessons") {
+  id: UUID! @default(expr: "uuidV4()")
   movementId: UUID!
-  movement: Movement! @ref
+  movement: Movement!
   title: String!
   videoUrl: String!
   midiDataUrl: String
@@ -70,57 +67,52 @@ type Lesson {
 }
 
 # The Graph Logic: Prerequisites (Self-referencing Many-to-Many)
-@table(name: "LessonPrerequisites", key: ["lessonId", "prerequisiteId"])
-type LessonPrerequisite {
+type LessonPrerequisite @table(name: "LessonPrerequisites", key: ["lesson", "prerequisite"]) {
   lessonId: UUID!
-  lesson: Lesson! @ref(fields: ["lessonId"])
+  lesson: Lesson!
   prerequisiteId: UUID!
-  prerequisite: Lesson! @ref(fields: ["prerequisiteId"])
+  prerequisite: Lesson!
 }
 
 # Maestro's Notes (Linked to specific timestamps in lessons)
-@table(name: "MaestroNotes", singular: "maestroNote", plural: "maestroNotes")
-type MaestroNote {
-  id: UUID! @default(expr: "uuid_generate_v4()")
+type MaestroNote @table(name: "MaestroNotes", singular: "maestroNote", plural: "maestroNotes") {
+  id: UUID! @default(expr: "uuidV4()")
   lessonId: UUID!
-  lesson: Lesson! @ref
+  lesson: Lesson!
   timestampSeconds: Int!
   content: String!
   noteType: NoteType!
 }
 
 # Learning State (Tracking user journey through the constellation)
-@table(name: "UserLessonProgress", key: ["userId", "lessonId"])
-type UserLessonProgress {
+type UserLessonProgress @table(name: "UserLessonProgress", key: ["user", "lesson"]) {
   userId: String!
-  user: User! @ref(fields: ["userId"])
+  user: User!
   lessonId: UUID!
-  lesson: Lesson! @ref(fields: ["lessonId"])
+  lesson: Lesson!
   status: ProgressStatus! @default(value: LOCKED)
   accuracyScore: Int
   lastPlayedAt: Timestamp! @default(expr: "request.time")
 }
 
 # Community Uploads (The Recital Hall)
-@table(name: "RepertoireItems", singular: "repertoireItem", plural: "repertoireItems")
-type RepertoireItem {
-  id: UUID! @default(expr: "uuid_generate_v4()")
+type RepertoireItem @table(name: "RepertoireItems", singular: "repertoireItem", plural: "repertoireItems") {
+  id: UUID! @default(expr: "uuidV4()")
   userId: String!
-  user: User! @ref(fields: ["userId"])
+  user: User!
   lessonId: UUID!
-  lesson: Lesson! @ref(fields: ["lessonId"])
+  lesson: Lesson!
   performanceVideoUrl: String
   performanceMidiUrl: String
   uploadedAt: Timestamp! @default(expr: "request.time")
 }
 
 # Pure Reactions (Elite feedback, no free text)
-@table(name: "RecitalReactions")
-type RecitalReaction {
-  id: UUID! @default(expr: "uuid_generate_v4()")
+type RecitalReaction @table(name: "RecitalReactions") {
+  id: UUID! @default(expr: "uuidV4()")
   userId: String!
-  user: User! @ref(fields: ["userId"])
+  user: User!
   repertoireItemId: UUID!
-  repertoireItem: RepertoireItem! @ref(fields: ["repertoireItemId"])
+  repertoireItem: RepertoireItem!
   reactionType: ReactionType!
 }

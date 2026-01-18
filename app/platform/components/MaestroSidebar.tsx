@@ -13,12 +13,17 @@ import {
     User
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
 
 export default function MaestroSidebar() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mounted, setMounted] = useState(false);
     const pathname = usePathname();
+    const router = useRouter();
+    const { user } = useAuth();
 
     useEffect(() => {
         const saved = localStorage.getItem('maestro-sidebar-collapsed');
@@ -32,6 +37,15 @@ export default function MaestroSidebar() {
         const newState = !isCollapsed;
         setIsCollapsed(newState);
         localStorage.setItem('maestro-sidebar-collapsed', JSON.stringify(newState));
+    };
+
+    const handleSignOut = async () => {
+        try {
+            await signOut(auth);
+            router.push('/signin');
+        } catch (error) {
+            console.error('Sign out error:', error);
+        }
     };
 
     const menuItems = [
@@ -57,9 +71,11 @@ export default function MaestroSidebar() {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
-                            className="flex items-center gap-3"
+                            className="flex items-center gap-3 overflow-hidden whitespace-nowrap"
                         >
-                            <div className="w-8 h-8 rounded-xs bg-gold-500 flex items-center justify-center font-serif text-charcoal font-bold">M</div>
+                            <Link href="/">
+                                <div className="w-8 h-8 rounded-xs bg-gold-500 flex items-center justify-center font-serif text-charcoal font-bold">M</div>
+                            </Link>
                             <span className="font-serif text-lg tracking-widest text-alabaster uppercase">Maestro</span>
                         </motion.div>
                     )}
@@ -76,7 +92,7 @@ export default function MaestroSidebar() {
             {!isCollapsed && (
                 <div className="px-6 mb-8 mt-4">
                     <div className="p-4 rounded-xs bg-white/5 border border-white/5">
-                        <p className="text-[10px] text-gold-400 uppercase tracking-[0.2em] mb-1">Resonance Score</p>
+                        <p className="text-[10px] text-gold-500 uppercase tracking-[0.2em] mb-1 font-bold">Resonance of {user?.displayName?.split(' ')[0] || 'MAESTRO'}</p>
                         <p className="text-2xl font-serif text-alabaster">2,450</p>
                     </div>
                 </div>
@@ -89,10 +105,10 @@ export default function MaestroSidebar() {
                     return (
                         <Link key={item.href} href={item.href}>
                             <div className={`
-                flex items-center gap-4 px-4 py-3 rounded-xs transition-all group
-                ${isActive ? 'bg-gold-500/10 text-gold-400' : 'text-white/40 hover:text-white hover:bg-white/5'}
-                ${isCollapsed ? 'justify-center' : ''}
-              `}>
+                                flex items-center gap-4 px-4 py-3 rounded-xs transition-all group
+                                ${isActive ? 'bg-gold-500/10 text-gold-400' : 'text-white/40 hover:text-white hover:bg-white/5'}
+                                ${isCollapsed ? 'justify-center' : ''}
+                            `}>
                                 <item.icon size={20} className={isActive ? 'text-gold-500' : ''} />
                                 {!isCollapsed && (
                                     <span className="font-sans text-sm tracking-wide">{item.label}</span>
@@ -112,7 +128,10 @@ export default function MaestroSidebar() {
                     <Settings size={20} />
                     {!isCollapsed && <span className="font-sans text-sm">Settings</span>}
                 </button>
-                <button className={`flex items-center gap-4 px-4 py-3 w-full text-red-400/60 hover:text-red-400 hover:bg-red-400/5 rounded-xs transition-all ${isCollapsed ? 'justify-center' : ''}`}>
+                <button
+                    onClick={handleSignOut}
+                    className={`flex items-center gap-4 px-4 py-3 w-full text-red-400/60 hover:text-red-400 hover:bg-red-400/5 rounded-xs transition-all ${isCollapsed ? 'justify-center' : ''}`}
+                >
                     <LogOut size={20} />
                     {!isCollapsed && <span className="font-sans text-sm">Sign Out</span>}
                 </button>

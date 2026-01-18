@@ -1,0 +1,6 @@
+connectorId: "mep-connector"
+generate:
+  javascriptSdk:
+    - outputDir: "../../lib/dataconnect-generated"
+      package: "@mep/dataconnect"
+      packageJsonDir: "../../"
