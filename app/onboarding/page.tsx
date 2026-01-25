@@ -247,7 +247,7 @@ export default function OnboardingPage() {
                                 {currentQuestion.options.map((option) => (
                                     <motion.button
                                         key={option.value}
-                                        onClick={() => handleAnswer(option.value, option.color)}
+                                        onClick={() => handleAnswer(option.value, (option as any).color)}
                                         disabled={selectedOption !== null}
                                         whileHover={{ y: -2, scale: 1.01 }}
                                         whileTap={{ scale: 0.99 }}
