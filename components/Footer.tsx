@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 const Footer = () => {
     const pathname = usePathname();
     const isPlatform = pathname?.startsWith('/platform');
-    if (isPlatform) return null;
+    const isOnboarding = pathname === '/onboarding';
+    if (isPlatform || isOnboarding) return null;
 
     return (
         <footer className="py-24 px-6 md:px-12 border-t border-stone-200 dark:border-white/5 bg-white dark:bg-charcoal text-center md:text-left transition-colors duration-300">

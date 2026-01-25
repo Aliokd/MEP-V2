@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Music, Check, ChevronRight, PlaySquare, Zap } from 'lucide-react';
 import Image from 'next/image';
@@ -10,7 +11,7 @@ const Hero = () => {
     const y = useTransform(scrollY, [0, 500], [0, 200]);
 
     return (
-        <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        <section className="relative h-[82vh] flex items-center justify-center overflow-hidden">
             <div className="absolute inset-0 z-0">
                 <div className="absolute inset-0 bg-white/40 dark:bg-black/60 z-10 transition-colors duration-300" />
                 <video
@@ -39,7 +40,7 @@ const Hero = () => {
                     40 years of mastery distilled into a visual, interactive path.
                     Go from silence to symphony.
                 </p>
-                <Link href="/signup" className="bg-stone-900 dark:bg-alabaster text-white dark:text-charcoal px-10 py-5 rounded-xs inline-flex items-center gap-3 group text-xs tracking-[0.2em] font-bold hover:bg-gold-500 dark:hover:bg-gold-500 dark:hover:text-white transition-all">
+                <Link href="/onboarding" className="bg-stone-900 dark:bg-alabaster text-white dark:text-charcoal px-10 py-5 rounded-xs inline-flex items-center gap-3 group text-xs tracking-[0.2em] font-bold hover:bg-gold-500 dark:hover:bg-gold-500 dark:hover:text-white transition-all">
                     START YOUR PRELUDE
                     <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
@@ -54,23 +55,8 @@ const Hero = () => {
 
 const Authority = () => {
     return (
-        <section className="py-32 px-6 md:px-12 bg-white dark:bg-charcoal grid md:grid-cols-2 gap-16 items-center transition-colors duration-300">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 1 }}
-                className="relative aspect-[3/4] overflow-hidden rounded-xs border border-stone-200 dark:border-white/10"
-            >
-                <Image
-                    src="/assets/maestro.png"
-                    alt="The Maestro"
-                    fill
-                    className="object-cover grayscale hover:scale-105 transition-transform duration-1000"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-charcoal via-transparent to-transparent opacity-60" />
-            </motion.div>
-
-            <div className="space-y-8">
+        <section className="pt-16 pb-32 px-6 md:px-12 bg-white dark:bg-charcoal flex flex-col items-center justify-center transition-colors duration-300">
+            <div className="space-y-8 text-center max-w-4xl">
                 <div className="space-y-2">
                     <span className="text-gold-500 text-xs tracking-[0.4em] uppercase font-semibold">THE MAESTRO</span>
                     <h2 className="text-4xl md:text-5xl lg:text-6xl text-stone-900 dark:text-alabaster leading-tight transition-colors duration-300 font-serif">
@@ -82,8 +68,8 @@ const Authority = () => {
                     This is not a course; it is a transfer of mastery."
                 </p>
 
-                <div className="pt-12 border-t border-stone-100 dark:border-white/5">
-                    <div className="flex flex-wrap gap-8 items-center opacity-30 grayscale pointer-events-none dark:invert-0 invert transition-all duration-300 font-serif">
+                <div className="pt-12 border-t border-stone-100 dark:border-white/5 mx-auto w-full">
+                    <div className="flex flex-wrap gap-8 items-center justify-center opacity-30 grayscale pointer-events-none dark:invert-0 invert transition-all duration-300 font-serif">
                         <span className="text-xl font-bold tracking-widest">SONY MUSIC</span>
                         <span className="text-xl font-bold tracking-widest">BERKLEE</span>
                         <span className="text-xl font-bold tracking-widest">STEINWAY</span>
@@ -196,7 +182,7 @@ const Pricing = () => {
                             ))}
                         </ul>
 
-                        <Link href="/signup" className={`w-full py-4 uppercase tracking-[0.2em] font-sans text-xs font-bold transition-all text-center ${tier.gold ? 'bg-gold-500 text-charcoal rounded-xs hover:bg-gold-500/90' : 'border border-stone-200 dark:border-white/20 text-stone-900 dark:text-alabaster hover:bg-stone-50 dark:hover:bg-white/5 rounded-xs transition-colors duration-300'}`}>
+                        <Link href="/onboarding" className={`w-full py-4 uppercase tracking-[0.2em] font-sans text-xs font-bold transition-all text-center ${tier.gold ? 'bg-gold-500 text-charcoal rounded-xs hover:bg-gold-500/90' : 'border border-stone-200 dark:border-white/20 text-stone-900 dark:text-alabaster hover:bg-stone-50 dark:hover:bg-white/5 rounded-xs transition-colors duration-300'}`}>
                             Select {tier.name}
                         </Link>
                     </motion.div>
@@ -206,10 +192,128 @@ const Pricing = () => {
     );
 };
 
+const CurriculumOverview = () => {
+    const pillars = [
+        {
+            title: "Fundamentals",
+            description: "\"I spent 40 years on global stages so you can learn the secrets in months. This is not a course; it is a transfer of mastery.\"",
+            image: "/assets/pillar_1.png"
+        },
+        {
+            title: "Playing instruments",
+            description: "\"I spent 40 years on global stages so you can learn the secrets in months. This is not a course; it is a transfer of mastery.\"",
+            image: "/assets/pillar_2.png"
+        },
+        {
+            title: "Produce music",
+            description: "\"I spent 40 years on global stages so you can learn the secrets in months. This is not a course; it is a transfer of mastery.\"",
+            image: "/assets/pillar_4.png"
+        },
+        {
+            title: "Learn to sing",
+            description: "\"I spent 40 years on global stages so you can learn the secrets in months. This is not a course; it is a transfer of mastery.\"",
+            image: "/assets/pillar_3.png"
+        },
+        {
+            title: "Musician mindset",
+            description: "\"I spent 40 years on global stages so you can learn the secrets in months. This is not a course; it is a transfer of mastery.\"",
+            image: "/assets/pillar_5.png"
+        }
+    ];
+
+    return (
+        <section className="relative bg-white dark:bg-[#050505] transition-colors duration-300">
+            {/* Sticky Scroll Indicator / Central Axis */}
+            <div className="sticky top-1/2 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex justify-center h-0">
+                <div className="w-[2px] h-40 bg-gradient-to-b from-transparent via-gold-500 to-transparent" />
+            </div>
+
+            <div className="max-w-7xl mx-auto px-6 pt-6 pb-[12vh] flex flex-col items-center">
+                <div className="w-full">
+                    {pillars.map((pillar, idx) => (
+                        <PillarCard key={idx} pillar={pillar} index={idx} total={pillars.length} />
+                    ))}
+                </div>
+            </div>
+        </section >
+    );
+};
+
+const PillarCard = ({ pillar, index, total }: { pillar: any, index: number, total: number }) => {
+    const containerRef = useRef(null);
+
+    // We want to track the scroll progress of THIS card's container
+    // "start start" means when the top of the container hits the top of the viewport
+    // "end start" means when the bottom of the container hits the the top of the viewport
+    const { scrollYProgress } = useScroll({
+        target: containerRef,
+        offset: ["start start", "end start"]
+    });
+
+    // Each card scales down slightly as it's passed by the scroll. 
+    // The LAST card should stay fully opaque/scaled to cover the stack.
+    const isLast = index === total - 1;
+    const targetScale = 0.9 + (index * 0.01);
+
+    const scale = useTransform(scrollYProgress, [0, 1], [1, isLast ? 1 : targetScale]);
+    const opacity = useTransform(scrollYProgress, [0, 1], [1, isLast ? 1 : 0.7]);
+
+    return (
+        <div
+            ref={containerRef}
+            className="h-[30rem] sticky top-0 flex items-start justify-center pt-8"
+            style={{
+                zIndex: index,
+                top: `${100 + index * 12}px`, // Stacking offset + navbar spacing
+            }}
+        >
+            <motion.div
+                style={{
+                    scale,
+                    opacity,
+                    width: '100%',
+                    maxWidth: '100%',
+                }}
+                className="relative bg-[#121212] rounded-none overflow-hidden border border-white/5 transition-shadow duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+            >
+                <div className="flex flex-col md:flex-row items-center">
+                    <div className="flex-1 p-8 md:p-12 space-y-6">
+                        <div className="flex items-center gap-4">
+                            <span className="text-gold-500/30 font-mono text-xs tracking-widest uppercase">0{index + 1}</span>
+                            <div className="h-px w-10 bg-gold-500/10" />
+                        </div>
+                        <h3 className="text-3xl md:text-5xl font-serif text-white tracking-tight transition-colors duration-500">
+                            {pillar.title}
+                        </h3>
+                        <p className="text-white/40 text-sm md:text-lg font-sans font-light leading-relaxed max-w-sm">
+                            {pillar.description}
+                        </p>
+                    </div>
+                    <div className="w-full md:w-1/2 aspect-square md:aspect-auto md:h-[480px] relative flex items-center justify-center p-8 overflow-hidden">
+                        <motion.div
+                            className="relative w-full h-full"
+                        >
+                            <Image
+                                src={pillar.image}
+                                alt={pillar.title}
+                                fill
+                                className="object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.7)]"
+                            />
+                        </motion.div>
+                    </div>
+                </div>
+
+                <div className="absolute inset-0 bg-white/[0.01] pointer-events-none" />
+            </motion.div>
+        </div>
+    );
+};
+
 export default function HomePage() {
     return (
-        <div className="overflow-hidden bg-white dark:bg-charcoal">
+        <div className="overflow-x-clip bg-white dark:bg-charcoal">
             <Hero />
+            <CurriculumOverview />
             <Authority />
             <VisualMethod />
             <Journey />
@@ -217,3 +321,4 @@ export default function HomePage() {
         </div>
     );
 }
+
