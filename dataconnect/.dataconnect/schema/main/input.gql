@@ -1,0 +1,2740 @@
+"""
+✨ `InstrumentType_Expr` is a server value variant of enum type `InstrumentType`.
+
+It accepts a CEL expression.
+"""
+scalar InstrumentType_Expr
+"""
+✨ `Lesson_KeyOutput` returns the primary key fields of table type `Lesson`.
+
+It has the same format as `Lesson_Key`, but is only used as mutation return value.
+"""
+scalar Lesson_KeyOutput
+"""
+✨ `LessonPrerequisite_KeyOutput` returns the primary key fields of table type `LessonPrerequisite`.
+
+It has the same format as `LessonPrerequisite_Key`, but is only used as mutation return value.
+"""
+scalar LessonPrerequisite_KeyOutput
+"""
+✨ `MaestroNote_KeyOutput` returns the primary key fields of table type `MaestroNote`.
+
+It has the same format as `MaestroNote_Key`, but is only used as mutation return value.
+"""
+scalar MaestroNote_KeyOutput
+"""
+✨ `Movement_KeyOutput` returns the primary key fields of table type `Movement`.
+
+It has the same format as `Movement_Key`, but is only used as mutation return value.
+"""
+scalar Movement_KeyOutput
+"""
+✨ `NoteType_Expr` is a server value variant of enum type `NoteType`.
+
+It accepts a CEL expression.
+"""
+scalar NoteType_Expr
+"""
+✨ `ProgressStatus_Expr` is a server value variant of enum type `ProgressStatus`.
+
+It accepts a CEL expression.
+"""
+scalar ProgressStatus_Expr
+"""
+✨ `ReactionType_Expr` is a server value variant of enum type `ReactionType`.
+
+It accepts a CEL expression.
+"""
+scalar ReactionType_Expr
+"""
+✨ `RecitalReaction_KeyOutput` returns the primary key fields of table type `RecitalReaction`.
+
+It has the same format as `RecitalReaction_Key`, but is only used as mutation return value.
+"""
+scalar RecitalReaction_KeyOutput
+"""
+✨ `RepertoireItem_KeyOutput` returns the primary key fields of table type `RepertoireItem`.
+
+It has the same format as `RepertoireItem_Key`, but is only used as mutation return value.
+"""
+scalar RepertoireItem_KeyOutput
+"""
+✨ `User_KeyOutput` returns the primary key fields of table type `User`.
+
+It has the same format as `User_Key`, but is only used as mutation return value.
+"""
+scalar User_KeyOutput
+"""
+✨ `UserLessonProgress_KeyOutput` returns the primary key fields of table type `UserLessonProgress`.
+
+It has the same format as `UserLessonProgress_Key`, but is only used as mutation return value.
+"""
+scalar UserLessonProgress_KeyOutput
+"""
+✨ Generated filter input type for table 'InstrumentType'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input InstrumentType_Filter {
+  """
+  Match if field is exactly equal to provided value.
+  """
+  eq: InstrumentType
+  """
+  ✨ `_expr` server value variant of `eq` (Match if field is exactly equal to provided value.)
+  """
+  eq_expr: InstrumentType_Expr
+  """
+  Match if field is not equal to provided value.
+  """
+  ne: InstrumentType
+  """
+  ✨ `_expr` server value variant of `ne` (Match if field is not equal to provided value.)
+  """
+  ne_expr: InstrumentType_Expr
+  """
+  When true, match if field `IS NULL`. When false, match if field is `NOT NULL`.
+  """
+  isNull: Boolean
+  """
+  Match if field value is among the provided list of values.
+  """
+  in: [InstrumentType!]
+  """
+  Match if field value is not among the provided list of values.
+  """
+  nin: [InstrumentType!]
+  """
+  Match if field value is greater than the provided value, based on index ordering of supported enum values.
+  """
+  gt: InstrumentType
+  """
+  ✨ `_expr` server value variant of `gt` (Match if field value is greater than the provided value, based on index ordering of supported enum values.)
+  """
+  gt_expr: InstrumentType_Expr
+  """
+  Match if field is greater than or equal to the provided value.
+  """
+  ge: InstrumentType
+  """
+  ✨ `_expr` server value variant of `ge` (Match if field is greater than or equal to the provided value.)
+  """
+  ge_expr: InstrumentType_Expr
+  """
+  Match if field value is less than the provided value, based on index ordering of supported enum values.
+  """
+  lt: InstrumentType
+  """
+  ✨ `_expr` server value variant of `lt` (Match if field value is less than the provided value, based on index ordering of supported enum values.)
+  """
+  lt_expr: InstrumentType_Expr
+  """
+  Match if field is less than or equal to the provided value, based on index ordering of supported enum values.
+  """
+  le: InstrumentType
+  """
+  ✨ `_expr` server value variant of `le` (Match if field is less than or equal to the provided value, based on index ordering of supported enum values.)
+  """
+  le_expr: InstrumentType_Expr
+}
+"""
+✨ Generated list filter input type for table 'InstrumentType'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input InstrumentType_ListFilter {
+  """
+  Match if list field contains the provided value as a member.
+  """
+  includes: InstrumentType
+  """
+  ✨ `_expr` server value variant of `includes` (Match if list field contains the provided value as a member.)
+  """
+  includes_expr: InstrumentType_Expr
+  """
+  Match if list field contains all of the provided values as members.
+  """
+  includesAll: [InstrumentType!]
+  """
+  Match if list field does not contain the provided value as a member.
+  """
+  excludes: InstrumentType
+  """
+  ✨ `_expr` server value variant of `excludes` (Match if list field does not contain the provided value as a member.)
+  """
+  excludes_expr: InstrumentType_Expr
+  """
+  Match if list field does not contain any of the provided values as members.
+  """
+  excludesAll: [InstrumentType!]
+  """
+  The desired number of enum values that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: InstrumentType_Filter
+}
+"""
+✨ Generated data input type for table 'Lesson'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Lesson_Data {
+  """
+  ✨ Generated from Field `Lesson`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Lesson`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Lesson`.`movementId` of type `UUID!`
+  """
+  movementId: UUID
+  """
+  ✨ `_expr` server value variant of `movementId` (✨ Generated from Field `Lesson`.`movementId` of type `UUID!`)
+  """
+  movementId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Lesson`.`movement` of type `Movement!`
+  """
+  movement: Movement_Key
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds` of type `Int!`
+  """
+  durationSeconds: Int
+  """
+  ✨ `_expr` server value variant of `durationSeconds` (✨ Generated from Field `Lesson`.`durationSeconds` of type `Int!`)
+  """
+  durationSeconds_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `durationSeconds` (✨ Generated from Field `Lesson`.`durationSeconds` of type `Int!`)
+  """
+  durationSeconds_update: [Int_Update!]
+  """
+  ✨ Generated from Field `Lesson`.`midiDataUrl` of type `String`
+  """
+  midiDataUrl: String
+  """
+  ✨ `_expr` server value variant of `midiDataUrl` (✨ Generated from Field `Lesson`.`midiDataUrl` of type `String`)
+  """
+  midiDataUrl_expr: String_Expr
+  """
+  ✨ Generated from Field `Lesson`.`order` of type `Int!`
+  """
+  order: Int
+  """
+  ✨ `_expr` server value variant of `order` (✨ Generated from Field `Lesson`.`order` of type `Int!`)
+  """
+  order_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `order` (✨ Generated from Field `Lesson`.`order` of type `Int!`)
+  """
+  order_update: [Int_Update!]
+  """
+  ✨ Generated from Field `Lesson`.`title` of type `String!`
+  """
+  title: String
+  """
+  ✨ `_expr` server value variant of `title` (✨ Generated from Field `Lesson`.`title` of type `String!`)
+  """
+  title_expr: String_Expr
+  """
+  ✨ Generated from Field `Lesson`.`videoUrl` of type `String!`
+  """
+  videoUrl: String
+  """
+  ✨ `_expr` server value variant of `videoUrl` (✨ Generated from Field `Lesson`.`videoUrl` of type `String!`)
+  """
+  videoUrl_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'Lesson'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Lesson_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Lesson_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Lesson_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Lesson_Filter!]
+  """
+  ✨ Generated from Field `Lesson`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Lesson`.`movementId` of type `UUID!`
+  """
+  movementId: UUID_Filter
+  """
+  ✨ Generated from Field `Lesson`.`movement` of type `Movement!`
+  """
+  movement: Movement_Filter
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds` of type `Int!`
+  """
+  durationSeconds: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`midiDataUrl` of type `String`
+  """
+  midiDataUrl: String_Filter
+  """
+  ✨ Generated from Field `Lesson`.`order` of type `Int!`
+  """
+  order: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`title` of type `String!`
+  """
+  title: String_Filter
+  """
+  ✨ Generated from Field `Lesson`.`videoUrl` of type `String!`
+  """
+  videoUrl: String_Filter
+  """
+  ✨ Generated from Field `Lesson`.`lessonPrerequisites_on_lesson` of type `[LessonPrerequisite!]!`
+  """
+  lessonPrerequisites_on_lesson: LessonPrerequisite_ListFilter
+  """
+  ✨ Generated from Field `Lesson`.`lessonPrerequisites_on_prerequisite` of type `[LessonPrerequisite!]!`
+  """
+  lessonPrerequisites_on_prerequisite: LessonPrerequisite_ListFilter
+  """
+  ✨ Generated from Field `Lesson`.`maestroNotes_on_lesson` of type `[MaestroNote!]!`
+  """
+  maestroNotes_on_lesson: MaestroNote_ListFilter
+  """
+  ✨ Generated from Field `Lesson`.`repertoireItems_on_lesson` of type `[RepertoireItem!]!`
+  """
+  repertoireItems_on_lesson: RepertoireItem_ListFilter
+  """
+  ✨ Generated from Field `Lesson`.`userLessonProgresses_on_lesson` of type `[UserLessonProgress!]!`
+  """
+  userLessonProgresses_on_lesson: UserLessonProgress_ListFilter
+  """
+  ✨ Generated from Field `Lesson`.`lessons_via_LessonPrerequisite_on_lesson` of type `[Lesson!]!`
+  """
+  lessons_via_LessonPrerequisite_on_lesson: Lesson_ListFilter
+  """
+  ✨ Generated from Field `Lesson`.`lessons_via_LessonPrerequisite_on_prerequisite` of type `[Lesson!]!`
+  """
+  lessons_via_LessonPrerequisite_on_prerequisite: Lesson_ListFilter
+  """
+  ✨ Generated from Field `Lesson`.`users_via_UserLessonProgress` of type `[User!]!`
+  """
+  users_via_UserLessonProgress: User_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'Lesson'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Lesson_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Lesson_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Lesson_Filter
+}
+"""
+✨ Generated having input type for table 'Lesson'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Lesson_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Lesson_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Lesson_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Lesson_Having!]
+  """
+  ✨ Generated from Field `Lesson`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds_count` of type `Int!`
+  """
+  durationSeconds_count: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`midiDataUrl_count` of type `Int!`
+  """
+  midiDataUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`movementId_count` of type `Int!`
+  """
+  movementId_count: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`order_count` of type `Int!`
+  """
+  order_count: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`title_count` of type `Int!`
+  """
+  title_count: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`videoUrl_count` of type `Int!`
+  """
+  videoUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds_sum` of type `Int`
+  """
+  durationSeconds_sum: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`order_sum` of type `Int`
+  """
+  order_sum: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds_avg` of type `Float`
+  """
+  durationSeconds_avg: Float_Filter
+  """
+  ✨ Generated from Field `Lesson`.`order_avg` of type `Float`
+  """
+  order_avg: Float_Filter
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds_min` of type `Int`
+  """
+  durationSeconds_min: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`order_min` of type `Int`
+  """
+  order_min: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds_max` of type `Int`
+  """
+  durationSeconds_max: Int_Filter
+  """
+  ✨ Generated from Field `Lesson`.`order_max` of type `Int`
+  """
+  order_max: Int_Filter
+}
+"""
+✨ Generated key input type for table 'Lesson'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Lesson_Key {
+  """
+  ✨ Generated from Field `Lesson`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Lesson`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'Lesson'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Lesson_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Lesson_Filter
+}
+"""
+✨ Generated order input type for table 'Lesson'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Lesson_Order {
+  """
+  ✨ Generated from Field `Lesson`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`movementId` of type `UUID!`
+  """
+  movementId: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`movement` of type `Movement!`
+  """
+  movement: Movement_Order
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds` of type `Int!`
+  """
+  durationSeconds: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`midiDataUrl` of type `String`
+  """
+  midiDataUrl: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`order` of type `Int!`
+  """
+  order: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`title` of type `String!`
+  """
+  title: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`videoUrl` of type `String!`
+  """
+  videoUrl: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds_count` of type `Int!`
+  """
+  durationSeconds_count: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`midiDataUrl_count` of type `Int!`
+  """
+  midiDataUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`movementId_count` of type `Int!`
+  """
+  movementId_count: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`order_count` of type `Int!`
+  """
+  order_count: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`title_count` of type `Int!`
+  """
+  title_count: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`videoUrl_count` of type `Int!`
+  """
+  videoUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds_sum` of type `Int`
+  """
+  durationSeconds_sum: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`order_sum` of type `Int`
+  """
+  order_sum: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds_avg` of type `Float`
+  """
+  durationSeconds_avg: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`order_avg` of type `Float`
+  """
+  order_avg: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds_min` of type `Int`
+  """
+  durationSeconds_min: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`order_min` of type `Int`
+  """
+  order_min: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`durationSeconds_max` of type `Int`
+  """
+  durationSeconds_max: OrderDirection
+  """
+  ✨ Generated from Field `Lesson`.`order_max` of type `Int`
+  """
+  order_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'LessonPrerequisite'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input LessonPrerequisite_Data {
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`lessonId` of type `UUID!`
+  """
+  lessonId: UUID
+  """
+  ✨ `_expr` server value variant of `lessonId` (✨ Generated from Field `LessonPrerequisite`.`lessonId` of type `UUID!`)
+  """
+  lessonId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`prerequisiteId` of type `UUID!`
+  """
+  prerequisiteId: UUID
+  """
+  ✨ `_expr` server value variant of `prerequisiteId` (✨ Generated from Field `LessonPrerequisite`.`prerequisiteId` of type `UUID!`)
+  """
+  prerequisiteId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Key
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`prerequisite` of type `Lesson!`
+  """
+  prerequisite: Lesson_Key
+}
+"""
+✨ Generated filter input type for table 'LessonPrerequisite'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input LessonPrerequisite_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [LessonPrerequisite_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: LessonPrerequisite_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [LessonPrerequisite_Filter!]
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`lessonId` of type `UUID!`
+  """
+  lessonId: UUID_Filter
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`prerequisiteId` of type `UUID!`
+  """
+  prerequisiteId: UUID_Filter
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Filter
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`prerequisite` of type `Lesson!`
+  """
+  prerequisite: Lesson_Filter
+}
+"""
+✨ Generated first-row input type for table 'LessonPrerequisite'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input LessonPrerequisite_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [LessonPrerequisite_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: LessonPrerequisite_Filter
+}
+"""
+✨ Generated having input type for table 'LessonPrerequisite'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input LessonPrerequisite_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [LessonPrerequisite_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: LessonPrerequisite_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [LessonPrerequisite_Having!]
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`lessonId_count` of type `Int!`
+  """
+  lessonId_count: Int_Filter
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`prerequisiteId_count` of type `Int!`
+  """
+  prerequisiteId_count: Int_Filter
+}
+"""
+✨ Generated key input type for table 'LessonPrerequisite'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input LessonPrerequisite_Key {
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`lessonId` of type `UUID!`
+  """
+  lessonId: UUID
+  """
+  ✨ `_expr` server value variant of `lessonId` (✨ Generated from Field `LessonPrerequisite`.`lessonId` of type `UUID!`)
+  """
+  lessonId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`prerequisiteId` of type `UUID!`
+  """
+  prerequisiteId: UUID
+  """
+  ✨ `_expr` server value variant of `prerequisiteId` (✨ Generated from Field `LessonPrerequisite`.`prerequisiteId` of type `UUID!`)
+  """
+  prerequisiteId_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'LessonPrerequisite'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input LessonPrerequisite_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: LessonPrerequisite_Filter
+}
+"""
+✨ Generated order input type for table 'LessonPrerequisite'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input LessonPrerequisite_Order {
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`lessonId` of type `UUID!`
+  """
+  lessonId: OrderDirection
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`prerequisiteId` of type `UUID!`
+  """
+  prerequisiteId: OrderDirection
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Order
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`prerequisite` of type `Lesson!`
+  """
+  prerequisite: Lesson_Order
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`lessonId_count` of type `Int!`
+  """
+  lessonId_count: OrderDirection
+  """
+  ✨ Generated from Field `LessonPrerequisite`.`prerequisiteId_count` of type `Int!`
+  """
+  prerequisiteId_count: OrderDirection
+}
+"""
+✨ Generated data input type for table 'MaestroNote'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input MaestroNote_Data {
+  """
+  ✨ Generated from Field `MaestroNote`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `MaestroNote`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `MaestroNote`.`lessonId` of type `UUID!`
+  """
+  lessonId: UUID
+  """
+  ✨ `_expr` server value variant of `lessonId` (✨ Generated from Field `MaestroNote`.`lessonId` of type `UUID!`)
+  """
+  lessonId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `MaestroNote`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Key
+  """
+  ✨ Generated from Field `MaestroNote`.`content` of type `String!`
+  """
+  content: String
+  """
+  ✨ `_expr` server value variant of `content` (✨ Generated from Field `MaestroNote`.`content` of type `String!`)
+  """
+  content_expr: String_Expr
+  """
+  ✨ Generated from Field `MaestroNote`.`noteType` of type `NoteType!`
+  """
+  noteType: NoteType
+  """
+  ✨ `_expr` server value variant of `noteType` (✨ Generated from Field `MaestroNote`.`noteType` of type `NoteType!`)
+  """
+  noteType_expr: NoteType_Expr
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds` of type `Int!`
+  """
+  timestampSeconds: Int
+  """
+  ✨ `_expr` server value variant of `timestampSeconds` (✨ Generated from Field `MaestroNote`.`timestampSeconds` of type `Int!`)
+  """
+  timestampSeconds_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `timestampSeconds` (✨ Generated from Field `MaestroNote`.`timestampSeconds` of type `Int!`)
+  """
+  timestampSeconds_update: [Int_Update!]
+}
+"""
+✨ Generated filter input type for table 'MaestroNote'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input MaestroNote_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [MaestroNote_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: MaestroNote_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [MaestroNote_Filter!]
+  """
+  ✨ Generated from Field `MaestroNote`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`lessonId` of type `UUID!`
+  """
+  lessonId: UUID_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`content` of type `String!`
+  """
+  content: String_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`noteType` of type `NoteType!`
+  """
+  noteType: NoteType_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds` of type `Int!`
+  """
+  timestampSeconds: Int_Filter
+}
+"""
+✨ Generated first-row input type for table 'MaestroNote'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input MaestroNote_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [MaestroNote_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: MaestroNote_Filter
+}
+"""
+✨ Generated having input type for table 'MaestroNote'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input MaestroNote_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [MaestroNote_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: MaestroNote_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [MaestroNote_Having!]
+  """
+  ✨ Generated from Field `MaestroNote`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`content_count` of type `Int!`
+  """
+  content_count: Int_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`lessonId_count` of type `Int!`
+  """
+  lessonId_count: Int_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`noteType_count` of type `Int!`
+  """
+  noteType_count: Int_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds_count` of type `Int!`
+  """
+  timestampSeconds_count: Int_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds_sum` of type `Int`
+  """
+  timestampSeconds_sum: Int_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds_avg` of type `Float`
+  """
+  timestampSeconds_avg: Float_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds_min` of type `Int`
+  """
+  timestampSeconds_min: Int_Filter
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds_max` of type `Int`
+  """
+  timestampSeconds_max: Int_Filter
+}
+"""
+✨ Generated key input type for table 'MaestroNote'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input MaestroNote_Key {
+  """
+  ✨ Generated from Field `MaestroNote`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `MaestroNote`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'MaestroNote'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input MaestroNote_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: MaestroNote_Filter
+}
+"""
+✨ Generated order input type for table 'MaestroNote'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input MaestroNote_Order {
+  """
+  ✨ Generated from Field `MaestroNote`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`lessonId` of type `UUID!`
+  """
+  lessonId: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Order
+  """
+  ✨ Generated from Field `MaestroNote`.`content` of type `String!`
+  """
+  content: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`noteType` of type `NoteType!`
+  """
+  noteType: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds` of type `Int!`
+  """
+  timestampSeconds: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`content_count` of type `Int!`
+  """
+  content_count: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`lessonId_count` of type `Int!`
+  """
+  lessonId_count: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`noteType_count` of type `Int!`
+  """
+  noteType_count: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds_count` of type `Int!`
+  """
+  timestampSeconds_count: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds_sum` of type `Int`
+  """
+  timestampSeconds_sum: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds_avg` of type `Float`
+  """
+  timestampSeconds_avg: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds_min` of type `Int`
+  """
+  timestampSeconds_min: OrderDirection
+  """
+  ✨ Generated from Field `MaestroNote`.`timestampSeconds_max` of type `Int`
+  """
+  timestampSeconds_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Movement'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Movement_Data {
+  """
+  ✨ Generated from Field `Movement`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Movement`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Movement`.`description` of type `String`
+  """
+  description: String
+  """
+  ✨ `_expr` server value variant of `description` (✨ Generated from Field `Movement`.`description` of type `String`)
+  """
+  description_expr: String_Expr
+  """
+  ✨ Generated from Field `Movement`.`order` of type `Int!`
+  """
+  order: Int
+  """
+  ✨ `_expr` server value variant of `order` (✨ Generated from Field `Movement`.`order` of type `Int!`)
+  """
+  order_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `order` (✨ Generated from Field `Movement`.`order` of type `Int!`)
+  """
+  order_update: [Int_Update!]
+  """
+  ✨ Generated from Field `Movement`.`title` of type `String!`
+  """
+  title: String
+  """
+  ✨ `_expr` server value variant of `title` (✨ Generated from Field `Movement`.`title` of type `String!`)
+  """
+  title_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'Movement'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Movement_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Movement_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Movement_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Movement_Filter!]
+  """
+  ✨ Generated from Field `Movement`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Movement`.`description` of type `String`
+  """
+  description: String_Filter
+  """
+  ✨ Generated from Field `Movement`.`order` of type `Int!`
+  """
+  order: Int_Filter
+  """
+  ✨ Generated from Field `Movement`.`title` of type `String!`
+  """
+  title: String_Filter
+  """
+  ✨ Generated from Field `Movement`.`lessons_on_movement` of type `[Lesson!]!`
+  """
+  lessons_on_movement: Lesson_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'Movement'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Movement_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Movement_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Movement_Filter
+}
+"""
+✨ Generated having input type for table 'Movement'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Movement_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Movement_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Movement_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Movement_Having!]
+  """
+  ✨ Generated from Field `Movement`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Movement`.`description_count` of type `Int!`
+  """
+  description_count: Int_Filter
+  """
+  ✨ Generated from Field `Movement`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Movement`.`order_count` of type `Int!`
+  """
+  order_count: Int_Filter
+  """
+  ✨ Generated from Field `Movement`.`title_count` of type `Int!`
+  """
+  title_count: Int_Filter
+  """
+  ✨ Generated from Field `Movement`.`order_sum` of type `Int`
+  """
+  order_sum: Int_Filter
+  """
+  ✨ Generated from Field `Movement`.`order_avg` of type `Float`
+  """
+  order_avg: Float_Filter
+  """
+  ✨ Generated from Field `Movement`.`order_min` of type `Int`
+  """
+  order_min: Int_Filter
+  """
+  ✨ Generated from Field `Movement`.`order_max` of type `Int`
+  """
+  order_max: Int_Filter
+}
+"""
+✨ Generated key input type for table 'Movement'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Movement_Key {
+  """
+  ✨ Generated from Field `Movement`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Movement`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'Movement'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Movement_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Movement_Filter
+}
+"""
+✨ Generated order input type for table 'Movement'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Movement_Order {
+  """
+  ✨ Generated from Field `Movement`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`description` of type `String`
+  """
+  description: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`order` of type `Int!`
+  """
+  order: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`title` of type `String!`
+  """
+  title: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`description_count` of type `Int!`
+  """
+  description_count: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`order_count` of type `Int!`
+  """
+  order_count: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`title_count` of type `Int!`
+  """
+  title_count: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`order_sum` of type `Int`
+  """
+  order_sum: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`order_avg` of type `Float`
+  """
+  order_avg: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`order_min` of type `Int`
+  """
+  order_min: OrderDirection
+  """
+  ✨ Generated from Field `Movement`.`order_max` of type `Int`
+  """
+  order_max: OrderDirection
+}
+"""
+✨ Generated filter input type for table 'NoteType'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input NoteType_Filter {
+  """
+  Match if field is exactly equal to provided value.
+  """
+  eq: NoteType
+  """
+  ✨ `_expr` server value variant of `eq` (Match if field is exactly equal to provided value.)
+  """
+  eq_expr: NoteType_Expr
+  """
+  Match if field is not equal to provided value.
+  """
+  ne: NoteType
+  """
+  ✨ `_expr` server value variant of `ne` (Match if field is not equal to provided value.)
+  """
+  ne_expr: NoteType_Expr
+  """
+  When true, match if field `IS NULL`. When false, match if field is `NOT NULL`.
+  """
+  isNull: Boolean
+  """
+  Match if field value is among the provided list of values.
+  """
+  in: [NoteType!]
+  """
+  Match if field value is not among the provided list of values.
+  """
+  nin: [NoteType!]
+  """
+  Match if field value is greater than the provided value, based on index ordering of supported enum values.
+  """
+  gt: NoteType
+  """
+  ✨ `_expr` server value variant of `gt` (Match if field value is greater than the provided value, based on index ordering of supported enum values.)
+  """
+  gt_expr: NoteType_Expr
+  """
+  Match if field is greater than or equal to the provided value.
+  """
+  ge: NoteType
+  """
+  ✨ `_expr` server value variant of `ge` (Match if field is greater than or equal to the provided value.)
+  """
+  ge_expr: NoteType_Expr
+  """
+  Match if field value is less than the provided value, based on index ordering of supported enum values.
+  """
+  lt: NoteType
+  """
+  ✨ `_expr` server value variant of `lt` (Match if field value is less than the provided value, based on index ordering of supported enum values.)
+  """
+  lt_expr: NoteType_Expr
+  """
+  Match if field is less than or equal to the provided value, based on index ordering of supported enum values.
+  """
+  le: NoteType
+  """
+  ✨ `_expr` server value variant of `le` (Match if field is less than or equal to the provided value, based on index ordering of supported enum values.)
+  """
+  le_expr: NoteType_Expr
+}
+"""
+✨ Generated list filter input type for table 'NoteType'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input NoteType_ListFilter {
+  """
+  Match if list field contains the provided value as a member.
+  """
+  includes: NoteType
+  """
+  ✨ `_expr` server value variant of `includes` (Match if list field contains the provided value as a member.)
+  """
+  includes_expr: NoteType_Expr
+  """
+  Match if list field contains all of the provided values as members.
+  """
+  includesAll: [NoteType!]
+  """
+  Match if list field does not contain the provided value as a member.
+  """
+  excludes: NoteType
+  """
+  ✨ `_expr` server value variant of `excludes` (Match if list field does not contain the provided value as a member.)
+  """
+  excludes_expr: NoteType_Expr
+  """
+  Match if list field does not contain any of the provided values as members.
+  """
+  excludesAll: [NoteType!]
+  """
+  The desired number of enum values that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: NoteType_Filter
+}
+"""
+✨ Generated filter input type for table 'ProgressStatus'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input ProgressStatus_Filter {
+  """
+  Match if field is exactly equal to provided value.
+  """
+  eq: ProgressStatus
+  """
+  ✨ `_expr` server value variant of `eq` (Match if field is exactly equal to provided value.)
+  """
+  eq_expr: ProgressStatus_Expr
+  """
+  Match if field is not equal to provided value.
+  """
+  ne: ProgressStatus
+  """
+  ✨ `_expr` server value variant of `ne` (Match if field is not equal to provided value.)
+  """
+  ne_expr: ProgressStatus_Expr
+  """
+  When true, match if field `IS NULL`. When false, match if field is `NOT NULL`.
+  """
+  isNull: Boolean
+  """
+  Match if field value is among the provided list of values.
+  """
+  in: [ProgressStatus!]
+  """
+  Match if field value is not among the provided list of values.
+  """
+  nin: [ProgressStatus!]
+  """
+  Match if field value is greater than the provided value, based on index ordering of supported enum values.
+  """
+  gt: ProgressStatus
+  """
+  ✨ `_expr` server value variant of `gt` (Match if field value is greater than the provided value, based on index ordering of supported enum values.)
+  """
+  gt_expr: ProgressStatus_Expr
+  """
+  Match if field is greater than or equal to the provided value.
+  """
+  ge: ProgressStatus
+  """
+  ✨ `_expr` server value variant of `ge` (Match if field is greater than or equal to the provided value.)
+  """
+  ge_expr: ProgressStatus_Expr
+  """
+  Match if field value is less than the provided value, based on index ordering of supported enum values.
+  """
+  lt: ProgressStatus
+  """
+  ✨ `_expr` server value variant of `lt` (Match if field value is less than the provided value, based on index ordering of supported enum values.)
+  """
+  lt_expr: ProgressStatus_Expr
+  """
+  Match if field is less than or equal to the provided value, based on index ordering of supported enum values.
+  """
+  le: ProgressStatus
+  """
+  ✨ `_expr` server value variant of `le` (Match if field is less than or equal to the provided value, based on index ordering of supported enum values.)
+  """
+  le_expr: ProgressStatus_Expr
+}
+"""
+✨ Generated list filter input type for table 'ProgressStatus'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input ProgressStatus_ListFilter {
+  """
+  Match if list field contains the provided value as a member.
+  """
+  includes: ProgressStatus
+  """
+  ✨ `_expr` server value variant of `includes` (Match if list field contains the provided value as a member.)
+  """
+  includes_expr: ProgressStatus_Expr
+  """
+  Match if list field contains all of the provided values as members.
+  """
+  includesAll: [ProgressStatus!]
+  """
+  Match if list field does not contain the provided value as a member.
+  """
+  excludes: ProgressStatus
+  """
+  ✨ `_expr` server value variant of `excludes` (Match if list field does not contain the provided value as a member.)
+  """
+  excludes_expr: ProgressStatus_Expr
+  """
+  Match if list field does not contain any of the provided values as members.
+  """
+  excludesAll: [ProgressStatus!]
+  """
+  The desired number of enum values that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: ProgressStatus_Filter
+}
+"""
+✨ Generated filter input type for table 'ReactionType'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input ReactionType_Filter {
+  """
+  Match if field is exactly equal to provided value.
+  """
+  eq: ReactionType
+  """
+  ✨ `_expr` server value variant of `eq` (Match if field is exactly equal to provided value.)
+  """
+  eq_expr: ReactionType_Expr
+  """
+  Match if field is not equal to provided value.
+  """
+  ne: ReactionType
+  """
+  ✨ `_expr` server value variant of `ne` (Match if field is not equal to provided value.)
+  """
+  ne_expr: ReactionType_Expr
+  """
+  When true, match if field `IS NULL`. When false, match if field is `NOT NULL`.
+  """
+  isNull: Boolean
+  """
+  Match if field value is among the provided list of values.
+  """
+  in: [ReactionType!]
+  """
+  Match if field value is not among the provided list of values.
+  """
+  nin: [ReactionType!]
+  """
+  Match if field value is greater than the provided value, based on index ordering of supported enum values.
+  """
+  gt: ReactionType
+  """
+  ✨ `_expr` server value variant of `gt` (Match if field value is greater than the provided value, based on index ordering of supported enum values.)
+  """
+  gt_expr: ReactionType_Expr
+  """
+  Match if field is greater than or equal to the provided value.
+  """
+  ge: ReactionType
+  """
+  ✨ `_expr` server value variant of `ge` (Match if field is greater than or equal to the provided value.)
+  """
+  ge_expr: ReactionType_Expr
+  """
+  Match if field value is less than the provided value, based on index ordering of supported enum values.
+  """
+  lt: ReactionType
+  """
+  ✨ `_expr` server value variant of `lt` (Match if field value is less than the provided value, based on index ordering of supported enum values.)
+  """
+  lt_expr: ReactionType_Expr
+  """
+  Match if field is less than or equal to the provided value, based on index ordering of supported enum values.
+  """
+  le: ReactionType
+  """
+  ✨ `_expr` server value variant of `le` (Match if field is less than or equal to the provided value, based on index ordering of supported enum values.)
+  """
+  le_expr: ReactionType_Expr
+}
+"""
+✨ Generated list filter input type for table 'ReactionType'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input ReactionType_ListFilter {
+  """
+  Match if list field contains the provided value as a member.
+  """
+  includes: ReactionType
+  """
+  ✨ `_expr` server value variant of `includes` (Match if list field contains the provided value as a member.)
+  """
+  includes_expr: ReactionType_Expr
+  """
+  Match if list field contains all of the provided values as members.
+  """
+  includesAll: [ReactionType!]
+  """
+  Match if list field does not contain the provided value as a member.
+  """
+  excludes: ReactionType
+  """
+  ✨ `_expr` server value variant of `excludes` (Match if list field does not contain the provided value as a member.)
+  """
+  excludes_expr: ReactionType_Expr
+  """
+  Match if list field does not contain any of the provided values as members.
+  """
+  excludesAll: [ReactionType!]
+  """
+  The desired number of enum values that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: ReactionType_Filter
+}
+"""
+✨ Generated data input type for table 'RecitalReaction'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input RecitalReaction_Data {
+  """
+  ✨ Generated from Field `RecitalReaction`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `RecitalReaction`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `RecitalReaction`.`repertoireItemId` of type `UUID!`
+  """
+  repertoireItemId: UUID
+  """
+  ✨ `_expr` server value variant of `repertoireItemId` (✨ Generated from Field `RecitalReaction`.`repertoireItemId` of type `UUID!`)
+  """
+  repertoireItemId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `RecitalReaction`.`userId` of type `String!`
+  """
+  userId: String
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `RecitalReaction`.`userId` of type `String!`)
+  """
+  userId_expr: String_Expr
+  """
+  ✨ Generated from Field `RecitalReaction`.`repertoireItem` of type `RepertoireItem!`
+  """
+  repertoireItem: RepertoireItem_Key
+  """
+  ✨ Generated from Field `RecitalReaction`.`user` of type `User!`
+  """
+  user: User_Key
+  """
+  ✨ Generated from Field `RecitalReaction`.`reactionType` of type `ReactionType!`
+  """
+  reactionType: ReactionType
+  """
+  ✨ `_expr` server value variant of `reactionType` (✨ Generated from Field `RecitalReaction`.`reactionType` of type `ReactionType!`)
+  """
+  reactionType_expr: ReactionType_Expr
+}
+"""
+✨ Generated filter input type for table 'RecitalReaction'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input RecitalReaction_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [RecitalReaction_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: RecitalReaction_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [RecitalReaction_Filter!]
+  """
+  ✨ Generated from Field `RecitalReaction`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `RecitalReaction`.`repertoireItemId` of type `UUID!`
+  """
+  repertoireItemId: UUID_Filter
+  """
+  ✨ Generated from Field `RecitalReaction`.`userId` of type `String!`
+  """
+  userId: String_Filter
+  """
+  ✨ Generated from Field `RecitalReaction`.`repertoireItem` of type `RepertoireItem!`
+  """
+  repertoireItem: RepertoireItem_Filter
+  """
+  ✨ Generated from Field `RecitalReaction`.`user` of type `User!`
+  """
+  user: User_Filter
+  """
+  ✨ Generated from Field `RecitalReaction`.`reactionType` of type `ReactionType!`
+  """
+  reactionType: ReactionType_Filter
+}
+"""
+✨ Generated first-row input type for table 'RecitalReaction'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input RecitalReaction_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [RecitalReaction_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: RecitalReaction_Filter
+}
+"""
+✨ Generated having input type for table 'RecitalReaction'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input RecitalReaction_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [RecitalReaction_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: RecitalReaction_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [RecitalReaction_Having!]
+  """
+  ✨ Generated from Field `RecitalReaction`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `RecitalReaction`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `RecitalReaction`.`reactionType_count` of type `Int!`
+  """
+  reactionType_count: Int_Filter
+  """
+  ✨ Generated from Field `RecitalReaction`.`repertoireItemId_count` of type `Int!`
+  """
+  repertoireItemId_count: Int_Filter
+  """
+  ✨ Generated from Field `RecitalReaction`.`userId_count` of type `Int!`
+  """
+  userId_count: Int_Filter
+}
+"""
+✨ Generated key input type for table 'RecitalReaction'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input RecitalReaction_Key {
+  """
+  ✨ Generated from Field `RecitalReaction`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `RecitalReaction`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'RecitalReaction'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input RecitalReaction_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: RecitalReaction_Filter
+}
+"""
+✨ Generated order input type for table 'RecitalReaction'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input RecitalReaction_Order {
+  """
+  ✨ Generated from Field `RecitalReaction`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `RecitalReaction`.`repertoireItemId` of type `UUID!`
+  """
+  repertoireItemId: OrderDirection
+  """
+  ✨ Generated from Field `RecitalReaction`.`userId` of type `String!`
+  """
+  userId: OrderDirection
+  """
+  ✨ Generated from Field `RecitalReaction`.`repertoireItem` of type `RepertoireItem!`
+  """
+  repertoireItem: RepertoireItem_Order
+  """
+  ✨ Generated from Field `RecitalReaction`.`user` of type `User!`
+  """
+  user: User_Order
+  """
+  ✨ Generated from Field `RecitalReaction`.`reactionType` of type `ReactionType!`
+  """
+  reactionType: OrderDirection
+  """
+  ✨ Generated from Field `RecitalReaction`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `RecitalReaction`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `RecitalReaction`.`reactionType_count` of type `Int!`
+  """
+  reactionType_count: OrderDirection
+  """
+  ✨ Generated from Field `RecitalReaction`.`repertoireItemId_count` of type `Int!`
+  """
+  repertoireItemId_count: OrderDirection
+  """
+  ✨ Generated from Field `RecitalReaction`.`userId_count` of type `Int!`
+  """
+  userId_count: OrderDirection
+}
+"""
+✨ Generated data input type for table 'RepertoireItem'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input RepertoireItem_Data {
+  """
+  ✨ Generated from Field `RepertoireItem`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `RepertoireItem`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `RepertoireItem`.`lessonId` of type `UUID!`
+  """
+  lessonId: UUID
+  """
+  ✨ `_expr` server value variant of `lessonId` (✨ Generated from Field `RepertoireItem`.`lessonId` of type `UUID!`)
+  """
+  lessonId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `RepertoireItem`.`userId` of type `String!`
+  """
+  userId: String
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `RepertoireItem`.`userId` of type `String!`)
+  """
+  userId_expr: String_Expr
+  """
+  ✨ Generated from Field `RepertoireItem`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Key
+  """
+  ✨ Generated from Field `RepertoireItem`.`user` of type `User!`
+  """
+  user: User_Key
+  """
+  ✨ Generated from Field `RepertoireItem`.`performanceMidiUrl` of type `String`
+  """
+  performanceMidiUrl: String
+  """
+  ✨ `_expr` server value variant of `performanceMidiUrl` (✨ Generated from Field `RepertoireItem`.`performanceMidiUrl` of type `String`)
+  """
+  performanceMidiUrl_expr: String_Expr
+  """
+  ✨ Generated from Field `RepertoireItem`.`performanceVideoUrl` of type `String`
+  """
+  performanceVideoUrl: String
+  """
+  ✨ `_expr` server value variant of `performanceVideoUrl` (✨ Generated from Field `RepertoireItem`.`performanceVideoUrl` of type `String`)
+  """
+  performanceVideoUrl_expr: String_Expr
+  """
+  ✨ Generated from Field `RepertoireItem`.`uploadedAt` of type `Timestamp!`
+  """
+  uploadedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `uploadedAt` (✨ Generated from Field `RepertoireItem`.`uploadedAt` of type `Timestamp!`)
+  """
+  uploadedAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `uploadedAt` (✨ Generated from Field `RepertoireItem`.`uploadedAt` of type `Timestamp!`)
+  """
+  uploadedAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `uploadedAt` (✨ Generated from Field `RepertoireItem`.`uploadedAt` of type `Timestamp!`)
+  """
+  uploadedAt_update: [Timestamp_Update!]
+}
+"""
+✨ Generated filter input type for table 'RepertoireItem'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input RepertoireItem_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [RepertoireItem_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: RepertoireItem_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [RepertoireItem_Filter!]
+  """
+  ✨ Generated from Field `RepertoireItem`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`lessonId` of type `UUID!`
+  """
+  lessonId: UUID_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`userId` of type `String!`
+  """
+  userId: String_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`user` of type `User!`
+  """
+  user: User_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`performanceMidiUrl` of type `String`
+  """
+  performanceMidiUrl: String_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`performanceVideoUrl` of type `String`
+  """
+  performanceVideoUrl: String_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`uploadedAt` of type `Timestamp!`
+  """
+  uploadedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`recitalReactions_on_repertoireItem` of type `[RecitalReaction!]!`
+  """
+  recitalReactions_on_repertoireItem: RecitalReaction_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'RepertoireItem'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input RepertoireItem_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [RepertoireItem_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: RepertoireItem_Filter
+}
+"""
+✨ Generated having input type for table 'RepertoireItem'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input RepertoireItem_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [RepertoireItem_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: RepertoireItem_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [RepertoireItem_Having!]
+  """
+  ✨ Generated from Field `RepertoireItem`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`lessonId_count` of type `Int!`
+  """
+  lessonId_count: Int_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`performanceMidiUrl_count` of type `Int!`
+  """
+  performanceMidiUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`performanceVideoUrl_count` of type `Int!`
+  """
+  performanceVideoUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`uploadedAt_count` of type `Int!`
+  """
+  uploadedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`userId_count` of type `Int!`
+  """
+  userId_count: Int_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`uploadedAt_min` of type `Timestamp`
+  """
+  uploadedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `RepertoireItem`.`uploadedAt_max` of type `Timestamp`
+  """
+  uploadedAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'RepertoireItem'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input RepertoireItem_Key {
+  """
+  ✨ Generated from Field `RepertoireItem`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `RepertoireItem`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'RepertoireItem'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input RepertoireItem_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: RepertoireItem_Filter
+}
+"""
+✨ Generated order input type for table 'RepertoireItem'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input RepertoireItem_Order {
+  """
+  ✨ Generated from Field `RepertoireItem`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`lessonId` of type `UUID!`
+  """
+  lessonId: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`userId` of type `String!`
+  """
+  userId: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Order
+  """
+  ✨ Generated from Field `RepertoireItem`.`user` of type `User!`
+  """
+  user: User_Order
+  """
+  ✨ Generated from Field `RepertoireItem`.`performanceMidiUrl` of type `String`
+  """
+  performanceMidiUrl: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`performanceVideoUrl` of type `String`
+  """
+  performanceVideoUrl: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`uploadedAt` of type `Timestamp!`
+  """
+  uploadedAt: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`lessonId_count` of type `Int!`
+  """
+  lessonId_count: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`performanceMidiUrl_count` of type `Int!`
+  """
+  performanceMidiUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`performanceVideoUrl_count` of type `Int!`
+  """
+  performanceVideoUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`uploadedAt_count` of type `Int!`
+  """
+  uploadedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`userId_count` of type `Int!`
+  """
+  userId_count: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`uploadedAt_min` of type `Timestamp`
+  """
+  uploadedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `RepertoireItem`.`uploadedAt_max` of type `Timestamp`
+  """
+  uploadedAt_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'User'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input User_Data {
+  """
+  ✨ Generated from Field `User`.`id` of type `String!`
+  """
+  id: String
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `User`.`id` of type `String!`)
+  """
+  id_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`currentStreak` of type `Int!`
+  """
+  currentStreak: Int
+  """
+  ✨ `_expr` server value variant of `currentStreak` (✨ Generated from Field `User`.`currentStreak` of type `Int!`)
+  """
+  currentStreak_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `currentStreak` (✨ Generated from Field `User`.`currentStreak` of type `Int!`)
+  """
+  currentStreak_update: [Int_Update!]
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: String
+  """
+  ✨ `_expr` server value variant of `displayName` (✨ Generated from Field `User`.`displayName` of type `String`)
+  """
+  displayName_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: String
+  """
+  ✨ `_expr` server value variant of `email` (✨ Generated from Field `User`.`email` of type `String!`)
+  """
+  email_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`instrument` of type `InstrumentType`
+  """
+  instrument: InstrumentType
+  """
+  ✨ `_expr` server value variant of `instrument` (✨ Generated from Field `User`.`instrument` of type `InstrumentType`)
+  """
+  instrument_expr: InstrumentType_Expr
+  """
+  ✨ Generated from Field `User`.`photoURL` of type `String`
+  """
+  photoURL: String
+  """
+  ✨ `_expr` server value variant of `photoURL` (✨ Generated from Field `User`.`photoURL` of type `String`)
+  """
+  photoURL_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`resonanceScore` of type `Int!`
+  """
+  resonanceScore: Int
+  """
+  ✨ `_expr` server value variant of `resonanceScore` (✨ Generated from Field `User`.`resonanceScore` of type `Int!`)
+  """
+  resonanceScore_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `resonanceScore` (✨ Generated from Field `User`.`resonanceScore` of type `Int!`)
+  """
+  resonanceScore_update: [Int_Update!]
+  """
+  ✨ Generated from Field `User`.`skillLevel` of type `String`
+  """
+  skillLevel: String
+  """
+  ✨ `_expr` server value variant of `skillLevel` (✨ Generated from Field `User`.`skillLevel` of type `String`)
+  """
+  skillLevel_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`synesthesiaSettings` of type `String`
+  """
+  synesthesiaSettings: String
+  """
+  ✨ `_expr` server value variant of `synesthesiaSettings` (✨ Generated from Field `User`.`synesthesiaSettings` of type `String`)
+  """
+  synesthesiaSettings_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'User'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input User_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [User_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: User_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [User_Filter!]
+  """
+  ✨ Generated from Field `User`.`id` of type `String!`
+  """
+  id: String_Filter
+  """
+  ✨ Generated from Field `User`.`currentStreak` of type `Int!`
+  """
+  currentStreak: Int_Filter
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: String_Filter
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: String_Filter
+  """
+  ✨ Generated from Field `User`.`instrument` of type `InstrumentType`
+  """
+  instrument: InstrumentType_Filter
+  """
+  ✨ Generated from Field `User`.`photoURL` of type `String`
+  """
+  photoURL: String_Filter
+  """
+  ✨ Generated from Field `User`.`resonanceScore` of type `Int!`
+  """
+  resonanceScore: Int_Filter
+  """
+  ✨ Generated from Field `User`.`skillLevel` of type `String`
+  """
+  skillLevel: String_Filter
+  """
+  ✨ Generated from Field `User`.`synesthesiaSettings` of type `String`
+  """
+  synesthesiaSettings: String_Filter
+  """
+  ✨ Generated from Field `User`.`recitalReactions_on_user` of type `[RecitalReaction!]!`
+  """
+  recitalReactions_on_user: RecitalReaction_ListFilter
+  """
+  ✨ Generated from Field `User`.`repertoireItems_on_user` of type `[RepertoireItem!]!`
+  """
+  repertoireItems_on_user: RepertoireItem_ListFilter
+  """
+  ✨ Generated from Field `User`.`userLessonProgresses_on_user` of type `[UserLessonProgress!]!`
+  """
+  userLessonProgresses_on_user: UserLessonProgress_ListFilter
+  """
+  ✨ Generated from Field `User`.`lessons_via_UserLessonProgress` of type `[Lesson!]!`
+  """
+  lessons_via_UserLessonProgress: Lesson_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'User'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input User_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [User_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: User_Filter
+}
+"""
+✨ Generated having input type for table 'User'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input User_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [User_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: User_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [User_Having!]
+  """
+  ✨ Generated from Field `User`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`currentStreak_count` of type `Int!`
+  """
+  currentStreak_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`displayName_count` of type `Int!`
+  """
+  displayName_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`instrument_count` of type `Int!`
+  """
+  instrument_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`photoURL_count` of type `Int!`
+  """
+  photoURL_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`resonanceScore_count` of type `Int!`
+  """
+  resonanceScore_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`skillLevel_count` of type `Int!`
+  """
+  skillLevel_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`synesthesiaSettings_count` of type `Int!`
+  """
+  synesthesiaSettings_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`currentStreak_sum` of type `Int`
+  """
+  currentStreak_sum: Int_Filter
+  """
+  ✨ Generated from Field `User`.`resonanceScore_sum` of type `Int`
+  """
+  resonanceScore_sum: Int_Filter
+  """
+  ✨ Generated from Field `User`.`currentStreak_avg` of type `Float`
+  """
+  currentStreak_avg: Float_Filter
+  """
+  ✨ Generated from Field `User`.`resonanceScore_avg` of type `Float`
+  """
+  resonanceScore_avg: Float_Filter
+  """
+  ✨ Generated from Field `User`.`currentStreak_min` of type `Int`
+  """
+  currentStreak_min: Int_Filter
+  """
+  ✨ Generated from Field `User`.`resonanceScore_min` of type `Int`
+  """
+  resonanceScore_min: Int_Filter
+  """
+  ✨ Generated from Field `User`.`currentStreak_max` of type `Int`
+  """
+  currentStreak_max: Int_Filter
+  """
+  ✨ Generated from Field `User`.`resonanceScore_max` of type `Int`
+  """
+  resonanceScore_max: Int_Filter
+}
+"""
+✨ Generated key input type for table 'User'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input User_Key {
+  """
+  ✨ Generated from Field `User`.`id` of type `String!`
+  """
+  id: String
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `User`.`id` of type `String!`)
+  """
+  id_expr: String_Expr
+}
+"""
+✨ Generated list filter input type for table 'User'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input User_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: User_Filter
+}
+"""
+✨ Generated order input type for table 'User'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input User_Order {
+  """
+  ✨ Generated from Field `User`.`id` of type `String!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `User`.`currentStreak` of type `Int!`
+  """
+  currentStreak: OrderDirection
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: OrderDirection
+  """
+  ✨ Generated from Field `User`.`instrument` of type `InstrumentType`
+  """
+  instrument: OrderDirection
+  """
+  ✨ Generated from Field `User`.`photoURL` of type `String`
+  """
+  photoURL: OrderDirection
+  """
+  ✨ Generated from Field `User`.`resonanceScore` of type `Int!`
+  """
+  resonanceScore: OrderDirection
+  """
+  ✨ Generated from Field `User`.`skillLevel` of type `String`
+  """
+  skillLevel: OrderDirection
+  """
+  ✨ Generated from Field `User`.`synesthesiaSettings` of type `String`
+  """
+  synesthesiaSettings: OrderDirection
+  """
+  ✨ Generated from Field `User`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`currentStreak_count` of type `Int!`
+  """
+  currentStreak_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`displayName_count` of type `Int!`
+  """
+  displayName_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`instrument_count` of type `Int!`
+  """
+  instrument_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`photoURL_count` of type `Int!`
+  """
+  photoURL_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`resonanceScore_count` of type `Int!`
+  """
+  resonanceScore_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`skillLevel_count` of type `Int!`
+  """
+  skillLevel_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`synesthesiaSettings_count` of type `Int!`
+  """
+  synesthesiaSettings_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`currentStreak_sum` of type `Int`
+  """
+  currentStreak_sum: OrderDirection
+  """
+  ✨ Generated from Field `User`.`resonanceScore_sum` of type `Int`
+  """
+  resonanceScore_sum: OrderDirection
+  """
+  ✨ Generated from Field `User`.`currentStreak_avg` of type `Float`
+  """
+  currentStreak_avg: OrderDirection
+  """
+  ✨ Generated from Field `User`.`resonanceScore_avg` of type `Float`
+  """
+  resonanceScore_avg: OrderDirection
+  """
+  ✨ Generated from Field `User`.`currentStreak_min` of type `Int`
+  """
+  currentStreak_min: OrderDirection
+  """
+  ✨ Generated from Field `User`.`resonanceScore_min` of type `Int`
+  """
+  resonanceScore_min: OrderDirection
+  """
+  ✨ Generated from Field `User`.`currentStreak_max` of type `Int`
+  """
+  currentStreak_max: OrderDirection
+  """
+  ✨ Generated from Field `User`.`resonanceScore_max` of type `Int`
+  """
+  resonanceScore_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'UserLessonProgress'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input UserLessonProgress_Data {
+  """
+  ✨ Generated from Field `UserLessonProgress`.`userId` of type `String!`
+  """
+  userId: String
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `UserLessonProgress`.`userId` of type `String!`)
+  """
+  userId_expr: String_Expr
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lessonId` of type `UUID!`
+  """
+  lessonId: UUID
+  """
+  ✨ `_expr` server value variant of `lessonId` (✨ Generated from Field `UserLessonProgress`.`lessonId` of type `UUID!`)
+  """
+  lessonId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Key
+  """
+  ✨ Generated from Field `UserLessonProgress`.`user` of type `User!`
+  """
+  user: User_Key
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore` of type `Int`
+  """
+  accuracyScore: Int
+  """
+  ✨ `_expr` server value variant of `accuracyScore` (✨ Generated from Field `UserLessonProgress`.`accuracyScore` of type `Int`)
+  """
+  accuracyScore_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `accuracyScore` (✨ Generated from Field `UserLessonProgress`.`accuracyScore` of type `Int`)
+  """
+  accuracyScore_update: [Int_Update!]
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lastPlayedAt` of type `Timestamp!`
+  """
+  lastPlayedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `lastPlayedAt` (✨ Generated from Field `UserLessonProgress`.`lastPlayedAt` of type `Timestamp!`)
+  """
+  lastPlayedAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `lastPlayedAt` (✨ Generated from Field `UserLessonProgress`.`lastPlayedAt` of type `Timestamp!`)
+  """
+  lastPlayedAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `lastPlayedAt` (✨ Generated from Field `UserLessonProgress`.`lastPlayedAt` of type `Timestamp!`)
+  """
+  lastPlayedAt_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `UserLessonProgress`.`status` of type `ProgressStatus!`
+  """
+  status: ProgressStatus
+  """
+  ✨ `_expr` server value variant of `status` (✨ Generated from Field `UserLessonProgress`.`status` of type `ProgressStatus!`)
+  """
+  status_expr: ProgressStatus_Expr
+}
+"""
+✨ Generated filter input type for table 'UserLessonProgress'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input UserLessonProgress_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [UserLessonProgress_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: UserLessonProgress_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [UserLessonProgress_Filter!]
+  """
+  ✨ Generated from Field `UserLessonProgress`.`userId` of type `String!`
+  """
+  userId: String_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lessonId` of type `UUID!`
+  """
+  lessonId: UUID_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`user` of type `User!`
+  """
+  user: User_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore` of type `Int`
+  """
+  accuracyScore: Int_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lastPlayedAt` of type `Timestamp!`
+  """
+  lastPlayedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`status` of type `ProgressStatus!`
+  """
+  status: ProgressStatus_Filter
+}
+"""
+✨ Generated first-row input type for table 'UserLessonProgress'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input UserLessonProgress_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [UserLessonProgress_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: UserLessonProgress_Filter
+}
+"""
+✨ Generated having input type for table 'UserLessonProgress'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input UserLessonProgress_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [UserLessonProgress_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: UserLessonProgress_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [UserLessonProgress_Having!]
+  """
+  ✨ Generated from Field `UserLessonProgress`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore_count` of type `Int!`
+  """
+  accuracyScore_count: Int_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lastPlayedAt_count` of type `Int!`
+  """
+  lastPlayedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lessonId_count` of type `Int!`
+  """
+  lessonId_count: Int_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`status_count` of type `Int!`
+  """
+  status_count: Int_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`userId_count` of type `Int!`
+  """
+  userId_count: Int_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore_sum` of type `Int`
+  """
+  accuracyScore_sum: Int_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore_avg` of type `Float`
+  """
+  accuracyScore_avg: Float_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore_min` of type `Int`
+  """
+  accuracyScore_min: Int_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lastPlayedAt_min` of type `Timestamp`
+  """
+  lastPlayedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore_max` of type `Int`
+  """
+  accuracyScore_max: Int_Filter
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lastPlayedAt_max` of type `Timestamp`
+  """
+  lastPlayedAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'UserLessonProgress'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input UserLessonProgress_Key {
+  """
+  ✨ Generated from Field `UserLessonProgress`.`userId` of type `String!`
+  """
+  userId: String
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `UserLessonProgress`.`userId` of type `String!`)
+  """
+  userId_expr: String_Expr
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lessonId` of type `UUID!`
+  """
+  lessonId: UUID
+  """
+  ✨ `_expr` server value variant of `lessonId` (✨ Generated from Field `UserLessonProgress`.`lessonId` of type `UUID!`)
+  """
+  lessonId_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'UserLessonProgress'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input UserLessonProgress_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: UserLessonProgress_Filter
+}
+"""
+✨ Generated order input type for table 'UserLessonProgress'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input UserLessonProgress_Order {
+  """
+  ✨ Generated from Field `UserLessonProgress`.`userId` of type `String!`
+  """
+  userId: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lessonId` of type `UUID!`
+  """
+  lessonId: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lesson` of type `Lesson!`
+  """
+  lesson: Lesson_Order
+  """
+  ✨ Generated from Field `UserLessonProgress`.`user` of type `User!`
+  """
+  user: User_Order
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore` of type `Int`
+  """
+  accuracyScore: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lastPlayedAt` of type `Timestamp!`
+  """
+  lastPlayedAt: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`status` of type `ProgressStatus!`
+  """
+  status: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore_count` of type `Int!`
+  """
+  accuracyScore_count: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lastPlayedAt_count` of type `Int!`
+  """
+  lastPlayedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lessonId_count` of type `Int!`
+  """
+  lessonId_count: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`status_count` of type `Int!`
+  """
+  status_count: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`userId_count` of type `Int!`
+  """
+  userId_count: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore_sum` of type `Int`
+  """
+  accuracyScore_sum: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore_avg` of type `Float`
+  """
+  accuracyScore_avg: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore_min` of type `Int`
+  """
+  accuracyScore_min: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lastPlayedAt_min` of type `Timestamp`
+  """
+  lastPlayedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`accuracyScore_max` of type `Int`
+  """
+  accuracyScore_max: OrderDirection
+  """
+  ✨ Generated from Field `UserLessonProgress`.`lastPlayedAt_max` of type `Timestamp`
+  """
+  lastPlayedAt_max: OrderDirection
+}

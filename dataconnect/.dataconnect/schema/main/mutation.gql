@@ -1,0 +1,888 @@
+extend type Mutation {
+  """
+  ✨ Insert a single `Lesson` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  lesson_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: Lesson_Data!
+  ): Lesson_KeyOutput! @fdc_generated(from: "Lesson", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `LessonPrerequisite` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  lessonPrerequisite_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: LessonPrerequisite_Data!
+  ): LessonPrerequisite_KeyOutput! @fdc_generated(from: "LessonPrerequisite", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `MaestroNote` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  maestroNote_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: MaestroNote_Data!
+  ): MaestroNote_KeyOutput! @fdc_generated(from: "MaestroNote", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `Movement` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  movement_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: Movement_Data!
+  ): Movement_KeyOutput! @fdc_generated(from: "Movement", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `RecitalReaction` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  recitalReaction_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: RecitalReaction_Data!
+  ): RecitalReaction_KeyOutput! @fdc_generated(from: "RecitalReaction", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `RepertoireItem` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  repertoireItem_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: RepertoireItem_Data!
+  ): RepertoireItem_KeyOutput! @fdc_generated(from: "RepertoireItem", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `User` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  user_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: User_Data!
+  ): User_KeyOutput! @fdc_generated(from: "User", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `UserLessonProgress` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  userLessonProgress_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: UserLessonProgress_Data!
+  ): UserLessonProgress_KeyOutput! @fdc_generated(from: "UserLessonProgress", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert `Lesson` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  lesson_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [Lesson_Data!]!
+  ): [Lesson_KeyOutput!]! @fdc_generated(from: "Lesson", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `LessonPrerequisite` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  lessonPrerequisite_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [LessonPrerequisite_Data!]!
+  ): [LessonPrerequisite_KeyOutput!]! @fdc_generated(from: "LessonPrerequisite", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `MaestroNote` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  maestroNote_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [MaestroNote_Data!]!
+  ): [MaestroNote_KeyOutput!]! @fdc_generated(from: "MaestroNote", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `Movement` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  movement_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [Movement_Data!]!
+  ): [Movement_KeyOutput!]! @fdc_generated(from: "Movement", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `RecitalReaction` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  recitalReaction_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [RecitalReaction_Data!]!
+  ): [RecitalReaction_KeyOutput!]! @fdc_generated(from: "RecitalReaction", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `RepertoireItem` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  repertoireItem_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [RepertoireItem_Data!]!
+  ): [RepertoireItem_KeyOutput!]! @fdc_generated(from: "RepertoireItem", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `User` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  user_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [User_Data!]!
+  ): [User_KeyOutput!]! @fdc_generated(from: "User", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `UserLessonProgress` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  userLessonProgress_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [UserLessonProgress_Data!]!
+  ): [UserLessonProgress_KeyOutput!]! @fdc_generated(from: "UserLessonProgress", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert or update a single `Lesson` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Lesson`.
+  """
+  lesson_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: Lesson_Data!
+  ): Lesson_KeyOutput! @fdc_generated(from: "Lesson", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `LessonPrerequisite` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `LessonPrerequisite`.
+  """
+  lessonPrerequisite_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: LessonPrerequisite_Data!
+  ): LessonPrerequisite_KeyOutput! @fdc_generated(from: "LessonPrerequisite", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `MaestroNote` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MaestroNote`.
+  """
+  maestroNote_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: MaestroNote_Data!
+  ): MaestroNote_KeyOutput! @fdc_generated(from: "MaestroNote", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `Movement` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Movement`.
+  """
+  movement_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: Movement_Data!
+  ): Movement_KeyOutput! @fdc_generated(from: "Movement", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `RecitalReaction` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `RecitalReaction`.
+  """
+  recitalReaction_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: RecitalReaction_Data!
+  ): RecitalReaction_KeyOutput! @fdc_generated(from: "RecitalReaction", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `RepertoireItem` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `RepertoireItem`.
+  """
+  repertoireItem_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: RepertoireItem_Data!
+  ): RepertoireItem_KeyOutput! @fdc_generated(from: "RepertoireItem", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `User` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `User`.
+  """
+  user_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: User_Data!
+  ): User_KeyOutput! @fdc_generated(from: "User", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `UserLessonProgress` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `UserLessonProgress`.
+  """
+  userLessonProgress_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: UserLessonProgress_Data!
+  ): UserLessonProgress_KeyOutput! @fdc_generated(from: "UserLessonProgress", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update `Lesson` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Lesson`.
+  """
+  lesson_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [Lesson_Data!]!
+  ): [Lesson_KeyOutput!]! @fdc_generated(from: "Lesson", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `LessonPrerequisite` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `LessonPrerequisite`.
+  """
+  lessonPrerequisite_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [LessonPrerequisite_Data!]!
+  ): [LessonPrerequisite_KeyOutput!]! @fdc_generated(from: "LessonPrerequisite", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `MaestroNote` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MaestroNote`.
+  """
+  maestroNote_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [MaestroNote_Data!]!
+  ): [MaestroNote_KeyOutput!]! @fdc_generated(from: "MaestroNote", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `Movement` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Movement`.
+  """
+  movement_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [Movement_Data!]!
+  ): [Movement_KeyOutput!]! @fdc_generated(from: "Movement", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `RecitalReaction` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `RecitalReaction`.
+  """
+  recitalReaction_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [RecitalReaction_Data!]!
+  ): [RecitalReaction_KeyOutput!]! @fdc_generated(from: "RecitalReaction", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `RepertoireItem` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `RepertoireItem`.
+  """
+  repertoireItem_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [RepertoireItem_Data!]!
+  ): [RepertoireItem_KeyOutput!]! @fdc_generated(from: "RepertoireItem", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `User` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `User`.
+  """
+  user_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [User_Data!]!
+  ): [User_KeyOutput!]! @fdc_generated(from: "User", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `UserLessonProgress` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `UserLessonProgress`.
+  """
+  userLessonProgress_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [UserLessonProgress_Data!]!
+  ): [UserLessonProgress_KeyOutput!]! @fdc_generated(from: "UserLessonProgress", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Update a single `Lesson` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `Lesson` or `null` if not found.
+  """
+  lesson_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Lesson_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Lesson_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: Lesson_Data!
+  ): Lesson_KeyOutput @fdc_generated(from: "Lesson", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `LessonPrerequisite` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `LessonPrerequisite` or `null` if not found.
+  """
+  lessonPrerequisite_update(
+    """
+    The key used to identify the object.
+    """
+    key: LessonPrerequisite_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: LessonPrerequisite_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: LessonPrerequisite_Data!
+  ): LessonPrerequisite_KeyOutput @fdc_generated(from: "LessonPrerequisite", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `MaestroNote` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `MaestroNote` or `null` if not found.
+  """
+  maestroNote_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: MaestroNote_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MaestroNote_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: MaestroNote_Data!
+  ): MaestroNote_KeyOutput @fdc_generated(from: "MaestroNote", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `Movement` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `Movement` or `null` if not found.
+  """
+  movement_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Movement_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Movement_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: Movement_Data!
+  ): Movement_KeyOutput @fdc_generated(from: "Movement", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `RecitalReaction` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `RecitalReaction` or `null` if not found.
+  """
+  recitalReaction_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: RecitalReaction_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: RecitalReaction_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: RecitalReaction_Data!
+  ): RecitalReaction_KeyOutput @fdc_generated(from: "RecitalReaction", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `RepertoireItem` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `RepertoireItem` or `null` if not found.
+  """
+  repertoireItem_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: RepertoireItem_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: RepertoireItem_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: RepertoireItem_Data!
+  ): RepertoireItem_KeyOutput @fdc_generated(from: "RepertoireItem", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `User` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `User` or `null` if not found.
+  """
+  user_update(
+    """
+    The unique ID of the object.
+    """
+    id: String
+
+    """
+    ✨ `_expr` server value variant of `id` (The unique ID of the object.)
+    """
+    id_expr: String_Expr
+
+    """
+    The key used to identify the object.
+    """
+    key: User_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: User_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: User_Data!
+  ): User_KeyOutput @fdc_generated(from: "User", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `UserLessonProgress` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `UserLessonProgress` or `null` if not found.
+  """
+  userLessonProgress_update(
+    """
+    The key used to identify the object.
+    """
+    key: UserLessonProgress_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: UserLessonProgress_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: UserLessonProgress_Data!
+  ): UserLessonProgress_KeyOutput @fdc_generated(from: "UserLessonProgress", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update `Lesson` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  lesson_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: Lesson_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: Lesson_Data!
+  ): Int! @fdc_generated(from: "Lesson", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `LessonPrerequisite` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  lessonPrerequisite_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: LessonPrerequisite_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: LessonPrerequisite_Data!
+  ): Int! @fdc_generated(from: "LessonPrerequisite", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `MaestroNote` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  maestroNote_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: MaestroNote_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: MaestroNote_Data!
+  ): Int! @fdc_generated(from: "MaestroNote", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `Movement` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  movement_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: Movement_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: Movement_Data!
+  ): Int! @fdc_generated(from: "Movement", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `RecitalReaction` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  recitalReaction_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: RecitalReaction_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: RecitalReaction_Data!
+  ): Int! @fdc_generated(from: "RecitalReaction", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `RepertoireItem` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  repertoireItem_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: RepertoireItem_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: RepertoireItem_Data!
+  ): Int! @fdc_generated(from: "RepertoireItem", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `User` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  user_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: User_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: User_Data!
+  ): Int! @fdc_generated(from: "User", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `UserLessonProgress` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  userLessonProgress_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: UserLessonProgress_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: UserLessonProgress_Data!
+  ): Int! @fdc_generated(from: "UserLessonProgress", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Delete a single `Lesson` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  lesson_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Lesson_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Lesson_FirstRow
+  ): Lesson_KeyOutput @fdc_generated(from: "Lesson", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `LessonPrerequisite` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  lessonPrerequisite_delete(
+    """
+    The key used to identify the object.
+    """
+    key: LessonPrerequisite_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: LessonPrerequisite_FirstRow
+  ): LessonPrerequisite_KeyOutput @fdc_generated(from: "LessonPrerequisite", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `MaestroNote` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  maestroNote_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: MaestroNote_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MaestroNote_FirstRow
+  ): MaestroNote_KeyOutput @fdc_generated(from: "MaestroNote", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `Movement` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  movement_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Movement_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Movement_FirstRow
+  ): Movement_KeyOutput @fdc_generated(from: "Movement", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `RecitalReaction` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  recitalReaction_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: RecitalReaction_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: RecitalReaction_FirstRow
+  ): RecitalReaction_KeyOutput @fdc_generated(from: "RecitalReaction", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `RepertoireItem` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  repertoireItem_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: RepertoireItem_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: RepertoireItem_FirstRow
+  ): RepertoireItem_KeyOutput @fdc_generated(from: "RepertoireItem", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `User` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  user_delete(
+    """
+    The unique ID of the object.
+    """
+    id: String
+
+    """
+    ✨ `_expr` server value variant of `id` (The unique ID of the object.)
+    """
+    id_expr: String_Expr
+
+    """
+    The key used to identify the object.
+    """
+    key: User_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: User_FirstRow
+  ): User_KeyOutput @fdc_generated(from: "User", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `UserLessonProgress` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  userLessonProgress_delete(
+    """
+    The key used to identify the object.
+    """
+    key: UserLessonProgress_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: UserLessonProgress_FirstRow
+  ): UserLessonProgress_KeyOutput @fdc_generated(from: "UserLessonProgress", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete `Lesson` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  lesson_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: Lesson_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "Lesson", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `LessonPrerequisite` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  lessonPrerequisite_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: LessonPrerequisite_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "LessonPrerequisite", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `MaestroNote` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  maestroNote_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: MaestroNote_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "MaestroNote", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `Movement` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  movement_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: Movement_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "Movement", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `RecitalReaction` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  recitalReaction_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: RecitalReaction_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "RecitalReaction", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `RepertoireItem` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  repertoireItem_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: RepertoireItem_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "RepertoireItem", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `User` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  user_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: User_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "User", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `UserLessonProgress` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  userLessonProgress_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: UserLessonProgress_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "UserLessonProgress", purpose: DELETE_MULTIPLE)
+}

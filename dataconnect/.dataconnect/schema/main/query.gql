@@ -1,0 +1,421 @@
+extend type Query {
+  """
+  ✨ Look up a single `Lesson` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  lesson(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Lesson_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Lesson_FirstRow
+  ): Lesson @fdc_generated(from: "Lesson", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `LessonPrerequisite` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  lessonPrerequisite(
+    """
+    The key used to identify the object.
+    """
+    key: LessonPrerequisite_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: LessonPrerequisite_FirstRow
+  ): LessonPrerequisite @fdc_generated(from: "LessonPrerequisite", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `MaestroNote` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  maestroNote(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: MaestroNote_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MaestroNote_FirstRow
+  ): MaestroNote @fdc_generated(from: "MaestroNote", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `Movement` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  movement(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Movement_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Movement_FirstRow
+  ): Movement @fdc_generated(from: "Movement", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `RecitalReaction` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  recitalReaction(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: RecitalReaction_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: RecitalReaction_FirstRow
+  ): RecitalReaction @fdc_generated(from: "RecitalReaction", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `RepertoireItem` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  repertoireItem(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: RepertoireItem_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: RepertoireItem_FirstRow
+  ): RepertoireItem @fdc_generated(from: "RepertoireItem", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `User` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  user(
+    """
+    The unique ID of the object.
+    """
+    id: String
+
+    """
+    ✨ `_expr` server value variant of `id` (The unique ID of the object.)
+    """
+    id_expr: String_Expr
+
+    """
+    The key used to identify the object.
+    """
+    key: User_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: User_FirstRow
+  ): User @fdc_generated(from: "User", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `UserLessonProgress` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  userLessonProgress(
+    """
+    The key used to identify the object.
+    """
+    key: UserLessonProgress_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: UserLessonProgress_FirstRow
+  ): UserLessonProgress @fdc_generated(from: "UserLessonProgress", purpose: QUERY_SINGLE)
+  """
+  ✨ List `Lesson` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  lessons(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Lesson_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Lesson_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Lesson_Having
+  ): [Lesson!]! @fdc_generated(from: "Lesson", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `LessonPrerequisite` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  lessonPrerequisites(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: LessonPrerequisite_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [LessonPrerequisite_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: LessonPrerequisite_Having
+  ): [LessonPrerequisite!]! @fdc_generated(from: "LessonPrerequisite", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `MaestroNote` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  maestroNotes(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MaestroNote_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MaestroNote_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MaestroNote_Having
+  ): [MaestroNote!]! @fdc_generated(from: "MaestroNote", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `Movement` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  movements(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Movement_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Movement_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Movement_Having
+  ): [Movement!]! @fdc_generated(from: "Movement", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `RecitalReaction` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  recitalReactions(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: RecitalReaction_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [RecitalReaction_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: RecitalReaction_Having
+  ): [RecitalReaction!]! @fdc_generated(from: "RecitalReaction", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `RepertoireItem` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  repertoireItems(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: RepertoireItem_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [RepertoireItem_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: RepertoireItem_Having
+  ): [RepertoireItem!]! @fdc_generated(from: "RepertoireItem", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `User` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  users(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: User_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [User_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: User_Having
+  ): [User!]! @fdc_generated(from: "User", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `UserLessonProgress` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  userLessonProgresses(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: UserLessonProgress_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [UserLessonProgress_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: UserLessonProgress_Having
+  ): [UserLessonProgress!]! @fdc_generated(from: "UserLessonProgress", purpose: QUERY_MULTIPLE)
+}

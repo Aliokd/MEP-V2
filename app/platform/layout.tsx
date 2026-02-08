@@ -28,9 +28,8 @@ export default function PlatformLayout({
     if (!user) return null;
 
     return (
-        <div className="flex min-h-screen bg-charcoal">
-            <MaestroSidebar />
-            <main className="flex-grow overflow-y-auto">
+        <div className="min-h-screen bg-charcoal">
+            <main className="w-full h-full">
                 {children}
             </main>
         </div>

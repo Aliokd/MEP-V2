@@ -1,11 +1,15 @@
 "use server";
 
 import { getUserConstellation as fetchUserConstellation, getLessonDetails as fetchLessonDetails, connectorConfig } from '@mep/dataconnect';
-import { getDataConnect } from 'firebase/data-connect';
+import { getDataConnect, connectDataConnectEmulator } from 'firebase/data-connect';
 import app from '@/lib/firebase';
 
 // Helper to get Data Connect instance (singleton-ish)
 const dc = getDataConnect(app, connectorConfig);
+
+if (process.env.NODE_ENV === 'development') {
+    connectDataConnectEmulator(dc, '127.0.0.1', 9399);
+}
 
 // Re-export SDK types or map them if necessary. 
 // For now, we'll return the SDK specific types or mapped versions.

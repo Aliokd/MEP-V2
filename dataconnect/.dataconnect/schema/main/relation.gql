@@ -1,0 +1,1164 @@
+extend type Lesson {
+  """
+  ✨ List `LessonPrerequisite` objects in a one-to-many relationship (where `LessonPrerequisite`.`lesson` is this object).
+  """
+  lessonPrerequisites_on_lesson(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: LessonPrerequisite_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [LessonPrerequisite_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: LessonPrerequisite_Having
+  ): [LessonPrerequisite!]! @fdc_generated(from: "LessonPrerequisite.lesson", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `LessonPrerequisite` objects in a one-to-many relationship (where `LessonPrerequisite`.`prerequisite` is this object).
+  """
+  lessonPrerequisites_on_prerequisite(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: LessonPrerequisite_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [LessonPrerequisite_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: LessonPrerequisite_Having
+  ): [LessonPrerequisite!]! @fdc_generated(from: "LessonPrerequisite.prerequisite", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `MaestroNote` objects in a one-to-many relationship (where `MaestroNote`.`lesson` is this object).
+  """
+  maestroNotes_on_lesson(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MaestroNote_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MaestroNote_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MaestroNote_Having
+  ): [MaestroNote!]! @fdc_generated(from: "MaestroNote.lesson", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `RepertoireItem` objects in a one-to-many relationship (where `RepertoireItem`.`lesson` is this object).
+  """
+  repertoireItems_on_lesson(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: RepertoireItem_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [RepertoireItem_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: RepertoireItem_Having
+  ): [RepertoireItem!]! @fdc_generated(from: "RepertoireItem.lesson", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `UserLessonProgress` objects in a one-to-many relationship (where `UserLessonProgress`.`lesson` is this object).
+  """
+  userLessonProgresses_on_lesson(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: UserLessonProgress_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [UserLessonProgress_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: UserLessonProgress_Having
+  ): [UserLessonProgress!]! @fdc_generated(from: "UserLessonProgress.lesson", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `Lesson` objects using `LessonPrerequisite` as the join table (a `LessonPrerequisite` object exists where its `prerequisite` is this and its `lesson` is that).
+  """
+  lessons_via_LessonPrerequisite_on_lesson(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: LessonPrerequisite_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [LessonPrerequisite_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: LessonPrerequisite_Having
+  ): [Lesson!]! @fdc_generated(from: "LessonPrerequisite", purpose: QUERY_MULTIPLE_MANY_TO_MANY)
+  """
+  ✨ List `Lesson` objects using `LessonPrerequisite` as the join table (a `LessonPrerequisite` object exists where its `lesson` is this and its `prerequisite` is that).
+  """
+  lessons_via_LessonPrerequisite_on_prerequisite(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: LessonPrerequisite_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [LessonPrerequisite_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: LessonPrerequisite_Having
+  ): [Lesson!]! @fdc_generated(from: "LessonPrerequisite", purpose: QUERY_MULTIPLE_MANY_TO_MANY)
+  """
+  ✨ List `User` objects using `UserLessonProgress` as the join table (a `UserLessonProgress` object exists where its `lesson` is this and its `user` is that).
+  """
+  users_via_UserLessonProgress(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: UserLessonProgress_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [UserLessonProgress_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: UserLessonProgress_Having
+  ): [User!]! @fdc_generated(from: "UserLessonProgress", purpose: QUERY_MULTIPLE_MANY_TO_MANY)
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "Lesson", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `Lesson` table.
+  """
+  _count: Int! @fdc_generated(from: "Lesson.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Lesson` table where the `durationSeconds` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  durationSeconds_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Lesson.durationSeconds", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Lesson` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Lesson.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Lesson` table where the `midiDataUrl` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  midiDataUrl_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Lesson.midiDataUrl", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Lesson` table where the `movementId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  movementId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Lesson.movementId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Lesson` table where the `order` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  order_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Lesson.order", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Lesson` table where the `title` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  title_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Lesson.title", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Lesson` table where the `videoUrl` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  videoUrl_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Lesson.videoUrl", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `durationSeconds` field in the `Lesson` table.
+  """
+  durationSeconds_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Lesson.durationSeconds", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `order` field in the `Lesson` table.
+  """
+  order_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Lesson.order", purpose: QUERY_SUM)
+  """
+  ✨ Average the `durationSeconds` field in the `Lesson` table.
+  """
+  durationSeconds_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Lesson.durationSeconds", purpose: QUERY_AVG)
+  """
+  ✨ Average the `order` field in the `Lesson` table.
+  """
+  order_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Lesson.order", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `durationSeconds` field in the `Lesson` table.
+  """
+  durationSeconds_min: Int @fdc_generated(from: "Lesson.durationSeconds", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `order` field in the `Lesson` table.
+  """
+  order_min: Int @fdc_generated(from: "Lesson.order", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `durationSeconds` field in the `Lesson` table.
+  """
+  durationSeconds_max: Int @fdc_generated(from: "Lesson.durationSeconds", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `order` field in the `Lesson` table.
+  """
+  order_max: Int @fdc_generated(from: "Lesson.order", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "Lesson.id", purpose: GLOBAL_ID)
+}
+extend type LessonPrerequisite {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "LessonPrerequisite", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `LessonPrerequisite` table.
+  """
+  _count: Int! @fdc_generated(from: "LessonPrerequisite.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `LessonPrerequisite` table where the `lessonId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lessonId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "LessonPrerequisite.lessonId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `LessonPrerequisite` table where the `prerequisiteId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  prerequisiteId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "LessonPrerequisite.prerequisiteId", purpose: QUERY_COUNT)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "LessonPrerequisite.lessonId,prerequisiteId", purpose: GLOBAL_ID)
+}
+extend type MaestroNote {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "MaestroNote", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `MaestroNote` table.
+  """
+  _count: Int! @fdc_generated(from: "MaestroNote.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MaestroNote` table where the `content` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  content_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MaestroNote.content", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MaestroNote` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MaestroNote.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MaestroNote` table where the `lessonId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lessonId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MaestroNote.lessonId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MaestroNote` table where the `noteType` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  noteType_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MaestroNote.noteType", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MaestroNote` table where the `timestampSeconds` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  timestampSeconds_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MaestroNote.timestampSeconds", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `timestampSeconds` field in the `MaestroNote` table.
+  """
+  timestampSeconds_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MaestroNote.timestampSeconds", purpose: QUERY_SUM)
+  """
+  ✨ Average the `timestampSeconds` field in the `MaestroNote` table.
+  """
+  timestampSeconds_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MaestroNote.timestampSeconds", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `timestampSeconds` field in the `MaestroNote` table.
+  """
+  timestampSeconds_min: Int @fdc_generated(from: "MaestroNote.timestampSeconds", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `timestampSeconds` field in the `MaestroNote` table.
+  """
+  timestampSeconds_max: Int @fdc_generated(from: "MaestroNote.timestampSeconds", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "MaestroNote.id", purpose: GLOBAL_ID)
+}
+extend type Movement {
+  """
+  ✨ List `Lesson` objects in a one-to-many relationship (where `Lesson`.`movement` is this object).
+  """
+  lessons_on_movement(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Lesson_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Lesson_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Lesson_Having
+  ): [Lesson!]! @fdc_generated(from: "Lesson.movement", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "Movement", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `Movement` table.
+  """
+  _count: Int! @fdc_generated(from: "Movement.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Movement` table where the `description` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  description_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Movement.description", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Movement` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Movement.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Movement` table where the `order` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  order_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Movement.order", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Movement` table where the `title` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  title_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Movement.title", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `order` field in the `Movement` table.
+  """
+  order_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Movement.order", purpose: QUERY_SUM)
+  """
+  ✨ Average the `order` field in the `Movement` table.
+  """
+  order_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Movement.order", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `order` field in the `Movement` table.
+  """
+  order_min: Int @fdc_generated(from: "Movement.order", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `order` field in the `Movement` table.
+  """
+  order_max: Int @fdc_generated(from: "Movement.order", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "Movement.id", purpose: GLOBAL_ID)
+}
+extend type RecitalReaction {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "RecitalReaction", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `RecitalReaction` table.
+  """
+  _count: Int! @fdc_generated(from: "RecitalReaction.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `RecitalReaction` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "RecitalReaction.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `RecitalReaction` table where the `reactionType` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  reactionType_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "RecitalReaction.reactionType", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `RecitalReaction` table where the `repertoireItemId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  repertoireItemId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "RecitalReaction.repertoireItemId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `RecitalReaction` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  userId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "RecitalReaction.userId", purpose: QUERY_COUNT)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "RecitalReaction.id", purpose: GLOBAL_ID)
+}
+extend type RepertoireItem {
+  """
+  ✨ List `RecitalReaction` objects in a one-to-many relationship (where `RecitalReaction`.`repertoireItem` is this object).
+  """
+  recitalReactions_on_repertoireItem(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: RecitalReaction_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [RecitalReaction_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: RecitalReaction_Having
+  ): [RecitalReaction!]! @fdc_generated(from: "RecitalReaction.repertoireItem", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "RepertoireItem", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `RepertoireItem` table.
+  """
+  _count: Int! @fdc_generated(from: "RepertoireItem.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `RepertoireItem` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "RepertoireItem.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `RepertoireItem` table where the `lessonId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lessonId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "RepertoireItem.lessonId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `RepertoireItem` table where the `performanceMidiUrl` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  performanceMidiUrl_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "RepertoireItem.performanceMidiUrl", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `RepertoireItem` table where the `performanceVideoUrl` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  performanceVideoUrl_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "RepertoireItem.performanceVideoUrl", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `RepertoireItem` table where the `uploadedAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  uploadedAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "RepertoireItem.uploadedAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `RepertoireItem` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  userId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "RepertoireItem.userId", purpose: QUERY_COUNT)
+  """
+  ✨ Minimum of the `uploadedAt` field in the `RepertoireItem` table.
+  """
+  uploadedAt_min: Timestamp @fdc_generated(from: "RepertoireItem.uploadedAt", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `uploadedAt` field in the `RepertoireItem` table.
+  """
+  uploadedAt_max: Timestamp @fdc_generated(from: "RepertoireItem.uploadedAt", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "RepertoireItem.id", purpose: GLOBAL_ID)
+}
+extend type User {
+  """
+  ✨ List `RecitalReaction` objects in a one-to-many relationship (where `RecitalReaction`.`user` is this object).
+  """
+  recitalReactions_on_user(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: RecitalReaction_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [RecitalReaction_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: RecitalReaction_Having
+  ): [RecitalReaction!]! @fdc_generated(from: "RecitalReaction.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `RepertoireItem` objects in a one-to-many relationship (where `RepertoireItem`.`user` is this object).
+  """
+  repertoireItems_on_user(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: RepertoireItem_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [RepertoireItem_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: RepertoireItem_Having
+  ): [RepertoireItem!]! @fdc_generated(from: "RepertoireItem.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `UserLessonProgress` objects in a one-to-many relationship (where `UserLessonProgress`.`user` is this object).
+  """
+  userLessonProgresses_on_user(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: UserLessonProgress_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [UserLessonProgress_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: UserLessonProgress_Having
+  ): [UserLessonProgress!]! @fdc_generated(from: "UserLessonProgress.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `Lesson` objects using `UserLessonProgress` as the join table (a `UserLessonProgress` object exists where its `user` is this and its `lesson` is that).
+  """
+  lessons_via_UserLessonProgress(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: UserLessonProgress_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [UserLessonProgress_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: UserLessonProgress_Having
+  ): [Lesson!]! @fdc_generated(from: "UserLessonProgress", purpose: QUERY_MULTIPLE_MANY_TO_MANY)
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "User", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `User` table.
+  """
+  _count: Int! @fdc_generated(from: "User.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `currentStreak` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  currentStreak_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.currentStreak", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `displayName` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  displayName_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.displayName", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `email` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  email_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.email", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `instrument` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  instrument_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.instrument", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `photoURL` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  photoURL_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.photoURL", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `resonanceScore` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  resonanceScore_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.resonanceScore", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `skillLevel` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  skillLevel_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.skillLevel", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `synesthesiaSettings` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  synesthesiaSettings_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.synesthesiaSettings", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `currentStreak` field in the `User` table.
+  """
+  currentStreak_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "User.currentStreak", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `resonanceScore` field in the `User` table.
+  """
+  resonanceScore_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "User.resonanceScore", purpose: QUERY_SUM)
+  """
+  ✨ Average the `currentStreak` field in the `User` table.
+  """
+  currentStreak_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "User.currentStreak", purpose: QUERY_AVG)
+  """
+  ✨ Average the `resonanceScore` field in the `User` table.
+  """
+  resonanceScore_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "User.resonanceScore", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `currentStreak` field in the `User` table.
+  """
+  currentStreak_min: Int @fdc_generated(from: "User.currentStreak", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `resonanceScore` field in the `User` table.
+  """
+  resonanceScore_min: Int @fdc_generated(from: "User.resonanceScore", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `currentStreak` field in the `User` table.
+  """
+  currentStreak_max: Int @fdc_generated(from: "User.currentStreak", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `resonanceScore` field in the `User` table.
+  """
+  resonanceScore_max: Int @fdc_generated(from: "User.resonanceScore", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "User.id", purpose: GLOBAL_ID)
+}
+extend type UserLessonProgress {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "UserLessonProgress", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `UserLessonProgress` table.
+  """
+  _count: Int! @fdc_generated(from: "UserLessonProgress.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `UserLessonProgress` table where the `accuracyScore` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  accuracyScore_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "UserLessonProgress.accuracyScore", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `UserLessonProgress` table where the `lastPlayedAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lastPlayedAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "UserLessonProgress.lastPlayedAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `UserLessonProgress` table where the `lessonId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lessonId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "UserLessonProgress.lessonId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `UserLessonProgress` table where the `status` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  status_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "UserLessonProgress.status", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `UserLessonProgress` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  userId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "UserLessonProgress.userId", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `accuracyScore` field in the `UserLessonProgress` table.
+  """
+  accuracyScore_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "UserLessonProgress.accuracyScore", purpose: QUERY_SUM)
+  """
+  ✨ Average the `accuracyScore` field in the `UserLessonProgress` table.
+  """
+  accuracyScore_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "UserLessonProgress.accuracyScore", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `accuracyScore` field in the `UserLessonProgress` table.
+  """
+  accuracyScore_min: Int @fdc_generated(from: "UserLessonProgress.accuracyScore", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `lastPlayedAt` field in the `UserLessonProgress` table.
+  """
+  lastPlayedAt_min: Timestamp @fdc_generated(from: "UserLessonProgress.lastPlayedAt", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `accuracyScore` field in the `UserLessonProgress` table.
+  """
+  accuracyScore_max: Int @fdc_generated(from: "UserLessonProgress.accuracyScore", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `lastPlayedAt` field in the `UserLessonProgress` table.
+  """
+  lastPlayedAt_max: Timestamp @fdc_generated(from: "UserLessonProgress.lastPlayedAt", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "UserLessonProgress.userId,lessonId", purpose: GLOBAL_ID)
+}

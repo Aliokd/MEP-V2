@@ -69,7 +69,7 @@ const Navigation = () => {
                         <Link href="/signin" className="text-[10px] uppercase tracking-[0.3em] font-bold text-stone-900/60 dark:text-alabaster/60 hover:text-gold-500 transition-colors">
                             SIGN IN
                         </Link>
-                        <Link href="/signup" className="bg-stone-900 dark:bg-alabaster text-white dark:text-charcoal px-6 py-3 rounded-xs hover:bg-gold-500 dark:hover:bg-gold-500 transition-all text-[10px] tracking-[0.2em] font-bold uppercase">
+                        <Link href="/onboarding" className="bg-stone-900 dark:bg-alabaster text-white dark:text-charcoal px-6 py-3 rounded-xs hover:bg-gold-500 dark:hover:bg-gold-500 transition-all text-[10px] tracking-[0.2em] font-bold uppercase">
                             Get Started
                         </Link>
                     </div>
