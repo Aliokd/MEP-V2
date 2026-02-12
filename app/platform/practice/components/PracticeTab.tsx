@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { SAMPLE_SONGS, Song } from '../data/songs';
+import { SAMPLE_SONGS } from '../data/songs';
 import LyricsPlayer from './LyricsPlayer';
 import { Play, Pause } from 'lucide-react';
 

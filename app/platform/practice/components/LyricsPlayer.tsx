@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Song, Word } from '../data/songs';
-import { Play, Pause } from 'lucide-react';
 
 interface LyricsPlayerProps {
     song: Song;
@@ -15,15 +14,21 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
     const [currentTime, setCurrentTime] = useState(0);
     const [isLoaded, setIsLoaded] = useState(false);
     const [loadError, setLoadError] = useState(false);
+    const [duration, setDuration] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const requestRef = useRef<number>();
+    const requestRef = useRef<number | undefined>(undefined);
+    const updateProgressRef = useRef<(() => void) | null>(null);
 
-    const updateProgress = (_timestamp: number) => {
+    const updateProgress = useCallback(() => {
         if (audioRef.current && isPlaying) {
             setCurrentTime(audioRef.current.currentTime);
-            requestRef.current = requestAnimationFrame(updateProgress);
+            requestRef.current = requestAnimationFrame(() => updateProgressRef.current?.());
         }
-    };
+    }, [isPlaying]);
+
+    useEffect(() => {
+        updateProgressRef.current = updateProgress;
+    }, [updateProgress]);
 
     useEffect(() => {
         if (isPlaying) {
@@ -34,7 +39,7 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
         return () => {
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
         };
-    }, [isPlaying]);
+    }, [isPlaying, updateProgress]);
 
     useEffect(() => {
         const audio = new Audio();
@@ -46,8 +51,9 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
         const onCanPlay = () => {
             setIsLoaded(true);
             setLoadError(false);
+            if (audio.duration) setDuration(audio.duration);
         };
-        const onError = (e: any) => {
+        const onError = (e: Event) => {
             console.error("Audio failed to load:", song.audioUrl, e);
             if (!isLoaded && audio.networkState === 3) {
                 audio.load();
@@ -72,7 +78,7 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
             audio.src = "";
             audioRef.current = null;
         };
-    }, [song.audioUrl]);
+    }, [song.audioUrl, isLoaded, isPlaying, onTogglePlay]);
 
     useEffect(() => {
         if (audioRef.current && isLoaded) {
@@ -89,8 +95,9 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
                 setCurrentTime(audioRef.current.currentTime); // Sync once more on pause
             }
         }
-    }, [isPlaying, isLoaded]);
+    }, [isPlaying, isLoaded, onTogglePlay]);
 
+    const roundedTime = Math.floor(currentTime);
     useEffect(() => {
         if (isPlaying) {
             const activeWordElement = document.querySelector('.word-active');
@@ -101,7 +108,7 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
                 });
             }
         }
-    }, [Math.floor(currentTime)]); // Scroll line-by-line rather than word-by-word to avoid jitters
+    }, [roundedTime, isPlaying]); // Scroll line-by-line rather than word-by-word to avoid jitters
 
     const handleWordClick = (time: number) => {
         if (audioRef.current) {
@@ -147,7 +154,7 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
             <div className="w-full h-1 bg-white/5 rounded-full relative overflow-hidden">
                 <div
                     className="absolute top-0 left-0 h-full bg-gold-500 transition-all duration-300"
-                    style={{ width: `${(currentTime / (audioRef.current?.duration || 1)) * 100}%` }}
+                    style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                 />
             </div>
 
