@@ -9,6 +9,7 @@ import { getUserConstellation, ConstellationData } from '@/app/actions/lesson-ac
 import ChapterProgress from './components/ChapterProgress';
 import LessonContent from './components/LessonContent';
 import ChapterList from './components/ChapterList';
+import Link from 'next/link';
 
 export default function PlatformPage() {
     const { user, loading: authLoading } = useAuth();
@@ -175,8 +176,8 @@ export default function PlatformPage() {
 
                 <div className="flex items-center gap-8">
                     <button className="text-[10px] uppercase tracking-[0.2em] text-gold-400 font-sans border-b border-gold-400/30 pb-1">My classes</button>
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors font-sans">Progress</button>
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors font-sans">AI</button>
+                    <Link href="/platform/practice" className="text-[10px] uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors font-sans decoration-none">Practise</Link>
+                    <button className="text-[10px] uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors font-sans">Show the world</button>
                     <button className="text-[10px] uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors font-sans">Community?</button>
                     <button className="text-[10px] uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors font-sans">Practice instruments</button>
                 </div>

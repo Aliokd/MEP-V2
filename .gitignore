@@ -41,4 +41,5 @@ firebase-debug.log*
 .gemini
 .agent
 brain
+dataconnect/.dataconnect/
 
