@@ -199,5 +199,121 @@ export const SAMPLE_SONGS: Song[] = [
                 ]
             }
         ]
+    },
+    {
+        id: "song-3",
+        title: "Do You Love",
+        artist: "Peter Nordberg",
+        audioUrl: "/Do You Love - Peter Nordberg.mp3",
+        lyrics: [
+            {
+                title: "Verse 1",
+                lines: [
+                    {
+                        words: [
+                            { text: "Stay", start: 16.0, end: 16.5 },
+                            { text: "and", start: 16.5, end: 16.8 },
+                            { text: "try", start: 16.8, end: 17.1 },
+                            { text: "to", start: 17.1, end: 17.3 },
+                            { text: "find", start: 17.3, end: 17.7 },
+                            { text: "another", start: 17.7, end: 18.2 },
+                            { text: "way", start: 18.2, end: 18.8 }
+                        ]
+                    },
+                    {
+                        words: [
+                            { text: "Just", start: 19.5, end: 19.8 },
+                            { text: "don't", start: 19.8, end: 20.2 },
+                            { text: "swipe", start: 20.2, end: 20.6 },
+                            { text: "and", start: 20.6, end: 20.8 },
+                            { text: "like", start: 20.8, end: 21.2 },
+                            { text: "and", start: 21.2, end: 21.4 },
+                            { text: "play", start: 21.4, end: 21.8 },
+                            { text: "all", start: 21.8, end: 22.1 },
+                            { text: "day", start: 22.1, end: 22.6 }
+                        ]
+                    },
+                    {
+                        words: [
+                            { text: "You", start: 23.5, end: 23.8 },
+                            { text: "know", start: 23.8, end: 24.1 },
+                            { text: "don't", start: 24.1, end: 24.5 },
+                            { text: "let", start: 24.5, end: 24.7 },
+                            { text: "them", start: 24.7, end: 25.0 },
+                            { text: "say", start: 25.0, end: 25.3 },
+                            { text: "I", start: 25.3, end: 25.5 },
+                            { text: "told", start: 25.5, end: 25.8 },
+                            { text: "you", start: 25.8, end: 26.3 }
+                        ]
+                    },
+                    {
+                        words: [
+                            { text: "So", start: 27.5, end: 27.8 },
+                            { text: "just", start: 27.8, end: 28.1 },
+                            { text: "let", start: 28.1, end: 28.4 },
+                            { text: "it", start: 28.4, end: 28.6 },
+                            { text: "out", start: 28.6, end: 29.0 },
+                            { text: "and", start: 29.0, end: 29.2 },
+                            { text: "let", start: 29.2, end: 29.5 },
+                            { text: "it", start: 29.5, end: 29.7 },
+                            { text: "flow", start: 29.7, end: 30.3 }
+                        ]
+                    }
+                ]
+            },
+            {
+                title: "Chorus",
+                lines: [
+                    {
+                        words: [
+                            { text: "Do", start: 32.0, end: 32.3 },
+                            { text: "you", start: 32.3, end: 32.6 },
+                            { text: "love?", start: 32.6, end: 33.2 }
+                        ]
+                    },
+                    {
+                        words: [
+                            { text: "Do", start: 34.0, end: 34.3 },
+                            { text: "you", start: 34.3, end: 34.6 },
+                            { text: "feel", start: 34.6, end: 34.9 },
+                            { text: "it", start: 34.9, end: 35.1 },
+                            { text: "from", start: 35.1, end: 35.4 },
+                            { text: "above?", start: 35.4, end: 36.1 }
+                        ]
+                    },
+                    {
+                        words: [
+                            { text: "Is", start: 36.5, end: 36.8 },
+                            { text: "it", start: 36.8, end: 37.0 },
+                            { text: "coming", start: 37.0, end: 37.4 },
+                            { text: "from", start: 37.4, end: 37.7 },
+                            { text: "below?", start: 37.7, end: 38.3 }
+                        ]
+                    },
+                    {
+                        words: [
+                            { text: "The", start: 38.5, end: 38.8 },
+                            { text: "deepest", start: 38.8, end: 39.3 },
+                            { text: "of", start: 39.3, end: 39.5 },
+                            { text: "your", start: 39.5, end: 39.8 },
+                            { text: "soul", start: 39.8, end: 40.5 }
+                        ]
+                    },
+                    {
+                        words: [
+                            { text: "Peace", start: 41.0, end: 41.5 },
+                            { text: "and", start: 41.5, end: 41.8 },
+                            { text: "love", start: 41.8, end: 42.3 },
+                            { text: "from", start: 42.3, end: 42.6 },
+                            { text: "the", start: 42.6, end: 42.8 },
+                            { text: "deepest", start: 42.8, end: 43.3 },
+                            { text: "of", start: 43.3, end: 43.5 },
+                            { text: "your", start: 43.5, end: 43.8 },
+                            { text: "soul", start: 43.8, end: 44.5 }
+                        ]
+                    }
+                ]
+            }
+        ]
     }
 ];
