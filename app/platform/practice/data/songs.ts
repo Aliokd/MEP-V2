@@ -211,61 +211,61 @@ export const SAMPLE_SONGS: Song[] = [
                 lines: [
                     {
                         words: [
-                            { text: "You.", start: 6.24, end: 6.48 }
+                            { text: "You.", start: 16.0, end: 16.24 }
                         ]
                     },
                     {
                         words: [
-                            { text: "I", start: 9.04, end: 9.4 },
-                            { text: "wanna", start: 9.4, end: 9.72 },
-                            { text: "spend", start: 10.0, end: 10.36 },
-                            { text: "a", start: 10.36, end: 10.64 },
-                            { text: "day", start: 10.64, end: 10.96 },
-                            { text: "with.", start: 10.96, end: 11.32 },
-                            { text: "You.", start: 11.32, end: 11.68 }
+                            { text: "I", start: 18.8, end: 19.16 },
+                            { text: "wanna", start: 19.16, end: 19.48 },
+                            { text: "spend", start: 19.76, end: 20.12 },
+                            { text: "a", start: 20.12, end: 20.4 },
+                            { text: "day", start: 20.4, end: 20.72 },
+                            { text: "with.", start: 20.72, end: 21.08 },
+                            { text: "You.", start: 21.08, end: 21.44 }
                         ]
                     },
                     {
                         words: [
-                            { text: "And", start: 14.24, end: 14.6 },
-                            { text: "I", start: 14.6, end: 14.88 },
-                            { text: "don't", start: 14.88, end: 15.2 },
-                            { text: "care", start: 15.2, end: 15.48 },
-                            { text: "just", start: 15.48, end: 15.8 },
-                            { text: "what", start: 15.8, end: 16.12 },
-                            { text: "we", start: 16.12, end: 16.48 },
-                            { text: "do.", start: 16.48, end: 16.88 }
+                            { text: "And", start: 24.0, end: 24.36 },
+                            { text: "I", start: 24.36, end: 24.64 },
+                            { text: "don't", start: 24.64, end: 24.96 },
+                            { text: "care", start: 24.96, end: 25.24 },
+                            { text: "just", start: 25.24, end: 25.56 },
+                            { text: "what", start: 25.56, end: 25.88 },
+                            { text: "we", start: 25.88, end: 26.24 },
+                            { text: "do.", start: 26.24, end: 26.64 }
                         ]
                     },
                     {
                         words: [
-                            { text: "It's", start: 18.64, end: 19.12 },
-                            { text: "true.", start: 19.12, end: 19.52 }
+                            { text: "It's", start: 28.4, end: 28.88 },
+                            { text: "true.", start: 28.88, end: 29.28 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Tonight", start: 24.0, end: 24.72 },
-                            { text: "we", start: 27.04, end: 27.4 },
-                            { text: "stay", start: 27.4, end: 27.76 },
-                            { text: "at", start: 27.76, end: 28.08 },
-                            { text: "home,", start: 28.08, end: 28.36 },
-                            { text: "turn", start: 28.36, end: 28.72 },
-                            { text: "down", start: 28.72, end: 29.08 },
-                            { text: "the", start: 29.08, end: 29.4 },
-                            { text: "lights.", start: 29.4, end: 29.76 }
+                            { text: "Tonight", start: 33.76, end: 34.48 },
+                            { text: "we", start: 36.8, end: 37.16 },
+                            { text: "stay", start: 37.16, end: 37.52 },
+                            { text: "at", start: 37.52, end: 37.84 },
+                            { text: "home,", start: 37.84, end: 38.12 },
+                            { text: "turn", start: 38.12, end: 38.48 },
+                            { text: "down", start: 38.48, end: 38.84 },
+                            { text: "the", start: 38.84, end: 39.16 },
+                            { text: "lights.", start: 39.16, end: 39.52 }
                         ]
                     },
                     {
                         words: [
-                            { text: "And", start: 32.38, end: 32.62 },
-                            { text: "maybe", start: 32.62, end: 33.18 },
-                            { text: "hold", start: 33.26, end: 33.66 },
-                            { text: "each", start: 33.66, end: 34.02 },
-                            { text: "other", start: 34.02, end: 34.38 },
-                            { text: "tight", start: 34.54, end: 35.1 },
-                            { text: "all", start: 36.78, end: 37.18 },
-                            { text: "night.", start: 37.18, end: 37.58 }
+                            { text: "And", start: 42.14, end: 42.38 },
+                            { text: "maybe", start: 42.38, end: 42.94 },
+                            { text: "hold", start: 43.02, end: 43.42 },
+                            { text: "each", start: 43.42, end: 43.78 },
+                            { text: "other", start: 43.78, end: 44.14 },
+                            { text: "tight", start: 44.3, end: 44.86 },
+                            { text: "all", start: 46.54, end: 46.94 },
+                            { text: "night.", start: 46.94, end: 47.34 }
                         ]
                     }
                 ]
@@ -275,38 +275,38 @@ export const SAMPLE_SONGS: Song[] = [
                 lines: [
                     {
                         words: [
-                            { text: "Do", start: 41.58, end: 41.86 },
-                            { text: "you", start: 41.86, end: 42.1 },
-                            { text: "love?", start: 42.1, end: 42.46 }
+                            { text: "Do", start: 51.34, end: 51.62 },
+                            { text: "you", start: 51.62, end: 51.86 },
+                            { text: "love?", start: 51.86, end: 52.22 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Do", start: 45.74, end: 46.06 },
-                            { text: "you", start: 46.06, end: 46.3 },
-                            { text: "feel", start: 46.3, end: 46.62 },
-                            { text: "it", start: 46.62, end: 47.02 },
-                            { text: "from", start: 47.02, end: 47.34 },
-                            { text: "above?", start: 47.34, end: 47.82 }
+                            { text: "Do", start: 55.5, end: 55.82 },
+                            { text: "you", start: 55.82, end: 56.06 },
+                            { text: "feel", start: 56.06, end: 56.38 },
+                            { text: "it", start: 56.38, end: 56.78 },
+                            { text: "from", start: 56.78, end: 57.1 },
+                            { text: "above?", start: 57.1, end: 57.58 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Is", start: 50.94, end: 51.26 },
-                            { text: "it", start: 51.26, end: 51.5 },
-                            { text: "coming", start: 51.5, end: 51.82 },
-                            { text: "from", start: 52.3, end: 52.7 },
-                            { text: "below?", start: 52.7, end: 53.1 }
+                            { text: "Is", start: 60.7, end: 61.02 },
+                            { text: "it", start: 61.02, end: 61.26 },
+                            { text: "coming", start: 61.26, end: 61.58 },
+                            { text: "from", start: 62.06, end: 62.46 },
+                            { text: "below?", start: 62.46, end: 62.86 }
                         ]
                     },
                     {
                         words: [
-                            { text: "From", start: 56.06, end: 56.38 },
-                            { text: "the", start: 56.38, end: 56.62 },
-                            { text: "deepest", start: 56.62, end: 57.34 },
-                            { text: "of", start: 57.5, end: 57.86 },
-                            { text: "your", start: 57.86, end: 58.22 },
-                            { text: "soul?", start: 58.3, end: 58.86 }
+                            { text: "From", start: 65.82, end: 66.14 },
+                            { text: "the", start: 66.14, end: 66.38 },
+                            { text: "deepest", start: 66.38, end: 67.1 },
+                            { text: "of", start: 67.26, end: 67.62 },
+                            { text: "your", start: 67.62, end: 67.98 },
+                            { text: "soul?", start: 68.06, end: 68.62 }
                         ]
                     }
                 ]
@@ -316,58 +316,58 @@ export const SAMPLE_SONGS: Song[] = [
                 lines: [
                     {
                         words: [
-                            { text: "Stay", start: 65.56, end: 65.8 },
-                            { text: "and", start: 68.44, end: 68.8 },
-                            { text: "try", start: 68.8, end: 69.12 },
-                            { text: "to", start: 69.12, end: 69.44 },
-                            { text: "find", start: 69.44, end: 69.8 },
-                            { text: "another", start: 69.88, end: 70.28 },
-                            { text: "way.", start: 70.76, end: 71.16 }
+                            { text: "Stay", start: 75.32, end: 75.56 },
+                            { text: "and", start: 78.2, end: 78.56 },
+                            { text: "try", start: 78.56, end: 78.88 },
+                            { text: "to", start: 78.88, end: 79.2 },
+                            { text: "find", start: 79.2, end: 79.56 },
+                            { text: "another", start: 79.64, end: 80.04 },
+                            { text: "way.", start: 80.52, end: 80.92 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Just", start: 73.72, end: 74.12 },
-                            { text: "don't", start: 74.2, end: 74.6 },
-                            { text: "swive", start: 74.6, end: 75.0 },
-                            { text: "and", start: 75.0, end: 75.28 },
-                            { text: "like", start: 75.28, end: 75.64 },
-                            { text: "and", start: 75.64, end: 75.96 },
-                            { text: "play", start: 75.96, end: 76.28 },
-                            { text: "all", start: 78.2, end: 78.56 },
-                            { text: "day.", start: 78.56, end: 78.92 }
+                            { text: "Just", start: 83.48, end: 83.88 },
+                            { text: "don't", start: 83.96, end: 84.36 },
+                            { text: "swive", start: 84.36, end: 84.76 },
+                            { text: "and", start: 84.76, end: 85.04 },
+                            { text: "like", start: 85.04, end: 85.4 },
+                            { text: "and", start: 85.4, end: 85.72 },
+                            { text: "play", start: 85.72, end: 86.04 },
+                            { text: "all", start: 87.96, end: 88.32 },
+                            { text: "day.", start: 88.32, end: 88.68 }
                         ]
                     },
                     {
                         words: [
-                            { text: "You", start: 83.24, end: 83.64 },
-                            { text: "know,", start: 83.64, end: 84.04 },
-                            { text: "don't", start: 86.6, end: 87.0 },
-                            { text: "let", start: 87.0, end: 87.24 },
-                            { text: "them", start: 87.24, end: 87.56 },
-                            { text: "say", start: 87.56, end: 87.92 },
-                            { text: "I", start: 87.92, end: 88.24 },
-                            { text: "told", start: 88.24, end: 88.56 },
-                            { text: "you", start: 88.56, end: 88.92 },
-                            { text: "so.", start: 88.92, end: 89.32 }
+                            { text: "You", start: 93.0, end: 93.4 },
+                            { text: "know,", start: 93.4, end: 93.8 },
+                            { text: "don't", start: 96.36, end: 96.76 },
+                            { text: "let", start: 96.76, end: 97.0 },
+                            { text: "them", start: 97.0, end: 97.32 },
+                            { text: "say", start: 97.32, end: 97.68 },
+                            { text: "I", start: 97.68, end: 98.0 },
+                            { text: "told", start: 98.0, end: 98.32 },
+                            { text: "you", start: 98.32, end: 98.68 },
+                            { text: "so.", start: 98.68, end: 99.08 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Just", start: 91.72, end: 92.12 },
-                            { text: "let", start: 92.1, end: 92.48 },
-                            { text: "it", start: 92.48, end: 92.8 },
-                            { text: "out", start: 92.8, end: 93.12 },
-                            { text: "and", start: 93.12, end: 93.44 },
-                            { text: "let", start: 93.44, end: 93.76 },
-                            { text: "it", start: 93.76, end: 94.04 },
-                            { text: "flow.", start: 94.04, end: 94.44 }
+                            { text: "Just", start: 101.48, end: 101.88 },
+                            { text: "let", start: 101.86, end: 102.24 },
+                            { text: "it", start: 102.24, end: 102.56 },
+                            { text: "out", start: 102.56, end: 102.88 },
+                            { text: "and", start: 102.88, end: 103.2 },
+                            { text: "let", start: 103.2, end: 103.52 },
+                            { text: "it", start: 103.52, end: 103.8 },
+                            { text: "flow.", start: 103.8, end: 104.2 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Let's", start: 96.44, end: 96.72 },
-                            { text: "go.", start: 96.72, end: 97.0 }
+                            { text: "Let's", start: 106.2, end: 106.48 },
+                            { text: "go.", start: 106.48, end: 106.76 }
                         ]
                     }
                 ]
@@ -377,38 +377,38 @@ export const SAMPLE_SONGS: Song[] = [
                 lines: [
                     {
                         words: [
-                            { text: "Do", start: 101.08, end: 101.36 },
-                            { text: "you", start: 101.36, end: 101.56 },
-                            { text: "love?", start: 101.56, end: 101.88 }
+                            { text: "Do", start: 110.84, end: 111.12 },
+                            { text: "you", start: 111.12, end: 111.32 },
+                            { text: "love?", start: 111.32, end: 111.64 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Do", start: 105.24, end: 105.52 },
-                            { text: "you", start: 105.52, end: 105.76 },
-                            { text: "feel", start: 105.76, end: 106.12 },
-                            { text: "it", start: 106.12, end: 106.52 },
-                            { text: "from", start: 106.52, end: 106.84 },
-                            { text: "above?", start: 106.84, end: 107.4 }
+                            { text: "Do", start: 115.0, end: 115.28 },
+                            { text: "you", start: 115.28, end: 115.52 },
+                            { text: "feel", start: 115.52, end: 115.88 },
+                            { text: "it", start: 115.88, end: 116.28 },
+                            { text: "from", start: 116.28, end: 116.6 },
+                            { text: "above?", start: 116.6, end: 117.16 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Is", start: 110.44, end: 110.76 },
-                            { text: "it", start: 110.76, end: 111.0 },
-                            { text: "coming", start: 111.0, end: 111.32 },
-                            { text: "from", start: 111.8, end: 112.2 },
-                            { text: "below?", start: 112.2, end: 112.6 }
+                            { text: "Is", start: 120.2, end: 120.52 },
+                            { text: "it", start: 120.52, end: 120.76 },
+                            { text: "coming", start: 120.76, end: 121.08 },
+                            { text: "from", start: 121.56, end: 121.96 },
+                            { text: "below?", start: 121.96, end: 122.36 }
                         ]
                     },
                     {
                         words: [
-                            { text: "From", start: 115.56, end: 115.88 },
-                            { text: "the", start: 115.88, end: 116.12 },
-                            { text: "deepest", start: 116.12, end: 116.84 },
-                            { text: "of", start: 117.0, end: 117.36 },
-                            { text: "your", start: 117.36, end: 117.72 },
-                            { text: "soul?", start: 117.72, end: 118.28 }
+                            { text: "From", start: 125.32, end: 125.64 },
+                            { text: "the", start: 125.64, end: 125.88 },
+                            { text: "deepest", start: 125.88, end: 126.6 },
+                            { text: "of", start: 126.76, end: 127.12 },
+                            { text: "your", start: 127.12, end: 127.48 },
+                            { text: "soul?", start: 127.48, end: 128.04 }
                         ]
                     }
                 ]
@@ -418,58 +418,58 @@ export const SAMPLE_SONGS: Song[] = [
                 lines: [
                     {
                         words: [
-                            { text: "Do", start: 122.82, end: 122.98 },
-                            { text: "you", start: 122.98, end: 123.18 },
-                            { text: "love,", start: 123.18, end: 123.42 },
-                            { text: "do", start: 123.42, end: 123.66 },
-                            { text: "you", start: 123.66, end: 123.82 },
-                            { text: "love?", start: 123.82, end: 124.06 }
+                            { text: "Do", start: 132.58, end: 132.74 },
+                            { text: "you", start: 132.74, end: 132.94 },
+                            { text: "love,", start: 132.94, end: 133.18 },
+                            { text: "do", start: 133.18, end: 133.42 },
+                            { text: "you", start: 133.42, end: 133.58 },
+                            { text: "love?", start: 133.58, end: 133.82 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Do", start: 124.06, end: 124.3 },
-                            { text: "you", start: 124.3, end: 124.46 },
-                            { text: "love?", start: 124.46, end: 124.7 },
-                            { text: "Do", start: 124.7, end: 124.94 },
-                            { text: "you", start: 124.94, end: 125.14 },
-                            { text: "love?", start: 125.14, end: 125.46 }
+                            { text: "Do", start: 133.82, end: 134.06 },
+                            { text: "you", start: 134.06, end: 134.22 },
+                            { text: "love?", start: 134.22, end: 134.46 },
+                            { text: "Do", start: 134.46, end: 134.7 },
+                            { text: "you", start: 134.7, end: 134.9 },
+                            { text: "love?", start: 134.9, end: 135.22 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Do", start: 132.1, end: 132.42 },
-                            { text: "you", start: 132.42, end: 132.74 },
-                            { text: "love?", start: 132.74, end: 133.1 }
+                            { text: "Do", start: 141.86, end: 142.18 },
+                            { text: "you", start: 142.18, end: 142.5 },
+                            { text: "love?", start: 142.5, end: 142.86 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Do", start: 136.26, end: 136.58 },
-                            { text: "you", start: 136.58, end: 136.78 },
-                            { text: "feel", start: 136.78, end: 137.06 },
-                            { text: "it", start: 137.14, end: 137.54 },
-                            { text: "from", start: 137.54, end: 137.86 },
-                            { text: "above?", start: 137.86, end: 138.26 }
+                            { text: "Do", start: 146.02, end: 146.34 },
+                            { text: "you", start: 146.34, end: 146.54 },
+                            { text: "feel", start: 146.54, end: 146.82 },
+                            { text: "it", start: 146.9, end: 147.3 },
+                            { text: "from", start: 147.3, end: 147.62 },
+                            { text: "above?", start: 147.62, end: 148.02 }
                         ]
                     },
                     {
                         words: [
-                            { text: "Is", start: 151.78, end: 152.1 },
-                            { text: "it", start: 152.1, end: 152.34 },
-                            { text: "coming", start: 152.34, end: 152.66 },
-                            { text: "from", start: 153.14, end: 153.54 },
-                            { text: "below?", start: 153.7, end: 154.1 }
+                            { text: "Is", start: 161.54, end: 161.86 },
+                            { text: "it", start: 161.86, end: 162.1 },
+                            { text: "coming", start: 162.1, end: 162.42 },
+                            { text: "from", start: 162.9, end: 163.3 },
+                            { text: "below?", start: 163.46, end: 163.86 }
                         ]
                     },
                     {
                         words: [
-                            { text: "From", start: 156.96, end: 157.28 },
-                            { text: "the", start: 157.28, end: 157.48 },
-                            { text: "deepest", start: 157.48, end: 158.24 },
-                            { text: "of", start: 158.32, end: 158.68 },
-                            { text: "your", start: 158.68, end: 159.04 },
-                            { text: "soul.", start: 159.28, end: 159.96 }
+                            { text: "From", start: 166.72, end: 167.04 },
+                            { text: "the", start: 167.04, end: 167.24 },
+                            { text: "deepest", start: 167.24, end: 168.0 },
+                            { text: "of", start: 168.08, end: 168.44 },
+                            { text: "your", start: 168.44, end: 168.8 },
+                            { text: "soul.", start: 169.04, end: 169.72 }
                         ]
                     }
                 ]
