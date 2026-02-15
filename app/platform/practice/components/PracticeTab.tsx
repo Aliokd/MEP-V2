@@ -8,7 +8,7 @@ import { Play, Pause } from 'lucide-react';
 export default function PracticeTab() {
     const [selectedCategory, setSelectedCategory] = useState('Pop singer Song Writer');
     const [selectedSubCategory, setSelectedSubCategory] = useState('Words');
-    const [selectedSongId, setSelectedSongId] = useState('song-2');
+    const [selectedSongId, setSelectedSongId] = useState('song-3');
     const [isPlaying, setIsPlaying] = useState(false);
 
     const currentSong = SAMPLE_SONGS.find(s => s.id === selectedSongId) || SAMPLE_SONGS[0];
