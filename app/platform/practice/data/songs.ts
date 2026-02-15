@@ -206,274 +206,1061 @@ export const SAMPLE_SONGS: Song[] = [
         artist: "Peter Nordberg",
         audioUrl: "/Do You Love - Peter Nordberg.mp3",
         lyrics: [
-            {
-                title: "Verse 1",
-                lines: [
-                    {
-                        words: [
-                            { text: "You.", start: 9, end: 9.24 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "I", start: 11.8, end: 12.16 },
-                            { text: "wanna", start: 12.16, end: 12.48 },
-                            { text: "spend", start: 12.76, end: 13.12 },
-                            { text: "a", start: 13.12, end: 13.4 },
-                            { text: "day", start: 13.4, end: 13.72 },
-                            { text: "with.", start: 13.72, end: 14.08 },
-                            { text: "You.", start: 14.08, end: 14.44 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "And", start: 17, end: 17.36 },
-                            { text: "I", start: 17.36, end: 17.64 },
-                            { text: "don't", start: 17.64, end: 17.96 },
-                            { text: "care", start: 17.96, end: 18.24 },
-                            { text: "just", start: 18.24, end: 18.56 },
-                            { text: "what", start: 18.56, end: 18.88 },
-                            { text: "we", start: 18.88, end: 19.24 },
-                            { text: "do.", start: 19.24, end: 19.64 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "It's", start: 21.4, end: 21.88 },
-                            { text: "true.", start: 21.88, end: 22.28 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Tonight", start: 26.76, end: 27.48 },
-                            { text: "we", start: 29.8, end: 30.16 },
-                            { text: "stay", start: 30.16, end: 30.52 },
-                            { text: "at", start: 30.52, end: 30.84 },
-                            { text: "home,", start: 30.84, end: 31.12 },
-                            { text: "turn", start: 31.12, end: 31.48 },
-                            { text: "down", start: 31.48, end: 31.84 },
-                            { text: "the", start: 31.84, end: 32.16 },
-                            { text: "lights.", start: 32.16, end: 32.52 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "And", start: 35.14, end: 35.38 },
-                            { text: "maybe", start: 35.38, end: 35.94 },
-                            { text: "hold", start: 36.02, end: 36.42 },
-                            { text: "each", start: 36.42, end: 36.78 },
-                            { text: "other", start: 36.78, end: 37.14 },
-                            { text: "tight", start: 37.3, end: 37.86 },
-                            { text: "all", start: 39.54, end: 39.94 },
-                            { text: "night.", start: 39.94, end: 40.34 }
-                        ]
-                    }
-                ]
-            },
-            {
-                title: "Chorus",
-                lines: [
-                    {
-                        words: [
-                            { text: "Do", start: 44.34, end: 44.62 },
-                            { text: "you", start: 44.62, end: 44.86 },
-                            { text: "love?", start: 44.86, end: 45.22 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Do", start: 48.5, end: 48.82 },
-                            { text: "you", start: 48.82, end: 49.06 },
-                            { text: "feel", start: 49.06, end: 49.38 },
-                            { text: "it", start: 49.38, end: 49.78 },
-                            { text: "from", start: 49.78, end: 50.1 },
-                            { text: "above?", start: 50.1, end: 50.58 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Is", start: 53.7, end: 54.02 },
-                            { text: "it", start: 54.02, end: 54.26 },
-                            { text: "coming", start: 54.26, end: 54.58 },
-                            { text: "from", start: 55.06, end: 55.46 },
-                            { text: "below?", start: 55.46, end: 55.86 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "From", start: 58.82, end: 59.14 },
-                            { text: "the", start: 59.14, end: 59.38 },
-                            { text: "deepest", start: 59.38, end: 60.1 },
-                            { text: "of", start: 60.26, end: 60.62 },
-                            { text: "your", start: 60.62, end: 60.98 },
-                            { text: "soul?", start: 61.06, end: 61.62 }
-                        ]
-                    }
-                ]
-            },
-            {
-                title: "Verse 2",
-                lines: [
-                    {
-                        words: [
-                            { text: "Stay", start: 68.32, end: 68.56 },
-                            { text: "and", start: 71.2, end: 71.56 },
-                            { text: "try", start: 71.56, end: 71.88 },
-                            { text: "to", start: 71.88, end: 72.2 },
-                            { text: "find", start: 72.2, end: 72.56 },
-                            { text: "another", start: 72.64, end: 73.04 },
-                            { text: "way.", start: 73.52, end: 73.92 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Just", start: 76.48, end: 76.88 },
-                            { text: "don't", start: 76.96, end: 77.36 },
-                            { text: "swive", start: 77.36, end: 77.76 },
-                            { text: "and", start: 77.76, end: 78.04 },
-                            { text: "like", start: 78.04, end: 78.4 },
-                            { text: "and", start: 78.4, end: 78.72 },
-                            { text: "play", start: 78.72, end: 79.04 },
-                            { text: "all", start: 80.96, end: 81.32 },
-                            { text: "day.", start: 81.32, end: 81.68 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "You", start: 86, end: 86.4 },
-                            { text: "know,", start: 86.4, end: 86.8 },
-                            { text: "don't", start: 89.36, end: 89.76 },
-                            { text: "let", start: 89.76, end: 90 },
-                            { text: "them", start: 90, end: 90.32 },
-                            { text: "say", start: 90.32, end: 90.68 },
-                            { text: "I", start: 90.68, end: 91 },
-                            { text: "told", start: 91, end: 91.32 },
-                            { text: "you", start: 91.32, end: 91.68 },
-                            { text: "so.", start: 91.68, end: 92.08 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Just", start: 94.48, end: 94.88 },
-                            { text: "let", start: 94.86, end: 95.24 },
-                            { text: "it", start: 95.24, end: 95.56 },
-                            { text: "out", start: 95.56, end: 95.88 },
-                            { text: "and", start: 95.88, end: 96.2 },
-                            { text: "let", start: 96.2, end: 96.52 },
-                            { text: "it", start: 96.52, end: 96.8 },
-                            { text: "flow.", start: 96.8, end: 97.2 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Let's", start: 99.2, end: 99.48 },
-                            { text: "go.", start: 99.48, end: 99.76 }
-                        ]
-                    }
-                ]
-            },
-            {
-                title: "Chorus",
-                lines: [
-                    {
-                        words: [
-                            { text: "Do", start: 103.84, end: 104.12 },
-                            { text: "you", start: 104.12, end: 104.32 },
-                            { text: "love?", start: 104.32, end: 104.64 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Do", start: 108, end: 108.28 },
-                            { text: "you", start: 108.28, end: 108.52 },
-                            { text: "feel", start: 108.52, end: 108.88 },
-                            { text: "it", start: 108.88, end: 109.28 },
-                            { text: "from", start: 109.28, end: 109.6 },
-                            { text: "above?", start: 109.6, end: 110.16 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Is", start: 113.2, end: 113.52 },
-                            { text: "it", start: 113.52, end: 113.76 },
-                            { text: "coming", start: 113.76, end: 114.08 },
-                            { text: "from", start: 114.56, end: 114.96 },
-                            { text: "below?", start: 114.96, end: 115.36 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "From", start: 118.32, end: 118.64 },
-                            { text: "the", start: 118.64, end: 118.88 },
-                            { text: "deepest", start: 118.88, end: 119.6 },
-                            { text: "of", start: 119.76, end: 120.12 },
-                            { text: "your", start: 120.12, end: 120.48 },
-                            { text: "soul?", start: 120.48, end: 121.04 }
-                        ]
-                    }
-                ]
-            },
-            {
-                title: "Outro",
-                lines: [
-                    {
-                        words: [
-                            { text: "Do", start: 125.58, end: 125.74 },
-                            { text: "you", start: 125.74, end: 125.94 },
-                            { text: "love,", start: 125.94, end: 126.18 },
-                            { text: "do", start: 126.18, end: 126.42 },
-                            { text: "you", start: 126.42, end: 126.58 },
-                            { text: "love?", start: 126.58, end: 126.82 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Do", start: 126.82, end: 127.06 },
-                            { text: "you", start: 127.06, end: 127.22 },
-                            { text: "love?", start: 127.22, end: 127.46 },
-                            { text: "Do", start: 127.46, end: 127.7 },
-                            { text: "you", start: 127.7, end: 127.9 },
-                            { text: "love?", start: 127.9, end: 128.22 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Do", start: 134.86, end: 135.18 },
-                            { text: "you", start: 135.18, end: 135.5 },
-                            { text: "love?", start: 135.5, end: 135.86 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Do", start: 139.02, end: 139.34 },
-                            { text: "you", start: 139.34, end: 139.54 },
-                            { text: "feel", start: 139.54, end: 139.82 },
-                            { text: "it", start: 139.9, end: 140.3 },
-                            { text: "from", start: 140.3, end: 140.62 },
-                            { text: "above?", start: 140.62, end: 141.02 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "Is", start: 154.54, end: 154.86 },
-                            { text: "it", start: 154.86, end: 155.1 },
-                            { text: "coming", start: 155.1, end: 155.42 },
-                            { text: "from", start: 155.9, end: 156.3 },
-                            { text: "below?", start: 156.46, end: 156.86 }
-                        ]
-                    },
-                    {
-                        words: [
-                            { text: "From", start: 159.72, end: 160.04 },
-                            { text: "the", start: 160.04, end: 160.24 },
-                            { text: "deepest", start: 160.24, end: 161 },
-                            { text: "of", start: 161.08, end: 161.44 },
-                            { text: "your", start: 161.44, end: 161.8 },
-                            { text: "soul.", start: 162.04, end: 162.72 }
-                        ]
-                    }
-                ]
-            }
-        ]
+          {
+                    title: "Verse 1",
+                    lines: [
+                              {
+                                        words: [
+                                                  {
+                                                            text: "You.",
+                                                            start: 6.24,
+                                                            end: 6.48
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "I",
+                                                            start: 9.04,
+                                                            end: 9.4
+                                                  },
+                                                  {
+                                                            text: "wanna",
+                                                            start: 9.4,
+                                                            end: 9.72
+                                                  },
+                                                  {
+                                                            text: "spend",
+                                                            start: 10,
+                                                            end: 10.36
+                                                  },
+                                                  {
+                                                            text: "a",
+                                                            start: 10.36,
+                                                            end: 10.64
+                                                  },
+                                                  {
+                                                            text: "day",
+                                                            start: 10.64,
+                                                            end: 10.96
+                                                  },
+                                                  {
+                                                            text: "with.",
+                                                            start: 10.96,
+                                                            end: 11.32
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "You.",
+                                                            start: 11.32,
+                                                            end: 11.68
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "And",
+                                                            start: 14.24,
+                                                            end: 14.6
+                                                  },
+                                                  {
+                                                            text: "I",
+                                                            start: 14.6,
+                                                            end: 14.88
+                                                  },
+                                                  {
+                                                            text: "don't",
+                                                            start: 14.88,
+                                                            end: 15.2
+                                                  },
+                                                  {
+                                                            text: "care",
+                                                            start: 15.2,
+                                                            end: 15.48
+                                                  },
+                                                  {
+                                                            text: "just",
+                                                            start: 15.48,
+                                                            end: 15.8
+                                                  },
+                                                  {
+                                                            text: "what",
+                                                            start: 15.8,
+                                                            end: 16.12
+                                                  },
+                                                  {
+                                                            text: "we",
+                                                            start: 16.12,
+                                                            end: 16.48
+                                                  },
+                                                  {
+                                                            text: "do.",
+                                                            start: 16.48,
+                                                            end: 16.88
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "It's",
+                                                            start: 18.64,
+                                                            end: 19.12
+                                                  },
+                                                  {
+                                                            text: "true.",
+                                                            start: 19.12,
+                                                            end: 19.52
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Tonight",
+                                                            start: 24,
+                                                            end: 24.72
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "we",
+                                                            start: 27.04,
+                                                            end: 27.4
+                                                  },
+                                                  {
+                                                            text: "stay",
+                                                            start: 27.4,
+                                                            end: 27.76
+                                                  },
+                                                  {
+                                                            text: "at",
+                                                            start: 27.76,
+                                                            end: 28.08
+                                                  },
+                                                  {
+                                                            text: "home,",
+                                                            start: 28.08,
+                                                            end: 28.36
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "turn",
+                                                            start: 28.36,
+                                                            end: 28.72
+                                                  },
+                                                  {
+                                                            text: "down",
+                                                            start: 28.72,
+                                                            end: 29.08
+                                                  },
+                                                  {
+                                                            text: "the",
+                                                            start: 29.08,
+                                                            end: 29.4
+                                                  },
+                                                  {
+                                                            text: "lights.",
+                                                            start: 29.4,
+                                                            end: 29.76
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "And",
+                                                            start: 32.38,
+                                                            end: 32.62
+                                                  },
+                                                  {
+                                                            text: "maybe",
+                                                            start: 32.62,
+                                                            end: 33.18
+                                                  },
+                                                  {
+                                                            text: "hold",
+                                                            start: 33.26,
+                                                            end: 33.66
+                                                  },
+                                                  {
+                                                            text: "each",
+                                                            start: 33.66,
+                                                            end: 34.02
+                                                  },
+                                                  {
+                                                            text: "other",
+                                                            start: 34.02,
+                                                            end: 34.38
+                                                  },
+                                                  {
+                                                            text: "tight",
+                                                            start: 34.54,
+                                                            end: 35.1
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "all",
+                                                            start: 36.78,
+                                                            end: 37.18
+                                                  },
+                                                  {
+                                                            text: "night.",
+                                                            start: 37.18,
+                                                            end: 37.58
+                                                  }
+                                        ]
+                              }
+                    ]
+          },
+          {
+                    title: "Chorus",
+                    lines: [
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 41.58,
+                                                            end: 41.86
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 41.86,
+                                                            end: 42.1
+                                                  },
+                                                  {
+                                                            text: "love?",
+                                                            start: 42.1,
+                                                            end: 42.46
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 45.74,
+                                                            end: 46.06
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 46.06,
+                                                            end: 46.3
+                                                  },
+                                                  {
+                                                            text: "feel",
+                                                            start: 46.3,
+                                                            end: 46.62
+                                                  },
+                                                  {
+                                                            text: "it",
+                                                            start: 46.62,
+                                                            end: 47.02
+                                                  },
+                                                  {
+                                                            text: "from",
+                                                            start: 47.02,
+                                                            end: 47.34
+                                                  },
+                                                  {
+                                                            text: "above?",
+                                                            start: 47.34,
+                                                            end: 47.82
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Is",
+                                                            start: 50.94,
+                                                            end: 51.26
+                                                  },
+                                                  {
+                                                            text: "it",
+                                                            start: 51.26,
+                                                            end: 51.5
+                                                  },
+                                                  {
+                                                            text: "coming",
+                                                            start: 51.5,
+                                                            end: 51.82
+                                                  },
+                                                  {
+                                                            text: "from",
+                                                            start: 52.3,
+                                                            end: 52.7
+                                                  },
+                                                  {
+                                                            text: "below?",
+                                                            start: 52.7,
+                                                            end: 53.1
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "From",
+                                                            start: 56.06,
+                                                            end: 56.38
+                                                  },
+                                                  {
+                                                            text: "the",
+                                                            start: 56.38,
+                                                            end: 56.62
+                                                  },
+                                                  {
+                                                            text: "deepest",
+                                                            start: 56.62,
+                                                            end: 57.34
+                                                  },
+                                                  {
+                                                            text: "of",
+                                                            start: 57.5,
+                                                            end: 57.86
+                                                  },
+                                                  {
+                                                            text: "your",
+                                                            start: 57.86,
+                                                            end: 58.22
+                                                  },
+                                                  {
+                                                            text: "soul?",
+                                                            start: 58.3,
+                                                            end: 58.86
+                                                  }
+                                        ]
+                              }
+                    ]
+          },
+          {
+                    title: "Verse 2",
+                    lines: [
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Stay",
+                                                            start: 65.56,
+                                                            end: 65.8
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "and",
+                                                            start: 68.44,
+                                                            end: 68.8
+                                                  },
+                                                  {
+                                                            text: "try",
+                                                            start: 68.8,
+                                                            end: 69.12
+                                                  },
+                                                  {
+                                                            text: "to",
+                                                            start: 69.12,
+                                                            end: 69.44
+                                                  },
+                                                  {
+                                                            text: "find",
+                                                            start: 69.44,
+                                                            end: 69.8
+                                                  },
+                                                  {
+                                                            text: "another",
+                                                            start: 69.88,
+                                                            end: 70.28
+                                                  },
+                                                  {
+                                                            text: "way.",
+                                                            start: 70.76,
+                                                            end: 71.16
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Just",
+                                                            start: 73.72,
+                                                            end: 74.12
+                                                  },
+                                                  {
+                                                            text: "don't",
+                                                            start: 74.2,
+                                                            end: 74.6
+                                                  },
+                                                  {
+                                                            text: "swive",
+                                                            start: 74.6,
+                                                            end: 75
+                                                  },
+                                                  {
+                                                            text: "and",
+                                                            start: 75,
+                                                            end: 75.28
+                                                  },
+                                                  {
+                                                            text: "like",
+                                                            start: 75.28,
+                                                            end: 75.64
+                                                  },
+                                                  {
+                                                            text: "and",
+                                                            start: 75.64,
+                                                            end: 75.96
+                                                  },
+                                                  {
+                                                            text: "play",
+                                                            start: 75.96,
+                                                            end: 76.28
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "all",
+                                                            start: 78.2,
+                                                            end: 78.56
+                                                  },
+                                                  {
+                                                            text: "day.",
+                                                            start: 78.56,
+                                                            end: 78.92
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "You",
+                                                            start: 83.24,
+                                                            end: 83.64
+                                                  },
+                                                  {
+                                                            text: "know,",
+                                                            start: 83.64,
+                                                            end: 84.04
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "don't",
+                                                            start: 86.6,
+                                                            end: 87
+                                                  },
+                                                  {
+                                                            text: "let",
+                                                            start: 87,
+                                                            end: 87.24
+                                                  },
+                                                  {
+                                                            text: "them",
+                                                            start: 87.24,
+                                                            end: 87.56
+                                                  },
+                                                  {
+                                                            text: "say",
+                                                            start: 87.56,
+                                                            end: 87.92
+                                                  },
+                                                  {
+                                                            text: "I",
+                                                            start: 87.92,
+                                                            end: 88.24
+                                                  },
+                                                  {
+                                                            text: "told",
+                                                            start: 88.24,
+                                                            end: 88.56
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 88.56,
+                                                            end: 88.92
+                                                  },
+                                                  {
+                                                            text: "so.",
+                                                            start: 88.92,
+                                                            end: 89.32
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Just",
+                                                            start: 91.72,
+                                                            end: 92.12
+                                                  },
+                                                  {
+                                                            text: "let",
+                                                            start: 92.12,
+                                                            end: 92.48
+                                                  },
+                                                  {
+                                                            text: "it",
+                                                            start: 92.48,
+                                                            end: 92.8
+                                                  },
+                                                  {
+                                                            text: "out",
+                                                            start: 92.8,
+                                                            end: 93.12
+                                                  },
+                                                  {
+                                                            text: "and",
+                                                            start: 93.12,
+                                                            end: 93.44
+                                                  },
+                                                  {
+                                                            text: "let",
+                                                            start: 93.44,
+                                                            end: 93.76
+                                                  },
+                                                  {
+                                                            text: "it",
+                                                            start: 93.76,
+                                                            end: 94.04
+                                                  },
+                                                  {
+                                                            text: "flow.",
+                                                            start: 94.04,
+                                                            end: 94.44
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Let's",
+                                                            start: 96.44,
+                                                            end: 96.72
+                                                  },
+                                                  {
+                                                            text: "go.",
+                                                            start: 96.72,
+                                                            end: 97
+                                                  }
+                                        ]
+                              }
+                    ]
+          },
+          {
+                    title: "Chorus",
+                    lines: [
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 101.08,
+                                                            end: 101.36
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 101.36,
+                                                            end: 101.56
+                                                  },
+                                                  {
+                                                            text: "love?",
+                                                            start: 101.56,
+                                                            end: 101.88
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 105.24,
+                                                            end: 105.52
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 105.52,
+                                                            end: 105.76
+                                                  },
+                                                  {
+                                                            text: "feel",
+                                                            start: 105.76,
+                                                            end: 106.12
+                                                  },
+                                                  {
+                                                            text: "it",
+                                                            start: 106.12,
+                                                            end: 106.52
+                                                  },
+                                                  {
+                                                            text: "from",
+                                                            start: 106.52,
+                                                            end: 106.84
+                                                  },
+                                                  {
+                                                            text: "above?",
+                                                            start: 106.84,
+                                                            end: 107.4
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Is",
+                                                            start: 110.44,
+                                                            end: 110.76
+                                                  },
+                                                  {
+                                                            text: "it",
+                                                            start: 110.76,
+                                                            end: 111
+                                                  },
+                                                  {
+                                                            text: "coming",
+                                                            start: 111,
+                                                            end: 111.32
+                                                  },
+                                                  {
+                                                            text: "from",
+                                                            start: 111.8,
+                                                            end: 112.2
+                                                  },
+                                                  {
+                                                            text: "below?",
+                                                            start: 112.2,
+                                                            end: 112.6
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "From",
+                                                            start: 115.56,
+                                                            end: 115.88
+                                                  },
+                                                  {
+                                                            text: "the",
+                                                            start: 115.88,
+                                                            end: 116.12
+                                                  },
+                                                  {
+                                                            text: "deepest",
+                                                            start: 116.12,
+                                                            end: 116.84
+                                                  },
+                                                  {
+                                                            text: "of",
+                                                            start: 117,
+                                                            end: 117.36
+                                                  },
+                                                  {
+                                                            text: "your",
+                                                            start: 117.36,
+                                                            end: 117.72
+                                                  },
+                                                  {
+                                                            text: "soul?",
+                                                            start: 117.72,
+                                                            end: 118.28
+                                                  }
+                                        ]
+                              }
+                    ]
+          },
+          {
+                    title: "Outro",
+                    lines: [
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 122.82,
+                                                            end: 122.98
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 122.98,
+                                                            end: 123.18
+                                                  },
+                                                  {
+                                                            text: "love,",
+                                                            start: 123.18,
+                                                            end: 123.42
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "do",
+                                                            start: 123.42,
+                                                            end: 123.66
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 123.66,
+                                                            end: 123.82
+                                                  },
+                                                  {
+                                                            text: "love?",
+                                                            start: 123.82,
+                                                            end: 124.06
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 124.06,
+                                                            end: 124.3
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 124.3,
+                                                            end: 124.46
+                                                  },
+                                                  {
+                                                            text: "love?",
+                                                            start: 124.46,
+                                                            end: 124.7
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 124.7,
+                                                            end: 124.94
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 124.94,
+                                                            end: 125.14
+                                                  },
+                                                  {
+                                                            text: "love?",
+                                                            start: 125.14,
+                                                            end: 125.46
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 127.86,
+                                                            end: 128.14
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 128.14,
+                                                            end: 128.3
+                                                  },
+                                                  {
+                                                            text: "love?",
+                                                            start: 128.3,
+                                                            end: 128.54
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 128.54,
+                                                            end: 128.78
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 128.78,
+                                                            end: 128.98
+                                                  },
+                                                  {
+                                                            text: "love,",
+                                                            start: 128.98,
+                                                            end: 129.22
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "do",
+                                                            start: 129.22,
+                                                            end: 129.42
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 129.42,
+                                                            end: 129.62
+                                                  },
+                                                  {
+                                                            text: "love,",
+                                                            start: 129.62,
+                                                            end: 129.9
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "do",
+                                                            start: 129.9,
+                                                            end: 130.14
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 130.14,
+                                                            end: 130.3
+                                                  },
+                                                  {
+                                                            text: "love?",
+                                                            start: 130.3,
+                                                            end: 130.58
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 132.1,
+                                                            end: 132.42
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 132.42,
+                                                            end: 132.74
+                                                  },
+                                                  {
+                                                            text: "love?",
+                                                            start: 132.74,
+                                                            end: 133.1
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 133.1,
+                                                            end: 133.34
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 133.34,
+                                                            end: 133.54
+                                                  },
+                                                  {
+                                                            text: "love,",
+                                                            start: 133.54,
+                                                            end: 133.78
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "do",
+                                                            start: 133.78,
+                                                            end: 133.98
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 133.98,
+                                                            end: 134.14
+                                                  },
+                                                  {
+                                                            text: "love,",
+                                                            start: 134.14,
+                                                            end: 134.38
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "do",
+                                                            start: 134.38,
+                                                            end: 134.62
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 134.62,
+                                                            end: 134.82
+                                                  },
+                                                  {
+                                                            text: "love,",
+                                                            start: 134.82,
+                                                            end: 135.1
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "do",
+                                                            start: 135.1,
+                                                            end: 135.3
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 135.3,
+                                                            end: 135.46
+                                                  },
+                                                  {
+                                                            text: "love?",
+                                                            start: 135.46,
+                                                            end: 135.78
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 136.26,
+                                                            end: 136.58
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 136.58,
+                                                            end: 136.78
+                                                  },
+                                                  {
+                                                            text: "feel",
+                                                            start: 136.78,
+                                                            end: 137.06
+                                                  },
+                                                  {
+                                                            text: "it",
+                                                            start: 137.14,
+                                                            end: 137.54
+                                                  },
+                                                  {
+                                                            text: "from",
+                                                            start: 137.54,
+                                                            end: 137.86
+                                                  },
+                                                  {
+                                                            text: "above?",
+                                                            start: 137.86,
+                                                            end: 138.26
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 138.26,
+                                                            end: 138.54
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 138.54,
+                                                            end: 138.74
+                                                  },
+                                                  {
+                                                            text: "love,",
+                                                            start: 138.74,
+                                                            end: 138.94
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "do",
+                                                            start: 138.94,
+                                                            end: 139.18
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 139.18,
+                                                            end: 139.34
+                                                  },
+                                                  {
+                                                            text: "love,",
+                                                            start: 139.34,
+                                                            end: 139.58
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "do",
+                                                            start: 139.58,
+                                                            end: 139.82
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 139.82,
+                                                            end: 139.98
+                                                  },
+                                                  {
+                                                            text: "love?",
+                                                            start: 139.98,
+                                                            end: 140.22
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 140.22,
+                                                            end: 140.46
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 140.46,
+                                                            end: 140.66
+                                                  },
+                                                  {
+                                                            text: "love?",
+                                                            start: 140.66,
+                                                            end: 140.98
+                                                  }
+                                        ]
+                              },
+                              {
+                                        words: [
+                                                  {
+                                                            text: "Do",
+                                                            start: 142.5,
+                                                            end: 142.78
+                                                  },
+                                                  {
+                                                            text: "you",
+                                                            start: 142.78,
+                                                            end: 143.06
+                                                  }
+                                        ]
+                              }
+                    ]
+          }
+]
     }
 ];
