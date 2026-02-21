@@ -5,6 +5,7 @@ import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import PracticeTab from './components/PracticeTab';
+import Logo from '@/components/Logo';
 import Link from 'next/link';
 
 export default function PracticePage() {
@@ -34,9 +35,9 @@ export default function PracticePage() {
             <div className="w-full flex items-center justify-between px-10 py-6 z-30">
                 <Link
                     href="/platform"
-                    className="text-alabaster font-serif text-lg tracking-tighter opacity-80 hover:opacity-100 transition-opacity"
+                    className="opacity-80 hover:opacity-100 transition-opacity"
                 >
-                    Logo
+                    <Logo size="md" />
                 </Link>
 
                 <div className="flex items-center gap-8">

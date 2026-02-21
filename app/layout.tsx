@@ -17,7 +17,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata = {
-    title: 'THE CONSERVATORY | Master the Language of Music',
+    title: 'VEINOTE | Master the Language of Music',
     description: 'Revolutionizing music education through the synthesis of technology and timeless artistry.',
 };
 

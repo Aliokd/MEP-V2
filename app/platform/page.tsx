@@ -9,6 +9,7 @@ import { getUserConstellation, ConstellationData } from '@/app/actions/lesson-ac
 import ChapterProgress from './components/ChapterProgress';
 import LessonContent from './components/LessonContent';
 import ChapterList from './components/ChapterList';
+import Logo from '@/components/Logo';
 import Link from 'next/link';
 
 export default function PlatformPage() {
@@ -169,9 +170,9 @@ export default function PlatformPage() {
             <div className="w-full flex items-center justify-between px-10 py-6 z-30">
                 <button
                     onClick={() => router.push('/')}
-                    className="text-alabaster font-serif text-lg tracking-tighter opacity-80 hover:opacity-100 transition-opacity"
+                    className="opacity-80 hover:opacity-100 transition-opacity"
                 >
-                    Logo
+                    <Logo size="md" />
                 </button>
 
                 <div className="flex items-center gap-8">

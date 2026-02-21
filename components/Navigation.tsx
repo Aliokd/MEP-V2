@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import ThemeToggle from './ThemeToggle';
+import Logo from './Logo';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -38,10 +39,8 @@ const Navigation = () => {
 
     return (
         <nav className={`${navClasses} px-6 md:px-12 flex items-center justify-between`}>
-            <Link href="/" className="flex items-center gap-2 group">
-                <h1 className="text-2xl font-serif text-stone-900 dark:text-alabaster tracking-tighter group-hover:text-gold-500 transition-colors">
-                    MEP <span className="text-gold-500">V2</span>
-                </h1>
+            <Link href="/" className="opacity-90 hover:opacity-100 transition-opacity">
+                <Logo size="md" />
             </Link>
 
             <div className="hidden lg:flex items-center gap-12 text-[10px] uppercase tracking-[0.2em] text-stone-900/70 dark:text-alabaster/70 font-sans font-bold">

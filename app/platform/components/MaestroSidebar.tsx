@@ -12,6 +12,7 @@ import {
     LogOut,
     User
 } from 'lucide-react';
+import Logo from '@/components/Logo';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -73,10 +74,9 @@ export default function MaestroSidebar() {
                             exit={{ opacity: 0, x: -20 }}
                             className="flex items-center gap-3 overflow-hidden whitespace-nowrap"
                         >
-                            <Link href="/">
-                                <div className="w-8 h-8 rounded-xs bg-gold-500 flex items-center justify-center font-serif text-charcoal font-bold">M</div>
+                            <Link href="/platform">
+                                <Logo size="md" />
                             </Link>
-                            <span className="font-serif text-lg tracking-widest text-alabaster uppercase">Maestro</span>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -84,7 +84,7 @@ export default function MaestroSidebar() {
                     onClick={toggleSidebar}
                     className="p-2 hover:bg-white/5 rounded-xs transition-colors text-white/40 hover:text-white"
                 >
-                    {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                    {isCollapsed ? <div className="w-8 h-8 flex items-center justify-center"><Logo size="sm" /></div> : <ChevronLeft size={18} />}
                 </button>
             </div>
 
