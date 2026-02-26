@@ -55,7 +55,7 @@ type Movement @table(name: "Movements", singular: "movement", plural: "movements
 }
 
 # The Lesson Nodes (The Constellation)
-type Lesson @table(name: "Lessons", singular: "lesson", plural: "lessons") @auth(level: USER) {
+type Lesson @table(name: "Lessons", singular: "lesson", plural: "lessons") {
   id: UUID! @default(expr: "uuidV4()")
   movementId: UUID!
   movement: Movement!
