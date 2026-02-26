@@ -87,19 +87,30 @@ export async function getUserConstellation(uid: string): Promise<ConstellationDa
                     accuracyScore: p.accuracyScore
                 }))
             },
-            lessonsList: data.lessonsList.map(l => ({
-                id: l.id,
-                title: l.title,
-                videoUrl: "", // Not fetched in summary
-                durationSeconds: l.durationSeconds,
-                order: l.order,
-                movement: {
-                    title: movementMap.get(l.movementId) || "Unknown"
-                },
-                prerequisites: l.prerequisites.map(p => ({
-                    prerequisiteId: p.prerequisiteId
-                }))
-            })),
+            lessonsList: data.lessonsList.map((l: any, index: number) => {
+                const movTitle = movementMap.get(l.movementId) || "Unknown";
+                let videoUrl = l.videoUrl;
+
+                // Override for Chapter 1 (Movement 01) local development
+                if (movTitle === "Foundation" || l.movementId === data.movements[0]?.id) {
+                    const videoIdx = (l.order % 4) || 4; // Map lesson order to 1-4
+                    videoUrl = `/videos/chapter1/video${videoIdx}.mp4`;
+                }
+
+                return {
+                    id: l.id,
+                    title: l.title,
+                    videoUrl,
+                    durationSeconds: l.durationSeconds,
+                    order: l.order,
+                    movement: {
+                        title: movTitle
+                    },
+                    prerequisites: l.prerequisites.map((p: any) => ({
+                        prerequisiteId: p.prerequisiteId
+                    }))
+                };
+            }),
             movements: data.movements
         };
     } catch (error) {
@@ -115,10 +126,10 @@ export async function getUserConstellation(uid: string): Promise<ConstellationDa
                 ]
             },
             lessonsList: [
-                { id: "1", title: "The Resonance of Silence", videoUrl: "", durationSeconds: 300, order: 1, movement: { title: "The Foundation" } },
-                { id: "2", title: "Harmonic Architecture", videoUrl: "", durationSeconds: 450, order: 2, prerequisites: [{ prerequisiteId: "1" }], movement: { title: "The Foundation" } },
-                { id: "3", title: "Rhythmic Geometry", videoUrl: "", durationSeconds: 600, order: 3, prerequisites: [{ prerequisiteId: "2" }], movement: { title: "The Fluency" } },
-                { id: "4", title: "The Velvet Legato", videoUrl: "", durationSeconds: 500, order: 4, prerequisites: [{ prerequisiteId: "2" }], movement: { title: "The Fluency" } },
+                { id: "1", title: "The Resonance of Silence", videoUrl: "/videos/chapter1/video1.mp4", durationSeconds: 300, order: 1, movement: { title: "The Foundation" } },
+                { id: "2", title: "Harmonic Architecture", videoUrl: "/videos/chapter1/video2.mp4", durationSeconds: 450, order: 2, prerequisites: [{ prerequisiteId: "1" }], movement: { title: "The Foundation" } },
+                { id: "3", title: "Rhythmic Geometry", videoUrl: "/videos/chapter1/video3.mp4", durationSeconds: 600, order: 3, prerequisites: [{ prerequisiteId: "2" }], movement: { title: "The Fluency" } },
+                { id: "4", title: "The Velvet Legato", videoUrl: "/videos/chapter1/video4.mp4", durationSeconds: 500, order: 4, prerequisites: [{ prerequisiteId: "2" }], movement: { title: "The Fluency" } },
             ],
             movements: [
                 { id: "m1", title: "Foundation", order: 1 }
@@ -139,17 +150,24 @@ export async function getLessonDetails(lessonId: string): Promise<Lesson> {
             throw new Error("Lesson not found");
         }
 
+        const lessonData = data.lesson as any;
+        let videoUrl = lessonData.videoUrl;
+        if (lessonData.movement.title === "Foundation" || lessonData.movement.title === "The Foundation") {
+            const videoIdx = (lessonData.order % 4) || 4;
+            videoUrl = `/videos/chapter1/video${videoIdx}.mp4`;
+        }
+
         return {
-            id: data.lesson.id,
-            title: data.lesson.title,
-            videoUrl: data.lesson.videoUrl,
-            midiDataUrl: data.lesson.midiDataUrl,
-            durationSeconds: data.lesson.durationSeconds,
-            order: 0, // Not in query detail
+            id: lessonData.id,
+            title: lessonData.title,
+            videoUrl,
+            midiDataUrl: lessonData.midiDataUrl,
+            durationSeconds: lessonData.durationSeconds,
+            order: lessonData.order || 0,
             movement: {
-                title: data.lesson.movement.title
+                title: lessonData.movement.title
             },
-            prerequisites: data.lesson.prerequisites.map(p => ({
+            prerequisites: lessonData.prerequisites.map((p: any) => ({
                 // prerequisiteId: "unknown", // Removed
                 // schema: prerequisites: lessonPrerequisites_on_lesson { prerequisite { id, title } }
                 // generated: prerequisites: ({ prerequisite: { id, title } ... })[]
@@ -166,7 +184,7 @@ export async function getLessonDetails(lessonId: string): Promise<Lesson> {
         return {
             id: lessonId,
             title: "The Resonance of Silence (Mock)",
-            videoUrl: "https://player.vimeo.com/video/824804225",
+            videoUrl: "/videos/chapter1/video1.mp4",
             midiDataUrl: "/mock-midi-path.json",
             durationSeconds: 300,
             order: 1,

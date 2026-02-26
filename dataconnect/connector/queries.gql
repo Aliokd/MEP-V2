@@ -1,7 +1,7 @@
 # queries.gql
 
 # Get user progress and the lesson constellation
-query getUserConstellation($uid: String!) {
+query getUserConstellation($uid: String!) @auth(expr: "auth.uid == uid") {
   user(id: $uid) {
     id
     displayName
@@ -17,6 +17,7 @@ query getUserConstellation($uid: String!) {
     movementId
     order
     durationSeconds
+    videoUrl
     # Get prerequisites for each lesson
     prerequisites: lessonPrerequisites_on_lesson {
       prerequisiteId
@@ -30,7 +31,7 @@ query getUserConstellation($uid: String!) {
 }
 
 # Get specific lesson details
-query getLessonDetails($lessonId: UUID!) {
+query getLessonDetails($lessonId: UUID!) @auth(expr: "auth != null") {
   lesson(id: $lessonId) {
     id
     title
@@ -40,6 +41,7 @@ query getLessonDetails($lessonId: UUID!) {
     movement {
       title
     }
+    order
     prerequisites: lessonPrerequisites_on_lesson {
       prerequisite {
         id

@@ -206,41 +206,25 @@ export default function PlatformPage() {
                     }}
                 />
 
-                <div className="w-full mt-10 min-h-[400px]">
-                    {currentLesson ? (
-                        <LessonContent
-                            lesson={{
-                                id: currentLesson.id,
-                                title: currentLesson.title,
-                                videoUrl: currentLesson.videoUrl,
-                                description: "Explore the depths of musical expression in this chapter. Each lesson is designed to build your technical skills while nurturing your creative intuition."
-                            }}
-                            currentStep={currentLessonIndex + 1}
-                            totalSteps={currentChapter?.lessons.length || 1}
-                            isCompleted={isLessonCompleted}
-                            onBack={() => setCurrentLessonIndex(prev => Math.max(0, prev - 1))}
-                            onNext={() => setCurrentLessonIndex(prev => Math.min((currentChapter?.lessons.length || 1) - 1, prev + 1))}
-                            onComplete={handleComplete}
-                        />
-                    ) : (
-                        <div className="w-full h-[400px] flex items-center justify-center border border-white/[0.05] rounded-xs bg-white/[0.01]">
-                            <p className="text-white/20 font-serif italic">Select a movement to begin your journey</p>
-                        </div>
-                    )}
-                </div>
-
                 <ChapterList
                     chapters={chapters.map(c => ({
                         id: c.id,
                         title: c.title,
                         description: `MOVEMENT ${chapters.indexOf(c) + 1}`,
-                        lessons: c.lessons.map(l => ({ id: l.id, title: l.title }))
+                        lessons: c.lessons.map(l => ({ id: l.id, title: l.title, videoUrl: l.videoUrl }))
                     }))}
                     currentChapterId={currentChapterId || ""}
+                    currentLesson={currentLesson}
+                    currentLessonIndex={currentLessonIndex}
+                    masteredLessonIds={data.user.lessonProgress.filter(p => p.status === 'MASTERED').map(p => p.lessonId)}
                     onChapterSelect={(id) => {
                         setCurrentChapterId(id);
                         setCurrentLessonIndex(0);
                     }}
+                    onLessonSelect={(index) => setCurrentLessonIndex(index)}
+                    onBack={() => setCurrentLessonIndex(prev => Math.max(0, prev - 1))}
+                    onNext={() => setCurrentLessonIndex(prev => Math.min((currentChapter?.lessons.length || 1) - 1, prev + 1))}
+                    onComplete={handleComplete}
                 />
             </div>
         </div>
