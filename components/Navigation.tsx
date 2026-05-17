@@ -30,7 +30,8 @@ const Navigation = () => {
 
     const isPlatform = pathname?.startsWith('/platform');
     const isOnboarding = pathname === '/onboarding';
-    if (isPlatform || isOnboarding) return null; // Use dedicated sidebar for platform or hide for onboarding
+    const isHome = pathname === '/';
+    if (isPlatform || isOnboarding || isHome) return null; // Use dedicated sidebar for platform or hide for onboarding/home
 
     const navClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled || pathname !== '/'
         ? 'bg-white/80 dark:bg-charcoal/80 backdrop-blur-md py-4 border-b border-stone-200 dark:border-white/5 shadow-sm'

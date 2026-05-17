@@ -28,6 +28,7 @@ export default {
         serif: ["'Playfair Display'", "serif"],
         sans: ["Inter", "sans-serif"],
         display: ["'Playfair Display'", "serif"],
+        caveat: ["var(--font-caveat)", "cursive"],
       },
       backgroundImage: {
         'glass-gradient': 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%)',
