@@ -1,8 +1,8 @@
 "use client";
 
+import React from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { User, Mail, Settings, CreditCard } from 'lucide-react';
-import Image from 'next/image';
+import { User, Mail, CreditCard } from 'lucide-react';
 
 export default function ProfilePage() {
     const { user } = useAuth();
@@ -11,10 +11,10 @@ export default function ProfilePage() {
     if (!user) return null;
 
     return (
-        <div className="p-10 space-y-12 min-h-screen bg-charcoal text-alabaster">
+        <div className="p-10 space-y-12 min-h-screen bg-[#DCDDD4] text-stone-900 font-sans">
             <header className="space-y-4">
-                <h1 className="text-4xl font-serif text-alabaster">Profile & Settings</h1>
-                <p className="text-stone-400 font-sans max-w-2xl">
+                <h1 className="text-4xl font-sans font-light tracking-tight text-stone-900">Profile & Settings</h1>
+                <p className="text-stone-700 font-sans max-w-2xl text-sm font-medium">
                     Manage your account details and preferences.
                 </p>
             </header>
@@ -22,55 +22,55 @@ export default function ProfilePage() {
             <div className="grid lg:grid-cols-3 gap-12">
                 {/* Main Profile Card */}
                 <div className="lg:col-span-2 space-y-8">
-                    <section className="bg-white/5 border border-white/5 p-8 rounded-xs space-y-8">
+                    <section className="bg-white/60 border border-stone-200/80 p-8 rounded-[16px] space-y-8 shadow-xs">
                         <div className="flex items-center gap-6">
-                            <div className="w-24 h-24 bg-gold-500 rounded-full flex items-center justify-center text-4xl font-serif text-charcoal font-bold">
+                            <div className="w-24 h-24 bg-stone-900 rounded-full flex items-center justify-center text-4xl font-sans text-[#DCDDD4] font-bold">
                                 {user.displayName?.charAt(0) || 'M'}
                             </div>
                             <div>
-                                <h2 className="text-2xl font-serif">{user.displayName || 'Maestro'}</h2>
-                                <p className="text-gold-500 text-xs uppercase tracking-widest mt-1">Virtuoso Tier</p>
-                                <p className="text-white/40 text-sm mt-2">{user.email}</p>
+                                <h2 className="text-2xl font-sans font-bold text-stone-900">{user.displayName || 'Maestro'}</h2>
+                                <p className="text-stone-700 text-xs uppercase tracking-widest font-bold mt-1">Virtuoso Tier</p>
+                                <p className="text-stone-700 text-sm font-medium mt-2">{user.email}</p>
                             </div>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-6 pt-6 border-t border-white/5">
+                        <div className="grid md:grid-cols-2 gap-6 pt-6 border-t border-stone-250">
                             <div className="space-y-2">
-                                <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Display Name</label>
-                                <div className="flex items-center gap-3 bg-black/40 p-4 border border-white/10 rounded-xs text-white/80">
-                                    <User size={16} className="text-gold-500" />
-                                    <span>{user.displayName || 'Set a display name'}</span>
+                                <label className="text-[10px] uppercase tracking-widest text-stone-700 font-bold">Display Name</label>
+                                <div className="flex items-center gap-3 bg-white/80 p-4 border border-stone-200 rounded-[12px] text-stone-900">
+                                    <User size={16} className="text-stone-900" />
+                                    <span className="font-medium">{user.displayName || 'Set a display name'}</span>
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Email Address</label>
-                                <div className="flex items-center gap-3 bg-black/40 p-4 border border-white/10 rounded-xs text-white/80">
-                                    <Mail size={16} className="text-gold-500" />
-                                    <span>{user.email}</span>
+                                <label className="text-[10px] uppercase tracking-widest text-stone-700 font-bold">Email Address</label>
+                                <div className="flex items-center gap-3 bg-white/80 p-4 border border-stone-200 rounded-[12px] text-stone-900">
+                                    <Mail size={16} className="text-stone-900" />
+                                    <span className="font-medium">{user.email}</span>
                                 </div>
                             </div>
                         </div>
                     </section>
 
-                    <section className="bg-white/5 border border-white/5 p-8 rounded-xs space-y-6">
-                        <h3 className="text-xl font-serif border-b border-white/5 pb-4">Preferences</h3>
+                    <section className="bg-white/60 border border-stone-200/80 p-8 rounded-[16px] space-y-6 shadow-xs">
+                        <h3 className="text-xl font-sans font-bold border-b border-stone-200 pb-4">Preferences</h3>
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between p-4 hover:bg-white/5 rounded-xs transition-colors cursor-pointer group">
+                            <div className="flex items-center justify-between p-4 hover:bg-stone-200/30 rounded-[12px] transition-colors cursor-pointer group">
                                 <div className="space-y-1">
-                                    <p className="font-sans text-sm group-hover:text-gold-500 transition-colors">Email Notifications</p>
-                                    <p className="text-xs text-white/40">Receive updates on new modules and masterclass events.</p>
+                                    <p className="font-sans text-sm font-bold text-stone-900 group-hover:text-stone-950 transition-colors">Email Notifications</p>
+                                    <p className="text-xs text-stone-700 font-medium">Receive updates on new modules and masterclass events.</p>
                                 </div>
-                                <div className="w-10 h-6 bg-gold-500/20 rounded-full relative">
-                                    <div className="absolute right-1 top-1 w-4 h-4 bg-gold-500 rounded-full shadow-lg" />
+                                <div className="w-10 h-6 bg-stone-900/10 rounded-full relative">
+                                    <div className="absolute right-1 top-1 w-4 h-4 bg-stone-900 rounded-full shadow-lg" />
                                 </div>
                             </div>
-                            <div className="flex items-center justify-between p-4 hover:bg-white/5 rounded-xs transition-colors cursor-pointer group">
+                            <div className="flex items-center justify-between p-4 hover:bg-stone-200/30 rounded-[12px] transition-colors cursor-pointer group">
                                 <div className="space-y-1">
-                                    <p className="font-sans text-sm group-hover:text-gold-500 transition-colors">Public Profile</p>
-                                    <p className="text-xs text-white/40">Allow other students to see your constellation progress.</p>
+                                    <p className="font-sans text-sm font-bold text-stone-900 group-hover:text-stone-950 transition-colors">Public Profile</p>
+                                    <p className="text-xs text-stone-700 font-medium">Allow other students to see your constellation progress.</p>
                                 </div>
-                                <div className="w-10 h-6 bg-white/10 rounded-full relative">
-                                    <div className="absolute left-1 top-1 w-4 h-4 bg-white/40 rounded-full shadow-lg" />
+                                <div className="w-10 h-6 bg-stone-200 rounded-full relative">
+                                    <div className="absolute left-1 top-1 w-4 h-4 bg-stone-400 rounded-full shadow-lg" />
                                 </div>
                             </div>
                         </div>
@@ -79,23 +79,23 @@ export default function ProfilePage() {
 
                 {/* Sidebar / Plan Info */}
                 <div className="space-y-6">
-                    <div className="bg-gradient-to-br from-gold-500/20 to-transparent border border-gold-500/30 p-8 rounded-xs space-y-6 text-center">
-                        <div className="w-16 h-16 bg-gold-500 rounded-full flex items-center justify-center mx-auto text-charcoal shadow-glow">
+                    <div className="bg-white/80 border border-stone-200/80 p-8 rounded-[16px] space-y-6 text-center shadow-xs">
+                        <div className="w-16 h-16 bg-stone-900 rounded-full flex items-center justify-center mx-auto text-[#DCDDD4]">
                             <CreditCard size={28} />
                         </div>
                         <div>
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-gold-500 font-bold mb-2">Current Plan</p>
-                            <h3 className="text-2xl font-serif text-white">Virtuoso Membership</h3>
-                            <p className="text-white/60 text-xs mt-2">$29.99 / month</p>
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold mb-2">Current Plan</p>
+                            <h3 className="text-2xl font-sans font-bold text-stone-900">Virtuoso Membership</h3>
+                            <p className="text-stone-700 text-xs font-semibold mt-2">$29.99 / month</p>
                         </div>
-                        <button className="w-full py-3 bg-gold-500 text-charcoal text-xs font-bold uppercase tracking-[0.2em] hover:bg-white transition-colors rounded-xs">
+                        <button className="w-full py-4 bg-stone-900 text-[#DCDDD4] text-xs font-bold uppercase tracking-[0.2em] hover:bg-stone-800 transition-colors rounded-full">
                             Manage Subscription
                         </button>
                     </div>
 
-                    <div className="bg-white/5 p-6 rounded-xs text-center border border-white/5">
-                        <p className="text-xs text-white/40 mb-4">Need assistance?</p>
-                        <button className="text-gold-500 text-xs uppercase tracking-widest hover:underline">Contact Concierge</button>
+                    <div className="bg-white/60 p-6 rounded-[16px] text-center border border-stone-200/80 shadow-xs">
+                        <p className="text-xs text-stone-700 font-semibold mb-4">Need assistance?</p>
+                        <button className="text-stone-900 text-xs font-bold uppercase tracking-widest hover:underline">Contact Concierge</button>
                     </div>
                 </div>
             </div>

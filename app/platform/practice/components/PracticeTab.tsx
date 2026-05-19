@@ -62,7 +62,7 @@ export default function PracticeTab() {
     };
 
     return (
-        <div className="w-full min-h-screen bg-charcoal text-alabaster flex flex-col items-center pt-8 px-10">
+        <div className="w-full min-h-screen bg-[#DCDDD4] text-stone-900 flex flex-col items-center pt-8 px-10">
 
             {/* Top Level Practise Tabs */}
             <div className="w-full max-w-5xl flex gap-6 mb-12 overflow-x-auto no-scrollbar py-2">
@@ -71,10 +71,10 @@ export default function PracticeTab() {
                         key={p}
                         onClick={() => setSelectedPractice(p)}
                         className={`
-                            px-8 py-3 rounded-xs text-[10px] uppercase tracking-[0.3em] font-sans transition-all duration-500 border
+                            px-8 py-3 text-[10px] uppercase tracking-[0.3em] font-sans transition-all duration-500 border
                             ${selectedPractice === p
-                                ? 'bg-gold-500 text-charcoal border-gold-500 font-bold'
-                                : 'bg-transparent border-white/10 text-white/40 hover:border-white/20 hover:text-white/60'}
+                                ? 'bg-stone-900 text-[#DCDDD4] border-stone-900 font-bold rounded-full'
+                                : 'bg-[#EFF0E7]/50 border-stone-200/80 text-stone-600/80 hover:bg-[#EFF0E7] hover:border-stone-300 rounded-full'}
                         `}
                     >
                         {p}
@@ -85,14 +85,14 @@ export default function PracticeTab() {
             {selectedPractice === 'Practise 1' ? (
                 <>
                     {/* Categories */}
-                    <div className="w-full max-w-5xl flex gap-8 border-b border-white/5 mb-8">
+                    <div className="w-full max-w-5xl flex gap-8 border-b border-stone-200 mb-8">
                         {categories.map(cat => (
                             <button
                                 key={cat}
                                 onClick={() => setSelectedCategory(cat)}
                                 className={`
                                     text-[10px] uppercase tracking-[0.2em] font-sans pb-3 transition-all duration-300
-                                    ${selectedCategory === cat ? 'text-gold-500 border-b border-gold-500' : 'text-white/30 hover:text-white/60'}
+                                    ${selectedCategory === cat ? 'text-stone-900 border-b-2 border-stone-900 font-semibold' : 'text-stone-500 hover:text-stone-850'}
                                 `}
                             >
                                 {cat}
@@ -104,15 +104,15 @@ export default function PracticeTab() {
                         {/* Sidebar */}
                         <div className="flex flex-col gap-10 w-full md:w-64 shrink-0">
                             <div>
-                                <span className="text-white/20 text-[10px] uppercase tracking-widest block mb-6">Sub categories</span>
+                                <span className="text-stone-500/80 text-[10px] uppercase tracking-widest block mb-6 font-semibold">Sub categories</span>
                                 <div className="flex flex-col gap-4">
                                     {subCategories.map(sub => (
                                         <button
                                             key={sub}
                                             onClick={() => setSelectedSubCategory(sub)}
                                             className={`
-                                                text-left text-xs font-serif italic transition-all duration-300 hover:translate-x-1
-                                                ${selectedSubCategory === sub ? 'text-gold-500' : 'text-white/40 hover:text-white'}
+                                                text-left text-xs font-sans transition-all duration-300 hover:translate-x-1
+                                                ${selectedSubCategory === sub ? 'text-stone-900 font-bold border-l-2 border-stone-900 pl-2' : 'text-stone-600/80 hover:text-stone-900 pl-2'}
                                             `}
                                         >
                                             {sub}
@@ -122,15 +122,15 @@ export default function PracticeTab() {
                             </div>
 
                             <div>
-                                <span className="text-white/20 text-[10px] uppercase tracking-widest block mb-4">Current progression</span>
+                                <span className="text-stone-500/80 text-[10px] uppercase tracking-widest block mb-4 font-semibold">Current progression</span>
                                 <div className="space-y-4">
-                                    <div className="flex justify-between items-center bg-white/[0.03] border border-white/5 p-4 rounded-xs">
-                                        <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden">
-                                            <div className="bg-gold-500 h-full w-[65%]" />
+                                    <div className="flex justify-between items-center bg-white/60 border border-stone-200 p-4 rounded-[12px]">
+                                        <div className="w-full bg-stone-200 h-1 rounded-full overflow-hidden">
+                                            <div className="bg-stone-900 h-full w-[65%]" />
                                         </div>
-                                        <span className="ml-4 text-[10px] font-mono text-gold-500/80">65%</span>
+                                        <span className="ml-4 text-[10px] font-mono text-stone-900 font-bold">65%</span>
                                     </div>
-                                    <p className="text-[10px] text-white/20 italic">Mastering the lyrical flow. You're doing great!</p>
+                                    <p className="text-[10px] text-stone-500 italic">Mastering the lyrical flow. You're doing great!</p>
                                 </div>
                             </div>
                         </div>
@@ -151,7 +151,7 @@ export default function PracticeTab() {
                                 </div>
 
                                 {/* Lyrics Player Section */}
-                                <div className="w-full bg-white/[0.02] border border-white/5 rounded-xs overflow-hidden">
+                                <div className="w-full bg-white/50 border border-stone-200/80 rounded-[20px] p-6 overflow-hidden">
                                     <LyricsPlayer
                                         song={currentSong}
                                         isPlaying={isPlaying}
@@ -160,25 +160,25 @@ export default function PracticeTab() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex-grow flex items-center justify-center min-h-[400px] border border-white/5 rounded-xs bg-white/[0.01]">
-                                <p className="text-white/20 font-serif italic text-xl">Module "{selectedSubCategory}" under construction</p>
+                            <div className="flex-grow flex items-center justify-center min-h-[400px] border border-stone-200 rounded-[20px] bg-white/40">
+                                <p className="text-stone-700 font-sans text-xl font-semibold">Module "{selectedSubCategory}" under construction</p>
                             </div>
                         )}
                     </div>
                 </>
-            ) : selectedPractice === 'Practise 2' ? (
+             ) : selectedPractice === 'Practise 2' ? (
                 <div className="w-full max-w-5xl flex flex-col items-center">
                     {/* Header for Practise 2 */}
                     <div className="w-full text-left mb-12">
-                        <div className="flex items-center gap-4 text-white/30 mb-2">
-                            <span className="text-[10px] uppercase tracking-[0.3em]">Practice 2</span>
-                            <div className="h-px w-8 bg-white/10" />
-                            <span className="text-sm font-serif italic text-gold-500/80">Composing words</span>
+                        <div className="flex items-center gap-4 text-stone-500/80 mb-2">
+                            <span className="text-[10px] uppercase tracking-[0.3em] font-semibold">Practice 2</span>
+                            <div className="h-px w-8 bg-stone-300" />
+                            <span className="text-sm font-sans text-stone-900 font-bold">Composing words</span>
                         </div>
                         <div className="flex justify-between items-end">
                             <div>
-                                <span className="text-white/20 text-[10px] uppercase tracking-widest block mb-1">Step 0{currentStep}</span>
-                                <h1 className="text-4xl font-serif text-alabaster tracking-tight">
+                                <span className="text-stone-500/85 text-[10px] uppercase tracking-widest block mb-1 font-bold">Step 0{currentStep}</span>
+                                <h1 className="text-4xl font-sans text-stone-900 tracking-tight font-light">
                                     {currentStep === 1 ? 'Choose theme' :
                                         currentStep === 2 ? 'Drafting concepts - Nouns' :
                                             currentStep === 3 ? 'Drafting concepts - Verbs' :
@@ -198,10 +198,10 @@ export default function PracticeTab() {
                                         setSelectedTheme(theme);
                                         setCurrentStep(2);
                                     }}
-                                    className="group relative aspect-video md:aspect-[4/3] bg-white/[0.02] border border-white/[0.05] flex items-center justify-center overflow-hidden hover:border-gold-500/30 transition-all duration-500"
+                                    className="group relative aspect-video md:aspect-[4/3] bg-white border border-stone-200 flex items-center justify-center overflow-hidden hover:border-stone-400 hover:shadow-md transition-all duration-300 rounded-[12px]"
                                 >
-                                    <div className="absolute inset-x-0 bottom-0 h-0 group-hover:h-full bg-gold-500/5 transition-all duration-700 ease-out" />
-                                    <span className="relative z-10 text-[10px] uppercase tracking-[0.3em] text-white/40 group-hover:text-gold-500 group-hover:scale-110 transition-all duration-500">
+                                    <div className="absolute inset-x-0 bottom-0 h-0 group-hover:h-full bg-stone-50 transition-all duration-700 ease-out" />
+                                    <span className="relative z-10 text-[10px] uppercase tracking-[0.3em] text-stone-600 group-hover:text-stone-900 group-hover:scale-105 transition-all duration-500 font-bold">
                                         {theme}
                                     </span>
                                 </button>
@@ -212,49 +212,49 @@ export default function PracticeTab() {
                     {(currentStep === 2 || currentStep === 3) && (
                         <div className="w-full flex flex-col md:flex-row gap-12 items-start">
                             <div className="hidden lg:flex flex-col gap-4 w-64 pt-2 shrink-0">
-                                <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xs">
-                                    <span className="text-[10px] uppercase tracking-widest text-white/20 block mb-2">Theme</span>
-                                    <span className="text-gold-500 font-serif italic text-lg">{selectedTheme}</span>
+                                <div className="p-4 bg-white border border-stone-200 rounded-[12px]">
+                                    <span className="text-[10px] uppercase tracking-widest text-stone-500 block mb-2 font-semibold">Theme</span>
+                                    <span className="text-stone-900 font-sans text-lg font-bold">{selectedTheme}</span>
                                 </div>
 
                                 {currentStep === 3 && (
-                                    <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xs">
+                                    <div className="p-4 bg-white border border-stone-200 rounded-[12px]">
                                         <div className="flex justify-between items-center mb-4">
-                                            <span className="text-[10px] uppercase tracking-widest text-white/20">Nouns</span>
-                                            <button onClick={() => setCurrentStep(2)} className="text-[8px] uppercase tracking-widest text-gold-500/50 hover:text-gold-500 transition-colors">Edit</button>
+                                            <span className="text-[10px] uppercase tracking-widest text-stone-500 font-semibold">Nouns</span>
+                                            <button onClick={() => setCurrentStep(2)} className="text-[8px] uppercase tracking-widest text-stone-600 hover:text-stone-900 transition-colors font-bold">Edit</button>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
                                             {nouns.filter(n => n.trim() !== '').map((n, i) => (
-                                                <span key={i} className="px-2 py-1 bg-white/5 rounded-xs text-[9px] text-white/40 uppercase tracking-tighter">{n}</span>
+                                                <span key={i} className="px-2 py-1 bg-stone-100 rounded-xs text-[9px] text-stone-700 uppercase tracking-tighter font-medium">{n}</span>
                                             ))}
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="flex-grow max-w-lg bg-white/[0.02] border border-white/[0.05] rounded-xs overflow-hidden">
+                            <div className="flex-grow max-w-lg bg-white border border-stone-200 rounded-[20px] shadow-sm overflow-hidden">
                                 <div className="p-8 space-y-8">
                                     <div className="space-y-1">
-                                        <p className="text-white/20 text-[10px] uppercase tracking-[0.2em]">Objective</p>
-                                        <h2 className="text-2xl font-serif text-alabaster italic">
+                                        <p className="text-stone-500 text-[10px] uppercase tracking-[0.2em] font-semibold">Objective</p>
+                                        <h2 className="text-2xl font-sans text-stone-900 font-normal">
                                             {currentStep === 2 ? 'Type 10 nouns of your choice' : 'Type 10 verbs of your choice'}
                                         </h2>
-                                        <p className="text-gold-500/40 text-[10px] uppercase tracking-widest">Hint: Focus on sensory details related to {selectedTheme}</p>
+                                        <p className="text-stone-500/80 text-[10px] uppercase tracking-widest font-medium">Hint: Focus on sensory details related to {selectedTheme}</p>
                                     </div>
 
                                     <div className="space-y-2 pt-4">
                                         {Array.from({ length: 10 }).map((_, i) => (
                                             <div key={i} className="group relative">
-                                                <div className="absolute -left-6 top-1/2 -translate-y-1/2 text-[8px] text-white/10 font-mono">
+                                                <div className="absolute -left-6 top-1/2 -translate-y-1/2 text-[8px] text-stone-400 font-mono font-bold">
                                                     {(i + 1).toString().padStart(2, '0')}
                                                 </div>
-                                                <div className="flex items-center gap-4 border-b border-white/5 group-focus-within:border-gold-500/50 transition-all duration-500 py-3">
+                                                <div className="flex items-center gap-4 border-b border-stone-200 group-focus-within:border-stone-850 transition-all duration-500 py-3">
                                                     <input
                                                         type="text"
                                                         placeholder={currentStep === 2 ? "Enter Noun..." : "Enter Verb..."}
                                                         value={currentStep === 2 ? nouns[i] : verbs[i]}
                                                         onChange={(e) => handleWordChange(currentStep === 2 ? 'noun' : 'verb', i, e.target.value)}
-                                                        className="bg-transparent border-none outline-none flex-grow font-serif text-alabaster/80 placeholder:text-white/5 text-lg"
+                                                        className="bg-transparent border-none outline-none flex-grow font-sans text-stone-900 placeholder:text-stone-400 text-lg font-medium"
                                                     />
                                                 </div>
                                             </div>
@@ -266,10 +266,10 @@ export default function PracticeTab() {
                                     disabled={!isStepComplete(currentStep)}
                                     onClick={() => setCurrentStep(currentStep === 2 ? 3 : 4)}
                                     className={`
-                                        w-full py-6 flex items-center justify-center gap-4 group transition-all duration-1000
+                                        w-[calc(100%-4rem)] mx-8 mb-8 py-5 flex items-center justify-center gap-4 group transition-all duration-1000 rounded-full
                                         ${isStepComplete(currentStep)
-                                            ? currentStep === 2 ? 'bg-gold-500 text-charcoal' : 'bg-[#a3e635] text-charcoal'
-                                            : 'bg-white/5 text-white/10 cursor-not-allowed'}
+                                            ? 'bg-[#86BE7F] hover:bg-[#86BE7F]/90 text-stone-950 font-bold'
+                                            : 'bg-stone-200 text-stone-400 cursor-not-allowed'}
                                     `}
                                 >
                                     <span className="text-xs font-bold uppercase tracking-[0.4em]">
@@ -287,12 +287,12 @@ export default function PracticeTab() {
 
                     {currentStep === 4 && (
                         <div className="w-full flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
-                            <div className="w-full max-w-5xl bg-white/[0.02] border border-white/[0.05] rounded-xs overflow-hidden relative">
+                            <div className="w-full max-w-5xl bg-white border border-stone-200 rounded-[20px] overflow-hidden relative shadow-sm">
                                 <div className="p-12 relative">
                                     <div className="text-center mb-16 space-y-2">
-                                        <p className="text-white/20 text-[10px] uppercase tracking-[0.3em]">Step 04 — Connection</p>
-                                        <h2 className="text-4xl font-serif text-alabaster italic">Link Nouns with Verbs</h2>
-                                        <p className="text-gold-500/40 text-[10px] uppercase tracking-widest">Connect nouns with verbs 1 by 1 (order doesn't matter)</p>
+                                        <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em] font-bold">Step 04 — Connection</p>
+                                        <h2 className="text-4xl font-sans text-stone-900 font-light tracking-tight">Link Nouns with Verbs</h2>
+                                        <p className="text-stone-550/80 text-[10px] uppercase tracking-widest font-semibold">Connect nouns with verbs 1 by 1 (order doesn't matter)</p>
                                     </div>
 
                                     <div className="flex justify-between items-start gap-32 relative min-h-[850px] px-24 pt-10 pb-20">
@@ -306,9 +306,9 @@ export default function PracticeTab() {
                                                         y1={`${(conn.n * 8.94) + 11.8}%`}
                                                         x2="68.2%"
                                                         y2={`${(conn.v * 8.94) + 11.8}%`}
-                                                        stroke="white"
-                                                        strokeWidth="1"
-                                                        strokeOpacity={isActive ? "0.6" : "0.15"}
+                                                        stroke="#787878"
+                                                        strokeWidth="1.5"
+                                                        strokeOpacity={isActive ? "0.8" : "0.3"}
                                                         className="animate-in fade-in duration-700"
                                                     />
                                                 );
@@ -331,13 +331,13 @@ export default function PracticeTab() {
                                                             setPendingNounIndex(isSelected ? null : i);
                                                         }}
                                                         className={`
-                                                            group relative h-16 w-full px-6 transition-all duration-500 rounded-xs flex items-center border
-                                                            ${isConnected ? 'bg-gold-500/5 border-gold-500/20' : isSelected ? 'bg-gold-500/10 border-gold-500 shadow-[0_0_20px_rgba(197,160,89,0.2)]' : 'bg-white/[0.02] border-white/[0.05] hover:border-white/20'}
+                                                            group relative h-16 w-full px-6 transition-all duration-500 rounded-[12px] flex items-center border
+                                                            ${isConnected ? 'bg-[#EFF0E7] border-stone-300 text-stone-900' : isSelected ? 'bg-stone-900 border-stone-900 text-[#DCDDD4] shadow-sm' : 'bg-stone-50/50 border-stone-200/80 hover:border-stone-300'}
                                                         `}
                                                     >
                                                         <div className="flex items-center justify-between w-full pointer-events-none">
-                                                            <span className={`font-serif text-lg transition-colors duration-500 ${isConnected ? 'text-gold-500' : isSelected ? 'text-white' : 'text-white/40'}`}>{n}</span>
-                                                            <div className={`w-1.5 h-1.5 rounded-full border transition-all duration-500 ${isConnected ? 'bg-gold-500 border-gold-500' : isSelected ? 'bg-white border-white scale-125' : 'bg-transparent border-white/20'}`} />
+                                                            <span className={`font-sans text-lg transition-colors duration-500 ${isConnected ? 'text-stone-900 font-semibold' : isSelected ? 'text-[#DCDDD4]' : 'text-stone-700'}`}>{n}</span>
+                                                            <div className={`w-1.5 h-1.5 rounded-full border transition-all duration-500 ${isConnected ? 'bg-stone-900 border-stone-900' : isSelected ? 'bg-[#DCDDD4] border-[#DCDDD4] scale-125' : 'bg-transparent border-stone-300'}`} />
                                                         </div>
                                                     </button>
                                                 );
@@ -363,13 +363,13 @@ export default function PracticeTab() {
                                                             }
                                                         }}
                                                         className={`
-                                                            group relative h-16 w-full px-6 transition-all duration-500 rounded-xs flex items-center border
-                                                            ${isConnected ? 'bg-[#a3e635]/5 border-[#a3e635]/20' : canConnect ? 'bg-white/[0.03] border-white/20 hover:border-[#a3e635]/50' : 'bg-white/[0.02] border-white/[0.05] hover:border-white/20'}
+                                                            group relative h-16 w-full px-6 transition-all duration-500 rounded-[12px] flex items-center border
+                                                            ${isConnected ? 'bg-[#EFF0E7] border-stone-300 text-stone-900' : canConnect ? 'bg-white border-stone-300 hover:bg-[#EFF0E7]/60 hover:border-stone-400' : 'bg-stone-50/50 border-stone-200/80 hover:border-stone-300'}
                                                         `}
                                                     >
                                                         <div className="flex items-center gap-4 w-full justify-end md:justify-start pointer-events-none">
-                                                            <div className={`w-1.5 h-1.5 rounded-full border transition-all duration-500 ${isConnected ? 'bg-[#a3e635] border-[#a3e635]' : canConnect ? 'bg-transparent border-[#a3e635]/50' : 'bg-transparent border-white/20'}`} />
-                                                            <span className={`font-serif text-lg transition-colors duration-500 ${isConnected ? 'text-[#a3e635]' : 'text-white/40'}`}>{v}</span>
+                                                            <div className={`w-1.5 h-1.5 rounded-full border transition-all duration-500 ${isConnected ? 'bg-stone-900 border-stone-900' : canConnect ? 'bg-transparent border-stone-400' : 'bg-transparent border-stone-300'}`} />
+                                                            <span className={`font-sans text-lg transition-colors duration-500 ${isConnected ? 'text-stone-900 font-semibold' : 'text-stone-700'}`}>{v}</span>
                                                         </div>
                                                     </button>
                                                 );
@@ -378,19 +378,19 @@ export default function PracticeTab() {
                                     </div>
                                 </div>
 
-                                <div className="p-8 bg-white/[0.01] border-t border-white/[0.05] flex justify-between items-center px-12">
+                                <div className="p-8 bg-stone-50 border-t border-stone-200 flex justify-between items-center px-12">
                                     <div className="flex flex-col">
-                                        <span className="text-[10px] uppercase tracking-widest text-white/20 mb-1">Status</span>
-                                        <span className="text-gold-500 font-bold text-xs tracking-widest">{connections.length}/10 Links Forged</span>
+                                        <span className="text-[10px] uppercase tracking-widest text-stone-500 mb-1 font-semibold">Status</span>
+                                        <span className="text-stone-900 font-bold text-xs tracking-widest">{connections.length}/10 Links Forged</span>
                                     </div>
-                                    <div className="flex gap-4">
-                                        <button onClick={() => { setConnections([]); setPendingNounIndex(null); }} className="px-8 py-5 text-[10px] uppercase tracking-widest text-white/30 hover:text-white transition-colors">Reset</button>
+                                    <div className="flex gap-4 items-center">
+                                        <button onClick={() => { setConnections([]); setPendingNounIndex(null); }} className="px-8 py-4 text-[10px] uppercase tracking-widest text-stone-500 hover:text-stone-900 transition-colors font-bold">Reset</button>
                                         <button
                                             disabled={connections.length < 5}
                                             onClick={() => setCurrentStep(5)}
                                             className={`
-                                                group relative px-16 py-5 rounded-xs transition-all duration-700
-                                                ${connections.length >= 5 ? 'bg-white text-charcoal hover:bg-gold-500 hover:text-white' : 'bg-white/5 text-white/20 cursor-not-allowed'}
+                                                group relative px-16 py-4 rounded-full transition-all duration-700
+                                                ${connections.length >= 5 ? 'bg-stone-900 text-[#DCDDD4] hover:bg-stone-800 font-bold shadow-sm' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}
                                             `}
                                         >
                                             <span className="relative z-10 text-xs font-bold uppercase tracking-[0.4em]">Apply Connections</span>
@@ -405,28 +405,28 @@ export default function PracticeTab() {
                         <div className="w-full flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
                             <div className="w-full max-w-5xl">
                                 <div className="text-center mb-12 space-y-4">
-                                    <p className="text-white/20 text-[10px] uppercase tracking-[0.3em]">Step 05 — Composition</p>
-                                    <h2 className="text-4xl font-serif text-alabaster italic">Complete the sentences</h2>
-                                    <p className="text-gold-500/40 text-[10px] uppercase tracking-widest">(don't overthink, just put staff together)</p>
+                                    <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em] font-bold">Step 05 — Composition</p>
+                                    <h2 className="text-4xl font-sans text-stone-900 font-light tracking-tight">Complete the sentences</h2>
+                                    <p className="text-stone-550/80 text-[10px] uppercase tracking-widest font-semibold">(don't overthink, just put staff together)</p>
                                 </div>
 
-                                <div className="bg-white/[0.02] border border-white/[0.05] rounded-xs p-8 mb-12 flex items-center justify-center gap-8 group">
-                                    <span className="text-[10px] uppercase tracking-[0.4em] text-white/20">Example</span>
+                                <div className="bg-white border border-stone-200 rounded-[12px] p-8 mb-12 flex items-center justify-center gap-8 group shadow-xs">
+                                    <span className="text-[10px] uppercase tracking-[0.4em] text-stone-500 font-bold">Example</span>
                                     <div className="flex items-center gap-4">
-                                        <span className="font-serif text-2xl text-white/40 italic">I love</span>
-                                        <div className="bg-gold-500/10 border border-gold-500/20 px-4 py-2 rounded-xs">
-                                            <span className="text-gold-500 font-serif text-xl">snow</span>
+                                        <span className="font-sans text-2xl text-stone-700 font-normal">I love</span>
+                                        <div className="bg-[#EFF0E7] border border-stone-300 px-4 py-2 rounded-[8px]">
+                                            <span className="text-stone-900 font-sans text-xl font-bold">snow</span>
                                         </div>
-                                        <div className="bg-[#a3e635]/10 border border-[#a3e635]/20 px-4 py-2 rounded-xs">
-                                            <span className="text-[#a3e635] font-serif text-xl">Touching</span>
+                                        <div className="bg-stone-900 px-4 py-2 rounded-[8px]">
+                                            <span className="text-[#DCDDD4] font-sans text-xl font-bold">Touching</span>
                                         </div>
-                                        <span className="font-serif text-2xl text-white/40 italic">in winter</span>
+                                        <span className="font-sans text-2xl text-stone-700 font-normal">in winter</span>
                                     </div>
                                 </div>
 
                                 <div className="flex flex-col gap-6 mb-16 h-[700px] overflow-y-auto pr-4 no-scrollbar">
                                     {connections.map((conn, idx) => (
-                                        <div key={idx} className="bg-white/[0.01] border border-white/[0.05] rounded-xs p-10 hover:bg-white/[0.02] transition-colors duration-500 flex flex-col items-center gap-8 text-center">
+                                        <div key={idx} className="bg-white border border-stone-200 rounded-[20px] p-10 hover:shadow-md transition-shadow duration-500 flex flex-col items-center gap-8 text-center">
                                             <div className="flex items-center gap-6">
                                                 <button
                                                     onClick={() => {
@@ -436,11 +436,11 @@ export default function PracticeTab() {
                                                         newSentences[idx] = current.trim() === '' ? word : `${current.trim()} ${word}`;
                                                         setSentences(newSentences);
                                                     }}
-                                                    className="bg-gold-500/10 border border-gold-500/30 px-6 py-3 rounded-xs min-w-[120px] hover:bg-gold-500/20"
+                                                    className="bg-[#EFF0E7] border border-stone-300 px-6 py-3 rounded-[8px] min-w-[120px] hover:opacity-90"
                                                 >
-                                                    <span className="text-gold-500 font-serif text-xl">{nouns[conn.n]}</span>
+                                                    <span className="text-stone-900 font-sans text-xl font-bold">{nouns[conn.n]}</span>
                                                 </button>
-                                                <div className="w-8 h-px bg-white/10" />
+                                                <div className="w-8 h-px bg-stone-300" />
                                                 <button
                                                     onClick={() => {
                                                         const newSentences = [...sentences];
@@ -449,9 +449,9 @@ export default function PracticeTab() {
                                                         newSentences[idx] = current.trim() === '' ? word : `${current.trim()} ${word}`;
                                                         setSentences(newSentences);
                                                     }}
-                                                    className="bg-[#a3e635]/10 border border-[#a3e635]/30 px-6 py-3 rounded-xs min-w-[120px] hover:bg-[#a3e635]/20"
+                                                    className="bg-stone-900 px-6 py-3 rounded-[8px] min-w-[120px] hover:opacity-90"
                                                 >
-                                                    <span className="text-[#a3e635] font-serif text-xl">{verbs[conn.v]}</span>
+                                                    <span className="text-[#DCDDD4] font-sans text-xl font-bold">{verbs[conn.v]}</span>
                                                 </button>
                                             </div>
 
@@ -465,27 +465,27 @@ export default function PracticeTab() {
                                                         setSentences(newSentences);
                                                     }}
                                                     placeholder="Type your sentence here..."
-                                                    className="w-full bg-transparent border-b border-white/10 py-4 px-4 text-xl font-serif text-white placeholder:text-white/5 focus:outline-none focus:border-gold-500/30 text-center"
+                                                    className="w-full bg-transparent border-b border-stone-200 py-4 px-4 text-xl font-sans text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-stone-850 text-center"
                                                 />
                                                 <div className="absolute right-0 bottom-4">
-                                                    {sentences[idx].trim() !== '' && <Check size={18} className="text-[#a3e635]" />}
+                                                    {sentences[idx].trim() !== '' && <Check size={18} className="text-stone-900" />}
                                                 </div>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
 
-                                <div className="p-8 bg-white/[0.02] border border-white/[0.05] rounded-xs flex justify-between items-center px-12">
+                                <div className="p-8 bg-stone-50 border border-stone-200 rounded-[20px] flex justify-between items-center px-12 shadow-xs">
                                     <div className="flex flex-col">
-                                        <span className="text-[10px] uppercase tracking-widest text-white/20 mb-1">Status</span>
-                                        <span className="text-gold-500 font-bold text-xs tracking-widest">
+                                        <span className="text-[10px] uppercase tracking-widest text-stone-550 mb-1 font-semibold">Status</span>
+                                        <span className="text-stone-900 font-bold text-xs tracking-widest">
                                             {sentences.filter(s => s.trim() !== '').length} / {connections.length} Sentences Built
                                         </span>
                                     </div>
                                     <button
                                         onClick={() => setCurrentStep(6)}
                                         disabled={sentences.filter(s => s.trim() !== '').length < 5}
-                                        className={`px-16 py-5 rounded-xs text-[10px] uppercase tracking-[0.4em] font-bold ${sentences.filter(s => s.trim() !== '').length >= 5 ? 'bg-white text-charcoal' : 'bg-white/5 text-white/20 disabled'}`}
+                                        className={`px-16 py-4 rounded-full text-[10px] uppercase tracking-[0.4em] font-bold ${sentences.filter(s => s.trim() !== '').length >= 5 ? 'bg-stone-900 text-[#DCDDD4] hover:bg-stone-800' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}`}
                                     >
                                         Finalize Lyrics
                                     </button>
@@ -498,14 +498,14 @@ export default function PracticeTab() {
                         <div className="w-full flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
                             <div className="w-full max-w-4xl">
                                 <div className="text-center mb-16 space-y-4">
-                                    <p className="text-white/20 text-[10px] uppercase tracking-[0.3em]">Step 06 — Revelation</p>
-                                    <h2 className="text-4xl font-serif text-alabaster italic">Story ready now</h2>
+                                    <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em] font-bold">Step 06 — Revelation</p>
+                                    <h2 className="text-4xl font-sans text-stone-900 font-light tracking-tight">Story ready now</h2>
                                 </div>
 
-                                <div className="bg-white/[0.02] border border-white/[0.05] rounded-xs p-16 mb-20 relative overflow-hidden group">
+                                <div className="bg-white border border-stone-200 rounded-[20px] p-16 mb-20 relative overflow-hidden group shadow-sm">
                                     {/* Abstract background icon */}
-                                    <div className="absolute top-0 right-0 p-8 opacity-5">
-                                        <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="0.5">
+                                    <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
+                                        <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="0.5">
                                             <path d="M12 2L2 7L12 12L22 7L12 2Z" />
                                             <path d="M2 17L12 22L22 17" />
                                             <path d="M2 12L12 17L22 12" />
@@ -527,19 +527,19 @@ export default function PracticeTab() {
 
                                                         if (isNoun) {
                                                             return (
-                                                                <div key={wIdx} className="bg-gold-500/10 border border-gold-500/20 px-4 py-2 rounded-xs inline-flex">
-                                                                    <span className="text-gold-500 font-serif text-xl">{word}</span>
+                                                                <div key={wIdx} className="bg-[#EFF0E7] border border-stone-300 px-4 py-2 rounded-[8px] inline-flex">
+                                                                    <span className="text-stone-900 font-sans text-xl font-bold">{word}</span>
                                                                 </div>
                                                             );
                                                         }
                                                         if (isVerb) {
                                                             return (
-                                                                <div key={wIdx} className="bg-[#a3e635]/10 border border-[#a3e635]/20 px-4 py-2 rounded-xs inline-flex">
-                                                                    <span className="text-[#a3e635] font-serif text-xl">{word}</span>
+                                                                <div key={wIdx} className="bg-stone-900 px-4 py-2 rounded-[8px] inline-flex">
+                                                                    <span className="text-[#DCDDD4] font-sans text-xl font-bold">{word}</span>
                                                                 </div>
                                                             );
                                                         }
-                                                        return <span key={wIdx} className="font-serif text-2xl text-white/40 italic leading-snug">{word}</span>;
+                                                        return <span key={wIdx} className="font-sans text-2xl text-stone-800 leading-snug">{word}</span>;
                                                     })}
                                                 </div>
                                             );
@@ -548,9 +548,8 @@ export default function PracticeTab() {
                                 </div>
 
                                 <div className="flex justify-center items-center gap-16 mb-20">
-                                    <button className="text-[10px] uppercase tracking-[0.4em] text-white/40 hover:text-white transition-all pb-1 border-b border-transparent hover:border-white/20">Share with community</button>
-                                    <button className="text-[10px] uppercase tracking-[0.4em] text-white/40 hover:text-white transition-all pb-1 border-b border-transparent hover:border-white/20">Save it</button>
-                                    <button className="text-[10px] uppercase tracking-[0.4em] text-white/40 hover:text-white transition-all pb-1 border-b border-transparent hover:border-white/20">Save it</button>
+                                    <button className="text-[10px] uppercase tracking-[0.4em] text-stone-500 hover:text-stone-900 transition-all pb-1 border-b border-transparent hover:border-stone-400 font-bold">Share with community</button>
+                                    <button className="text-[10px] uppercase tracking-[0.4em] text-stone-500 hover:text-stone-900 transition-all pb-1 border-b border-transparent hover:border-stone-400 font-bold">Save it</button>
                                 </div>
 
                                 <div className="flex justify-center mb-12">
@@ -560,7 +559,7 @@ export default function PracticeTab() {
                                         setVerbs(Array(10).fill(''));
                                         setConnections([]);
                                         setSentences(Array(10).fill(''));
-                                    }} className="px-16 py-5 bg-gold-500 text-charcoal rounded-xs text-[10px] uppercase tracking-[0.4em] font-bold hover:bg-white transition-all">
+                                    }} className="px-16 py-4 bg-stone-900 text-[#DCDDD4] rounded-full text-[10px] uppercase tracking-[0.4em] font-bold hover:opacity-90 transition-all shadow-sm">
                                         End Practice 2
                                     </button>
                                 </div>
@@ -569,10 +568,10 @@ export default function PracticeTab() {
                     )}
                 </div>
             ) : (
-                <div className="w-full max-w-5xl h-[60vh] flex items-center justify-center border border-white/[0.05] rounded-xs bg-white/[0.01]">
+                <div className="w-full max-w-5xl h-[60vh] flex items-center justify-center border border-stone-200 rounded-[20px] bg-white/40">
                     <div className="text-center space-y-4">
-                        <p className="text-white/20 font-serif italic text-2xl tracking-tight">{selectedPractice}</p>
-                        <p className="text-white/10 text-[10px] uppercase tracking-[0.2em] font-sans">Coming Soon in Next Movement</p>
+                        <p className="text-stone-800 font-sans text-2xl tracking-tight font-bold">{selectedPractice}</p>
+                        <p className="text-stone-700 text-[10px] uppercase tracking-[0.2em] font-sans font-semibold">Coming Soon in Next Movement</p>
                     </div>
                 </div>
             )}

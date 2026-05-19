@@ -118,22 +118,22 @@ export default function PlatformPage() {
     }, [data, currentLesson]);
 
     if (authLoading) return (
-        <div className="h-screen flex items-center justify-center bg-charcoal">
-            <div className="w-8 h-8 border-t-2 border-gold-500 rounded-full animate-spin" />
+        <div className="h-screen flex items-center justify-center bg-[#DCDDD4]">
+            <div className="w-8 h-8 border-t-2 border-stone-900 rounded-full animate-spin" />
         </div>
     );
 
     if (!user) return (
-        <div className="h-screen flex flex-col items-center justify-center bg-charcoal text-alabaster gap-6">
-            <h2 className="text-3xl font-serif tracking-tight">Access Restricted</h2>
-            <p className="text-white/40 max-w-md text-center">Please sign in to access your movements and continue your mastery journey.</p>
-            <a href="/signin" className="px-8 py-3 bg-gold-600 text-charcoal rounded-full font-sans text-xs uppercase tracking-widest hover:bg-gold-500 transition-colors">Sign In</a>
+        <div className="h-screen flex flex-col items-center justify-center bg-[#DCDDD4] text-stone-900 gap-6">
+            <h2 className="text-3xl font-sans font-light tracking-tight">Access Restricted</h2>
+            <p className="text-stone-700/80 max-w-md text-center font-medium">Please sign in to access your movements and continue your mastery journey.</p>
+            <a href="/signin" className="px-8 py-4 bg-stone-900 text-[#DCDDD4] rounded-full font-sans text-xs uppercase tracking-widest hover:opacity-90 transition-opacity">Sign In</a>
         </div>
     );
 
     if (!data) return (
-        <div className="h-screen flex items-center justify-center bg-charcoal">
-            <div className="w-8 h-8 border-t-2 border-gold-500 rounded-full animate-spin" />
+        <div className="h-screen flex items-center justify-center bg-[#DCDDD4]">
+            <div className="w-8 h-8 border-t-2 border-stone-900 rounded-full animate-spin" />
         </div>
     );
 
@@ -165,7 +165,7 @@ export default function PlatformPage() {
     };
 
     return (
-        <div className="relative min-h-screen bg-charcoal flex flex-col items-center">
+        <div className="relative min-h-screen bg-[#DCDDD4] flex flex-col items-center">
             {/* Top Navigation */}
             <div className="w-full flex items-center justify-between px-10 py-6 z-30">
                 <button
@@ -176,19 +176,19 @@ export default function PlatformPage() {
                 </button>
 
                 <div className="flex items-center gap-8">
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-gold-400 font-sans border-b border-gold-400/30 pb-1">My classes</button>
-                    <Link href="/platform/practice" className="text-[10px] uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors font-sans decoration-none">Practise</Link>
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors font-sans">Show the world</button>
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors font-sans">Community?</button>
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors font-sans">Practice instruments</button>
+                    <button className="text-[10px] uppercase tracking-[0.2em] text-stone-900 font-sans font-semibold border-b border-stone-900 pb-1">My classes</button>
+                    <Link href="/platform/practice" className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-stone-900 transition-colors font-sans decoration-none">Practise</Link>
+                    <button className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-stone-900 transition-colors font-sans">Show the world</button>
+                    <button className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-stone-900 transition-colors font-sans">Community?</button>
+                    <button className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-stone-900 transition-colors font-sans">Practice instruments</button>
                 </div>
 
                 <div className="flex items-center gap-6">
-                    <button className="text-[10px] uppercase tracking-widest text-white/30 hover:text-white transition-colors">My profile</button>
-                    <button className="text-[10px] uppercase tracking-widest text-white/30 hover:text-white transition-colors">Settings</button>
+                    <button className="text-[10px] uppercase tracking-widest text-[#363636]/70 hover:text-stone-900 transition-colors">My profile</button>
+                    <button className="text-[10px] uppercase tracking-widest text-[#363636]/70 hover:text-stone-900 transition-colors">Settings</button>
                     <button
                         onClick={handleLogout}
-                        className="text-[10px] uppercase tracking-widest text-white/30 hover:text-white transition-colors"
+                        className="text-[10px] uppercase tracking-widest text-[#363636]/70 hover:text-stone-900 transition-colors"
                     >
                         Logout
                     </button>

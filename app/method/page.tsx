@@ -12,7 +12,7 @@ const FeatureCard = ({ icon: Icon, title, desc }: { icon: any, title: string, de
         <div className="w-12 h-12 rounded-full bg-gold-500/5 flex items-center justify-center text-gold-500 group-hover:bg-gold-500/10 transition-colors">
             <Icon size={24} />
         </div>
-        <h3 className="text-xl font-serif tracking-wide text-stone-900 dark:text-alabaster transition-colors duration-300">{title}</h3>
+        <h3 className="text-xl font-sans font-bold tracking-wide text-stone-900 dark:text-alabaster transition-colors duration-300">{title}</h3>
         <p className="text-stone-900/50 dark:text-alabaster/50 text-sm font-sans leading-relaxed transition-colors duration-300">{desc}</p>
     </motion.div>
 );
@@ -29,9 +29,9 @@ export default function MethodPage() {
                     className="space-y-6"
                 >
                     <span className="text-gold-500 text-xs tracking-[0.4em] uppercase font-bold">THE SYNESTHESIA ENGINE</span>
-                    <h1 className="text-5xl md:text-7xl lg:text-8xl leading-tight text-stone-900 dark:text-white transition-colors duration-300 font-serif">
+                    <h1 className="text-5xl md:text-7xl lg:text-8xl leading-tight text-stone-900 dark:text-white transition-colors duration-300 font-sans font-light">
                         See the Harmony. <br />
-                        <span className="italic text-gold-500">Decode the Soul.</span>
+                        <span className="font-bold text-gold-500">Decode the Soul.</span>
                     </h1>
                     <p className="text-stone-900/60 dark:text-alabaster/60 text-xl font-sans font-light max-w-3xl mx-auto leading-relaxed transition-colors duration-300">
                         Traditional music theory is taught through dry textbooks and black-and-white staves.
@@ -51,7 +51,7 @@ export default function MethodPage() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-charcoal via-transparent to-transparent transition-colors duration-300" />
                     <div className="absolute bottom-12 left-12 max-w-lg space-y-4">
-                        <h2 className="text-3xl font-serif text-stone-900 dark:text-white transition-colors duration-300 font-serif">Intuitive Harmonic Visualization</h2>
+                        <h2 className="text-3xl font-sans font-bold text-stone-900 dark:text-white transition-colors duration-300">Intuitive Harmonic Visualization</h2>
                         <p className="text-stone-900/60 dark:text-alabaster/60 text-sm font-sans leading-relaxed text-balance transition-colors duration-300">
                             The engine analyzes audio in real-time, mapping frequencies to specific colors based on the circle of fifths.
                             Complex chords become beautiful geometric shapes, making counterpoint as easy to understand as a painting.
@@ -96,7 +96,7 @@ export default function MethodPage() {
 
             {/* Closing Statement */}
             <section className="max-w-4xl mx-auto text-center border-t border-stone-200 dark:border-white/5 pt-24 transition-colors duration-300">
-                <h2 className="text-4xl md:text-5xl mb-8 leading-tight text-stone-900 dark:text-white transition-colors duration-300 font-serif">The shortest path between <br /><span className="text-gold-500 italic">thought and sound.</span></h2>
+                <h2 className="text-4xl md:text-5xl mb-8 leading-tight text-stone-900 dark:text-white transition-colors duration-300 font-sans font-bold">The shortest path between <br /><span className="text-gold-500">thought and sound.</span></h2>
                 <p className="text-stone-900/50 dark:text-alabaster/50 text-lg font-sans font-light mb-12 transition-colors duration-300">
                     By engaging both the visual and auditory cortex simultaneously, The Conservatory students learn
                     4.5x faster than traditional conservatory students.

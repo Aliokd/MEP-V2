@@ -126,12 +126,12 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
 
     if (loadError) {
         return (
-            <div className="w-full h-[400px] flex flex-col items-center justify-center border border-red-500/20 rounded-xs bg-red-500/5">
-                <p className="text-red-400 font-serif italic text-xl mb-4">Audio stream unavailable</p>
-                <p className="text-white/40 text-xs mb-8">This can happen if the audio source is blocked or slow to respond.</p>
+            <div className="w-full h-[400px] flex flex-col items-center justify-center border border-red-200 rounded-[20px] bg-red-50/50">
+                <p className="text-red-600 font-sans font-semibold text-xl mb-4">Audio stream unavailable</p>
+                <p className="text-stone-700 text-xs mb-8">This can happen if the audio source is blocked or slow to respond.</p>
                 <button
                     onClick={() => window.location.reload()}
-                    className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-xs uppercase tracking-widest transition-colors"
+                    className="px-6 py-2 bg-stone-900 text-[#DCDDD4] hover:opacity-90 rounded-full text-xs uppercase tracking-widest transition-colors font-semibold"
                 >
                     Retry Connection
                 </button>
@@ -141,9 +141,9 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
 
     if (!isLoaded) {
         return (
-            <div className="w-full h-[400px] flex flex-col items-center justify-center border border-white/5 rounded-xs bg-white/[0.01]">
-                <div className="w-8 h-8 border-t-2 border-gold-500 rounded-full animate-spin mb-4" />
-                <p className="text-white/20 font-serif italic">Tuning the frequency...</p>
+            <div className="w-full h-[400px] flex flex-col items-center justify-center border border-stone-200 rounded-[20px] bg-white/40">
+                <div className="w-8 h-8 border-t-2 border-stone-900 rounded-full animate-spin mb-4" />
+                <p className="text-stone-700 font-sans font-medium">Tuning the frequency...</p>
             </div>
         );
     }
@@ -151,9 +151,9 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
     return (
         <div className="w-full flex flex-col gap-12 pt-8">
             {/* Progress Bar */}
-            <div className="w-full h-1 bg-white/5 rounded-full relative overflow-hidden">
+            <div className="w-full h-1.5 bg-stone-200/80 rounded-full relative overflow-hidden">
                 <div
-                    className="absolute top-0 left-0 h-full bg-gold-500 transition-all duration-300"
+                    className="absolute top-0 left-0 h-full bg-stone-900 transition-all duration-300"
                     style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                 />
             </div>
@@ -166,10 +166,10 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
                     <div key={sectionIdx} className="mb-12 flex relative">
                         {/* Section Label */}
                         <div className="w-24 shrink-0">
-                            <span className="text-white/20 text-[10px] uppercase tracking-widest font-sans sticky top-0 italic">
+                            <span className="text-stone-700 text-[10px] uppercase tracking-widest font-sans sticky top-0 font-semibold">
                                 {section.title}
                             </span>
-                            <div className="w-[1px] h-full bg-white/10 ml-0 mt-2 min-h-[40px]" />
+                            <div className="w-[1px] h-full bg-stone-200 ml-0 mt-2 min-h-[40px]" />
                         </div>
 
                         <div className="flex-1 space-y-6">
@@ -184,14 +184,14 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
                                                 key={wordIdx}
                                                 onClick={() => handleWordClick(word.start)}
                                                 className={`
-                          text-2xl md:text-3xl lg:text-4xl font-serif tracking-tight rounded-sm px-1.5 py-0.5
-                          ${active
-                                                        ? 'text-charcoal bg-gold-500 scale-110 shadow-[0_0_30px_rgba(197,160,89,0.4)] z-10 word-active transition-all duration-75'
+                           text-2xl md:text-3xl lg:text-4xl font-sans tracking-tight rounded-sm px-1.5 py-0.5
+                           ${active
+                                                        ? 'text-[#DCDDD4] bg-stone-900 scale-105 shadow-[0_8px_30px_rgba(0,0,0,0.08)] z-10 word-active transition-all duration-75'
                                                         : past
-                                                            ? 'text-white/80 transition-all duration-300'
-                                                            : 'text-white/20 hover:text-white/40 transition-all duration-300'
+                                                            ? 'text-stone-900 transition-all duration-300 font-medium'
+                                                            : 'text-stone-500/60 hover:text-stone-850 transition-all duration-300'
                                                     }
-                        `}
+                         `}
                                             >
                                                 {word.text}
                                             </button>
@@ -209,14 +209,14 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
           width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
+          background: rgba(0, 0, 0, 0.05);
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(197, 160, 89, 0.2);
+          background: rgba(0, 0, 0, 0.15);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(197, 160, 89, 0.4);
+          background: rgba(0, 0, 0, 0.3);
         }
       `}</style>
         </div>

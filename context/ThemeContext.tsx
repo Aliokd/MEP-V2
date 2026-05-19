@@ -12,29 +12,23 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-    const [theme, setTheme] = useState<Theme>('dark');
+    const [theme, setTheme] = useState<Theme>('light');
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        const saved = localStorage.getItem('theme');
-        if (saved === 'light' || saved === 'dark') {
-            setTheme(saved as Theme);
-        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            setTheme('dark');
-        }
+        setTheme('light');
         setMounted(true);
     }, []);
 
     useEffect(() => {
         if (!mounted) return;
         const root = window.document.documentElement;
-        root.classList.remove('light', 'dark');
-        root.classList.add(theme);
-        localStorage.setItem('theme', theme);
-    }, [theme, mounted]);
+        root.classList.remove('dark');
+        root.classList.add('light');
+    }, [mounted]);
 
     const toggleTheme = () => {
-        setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+        // Force light mode
     };
 
     return (

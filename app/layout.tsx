@@ -33,7 +33,7 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={`${inter.variable} ${playfair.variable} ${caveat.variable} font-sans antialiased bg-white dark:bg-charcoal text-stone-900 dark:text-alabaster transition-colors duration-300`}>
+            <body className={`${inter.variable} ${playfair.variable} ${caveat.variable} font-sans antialiased bg-white text-stone-900 transition-colors duration-300`}>
                 <Providers>
                     <div className="min-h-screen flex flex-col">
                         <Navigation />

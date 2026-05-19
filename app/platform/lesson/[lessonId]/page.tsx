@@ -17,7 +17,7 @@ export default async function LessonPage({ params }: { params: { lessonId: strin
 
                 <div className="text-center">
                     <p className="text-[10px] text-gold-500 uppercase tracking-[0.2em] mb-0.5">{lesson.movement?.title}</p>
-                    <h2 className="text-alabaster font-serif text-lg">{lesson.title}</h2>
+                    <h2 className="text-alabaster font-sans font-bold text-lg">{lesson.title}</h2>
                 </div>
 
                 <div className="w-40" /> {/* Spacer for symmetry */}

@@ -44,7 +44,9 @@ const HeroSection = () => {
             <TopNav />
             <div className="w-full px-6 md:px-[10%] flex flex-col md:flex-row justify-between items-start mb-16 relative z-20">
                 <h1 className="text-5xl md:text-[5.5rem] font-sans text-stone-800 leading-[1.05] tracking-tight">
-                    Master the art of <span className="font-bold text-stone-900">songwriting.</span>
+                    <span className="block md:inline">Master</span>{' '}
+                    <span className="block md:inline">the art of</span>{' '}
+                    <span className="block md:inline font-bold text-stone-900">songwriting.</span>
                 </h1>
                 <div className="flex flex-col items-start mt-8 md:mt-0 max-w-[280px]">
                     <p className="text-[14px] text-stone-700 mb-4 text-left leading-snug font-medium">
@@ -168,17 +170,17 @@ const UrgencySection = () => {
             <img
                 src="/assets/100%25%20free%20access.svg"
                 alt="100% Free Access"
-                className="absolute bottom-0 left-0 w-[280px] md:w-[360px] lg:w-[420px] h-auto select-none pointer-events-none z-20"
+                className="absolute bottom-0 left-0 w-[200px] sm:w-[280px] md:w-[360px] lg:w-[420px] h-auto select-none pointer-events-none z-10"
             />
 
             {/* Decorative shapes — bottom right */}
             <img
                 src="/assets/Svg founder section.svg"
                 alt=""
-                className="absolute bottom-0 right-0 w-[300px] md:w-[400px] lg:w-[480px] h-auto select-none pointer-events-none z-20"
+                className="absolute bottom-0 right-0 w-[220px] sm:w-[300px] md:w-[400px] lg:w-[480px] h-auto select-none pointer-events-none z-10"
             />
 
-            <div className="w-full max-w-3xl relative z-10 flex flex-col items-center">
+            <div className="w-full max-w-3xl relative z-20 flex flex-col items-center">
                 {/* Title */}
                 <h2 className="text-5xl md:text-[4.5rem] lg:text-[5rem] font-sans tracking-tight text-stone-900 font-light mb-6 md:mb-8 leading-[1.05]">
                     Join the early founders

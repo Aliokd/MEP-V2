@@ -45,7 +45,7 @@ export default function SongCard({ song, index, isSelected, onClick }: SongCardP
             <motion.div
                 className={`
                     relative z-10 aspect-square w-full overflow-hidden border transition-all duration-500
-                    ${isSelected ? 'border-gold-500/50 shadow-2xl' : 'border-white/5 group-hover:border-white/20'}
+                    ${isSelected ? 'border-stone-800 shadow-xl scale-[1.02]' : 'border-stone-200 group-hover:border-stone-400'}
                 `}
                 whileHover={{ scale: 1.02 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
@@ -68,7 +68,7 @@ export default function SongCard({ song, index, isSelected, onClick }: SongCardP
                 {/* Content */}
                 <div className="relative h-full w-full p-6 flex flex-col justify-between">
                     <div>
-                        <span className="font-serif italic text-xl md:text-2xl text-alabaster/90">
+                        <span className="font-sans font-medium text-lg md:text-xl text-alabaster/90">
                             Song {index + 1}
                         </span>
                     </div>
@@ -78,7 +78,7 @@ export default function SongCard({ song, index, isSelected, onClick }: SongCardP
                             {song.title}
                         </h3>
                         {song.artist && (
-                            <span className="text-[10px] uppercase tracking-widest text-white/40">
+                            <span className="text-[10px] uppercase tracking-widest text-white/70">
                                 {song.artist}
                             </span>
                         )}

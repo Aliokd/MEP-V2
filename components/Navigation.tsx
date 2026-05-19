@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import ThemeToggle from './ThemeToggle';
 import Logo from './Logo';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
@@ -31,45 +30,44 @@ const Navigation = () => {
     const isPlatform = pathname?.startsWith('/platform');
     const isOnboarding = pathname === '/onboarding';
     const isHome = pathname === '/';
-    if (isPlatform || isOnboarding || isHome) return null; // Use dedicated sidebar for platform or hide for onboarding/home
+    if (isPlatform || isOnboarding || isHome) return null; // Hide for platform, onboarding, or home
 
     const navClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled || pathname !== '/'
-        ? 'bg-white/80 dark:bg-charcoal/80 backdrop-blur-md py-4 border-b border-stone-200 dark:border-white/5 shadow-sm'
+        ? 'bg-white/90 backdrop-blur-md py-4 border-b border-stone-200/80 shadow-xs'
         : 'py-8 bg-transparent'
         }`;
 
     return (
-        <nav className={`${navClasses} px-6 md:px-12 flex items-center justify-between`}>
+        <nav className={`${navClasses} px-6 md:px-12 flex items-center justify-between font-sans`}>
             <Link href="/" className="opacity-90 hover:opacity-100 transition-opacity">
                 <Logo size="md" />
             </Link>
 
-            <div className="hidden lg:flex items-center gap-12 text-[10px] uppercase tracking-[0.2em] text-stone-900/70 dark:text-alabaster/70 font-sans font-bold">
-                <Link href="/method" className={`hover:text-gold-500 transition-colors ${pathname === '/method' ? 'text-gold-500' : ''}`}>The Method</Link>
-                <Link href="/maestro" className={`hover:text-gold-500 transition-colors ${pathname === '/maestro' ? 'text-gold-500' : ''}`}>The Maestro</Link>
-                <Link href="/curriculum" className={`hover:text-gold-500 transition-colors ${pathname === '/curriculum' ? 'text-gold-500' : ''}`}>Curriculum</Link>
+            <div className="hidden lg:flex items-center gap-12 text-[10px] uppercase tracking-[0.2em] text-stone-800 font-sans font-bold">
+                <Link href="/method" className={`hover:text-stone-950 transition-colors ${pathname === '/method' ? 'text-stone-950 underline underline-offset-4' : ''}`}>The Method</Link>
+                <Link href="/maestro" className={`hover:text-stone-950 transition-colors ${pathname === '/maestro' ? 'text-stone-950 underline underline-offset-4' : ''}`}>The Maestro</Link>
+                <Link href="/curriculum" className={`hover:text-stone-950 transition-colors ${pathname === '/curriculum' ? 'text-stone-950 underline underline-offset-4' : ''}`}>Curriculum</Link>
             </div>
 
             <div className="flex items-center gap-6">
-                <ThemeToggle />
                 {user ? (
                     <div className="flex items-center gap-6">
-                        <Link href="/platform" className="text-[10px] uppercase tracking-[0.2em] text-gold-500 font-bold hover:underline">
+                        <Link href="/platform" className="text-[10px] uppercase tracking-[0.2em] text-stone-900 font-bold hover:underline">
                             Enter Platform
                         </Link>
                         <button
                             onClick={handleLogout}
-                            className="text-[10px] uppercase tracking-[0.2em] text-stone-900/40 dark:text-alabaster/40 hover:text-stone-900 dark:hover:text-white transition-colors cursor-pointer font-bold"
+                            className="text-[10px] uppercase tracking-[0.2em] text-stone-700 hover:text-stone-900 transition-colors cursor-pointer font-bold"
                         >
                             Sign Out
                         </button>
                     </div>
                 ) : (
                     <div className="flex items-center gap-8">
-                        <Link href="/signin" className="text-[10px] uppercase tracking-[0.3em] font-bold text-stone-900/60 dark:text-alabaster/60 hover:text-gold-500 transition-colors">
+                        <Link href="/signin" className={`text-[10px] uppercase tracking-[0.3em] font-bold text-stone-700 hover:text-stone-950 transition-colors ${pathname === '/signin' ? 'text-stone-950' : ''}`}>
                             SIGN IN
                         </Link>
-                        <Link href="/onboarding" className="bg-stone-900 dark:bg-alabaster text-white dark:text-charcoal px-6 py-3 rounded-xs hover:bg-gold-500 dark:hover:bg-gold-500 transition-all text-[10px] tracking-[0.2em] font-bold uppercase">
+                        <Link href="/onboarding" className="bg-stone-900 text-[#DCDDD4] hover:bg-stone-850 px-6 py-3 rounded-full text-[10px] tracking-[0.2em] font-bold uppercase transition-all shadow-xs">
                             Get Started
                         </Link>
                     </div>

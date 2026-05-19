@@ -20,7 +20,7 @@ const ModuleCard = ({ number, title, level, topics }: { number: string, title: s
                     <span className="w-12 h-px bg-stone-200 dark:bg-white/20 transition-colors duration-300" />
                     <span className="text-stone-900/40 dark:text-alabaster/40 font-sans text-xs tracking-[0.1em] uppercase transition-colors duration-300">{level}</span>
                 </div>
-                <h3 className="text-3xl md:text-4xl font-serif text-stone-900 dark:text-alabaster group-hover:text-gold-500 transition-colors duration-300">{title}</h3>
+                <h3 className="text-3xl md:text-4xl font-sans font-bold text-stone-900 dark:text-alabaster group-hover:text-gold-500 transition-colors duration-300">{title}</h3>
                 <p className="text-stone-900/50 dark:text-alabaster/50 text-lg font-sans font-light max-w-2xl leading-relaxed transition-colors duration-300">
                     Detailed exploration of the harmonic structures and visual patterns specific to this stage of mastery.
                 </p>
@@ -75,7 +75,7 @@ export default function CurriculumPage() {
             <section className="max-w-7xl mx-auto mb-32">
                 <div className="text-center space-y-6 mb-24">
                     <span className="text-gold-500 text-xs tracking-[0.4em] uppercase font-bold">THE PATH TO VIRTUOSITY</span>
-                    <h1 className="text-5xl md:text-7xl lg:text-8xl leading-none text-stone-900 dark:text-white transition-colors duration-300 font-serif">A Structured <br /><span className="italic text-gold-500">Descent into Logic.</span></h1>
+                    <h1 className="text-5xl md:text-7xl lg:text-8xl leading-none text-stone-900 dark:text-white transition-colors duration-300 font-sans font-light">A Structured <br /><span className="font-bold text-gold-500">Descent into Logic.</span></h1>
                     <p className="text-stone-900/60 dark:text-alabaster/60 text-xl font-sans font-light max-w-3xl mx-auto leading-relaxed transition-colors duration-300">
                         From the physics of sound to the complexity of orchestration. Each module is designed to build upon the last, reinforcing the visual language of the Synesthesia Engine.
                     </p>
@@ -107,7 +107,7 @@ export default function CurriculumPage() {
             <section className="max-w-7xl mx-auto bg-gold-500 p-12 md:p-24 text-charcoal flex flex-col md:flex-row justify-between items-center gap-12 rounded-xs overflow-hidden relative group transition-colors">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-white/20 blur-[100px] rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
                 <div className="space-y-6 relative z-10">
-                    <h2 className="text-4xl md:text-5xl font-serif leading-tight">Ready to begin your <br />musical evolution?</h2>
+                    <h2 className="text-4xl md:text-5xl font-sans font-bold leading-tight">Ready to begin your <br />musical evolution?</h2>
                     <p className="text-charcoal/70 text-lg font-sans max-w-md">
                         Join over 10,000 students who have mastered the language of music through our visual curriculum.
                     </p>

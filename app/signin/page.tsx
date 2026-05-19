@@ -8,6 +8,7 @@ import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
+import Logo from '@/components/Logo';
 
 export default function SignInPage() {
     const [email, setEmail] = useState('');
@@ -59,47 +60,42 @@ export default function SignInPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-6 py-32 bg-white dark:bg-[#050505] relative overflow-hidden transition-colors duration-300">
-            <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-                <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-gold-500/5 blur-[120px] rounded-full" />
-                <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-gold-500/5 blur-[120px] rounded-full" />
-            </div>
-
+        <div className="min-h-screen flex items-center justify-center px-6 py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
                 className="w-full max-w-md relative z-10"
             >
-                <div className="text-center mb-12 space-y-4">
+                <div className="text-center mb-12 space-y-4 flex flex-col items-center">
                     <Link href="/" className="inline-block">
-                        <h1 className="text-3xl font-serif text-gold-500 tracking-tighter">THE CONSERVATORY</h1>
+                        <Logo size="md" />
                     </Link>
-                    <h2 className="text-4xl font-serif text-stone-900 dark:text-alabaster transition-colors duration-300">Welcome Back</h2>
-                    <p className="text-stone-900/50 dark:text-alabaster/50 font-sans font-light transition-colors duration-300">Continue your descent into mastery.</p>
+                    <h2 className="text-4xl font-sans font-bold text-stone-900 tracking-tight">Welcome Back</h2>
+                    <p className="text-stone-700 font-sans font-semibold text-sm">Continue your descent into mastery.</p>
                 </div>
 
-                <div className="bg-stone-50 dark:bg-charcoal border border-stone-200 dark:border-white/5 p-10 rounded-xs shadow-2xl transition-colors duration-300">
+                <div className="bg-white/60 border border-stone-200/80 p-10 rounded-[20px] shadow-sm backdrop-blur-md">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {error && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
-                                className="bg-red-500/10 border border-red-500/20 rounded-xs p-4 flex items-center gap-3 text-red-500 text-sm"
+                                className="bg-red-500/10 border border-red-500/20 rounded-[12px] p-4 flex items-center gap-3 text-red-700 text-xs font-semibold"
                             >
-                                <AlertCircle size={18} />
+                                <AlertCircle size={18} className="shrink-0" />
                                 {error}
                             </motion.div>
                         )}
                         <div className="space-y-2">
-                            <label className="text-[10px] uppercase tracking-[0.2em] text-stone-900/40 dark:text-alabaster/40 font-bold ml-1 transition-colors duration-300">Email Address</label>
+                            <label className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold ml-1">Email Address</label>
                             <div className="relative group">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors text-stone-900/20 dark:text-alabaster/20 group-focus-within:text-gold-500" size={18} />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 group-focus-within:text-stone-900 transition-colors" size={18} />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-white dark:bg-black/40 border border-stone-200 dark:border-white/10 rounded-xs py-4 pl-12 pr-4 text-stone-900 dark:text-alabaster font-sans focus:outline-none focus:border-gold-500/50 transition-all"
+                                    className="w-full bg-white border border-stone-200 rounded-[12px] py-4 pl-12 pr-4 text-stone-900 font-sans focus:outline-none focus:border-stone-800 transition-all text-sm font-medium placeholder:text-stone-400"
                                     placeholder="maestro@conservatory.com"
                                     required
                                 />
@@ -108,16 +104,16 @@ export default function SignInPage() {
 
                         <div className="space-y-2">
                             <div className="flex justify-between items-center ml-1">
-                                <label className="text-[10px] uppercase tracking-[0.2em] text-stone-900/40 dark:text-alabaster/40 font-bold transition-colors duration-300">Password</label>
-                                <a href="#" className="text-[10px] uppercase tracking-widest text-gold-500 hover:text-gold-500/80 transition-colors">Forgot?</a>
+                                <label className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold">Password</label>
+                                <a href="#" className="text-[10px] uppercase tracking-widest text-stone-900 hover:text-stone-700 font-bold transition-colors">Forgot?</a>
                             </div>
                             <div className="relative group">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors text-stone-900/20 dark:text-alabaster/20 group-focus-within:text-gold-500" size={18} />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 group-focus-within:text-stone-900 transition-colors" size={18} />
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-white dark:bg-black/40 border border-stone-200 dark:border-white/10 rounded-xs py-4 pl-12 pr-4 text-stone-900 dark:text-alabaster font-sans focus:outline-none focus:border-gold-500/50 transition-all"
+                                    className="w-full bg-white border border-stone-200 rounded-[12px] py-4 pl-12 pr-4 text-stone-900 font-sans focus:outline-none focus:border-stone-800 transition-all text-sm font-medium placeholder:text-stone-400"
                                     placeholder="••••••••"
                                     required
                                 />
@@ -127,7 +123,7 @@ export default function SignInPage() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className={`w-full flex items-center justify-center gap-3 py-5 text-sm tracking-[0.2em] uppercase font-bold bg-stone-900 dark:bg-alabaster text-white dark:text-charcoal hover:bg-gold-500 dark:hover:bg-gold-500 dark:hover:text-white transition-all rounded-xs ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`w-full flex items-center justify-center gap-3 py-4 text-xs tracking-[0.2em] uppercase font-bold bg-stone-900 text-[#DCDDD4] hover:bg-stone-850 transition-all rounded-full ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             {isLoading ? 'ESTABLISHING CONNECTION...' : 'RESUME PRACTICE'}
                             {!isLoading && <ArrowRight size={18} />}
@@ -135,15 +131,15 @@ export default function SignInPage() {
                     </form>
 
                     <div className="mt-6 flex items-center gap-4">
-                        <div className="h-px bg-stone-200 dark:bg-white/5 flex-grow" />
-                        <span className="text-[10px] uppercase tracking-widest text-stone-900/40 dark:text-alabaster/40 font-bold">or</span>
-                        <div className="h-px bg-stone-200 dark:bg-white/5 flex-grow" />
+                        <div className="h-px bg-stone-200/80 flex-grow" />
+                        <span className="text-[10px] uppercase tracking-widest text-stone-600 font-bold">or</span>
+                        <div className="h-px bg-stone-200/80 flex-grow" />
                     </div>
 
                     <button
                         onClick={handleGoogleSignIn}
                         disabled={isLoading}
-                        className="mt-6 w-full flex items-center justify-center gap-3 py-4 border border-stone-200 dark:border-white/10 rounded-xs text-[10px] tracking-widest uppercase font-bold text-stone-900 dark:text-alabaster hover:bg-stone-50 dark:hover:bg-white/5 transition-all disabled:opacity-50"
+                        className="mt-6 w-full flex items-center justify-center gap-3 py-4 border border-stone-200 rounded-full text-[10px] tracking-widest uppercase font-bold text-stone-900 bg-white/40 hover:bg-white/80 transition-all disabled:opacity-50"
                     >
                         <svg className="w-4 h-4" viewBox="0 0 24 24">
                             <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -154,10 +150,10 @@ export default function SignInPage() {
                         Continue with Google
                     </button>
 
-                    <div className="mt-8 pt-8 border-t border-stone-100 dark:border-white/5 text-center transition-colors duration-300">
-                        <p className="text-[10px] text-stone-900/40 dark:text-alabaster/40 font-sans transition-colors duration-300 uppercase tracking-widest">
+                    <div className="mt-8 pt-8 border-t border-stone-200/80 text-center">
+                        <p className="text-[10px] text-stone-700 font-sans uppercase tracking-widest font-bold">
                             New to the platform?{' '}
-                            <Link href="/signup" className="text-gold-500 hover:text-gold-500/80 transition-colors underline-offset-4 hover:underline">Begin your audition</Link>
+                            <Link href="/signup" className="text-stone-900 transition-colors underline-offset-4 hover:underline">Begin your audition</Link>
                         </p>
                     </div>
                 </div>

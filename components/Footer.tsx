@@ -40,7 +40,7 @@ const Footer = () => {
 
             <div className="max-w-6xl mx-auto mt-24 flex flex-col md:flex-row justify-between items-center gap-6 pt-8 border-t border-stone-200 dark:border-white/5">
                 <p className="text-xs text-stone-900/20 dark:text-alabaster/20 font-sans uppercase tracking-[0.4em]">© 2026 VEINOTE. ALL RIGHTS RESERVED.</p>
-                <p className="text-xs text-gold-500/40 font-serif italic tracking-[0.2em]">Made for those who listen.</p>
+                <p className="text-xs text-gold-500/60 font-sans tracking-[0.2em] font-medium">Made for those who listen.</p>
             </div>
         </footer>
     );

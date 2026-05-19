@@ -20,15 +20,15 @@ export default function PlatformLayout({
     }, [user, loading, router]);
 
     if (loading) return (
-        <div className="h-screen flex items-center justify-center bg-charcoal">
-            <div className="w-12 h-12 border-t-2 border-gold-500 rounded-full animate-spin" />
+        <div className="h-screen flex items-center justify-center bg-[#DCDDD4]">
+            <div className="w-12 h-12 border-t-2 border-stone-900 rounded-full animate-spin" />
         </div>
     );
 
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-charcoal">
+        <div className="min-h-screen bg-[#DCDDD4]">
             <main className="w-full h-full">
                 {children}
             </main>
