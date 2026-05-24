@@ -42,13 +42,15 @@ export default function ChapterList({
         <div className="w-full max-w-6xl mx-auto mt-12 mb-20 flex flex-col gap-4">
             {chapters.map((chapter, index) => {
                 const isActive = chapter.id === currentChapterId;
+                const completedCount = chapter.lessons.filter(l => masteredLessonIds.includes(l.id)).length;
+                const totalCount = chapter.lessons.length;
 
                 return (
                     <div
                         key={chapter.id}
                         className={`group w-full border rounded-[20px] transition-all duration-500 overflow-hidden ${isActive
-                            ? 'bg-white border-stone-300/80 shadow-[0_8px_30px_rgba(0,0,0,0.02)]'
-                            : 'bg-[#EFF0E7]/20 border-stone-200/60 hover:bg-[#EFF0E7]/40 hover:border-stone-200'
+                            ? 'bg-white border-stone-300/85 shadow-[0_4px_20px_rgba(0,0,0,0.015)]'
+                            : 'bg-[#E9E9E2]/60 border-stone-250/20 hover:bg-[#E9E9E2]/90 hover:border-stone-350/40'
                             }`}
                     >
                         {/* Header/Toggle part */}
@@ -57,14 +59,14 @@ export default function ChapterList({
                             className="w-full p-6 text-left flex flex-col justify-center gap-2 relative"
                         >
                             <div className="flex justify-between items-center w-full">
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] text-stone-500/80 font-sans tracking-[0.2em] uppercase">
-                                        Movement 0{index + 1}
-                                    </span>
-                                    <h3 className={`font-sans text-xl tracking-wide transition-colors duration-300 ${isActive ? 'text-stone-900 font-semibold' : 'text-stone-700/70 group-hover:text-stone-950'
+                                <div className="flex flex-col gap-0.5">
+                                    <h3 className={`font-sans text-lg tracking-wide transition-colors duration-300 ${isActive ? 'text-stone-900 font-semibold' : 'text-stone-850 group-hover:text-stone-950'
                                         }`}>
                                         {chapter.title}
                                     </h3>
+                                    <span className="text-[11px] text-stone-500 font-sans tracking-wide">
+                                        Progress: {completedCount}/{totalCount} lessons
+                                    </span>
                                 </div>
 
                                 <motion.div

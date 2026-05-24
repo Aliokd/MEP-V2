@@ -30,36 +30,7 @@ export default function PracticePage() {
     };
 
     return (
-        <div className="relative min-h-screen bg-[#DCDDD4] flex flex-col items-center">
-            {/* Top Navigation */}
-            <div className="w-full flex items-center justify-between px-10 py-6 z-30">
-                <Link
-                    href="/platform"
-                    className="opacity-80 hover:opacity-100 transition-opacity"
-                >
-                    <Logo size="md" />
-                </Link>
-
-                <div className="flex items-center gap-8">
-                    <Link href="/platform" className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-[#363636] transition-colors font-sans">My classes</Link>
-                    <Link href="/platform/practice" className="text-[10px] uppercase tracking-[0.2em] text-stone-900 font-sans font-semibold border-b border-stone-900 pb-1">Practise</Link>
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-[#363636] transition-colors font-sans">Show the world</button>
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-[#363636] transition-colors font-sans">Community?</button>
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-[#363636] transition-colors font-sans">Practice instruments</button>
-                </div>
-
-                <div className="flex items-center gap-6">
-                    <button className="text-[10px] uppercase tracking-widest text-[#363636]/70 hover:text-[#363636] transition-colors">My profile</button>
-                    <button className="text-[10px] uppercase tracking-widest text-[#363636]/70 hover:text-[#363636] transition-colors">Settings</button>
-                    <button
-                        onClick={handleLogout}
-                        className="text-[10px] uppercase tracking-widest text-[#363636]/70 hover:text-[#363636] transition-colors"
-                    >
-                        Logout
-                    </button>
-                </div>
-            </div>
-
+        <div className="w-full">
             <PracticeTab />
         </div>
     );

@@ -62,7 +62,7 @@ export default function PracticeTab() {
     };
 
     return (
-        <div className="w-full min-h-screen bg-[#DCDDD4] text-stone-900 flex flex-col items-center pt-8 px-10">
+        <div className="w-full text-stone-900 flex flex-col items-center pt-4 px-10">
 
             {/* Top Level Practise Tabs */}
             <div className="w-full max-w-5xl flex gap-6 mb-12 overflow-x-auto no-scrollbar py-2">

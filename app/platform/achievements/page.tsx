@@ -14,7 +14,7 @@ const achievements = [
 
 export default function AchievementsPage() {
     return (
-        <div className="p-10 space-y-12 min-h-screen bg-[#DCDDD4] text-stone-900 font-sans">
+        <div className="space-y-12 text-stone-900 font-sans">
             <header className="space-y-4">
                 <h1 className="text-4xl font-sans font-light tracking-tight text-stone-900">Achievements</h1>
                 <p className="text-stone-700 font-sans max-w-2xl text-sm font-medium">

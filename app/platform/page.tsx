@@ -165,68 +165,27 @@ export default function PlatformPage() {
     };
 
     return (
-        <div className="relative min-h-screen bg-[#DCDDD4] flex flex-col items-center">
-            {/* Top Navigation */}
-            <div className="w-full flex items-center justify-between px-10 py-6 z-30">
-                <button
-                    onClick={() => router.push('/')}
-                    className="opacity-80 hover:opacity-100 transition-opacity"
-                >
-                    <Logo size="md" />
-                </button>
-
-                <div className="flex items-center gap-8">
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-stone-900 font-sans font-semibold border-b border-stone-900 pb-1">My classes</button>
-                    <Link href="/platform/practice" className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-stone-900 transition-colors font-sans decoration-none">Practise</Link>
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-stone-900 transition-colors font-sans">Show the world</button>
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-stone-900 transition-colors font-sans">Community?</button>
-                    <button className="text-[10px] uppercase tracking-[0.2em] text-[#363636]/70 hover:text-stone-900 transition-colors font-sans">Practice instruments</button>
-                </div>
-
-                <div className="flex items-center gap-6">
-                    <button className="text-[10px] uppercase tracking-widest text-[#363636]/70 hover:text-stone-900 transition-colors">My profile</button>
-                    <button className="text-[10px] uppercase tracking-widest text-[#363636]/70 hover:text-stone-900 transition-colors">Settings</button>
-                    <button
-                        onClick={handleLogout}
-                        className="text-[10px] uppercase tracking-widest text-[#363636]/70 hover:text-stone-900 transition-colors"
-                    >
-                        Logout
-                    </button>
-                </div>
-            </div>
-
-            <div className="w-full max-w-6xl px-6 flex flex-col items-center">
-                <ChapterProgress
-                    chapters={chapters.map(c => ({ id: c.id, title: c.title }))}
-                    currentChapterId={currentChapterId || ""}
-                    overallProgress={overallProgress}
-                    onChapterSelect={(id) => {
-                        setCurrentChapterId(id);
-                        setCurrentLessonIndex(0);
-                    }}
-                />
-
-                <ChapterList
-                    chapters={chapters.map(c => ({
-                        id: c.id,
-                        title: c.title,
-                        description: `MOVEMENT ${chapters.indexOf(c) + 1}`,
-                        lessons: c.lessons.map(l => ({ id: l.id, title: l.title, videoUrl: l.videoUrl }))
-                    }))}
-                    currentChapterId={currentChapterId || ""}
-                    currentLesson={currentLesson}
-                    currentLessonIndex={currentLessonIndex}
-                    masteredLessonIds={data.user.lessonProgress.filter(p => p.status === 'MASTERED').map(p => p.lessonId)}
-                    onChapterSelect={(id) => {
-                        setCurrentChapterId(id);
-                        setCurrentLessonIndex(0);
-                    }}
-                    onLessonSelect={(index) => setCurrentLessonIndex(index)}
-                    onBack={() => setCurrentLessonIndex(prev => Math.max(0, prev - 1))}
-                    onNext={() => setCurrentLessonIndex(prev => Math.min((currentChapter?.lessons.length || 1) - 1, prev + 1))}
-                    onComplete={handleComplete}
-                />
-            </div>
+        <div className="w-full max-w-6xl mx-auto flex flex-col items-center">
+            <ChapterList
+                chapters={chapters.map(c => ({
+                    id: c.id,
+                    title: c.title,
+                    description: `MOVEMENT ${chapters.indexOf(c) + 1}`,
+                    lessons: c.lessons.map(l => ({ id: l.id, title: l.title, videoUrl: l.videoUrl }))
+                }))}
+                currentChapterId={currentChapterId || ""}
+                currentLesson={currentLesson}
+                currentLessonIndex={currentLessonIndex}
+                masteredLessonIds={data.user.lessonProgress.filter(p => p.status === 'MASTERED').map(p => p.lessonId)}
+                onChapterSelect={(id) => {
+                    setCurrentChapterId(id);
+                    setCurrentLessonIndex(0);
+                }}
+                onLessonSelect={(index) => setCurrentLessonIndex(index)}
+                onBack={() => setCurrentLessonIndex(prev => Math.max(0, prev - 1))}
+                onNext={() => setCurrentLessonIndex(prev => Math.min((currentChapter?.lessons.length || 1) - 1, prev + 1))}
+                onComplete={handleComplete}
+            />
         </div>
     );
 }
