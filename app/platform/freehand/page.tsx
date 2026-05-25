@@ -22,6 +22,53 @@ interface SongNote {
     updatedAt: string;
 }
 
+const songwritingSuggestions: Record<string, string[]> = {
+    "people": ["crowds", "souls", "minds", "nations", "humans", "wanderers"],
+    "love": ["passion", "devotion", "warmth", "fire", "yearning", "grace"],
+    "typing": ["writing", "carving", "tracing", "scribbling", "drafting"],
+    "song": ["melody", "anthem", "hymn", "ballad", "refrain", "verse"],
+    "ocean": ["abyss", "deep", "tide", "blue", "currents", "waves"],
+    "breeze": ["gale", "whisper", "sigh", "wind", "breath", "draft"],
+    "sand": ["shore", "dust", "earth", "grain", "coast", "beach"],
+    "beach": ["shore", "coast", "tide", "coastline", "sands"],
+    "night": ["darkness", "shadow", "gloom", "twilight", "oblivion", "veil"],
+    "light": ["gleam", "glow", "halo", "beam", "radiance"],
+    "heart": ["soul", "core", "breath", "pulse", "spirit"],
+    "music": ["harmony", "sound", "cadence", "chords", "echoes"],
+    "time": ["hours", "seasons", "moments", "infinity", "epochs"],
+    "dream": ["vision", "illusion", "phantom", "fantasy", "shadow"],
+    "eyes": ["gaze", "stare", "sight", "vision", "mirrors"],
+    "sky": ["heaven", "abyss", "vault", "azure", "canopy"],
+    "wind": ["gale", "breeze", "breath", "tempest", "whisper"],
+    "fire": ["flame", "blaze", "ember", "glow", "spark"],
+    "rain": ["shower", "torrent", "tears", "drizzle", "pour"],
+    "dark": ["shadow", "gloom", "night", "obscure", "dim"],
+    "cold": ["chill", "frost", "ice", "bleak", "freezing"],
+    "warm": ["cosy", "mild", "balmy", "tender", "heated"]
+};
+
+const getSuggestions = (word: string): string[] => {
+    const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+    if (songwritingSuggestions[clean]) {
+        return songwritingSuggestions[clean];
+    }
+    if (clean.endsWith('ing')) {
+        return ["flowing", "chasing", "calling", "fading", "glowing"];
+    }
+    if (clean.endsWith('y')) {
+        return ["silent", "empty", "shadowy", "solemn", "glassy"];
+    }
+    if (clean.endsWith('s')) {
+        return ["whispers", "shadows", "echoes", "embers", "tides"];
+    }
+    return [
+        `golden ${clean}`,
+        `faded ${clean}`,
+        `echo of ${clean}`,
+        `whisper of ${clean}`
+    ];
+};
+
 // Visual SVG Folder Illustration Component
 function FolderIllustration({ folderId }: { folderId: string }) {
     const gradientId = `paint0_linear_2874_1501-${folderId}`;
@@ -65,6 +112,12 @@ export default function FreeHandPage() {
     const [isFocused, setIsFocused] = useState(false);
     const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
     const [isDragOverRoot, setIsDragOverRoot] = useState(false);
+    
+    // Suggestion mode states
+    const [isEditing, setIsEditing] = useState(false);
+    const [clickedWord, setClickedWord] = useState<string | null>(null);
+    const [clickedTokenIndex, setClickedTokenIndex] = useState<number | null>(null);
+    const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
 
     const editorRef = useRef<HTMLDivElement>(null);
 
@@ -170,6 +223,7 @@ export default function FreeHandPage() {
         };
         setNotes(prev => [newNote, ...prev]);
         setSelectedNoteId(newNote.id);
+        setIsEditing(true);
         
         // Auto focus the editor in the next tick
         setTimeout(() => {
@@ -198,6 +252,7 @@ export default function FreeHandPage() {
         setNotes(prev => prev.filter(n => n.id !== id));
         if (selectedNoteId === id) {
             setSelectedNoteId(null);
+            setIsEditing(false);
         }
     };
 
@@ -238,6 +293,7 @@ export default function FreeHandPage() {
             };
             setNotes(prev => [newNote, ...prev]);
             setSelectedNoteId(newNote.id);
+            setIsEditing(true);
         } else {
             // Update active note
             handleUpdateNote(selectedNoteId, { 
@@ -250,6 +306,7 @@ export default function FreeHandPage() {
     const handleNewNoteClick = () => {
         if (activeNote && activeNote.content.trim() === '') {
             if (editorRef.current) editorRef.current.focus();
+            setIsEditing(true);
             return;
         }
         handleCreateNote(activeFolderIdFilter);
@@ -258,7 +315,70 @@ export default function FreeHandPage() {
     const handleSaveNote = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (selectedNoteId) {
-            setSelectedNoteId(null);
+            setIsEditing(false); // Enter Suggestion Mode on Save
+        }
+    };
+
+    // Word suggestion click handler in Suggestion Mode
+    const handleWordClick = (e: React.MouseEvent, word: string, tokenIndex: number) => {
+        e.stopPropagation();
+        const cleanWord = word.replace(/[^a-zA-Z]/g, '');
+        if (!cleanWord) return;
+
+        setClickedWord(cleanWord);
+        setClickedTokenIndex(tokenIndex);
+        
+        const rect = e.currentTarget.getBoundingClientRect();
+        const parentRect = e.currentTarget.closest('.cursor-text')?.getBoundingClientRect();
+        if (parentRect) {
+            setPopoverPosition({
+                top: rect.bottom - parentRect.top + 8, // 8px spacing
+                left: rect.left - parentRect.left + (rect.width / 2)
+            });
+        }
+    };
+
+    const handleSelectSuggestion = (suggestion: string) => {
+        if (selectedNoteId && clickedTokenIndex !== null && activeNote) {
+            const words = activeNote.content.split(/(\s+)/);
+            const originalToken = words[clickedTokenIndex];
+            
+            // Swap out alphabetical portion, keeping surrounding punctuation
+            const match = originalToken.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/);
+            if (match) {
+                const pre = match[1];
+                const post = match[3];
+                words[clickedTokenIndex] = pre + suggestion + post;
+            } else {
+                words[clickedTokenIndex] = suggestion;
+            }
+
+            const newContent = words.join('');
+            
+            handleUpdateNote(selectedNoteId, {
+                content: newContent,
+                title: getTitleFromContent(newContent) || 'Untitled Note'
+            });
+
+            // Update DOM contentEditable immediately to keep cursor sync safe
+            if (editorRef.current) {
+                editorRef.current.innerText = newContent;
+            }
+        }
+        setClickedWord(null);
+        setClickedTokenIndex(null);
+    };
+
+    const handleEditorCardClick = () => {
+        if (selectedNoteId && !isEditing) {
+            setIsEditing(true);
+            setTimeout(() => {
+                if (editorRef.current) {
+                    editorRef.current.focus();
+                }
+            }, 50);
+        } else if (editorRef.current) {
+            editorRef.current.focus();
         }
     };
 
@@ -302,28 +422,60 @@ export default function FreeHandPage() {
             : filteredNotes.filter(n => n.folderId === null));
 
     const contentVal = activeNote ? activeNote.content : '';
+    const words = contentVal.split(/(\s+)/);
 
     return (
-        <div className="w-full flex flex-col gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] py-2">
+        <div className="w-full flex flex-col gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] max-w-5xl mx-auto py-2">
             
             {/* 1. TYPING / WRITING CANVAS AREA (Top Panel) */}
             <div 
-                onClick={() => {
-                    if (editorRef.current) editorRef.current.focus();
-                }}
+                onClick={handleEditorCardClick}
                 className="bg-[#FAF9F5] rounded-[32px] p-8 flex flex-col min-h-[420px] transition-all relative cursor-text justify-center"
             >
-                {/* Scrollable Center-aligned container wrapper */}
+                {/* Mode Selector wrapper (Edit vs Suggestion Mode) */}
                 <div className="w-full max-h-[340px] overflow-y-auto no-scrollbar flex items-center justify-center z-10">
-                    <div
-                        ref={editorRef}
-                        contentEditable
-                        suppressContentEditableWarning
-                        onInput={handleEditorInput}
-                        onFocus={() => setIsFocused(true)}
-                        onBlur={() => setIsFocused(false)}
-                        className="w-full outline-none border-none bg-transparent font-sans text-[32px] font-light text-stone-850 text-center tracking-wide focus:ring-0 focus:outline-none min-h-[48px]"
-                    />
+                    {selectedNoteId && !isEditing ? (
+                        /* Suggestion Mode (Hover & Click word alternatives) */
+                        <div className="text-[32px] font-light text-stone-850 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none">
+                            {words.map((token, idx) => {
+                                if (/^\s+$/.test(token)) {
+                                    return <span key={idx} className="whitespace-pre-wrap">{token}</span>;
+                                }
+                                
+                                // Parse alphabetical word to isolate punctuation
+                                const match = token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/);
+                                if (match) {
+                                    const prePunc = match[1];
+                                    const word = match[2];
+                                    const postPunc = match[3];
+                                    return (
+                                        <span key={idx} className="inline-block">
+                                            {prePunc}
+                                            <span 
+                                                onClick={(e) => handleWordClick(e, word, idx)}
+                                                className="hover:bg-stone-200/70 text-stone-850 hover:text-stone-950 rounded-[12px] px-2 py-0.5 cursor-pointer transition-colors duration-200"
+                                            >
+                                                {word}
+                                            </span>
+                                            {postPunc}
+                                        </span>
+                                    );
+                                }
+                                return <span key={idx}>{token}</span>;
+                            })}
+                        </div>
+                    ) : (
+                        /* Standard Edit Mode (contentEditable) */
+                        <div
+                            ref={editorRef}
+                            contentEditable
+                            suppressContentEditableWarning
+                            onInput={handleEditorInput}
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={() => setIsFocused(false)}
+                            className="w-full outline-none border-none bg-transparent font-sans text-[32px] font-light text-stone-855 text-center tracking-wide focus:ring-0 focus:outline-none min-h-[48px]"
+                        />
+                    )}
                 </div>
 
                 {/* Styled Center Placeholder Overlay (blinking caret + text matching screenshot) */}
@@ -336,18 +488,61 @@ export default function FreeHandPage() {
                     </div>
                 )}
 
-                {/* Save and Plus Buttons in bottom right corner */}
-                <div className="absolute bottom-6 right-6 flex items-center gap-3 z-10">
-                    {contentVal.trim() !== '' && (
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleSaveNote(e);
+                {/* Floating Suggestions Popover Overlay */}
+                {clickedWord && popoverPosition && (
+                    <>
+                        <div className="fixed inset-0 z-30" onClick={() => setClickedWord(null)} />
+                        <div 
+                            className="absolute bg-white border border-stone-200/60 rounded-[20px] p-4.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] z-40 flex flex-col gap-2 min-w-[220px] animate-in fade-in zoom-in-95 duration-200"
+                            style={{ 
+                                top: `${popoverPosition.top}px`, 
+                                left: `${popoverPosition.left}px`,
+                                transform: 'translateX(-50%)' 
                             }}
-                            className="px-6 py-1.5 bg-black hover:bg-stone-850 text-white font-bold font-sans text-[13px] rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
                         >
-                            Save
-                        </button>
+                            <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block border-b border-stone-100 pb-1.5 mb-1 select-none">Songwriting Suggestions</span>
+                            <div className="flex flex-wrap gap-1.5 max-w-[280px]">
+                                {getSuggestions(clickedWord).map((suggestion, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSelectSuggestion(suggestion);
+                                        }}
+                                        className="px-2.5 py-1 bg-stone-50 hover:bg-stone-900 hover:text-white border border-stone-200/50 hover:border-stone-900 rounded-[10px] text-xs font-semibold text-stone-700 transition-all cursor-pointer"
+                                    >
+                                        {suggestion}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {/* Save/Edit and Plus Buttons in bottom right corner */}
+                <div className="absolute bottom-6 right-6 flex items-center gap-3 z-20">
+                    {/* Render Save button in Edit mode, or Edit button in Suggestion mode */}
+                    {selectedNoteId && (
+                        isEditing ? (
+                            contentVal.trim() !== '' && (
+                                <button 
+                                    onClick={handleSaveNote}
+                                    className="px-6 py-1.5 bg-black hover:bg-stone-850 text-white font-bold font-sans text-[13px] rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
+                                >
+                                    Save
+                                </button>
+                            )
+                        ) : (
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsEditing(true);
+                                }}
+                                className="px-6 py-1.5 bg-black hover:bg-stone-850 text-white font-bold font-sans text-[13px] rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
+                            >
+                                Edit
+                            </button>
+                        )
                     )}
                     <button 
                         onClick={(e) => {
@@ -418,7 +613,7 @@ export default function FreeHandPage() {
                                                     }}
                                                     className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
                                                 >
-                                                    <FileText size={12} className="text-stone-555" />
+                                                    <FileText size={12} className="text-stone-550" />
                                                     New File
                                                 </button>
                                             </div>
@@ -470,7 +665,7 @@ export default function FreeHandPage() {
                                     <FolderIllustration folderId={folder.id} />
                                     
                                     <div className="flex flex-col gap-0.5 text-center mt-1">
-                                        <span className="font-bold text-[14px] text-stone-855 group-hover:text-stone-955 truncate transition-colors">
+                                        <span className="font-bold text-[14px] text-stone-850 group-hover:text-stone-955 truncate transition-colors">
                                             {folder.name}
                                         </span>
                                         <span className="text-[11px] text-stone-400 font-semibold">
