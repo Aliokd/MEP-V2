@@ -14,12 +14,25 @@ interface SongFolder {
     name: string;
 }
 
+interface VerseGroup {
+    id: string;
+    name: string;
+}
+
+interface Phrase {
+    id: string;
+    text: string;
+    groupId: string | null;
+}
+
 interface SongNote {
     id: string;
     title: string;
     content: string;
     folderId: string | null;
     updatedAt: string;
+    verses?: VerseGroup[];
+    phrases?: Phrase[];
 }
 
 const songwritingSuggestions: Record<string, string[]> = {
@@ -101,6 +114,78 @@ function FileIllustration() {
     );
 }
 
+// Draggable Phrase row rendering individual words for songwriting suggestions
+function PhraseRow({ 
+    phrase, 
+    draggedPhraseId, 
+    setDraggedPhraseId,
+    handleWordClick,
+    handleReorderPhrases,
+    handleMovePhraseToGroup
+}: {
+    phrase: Phrase;
+    draggedPhraseId: string | null;
+    setDraggedPhraseId: (id: string | null) => void;
+    handleWordClick: (e: React.MouseEvent, word: string, tokenIndex: number) => void;
+    handleReorderPhrases: (draggedId: string, targetId: string) => void;
+    handleMovePhraseToGroup: (phraseId: string, groupId: string | null) => void;
+}) {
+    const wordsList = phrase.text.split(/(\s+)/);
+    
+    return (
+        <div 
+            draggable
+            onDragStart={(e) => {
+                setDraggedPhraseId(phrase.id);
+                e.dataTransfer.setData('text/plain', phrase.id);
+            }}
+            onDragEnd={() => {
+                setDraggedPhraseId(null);
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+                e.preventDefault();
+                const draggedId = e.dataTransfer.getData('text/plain') || draggedPhraseId;
+                if (draggedId && draggedId !== phrase.id) {
+                    handleReorderPhrases(draggedId, phrase.id);
+                }
+            }}
+            className={`
+                text-[32px] font-light text-stone-855 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-1 px-4 rounded-[12px] transition-all duration-200 cursor-grab active:cursor-grabbing hover:bg-stone-200/20
+                ${draggedPhraseId === phrase.id ? 'opacity-40 border border-dashed border-stone-300' : ''}
+            `}
+        >
+            {wordsList.map((token, idx) => {
+                if (/^\s+$/.test(token)) {
+                    return <span key={idx} className="whitespace-pre-wrap">{token}</span>;
+                }
+                
+                // Parse alphabetical word to isolate punctuation
+                const match = token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/);
+                if (match) {
+                    const prePunc = match[1];
+                    const word = match[2];
+                    const postPunc = match[3];
+                    return (
+                        <span key={idx} className="inline-block" onClick={(e) => e.stopPropagation()}>
+                            {prePunc}
+                            <span 
+                                onClick={(e) => handleWordClick(e, word, idx)}
+                                className="hover:bg-stone-200/70 text-stone-850 hover:text-stone-950 rounded-[12px] px-2 py-0.5 cursor-pointer transition-colors duration-200"
+                            >
+                                {word}
+                            </span>
+                            {postPunc}
+                        </span>
+                    );
+                }
+                return <span key={idx}>{token}</span>;
+            })}
+        </div>
+    );
+}
+
+
 export default function FreeHandPage() {
     const [folders, setFolders] = useState<SongFolder[]>([]);
     const [notes, setNotes] = useState<SongNote[]>([]);
@@ -118,6 +203,8 @@ export default function FreeHandPage() {
     const [clickedWord, setClickedWord] = useState<string | null>(null);
     const [clickedTokenIndex, setClickedTokenIndex] = useState<number | null>(null);
     const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
+    const [draggedPhraseId, setDraggedPhraseId] = useState<string | null>(null);
+    const [showCanvasMenu, setShowCanvasMenu] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -307,12 +394,223 @@ export default function FreeHandPage() {
         handleCreateNote(activeFolderIdFilter);
     };
 
+    const syncPhrasesWithContent = (content: string, existingPhrases: Phrase[] = []): Phrase[] => {
+        const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const newPhrases: Phrase[] = [];
+        const matchedIndices = new Set<number>();
+        
+        for (const line of lines) {
+            let foundIdx = existingPhrases.findIndex((p, idx) => p.text === line && !matchedIndices.has(idx));
+            if (foundIdx !== -1) {
+                newPhrases.push({
+                    id: existingPhrases[foundIdx].id,
+                    text: line,
+                    groupId: existingPhrases[foundIdx].groupId
+                });
+                matchedIndices.add(foundIdx);
+            } else {
+                foundIdx = existingPhrases.findIndex((p, idx) => 
+                    (p.text.toLowerCase().includes(line.toLowerCase()) || 
+                     line.toLowerCase().includes(p.text.toLowerCase())) && 
+                    !matchedIndices.has(idx)
+                );
+                if (foundIdx !== -1) {
+                    newPhrases.push({
+                        id: existingPhrases[foundIdx].id,
+                        text: line,
+                        groupId: existingPhrases[foundIdx].groupId
+                    });
+                    matchedIndices.add(foundIdx);
+                } else {
+                    newPhrases.push({
+                        id: `p-${Math.random().toString(36).substring(2, 9)}`,
+                        text: line,
+                        groupId: null
+                    });
+                }
+            }
+        }
+        return newPhrases;
+    };
+
     const handleSaveNote = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (selectedNoteId) {
+        if (selectedNoteId && activeNote) {
+            const updatedPhrases = syncPhrasesWithContent(activeNote.content, activeNote.phrases || []);
+            handleUpdateNote(selectedNoteId, {
+                phrases: updatedPhrases,
+                verses: activeNote.verses || []
+            });
             setIsEditing(false); // Enter Suggestion Mode on Save
         }
     };
+
+    const handleMovePhraseToGroup = (phraseId: string, groupId: string | null) => {
+        if (!selectedNoteId || !activeNote) return;
+        const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
+            ? activeNote.phrases
+            : syncPhrasesWithContent(activeNote.content);
+        
+        const phraseIdx = currentPhrases.findIndex(p => p.id === phraseId);
+        if (phraseIdx === -1) return;
+        
+        const phrase = { ...currentPhrases[phraseIdx], groupId };
+        const remainingPhrases = currentPhrases.filter(p => p.id !== phraseId);
+        let updatedPhrases: Phrase[] = [];
+        
+        if (groupId === null) {
+            updatedPhrases = [...remainingPhrases, phrase];
+        } else {
+            const lastGroupPhraseIdx = remainingPhrases.map((p, idx) => ({ p, idx })).filter(x => x.p.groupId === groupId).pop()?.idx;
+            if (lastGroupPhraseIdx !== undefined) {
+                remainingPhrases.splice(lastGroupPhraseIdx + 1, 0, phrase);
+                updatedPhrases = remainingPhrases;
+            } else {
+                updatedPhrases = [...remainingPhrases, phrase];
+            }
+        }
+        
+        const newContent = updatedPhrases.map(p => p.text).join('\n');
+        handleUpdateNote(selectedNoteId, {
+            phrases: updatedPhrases,
+            content: newContent,
+            title: getTitleFromContent(newContent) || 'Untitled Note'
+        });
+    };
+
+    const handleReorderPhrases = (draggedId: string, targetId: string) => {
+        if (!selectedNoteId || !activeNote) return;
+        const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
+            ? activeNote.phrases
+            : syncPhrasesWithContent(activeNote.content);
+        
+        const draggedIdx = currentPhrases.findIndex(p => p.id === draggedId);
+        const targetIdx = currentPhrases.findIndex(p => p.id === targetId);
+        if (draggedIdx === -1 || targetIdx === -1) return;
+        
+        const draggedPhrase = { ...currentPhrases[draggedIdx] };
+        const targetPhrase = currentPhrases[targetIdx];
+        draggedPhrase.groupId = targetPhrase.groupId;
+        
+        const updatedPhrases = [...currentPhrases];
+        updatedPhrases.splice(draggedIdx, 1);
+        const newTargetIdx = updatedPhrases.findIndex(p => p.id === targetId);
+        updatedPhrases.splice(newTargetIdx, 0, draggedPhrase);
+        
+        const newContent = updatedPhrases.map(p => p.text).join('\n');
+        handleUpdateNote(selectedNoteId, {
+            phrases: updatedPhrases,
+            content: newContent,
+            title: getTitleFromContent(newContent) || 'Untitled Note'
+        });
+    };
+
+    const handleAddVerseGroup = (type: 'Verse' | 'Chorus' | 'Bridge') => {
+        if (!selectedNoteId || !activeNote) return;
+        const currentVerses = activeNote.verses || [];
+        const count = currentVerses.filter(v => v.name.startsWith(type)).length;
+        const newGroup: VerseGroup = {
+            id: `v-${Date.now()}`,
+            name: `${type} ${count + 1}`
+        };
+        
+        const currentPhrases = activeNote.phrases || syncPhrasesWithContent(activeNote.content);
+        
+        handleUpdateNote(selectedNoteId, {
+            verses: [...currentVerses, newGroup],
+            phrases: currentPhrases
+        });
+    };
+
+    const handleDeleteVerseGroup = (groupId: string) => {
+        if (!selectedNoteId || !activeNote) return;
+        const currentPhrases = activeNote.phrases || [];
+        const updatedPhrases = currentPhrases.map(p => {
+            if (p.groupId === groupId) {
+                return { ...p, groupId: null };
+            }
+            return p;
+        });
+        const currentVerses = activeNote.verses || [];
+        const updatedVerses = currentVerses.filter(v => v.id !== groupId);
+        
+        handleUpdateNote(selectedNoteId, {
+            phrases: updatedPhrases,
+            verses: updatedVerses
+        });
+    };
+
+    const getActivePhrases = (note: SongNote | null): Phrase[] => {
+        if (!note) return [];
+        if (note.phrases && note.phrases.length > 0) return note.phrases;
+        return syncPhrasesWithContent(note.content);
+    };
+
+    const getActiveVerses = (note: SongNote | null): VerseGroup[] => {
+        if (!note) return [];
+        return note.verses || [];
+    };
+
+    interface RenderBlock {
+        type: 'ungrouped' | 'group';
+        groupId: string | null;
+        groupName?: string;
+        phrases: Phrase[];
+    }
+
+    const getRenderBlocks = (phrases: Phrase[], groups: VerseGroup[]): RenderBlock[] => {
+        const blocks: RenderBlock[] = [];
+        let currentBlock: RenderBlock | null = null;
+        
+        for (const phrase of phrases) {
+            if (phrase.groupId === null) {
+                if (currentBlock) {
+                    blocks.push(currentBlock);
+                    currentBlock = null;
+                }
+                blocks.push({
+                    type: 'ungrouped',
+                    groupId: null,
+                    phrases: [phrase]
+                });
+            } else {
+                const group = groups.find(g => g.id === phrase.groupId);
+                const groupName = group ? group.name : 'Verse';
+                
+                if (currentBlock && currentBlock.groupId === phrase.groupId) {
+                    currentBlock.phrases.push(phrase);
+                } else {
+                    if (currentBlock) {
+                        blocks.push(currentBlock);
+                    }
+                    currentBlock = {
+                        type: 'group',
+                        groupId: phrase.groupId,
+                        groupName,
+                        phrases: [phrase]
+                    };
+                }
+            }
+        }
+        
+        if (currentBlock) {
+            blocks.push(currentBlock);
+        }
+        
+        // Append empty groups
+        const emptyGroups = groups.filter(g => !phrases.some(p => p.groupId === g.id));
+        for (const eg of emptyGroups) {
+            blocks.push({
+                type: 'group',
+                groupId: eg.id,
+                groupName: eg.name,
+                phrases: []
+            });
+        }
+        
+        return blocks;
+    };
+
 
     // Word suggestion click handler in Suggestion Mode
     const handleWordClick = (e: React.MouseEvent, word: string, tokenIndex: number) => {
@@ -407,7 +705,9 @@ export default function FreeHandPage() {
             : filteredNotes.filter(n => n.folderId === null));
 
     const contentVal = activeNote ? activeNote.content : '';
-    const wordsList = contentVal.split(/(\s+)/);
+    const activePhrases = getActivePhrases(activeNote);
+    const activeVerses = getActiveVerses(activeNote);
+    const renderBlocks = getRenderBlocks(activePhrases, activeVerses);
 
     return (
         <div className="w-full flex flex-col gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] py-2">
@@ -429,40 +729,95 @@ export default function FreeHandPage() {
                         }, 50);
                     }
                 }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                    e.preventDefault();
+                    const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseId;
+                    if (phraseId) {
+                        handleMovePhraseToGroup(phraseId, null);
+                    }
+                }}
                 className="bg-[#FAF9F5] rounded-[32px] p-8 flex flex-col min-h-[420px] transition-all relative cursor-text justify-center"
             >
                 {/* Mode Selector wrapper (Edit vs Suggestion Mode) */}
                 <div className="w-full max-h-[340px] overflow-y-auto no-scrollbar flex items-center justify-center z-10">
                     {selectedNoteId && !isEditing ? (
-                        /* Suggestion Mode (Hover & Click word alternatives) */
-                        <div 
-                            className="text-[32px] font-light text-stone-855 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none"
-                        >
-                            {wordsList.map((token, idx) => {
-                                if (/^\s+$/.test(token)) {
-                                    return <span key={idx} className="whitespace-pre-wrap">{token}</span>;
-                                }
-                                
-                                // Parse alphabetical word to isolate punctuation
-                                const match = token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/);
-                                if (match) {
-                                    const prePunc = match[1];
-                                    const word = match[2];
-                                    const postPunc = match[3];
+                        /* Suggestion Mode (Hover & Click word alternatives + Drag & Drop group phrases) */
+                        <div className="w-full flex flex-col gap-6 max-w-4xl mx-auto py-4">
+                            {renderBlocks.map((block, bIdx) => {
+                                if (block.type === 'group') {
                                     return (
-                                        <span key={idx} className="inline-block">
-                                            {prePunc}
-                                            <span 
-                                                onClick={(e) => handleWordClick(e, word, idx)}
-                                                className="hover:bg-stone-200/70 text-stone-850 hover:text-stone-950 rounded-[12px] px-2 py-0.5 cursor-pointer transition-colors duration-200"
-                                            >
-                                                {word}
-                                            </span>
-                                            {postPunc}
-                                        </span>
+                                        <div 
+                                            key={block.groupId || `g-${bIdx}`}
+                                            onDragOver={(e) => e.preventDefault()}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseId;
+                                                if (phraseId) {
+                                                    handleMovePhraseToGroup(phraseId, block.groupId);
+                                                }
+                                            }}
+                                            className="border border-dashed border-stone-300/85 rounded-[20px] p-8 pt-10 relative bg-stone-50/20 flex flex-col gap-4 min-h-[100px] transition-all duration-300 hover:border-stone-400"
+                                        >
+                                            {/* Group Badge */}
+                                            <div className="absolute -top-3.5 left-6 bg-black text-white px-2.5 py-0.5 text-[10px] font-bold tracking-wider rounded-[4px] uppercase select-none flex items-center gap-1.5 shadow-sm">
+                                                <span>{block.groupName}</span>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteVerseGroup(block.groupId!);
+                                                    }}
+                                                    className="hover:text-red-400 text-stone-400 font-bold ml-1 transition-colors cursor-pointer text-xs leading-none"
+                                                    title="Delete Group"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                            
+                                            {block.phrases.length === 0 ? (
+                                                <div className="text-center text-xs text-stone-400 py-4 italic select-none">
+                                                    Drag lines here to add to {block.groupName}
+                                                </div>
+                                            ) : (
+                                                block.phrases.map((phrase) => (
+                                                    <PhraseRow 
+                                                        key={phrase.id}
+                                                        phrase={phrase}
+                                                        draggedPhraseId={draggedPhraseId}
+                                                        setDraggedPhraseId={setDraggedPhraseId}
+                                                        handleWordClick={handleWordClick}
+                                                        handleReorderPhrases={handleReorderPhrases}
+                                                        handleMovePhraseToGroup={handleMovePhraseToGroup}
+                                                    />
+                                                ))
+                                            )}
+                                        </div>
                                     );
+                                } else {
+                                    // Ungrouped phrases
+                                    return block.phrases.map((phrase) => (
+                                        <div 
+                                            key={phrase.id}
+                                            onDragOver={(e) => e.preventDefault()}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseId;
+                                                if (phraseId) {
+                                                    handleMovePhraseToGroup(phraseId, null);
+                                                }
+                                            }}
+                                        >
+                                            <PhraseRow 
+                                                phrase={phrase}
+                                                draggedPhraseId={draggedPhraseId}
+                                                setDraggedPhraseId={setDraggedPhraseId}
+                                                handleWordClick={handleWordClick}
+                                                handleReorderPhrases={handleReorderPhrases}
+                                                handleMovePhraseToGroup={handleMovePhraseToGroup}
+                                            />
+                                        </div>
+                                    ));
                                 }
-                                return <span key={idx}>{token}</span>;
                             })}
                         </div>
                     ) : (
@@ -532,16 +887,71 @@ export default function FreeHandPage() {
                             Save
                         </button>
                     )}
-                    <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleNewNoteClick();
-                        }}
-                        className="w-8 h-8 rounded-full bg-stone-100/70 hover:bg-stone-200/60 text-stone-500 hover:text-stone-800 flex items-center justify-center transition-all cursor-pointer"
-                        title="New Note"
-                    >
-                        <Plus size={16} />
-                    </button>
+                    <div className="relative">
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowCanvasMenu(!showCanvasMenu);
+                            }}
+                            className="w-8 h-8 rounded-full bg-stone-100/70 hover:bg-stone-200/60 text-stone-500 hover:text-stone-800 flex items-center justify-center transition-all cursor-pointer"
+                            title="Options"
+                        >
+                            <Plus size={16} />
+                        </button>
+
+                        {showCanvasMenu && (
+                            <>
+                                <div className="fixed inset-0 z-10" onClick={() => setShowCanvasMenu(false)} />
+                                <div className="absolute right-0 bottom-10 w-44 bg-white border border-stone-200/60 rounded-[16px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] z-30 overflow-hidden py-1">
+                                    {selectedNoteId && (
+                                        <>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleAddVerseGroup('Verse');
+                                                    setShowCanvasMenu(false);
+                                                }}
+                                                className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                            >
+                                                Add Verse
+                                            </button>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleAddVerseGroup('Chorus');
+                                                    setShowCanvasMenu(false);
+                                                }}
+                                                className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                            >
+                                                Add Chorus
+                                            </button>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleAddVerseGroup('Bridge');
+                                                    setShowCanvasMenu(false);
+                                                }}
+                                                className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                            >
+                                                Add Bridge
+                                            </button>
+                                            <div className="border-t border-stone-100 my-1" />
+                                        </>
+                                    )}
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleNewNoteClick();
+                                            setShowCanvasMenu(false);
+                                        }}
+                                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                    >
+                                        New Note
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
 
