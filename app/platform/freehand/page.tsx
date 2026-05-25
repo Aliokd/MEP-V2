@@ -304,7 +304,7 @@ export default function FreeHandPage() {
                 onClick={() => {
                     if (editorRef.current) editorRef.current.focus();
                 }}
-                className="bg-white rounded-[32px] shadow-[0_12px_40px_rgba(0,0,0,0.02)] border border-stone-200/40 p-8 flex flex-col min-h-[420px] transition-all relative cursor-text justify-center"
+                className="bg-[#FAF9F5] rounded-[32px] p-8 flex flex-col min-h-[420px] transition-all relative cursor-text justify-center"
             >
                 {/* Scrollable Center-aligned container wrapper */}
                 <div className="w-full max-h-[340px] overflow-y-auto no-scrollbar flex items-center justify-center z-10">
