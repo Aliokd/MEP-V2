@@ -410,11 +410,25 @@ export default function FreeHandPage() {
     const wordsList = contentVal.split(/(\s+)/);
 
     return (
-        <div className="w-full flex flex-col gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] max-w-5xl mx-auto py-2">
+        <div className="w-full flex flex-col gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] py-2">
             
             {/* 1. TYPING / WRITING CANVAS AREA (Top Panel) */}
             <div 
                 onClick={handleEditorCardClick}
+                onDoubleClick={() => {
+                    if (selectedNoteId && !isEditing) {
+                        setIsEditing(true);
+                        setClickedWord(null);
+                        setClickedTokenIndex(null);
+                        setTimeout(() => {
+                            if (textareaRef.current) {
+                                textareaRef.current.focus();
+                                const length = textareaRef.current.value.length;
+                                textareaRef.current.setSelectionRange(length, length);
+                            }
+                        }, 50);
+                    }
+                }}
                 className="bg-[#FAF9F5] rounded-[32px] p-8 flex flex-col min-h-[420px] transition-all relative cursor-text justify-center"
             >
                 {/* Mode Selector wrapper (Edit vs Suggestion Mode) */}
@@ -422,7 +436,6 @@ export default function FreeHandPage() {
                     {selectedNoteId && !isEditing ? (
                         /* Suggestion Mode (Hover & Click word alternatives) */
                         <div 
-                            onDoubleClick={() => setIsEditing(true)}
                             className="text-[32px] font-light text-stone-855 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none"
                         >
                             {wordsList.map((token, idx) => {
