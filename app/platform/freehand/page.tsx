@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
     Folder, 
     FileText, 
     Trash2, 
     Search, 
-    Plus,
-    X
+    Plus
 } from 'lucide-react';
 
 interface SongFolder {
@@ -63,6 +62,11 @@ export default function FreeHandPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showNewItemMenu, setShowNewItemMenu] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
+    const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+    const [isDragOverRoot, setIsDragOverRoot] = useState(false);
+
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Load initial data from localStorage
     useEffect(() => {
@@ -92,21 +96,21 @@ export default function FreeHandPage() {
                 { 
                     id: 'n-1', 
                     title: 'Ocean Breeze Lyrics', 
-                    content: 'Verse 1:\nWalking down the sandy beach\nFeel the warmth within my reach\n\nChorus:\nOcean breeze, carry me away\nTo the place where we used to play...', 
+                    content: 'Ocean Breeze Lyrics\n\nVerse 1:\nWalking down the sandy beach\nFeel the warmth within my reach\n\nChorus:\nOcean breeze, carry me away\nTo the place where we used to play...', 
                     folderId: 'f-1', 
                     updatedAt: new Date().toLocaleString() 
                 },
                 { 
                     id: 'n-2', 
                     title: 'A minor progression', 
-                    content: 'Chords:\nAm - F - C - G\n\nTempo: 120bpm\nFeel: Ethereal and flowing.\nTry adding a violin counter-melody in the chorus.', 
+                    content: 'A minor progression\n\nChords:\nAm - F - C - G\n\nTempo: 120bpm\nFeel: Ethereal and flowing.\nTry adding a violin counter-melody in the chorus.', 
                     folderId: 'f-2', 
                     updatedAt: new Date().toLocaleString() 
                 },
                 { 
                     id: 'n-3', 
                     title: 'Songwriting Prompts', 
-                    content: '- Write about nostalgia for a city you only visited once.\n- Use the word "spectral" in the bridge.\n- Start the song on a subdominant major chord.', 
+                    content: 'Songwriting Prompts\n\n- Write about nostalgia for a city you only visited once.\n- Use the word "spectral" in the bridge.\n- Start the song on a subdominant major chord.', 
                     folderId: null, 
                     updatedAt: new Date().toLocaleString() 
                 }
@@ -153,6 +157,13 @@ export default function FreeHandPage() {
         };
         setNotes(prev => [newNote, ...prev]);
         setSelectedNoteId(newNote.id);
+        
+        // Auto focus the textarea in the next render tick
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+            }
+        }, 50);
     };
 
     const handleUpdateNote = (id: string, updates: Partial<SongNote>) => {
@@ -193,6 +204,70 @@ export default function FreeHandPage() {
         }
     };
 
+    // Derived title logic (first line of the content)
+    const getTitleFromContent = (content: string) => {
+        const lines = content.trim().split('\n');
+        const firstLine = lines[0] ? lines[0].trim() : '';
+        if (!firstLine) return '';
+        return firstLine.substring(0, 40);
+    };
+
+    const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const val = e.target.value;
+        if (!selectedNoteId) {
+            // Auto create note on first character typed
+            const newNote: SongNote = {
+                id: `n-${Date.now()}`,
+                title: getTitleFromContent(val) || 'Untitled Note',
+                content: val,
+                folderId: activeFolderIdFilter,
+                updatedAt: new Date().toLocaleString()
+            };
+            setNotes(prev => [newNote, ...prev]);
+            setSelectedNoteId(newNote.id);
+        } else {
+            // Update active note
+            handleUpdateNote(selectedNoteId, { 
+                content: val, 
+                title: getTitleFromContent(val) || 'Untitled Note'
+            });
+        }
+    };
+
+    const handleNewNoteClick = () => {
+        // If current note is empty, just keep editing it
+        if (activeNote && activeNote.content.trim() === '') {
+            if (textareaRef.current) textareaRef.current.focus();
+            return;
+        }
+        handleCreateNote(activeFolderIdFilter);
+    };
+
+    // Native Drag and Drop handlers
+    const handleDragStart = (e: React.DragEvent, noteId: string) => {
+        e.dataTransfer.setData('text/plain', noteId);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    const handleDropOnFolder = (e: React.DragEvent, folderId: string) => {
+        e.preventDefault();
+        const noteId = e.dataTransfer.getData('text/plain');
+        if (noteId) {
+            handleUpdateNote(noteId, { folderId });
+        }
+    };
+
+    const handleDropOnRoot = (e: React.DragEvent) => {
+        e.preventDefault();
+        const noteId = e.dataTransfer.getData('text/plain');
+        if (noteId) {
+            handleUpdateNote(noteId, { folderId: null });
+        }
+    };
+
     const filteredNotes = notes.filter(n => 
         n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         n.content.toLowerCase().includes(searchQuery.toLowerCase())
@@ -200,97 +275,57 @@ export default function FreeHandPage() {
 
     if (!isMounted) return null;
 
-    // Filter logic for grid
+    // Filter notes based on folder and search state
     const displayNotes = searchQuery !== '' 
         ? filteredNotes 
         : (activeFolderIdFilter 
             ? filteredNotes.filter(n => n.folderId === activeFolderIdFilter)
             : filteredNotes.filter(n => n.folderId === null));
 
+    const contentVal = activeNote ? activeNote.content : '';
+
     return (
         <div className="w-full flex flex-col gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] max-w-5xl mx-auto py-2">
             
-            {/* 1. EDITOR AREA (Top Panel) */}
-            <div>
-                {activeNote ? (
-                    <div className="bg-white rounded-[32px] shadow-[0_12px_40px_rgba(0,0,0,0.02)] border border-stone-200/40 p-8 flex flex-col gap-5 min-h-[300px] transition-all relative animate-in fade-in duration-300">
-                        {/* Header controls */}
-                        <div className="flex items-center justify-between gap-4 pb-3 border-b border-stone-100/60">
-                            <input 
-                                type="text" 
-                                value={activeNote.title}
-                                onChange={(e) => handleUpdateNote(activeNote.id, { title: e.target.value })}
-                                className="bg-transparent border-none outline-none text-xl font-bold text-stone-850 w-full placeholder:text-stone-355"
-                                placeholder="Untitled Note"
-                            />
-                            
-                            <div className="flex items-center gap-2.5 shrink-0">
-                                {/* Folder categorization select dropdown */}
-                                <select 
-                                    value={activeNote.folderId || ''}
-                                    onChange={(e) => handleUpdateNote(activeNote.id, { folderId: e.target.value || null })}
-                                    className="bg-stone-50/80 border border-stone-200/50 text-stone-600 text-[11px] font-bold rounded-[10px] px-2.5 py-1.5 outline-none hover:border-stone-300 transition-colors cursor-pointer"
-                                >
-                                    <option value="">No Folder (Loose)</option>
-                                    {folders.map(f => (
-                                        <option key={f.id} value={f.id}>{f.name}</option>
-                                    ))}
-                                </select>
-                                
-                                {/* Delete button */}
-                                <button 
-                                    onClick={() => handleDeleteNote(activeNote.id)}
-                                    className="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100/60 flex items-center justify-center text-red-500 hover:text-red-600 transition-all cursor-pointer"
-                                    title="Delete Note"
-                                >
-                                    <Trash2 size={13} />
-                                </button>
+            {/* 1. TYPING / WRITING CANVAS AREA (Top Panel) */}
+            <div 
+                onClick={() => {
+                    if (textareaRef.current) textareaRef.current.focus();
+                }}
+                className="bg-white rounded-[32px] shadow-[0_12px_40px_rgba(0,0,0,0.02)] border border-stone-200/40 p-8 flex flex-col min-h-[300px] transition-all relative cursor-text"
+            >
+                {/* Text Area */}
+                <textarea
+                    ref={textareaRef}
+                    value={contentVal}
+                    onChange={handleTextareaChange}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    className="w-full flex-grow bg-transparent border-none outline-none resize-none font-sans text-lg leading-relaxed text-stone-800 placeholder:text-transparent focus:ring-0 focus:outline-none"
+                    style={{ zIndex: 5 }}
+                />
 
-                                {/* Deselect/Close Note */}
-                                <button 
-                                    onClick={() => setSelectedNoteId(null)}
-                                    className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200/60 flex items-center justify-center text-stone-500 hover:text-stone-800 transition-all cursor-pointer"
-                                    title="Close Editor"
-                                >
-                                    <X size={13} />
-                                </button>
-                            </div>
-                        </div>
-                        
-                        {/* Textarea */}
-                        <div className="flex-grow">
-                            <textarea
-                                value={activeNote.content}
-                                onChange={(e) => handleUpdateNote(activeNote.id, { content: e.target.value })}
-                                placeholder="Start writing lyrics, chord charts, or melodies..."
-                                className="w-full h-[160px] bg-transparent border-none outline-none resize-none font-mono text-sm leading-relaxed text-stone-850 placeholder:text-stone-355 pr-2 focus:ring-0"
-                            />
-                        </div>
-                        
-                        {/* Footer stats */}
-                        <div className="flex items-center justify-between text-[10px] text-stone-450 font-semibold pt-2 border-t border-stone-100/60">
-                            <span>
-                                Words: {activeNote.content.trim() === '' ? 0 : activeNote.content.trim().split(/\s+/).length} | Characters: {activeNote.content.length}
-                            </span>
-                            <span className="italic">
-                                Saved: {activeNote.updatedAt}
-                            </span>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="bg-white rounded-[32px] shadow-[0_12px_40px_rgba(0,0,0,0.02)] border border-stone-200/40 p-8 flex flex-col items-center justify-center min-h-[300px] transition-all relative">
-                        <div 
-                            onClick={() => handleCreateNote(activeFolderIdFilter)}
-                            className="flex items-center gap-3 text-stone-400 hover:text-stone-600 cursor-text select-none group/placeholder py-12 transition-colors duration-200"
-                        >
-                            <span className="w-[1.5px] h-7 bg-stone-450 animate-pulse inline-block" />
-                            <span className="text-2xl font-light tracking-wide text-stone-300 font-sans">Just start writing</span>
-                            <div className="w-8 h-8 rounded-full border border-stone-250/60 flex items-center justify-center text-stone-350 group-hover/placeholder:scale-105 group-hover/placeholder:border-stone-400 group-hover/placeholder:text-stone-600 transition-all ml-1 bg-stone-50/50">
-                                <Plus size={16} />
-                            </div>
+                {/* Styled Center Placeholder Overlay (blinking caret + text matching screenshot) */}
+                {contentVal === '' && !isFocused && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                        <div className="flex items-center gap-1 text-stone-400">
+                            <span className="w-[1.5px] h-7 bg-stone-800 animate-pulse inline-block" />
+                            <span className="text-2xl font-light text-stone-300 tracking-wide font-sans">Just start writing</span>
                         </div>
                     </div>
                 )}
+
+                {/* Minimalist Plus Button inside the container (bottom right corner matching screenshot) */}
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleNewNoteClick();
+                    }}
+                    className="absolute bottom-6 right-6 w-8 h-8 rounded-full bg-stone-100/70 hover:bg-stone-200/60 text-stone-500 hover:text-stone-800 flex items-center justify-center transition-all cursor-pointer z-10"
+                    title="New Note"
+                >
+                    <Plus size={16} />
+                </button>
             </div>
 
             {/* 2. DIRECTORY GRID AREA (Bottom Section) */}
@@ -303,7 +338,14 @@ export default function FreeHandPage() {
                             <div className="flex items-center gap-2 text-[14px] font-bold text-stone-500">
                                 <button 
                                     onClick={() => setActiveFolderIdFilter(null)}
-                                    className="hover:text-stone-800 transition-colors uppercase tracking-wider text-[11px]"
+                                    onDragOver={handleDragOver}
+                                    onDragEnter={() => setIsDragOverRoot(true)}
+                                    onDragLeave={() => setIsDragOverRoot(false)}
+                                    onDrop={(e) => {
+                                        handleDropOnRoot(e);
+                                        setIsDragOverRoot(false);
+                                    }}
+                                    className={`transition-colors uppercase tracking-wider text-[11px] px-2 py-1 rounded-[8px] ${isDragOverRoot ? 'bg-stone-200 text-stone-800 border border-dashed border-stone-400' : 'hover:text-stone-800'}`}
                                 >
                                     My folders and files
                                 </button>
@@ -342,7 +384,7 @@ export default function FreeHandPage() {
                                                     }}
                                                     className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
                                                 >
-                                                    <FileText size={12} className="text-stone-500" />
+                                                    <FileText size={12} className="text-stone-550" />
                                                     New File
                                                 </button>
                                             </div>
@@ -354,7 +396,7 @@ export default function FreeHandPage() {
                     </div>
                     
                     {/* Search Field */}
-                    <div className="flex items-center gap-2 bg-white/40 border border-stone-250/25 px-3.5 py-1.5 rounded-[12px] text-stone-750 w-44 focus-within:w-56 focus-within:bg-white focus-within:border-stone-350 transition-all duration-300">
+                    <div className="flex items-center gap-2 bg-white/40 border border-stone-250/25 px-3.5 py-1.5 rounded-[12px] text-stone-750 w-44 focus-within:w-56 focus-within:bg-white focus-within:border-stone-355 transition-all duration-300">
                         <Search size={12} className="text-stone-400" />
                         <input 
                             type="text" 
@@ -366,22 +408,35 @@ export default function FreeHandPage() {
                     </div>
                 </div>
 
-                {/* Combined Grid */}
+                {/* Combined Folders/Files Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                    {/* Render Folders (Only on main dashboard page and when not searching) */}
+                    {/* Render Folders (Only on root view and not searching) */}
                     {activeFolderIdFilter === null && searchQuery === '' && (
                         folders.map(folder => {
                             const count = notes.filter(n => n.folderId === folder.id).length;
+                            const isDragOverThis = dragOverFolderId === folder.id;
+                            
                             return (
                                 <div 
                                     key={folder.id}
                                     onClick={() => setActiveFolderIdFilter(folder.id)}
-                                    className="group cursor-pointer flex flex-col gap-3 relative transition-all duration-300 rounded-[28px] p-4 -m-4 hover:bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] border border-transparent hover:border-stone-200/40"
+                                    onDragOver={handleDragOver}
+                                    onDragEnter={() => setDragOverFolderId(folder.id)}
+                                    onDragLeave={() => setDragOverFolderId(null)}
+                                    onDrop={(e) => {
+                                        handleDropOnFolder(e, folder.id);
+                                        setDragOverFolderId(null);
+                                    }}
+                                    className={`
+                                        group cursor-pointer flex flex-col gap-3 relative transition-all duration-300 rounded-[28px] p-4 -m-4 border border-transparent
+                                        hover:bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:border-stone-200/40
+                                        ${isDragOverThis ? 'bg-white shadow-[0_8px_30px_rgba(0,0,0,0.06)] border-stone-400 scale-[1.03] ring-2 ring-stone-900/5' : ''}
+                                    `}
                                 >
                                     <FolderIllustration folderId={folder.id} />
                                     
                                     <div className="flex flex-col gap-0.5 text-center mt-1">
-                                        <span className="font-bold text-[14px] text-stone-800 group-hover:text-stone-955 truncate transition-colors">
+                                        <span className="font-bold text-[14px] text-stone-850 group-hover:text-stone-955 truncate transition-colors">
                                             {folder.name}
                                         </span>
                                         <span className="text-[11px] text-stone-400 font-semibold">
@@ -389,6 +444,7 @@ export default function FreeHandPage() {
                                         </span>
                                     </div>
                                     
+                                    {/* Delete Folder */}
                                     <button 
                                         onClick={(e) => handleDeleteFolder(folder.id, e)}
                                         className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-405 z-10 cursor-pointer"
@@ -401,16 +457,18 @@ export default function FreeHandPage() {
                         })
                     )}
 
-                    {/* Render Files */}
+                    {/* Render Files / Notes */}
                     {displayNotes.map(note => {
                         const isSelected = selectedNoteId === note.id;
                         return (
                             <div 
                                 key={note.id}
                                 onClick={() => setSelectedNoteId(note.id)}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, note.id)}
                                 className={`
-                                    group cursor-pointer flex flex-col gap-3 relative transition-all duration-300 rounded-[28px] p-4 -m-4
-                                    hover:bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] border border-transparent hover:border-stone-200/40
+                                    group cursor-pointer flex flex-col gap-3 relative transition-all duration-300 rounded-[28px] p-4 -m-4 border border-transparent
+                                    hover:bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:border-stone-200/40 active:cursor-grabbing
                                     ${isSelected ? 'bg-white shadow-[0_8px_30px_rgba(0,0,0,0.03)] border-stone-200/40' : ''}
                                 `}
                             >
@@ -422,6 +480,7 @@ export default function FreeHandPage() {
                                     </span>
                                 </div>
                                 
+                                {/* Delete Note */}
                                 <button 
                                     onClick={(e) => handleDeleteNote(note.id, e)}
                                     className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-405 z-10 cursor-pointer"
