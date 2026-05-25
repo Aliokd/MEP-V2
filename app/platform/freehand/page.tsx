@@ -118,6 +118,7 @@ function FileIllustration() {
 function PhraseRow({ 
     phrase, 
     draggedPhraseId, 
+    draggedPhraseIdRef,
     setDraggedPhraseId,
     handleWordClick,
     handleReorderPhrases,
@@ -125,6 +126,7 @@ function PhraseRow({
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
+    draggedPhraseIdRef?: React.RefObject<string | null>;
     setDraggedPhraseId: (id: string | null) => void;
     handleWordClick: (e: React.MouseEvent, word: string, tokenIndex: number) => void;
     handleReorderPhrases: (draggedId: string, targetId: string) => void;
@@ -136,16 +138,22 @@ function PhraseRow({
         <div 
             draggable
             onDragStart={(e) => {
+                if (draggedPhraseIdRef) {
+                    draggedPhraseIdRef.current = phrase.id;
+                }
                 setDraggedPhraseId(phrase.id);
                 e.dataTransfer.setData('text/plain', phrase.id);
             }}
             onDragEnd={() => {
+                if (draggedPhraseIdRef) {
+                    draggedPhraseIdRef.current = null;
+                }
                 setDraggedPhraseId(null);
             }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
                 e.preventDefault();
-                const draggedId = e.dataTransfer.getData('text/plain') || draggedPhraseId;
+                const draggedId = e.dataTransfer.getData('text/plain') || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null) || draggedPhraseId;
                 if (draggedId && draggedId !== phrase.id) {
                     handleReorderPhrases(draggedId, phrase.id);
                 }
@@ -207,6 +215,7 @@ export default function FreeHandPage() {
     const [showCanvasMenu, setShowCanvasMenu] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const draggedPhraseIdRef = useRef<string | null>(null);
 
     // Load initial data from localStorage
     useEffect(() => {
@@ -773,7 +782,7 @@ export default function FreeHandPage() {
                                             onDragOver={(e) => e.preventDefault()}
                                             onDrop={(e) => {
                                                 e.preventDefault();
-                                                const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseId;
+                                                const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
                                                 if (phraseId) {
                                                     handleMovePhraseToGroup(phraseId, block.groupId);
                                                 }
@@ -805,6 +814,7 @@ export default function FreeHandPage() {
                                                         key={phrase.id}
                                                         phrase={phrase}
                                                         draggedPhraseId={draggedPhraseId}
+                                                        draggedPhraseIdRef={draggedPhraseIdRef}
                                                         setDraggedPhraseId={setDraggedPhraseId}
                                                         handleWordClick={handleWordClick}
                                                         handleReorderPhrases={handleReorderPhrases}
@@ -822,7 +832,7 @@ export default function FreeHandPage() {
                                             onDragOver={(e) => e.preventDefault()}
                                             onDrop={(e) => {
                                                 e.preventDefault();
-                                                const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseId;
+                                                const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
                                                 if (phraseId) {
                                                     handleMovePhraseToGroup(phraseId, null);
                                                 }
@@ -831,6 +841,7 @@ export default function FreeHandPage() {
                                             <PhraseRow 
                                                 phrase={phrase}
                                                 draggedPhraseId={draggedPhraseId}
+                                                draggedPhraseIdRef={draggedPhraseIdRef}
                                                 setDraggedPhraseId={setDraggedPhraseId}
                                                 handleWordClick={handleWordClick}
                                                 handleReorderPhrases={handleReorderPhrases}
