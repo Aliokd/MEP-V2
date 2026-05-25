@@ -255,6 +255,13 @@ export default function FreeHandPage() {
         handleCreateNote(activeFolderIdFilter);
     };
 
+    const handleSaveNote = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (selectedNoteId) {
+            setSelectedNoteId(null);
+        }
+    };
+
     // Native Drag and Drop handlers
     const handleDragStart = (e: React.DragEvent, noteId: string) => {
         e.dataTransfer.setData('text/plain', noteId);
@@ -329,17 +336,30 @@ export default function FreeHandPage() {
                     </div>
                 )}
 
-                {/* Plus Button in bottom right corner */}
-                <button 
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleNewNoteClick();
-                    }}
-                    className="absolute bottom-6 right-6 w-8 h-8 rounded-full bg-stone-100/70 hover:bg-stone-200/60 text-stone-500 hover:text-stone-800 flex items-center justify-center transition-all cursor-pointer z-10"
-                    title="New Note"
-                >
-                    <Plus size={16} />
-                </button>
+                {/* Save and Plus Buttons in bottom right corner */}
+                <div className="absolute bottom-6 right-6 flex items-center gap-3 z-10">
+                    {contentVal.trim() !== '' && (
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleSaveNote(e);
+                            }}
+                            className="px-6 py-1.5 bg-black hover:bg-stone-850 text-white font-bold font-sans text-[13px] rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
+                        >
+                            Save
+                        </button>
+                    )}
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleNewNoteClick();
+                        }}
+                        className="w-8 h-8 rounded-full bg-stone-100/70 hover:bg-stone-200/60 text-stone-500 hover:text-stone-800 flex items-center justify-center transition-all cursor-pointer"
+                        title="New Note"
+                    >
+                        <Plus size={16} />
+                    </button>
+                </div>
             </div>
 
             {/* 2. DIRECTORY GRID AREA (Bottom Section) */}
