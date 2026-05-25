@@ -122,7 +122,8 @@ function PhraseRow({
     setDraggedPhraseId,
     handleWordClick,
     handleReorderPhrases,
-    handleMovePhraseToGroup
+    handleMovePhraseToGroup,
+    tokenOffset
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
@@ -131,6 +132,7 @@ function PhraseRow({
     handleWordClick: (e: React.MouseEvent, word: string, tokenIndex: number) => void;
     handleReorderPhrases: (draggedId: string, targetId: string) => void;
     handleMovePhraseToGroup: (phraseId: string, groupId: string | null) => void;
+    tokenOffset: number;
 }) {
     const wordsList = phrase.text.split(/(\s+)/);
     
@@ -160,7 +162,7 @@ function PhraseRow({
                 }
             }}
             className={`
-                text-[32px] font-light text-stone-855 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-1 px-4 rounded-[12px] transition-all duration-200 cursor-grab active:cursor-grabbing hover:bg-stone-200/20
+                text-[32px] font-light text-stone-855 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-1 px-4 rounded-[12px] transition-all duration-200 cursor-grab active:cursor-grabbing
                 ${draggedPhraseId === phrase.id ? 'opacity-40 border border-dashed border-stone-300' : ''}
             `}
         >
@@ -179,7 +181,7 @@ function PhraseRow({
                         <span key={idx} className={`inline-block ${draggedPhraseId !== null ? 'pointer-events-none' : ''}`} onClick={(e) => e.stopPropagation()}>
                             {prePunc}
                             <span 
-                                onClick={(e) => handleWordClick(e, word, idx)}
+                                onClick={(e) => handleWordClick(e, word, tokenOffset + idx)}
                                 className="hover:bg-stone-200/70 text-stone-850 hover:text-stone-950 rounded-[12px] px-2 py-0.5 cursor-pointer transition-colors duration-200"
                             >
                                 {word}
@@ -740,6 +742,23 @@ export default function FreeHandPage() {
     const activeVerses = getActiveVerses(activeNote);
     const renderBlocks = getRenderBlocks(activePhrases, activeVerses);
 
+    // Map each phrase to its absolute starting token index
+    const allTokens = contentVal.split(/(\s+)/);
+    const phraseTokenOffsets: Record<string, number> = {};
+    let currentTokenIndex = 0;
+    
+    for (const phrase of activePhrases) {
+        // Skip leading whitespace tokens in allTokens
+        while (currentTokenIndex < allTokens.length && /^\s+$/.test(allTokens[currentTokenIndex])) {
+            currentTokenIndex++;
+        }
+        phraseTokenOffsets[phrase.id] = currentTokenIndex;
+        
+        // Advance token index by the number of tokens in this phrase
+        const phraseTokens = phrase.text.split(/(\s+)/);
+        currentTokenIndex += phraseTokens.length;
+    }
+
     return (
         <div className="w-full flex flex-col gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] py-2">
             
@@ -821,6 +840,7 @@ export default function FreeHandPage() {
                                                         handleWordClick={handleWordClick}
                                                         handleReorderPhrases={handleReorderPhrases}
                                                         handleMovePhraseToGroup={handleMovePhraseToGroup}
+                                                        tokenOffset={phraseTokenOffsets[phrase.id] || 0}
                                                     />
                                                 ))
                                             )}
@@ -849,6 +869,7 @@ export default function FreeHandPage() {
                                                 handleWordClick={handleWordClick}
                                                 handleReorderPhrases={handleReorderPhrases}
                                                 handleMovePhraseToGroup={handleMovePhraseToGroup}
+                                                tokenOffset={phraseTokenOffsets[phrase.id] || 0}
                                             />
                                         </div>
                                     ));
