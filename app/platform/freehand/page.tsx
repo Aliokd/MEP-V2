@@ -66,7 +66,7 @@ export default function FreeHandPage() {
     const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
     const [isDragOverRoot, setIsDragOverRoot] = useState(false);
 
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const editorRef = useRef<HTMLDivElement>(null);
 
     // Load initial data from localStorage
     useEffect(() => {
@@ -137,6 +137,19 @@ export default function FreeHandPage() {
 
     const activeNote = notes.find(n => n.id === selectedNoteId) || null;
 
+    // Sync note content to the contentEditable div when selected note changes
+    useEffect(() => {
+        if (editorRef.current) {
+            if (activeNote) {
+                if (editorRef.current.innerText !== activeNote.content) {
+                    editorRef.current.innerText = activeNote.content;
+                }
+            } else {
+                editorRef.current.innerText = '';
+            }
+        }
+    }, [selectedNoteId]);
+
     const handleCreateFolder = () => {
         const name = prompt("Enter folder name:");
         if (!name || name.trim() === '') return;
@@ -158,10 +171,10 @@ export default function FreeHandPage() {
         setNotes(prev => [newNote, ...prev]);
         setSelectedNoteId(newNote.id);
         
-        // Auto focus the textarea in the next render tick
+        // Auto focus the editor in the next tick
         setTimeout(() => {
-            if (textareaRef.current) {
-                textareaRef.current.focus();
+            if (editorRef.current) {
+                editorRef.current.focus();
             }
         }, 50);
     };
@@ -212,8 +225,8 @@ export default function FreeHandPage() {
         return firstLine.substring(0, 40);
     };
 
-    const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const val = e.target.value;
+    const handleEditorInput = (e: React.FormEvent<HTMLDivElement>) => {
+        const val = e.currentTarget.innerText;
         if (!selectedNoteId) {
             // Auto create note on first character typed
             const newNote: SongNote = {
@@ -235,9 +248,8 @@ export default function FreeHandPage() {
     };
 
     const handleNewNoteClick = () => {
-        // If current note is empty, just keep editing it
         if (activeNote && activeNote.content.trim() === '') {
-            if (textareaRef.current) textareaRef.current.focus();
+            if (editorRef.current) editorRef.current.focus();
             return;
         }
         handleCreateNote(activeFolderIdFilter);
@@ -290,20 +302,22 @@ export default function FreeHandPage() {
             {/* 1. TYPING / WRITING CANVAS AREA (Top Panel) */}
             <div 
                 onClick={() => {
-                    if (textareaRef.current) textareaRef.current.focus();
+                    if (editorRef.current) editorRef.current.focus();
                 }}
-                className="bg-white rounded-[32px] shadow-[0_12px_40px_rgba(0,0,0,0.02)] border border-stone-200/40 p-8 flex flex-col min-h-[300px] transition-all relative cursor-text"
+                className="bg-white rounded-[32px] shadow-[0_12px_40px_rgba(0,0,0,0.02)] border border-stone-200/40 p-8 flex flex-col min-h-[300px] transition-all relative cursor-text justify-center"
             >
-                {/* Text Area */}
-                <textarea
-                    ref={textareaRef}
-                    value={contentVal}
-                    onChange={handleTextareaChange}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
-                    className="w-full flex-grow bg-transparent border-none outline-none resize-none font-sans text-lg leading-relaxed text-stone-800 placeholder:text-transparent focus:ring-0 focus:outline-none"
-                    style={{ zIndex: 5 }}
-                />
+                {/* Scrollable Center-aligned container wrapper */}
+                <div className="w-full max-h-[220px] overflow-y-auto no-scrollbar flex items-center justify-center z-10">
+                    <div
+                        ref={editorRef}
+                        contentEditable
+                        suppressContentEditableWarning
+                        onInput={handleEditorInput}
+                        onFocus={() => setIsFocused(true)}
+                        onBlur={() => setIsFocused(false)}
+                        className="w-full outline-none border-none bg-transparent font-sans text-2xl font-light text-stone-850 text-center tracking-wide focus:ring-0 focus:outline-none min-h-[40px]"
+                    />
+                </div>
 
                 {/* Styled Center Placeholder Overlay (blinking caret + text matching screenshot) */}
                 {contentVal === '' && !isFocused && (
@@ -315,7 +329,7 @@ export default function FreeHandPage() {
                     </div>
                 )}
 
-                {/* Minimalist Plus Button inside the container (bottom right corner matching screenshot) */}
+                {/* Plus Button in bottom right corner */}
                 <button 
                     onClick={(e) => {
                         e.stopPropagation();
@@ -384,7 +398,7 @@ export default function FreeHandPage() {
                                                     }}
                                                     className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
                                                 >
-                                                    <FileText size={12} className="text-stone-550" />
+                                                    <FileText size={12} className="text-stone-555" />
                                                     New File
                                                 </button>
                                             </div>
@@ -436,7 +450,7 @@ export default function FreeHandPage() {
                                     <FolderIllustration folderId={folder.id} />
                                     
                                     <div className="flex flex-col gap-0.5 text-center mt-1">
-                                        <span className="font-bold text-[14px] text-stone-850 group-hover:text-stone-955 truncate transition-colors">
+                                        <span className="font-bold text-[14px] text-stone-855 group-hover:text-stone-955 truncate transition-colors">
                                             {folder.name}
                                         </span>
                                         <span className="text-[11px] text-stone-400 font-semibold">
