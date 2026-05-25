@@ -285,6 +285,27 @@ export default function FreeHandPage() {
         }
     }, [activeNote?.content, isEditing]);
 
+    // Initialize phrases and verses for the selected note if not present
+    useEffect(() => {
+        if (selectedNoteId && isMounted) {
+            const note = notes.find(n => n.id === selectedNoteId);
+            if (note && (!note.phrases || note.phrases.length === 0) && note.content.trim() !== '') {
+                const initialPhrases = syncPhrasesWithContent(note.content, []);
+                setNotes(prev => prev.map(n => {
+                    if (n.id === selectedNoteId && (!n.phrases || n.phrases.length === 0)) {
+                        return {
+                            ...n,
+                            phrases: initialPhrases,
+                            verses: n.verses || []
+                        };
+                    }
+                    return n;
+                }));
+            }
+        }
+    }, [selectedNoteId, isMounted]);
+
+
     const handleCreateFolder = () => {
         const name = prompt("Enter folder name:");
         if (!name || name.trim() === '') return;
@@ -394,7 +415,7 @@ export default function FreeHandPage() {
         handleCreateNote(activeFolderIdFilter);
     };
 
-    const syncPhrasesWithContent = (content: string, existingPhrases: Phrase[] = []): Phrase[] => {
+    function syncPhrasesWithContent(content: string, existingPhrases: Phrase[] = []): Phrase[] {
         const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
         const newPhrases: Phrase[] = [];
         const matchedIndices = new Set<number>();
