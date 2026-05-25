@@ -297,17 +297,17 @@ export default function FreeHandPage() {
     const contentVal = activeNote ? activeNote.content : '';
 
     return (
-        <div className="w-full flex flex-col gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] max-w-5xl mx-auto py-2">
+        <div className="w-full flex flex-col gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] py-2">
             
             {/* 1. TYPING / WRITING CANVAS AREA (Top Panel) */}
             <div 
                 onClick={() => {
                     if (editorRef.current) editorRef.current.focus();
                 }}
-                className="bg-white rounded-[32px] shadow-[0_12px_40px_rgba(0,0,0,0.02)] border border-stone-200/40 p-8 flex flex-col min-h-[300px] transition-all relative cursor-text justify-center"
+                className="bg-white rounded-[32px] shadow-[0_12px_40px_rgba(0,0,0,0.02)] border border-stone-200/40 p-8 flex flex-col min-h-[420px] transition-all relative cursor-text justify-center"
             >
                 {/* Scrollable Center-aligned container wrapper */}
-                <div className="w-full max-h-[220px] overflow-y-auto no-scrollbar flex items-center justify-center z-10">
+                <div className="w-full max-h-[340px] overflow-y-auto no-scrollbar flex items-center justify-center z-10">
                     <div
                         ref={editorRef}
                         contentEditable
@@ -315,16 +315,16 @@ export default function FreeHandPage() {
                         onInput={handleEditorInput}
                         onFocus={() => setIsFocused(true)}
                         onBlur={() => setIsFocused(false)}
-                        className="w-full outline-none border-none bg-transparent font-sans text-2xl font-light text-stone-850 text-center tracking-wide focus:ring-0 focus:outline-none min-h-[40px]"
+                        className="w-full outline-none border-none bg-transparent font-sans text-[32px] font-light text-stone-850 text-center tracking-wide focus:ring-0 focus:outline-none min-h-[48px]"
                     />
                 </div>
 
                 {/* Styled Center Placeholder Overlay (blinking caret + text matching screenshot) */}
                 {contentVal === '' && !isFocused && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <div className="flex items-center gap-1 text-stone-400">
-                            <span className="w-[1.5px] h-7 bg-stone-800 animate-pulse inline-block" />
-                            <span className="text-2xl font-light text-stone-300 tracking-wide font-sans">Just start writing</span>
+                        <div className="flex items-center gap-1.5 text-stone-400">
+                            <span className="w-[2px] h-9 bg-stone-800 animate-pulse inline-block" />
+                            <span className="text-[32px] font-light text-stone-300 tracking-wide font-sans">Just start writing</span>
                         </div>
                     </div>
                 )}
