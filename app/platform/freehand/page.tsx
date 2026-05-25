@@ -119,7 +119,7 @@ export default function FreeHandPage() {
     const [clickedTokenIndex, setClickedTokenIndex] = useState<number | null>(null);
     const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
 
-    const editorRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Load initial data from localStorage
     useEffect(() => {
@@ -190,18 +190,13 @@ export default function FreeHandPage() {
 
     const activeNote = notes.find(n => n.id === selectedNoteId) || null;
 
-    // Sync note content to the contentEditable div when selected note changes
+    // Automatically adjust the height of the textarea to fit its text, keeping it centered
     useEffect(() => {
-        if (editorRef.current) {
-            if (activeNote) {
-                if (editorRef.current.innerText !== activeNote.content) {
-                    editorRef.current.innerText = activeNote.content;
-                }
-            } else {
-                editorRef.current.innerText = '';
-            }
+        if (isEditing && textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
         }
-    }, [selectedNoteId]);
+    }, [activeNote?.content, isEditing]);
 
     const handleCreateFolder = () => {
         const name = prompt("Enter folder name:");
@@ -225,10 +220,10 @@ export default function FreeHandPage() {
         setSelectedNoteId(newNote.id);
         setIsEditing(true);
         
-        // Auto focus the editor in the next tick
+        // Focus the textarea in the next tick
         setTimeout(() => {
-            if (editorRef.current) {
-                editorRef.current.focus();
+            if (textareaRef.current) {
+                textareaRef.current.focus();
             }
         }, 50);
     };
@@ -280,8 +275,8 @@ export default function FreeHandPage() {
         return firstLine.substring(0, 40);
     };
 
-    const handleEditorInput = (e: React.FormEvent<HTMLDivElement>) => {
-        const val = e.currentTarget.innerText;
+    const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const val = e.target.value;
         if (!selectedNoteId) {
             // Auto create note on first character typed
             const newNote: SongNote = {
@@ -305,7 +300,7 @@ export default function FreeHandPage() {
 
     const handleNewNoteClick = () => {
         if (activeNote && activeNote.content.trim() === '') {
-            if (editorRef.current) editorRef.current.focus();
+            if (textareaRef.current) textareaRef.current.focus();
             setIsEditing(true);
             return;
         }
@@ -340,45 +335,35 @@ export default function FreeHandPage() {
 
     const handleSelectSuggestion = (suggestion: string) => {
         if (selectedNoteId && clickedTokenIndex !== null && activeNote) {
-            const words = activeNote.content.split(/(\s+)/);
-            const originalToken = words[clickedTokenIndex];
+            const wordsList = activeNote.content.split(/(\s+)/);
+            const originalToken = wordsList[clickedTokenIndex];
             
             // Swap out alphabetical portion, keeping surrounding punctuation
             const match = originalToken.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/);
             if (match) {
                 const pre = match[1];
                 const post = match[3];
-                words[clickedTokenIndex] = pre + suggestion + post;
+                wordsList[clickedTokenIndex] = pre + suggestion + post;
             } else {
-                words[clickedTokenIndex] = suggestion;
+                wordsList[clickedTokenIndex] = suggestion;
             }
 
-            const newContent = words.join('');
+            const newContent = wordsList.join('');
             
             handleUpdateNote(selectedNoteId, {
                 content: newContent,
                 title: getTitleFromContent(newContent) || 'Untitled Note'
             });
-
-            // Update DOM contentEditable immediately to keep cursor sync safe
-            if (editorRef.current) {
-                editorRef.current.innerText = newContent;
-            }
         }
         setClickedWord(null);
         setClickedTokenIndex(null);
     };
 
     const handleEditorCardClick = () => {
-        if (selectedNoteId && !isEditing) {
-            setIsEditing(true);
-            setTimeout(() => {
-                if (editorRef.current) {
-                    editorRef.current.focus();
-                }
-            }, 50);
-        } else if (editorRef.current) {
-            editorRef.current.focus();
+        if (!selectedNoteId) {
+            handleCreateNote(activeFolderIdFilter);
+        } else if (isEditing && textareaRef.current) {
+            textareaRef.current.focus();
         }
     };
 
@@ -422,7 +407,7 @@ export default function FreeHandPage() {
             : filteredNotes.filter(n => n.folderId === null));
 
     const contentVal = activeNote ? activeNote.content : '';
-    const words = contentVal.split(/(\s+)/);
+    const wordsList = contentVal.split(/(\s+)/);
 
     return (
         <div className="w-full flex flex-col gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] max-w-5xl mx-auto py-2">
@@ -436,8 +421,11 @@ export default function FreeHandPage() {
                 <div className="w-full max-h-[340px] overflow-y-auto no-scrollbar flex items-center justify-center z-10">
                     {selectedNoteId && !isEditing ? (
                         /* Suggestion Mode (Hover & Click word alternatives) */
-                        <div className="text-[32px] font-light text-stone-850 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none">
-                            {words.map((token, idx) => {
+                        <div 
+                            onDoubleClick={() => setIsEditing(true)}
+                            className="text-[32px] font-light text-stone-855 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none"
+                        >
+                            {wordsList.map((token, idx) => {
                                 if (/^\s+$/.test(token)) {
                                     return <span key={idx} className="whitespace-pre-wrap">{token}</span>;
                                 }
@@ -465,15 +453,16 @@ export default function FreeHandPage() {
                             })}
                         </div>
                     ) : (
-                        /* Standard Edit Mode (contentEditable) */
-                        <div
-                            ref={editorRef}
-                            contentEditable
-                            suppressContentEditableWarning
-                            onInput={handleEditorInput}
+                        /* Standard Edit Mode (Controlled Textarea to prevent duplications) */
+                        <textarea
+                            ref={textareaRef}
+                            value={contentVal}
+                            onChange={handleTextareaChange}
                             onFocus={() => setIsFocused(true)}
                             onBlur={() => setIsFocused(false)}
-                            className="w-full outline-none border-none bg-transparent font-sans text-[32px] font-light text-stone-855 text-center tracking-wide focus:ring-0 focus:outline-none min-h-[48px]"
+                            className="w-full bg-transparent border-none outline-none resize-none font-sans text-[32px] font-light text-stone-855 text-center tracking-wide focus:ring-0 focus:outline-none min-h-[48px] overflow-hidden leading-[1.6] no-scrollbar"
+                            placeholder=""
+                            style={{ height: 'auto' }}
                         />
                     )}
                 </div>
@@ -519,30 +508,16 @@ export default function FreeHandPage() {
                     </>
                 )}
 
-                {/* Save/Edit and Plus Buttons in bottom right corner */}
+                {/* Buttons in bottom right corner */}
                 <div className="absolute bottom-6 right-6 flex items-center gap-3 z-20">
-                    {/* Render Save button in Edit mode, or Edit button in Suggestion mode */}
-                    {selectedNoteId && (
-                        isEditing ? (
-                            contentVal.trim() !== '' && (
-                                <button 
-                                    onClick={handleSaveNote}
-                                    className="px-6 py-1.5 bg-black hover:bg-stone-850 text-white font-bold font-sans text-[13px] rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
-                                >
-                                    Save
-                                </button>
-                            )
-                        ) : (
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsEditing(true);
-                                }}
-                                className="px-6 py-1.5 bg-black hover:bg-stone-850 text-white font-bold font-sans text-[13px] rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
-                            >
-                                Edit
-                            </button>
-                        )
+                    {/* Render Save button ONLY in Edit mode when content exists */}
+                    {selectedNoteId && isEditing && contentVal.trim() !== '' && (
+                        <button 
+                            onClick={handleSaveNote}
+                            className="px-6 py-1.5 bg-black hover:bg-stone-850 text-white font-bold font-sans text-[13px] rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
+                        >
+                            Save
+                        </button>
                     )}
                     <button 
                         onClick={(e) => {
