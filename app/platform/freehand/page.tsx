@@ -2,16 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { 
-    FolderPlus, 
-    FilePlus, 
     Folder, 
     FileText, 
     Trash2, 
     Search, 
-    ChevronRight, 
-    ChevronDown, 
-    ArrowLeft,
-    FileEdit
+    Plus,
+    X
 } from 'lucide-react';
 
 interface SongFolder {
@@ -27,59 +23,34 @@ interface SongNote {
     updatedAt: string;
 }
 
-// Visual CSS Folder Illustration Component
-function FolderIllustration() {
+// Visual SVG Folder Illustration Component
+function FolderIllustration({ folderId }: { folderId: string }) {
+    const gradientId = `paint0_linear_2874_1501-${folderId}`;
     return (
-        <div className="w-full aspect-[4/3] bg-stone-100/50 border border-stone-250/20 rounded-[20px] flex items-center justify-center relative overflow-hidden group-hover:bg-white/40 transition-colors shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)]">
-            {/* Back flap of folder */}
-            <div className="w-[124px] h-[78px] bg-[#D4D4CA] rounded-[12px] absolute bottom-6 left-1/2 -translate-x-1/2 shadow-xs transition-transform group-hover:scale-[1.02] duration-300" />
-            
-            {/* Peeking Document Sheet 1 */}
-            <div className="w-[98px] h-[78px] bg-white border border-stone-200 rounded-[8px] absolute bottom-8 left-[46%] -translate-x-1/2 rotate-[-5deg] shadow-xs flex flex-col p-3 gap-1.5 transition-transform group-hover:translate-y-[-5px] group-hover:rotate-[-8deg] duration-300">
-                <div className="w-8 h-1.5 bg-stone-300 rounded-full" />
-                <div className="w-12 h-1 bg-stone-200 rounded-full" />
-                <div className="w-10 h-1 bg-stone-200 rounded-full" />
-            </div>
-            
-            {/* Peeking Document Sheet 2 */}
-            <div className="w-[98px] h-[78px] bg-white border border-stone-200 rounded-[8px] absolute bottom-8 left-[54%] -translate-x-1/2 rotate-[3deg] shadow-xs flex flex-col p-3 gap-1.5 transition-transform group-hover:translate-y-[-7px] group-hover:rotate-[6deg] duration-300">
-                <div className="w-5 h-1.5 bg-stone-400/80 rounded-full" />
-                <div className="w-10 h-1 bg-stone-200 rounded-full" />
-                <div className="w-12 h-1 bg-stone-200 rounded-full" />
-            </div>
-            
-            {/* Front flap (low cut) */}
-            <div className="w-[124px] h-[62px] bg-[#BABAB0] rounded-[12px] absolute bottom-6 left-1/2 -translate-x-1/2 shadow-[0_4px_12px_rgba(0,0,0,0.05)] border-t border-white/20 flex items-end p-2.5 transition-transform group-hover:translate-y-[1px] duration-300">
-                {/* Small indicator badges (synesthesia colors) */}
-                <div className="flex gap-1.5">
-                    <div className="w-4 h-4 rounded-full bg-[#C5A059] flex items-center justify-center text-[7px] text-white font-bold font-serif shadow-xs">V</div>
-                    <div className="w-4 h-4 rounded-full bg-stone-850 flex items-center justify-center text-[7px] text-white font-sans shadow-xs">♫</div>
-                </div>
-            </div>
+        <div className="w-full aspect-[212/173] flex items-center justify-center relative">
+            <svg width="100%" height="100%" viewBox="0 0 212 173" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-[0_4px_10px_rgba(0,0,0,0.02)] transition-transform group-hover:scale-102 duration-300">
+                <rect x="7.87109" width="195.773" height="103.408" rx="19.0345" fill="white" className="transition-transform group-hover:translate-y-[-6px] duration-300"/>
+                <path d="M64.5986 16.2268C75.6283 16.2268 86.4933 18.9052 96.2588 24.0325L105.236 28.7463C114.572 33.6477 124.957 36.2082 135.501 36.2083H188.534C200.398 36.2084 210.016 45.8267 210.016 57.6907V149.178C210.016 161.042 200.398 170.659 188.534 170.659H22.9814C11.1176 170.659 1.50004 161.042 1.5 149.178V37.7083C1.50017 25.8444 11.1176 16.227 22.9814 16.2268H64.5986Z" fill={`url(#${gradientId})`} stroke="#DDDDD5" strokeWidth="3"/>
+                <defs>
+                    <linearGradient id={gradientId} x1="18.8643" y1="33.9689" x2="202.89" y2="159.065" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#DCDDD4"/>
+                        <stop offset="1" stopColor="#F8F8F4"/>
+                    </linearGradient>
+                </defs>
+            </svg>
         </div>
     );
 }
 
-// Visual CSS Document/File Card Illustration Component
+// Visual File Card Illustration Component
 function FileIllustration() {
     return (
-        <div className="w-full aspect-[4/3] bg-stone-100/50 border border-stone-250/20 rounded-[20px] flex items-center justify-center relative overflow-hidden group-hover:bg-white/40 transition-colors shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)]">
-            {/* Main sheet */}
-            <div className="w-[84px] h-[100px] bg-white border border-stone-200 rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col p-3 gap-2.5 transition-transform group-hover:scale-105 duration-300">
-                {/* Header indicators */}
-                <div className="flex justify-between items-center">
-                    <div className="w-8 h-1.5 bg-stone-400/80 rounded-full" />
-                    <div className="w-3.5 h-3.5 rounded-full bg-stone-100 flex items-center justify-center text-[7px] text-stone-500 font-bold">♫</div>
-                </div>
-                {/* Lines placeholders */}
-                <div className="flex flex-col gap-1.5">
-                    <div className="w-full h-1 bg-stone-200 rounded-full" />
-                    <div className="w-full h-1 bg-stone-200 rounded-full" />
-                    <div className="w-[85%] h-1 bg-stone-250/70 rounded-full" />
-                    <div className="w-full h-1 bg-stone-200/60 rounded-full" />
-                    <div className="w-[55%] h-1 bg-stone-200/40 rounded-full" />
-                </div>
-            </div>
+        <div className="w-full aspect-[212/173] bg-white border border-stone-200/60 rounded-[20px] shadow-xs flex items-center justify-center relative overflow-hidden transition-all duration-300 group-hover:shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
+            <svg width="42" height="42" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="text-stone-300 group-hover:text-stone-400 group-hover:scale-105 transition-all duration-300">
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+            </svg>
         </div>
     );
 }
@@ -90,7 +61,7 @@ export default function FreeHandPage() {
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
     const [activeFolderIdFilter, setActiveFolderIdFilter] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+    const [showNewItemMenu, setShowNewItemMenu] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
 
     // Load initial data from localStorage
@@ -105,7 +76,6 @@ export default function FreeHandPage() {
             initialFolders = JSON.parse(savedFolders);
             setFolders(initialFolders);
         } else {
-            // Default folders
             initialFolders = [
                 { id: 'f-1', name: 'Summer Album' },
                 { id: 'f-2', name: 'Melodic Ideas' }
@@ -118,7 +88,6 @@ export default function FreeHandPage() {
             initialNotes = JSON.parse(savedNotes);
             setNotes(initialNotes);
         } else {
-            // Default notes
             initialNotes = [
                 { 
                     id: 'n-1', 
@@ -145,13 +114,6 @@ export default function FreeHandPage() {
             setNotes(initialNotes);
             localStorage.setItem('veinote-freehand-notes', JSON.stringify(initialNotes));
         }
-
-        // Expand folders by default in sidebar
-        const expandMap: Record<string, boolean> = {};
-        initialFolders.forEach(f => {
-            expandMap[f.id] = true;
-        });
-        setExpandedFolders(expandMap);
         
         setIsMounted(true);
     }, []);
@@ -179,13 +141,12 @@ export default function FreeHandPage() {
             name: name.trim()
         };
         setFolders(prev => [...prev, newFolder]);
-        setExpandedFolders(prev => ({ ...prev, [newFolder.id]: true }));
     };
 
     const handleCreateNote = (folderId: string | null = null) => {
         const newNote: SongNote = {
             id: `n-${Date.now()}`,
-            title: 'Untitled Note',
+            title: '',
             content: '',
             folderId: folderId || activeFolderIdFilter,
             updatedAt: new Date().toLocaleString()
@@ -232,13 +193,6 @@ export default function FreeHandPage() {
         }
     };
 
-    const toggleFolderExpand = (folderId: string) => {
-        setExpandedFolders(prev => ({
-            ...prev,
-            [folderId]: !prev[folderId]
-        }));
-    };
-
     const filteredNotes = notes.filter(n => 
         n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         n.content.toLowerCase().includes(searchQuery.toLowerCase())
@@ -246,381 +200,75 @@ export default function FreeHandPage() {
 
     if (!isMounted) return null;
 
-    // --- DASHBOARD VIEW (No active note selected) ---
-    if (selectedNoteId === null) {
-        const currentFolder = folders.find(f => f.id === activeFolderIdFilter);
-        const folderNotes = filteredNotes.filter(n => n.folderId === activeFolderIdFilter);
+    // Filter logic for grid
+    const displayNotes = searchQuery !== '' 
+        ? filteredNotes 
+        : (activeFolderIdFilter 
+            ? filteredNotes.filter(n => n.folderId === activeFolderIdFilter)
+            : filteredNotes.filter(n => n.folderId === null));
 
-        return (
-            <div className="w-full flex flex-col gap-8 text-stone-900 font-sans min-h-[calc(100vh-10rem)]">
-                {/* Header Section */}
-                <div className="flex flex-wrap justify-between items-center gap-4">
-                    <div className="space-y-1">
-                        {activeFolderIdFilter ? (
-                            <div className="flex items-center gap-3">
-                                <button 
-                                    onClick={() => setActiveFolderIdFilter(null)}
-                                    className="p-2 hover:bg-stone-250/30 rounded-full transition-colors text-stone-600 hover:text-stone-900"
-                                >
-                                    <ArrowLeft size={16} />
-                                </button>
-                                <span className="text-stone-500 text-xs font-bold uppercase tracking-widest cursor-pointer hover:underline" onClick={() => setActiveFolderIdFilter(null)}>Folders</span>
-                                <span className="text-stone-400">/</span>
-                                <h1 className="text-3xl font-serif text-stone-900">{currentFolder?.name}</h1>
-                            </div>
-                        ) : (
-                            <h1 className="text-3xl font-serif text-stone-900">Songwriting Workspace</h1>
-                        )}
-                        <p className="text-xs text-stone-600 font-semibold font-sans">
-                            {activeFolderIdFilter ? 'Manage chords and lyrics within this project folder.' : 'Draft lyrics, sketch melodies, and organize projects freely.'}
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        {/* Search Bar */}
-                        <div className="flex items-center gap-3 bg-white/40 border border-stone-250/20 px-4 py-2.5 rounded-[14px] text-stone-700 w-64">
-                            <Search size={14} className="text-stone-500" />
+    return (
+        <div className="w-full flex flex-col gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] max-w-5xl mx-auto py-2">
+            
+            {/* 1. EDITOR AREA (Top Panel) */}
+            <div>
+                {activeNote ? (
+                    <div className="bg-white rounded-[32px] shadow-[0_12px_40px_rgba(0,0,0,0.02)] border border-stone-200/40 p-8 flex flex-col gap-5 min-h-[300px] transition-all relative animate-in fade-in duration-300">
+                        {/* Header controls */}
+                        <div className="flex items-center justify-between gap-4 pb-3 border-b border-stone-100/60">
                             <input 
                                 type="text" 
-                                placeholder="Search workspace..." 
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="bg-transparent border-none outline-none w-full text-xs font-sans placeholder:text-stone-500 font-medium"
+                                value={activeNote.title}
+                                onChange={(e) => handleUpdateNote(activeNote.id, { title: e.target.value })}
+                                className="bg-transparent border-none outline-none text-xl font-bold text-stone-850 w-full placeholder:text-stone-355"
+                                placeholder="Untitled Note"
                             />
-                        </div>
-
-                        <button 
-                            onClick={() => handleCreateFolder()}
-                            className="flex items-center gap-2 bg-white border border-stone-200 px-4 py-2.5 rounded-[12px] hover:border-stone-400 transition-colors font-sans text-xs font-bold text-stone-850"
-                        >
-                            <FolderPlus size={14} />
-                            New Folder
-                        </button>
-
-                        <button 
-                            onClick={() => handleCreateNote(activeFolderIdFilter)}
-                            className="flex items-center gap-2 bg-stone-900 text-[#DCDDD4] px-4 py-2.5 rounded-[12px] hover:bg-stone-850 transition-colors font-sans text-xs font-bold"
-                        >
-                            <FilePlus size={14} />
-                            New Note
-                        </button>
-                    </div>
-                </div>
-
-                {/* Dashboard Main Grid Area */}
-                <div className="space-y-10">
-                    {/* Folders Section (Only show on main dashboard tab) */}
-                    {!activeFolderIdFilter && (
-                        <div className="space-y-4">
-                            <h2 className="text-lg font-sans font-bold tracking-tight text-stone-900 border-b border-stone-200/50 pb-2">Folders</h2>
-                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                {folders.map(folder => {
-                                    const count = notes.filter(n => n.folderId === folder.id).length;
-                                    return (
-                                        <div 
-                                            key={folder.id}
-                                            onClick={() => setActiveFolderIdFilter(folder.id)}
-                                            className="group cursor-pointer bg-white/[0.65] border border-stone-200/70 p-5 rounded-[24px] shadow-xs flex flex-col gap-4 hover:bg-white hover:border-stone-300 hover:shadow-md transition-all duration-300 relative"
-                                        >
-                                            {/* Top CSS Illustration of Folder */}
-                                            <FolderIllustration />
-
-                                            {/* Folder Meta */}
-                                            <div className="flex flex-col gap-0.5 text-center mt-1 px-1 relative">
-                                                <span className="font-sans text-[15px] font-bold text-stone-850 group-hover:text-stone-950 truncate transition-colors">
-                                                    {folder.name}
-                                                </span>
-                                                <span className="text-[11px] text-stone-500 font-medium font-sans">
-                                                    {count} {count === 1 ? 'File' : 'Files'}
-                                                </span>
-                                            </div>
-
-                                            {/* Delete Folder absolute button */}
-                                            <button 
-                                                onClick={(e) => handleDeleteFolder(folder.id, e)}
-                                                className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-400"
-                                                title="Delete Folder"
-                                            >
-                                                <Trash2 size={12} />
-                                            </button>
-                                        </div>
-                                    );
-                                })}
-
-                                {/* Add Folder Card Option */}
-                                <div 
-                                    onClick={() => handleCreateFolder()}
-                                    className="group cursor-pointer border border-dashed border-stone-300/80 p-5 rounded-[24px] flex flex-col items-center justify-center gap-3 hover:border-stone-400 hover:bg-white/30 transition-all duration-300 min-h-[180px]"
-                                >
-                                    <div className="w-10 h-10 rounded-full border border-dashed border-stone-400 flex items-center justify-center text-stone-500 group-hover:scale-105 group-hover:text-stone-800 transition-transform">
-                                        <FolderPlus size={16} />
-                                    </div>
-                                    <span className="font-sans text-[13px] font-bold text-stone-600 group-hover:text-stone-800 transition-colors">Create Folder</span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Files Section */}
-                    <div className="space-y-4">
-                        <h2 className="text-lg font-sans font-bold tracking-tight text-stone-900 border-b border-stone-200/50 pb-2">
-                            {activeFolderIdFilter ? 'Notes inside Folder' : 'Loose Drafts'}
-                        </h2>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                            {activeFolderIdFilter ? (
-                                // Render folder specific notes
-                                folderNotes.map((note) => (
-                                    <div 
-                                        key={note.id}
-                                        onClick={() => setSelectedNoteId(note.id)}
-                                        className="group cursor-pointer bg-white/[0.65] border border-stone-200/70 p-5 rounded-[24px] shadow-xs flex flex-col gap-4 hover:bg-white hover:border-stone-300 hover:shadow-md transition-all duration-300 relative"
-                                    >
-                                        {/* CSS File Card Illustration */}
-                                        <FileIllustration />
-
-                                        {/* File metadata */}
-                                        <div className="flex flex-col gap-0.5 text-center mt-1 px-1">
-                                            <span className="font-sans text-[14px] font-bold text-stone-850 group-hover:text-stone-950 truncate transition-colors">
-                                                {note.title || 'Untitled Note'}
-                                            </span>
-                                            <span className="text-[10px] text-stone-500 font-medium font-mono uppercase truncate">
-                                                {note.updatedAt.split(',')[0]}
-                                            </span>
-                                        </div>
-
-                                        {/* Quick Delete */}
-                                        <button 
-                                            onClick={(e) => handleDeleteNote(note.id, e)}
-                                            className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-400"
-                                            title="Delete Note"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
-                                    </div>
-                                ))
-                            ) : (
-                                // Render uncategorized notes
-                                filteredNotes.filter(n => n.folderId === null).map((note) => (
-                                    <div 
-                                        key={note.id}
-                                        onClick={() => setSelectedNoteId(note.id)}
-                                        className="group cursor-pointer bg-white/[0.65] border border-stone-200/70 p-5 rounded-[24px] shadow-xs flex flex-col gap-4 hover:bg-white hover:border-stone-300 hover:shadow-md transition-all duration-300 relative"
-                                    >
-                                        <FileIllustration />
-
-                                        <div className="flex flex-col gap-0.5 text-center mt-1 px-1">
-                                            <span className="font-sans text-[14px] font-bold text-stone-850 group-hover:text-stone-950 truncate transition-colors">
-                                                {note.title || 'Untitled Note'}
-                                            </span>
-                                            <span className="text-[10px] text-stone-500 font-medium font-mono uppercase truncate">
-                                                {note.updatedAt.split(',')[0]}
-                                            </span>
-                                        </div>
-
-                                        <button 
-                                            onClick={(e) => handleDeleteNote(note.id, e)}
-                                            className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-400"
-                                            title="Delete Note"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
-                                    </div>
-                                ))
-                            )}
-
-                            {/* Create Note Card Option */}
-                            <div 
-                                onClick={() => handleCreateNote(activeFolderIdFilter)}
-                                className="group cursor-pointer border border-dashed border-stone-300/80 p-5 rounded-[24px] flex flex-col items-center justify-center gap-3 hover:border-stone-400 hover:bg-white/30 transition-all duration-300 min-h-[180px]"
-                            >
-                                <div className="w-10 h-10 rounded-full border border-dashed border-stone-400 flex items-center justify-center text-stone-500 group-hover:scale-105 group-hover:text-stone-800 transition-transform">
-                                    <FilePlus size={16} />
-                                </div>
-                                <span className="font-sans text-[13px] font-bold text-stone-600 group-hover:text-stone-800 transition-colors">Create Note</span>
-                            </div>
-                        </div>
-
-                        {/* Empty States */}
-                        {activeFolderIdFilter && folderNotes.length === 0 && (
-                            <div className="text-center py-12 border border-stone-200 border-dashed rounded-[24px] bg-white/20">
-                                <p className="text-sm text-stone-500 italic">No notes inside this folder. Create a new one above to start!</p>
-                            </div>
-                        )}
-                        {!activeFolderIdFilter && filteredNotes.filter(n => n.folderId === null).length === 0 && (
-                            <div className="text-center py-12 border border-stone-200 border-dashed rounded-[24px] bg-white/20">
-                                <p className="text-sm text-stone-500 italic">No loose drafts. Click "Create Note" to make a quick scratchpad!</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // --- EDITOR VIEW (When a note is open) ---
-    return (
-        <div className="flex gap-8 h-[calc(100vh-10rem)] text-stone-900 font-sans">
-            {/* Left Column - Directory Manager Sidebar */}
-            <div className="w-80 flex flex-col gap-5 h-full shrink-0">
-                {/* Back to Dashboard Button */}
-                <button 
-                    onClick={() => setSelectedNoteId(null)}
-                    className="flex items-center justify-center gap-2 bg-stone-900 text-[#DCDDD4] py-3 rounded-[14px] hover:bg-stone-850 active:scale-98 transition-all font-sans text-xs font-bold"
-                >
-                    <ArrowLeft size={14} />
-                    Back to Dashboard
-                </button>
-
-                {/* Search Bar */}
-                <div className="flex items-center gap-3 bg-white/40 border border-stone-250/20 px-4 py-3 rounded-[16px] text-stone-700">
-                    <Search size={16} className="text-stone-500" />
-                    <input 
-                        type="text" 
-                        placeholder="Search notes..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-transparent border-none outline-none w-full text-xs font-sans placeholder:text-stone-500 font-medium"
-                    />
-                </div>
-
-                {/* Directory Navigation Scroll List */}
-                <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-4 no-scrollbar">
-                    {/* Folders List */}
-                    <div className="flex flex-col gap-2">
-                        {folders.map(folder => {
-                            const folderNotes = filteredNotes.filter(n => n.folderId === folder.id);
-                            const isExpanded = !!expandedFolders[folder.id];
-
-                            return (
-                                <div key={folder.id} className="flex flex-col gap-1">
-                                    {/* Folder Header */}
-                                    <div className="flex items-center justify-between px-3 py-2 rounded-[10px] hover:bg-white/30 transition-colors group">
-                                        <button 
-                                            onClick={() => toggleFolderExpand(folder.id)}
-                                            className="flex items-center gap-2 flex-grow text-left font-sans text-[13px] font-bold text-stone-800"
-                                        >
-                                            {isExpanded ? <ChevronDown size={14} className="text-stone-500" /> : <ChevronRight size={14} className="text-stone-500" />}
-                                            <Folder size={14} className="text-stone-600 fill-stone-600/10 shrink-0" />
-                                            <span className="truncate">{folder.name}</span>
-                                            <span className="text-[10px] text-stone-550 font-normal font-mono">({folderNotes.length})</span>
-                                        </button>
-                                        <button 
-                                            onClick={(e) => handleDeleteFolder(folder.id, e)}
-                                            className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-600 transition-all text-stone-400"
-                                            title="Delete Folder"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
-                                    </div>
-
-                                    {/* Folder Children (Notes) */}
-                                    {isExpanded && (
-                                        <div className="flex flex-col gap-1 pl-6 border-l border-stone-300/40 ml-4.5 py-1">
-                                            {folderNotes.map(note => (
-                                                <button
-                                                    key={note.id}
-                                                    onClick={() => setSelectedNoteId(note.id)}
-                                                    className={`
-                                                        flex items-center gap-2 px-3 py-2.5 rounded-[10px] text-left transition-all
-                                                        ${selectedNoteId === note.id 
-                                                            ? 'bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40 text-stone-900 font-bold' 
-                                                            : 'text-stone-650 hover:text-stone-900 hover:bg-white/20'
-                                                        }
-                                                    `}
-                                                >
-                                                    <FileText size={13} className="shrink-0 text-stone-500" />
-                                                    <span className="font-sans text-[13px] truncate flex-1">{note.title || 'Untitled Note'}</span>
-                                                </button>
-                                            ))}
-                                            {folderNotes.length === 0 && (
-                                                <span className="text-[11px] text-stone-500 italic pl-3 py-1">Empty folder</span>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Loose Notes (Uncategorized) */}
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-stone-500 uppercase tracking-widest px-3 font-bold block mb-1">Uncategorized</span>
-                        {filteredNotes.filter(n => n.folderId === null).map(note => (
-                            <button
-                                key={note.id}
-                                onClick={() => setSelectedNoteId(note.id)}
-                                className={`
-                                    flex items-center gap-2 px-3 py-2.5 rounded-[10px] text-left transition-all
-                                    ${selectedNoteId === note.id 
-                                        ? 'bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40 text-stone-900 font-bold' 
-                                        : 'text-stone-650 hover:text-stone-900 hover:bg-white/20'
-                                    }
-                                `}
-                            >
-                                <FileText size={13} className="shrink-0 text-stone-500" />
-                                <span className="font-sans text-[13px] truncate flex-1">{note.title || 'Untitled Note'}</span>
-                            </button>
-                        ))}
-                        {filteredNotes.filter(n => n.folderId === null).length === 0 && (
-                            <span className="text-[11px] text-stone-500 italic px-3 py-1">No loose notes</span>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Right Column - Editor Panel */}
-            <div className="flex-grow flex flex-col bg-white border border-stone-200/70 rounded-[28px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)] overflow-hidden h-full">
-                {activeNote ? (
-                    <div className="flex flex-col h-full p-8 gap-6">
-                        {/* Note Header / Meta */}
-                        <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-stone-100">
-                            <div className="flex items-center gap-4 flex-grow max-w-xl">
-                                <input 
-                                    type="text" 
-                                    value={activeNote.title}
-                                    onChange={(e) => handleUpdateNote(activeNote.id, { title: e.target.value })}
-                                    className="bg-transparent border-none outline-none font-sans text-2xl font-semibold text-stone-900 w-full placeholder:text-stone-400"
-                                    placeholder="Note Title"
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                                {/* Folder Selector */}
+                            
+                            <div className="flex items-center gap-2.5 shrink-0">
+                                {/* Folder categorization select dropdown */}
                                 <select 
                                     value={activeNote.folderId || ''}
                                     onChange={(e) => handleUpdateNote(activeNote.id, { folderId: e.target.value || null })}
-                                    className="bg-stone-50 border border-stone-200/80 text-stone-750 font-sans text-xs font-semibold rounded-[10px] px-3 py-2.5 outline-none hover:border-stone-300 transition-colors"
+                                    className="bg-stone-50/80 border border-stone-200/50 text-stone-600 text-[11px] font-bold rounded-[10px] px-2.5 py-1.5 outline-none hover:border-stone-300 transition-colors cursor-pointer"
                                 >
                                     <option value="">No Folder (Loose)</option>
                                     {folders.map(f => (
                                         <option key={f.id} value={f.id}>{f.name}</option>
                                     ))}
                                 </select>
-
+                                
                                 {/* Delete button */}
                                 <button 
                                     onClick={() => handleDeleteNote(activeNote.id)}
-                                    className="w-9 h-9 rounded-full bg-red-50 border border-red-100 flex items-center justify-center hover:bg-red-100/60 active:scale-95 transition-all text-red-600 shadow-xs"
+                                    className="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100/60 flex items-center justify-center text-red-500 hover:text-red-600 transition-all cursor-pointer"
                                     title="Delete Note"
                                 >
-                                    <Trash2 size={15} />
+                                    <Trash2 size={13} />
+                                </button>
+
+                                {/* Deselect/Close Note */}
+                                <button 
+                                    onClick={() => setSelectedNoteId(null)}
+                                    className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200/60 flex items-center justify-center text-stone-500 hover:text-stone-800 transition-all cursor-pointer"
+                                    title="Close Editor"
+                                >
+                                    <X size={13} />
                                 </button>
                             </div>
                         </div>
-
-                        {/* Text Area Content Editor */}
-                        <div className="flex-grow relative w-full">
+                        
+                        {/* Textarea */}
+                        <div className="flex-grow">
                             <textarea
                                 value={activeNote.content}
                                 onChange={(e) => handleUpdateNote(activeNote.id, { content: e.target.value })}
                                 placeholder="Start writing lyrics, chord charts, or melodies..."
-                                className="w-full h-full bg-transparent border-none outline-none resize-none font-mono text-sm leading-relaxed text-stone-850 placeholder:text-stone-400/80 pr-2"
+                                className="w-full h-[160px] bg-transparent border-none outline-none resize-none font-mono text-sm leading-relaxed text-stone-850 placeholder:text-stone-355 pr-2 focus:ring-0"
                             />
                         </div>
-
-                        {/* Editor Footer / Info */}
-                        <div className="flex items-center justify-between text-[11px] text-stone-550 font-medium font-sans border-t border-stone-100 pt-4">
+                        
+                        {/* Footer stats */}
+                        <div className="flex items-center justify-between text-[10px] text-stone-450 font-semibold pt-2 border-t border-stone-100/60">
                             <span>
                                 Words: {activeNote.content.trim() === '' ? 0 : activeNote.content.trim().split(/\s+/).length} | Characters: {activeNote.content.length}
                             </span>
@@ -630,16 +278,168 @@ export default function FreeHandPage() {
                         </div>
                     </div>
                 ) : (
-                    <div className="flex-grow flex flex-col items-center justify-center text-center p-8 gap-4 select-none">
-                        <div className="w-16 h-16 rounded-full bg-stone-50 flex items-center justify-center text-stone-400 border border-stone-100 shadow-xs">
-                            <FileEdit size={28} />
-                        </div>
-                        <div className="space-y-1">
-                            <h3 className="font-sans text-lg font-bold text-stone-900">No Note Selected</h3>
-                            <p className="text-xs text-stone-550 font-semibold max-w-xs leading-normal">Select an existing note from the sidebar directory, or create a new note/folder to start composing.</p>
+                    <div className="bg-white rounded-[32px] shadow-[0_12px_40px_rgba(0,0,0,0.02)] border border-stone-200/40 p-8 flex flex-col items-center justify-center min-h-[300px] transition-all relative">
+                        <div 
+                            onClick={() => handleCreateNote(activeFolderIdFilter)}
+                            className="flex items-center gap-3 text-stone-400 hover:text-stone-600 cursor-text select-none group/placeholder py-12 transition-colors duration-200"
+                        >
+                            <span className="w-[1.5px] h-7 bg-stone-450 animate-pulse inline-block" />
+                            <span className="text-2xl font-light tracking-wide text-stone-300 font-sans">Just start writing</span>
+                            <div className="w-8 h-8 rounded-full border border-stone-250/60 flex items-center justify-center text-stone-350 group-hover/placeholder:scale-105 group-hover/placeholder:border-stone-400 group-hover/placeholder:text-stone-600 transition-all ml-1 bg-stone-50/50">
+                                <Plus size={16} />
+                            </div>
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* 2. DIRECTORY GRID AREA (Bottom Section) */}
+            <div className="space-y-6">
+                
+                {/* Header Controls & Navigation */}
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 relative">
+                        {activeFolderIdFilter ? (
+                            <div className="flex items-center gap-2 text-[14px] font-bold text-stone-500">
+                                <button 
+                                    onClick={() => setActiveFolderIdFilter(null)}
+                                    className="hover:text-stone-800 transition-colors uppercase tracking-wider text-[11px]"
+                                >
+                                    My folders and files
+                                </button>
+                                <span className="text-stone-300 font-normal">/</span>
+                                <span className="text-stone-800 font-bold">{folders.find(f => f.id === activeFolderIdFilter)?.name}</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2.5">
+                                <h2 className="text-[15px] font-bold text-stone-550 uppercase tracking-wider">My folders and files</h2>
+                                <div className="relative">
+                                    <button 
+                                        onClick={() => setShowNewItemMenu(!showNewItemMenu)}
+                                        className="w-6 h-6 rounded-full bg-stone-300/40 hover:bg-stone-300/60 text-stone-600 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+                                    >
+                                        <Plus size={12} />
+                                    </button>
+                                    
+                                    {showNewItemMenu && (
+                                        <>
+                                            <div className="fixed inset-0 z-10" onClick={() => setShowNewItemMenu(false)} />
+                                            <div className="absolute left-0 mt-2 w-40 bg-white border border-stone-200/60 rounded-[16px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] z-20 overflow-hidden py-1">
+                                                <button 
+                                                    onClick={() => {
+                                                        handleCreateFolder();
+                                                        setShowNewItemMenu(false);
+                                                    }}
+                                                    className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                                >
+                                                    <Folder size={12} className="text-stone-500" />
+                                                    New Folder
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        handleCreateNote(activeFolderIdFilter);
+                                                        setShowNewItemMenu(false);
+                                                    }}
+                                                    className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                                >
+                                                    <FileText size={12} className="text-stone-500" />
+                                                    New File
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Search Field */}
+                    <div className="flex items-center gap-2 bg-white/40 border border-stone-250/25 px-3.5 py-1.5 rounded-[12px] text-stone-750 w-44 focus-within:w-56 focus-within:bg-white focus-within:border-stone-350 transition-all duration-300">
+                        <Search size={12} className="text-stone-400" />
+                        <input 
+                            type="text" 
+                            placeholder="Search workspace..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="bg-transparent border-none outline-none w-full text-xs font-sans placeholder:text-stone-400 font-medium"
+                        />
+                    </div>
+                </div>
+
+                {/* Combined Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    {/* Render Folders (Only on main dashboard page and when not searching) */}
+                    {activeFolderIdFilter === null && searchQuery === '' && (
+                        folders.map(folder => {
+                            const count = notes.filter(n => n.folderId === folder.id).length;
+                            return (
+                                <div 
+                                    key={folder.id}
+                                    onClick={() => setActiveFolderIdFilter(folder.id)}
+                                    className="group cursor-pointer flex flex-col gap-3 relative transition-all duration-300 rounded-[28px] p-4 -m-4 hover:bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] border border-transparent hover:border-stone-200/40"
+                                >
+                                    <FolderIllustration folderId={folder.id} />
+                                    
+                                    <div className="flex flex-col gap-0.5 text-center mt-1">
+                                        <span className="font-bold text-[14px] text-stone-800 group-hover:text-stone-955 truncate transition-colors">
+                                            {folder.name}
+                                        </span>
+                                        <span className="text-[11px] text-stone-400 font-semibold">
+                                            {count} {count === 1 ? 'file' : 'files'}
+                                        </span>
+                                    </div>
+                                    
+                                    <button 
+                                        onClick={(e) => handleDeleteFolder(folder.id, e)}
+                                        className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-405 z-10 cursor-pointer"
+                                        title="Delete Folder"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                </div>
+                            );
+                        })
+                    )}
+
+                    {/* Render Files */}
+                    {displayNotes.map(note => {
+                        const isSelected = selectedNoteId === note.id;
+                        return (
+                            <div 
+                                key={note.id}
+                                onClick={() => setSelectedNoteId(note.id)}
+                                className={`
+                                    group cursor-pointer flex flex-col gap-3 relative transition-all duration-300 rounded-[28px] p-4 -m-4
+                                    hover:bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] border border-transparent hover:border-stone-200/40
+                                    ${isSelected ? 'bg-white shadow-[0_8px_30px_rgba(0,0,0,0.03)] border-stone-200/40' : ''}
+                                `}
+                            >
+                                <FileIllustration />
+                                
+                                <div className="flex flex-col gap-0.5 text-center mt-1">
+                                    <span className="font-bold text-[14px] text-stone-800 group-hover:text-stone-955 truncate transition-colors">
+                                        {note.title || 'Untitled Note'}
+                                    </span>
+                                </div>
+                                
+                                <button 
+                                    onClick={(e) => handleDeleteNote(note.id, e)}
+                                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-405 z-10 cursor-pointer"
+                                    title="Delete Note"
+                                >
+                                    <Trash2 size={12} />
+                                </button>
+                            </div>
+                        );
+                    })}
+
+                    {/* Empty States */}
+                    {displayNotes.length === 0 && (activeFolderIdFilter !== null || searchQuery !== '') && (
+                        <div className="col-span-full text-center py-16 border border-stone-200 border-dashed rounded-[28px] bg-white/20">
+                            <p className="text-sm text-stone-400 italic">No notes found here.</p>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
