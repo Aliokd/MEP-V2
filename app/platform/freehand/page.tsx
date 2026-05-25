@@ -153,6 +153,7 @@ function PhraseRow({
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 const draggedId = e.dataTransfer.getData('text/plain') || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null) || draggedPhraseId;
                 if (draggedId && draggedId !== phrase.id) {
                     handleReorderPhrases(draggedId, phrase.id);
@@ -175,7 +176,7 @@ function PhraseRow({
                     const word = match[2];
                     const postPunc = match[3];
                     return (
-                        <span key={idx} className="inline-block" onClick={(e) => e.stopPropagation()}>
+                        <span key={idx} className={`inline-block ${draggedPhraseId !== null ? 'pointer-events-none' : ''}`} onClick={(e) => e.stopPropagation()}>
                             {prePunc}
                             <span 
                                 onClick={(e) => handleWordClick(e, word, idx)}
@@ -782,6 +783,7 @@ export default function FreeHandPage() {
                                             onDragOver={(e) => e.preventDefault()}
                                             onDrop={(e) => {
                                                 e.preventDefault();
+                                                e.stopPropagation();
                                                 const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
                                                 if (phraseId) {
                                                     handleMovePhraseToGroup(phraseId, block.groupId);
@@ -805,7 +807,7 @@ export default function FreeHandPage() {
                                             </div>
                                             
                                             {block.phrases.length === 0 ? (
-                                                <div className="text-center text-xs text-stone-400 py-4 italic select-none">
+                                                <div className="text-center text-xs text-stone-400 py-4 italic select-none pointer-events-none">
                                                     Drag lines here to add to {block.groupName}
                                                 </div>
                                             ) : (
@@ -832,6 +834,7 @@ export default function FreeHandPage() {
                                             onDragOver={(e) => e.preventDefault()}
                                             onDrop={(e) => {
                                                 e.preventDefault();
+                                                e.stopPropagation();
                                                 const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
                                                 if (phraseId) {
                                                     handleMovePhraseToGroup(phraseId, null);
