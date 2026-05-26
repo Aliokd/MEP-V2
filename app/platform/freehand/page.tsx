@@ -647,54 +647,92 @@ export default function FreeHandPage() {
 
     const handleInsertGroupAt = (draggedGrpId: string, targetBlkId: string, position: 'top' | 'bottom' | null) => {
         if (!selectedNoteId || !activeNote) return;
+        
+        // Prevent self-match insertions
+        if (draggedGrpId === targetBlkId) return;
+
         const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
             ? activeNote.phrases
             : syncPhrasesWithContent(activeNote.content);
         
-        // 1. Get the phrases belonging to the dragged group
-        const draggedPhrases = currentPhrases.filter(p => p.groupId === draggedGrpId);
-        if (draggedPhrases.length === 0) return;
+        // Reorder in verses array (handles visual ordering for all groups, including empty ones)
+        const currentVerses = activeNote.verses || [];
+        const draggedVerseIdx = currentVerses.findIndex(v => v.id === draggedGrpId);
+        let targetVerseIdx = currentVerses.findIndex(v => v.id === targetBlkId);
         
-        // 2. Filter out the dragged phrases from the list
+        let updatedVerses = [...currentVerses];
+        
+        if (draggedVerseIdx !== -1) {
+            const draggedVerse = currentVerses[draggedVerseIdx];
+            updatedVerses.splice(draggedVerseIdx, 1);
+            
+            if (targetVerseIdx === -1) {
+                // targetBlkId might be a phraseId. Find the groupId of that phrase
+                const targetPhrase = currentPhrases.find(p => p.id === targetBlkId);
+                if (targetPhrase && targetPhrase.groupId) {
+                    targetVerseIdx = updatedVerses.findIndex(v => v.id === targetPhrase.groupId);
+                }
+            } else {
+                // Adjust index after splicing
+                targetVerseIdx = updatedVerses.findIndex(v => v.id === targetBlkId);
+            }
+            
+            if (targetVerseIdx !== -1) {
+                const insertIdx = position === 'top' ? targetVerseIdx : targetVerseIdx + 1;
+                updatedVerses.splice(insertIdx, 0, draggedVerse);
+            } else {
+                updatedVerses.push(draggedVerse);
+            }
+        }
+
+        const draggedPhrases = currentPhrases.filter(p => p.groupId === draggedGrpId);
+        
+        if (draggedPhrases.length === 0) {
+            // Dragged group is empty. Just save the updated verses array!
+            handleUpdateNote(selectedNoteId, {
+                verses: updatedVerses
+            });
+            return;
+        }
+        
+        // Dragged group is not empty. Filter out dragged phrases from list
         const remainingPhrases = currentPhrases.filter(p => p.groupId !== draggedGrpId);
         
-        // 3. Find the target insertion index in the remaining list
-        let targetIdx = remainingPhrases.findIndex(p => p.id === targetBlkId);
+        // Calculate visual blocks to find correct target position
+        const remainingRenderBlocks = getRenderBlocks(remainingPhrases, updatedVerses);
         
-        if (targetIdx === -1) {
-            // It might be a groupId! Find the first phrase of that target group
-            const targetGroupPhrases = remainingPhrases.filter(p => p.groupId === targetBlkId);
-            if (targetGroupPhrases.length > 0) {
-                if (position === 'top') {
-                    targetIdx = remainingPhrases.indexOf(targetGroupPhrases[0]);
-                } else {
-                    targetIdx = remainingPhrases.indexOf(targetGroupPhrases[targetGroupPhrases.length - 1]) + 1;
-                }
+        let targetBlockIdx = remainingRenderBlocks.findIndex(b => 
+            b.type === 'group' ? b.groupId === targetBlkId : b.phrases[0]?.id === targetBlkId
+        );
+        
+        let targetPhraseIdx = 0;
+        if (targetBlockIdx !== -1) {
+            const endIdx = position === 'top' ? targetBlockIdx : targetBlockIdx + 1;
+            for (let i = 0; i < endIdx && i < remainingRenderBlocks.length; i++) {
+                targetPhraseIdx += remainingRenderBlocks[i].phrases.length;
             }
         } else {
-            if (position === 'bottom') {
-                targetIdx = targetIdx + 1;
-            }
+            targetPhraseIdx = remainingPhrases.length;
         }
         
-        if (targetIdx === -1) {
-            targetIdx = remainingPhrases.length;
-        }
-        
-        // 4. Insert the dragged phrases at the target index
         const updatedPhrases = [...remainingPhrases];
-        updatedPhrases.splice(targetIdx, 0, ...draggedPhrases);
+        updatedPhrases.splice(targetPhraseIdx, 0, ...draggedPhrases);
         
         const newContent = updatedPhrases.map(p => p.text).join('\n');
         handleUpdateNote(selectedNoteId, {
             phrases: updatedPhrases,
             content: newContent,
+            verses: updatedVerses,
             title: getTitleFromContent(newContent) || 'Untitled Note'
         });
     };
 
     const handleInsertPhraseAtBlockLevel = (draggedPhrsId: string, targetBlkId: string, position: 'top' | 'bottom' | null) => {
         if (!selectedNoteId || !activeNote) return;
+        
+        // Prevent self-match insertions
+        if (draggedPhrsId === targetBlkId) return;
+
         const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
             ? activeNote.phrases
             : syncPhrasesWithContent(activeNote.content);
@@ -708,28 +746,24 @@ export default function FreeHandPage() {
         const remainingPhrases = [...currentPhrases];
         remainingPhrases.splice(draggedIdx, 1);
         
-        let targetIdx = remainingPhrases.findIndex(p => p.id === targetBlkId);
+        // Calculate visual blocks to find correct target position
+        const remainingRenderBlocks = getRenderBlocks(remainingPhrases, activeNote.verses || []);
         
-        if (targetIdx === -1) {
-            const targetGroupPhrases = remainingPhrases.filter(p => p.groupId === targetBlkId);
-            if (targetGroupPhrases.length > 0) {
-                if (position === 'top') {
-                    targetIdx = remainingPhrases.indexOf(targetGroupPhrases[0]);
-                } else {
-                    targetIdx = remainingPhrases.indexOf(targetGroupPhrases[targetGroupPhrases.length - 1]) + 1;
-                }
+        let targetBlockIdx = remainingRenderBlocks.findIndex(b => 
+            b.type === 'group' ? b.groupId === targetBlkId : b.phrases[0]?.id === targetBlkId
+        );
+        
+        let targetPhraseIdx = 0;
+        if (targetBlockIdx !== -1) {
+            const endIdx = position === 'top' ? targetBlockIdx : targetBlockIdx + 1;
+            for (let i = 0; i < endIdx && i < remainingRenderBlocks.length; i++) {
+                targetPhraseIdx += remainingRenderBlocks[i].phrases.length;
             }
         } else {
-            if (position === 'bottom') {
-                targetIdx = targetIdx + 1;
-            }
+            targetPhraseIdx = remainingPhrases.length;
         }
         
-        if (targetIdx === -1) {
-            targetIdx = remainingPhrases.length;
-        }
-        
-        remainingPhrases.splice(targetIdx, 0, draggedPhrase);
+        remainingPhrases.splice(targetPhraseIdx, 0, draggedPhrase);
         
         const newContent = remainingPhrases.map(p => p.text).join('\n');
         handleUpdateNote(selectedNoteId, {
@@ -1042,11 +1076,11 @@ export default function FreeHandPage() {
                                             setDraggedPhraseId(null);
                                             if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
                                             
-                                            if (currentDraggedGroupId) {
+                                            if (currentDraggedGroupId && currentDraggedGroupId !== blockId) {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 handleInsertGroupAt(currentDraggedGroupId, blockId, blockDropPosition);
-                                            } else if (currentDraggedPhraseId) {
+                                            } else if (currentDraggedPhraseId && currentDraggedPhraseId !== blockId) {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 handleInsertPhraseAtBlockLevel(currentDraggedPhraseId, blockId, blockDropPosition);
