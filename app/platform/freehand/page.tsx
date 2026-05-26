@@ -996,10 +996,10 @@ export default function FreeHandPage() {
                 className="bg-[#FAF9F5] rounded-[32px] p-8 flex flex-col min-h-[560px] transition-all relative cursor-text justify-center"
             >
                 {/* Mode Selector wrapper (Edit vs Suggestion Mode) */}
-                <div className="w-full max-h-[480px] overflow-y-auto no-scrollbar flex items-center justify-center z-10">
+                <div className="w-full max-h-[480px] overflow-y-auto no-scrollbar flex flex-col z-10 py-12">
                     {selectedNoteId && !isEditing ? (
                         /* Suggestion Mode (Hover & Click word alternatives + Drag & Drop group phrases) */
-                        <div className="w-full flex flex-col gap-6 max-w-4xl mx-auto py-4">
+                        <div className="w-full flex flex-col gap-6 max-w-4xl mx-auto py-4 my-auto">
                             {renderBlocks.map((block, bIdx) => {
                                 const blockId = block.type === 'group' ? block.groupId! : block.phrases[0]?.id;
                                 
@@ -1203,7 +1203,7 @@ export default function FreeHandPage() {
                             onChange={handleTextareaChange}
                             onFocus={() => setIsFocused(true)}
                             onBlur={() => setIsFocused(false)}
-                            className="w-full bg-transparent border-none outline-none resize-none font-sans text-[32px] font-light text-stone-855 text-center tracking-wide focus:ring-0 focus:outline-none min-h-[48px] overflow-hidden leading-[1.6] no-scrollbar"
+                            className="w-full bg-transparent border-none outline-none resize-none font-sans text-[32px] font-light text-stone-855 text-center tracking-wide focus:ring-0 focus:outline-none min-h-[48px] overflow-hidden leading-[1.6] no-scrollbar my-auto"
                             placeholder=""
                             style={{ height: 'auto' }}
                         />
