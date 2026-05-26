@@ -163,7 +163,7 @@ function PhraseRow({
             }}
             className={`
                 text-[32px] font-light text-stone-855 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-1 px-4 rounded-[12px] transition-all duration-200 cursor-grab active:cursor-grabbing
-                ${draggedPhraseId === phrase.id ? 'opacity-40 border border-dashed border-stone-300' : ''}
+                ${draggedPhraseId === phrase.id ? 'border border-dashed border-black bg-stone-100/40 text-black' : ''}
             `}
         >
             {wordsList.map((token, idx) => {
