@@ -25,7 +25,7 @@ export default function PlatformLoading() {
                     <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-transparent to-charcoal" />
                 </div>
 
-                <p className="text-center font-serif italic text-white/20 text-sm tracking-widest animate-pulse">
+                <p className="text-center font-sans italic text-white/20 text-sm tracking-widest animate-pulse">
                     Tuning the Orchestra...
                 </p>
             </div>

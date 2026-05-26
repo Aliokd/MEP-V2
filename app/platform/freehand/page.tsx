@@ -123,7 +123,15 @@ function PhraseRow({
     handleWordClick,
     handleReorderPhrases,
     handleMovePhraseToGroup,
-    tokenOffset
+    tokenOffset,
+    dragOverPhraseId,
+    dropPosition,
+    setDragOverPhraseId,
+    setDropPosition,
+    handleInsertPhraseAt,
+    setDragOverGroupId,
+    draggedGroupId,
+    draggedGroupIdRef
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
@@ -133,6 +141,14 @@ function PhraseRow({
     handleReorderPhrases: (draggedId: string, targetId: string) => void;
     handleMovePhraseToGroup: (phraseId: string, groupId: string | null) => void;
     tokenOffset: number;
+    dragOverPhraseId: string | null;
+    dropPosition: 'top' | 'bottom' | null;
+    setDragOverPhraseId: (id: string | null) => void;
+    setDropPosition: (pos: 'top' | 'bottom' | null) => void;
+    handleInsertPhraseAt: (draggedId: string, targetId: string, position: 'top' | 'bottom' | null) => void;
+    setDragOverGroupId?: (id: string | null) => void;
+    draggedGroupId?: string | null;
+    draggedGroupIdRef?: React.RefObject<string | null>;
 }) {
     const wordsList = phrase.text.split(/(\s+)/);
     
@@ -140,6 +156,7 @@ function PhraseRow({
         <div 
             draggable
             onDragStart={(e) => {
+                e.stopPropagation();
                 if (draggedPhraseIdRef) {
                     draggedPhraseIdRef.current = phrase.id;
                 }
@@ -147,51 +164,105 @@ function PhraseRow({
                 e.dataTransfer.setData('text/plain', phrase.id);
             }}
             onDragEnd={() => {
-                if (draggedPhraseIdRef) {
-                    draggedPhraseIdRef.current = null;
-                }
-                setDraggedPhraseId(null);
+                setTimeout(() => {
+                    if (draggedPhraseIdRef) {
+                        draggedPhraseIdRef.current = null;
+                    }
+                    setDraggedPhraseId(null);
+                    setDragOverPhraseId(null);
+                    setDropPosition(null);
+                    if (setDragOverGroupId) {
+                        setDragOverGroupId(null);
+                    }
+                }, 50);
             }}
-            onDragOver={(e) => e.preventDefault()}
+            onDragOver={(e) => {
+                const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                if (currentDraggedGroupId) {
+                    return; // Let group drag events bubble up to block level
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                const currentDraggedId = draggedPhraseId || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null);
+                if (currentDraggedId === phrase.id) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const relativeY = e.clientY - rect.top;
+                const position = relativeY < rect.height / 2 ? 'top' : 'bottom';
+                setDragOverPhraseId(phrase.id);
+                setDropPosition(position);
+            }}
+            onDragLeave={() => {
+                setDragOverPhraseId(null);
+                setDropPosition(null);
+            }}
             onDrop={(e) => {
+                const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                if (currentDraggedGroupId) {
+                    return; // Let group drop events bubble up to block level
+                }
+                
                 e.preventDefault();
                 e.stopPropagation();
                 const draggedId = e.dataTransfer.getData('text/plain') || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null) || draggedPhraseId;
-                if (draggedId && draggedId !== phrase.id) {
-                    handleReorderPhrases(draggedId, phrase.id);
-                }
-            }}
-            className={`
-                text-[32px] font-light text-stone-855 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-1 px-4 rounded-[12px] transition-all duration-200 cursor-grab active:cursor-grabbing
-                ${draggedPhraseId === phrase.id ? 'border border-dashed border-black bg-stone-100/40 text-black' : ''}
-            `}
-        >
-            {wordsList.map((token, idx) => {
-                if (/^\s+$/.test(token)) {
-                    return <span key={idx} className="whitespace-pre-wrap">{token}</span>;
+                
+                // Reset drag states immediately before updating note array
+                setDraggedPhraseId(null);
+                if (draggedPhraseIdRef) {
+                    draggedPhraseIdRef.current = null;
                 }
                 
-                // Parse alphabetical word to isolate punctuation
-                const match = token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/);
-                if (match) {
-                    const prePunc = match[1];
-                    const word = match[2];
-                    const postPunc = match[3];
-                    return (
-                        <span key={idx} className={`inline-block ${draggedPhraseId !== null ? 'pointer-events-none' : ''}`} onClick={(e) => e.stopPropagation()}>
-                            {prePunc}
-                            <span 
-                                onClick={(e) => handleWordClick(e, word, tokenOffset + idx)}
-                                className="hover:bg-stone-200/70 text-stone-850 hover:text-stone-950 rounded-[12px] px-2 py-0.5 cursor-pointer transition-colors duration-200"
-                            >
-                                {word}
-                            </span>
-                            {postPunc}
-                        </span>
-                    );
+                if (draggedId && draggedId !== phrase.id) {
+                    handleInsertPhraseAt(draggedId, phrase.id, dropPosition);
                 }
-                return <span key={idx}>{token}</span>;
-            })}
+                setDragOverPhraseId(null);
+                setDropPosition(null);
+                if (setDragOverGroupId) {
+                    setDragOverGroupId(null);
+                }
+            }}
+            className="flex flex-col w-full relative transition-all duration-200"
+        >
+            {dragOverPhraseId === phrase.id && dropPosition === 'top' && (
+                <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform -translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+            )}
+            
+            <div 
+                className={`
+                    text-[32px] font-light text-stone-855 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-1 px-4 rounded-[12px] transition-all duration-200 cursor-grab active:cursor-grabbing w-full
+                    ${draggedPhraseId === phrase.id ? 'opacity-30' : ''}
+                `}
+            >
+                {wordsList.map((token, idx) => {
+                    if (/^\s+$/.test(token)) {
+                        return <span key={idx} className="whitespace-pre-wrap">{token}</span>;
+                    }
+                    
+                    // Parse alphabetical word to isolate punctuation
+                    const match = token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/);
+                    if (match) {
+                        const prePunc = match[1];
+                        const word = match[2];
+                        const postPunc = match[3];
+                        return (
+                            <span key={idx} className={`inline-block ${draggedPhraseId !== null ? 'pointer-events-none' : ''}`} onClick={(e) => e.stopPropagation()}>
+                                {prePunc}
+                                <span 
+                                    onClick={(e) => handleWordClick(e, word, tokenOffset + idx)}
+                                    className="hover:bg-stone-200/70 text-stone-850 hover:text-stone-950 rounded-[12px] px-2 py-0.5 cursor-pointer transition-colors duration-200"
+                                >
+                                    {word}
+                                </span>
+                                {postPunc}
+                            </span>
+                        );
+                    }
+                    return <span key={idx}>{token}</span>;
+                })}
+            </div>
+
+            {dragOverPhraseId === phrase.id && dropPosition === 'bottom' && (
+                <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+            )}
         </div>
     );
 }
@@ -216,9 +287,16 @@ export default function FreeHandPage() {
     const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
     const [draggedPhraseId, setDraggedPhraseId] = useState<string | null>(null);
     const [showCanvasMenu, setShowCanvasMenu] = useState(false);
+    const [dragOverPhraseId, setDragOverPhraseId] = useState<string | null>(null);
+    const [dropPosition, setDropPosition] = useState<'top' | 'bottom' | null>(null);
+    const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+    const [dragOverBlockId, setDragOverBlockId] = useState<string | null>(null);
+    const [blockDropPosition, setBlockDropPosition] = useState<'top' | 'bottom' | null>(null);
+    const [draggedGroupId, setDraggedGroupId] = useState<string | null>(null);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const draggedPhraseIdRef = useRef<string | null>(null);
+    const draggedGroupIdRef = useRef<string | null>(null);
 
     // Load initial data from localStorage
     useEffect(() => {
@@ -538,6 +616,129 @@ export default function FreeHandPage() {
         });
     };
 
+    const handleInsertPhraseAt = (draggedId: string, targetId: string, position: 'top' | 'bottom' | null) => {
+        if (!selectedNoteId || !activeNote) return;
+        const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
+            ? activeNote.phrases
+            : syncPhrasesWithContent(activeNote.content);
+        
+        const draggedIdx = currentPhrases.findIndex(p => p.id === draggedId);
+        const targetIdx = currentPhrases.findIndex(p => p.id === targetId);
+        if (draggedIdx === -1 || targetIdx === -1) return;
+        
+        const draggedPhrase = { ...currentPhrases[draggedIdx] };
+        const targetPhrase = currentPhrases[targetIdx];
+        draggedPhrase.groupId = targetPhrase.groupId;
+        
+        const updatedPhrases = [...currentPhrases];
+        updatedPhrases.splice(draggedIdx, 1);
+        
+        const newTargetIdx = updatedPhrases.findIndex(p => p.id === targetId);
+        const insertIdx = position === 'top' ? newTargetIdx : newTargetIdx + 1;
+        updatedPhrases.splice(insertIdx, 0, draggedPhrase);
+        
+        const newContent = updatedPhrases.map(p => p.text).join('\n');
+        handleUpdateNote(selectedNoteId, {
+            phrases: updatedPhrases,
+            content: newContent,
+            title: getTitleFromContent(newContent) || 'Untitled Note'
+        });
+    };
+
+    const handleInsertGroupAt = (draggedGrpId: string, targetBlkId: string, position: 'top' | 'bottom' | null) => {
+        if (!selectedNoteId || !activeNote) return;
+        const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
+            ? activeNote.phrases
+            : syncPhrasesWithContent(activeNote.content);
+        
+        // 1. Get the phrases belonging to the dragged group
+        const draggedPhrases = currentPhrases.filter(p => p.groupId === draggedGrpId);
+        if (draggedPhrases.length === 0) return;
+        
+        // 2. Filter out the dragged phrases from the list
+        const remainingPhrases = currentPhrases.filter(p => p.groupId !== draggedGrpId);
+        
+        // 3. Find the target insertion index in the remaining list
+        let targetIdx = remainingPhrases.findIndex(p => p.id === targetBlkId);
+        
+        if (targetIdx === -1) {
+            // It might be a groupId! Find the first phrase of that target group
+            const targetGroupPhrases = remainingPhrases.filter(p => p.groupId === targetBlkId);
+            if (targetGroupPhrases.length > 0) {
+                if (position === 'top') {
+                    targetIdx = remainingPhrases.indexOf(targetGroupPhrases[0]);
+                } else {
+                    targetIdx = remainingPhrases.indexOf(targetGroupPhrases[targetGroupPhrases.length - 1]) + 1;
+                }
+            }
+        } else {
+            if (position === 'bottom') {
+                targetIdx = targetIdx + 1;
+            }
+        }
+        
+        if (targetIdx === -1) {
+            targetIdx = remainingPhrases.length;
+        }
+        
+        // 4. Insert the dragged phrases at the target index
+        const updatedPhrases = [...remainingPhrases];
+        updatedPhrases.splice(targetIdx, 0, ...draggedPhrases);
+        
+        const newContent = updatedPhrases.map(p => p.text).join('\n');
+        handleUpdateNote(selectedNoteId, {
+            phrases: updatedPhrases,
+            content: newContent,
+            title: getTitleFromContent(newContent) || 'Untitled Note'
+        });
+    };
+
+    const handleInsertPhraseAtBlockLevel = (draggedPhrsId: string, targetBlkId: string, position: 'top' | 'bottom' | null) => {
+        if (!selectedNoteId || !activeNote) return;
+        const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
+            ? activeNote.phrases
+            : syncPhrasesWithContent(activeNote.content);
+        
+        const draggedIdx = currentPhrases.findIndex(p => p.id === draggedPhrsId);
+        if (draggedIdx === -1) return;
+        
+        const draggedPhrase = { ...currentPhrases[draggedIdx] };
+        draggedPhrase.groupId = null; // Block level drops ungroup the phrase
+        
+        const remainingPhrases = [...currentPhrases];
+        remainingPhrases.splice(draggedIdx, 1);
+        
+        let targetIdx = remainingPhrases.findIndex(p => p.id === targetBlkId);
+        
+        if (targetIdx === -1) {
+            const targetGroupPhrases = remainingPhrases.filter(p => p.groupId === targetBlkId);
+            if (targetGroupPhrases.length > 0) {
+                if (position === 'top') {
+                    targetIdx = remainingPhrases.indexOf(targetGroupPhrases[0]);
+                } else {
+                    targetIdx = remainingPhrases.indexOf(targetGroupPhrases[targetGroupPhrases.length - 1]) + 1;
+                }
+            }
+        } else {
+            if (position === 'bottom') {
+                targetIdx = targetIdx + 1;
+            }
+        }
+        
+        if (targetIdx === -1) {
+            targetIdx = remainingPhrases.length;
+        }
+        
+        remainingPhrases.splice(targetIdx, 0, draggedPhrase);
+        
+        const newContent = remainingPhrases.map(p => p.text).join('\n');
+        handleUpdateNote(selectedNoteId, {
+            phrases: remainingPhrases,
+            content: newContent,
+            title: getTitleFromContent(newContent) || 'Untitled Note'
+        });
+    };
+
     const handleAddVerseGroup = (type: 'Verse' | 'Chorus' | 'Bridge') => {
         if (!selectedNoteId || !activeNote) return;
         const currentVerses = activeNote.verses || [];
@@ -782,6 +983,11 @@ export default function FreeHandPage() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                     e.preventDefault();
+                    setDraggedPhraseId(null);
+                    if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
+                    setDraggedGroupId(null);
+                    if (draggedGroupIdRef) draggedGroupIdRef.current = null;
+                    
                     const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseId;
                     if (phraseId) {
                         handleMovePhraseToGroup(phraseId, null);
@@ -795,85 +1001,198 @@ export default function FreeHandPage() {
                         /* Suggestion Mode (Hover & Click word alternatives + Drag & Drop group phrases) */
                         <div className="w-full flex flex-col gap-6 max-w-4xl mx-auto py-4">
                             {renderBlocks.map((block, bIdx) => {
-                                if (block.type === 'group') {
-                                    return (
-                                        <div 
-                                            key={block.groupId || `g-${bIdx}`}
-                                            onDragOver={(e) => e.preventDefault()}
-                                            onDrop={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
-                                                if (phraseId) {
-                                                    handleMovePhraseToGroup(phraseId, block.groupId);
-                                                }
-                                            }}
-                                            className="border border-dashed border-stone-300/85 rounded-[20px] p-8 pt-10 relative bg-stone-50/20 flex flex-col gap-4 min-h-[100px] transition-all duration-300 hover:border-stone-400"
-                                        >
-                                            {/* Group Badge */}
-                                            <div className="absolute -top-3.5 left-6 bg-black text-white px-2.5 py-0.5 text-[10px] font-bold tracking-wider rounded-[4px] uppercase select-none flex items-center gap-1.5 shadow-sm">
-                                                <span>{block.groupName}</span>
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeleteVerseGroup(block.groupId!);
-                                                    }}
-                                                    className="hover:text-red-400 text-stone-400 font-bold ml-1 transition-colors cursor-pointer text-xs leading-none"
-                                                    title="Delete Group"
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
+                                const blockId = block.type === 'group' ? block.groupId! : block.phrases[0]?.id;
+                                
+                                return (
+                                    <div 
+                                        key={blockId || `block-${bIdx}`}
+                                        onDragOver={(e) => {
+                                            const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                                            const currentDraggedPhraseId = draggedPhraseId || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null);
                                             
-                                            {block.phrases.length === 0 ? (
-                                                <div className="text-center text-xs text-stone-400 py-4 italic select-none pointer-events-none">
-                                                    Drag lines here to add to {block.groupName}
-                                                </div>
-                                            ) : (
-                                                block.phrases.map((phrase) => (
-                                                    <PhraseRow 
-                                                        key={phrase.id}
-                                                        phrase={phrase}
-                                                        draggedPhraseId={draggedPhraseId}
-                                                        draggedPhraseIdRef={draggedPhraseIdRef}
-                                                        setDraggedPhraseId={setDraggedPhraseId}
-                                                        handleWordClick={handleWordClick}
-                                                        handleReorderPhrases={handleReorderPhrases}
-                                                        handleMovePhraseToGroup={handleMovePhraseToGroup}
-                                                        tokenOffset={phraseTokenOffsets[phrase.id] || 0}
-                                                    />
-                                                ))
-                                            )}
-                                        </div>
-                                    );
-                                } else {
-                                    // Ungrouped phrases
-                                    return block.phrases.map((phrase) => (
-                                        <div 
-                                            key={phrase.id}
-                                            onDragOver={(e) => e.preventDefault()}
-                                            onDrop={(e) => {
+                                            if (currentDraggedGroupId || currentDraggedPhraseId) {
+                                                // Prevent self-match drag over
+                                                if (block.type === 'group' && currentDraggedGroupId === block.groupId) return;
+                                                if (block.type === 'ungrouped' && currentDraggedPhraseId === block.phrases[0]?.id) return;
+                                                
+                                                e.preventDefault();
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                const relativeY = e.clientY - rect.top;
+                                                const position = relativeY < rect.height / 2 ? 'top' : 'bottom';
+                                                
+                                                setDragOverBlockId(blockId);
+                                                setBlockDropPosition(position);
+                                            }
+                                        }}
+                                        onDragLeave={() => {
+                                            setDragOverBlockId(null);
+                                            setBlockDropPosition(null);
+                                        }}
+                                        onDrop={(e) => {
+                                            const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                                            const currentDraggedPhraseId = draggedPhraseId || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null);
+                                            
+                                            setDragOverBlockId(null);
+                                            setBlockDropPosition(null);
+                                            setDragOverGroupId(null);
+                                            
+                                            // Reset drag states immediately before updating note array
+                                            setDraggedGroupId(null);
+                                            if (draggedGroupIdRef) draggedGroupIdRef.current = null;
+                                            setDraggedPhraseId(null);
+                                            if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
+                                            
+                                            if (currentDraggedGroupId) {
                                                 e.preventDefault();
                                                 e.stopPropagation();
-                                                const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
-                                                if (phraseId) {
-                                                    handleMovePhraseToGroup(phraseId, null);
-                                                }
-                                            }}
-                                        >
+                                                handleInsertGroupAt(currentDraggedGroupId, blockId, blockDropPosition);
+                                            } else if (currentDraggedPhraseId) {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                handleInsertPhraseAtBlockLevel(currentDraggedPhraseId, blockId, blockDropPosition);
+                                            }
+                                        }}
+                                        className="w-full relative"
+                                    >
+                                        {dragOverBlockId === blockId && blockDropPosition === 'top' && (
+                                            <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform -translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+                                        )}
+                                        
+                                        {block.type === 'group' ? (
+                                            (() => {
+                                                const isDragOverThisGroup = dragOverGroupId === block.groupId;
+                                                return (
+                                                    <div 
+                                                        draggable
+                                                        onDragStart={(e) => {
+                                                            if (draggedGroupIdRef) {
+                                                                draggedGroupIdRef.current = block.groupId;
+                                                            }
+                                                            setDraggedGroupId(block.groupId);
+                                                            e.dataTransfer.setData('text/plain', block.groupId);
+                                                            e.dataTransfer.setData('type', 'group');
+                                                        }}
+                                                        onDragEnd={() => {
+                                                            setTimeout(() => {
+                                                                if (draggedGroupIdRef) {
+                                                                    draggedGroupIdRef.current = null;
+                                                                }
+                                                                setDraggedGroupId(null);
+                                                                setDragOverBlockId(null);
+                                                                setBlockDropPosition(null);
+                                                            }, 50);
+                                                        }}
+                                                        onDragOver={(e) => {
+                                                            const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                                                            if (currentDraggedGroupId) {
+                                                                return; // Let group drag events bubble up to block wrapper
+                                                            }
+                                                            e.preventDefault();
+                                                            if (dragOverGroupId !== block.groupId) {
+                                                                setDragOverGroupId(block.groupId);
+                                                            }
+                                                        }}
+                                                        onDragLeave={() => {
+                                                            setDragOverGroupId(null);
+                                                        }}
+                                                        onDrop={(e) => {
+                                                            const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                                                            if (currentDraggedGroupId) {
+                                                                return; // Ignore group drop inside group box
+                                                            }
+                                                            
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setDragOverGroupId(null);
+                                                            
+                                                            // Reset drag state immediately before updating note
+                                                            setDraggedPhraseId(null);
+                                                            if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
+                                                            
+                                                            const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
+                                                            if (phraseId) {
+                                                                handleMovePhraseToGroup(phraseId, block.groupId);
+                                                            }
+                                                        }}
+                                                        className={`border border-dashed rounded-[20px] p-8 pt-10 relative flex flex-col gap-4 min-h-[100px] transition-all duration-300 cursor-grab active:cursor-grabbing ${
+                                                            isDragOverThisGroup 
+                                                                ? 'border-black bg-stone-100/50 shadow-[0_4px_20px_rgba(0,0,0,0.03)] scale-[1.005]' 
+                                                                : 'border-stone-300/85 bg-stone-50/20 hover:border-stone-400'
+                                                        } ${
+                                                            draggedGroupId === block.groupId ? 'opacity-30' : ''
+                                                        }`}
+                                                    >
+                                                        {/* Group Badge */}
+                                                        <div className="absolute -top-3.5 left-6 bg-black text-white px-2.5 py-0.5 text-[10px] font-bold tracking-wider rounded-[4px] uppercase select-none flex items-center gap-1.5 shadow-sm">
+                                                            <span>{block.groupName}</span>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteVerseGroup(block.groupId!);
+                                                                }}
+                                                                className="hover:text-red-400 text-stone-400 font-bold ml-1 transition-colors cursor-pointer text-xs leading-none"
+                                                                title="Delete Group"
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </div>
+                                                        
+                                                        {block.phrases.length === 0 ? (
+                                                            <div className="text-center text-xs text-stone-400 py-4 italic select-none pointer-events-none">
+                                                                Drag lines here to add to {block.groupName}
+                                                            </div>
+                                                        ) : (
+                                                            block.phrases.map((phrase) => (
+                                                                <PhraseRow 
+                                                                    key={phrase.id}
+                                                                    phrase={phrase}
+                                                                    draggedPhraseId={draggedPhraseId}
+                                                                    draggedPhraseIdRef={draggedPhraseIdRef}
+                                                                    setDraggedPhraseId={setDraggedPhraseId}
+                                                                    handleWordClick={handleWordClick}
+                                                                    handleReorderPhrases={handleReorderPhrases}
+                                                                    handleMovePhraseToGroup={handleMovePhraseToGroup}
+                                                                    tokenOffset={phraseTokenOffsets[phrase.id] || 0}
+                                                                    dragOverPhraseId={dragOverPhraseId}
+                                                                    dropPosition={dropPosition}
+                                                                    setDragOverPhraseId={setDragOverPhraseId}
+                                                                    setDropPosition={setDropPosition}
+                                                                    handleInsertPhraseAt={handleInsertPhraseAt}
+                                                                    setDragOverGroupId={setDragOverGroupId}
+                                                                    draggedGroupId={draggedGroupId}
+                                                                    draggedGroupIdRef={draggedGroupIdRef}
+                                                                />
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()
+                                        ) : (
                                             <PhraseRow 
-                                                phrase={phrase}
+                                                phrase={block.phrases[0]}
                                                 draggedPhraseId={draggedPhraseId}
                                                 draggedPhraseIdRef={draggedPhraseIdRef}
                                                 setDraggedPhraseId={setDraggedPhraseId}
                                                 handleWordClick={handleWordClick}
                                                 handleReorderPhrases={handleReorderPhrases}
                                                 handleMovePhraseToGroup={handleMovePhraseToGroup}
-                                                tokenOffset={phraseTokenOffsets[phrase.id] || 0}
+                                                tokenOffset={phraseTokenOffsets[block.phrases[0].id] || 0}
+                                                dragOverPhraseId={dragOverPhraseId}
+                                                dropPosition={dropPosition}
+                                                setDragOverPhraseId={setDragOverPhraseId}
+                                                setDropPosition={setDropPosition}
+                                                handleInsertPhraseAt={handleInsertPhraseAt}
+                                                setDragOverGroupId={setDragOverGroupId}
+                                                draggedGroupId={draggedGroupId}
+                                                draggedGroupIdRef={draggedGroupIdRef}
                                             />
-                                        </div>
-                                    ));
-                                }
+                                        )}
+
+                                        {dragOverBlockId === blockId && blockDropPosition === 'bottom' && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+                                        )}
+                                    </div>
+                                );
                             })}
                         </div>
                     ) : (
@@ -894,8 +1213,8 @@ export default function FreeHandPage() {
                 {/* Styled Center Placeholder Overlay (blinking caret + text matching screenshot) */}
                 {contentVal === '' && !isFocused && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <div className="flex items-center gap-1.5 text-stone-400">
-                            <span className="w-[2px] h-9 bg-stone-800 animate-pulse inline-block" />
+                        <div className="flex items-center gap-1.5 text-stone-400 animate-pulse">
+                            <span className="w-[2px] h-9 bg-stone-800 inline-block" />
                             <span className="text-[32px] font-light text-stone-300 tracking-wide font-sans">Just start writing</span>
                         </div>
                     </div>
@@ -949,10 +1268,10 @@ export default function FreeHandPage() {
                                 e.stopPropagation();
                                 setShowCanvasMenu(!showCanvasMenu);
                             }}
-                            className="w-10 h-10 rounded-full bg-black hover:bg-stone-900 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-sm"
+                            className="w-[52px] h-[52px] rounded-full bg-black hover:bg-stone-900 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-sm"
                             title="Options"
                         >
-                            <Plus size={20} />
+                            <Plus size={26} />
                         </button>
 
                         {showCanvasMenu && (

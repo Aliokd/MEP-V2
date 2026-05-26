@@ -131,7 +131,7 @@ export default function SynesthesiaCanvas({ midiDataUrl }: SynesthesiaCanvasProp
     return (
         <div className="w-full h-full relative bg-charcoal/90 rounded-t-3xl overflow-hidden border-t border-white/5">
             <div className="absolute top-4 left-6 z-10">
-                <h3 className="text-gold-400 font-serif text-sm tracking-widest uppercase">Synesthesia Canvas</h3>
+                <h3 className="text-gold-400 font-sans text-sm tracking-widest uppercase">Synesthesia Canvas</h3>
                 <p className="text-alabaster/40 text-[10px] mt-1">Real-time Spectral Visualization</p>
             </div>
             <canvas ref={canvasRef} className="w-full h-full" />

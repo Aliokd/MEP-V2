@@ -50,7 +50,7 @@ export default function ChapterProgress({
                                             }`}
                                     />
                                     {isActive && (
-                                        <div className="absolute -bottom-6 whitespace-nowrap text-[10px] text-stone-700/80 font-serif italic">
+                                        <div className="absolute -bottom-6 whitespace-nowrap text-[10px] text-stone-700/80 font-sans italic">
                                             {chapter.title}
                                         </div>
                                     )}
