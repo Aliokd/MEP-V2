@@ -228,7 +228,7 @@ function PhraseRow({
             
             <div 
                 className={`
-                    text-[32px] font-light text-stone-855 leading-[1.6] tracking-wide text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-1 px-4 rounded-[12px] transition-all duration-200 cursor-grab active:cursor-grabbing w-full
+                    text-[42px] font-light text-stone-855 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-0.5 px-4 rounded-[12px] transition-all duration-200 cursor-grab active:cursor-grabbing w-full
                     ${draggedPhraseId === phrase.id ? 'opacity-30' : ''}
                 `}
             >
@@ -248,7 +248,7 @@ function PhraseRow({
                                 {prePunc}
                                 <span 
                                     onClick={(e) => handleWordClick(e, word, tokenOffset + idx)}
-                                    className="hover:bg-stone-200/70 text-stone-850 hover:text-stone-950 rounded-[12px] px-2 py-0.5 cursor-pointer transition-colors duration-200"
+                                    className="hover:bg-stone-200/70 text-stone-855 hover:text-stone-955 rounded-[12px] px-2 py-0.5 cursor-pointer transition-colors duration-200"
                                 >
                                     {word}
                                 </span>
@@ -542,14 +542,15 @@ export default function FreeHandPage() {
             }
         }
         return newPhrases;
-    };
-
+    }
     const handleSaveNote = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (selectedNoteId && activeNote) {
-            const updatedPhrases = syncPhrasesWithContent(activeNote.content, activeNote.phrases || []);
+            const existingRealPhrases = (activeNote.phrases || []).filter(p => !p.id.startsWith('placeholder-'));
+            const updatedPhrases = syncPhrasesWithContent(activeNote.content, existingRealPhrases);
+            const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, activeNote.verses || []);
             handleUpdateNote(selectedNoteId, {
-                phrases: updatedPhrases,
+                phrases: finalPhrases,
                 verses: activeNote.verses || []
             });
             setIsEditing(false); // Enter Suggestion Mode on Save
@@ -566,24 +567,48 @@ export default function FreeHandPage() {
         if (phraseIdx === -1) return;
         
         const phrase = { ...currentPhrases[phraseIdx], groupId };
+        const sourceGroupId = currentPhrases[phraseIdx].groupId;
         const remainingPhrases = currentPhrases.filter(p => p.id !== phraseId);
+        
+        // If the source group is now empty, insert a placeholder at the phrase's old position
+        if (sourceGroupId !== null) {
+            const sourceRealPhrases = remainingPhrases.filter(p => p.groupId === sourceGroupId && !p.id.startsWith('placeholder-'));
+            if (sourceRealPhrases.length === 0) {
+                const placeholderPhrase: Phrase = {
+                    id: `placeholder-${sourceGroupId}`,
+                    text: '',
+                    groupId: sourceGroupId
+                };
+                remainingPhrases.splice(phraseIdx, 0, placeholderPhrase);
+            }
+        }
+        
         let updatedPhrases: Phrase[] = [];
         
         if (groupId === null) {
             updatedPhrases = [...remainingPhrases, phrase];
         } else {
-            const lastGroupPhraseIdx = remainingPhrases.map((p, idx) => ({ p, idx })).filter(x => x.p.groupId === groupId).pop()?.idx;
-            if (lastGroupPhraseIdx !== undefined) {
-                remainingPhrases.splice(lastGroupPhraseIdx + 1, 0, phrase);
+            const placeholderIdx = remainingPhrases.findIndex(p => p.id === `placeholder-${groupId}`);
+            if (placeholderIdx !== -1) {
+                // Replace placeholder with the new phrase to keep the group's position!
+                remainingPhrases[placeholderIdx] = phrase;
                 updatedPhrases = remainingPhrases;
             } else {
-                updatedPhrases = [...remainingPhrases, phrase];
+                const lastGroupPhraseIdx = remainingPhrases.map((p, idx) => ({ p, idx })).filter(x => x.p.groupId === groupId).pop()?.idx;
+                if (lastGroupPhraseIdx !== undefined) {
+                    remainingPhrases.splice(lastGroupPhraseIdx + 1, 0, phrase);
+                    updatedPhrases = remainingPhrases;
+                } else {
+                    updatedPhrases = [...remainingPhrases, phrase];
+                }
             }
         }
         
-        const newContent = updatedPhrases.map(p => p.text).join('\n');
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, activeNote.verses || []);
+        
+        const newContent = finalPhrases.map(p => p.text).join('\n');
         handleUpdateNote(selectedNoteId, {
-            phrases: updatedPhrases,
+            phrases: finalPhrases,
             content: newContent,
             title: getTitleFromContent(newContent) || 'Untitled Note'
         });
@@ -601,16 +626,32 @@ export default function FreeHandPage() {
         
         const draggedPhrase = { ...currentPhrases[draggedIdx] };
         const targetPhrase = currentPhrases[targetIdx];
+        const sourceGroupId = draggedPhrase.groupId;
         draggedPhrase.groupId = targetPhrase.groupId;
         
-        const updatedPhrases = [...currentPhrases];
-        updatedPhrases.splice(draggedIdx, 1);
-        const newTargetIdx = updatedPhrases.findIndex(p => p.id === targetId);
-        updatedPhrases.splice(newTargetIdx, 0, draggedPhrase);
+        const remainingPhrases = [...currentPhrases];
+        remainingPhrases.splice(draggedIdx, 1);
         
-        const newContent = updatedPhrases.map(p => p.text).join('\n');
+        if (sourceGroupId !== null) {
+            const sourceRealPhrases = remainingPhrases.filter(p => p.groupId === sourceGroupId && !p.id.startsWith('placeholder-'));
+            if (sourceRealPhrases.length === 0) {
+                const placeholderPhrase: Phrase = {
+                    id: `placeholder-${sourceGroupId}`,
+                    text: '',
+                    groupId: sourceGroupId
+                };
+                remainingPhrases.splice(draggedIdx, 0, placeholderPhrase);
+            }
+        }
+        
+        const newTargetIdx = remainingPhrases.findIndex(p => p.id === targetId);
+        remainingPhrases.splice(newTargetIdx, 0, draggedPhrase);
+        
+        const finalPhrases = cleanupAndEnsurePlaceholders(remainingPhrases, activeNote.verses || []);
+        
+        const newContent = finalPhrases.map(p => p.text).join('\n');
         handleUpdateNote(selectedNoteId, {
-            phrases: updatedPhrases,
+            phrases: finalPhrases,
             content: newContent,
             title: getTitleFromContent(newContent) || 'Untitled Note'
         });
@@ -628,18 +669,33 @@ export default function FreeHandPage() {
         
         const draggedPhrase = { ...currentPhrases[draggedIdx] };
         const targetPhrase = currentPhrases[targetIdx];
+        const sourceGroupId = draggedPhrase.groupId;
         draggedPhrase.groupId = targetPhrase.groupId;
         
-        const updatedPhrases = [...currentPhrases];
-        updatedPhrases.splice(draggedIdx, 1);
+        const remainingPhrases = [...currentPhrases];
+        remainingPhrases.splice(draggedIdx, 1);
         
-        const newTargetIdx = updatedPhrases.findIndex(p => p.id === targetId);
+        if (sourceGroupId !== null) {
+            const sourceRealPhrases = remainingPhrases.filter(p => p.groupId === sourceGroupId && !p.id.startsWith('placeholder-'));
+            if (sourceRealPhrases.length === 0) {
+                const placeholderPhrase: Phrase = {
+                    id: `placeholder-${sourceGroupId}`,
+                    text: '',
+                    groupId: sourceGroupId
+                };
+                remainingPhrases.splice(draggedIdx, 0, placeholderPhrase);
+            }
+        }
+        
+        const newTargetIdx = remainingPhrases.findIndex(p => p.id === targetId);
         const insertIdx = position === 'top' ? newTargetIdx : newTargetIdx + 1;
-        updatedPhrases.splice(insertIdx, 0, draggedPhrase);
+        remainingPhrases.splice(insertIdx, 0, draggedPhrase);
         
-        const newContent = updatedPhrases.map(p => p.text).join('\n');
+        const finalPhrases = cleanupAndEnsurePlaceholders(remainingPhrases, activeNote.verses || []);
+        
+        const newContent = finalPhrases.map(p => p.text).join('\n');
         handleUpdateNote(selectedNoteId, {
-            phrases: updatedPhrases,
+            phrases: finalPhrases,
             content: newContent,
             title: getTitleFromContent(newContent) || 'Untitled Note'
         });
@@ -718,9 +774,11 @@ export default function FreeHandPage() {
         const updatedPhrases = [...remainingPhrases];
         updatedPhrases.splice(targetPhraseIdx, 0, ...draggedPhrases);
         
-        const newContent = updatedPhrases.map(p => p.text).join('\n');
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, updatedVerses);
+        
+        const newContent = finalPhrases.map(p => p.text).join('\n');
         handleUpdateNote(selectedNoteId, {
-            phrases: updatedPhrases,
+            phrases: finalPhrases,
             content: newContent,
             verses: updatedVerses,
             title: getTitleFromContent(newContent) || 'Untitled Note'
@@ -741,10 +799,24 @@ export default function FreeHandPage() {
         if (draggedIdx === -1) return;
         
         const draggedPhrase = { ...currentPhrases[draggedIdx] };
+        const sourceGroupId = draggedPhrase.groupId;
         draggedPhrase.groupId = null; // Block level drops ungroup the phrase
         
         const remainingPhrases = [...currentPhrases];
         remainingPhrases.splice(draggedIdx, 1);
+        
+        // If the source group is now empty, insert a placeholder at draggedIdx
+        if (sourceGroupId !== null) {
+            const sourceRealPhrases = remainingPhrases.filter(p => p.groupId === sourceGroupId && !p.id.startsWith('placeholder-'));
+            if (sourceRealPhrases.length === 0) {
+                const placeholderPhrase: Phrase = {
+                    id: `placeholder-${sourceGroupId}`,
+                    text: '',
+                    groupId: sourceGroupId
+                };
+                remainingPhrases.splice(draggedIdx, 0, placeholderPhrase);
+            }
+        }
         
         // Calculate visual blocks to find correct target position
         const remainingRenderBlocks = getRenderBlocks(remainingPhrases, activeNote.verses || []);
@@ -765,9 +837,11 @@ export default function FreeHandPage() {
         
         remainingPhrases.splice(targetPhraseIdx, 0, draggedPhrase);
         
-        const newContent = remainingPhrases.map(p => p.text).join('\n');
+        const finalPhrases = cleanupAndEnsurePlaceholders(remainingPhrases, activeNote.verses || []);
+        
+        const newContent = finalPhrases.map(p => p.text).join('\n');
         handleUpdateNote(selectedNoteId, {
-            phrases: remainingPhrases,
+            phrases: finalPhrases,
             content: newContent,
             title: getTitleFromContent(newContent) || 'Untitled Note'
         });
@@ -782,11 +856,22 @@ export default function FreeHandPage() {
             name: `${type} ${count + 1}`
         };
         
-        const currentPhrases = activeNote.phrases || syncPhrasesWithContent(activeNote.content);
+        const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
+            ? activeNote.phrases
+            : syncPhrasesWithContent(activeNote.content);
+            
+        const placeholderPhrase: Phrase = {
+            id: `placeholder-${newGroup.id}`,
+            text: '',
+            groupId: newGroup.id
+        };
+        
+        const updatedPhrases = [...currentPhrases, placeholderPhrase];
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, [...currentVerses, newGroup]);
         
         handleUpdateNote(selectedNoteId, {
             verses: [...currentVerses, newGroup],
-            phrases: currentPhrases
+            phrases: finalPhrases
         });
     };
 
@@ -802,16 +887,48 @@ export default function FreeHandPage() {
         const currentVerses = activeNote.verses || [];
         const updatedVerses = currentVerses.filter(v => v.id !== groupId);
         
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, updatedVerses);
+        
         handleUpdateNote(selectedNoteId, {
-            phrases: updatedPhrases,
+            phrases: finalPhrases,
             verses: updatedVerses
         });
     };
 
+    const cleanupAndEnsurePlaceholders = (phrases: Phrase[], groups: VerseGroup[]): Phrase[] => {
+        let updated = [...phrases];
+        
+        for (const group of groups) {
+            const realPhrases = updated.filter(p => p.groupId === group.id && !p.id.startsWith('placeholder-'));
+            if (realPhrases.length > 0) {
+                updated = updated.filter(p => p.id !== `placeholder-${group.id}`);
+            } else {
+                const hasPlaceholder = updated.some(p => p.id === `placeholder-${group.id}`);
+                if (!hasPlaceholder) {
+                    updated.push({
+                        id: `placeholder-${group.id}`,
+                        text: '',
+                        groupId: group.id
+                    });
+                }
+            }
+        }
+        
+        updated = updated.filter(p => {
+            if (p.id.startsWith('placeholder-')) {
+                const groupId = p.id.replace('placeholder-', '');
+                return groups.some(g => g.id === groupId);
+            }
+            return true;
+        });
+        
+        return updated;
+    };
+
     const getActivePhrases = (note: SongNote | null): Phrase[] => {
         if (!note) return [];
-        if (note.phrases && note.phrases.length > 0) return note.phrases;
-        return syncPhrasesWithContent(note.content);
+        const basePhrases = note.phrases && note.phrases.length > 0 ? note.phrases : syncPhrasesWithContent(note.content);
+        return cleanupAndEnsurePlaceholders(basePhrases, note.verses || []);
     };
 
     const getActiveVerses = (note: SongNote | null): VerseGroup[] => {
@@ -827,10 +944,11 @@ export default function FreeHandPage() {
     }
 
     const getRenderBlocks = (phrases: Phrase[], groups: VerseGroup[]): RenderBlock[] => {
+        const phrasesWithPlaceholders = cleanupAndEnsurePlaceholders(phrases, groups);
         const blocks: RenderBlock[] = [];
         let currentBlock: RenderBlock | null = null;
         
-        for (const phrase of phrases) {
+        for (const phrase of phrasesWithPlaceholders) {
             if (phrase.groupId === null) {
                 if (currentBlock) {
                     blocks.push(currentBlock);
@@ -865,30 +983,27 @@ export default function FreeHandPage() {
             blocks.push(currentBlock);
         }
         
-        // Append empty groups
-        const emptyGroups = groups.filter(g => !phrases.some(p => p.groupId === g.id));
-        for (const eg of emptyGroups) {
-            blocks.push({
-                type: 'group',
-                groupId: eg.id,
-                groupName: eg.name,
-                phrases: []
-            });
-        }
-        
         return blocks;
     };
 
-
     // Word suggestion click handler in Suggestion Mode
+    const getCompatibilityScore = (word: string, context: string): number => {
+        let hash = 0;
+        const combined = word.toLowerCase() + context.toLowerCase();
+        for (let i = 0; i < combined.length; i++) {
+            hash = (hash << 5) - hash + combined.charCodeAt(i);
+            hash |= 0;
+        }
+        return 45 + Math.abs(hash % 54);
+    };
+
     const handleWordClick = (e: React.MouseEvent, word: string, tokenIndex: number) => {
-        e.stopPropagation();
         const cleanWord = word.replace(/[^a-zA-Z]/g, '');
         if (!cleanWord) return;
 
         setClickedWord(cleanWord);
         setClickedTokenIndex(tokenIndex);
-        
+
         const rect = e.currentTarget.getBoundingClientRect();
         const parentRect = e.currentTarget.closest('.cursor-text')?.getBoundingClientRect();
         if (parentRect) {
@@ -928,8 +1043,15 @@ export default function FreeHandPage() {
     const handleEditorCardClick = () => {
         if (!selectedNoteId) {
             handleCreateNote(activeFolderIdFilter);
-        } else if (isEditing && textareaRef.current) {
-            textareaRef.current.focus();
+        } else {
+            if (activeNote && activeNote.content.trim() === '') {
+                setIsEditing(true);
+            }
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.focus();
+                }
+            }, 50);
         }
     };
 
@@ -1031,9 +1153,9 @@ export default function FreeHandPage() {
             >
                 {/* Mode Selector wrapper (Edit vs Suggestion Mode) */}
                 <div className="w-full max-h-[480px] overflow-y-auto no-scrollbar flex flex-col z-10 py-12">
-                    {selectedNoteId && !isEditing ? (
+                    {selectedNoteId && !isEditing && contentVal.trim() !== '' ? (
                         /* Suggestion Mode (Hover & Click word alternatives + Drag & Drop group phrases) */
-                        <div className="w-full flex flex-col gap-6 max-w-4xl mx-auto py-4 my-auto">
+                        <div className="w-full flex flex-col gap-3 max-w-4xl mx-auto py-4 my-auto">
                             {renderBlocks.map((block, bIdx) => {
                                 const blockId = block.type === 'group' ? block.groupId! : block.phrases[0]?.id;
                                 
@@ -1103,7 +1225,7 @@ export default function FreeHandPage() {
                                                                 draggedGroupIdRef.current = block.groupId;
                                                             }
                                                             setDraggedGroupId(block.groupId);
-                                                            e.dataTransfer.setData('text/plain', block.groupId);
+                                                            e.dataTransfer.setData('text/plain', block.groupId || '');
                                                             e.dataTransfer.setData('type', 'group');
                                                         }}
                                                         onDragEnd={() => {
@@ -1148,7 +1270,7 @@ export default function FreeHandPage() {
                                                                 handleMovePhraseToGroup(phraseId, block.groupId);
                                                             }
                                                         }}
-                                                        className={`border border-dashed rounded-[20px] p-8 pt-10 relative flex flex-col gap-4 min-h-[100px] transition-all duration-300 cursor-grab active:cursor-grabbing ${
+                                                        className={`border border-dashed rounded-[20px] p-8 pt-10 relative flex flex-col gap-2 min-h-[100px] transition-all duration-300 cursor-grab active:cursor-grabbing ${
                                                             isDragOverThisGroup 
                                                                 ? 'border-black bg-stone-100/50 shadow-[0_4px_20px_rgba(0,0,0,0.03)] scale-[1.005]' 
                                                                 : 'border-stone-300/85 bg-stone-50/20 hover:border-stone-400'
@@ -1171,12 +1293,12 @@ export default function FreeHandPage() {
                                                             </button>
                                                         </div>
                                                         
-                                                        {block.phrases.length === 0 ? (
+                                                        {block.phrases.filter(p => !p.id.startsWith('placeholder-')).length === 0 ? (
                                                             <div className="text-center text-xs text-stone-400 py-4 italic select-none pointer-events-none">
                                                                 Drag lines here to add to {block.groupName}
                                                             </div>
                                                         ) : (
-                                                            block.phrases.map((phrase) => (
+                                                            block.phrases.filter(p => !p.id.startsWith('placeholder-')).map((phrase) => (
                                                                 <PhraseRow 
                                                                     key={phrase.id}
                                                                     phrase={phrase}
@@ -1231,55 +1353,94 @@ export default function FreeHandPage() {
                         </div>
                     ) : (
                         /* Standard Edit Mode (Controlled Textarea to prevent duplications) */
-                        <textarea
-                            ref={textareaRef}
-                            value={contentVal}
-                            onChange={handleTextareaChange}
-                            onFocus={() => setIsFocused(true)}
-                            onBlur={() => setIsFocused(false)}
-                            className="w-full bg-transparent border-none outline-none resize-none font-sans text-[32px] font-light text-stone-855 text-center tracking-wide focus:ring-0 focus:outline-none min-h-[48px] overflow-hidden leading-[1.6] no-scrollbar my-auto"
-                            placeholder=""
-                            style={{ height: 'auto' }}
-                        />
+                        <div className="relative w-full flex flex-col items-center justify-center my-auto">
+                            <textarea
+                                ref={textareaRef}
+                                value={contentVal}
+                                onChange={handleTextareaChange}
+                                onFocus={() => setIsFocused(true)}
+                                onBlur={() => setIsFocused(false)}
+                                className="w-full bg-transparent border-none outline-none resize-none font-sans text-[42px] font-light text-stone-855 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none min-h-[58px] overflow-hidden leading-[1.4] no-scrollbar relative z-10"
+                                placeholder=""
+                                style={{ 
+                                    height: 'auto',
+                                    caretColor: contentVal === '' ? 'transparent' : 'inherit'
+                                }}
+                            />
+                            {contentVal === '' && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                    <div className="flex items-center gap-1.5 text-stone-400">
+                                        <span className="w-[2px] h-11 bg-stone-800 inline-block animate-blink" />
+                                        <span className="text-[42px] font-light text-stone-300 tracking-[-0.035em] font-sans">Just start writing</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
-
-                {/* Styled Center Placeholder Overlay (blinking caret + text matching screenshot) */}
-                {contentVal === '' && !isFocused && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <div className="flex items-center gap-1.5 text-stone-400 animate-pulse">
-                            <span className="w-[2px] h-9 bg-stone-800 inline-block" />
-                            <span className="text-[32px] font-light text-stone-300 tracking-wide font-sans">Just start writing</span>
-                        </div>
-                    </div>
-                )}
 
                 {/* Floating Suggestions Popover Overlay */}
                 {clickedWord && popoverPosition && (
                     <>
-                        <div className="fixed inset-0 z-30" onClick={() => setClickedWord(null)} />
+                        <div className="fixed inset-0 z-30" onClick={() => {
+                            setClickedWord(null);
+                            setClickedTokenIndex(null);
+                            setPopoverPosition(null);
+                        }} />
                         <div 
-                            className="absolute bg-white border border-stone-200/60 rounded-[20px] p-4.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] z-40 flex flex-col gap-2 min-w-[220px] animate-in fade-in zoom-in-95 duration-200"
+                            className="absolute bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[24px] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.08)] z-40 flex flex-col gap-5 min-w-[280px] animate-in fade-in zoom-in-95 duration-200"
                             style={{ 
                                 top: `${popoverPosition.top}px`, 
                                 left: `${popoverPosition.left}px`,
                                 transform: 'translateX(-50%)' 
                             }}
                         >
-                            <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block border-b border-stone-100 pb-1.5 mb-1 select-none">Songwriting Suggestions</span>
-                            <div className="flex flex-wrap gap-1.5 max-w-[280px]">
-                                {getSuggestions(clickedWord).map((suggestion, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleSelectSuggestion(suggestion);
-                                        }}
-                                        className="px-2.5 py-1 bg-stone-50 hover:bg-stone-900 hover:text-white border border-stone-200/50 hover:border-stone-900 rounded-[10px] text-xs font-semibold text-stone-700 transition-all cursor-pointer"
-                                    >
-                                        {suggestion}
-                                    </button>
-                                ))}
+                            {/* Header: Hovered word + compatibility */}
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none">Current Word</span>
+                                    <span className="text-[11px] text-stone-500 font-bold">{getCompatibilityScore(clickedWord, contentVal)}% Compatible</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xl font-bold text-stone-850">"{clickedWord}"</span>
+                                    <div className="flex-grow h-2 bg-stone-100 rounded-full overflow-hidden">
+                                        <div className="h-full bg-black rounded-full transition-all duration-500" style={{ width: `${getCompatibilityScore(clickedWord, contentVal)}%` }} />
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="border-t border-stone-100/80 my-0.5" />
+                            
+                            {/* Suggestions Alternatives */}
+                            <div className="flex flex-col gap-2.5">
+                                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none">Elegant Alternatives</span>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {getSuggestions(clickedWord).map((suggestion, idx) => {
+                                        const score = getCompatibilityScore(suggestion, contentVal);
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleSelectSuggestion(suggestion);
+                                                }}
+                                                className="group flex items-center justify-between p-3.5 bg-stone-50/50 hover:bg-stone-900 border border-stone-200/50 hover:border-stone-900 rounded-[16px] transition-all cursor-pointer shadow-2xs hover:shadow-sm"
+                                            >
+                                                <span className="text-[13px] font-bold text-stone-800 group-hover:text-white transition-colors">
+                                                    {suggestion}
+                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-12 h-1 bg-stone-200/70 group-hover:bg-white/20 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-stone-700 group-hover:bg-white rounded-full transition-all duration-300" style={{ width: `${score}%` }} />
+                                                    </div>
+                                                    <span className="text-[10px] font-bold text-stone-500 group-hover:text-white/80 transition-colors w-7 text-right">
+                                                        {score}%
+                                                    </span>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
                     </>
