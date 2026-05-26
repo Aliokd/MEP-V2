@@ -787,10 +787,10 @@ export default function FreeHandPage() {
                         handleMovePhraseToGroup(phraseId, null);
                     }
                 }}
-                className="bg-[#FAF9F5] rounded-[32px] p-8 flex flex-col min-h-[420px] transition-all relative cursor-text justify-center"
+                className="bg-[#FAF9F5] rounded-[32px] p-8 flex flex-col min-h-[560px] transition-all relative cursor-text justify-center"
             >
                 {/* Mode Selector wrapper (Edit vs Suggestion Mode) */}
-                <div className="w-full max-h-[340px] overflow-y-auto no-scrollbar flex items-center justify-center z-10">
+                <div className="w-full max-h-[480px] overflow-y-auto no-scrollbar flex items-center justify-center z-10">
                     {selectedNoteId && !isEditing ? (
                         /* Suggestion Mode (Hover & Click word alternatives + Drag & Drop group phrases) */
                         <div className="w-full flex flex-col gap-6 max-w-4xl mx-auto py-4">
@@ -949,10 +949,10 @@ export default function FreeHandPage() {
                                 e.stopPropagation();
                                 setShowCanvasMenu(!showCanvasMenu);
                             }}
-                            className="w-8 h-8 rounded-full bg-stone-100/70 hover:bg-stone-200/60 text-stone-500 hover:text-stone-800 flex items-center justify-center transition-all cursor-pointer"
+                            className="w-10 h-10 rounded-full bg-black hover:bg-stone-900 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-sm"
                             title="Options"
                         >
-                            <Plus size={16} />
+                            <Plus size={20} />
                         </button>
 
                         {showCanvasMenu && (
