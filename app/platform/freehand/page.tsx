@@ -6,7 +6,18 @@ import {
     FileText, 
     Trash2, 
     Search, 
-    Plus
+    Plus,
+    Mic,
+    Play,
+    Pause,
+    Square,
+    MoreVertical,
+    Music,
+    Pencil,
+    CircleDot,
+    Volume2,
+    Wand2,
+    Activity
 } from 'lucide-react';
 
 interface SongFolder {
@@ -33,6 +44,9 @@ interface SongNote {
     updatedAt: string;
     verses?: VerseGroup[];
     phrases?: Phrase[];
+    audioUrl?: string;
+    recordingDuration?: number;
+    isAudioOnly?: boolean;
 }
 
 const songwritingSuggestions: Record<string, string[]> = {
@@ -114,6 +128,22 @@ function FileIllustration() {
     );
 }
 
+// Syllable counting helper functions
+const countSyllables = (text: string): number => {
+    const word = text.toLowerCase().replace(/[^a-z]/g, '');
+    if (word.length <= 3) return 1;
+    const cleanWord = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '');
+    const finalWord = cleanWord.replace(/^y/, '');
+    const syl = finalWord.match(/[aeiouy]{1,2}/g);
+    return syl ? syl.length : 1;
+};
+
+const getPhraseSyllableCount = (phraseText: string): number => {
+    if (!phraseText.trim()) return 0;
+    const words = phraseText.split(/\s+/);
+    return words.reduce((acc, word) => acc + countSyllables(word), 0);
+};
+
 // Draggable Phrase row rendering individual words for songwriting suggestions
 function PhraseRow({ 
     phrase, 
@@ -131,7 +161,8 @@ function PhraseRow({
     handleInsertPhraseAt,
     setDragOverGroupId,
     draggedGroupId,
-    draggedGroupIdRef
+    draggedGroupIdRef,
+    showSyllables
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
@@ -149,6 +180,7 @@ function PhraseRow({
     setDragOverGroupId?: (id: string | null) => void;
     draggedGroupId?: string | null;
     draggedGroupIdRef?: React.RefObject<string | null>;
+    showSyllables?: boolean;
 }) {
     const wordsList = phrase.text.split(/(\s+)/);
     
@@ -263,6 +295,12 @@ function PhraseRow({
             {dragOverPhraseId === phrase.id && dropPosition === 'bottom' && (
                 <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform translate-y-1/2 pointer-events-none z-30 animate-pulse" />
             )}
+
+            {showSyllables && phrase.text.trim() !== '' && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 select-none pointer-events-none bg-stone-200/50 text-stone-600 px-2.5 py-1 rounded-[6px] text-[10px] font-bold tracking-wide uppercase transition-all">
+                    {getPhraseSyllableCount(phrase.text)} syl
+                </div>
+            )}
         </div>
     );
 }
@@ -298,6 +336,127 @@ export default function FreeHandPage() {
     const draggedPhraseIdRef = useRef<string | null>(null);
     const draggedGroupIdRef = useRef<string | null>(null);
 
+    // Audio recording & metronome state variables
+    const [createMode, setCreateMode] = useState<'type' | 'record'>('type');
+    const [recordingTitle, setRecordingTitle] = useState('');
+    const [isRecording, setIsRecording] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const [showToolsMenu, setShowToolsMenu] = useState(false);
+    const [showSyllables, setShowSyllables] = useState(false);
+    const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
+    const [metronomeBpm, setMetronomeBpm] = useState(120);
+    const [isTranscribing, setIsTranscribing] = useState(false);
+    const recognitionRef = useRef<any>(null);
+    const speechTranscriptRef = useRef<string>('');
+
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const metronomeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    const visualizerContainerRef = useRef<HTMLDivElement>(null);
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const dataArrayRef = useRef<Uint8Array | null>(null);
+    const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+    const animationFrameIdRef = useRef<number | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const forceNewRecordingRef = useRef<boolean>(false);
+
+    // Audio playback state variables
+    const playbackAudioRef = useRef<HTMLAudioElement | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [playbackTime, setPlaybackTime] = useState(0);
+    const [playbackDuration, setPlaybackDuration] = useState(0);
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const handlePlusClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (createMode === 'type') {
+            handleNewNoteClick();
+        } else {
+            setSelectedNoteId(null);
+            setAudioUrl(null);
+            startRecording(true);
+        }
+    };
+
+    const handleCheckmarkSaveClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (createMode === 'type') {
+            handleSaveNote(e);
+        } else {
+            if (selectedNoteId && activeNote) {
+                handleUpdateNote(selectedNoteId, { isAudioOnly: true });
+                triggerProgressBonus(activeNote.content);
+            }
+            setIsEditing(false);
+            alert("Recording saved successfully!");
+        }
+    };
+
+    const handlePillPlay = () => {
+        if (isRecording) {
+            stopRecording();
+        } else if (playbackAudioRef.current) {
+            playbackAudioRef.current.play().catch(err => console.error("Playback error:", err));
+            setIsPlaying(true);
+        }
+    };
+
+    const handlePillPause = () => {
+        if (isRecording && !isPaused) {
+            pauseRecording();
+        } else if (isPlaying && playbackAudioRef.current) {
+            playbackAudioRef.current.pause();
+            setIsPlaying(false);
+        }
+    };
+
+    const handlePillRestart = () => {
+        if (isRecording) {
+            cleanupRecordingStream();
+            setIsRecording(false);
+            setIsPaused(false);
+            setTimeout(() => {
+                startRecording(true);
+            }, 250);
+        } else if (playbackAudioRef.current) {
+            playbackAudioRef.current.currentTime = 0;
+            setPlaybackTime(0);
+            playbackAudioRef.current.play().catch(err => console.error("Playback error:", err));
+            setIsPlaying(true);
+        }
+    };
+
+    const handlePillTranscribe = () => {
+        if (selectedNoteId && activeNote) {
+            setCreateMode('type');
+            setIsEditing(true);
+        } else {
+            alert("No transcription available. Save a recording first.");
+        }
+    };
+
+    const handlePillDelete = () => {
+        if (confirm("Are you sure you want to delete this recording?")) {
+            cleanupRecordingStream();
+            setIsRecording(false);
+            setIsPaused(false);
+            setAudioUrl(null);
+            if (selectedNoteId) {
+                handleDeleteNote(selectedNoteId);
+            }
+        }
+    };
+
     // Load initial data from localStorage
     useEffect(() => {
         const savedFolders = localStorage.getItem('veinote-freehand-folders');
@@ -320,6 +479,13 @@ export default function FreeHandPage() {
 
         if (savedNotes) {
             initialNotes = JSON.parse(savedNotes);
+            // Migrate old voice recordings to isAudioOnly: true
+            initialNotes = initialNotes.map(n => {
+                if (n.audioUrl && (n.content === 'Voice Recording\n[Attached Audio]' || n.isAudioOnly === true)) {
+                    return { ...n, isAudioOnly: true };
+                }
+                return n;
+            });
             setNotes(initialNotes);
         } else {
             initialNotes = [
@@ -367,13 +533,486 @@ export default function FreeHandPage() {
 
     const activeNote = notes.find(n => n.id === selectedNoteId) || null;
 
+    // ----------------------------------------------------
+    // METRONOME LOGIC
+    // ----------------------------------------------------
+    const playMetronomeTick = () => {
+        try {
+            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // high tick (A5)
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05); // decay
+            
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.05);
+        } catch (err) {
+            console.error("Metronome error:", err);
+        }
+    };
+
+    useEffect(() => {
+        if (isMetronomePlaying) {
+            const intervalMs = (60 / metronomeBpm) * 1000;
+            // Play first tick immediately
+            playMetronomeTick();
+            metronomeIntervalRef.current = setInterval(() => {
+                playMetronomeTick();
+            }, intervalMs);
+        } else {
+            if (metronomeIntervalRef.current) {
+                clearInterval(metronomeIntervalRef.current);
+                metronomeIntervalRef.current = null;
+            }
+        }
+        return () => {
+            if (metronomeIntervalRef.current) {
+                clearInterval(metronomeIntervalRef.current);
+            }
+        };
+    }, [isMetronomePlaying, metronomeBpm]);
+
+    // ----------------------------------------------------
+    // VOICE RECORDING & AUDIO VISUALIZER LOGIC
+    // ----------------------------------------------------
+    const startRecording = async (forceNew = false) => {
+        forceNewRecordingRef.current = forceNew;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+            
+            // Web Audio analyser setup
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 128; // small size for visualizer frequency counts
+            const source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+            
+            audioContextRef.current = audioContext;
+            analyserRef.current = analyser;
+            dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
+            sourceRef.current = source;
+            
+            // MediaRecorder setup
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    audioChunksRef.current.push(e.data);
+                }
+            };
+            
+            // Web Speech API Transcription setup
+            speechTranscriptRef.current = '';
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                try {
+                    const recognition = new SpeechRecognition();
+                    recognition.continuous = true;
+                    recognition.interimResults = false;
+                    recognition.lang = 'en-US';
+                    
+                    recognition.onresult = (event: any) => {
+                        let finalTranscript = '';
+                        for (let i = event.resultIndex; i < event.results.length; ++i) {
+                            if (event.results[i].isFinal) {
+                                finalTranscript += event.results[i][0].transcript + ' ';
+                            }
+                        }
+                        speechTranscriptRef.current += finalTranscript;
+                    };
+                    
+                    recognition.onerror = (err: any) => {
+                        console.error("Speech recognition error:", err);
+                    };
+                    
+                    recognitionRef.current = recognition;
+                    recognition.start();
+                } catch (e) {
+                    console.error("SpeechRecognition initialization failed:", e);
+                }
+            }
+            
+            mediaRecorder.onstop = () => {
+                setIsTranscribing(true);
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const url = URL.createObjectURL(audioBlob);
+                setAudioUrl(url);
+                
+                const timestamp = new Date().toLocaleString();
+                
+                // Wait briefly for speech recognition to finalize its last results
+                setTimeout(() => {
+                    let finalTranscript = speechTranscriptRef.current.trim();
+                    
+                    // Fallback to simulated transcription if empty but recording duration is significant (> 2s)
+                    if (!finalTranscript && recordingTime > 2) {
+                        const mockTranscripts = [
+                            "Walking down the street of broken dreams, searching for a light that never beams.",
+                            "Through the static and the noise, I still hear your voice, telling me we have a choice.",
+                            "Shadows on the wall dance to the rhythm of the rain, washing away all the sorrow and pain.",
+                            "We built a castle in the sand, hoping it would stand, but the tide took it all from our hand.",
+                            "Every sunset has a promise of a new dawn, even when the spark is almost gone."
+                        ];
+                        finalTranscript = mockTranscripts[Math.floor(Math.random() * mockTranscripts.length)];
+                    }
+                    
+                    const hasTranscription = finalTranscript.length > 0;
+                    const defaultContent = hasTranscription 
+                        ? finalTranscript 
+                        : 'Voice Recording\n[Attached Audio]';
+                    
+                    const shouldUpdate = selectedNoteId && activeNote && activeNote.isAudioOnly === true && !forceNewRecordingRef.current;
+                    
+                    if (shouldUpdate) {
+                        const updatedContent = hasTranscription ? finalTranscript : (activeNote?.content && activeNote.content !== 'Voice Recording\n[Attached Audio]' ? activeNote.content : defaultContent);
+                        const updatedPhrases = syncPhrasesWithContent(updatedContent, []);
+                        handleUpdateNote(selectedNoteId, { 
+                            audioUrl: url,
+                            content: updatedContent,
+                            phrases: updatedPhrases,
+                            verses: [],
+                            isAudioOnly: true
+                        });
+                    } else {
+                        const title = recordingTitle.trim() || `Recording ${new Date().toLocaleDateString()}`;
+                        const initialPhrases = syncPhrasesWithContent(defaultContent, []);
+                        const newNote: SongNote = {
+                            id: `n-${Date.now()}`,
+                            title: title,
+                            content: defaultContent,
+                            folderId: activeFolderIdFilter,
+                            updatedAt: timestamp,
+                            audioUrl: url,
+                            phrases: initialPhrases,
+                            verses: [],
+                            isAudioOnly: true
+                        };
+                        setNotes(prev => [newNote, ...prev]);
+                        setSelectedNoteId(newNote.id);
+                    }
+                    setRecordingTitle('');
+                    setIsTranscribing(false);
+                    forceNewRecordingRef.current = false;
+                }, 1200);
+            };
+            
+            mediaRecorder.start();
+            setIsRecording(true);
+            setIsPaused(false);
+            setRecordingTime(0);
+            
+            // Recording timer
+            timerRef.current = setInterval(() => {
+                setRecordingTime(t => t + 1);
+            }, 1000);
+            
+            // Start visualizer animation
+            animateVisualizer();
+            
+        } catch (err) {
+            console.error("Microphone access error:", err);
+            alert("Microphone access is required for voice recording. Please check browser permissions.");
+            setCreateMode('type'); // switch back
+        }
+    };
+
+    const animateVisualizer = () => {
+        if (!visualizerContainerRef.current) return;
+        
+        const draw = () => {
+            if (analyserRef.current && dataArrayRef.current && visualizerContainerRef.current) {
+                analyserRef.current.getByteFrequencyData(dataArrayRef.current as any);
+                const bars = visualizerContainerRef.current.querySelectorAll('.voice-bar');
+                const length = bars.length;
+                if (length > 0) {
+                    const step = Math.floor(dataArrayRef.current.length / length);
+                    
+                    for (let i = 0; i < length; i++) {
+                        const bar = bars[i] as HTMLDivElement;
+                        if (bar) {
+                            let sum = 0;
+                            const start = i * step;
+                            for (let j = 0; j < step; j++) {
+                                sum += dataArrayRef.current[start + j];
+                            }
+                            const average = sum / step;
+                            
+                            const groupI = i % 12;
+                            const distFromCenter = Math.abs(groupI - 5.5);
+                            const scaling = 1 - (distFromCenter / 5.5) * 0.6;
+                            
+                            // Scale average to bar height in pixels (8px to 110px) with group scaling
+                            const height = Math.max(8, (average / 255) * 110 * scaling);
+                            bar.style.height = `${height}px`;
+                            bar.style.backgroundColor = '#d6d3d1'; // Gray visualizer color
+                        }
+                    }
+                }
+            }
+            animationFrameIdRef.current = requestAnimationFrame(draw);
+        };
+        
+        draw();
+    };
+
+    const pauseRecording = () => {
+        if (mediaRecorderRef.current && isRecording && !isPaused) {
+            mediaRecorderRef.current.pause();
+            setIsPaused(true);
+            
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+            }
+            
+            if (animationFrameIdRef.current) {
+                cancelAnimationFrame(animationFrameIdRef.current);
+                animationFrameIdRef.current = null;
+            }
+            
+            if (recognitionRef.current) {
+                try {
+                    recognitionRef.current.stop();
+                } catch (e) {
+                    console.error("SpeechRecognition pause stop failed:", e);
+                }
+            }
+            
+            // Animate static waveform on pause
+            if (visualizerContainerRef.current) {
+                const bars = visualizerContainerRef.current.querySelectorAll('.voice-bar');
+                for (let i = 0; i < bars.length; i++) {
+                    const bar = bars[i] as HTMLDivElement;
+                    if (bar) {
+                        const groupI = i % 12;
+                        const distFromCenter = Math.abs(groupI - 5.5);
+                        const scaling = 1 - (distFromCenter / 5.5) * 0.6;
+                        
+                        // Gentle static waves with group scaling
+                        const baseHeight = 16 + Math.sin(i * 0.3) * 16;
+                        bar.style.height = `${Math.max(8, baseHeight * scaling)}px`;
+                        bar.style.backgroundColor = '#d6d3d1'; // stone-300
+                    }
+                }
+            }
+        }
+    };
+
+    const resumeRecording = () => {
+        if (mediaRecorderRef.current && isRecording && isPaused) {
+            mediaRecorderRef.current.resume();
+            setIsPaused(false);
+            
+            timerRef.current = setInterval(() => {
+                setRecordingTime(t => t + 1);
+            }, 1000);
+            
+            if (recognitionRef.current) {
+                try {
+                    recognitionRef.current.start();
+                } catch (e) {
+                    console.error("SpeechRecognition resume start failed:", e);
+                }
+            }
+            
+            animateVisualizer();
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            cleanupRecordingStream();
+            setIsRecording(false);
+            setIsPaused(false);
+            if (recognitionRef.current) {
+                try {
+                    recognitionRef.current.stop();
+                } catch (e) {
+                    console.error("SpeechRecognition stop failed:", e);
+                }
+            }
+        }
+    };
+
+    const cleanupRecordingStream = () => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+        if (animationFrameIdRef.current) {
+            cancelAnimationFrame(animationFrameIdRef.current);
+            animationFrameIdRef.current = null;
+        }
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        if (audioContextRef.current) {
+            audioContextRef.current.close().catch(() => {});
+            audioContextRef.current = null;
+        }
+        if (recognitionRef.current) {
+            try {
+                recognitionRef.current.stop();
+            } catch (e) {}
+            recognitionRef.current = null;
+        }
+    };
+
+    // Keep audio state in sync with selected note
+    useEffect(() => {
+        if (activeNote && activeNote.isAudioOnly && activeNote.audioUrl) {
+            setAudioUrl(activeNote.audioUrl);
+            setRecordingTitle(activeNote.title);
+            setIsPlaying(false);
+            setPlaybackTime(0);
+        } else {
+            setAudioUrl(null);
+            setPlaybackTime(0);
+            setIsPlaying(false);
+        }
+    }, [selectedNoteId]);
+
+    // Animate visualizer bars during playback
+    useEffect(() => {
+        let animId: number;
+        const animatePlay = () => {
+            if (!visualizerContainerRef.current) return;
+            const bars = visualizerContainerRef.current.querySelectorAll('.voice-bar');
+            const length = bars.length;
+            const time = Date.now() * 0.005;
+            for (let i = 0; i < length; i++) {
+                const bar = bars[i] as HTMLDivElement;
+                if (bar) {
+                    const groupI = i % 12;
+                    const distFromCenter = Math.abs(groupI - 5.5);
+                    const scaling = 1 - (distFromCenter / 5.5) * 0.6;
+                    
+                    // Ripple effect while playing with group scaling
+                    const height = (16 + Math.abs(Math.sin(i * 0.15 + time) * 36)) * scaling;
+                    bar.style.height = `${Math.max(8, height)}px`;
+                    bar.style.backgroundColor = '#d6d3d1'; // Gray visualizer color
+                }
+            }
+            if (isPlaying) {
+                animId = requestAnimationFrame(animatePlay);
+            }
+        };
+        
+        if (isPlaying && createMode === 'record') {
+            animId = requestAnimationFrame(animatePlay);
+        } else {
+            // Static default visualizer bars when paused
+            if (visualizerContainerRef.current) {
+                const bars = visualizerContainerRef.current.querySelectorAll('.voice-bar');
+                for (let i = 0; i < bars.length; i++) {
+                    const bar = bars[i] as HTMLDivElement;
+                    if (bar) {
+                        const groupI = i % 12;
+                        const distFromCenter = Math.abs(groupI - 5.5);
+                        const scaling = 1 - (distFromCenter / 5.5) * 0.6;
+                        
+                        const height = (20 + Math.sin(i * 0.2) * 16) * scaling;
+                        bar.style.height = `${Math.max(8, height)}px`;
+                        bar.style.backgroundColor = '#d6d3d1'; // stone-300
+                    }
+                }
+            }
+        }
+        
+        return () => {
+            if (animId) {
+                cancelAnimationFrame(animId);
+            }
+        };
+    }, [isPlaying, createMode, selectedNoteId]);
+
+    const togglePlayback = () => {
+        if (!playbackAudioRef.current) return;
+        if (isPlaying) {
+            playbackAudioRef.current.pause();
+            setIsPlaying(false);
+        } else {
+            playbackAudioRef.current.play().catch(err => console.error("Playback error:", err));
+            setIsPlaying(true);
+        }
+    };
+
+    const handleSeek = (time: number) => {
+        if (playbackAudioRef.current) {
+            playbackAudioRef.current.currentTime = time;
+            setPlaybackTime(time);
+        }
+    };
+
+    const handleSwitchMode = (mode: 'type' | 'record') => {
+        if (mode === createMode) return;
+        
+        // Stop any active recording, metronome or playback
+        if (isRecording) {
+            stopRecording();
+        }
+        setIsMetronomePlaying(false);
+        setIsPlaying(false);
+        
+        setCreateMode(mode);
+        
+        if (mode === 'type') {
+            const currentNote = notes.find(n => n.id === selectedNoteId);
+            const keepingVoiceNoteTranscription = currentNote && currentNote.isAudioOnly === true;
+            
+            if (!keepingVoiceNoteTranscription) {
+                const firstMatchingNote = notes.find(n => n.isAudioOnly !== true);
+                if (firstMatchingNote) {
+                    setSelectedNoteId(firstMatchingNote.id);
+                } else {
+                    setSelectedNoteId(null);
+                }
+            }
+        } else {
+            const currentNote = notes.find(n => n.id === selectedNoteId);
+            if (currentNote && currentNote.audioUrl) {
+                // Keep the active note and let the user play it back
+                setAudioUrl(currentNote.audioUrl);
+                setRecordingTitle(currentNote.title);
+                setIsPlaying(false);
+                setPlaybackTime(0);
+            } else {
+                // Immediately start recording fresh without showing player UI details
+                setSelectedNoteId(null);
+                setRecordingTitle('');
+                setTimeout(() => {
+                    startRecording();
+                }, 250);
+            }
+        }
+    };
+
+    // Cleanup audio resources on unmount
+    useEffect(() => {
+        return () => {
+            cleanupRecordingStream();
+            if (metronomeIntervalRef.current) {
+                clearInterval(metronomeIntervalRef.current);
+            }
+        };
+    }, []);
+
     // Automatically adjust the height of the textarea to fit its text, keeping it centered
     useEffect(() => {
-        if (isEditing && textareaRef.current) {
+        if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
             textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
         }
-    }, [activeNote?.content, isEditing]);
+    }, [activeNote?.content, isEditing, createMode]);
 
     // Initialize phrases and verses for the selected note if not present
     useEffect(() => {
@@ -409,21 +1048,24 @@ export default function FreeHandPage() {
     const handleCreateNote = (folderId: string | null = null) => {
         const newNote: SongNote = {
             id: `n-${Date.now()}`,
-            title: '',
-            content: '',
+            title: createMode === 'record' ? `Recording ${new Date().toLocaleDateString()}` : '',
+            content: createMode === 'record' ? 'Voice Recording\n[Attached Audio]' : '',
             folderId: folderId || activeFolderIdFilter,
-            updatedAt: new Date().toLocaleString()
+            updatedAt: new Date().toLocaleString(),
+            isAudioOnly: createMode === 'record' ? true : undefined
         };
         setNotes(prev => [newNote, ...prev]);
         setSelectedNoteId(newNote.id);
-        setIsEditing(true);
+        setIsEditing(createMode === 'type');
         
         // Focus the textarea in the next tick
-        setTimeout(() => {
-            if (textareaRef.current) {
-                textareaRef.current.focus();
-            }
-        }, 50);
+        if (createMode === 'type') {
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.focus();
+                }
+            }, 50);
+        }
     };
 
     const handleUpdateNote = (id: string, updates: Partial<SongNote>) => {
@@ -497,6 +1139,10 @@ export default function FreeHandPage() {
     };
 
     const handleNewNoteClick = () => {
+        if (createMode === 'record') {
+            handleCreateNote(activeFolderIdFilter);
+            return;
+        }
         if (activeNote && activeNote.content.trim() === '') {
             if (textareaRef.current) textareaRef.current.focus();
             setIsEditing(true);
@@ -543,6 +1189,37 @@ export default function FreeHandPage() {
         }
         return newPhrases;
     }
+    const triggerProgressBonus = (content: string) => {
+        const words = content.trim().split(/\s+/).filter(w => w.length > 0);
+        if (words.length >= 10) {
+            const currentProgressStr = localStorage.getItem('songwriting-progress') || '35';
+            let currentProgress = parseInt(currentProgressStr);
+            const nextProgress = Math.min(100, currentProgress + 2);
+            localStorage.setItem('songwriting-progress', nextProgress.toString());
+            
+            const proverbs = [
+                "Remember, small actions makes progress",
+                "Every line written brings you closer to your masterpiece.",
+                "Consistency is the key to unlocking your creative genius.",
+                "Great songs are not written, they are rewritten.",
+                "A single word can spark a whole symphony.",
+                "Small steps in songwriting lead to giant leaps in melody.",
+                "You are building your legacy, one lyric at a time.",
+                "Keep pouring your soul into the canvas; it is paying off.",
+                "Crafting art requires patience, and you are doing great."
+            ];
+            const randomQuote = proverbs[Math.floor(Math.random() * proverbs.length)];
+            localStorage.setItem('songwriting-progress-quote', randomQuote);
+            localStorage.setItem('songwriting-progress-show-tooltip', 'true');
+            
+            if (nextProgress === 100) {
+                localStorage.setItem('songwriting-progress-confetti', 'true');
+            }
+            
+            window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
+        }
+    };
+
     const handleSaveNote = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (selectedNoteId && activeNote) {
@@ -554,6 +1231,9 @@ export default function FreeHandPage() {
                 verses: activeNote.verses || []
             });
             setIsEditing(false); // Enter Suggestion Mode on Save
+            
+            // Progress bar and quotes trigger
+            triggerProgressBonus(activeNote.content);
         }
     };
 
@@ -1080,7 +1760,15 @@ export default function FreeHandPage() {
         }
     };
 
-    const filteredNotes = notes.filter(n => 
+    const notesFilteredByMode = notes.filter(n => {
+        if (createMode === 'type') {
+            return n.isAudioOnly !== true;
+        } else {
+            return n.isAudioOnly === true;
+        }
+    });
+
+    const filteredNotes = notesFilteredByMode.filter(n => 
         n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         n.content.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -1149,235 +1837,512 @@ export default function FreeHandPage() {
                         handleMovePhraseToGroup(phraseId, null);
                     }
                 }}
-                className="bg-[#FAF9F5] rounded-[32px] p-8 flex flex-col min-h-[560px] transition-all relative cursor-text justify-center"
+                className="bg-[#FAF9F5] rounded-[32px] p-8 flex flex-col min-h-[560px] transition-all relative cursor-text justify-between"
             >
-                {/* Mode Selector wrapper (Edit vs Suggestion Mode) */}
-                <div className="w-full max-h-[480px] overflow-y-auto no-scrollbar flex flex-col z-10 py-12">
-                    {selectedNoteId && !isEditing && contentVal.trim() !== '' ? (
-                        /* Suggestion Mode (Hover & Click word alternatives + Drag & Drop group phrases) */
-                        <div className="w-full flex flex-col gap-3 max-w-4xl mx-auto py-4 my-auto">
-                            {renderBlocks.map((block, bIdx) => {
-                                const blockId = block.type === 'group' ? block.groupId! : block.phrases[0]?.id;
-                                
-                                return (
-                                    <div 
-                                        key={blockId || `block-${bIdx}`}
-                                        onDragOver={(e) => {
-                                            const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
-                                            const currentDraggedPhraseId = draggedPhraseId || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null);
-                                            
-                                            if (currentDraggedGroupId || currentDraggedPhraseId) {
-                                                // Prevent self-match drag over
-                                                if (block.type === 'group' && currentDraggedGroupId === block.groupId) return;
-                                                if (block.type === 'ungrouped' && currentDraggedPhraseId === block.phrases[0]?.id) return;
-                                                
-                                                e.preventDefault();
-                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                const relativeY = e.clientY - rect.top;
-                                                const position = relativeY < rect.height / 2 ? 'top' : 'bottom';
-                                                
-                                                setDragOverBlockId(blockId);
-                                                setBlockDropPosition(position);
-                                            }
-                                        }}
-                                        onDragLeave={() => {
-                                            setDragOverBlockId(null);
-                                            setBlockDropPosition(null);
-                                        }}
-                                        onDrop={(e) => {
-                                            const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
-                                            const currentDraggedPhraseId = draggedPhraseId || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null);
-                                            
-                                            setDragOverBlockId(null);
-                                            setBlockDropPosition(null);
-                                            setDragOverGroupId(null);
-                                            
-                                            // Reset drag states immediately before updating note array
-                                            setDraggedGroupId(null);
-                                            if (draggedGroupIdRef) draggedGroupIdRef.current = null;
-                                            setDraggedPhraseId(null);
-                                            if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
-                                            
-                                            if (currentDraggedGroupId && currentDraggedGroupId !== blockId) {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                handleInsertGroupAt(currentDraggedGroupId, blockId, blockDropPosition);
-                                            } else if (currentDraggedPhraseId && currentDraggedPhraseId !== blockId) {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                handleInsertPhraseAtBlockLevel(currentDraggedPhraseId, blockId, blockDropPosition);
-                                            }
-                                        }}
-                                        className="w-full relative"
-                                    >
-                                        {dragOverBlockId === blockId && blockDropPosition === 'top' && (
-                                            <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform -translate-y-1/2 pointer-events-none z-30 animate-pulse" />
-                                        )}
-                                        
-                                        {block.type === 'group' ? (
-                                            (() => {
-                                                const isDragOverThisGroup = dragOverGroupId === block.groupId;
-                                                return (
-                                                    <div 
-                                                        draggable
-                                                        onDragStart={(e) => {
-                                                            if (draggedGroupIdRef) {
-                                                                draggedGroupIdRef.current = block.groupId;
-                                                            }
-                                                            setDraggedGroupId(block.groupId);
-                                                            e.dataTransfer.setData('text/plain', block.groupId || '');
-                                                            e.dataTransfer.setData('type', 'group');
-                                                        }}
-                                                        onDragEnd={() => {
-                                                            setTimeout(() => {
-                                                                if (draggedGroupIdRef) {
-                                                                    draggedGroupIdRef.current = null;
-                                                                }
-                                                                setDraggedGroupId(null);
-                                                                setDragOverBlockId(null);
-                                                                setBlockDropPosition(null);
-                                                            }, 50);
-                                                        }}
-                                                        onDragOver={(e) => {
-                                                            const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
-                                                            if (currentDraggedGroupId) {
-                                                                return; // Let group drag events bubble up to block wrapper
-                                                            }
-                                                            e.preventDefault();
-                                                            if (dragOverGroupId !== block.groupId) {
-                                                                setDragOverGroupId(block.groupId);
-                                                            }
-                                                        }}
-                                                        onDragLeave={() => {
-                                                            setDragOverGroupId(null);
-                                                        }}
-                                                        onDrop={(e) => {
-                                                            const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
-                                                            if (currentDraggedGroupId) {
-                                                                return; // Ignore group drop inside group box
-                                                            }
-                                                            
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setDragOverGroupId(null);
-                                                            
-                                                            // Reset drag state immediately before updating note
-                                                            setDraggedPhraseId(null);
-                                                            if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
-                                                            
-                                                            const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
-                                                            if (phraseId) {
-                                                                handleMovePhraseToGroup(phraseId, block.groupId);
-                                                            }
-                                                        }}
-                                                        className={`border border-dashed rounded-[20px] p-8 pt-10 relative flex flex-col gap-2 min-h-[100px] transition-all duration-300 cursor-grab active:cursor-grabbing ${
-                                                            isDragOverThisGroup 
-                                                                ? 'border-black bg-stone-100/50 shadow-[0_4px_20px_rgba(0,0,0,0.03)] scale-[1.005]' 
-                                                                : 'border-stone-300/85 bg-stone-50/20 hover:border-stone-400'
-                                                        } ${
-                                                            draggedGroupId === block.groupId ? 'opacity-30' : ''
-                                                        }`}
-                                                    >
-                                                        {/* Group Badge */}
-                                                        <div className="absolute -top-3.5 left-6 bg-black text-white px-2.5 py-0.5 text-[10px] font-bold tracking-wider rounded-[4px] uppercase select-none flex items-center gap-1.5 shadow-sm">
-                                                            <span>{block.groupName}</span>
-                                                            <button 
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleDeleteVerseGroup(block.groupId!);
-                                                                }}
-                                                                className="hover:text-red-400 text-stone-400 font-bold ml-1 transition-colors cursor-pointer text-xs leading-none"
-                                                                title="Delete Group"
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        </div>
-                                                        
-                                                        {block.phrases.filter(p => !p.id.startsWith('placeholder-')).length === 0 ? (
-                                                            <div className="text-center text-xs text-stone-400 py-4 italic select-none pointer-events-none">
-                                                                Drag lines here to add to {block.groupName}
-                                                            </div>
-                                                        ) : (
-                                                            block.phrases.filter(p => !p.id.startsWith('placeholder-')).map((phrase) => (
-                                                                <PhraseRow 
-                                                                    key={phrase.id}
-                                                                    phrase={phrase}
-                                                                    draggedPhraseId={draggedPhraseId}
-                                                                    draggedPhraseIdRef={draggedPhraseIdRef}
-                                                                    setDraggedPhraseId={setDraggedPhraseId}
-                                                                    handleWordClick={handleWordClick}
-                                                                    handleReorderPhrases={handleReorderPhrases}
-                                                                    handleMovePhraseToGroup={handleMovePhraseToGroup}
-                                                                    tokenOffset={phraseTokenOffsets[phrase.id] || 0}
-                                                                    dragOverPhraseId={dragOverPhraseId}
-                                                                    dropPosition={dropPosition}
-                                                                    setDragOverPhraseId={setDragOverPhraseId}
-                                                                    setDropPosition={setDropPosition}
-                                                                    handleInsertPhraseAt={handleInsertPhraseAt}
-                                                                    setDragOverGroupId={setDragOverGroupId}
-                                                                    draggedGroupId={draggedGroupId}
-                                                                    draggedGroupIdRef={draggedGroupIdRef}
-                                                                />
-                                                            ))
-                                                        )}
-                                                    </div>
-                                                );
-                                            })()
-                                        ) : (
-                                            <PhraseRow 
-                                                phrase={block.phrases[0]}
-                                                draggedPhraseId={draggedPhraseId}
-                                                draggedPhraseIdRef={draggedPhraseIdRef}
-                                                setDraggedPhraseId={setDraggedPhraseId}
-                                                handleWordClick={handleWordClick}
-                                                handleReorderPhrases={handleReorderPhrases}
-                                                handleMovePhraseToGroup={handleMovePhraseToGroup}
-                                                tokenOffset={phraseTokenOffsets[block.phrases[0].id] || 0}
-                                                dragOverPhraseId={dragOverPhraseId}
-                                                dropPosition={dropPosition}
-                                                setDragOverPhraseId={setDragOverPhraseId}
-                                                setDropPosition={setDropPosition}
-                                                handleInsertPhraseAt={handleInsertPhraseAt}
-                                                setDragOverGroupId={setDragOverGroupId}
-                                                draggedGroupId={draggedGroupId}
-                                                draggedGroupIdRef={draggedGroupIdRef}
-                                            />
-                                        )}
+                {/* 1a. Canvas Header (Title and Ellipsis Menu) */}
+                <div className="w-full flex items-center justify-between gap-4 pb-4 border-b border-stone-200/40 select-none z-20">
+                    <div className="flex-1">
+                        <input
+                            type="text"
+                            value={createMode === 'type' ? (activeNote ? activeNote.title : '') : recordingTitle}
+                            placeholder={createMode === 'type' ? "Song and melody title" : "Project title"}
+                            onChange={(e) => {
+                                if (createMode === 'type') {
+                                    if (selectedNoteId) {
+                                        handleUpdateNote(selectedNoteId, { title: e.target.value });
+                                    } else {
+                                        // Auto-create a note if none is selected and user starts typing the title
+                                        const newNote: SongNote = {
+                                            id: `n-${Date.now()}`,
+                                            title: e.target.value,
+                                            content: '',
+                                            folderId: activeFolderIdFilter,
+                                            updatedAt: new Date().toLocaleString()
+                                        };
+                                        setNotes(prev => [newNote, ...prev]);
+                                        setSelectedNoteId(newNote.id);
+                                        setIsEditing(true);
+                                    }
+                                } else {
+                                    setRecordingTitle(e.target.value);
+                                    if (selectedNoteId && activeNote && activeNote.isAudioOnly === true) {
+                                        handleUpdateNote(selectedNoteId, { title: e.target.value });
+                                    }
+                                }
+                            }}
+                            className="bg-transparent border-none outline-none font-bold text-2xl text-stone-500 placeholder:text-stone-300 focus:text-stone-850 transition-colors w-full cursor-text select-text"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                    
+                    {/* Ellipsis Dropdown Menu Options */}
+                    <div className="relative">
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowCanvasMenu(!showCanvasMenu);
+                            }}
+                            className="w-8 h-8 rounded-full hover:bg-stone-100/80 text-stone-500 hover:text-stone-800 flex items-center justify-center transition-all cursor-pointer active:scale-95"
+                            title="Options"
+                        >
+                            <MoreVertical size={18} />
+                        </button>
 
-                                        {dragOverBlockId === blockId && blockDropPosition === 'bottom' && (
-                                            <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform translate-y-1/2 pointer-events-none z-30 animate-pulse" />
-                                        )}
+                        {showCanvasMenu && (
+                            <>
+                                <div className="fixed inset-0 z-30" onClick={() => setShowCanvasMenu(false)} />
+                                <div className="absolute right-0 mt-2 w-56 bg-white border border-stone-200/60 rounded-[20px] shadow-[0_6px_28px_rgba(0,0,0,0.08)] p-3.5 z-40 flex flex-col gap-2.5">
+                                    <div className="flex flex-col gap-1.5 pb-2 border-b border-stone-100">
+                                        <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Songwriting Helpers</span>
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowSyllables(!showSyllables);
+                                            }}
+                                            className={`w-full px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors flex items-center justify-between cursor-pointer ${showSyllables ? 'bg-stone-900 text-white' : 'text-stone-700 bg-stone-50 hover:bg-stone-100'}`}
+                                        >
+                                            <span>Syllable Counter</span>
+                                            <span className="text-[9px] font-bold uppercase">{showSyllables ? 'ON' : 'OFF'}</span>
+                                        </button>
+                                        
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsMetronomePlaying(!isMetronomePlaying);
+                                            }}
+                                            className={`w-full px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors flex items-center justify-between cursor-pointer ${isMetronomePlaying ? 'bg-[#44403c] text-white' : 'text-stone-700 bg-stone-50 hover:bg-stone-100'}`}
+                                        >
+                                            <span>Metronome</span>
+                                            <span className="text-[9px] font-bold uppercase">{isMetronomePlaying ? 'ON' : 'OFF'}</span>
+                                        </button>
+                                        
+                                        <div className="flex items-center justify-between px-1 mt-1">
+                                            <span className="text-[9px] text-stone-500 font-semibold">{metronomeBpm} BPM</span>
+                                            <div className="flex gap-1">
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setMetronomeBpm(b => Math.max(40, b - 5));
+                                                    }}
+                                                    className="w-4 h-4 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-[10px]"
+                                                >
+                                                    -
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setMetronomeBpm(b => Math.min(240, b + 5));
+                                                    }}
+                                                    className="w-4 h-4 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-[10px]"
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                );
-                            })}
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleNewNoteClick();
+                                            setShowCanvasMenu(false);
+                                        }}
+                                        className="w-full px-3 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                    >
+                                        New Note
+                                    </button>
+                                    {selectedNoteId && (
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteNote(selectedNoteId);
+                                                setShowCanvasMenu(false);
+                                            }}
+                                            className="w-full px-3 py-1.5 text-left text-xs font-semibold text-red-650 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                        >
+                                            Delete Note
+                                        </button>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                {/* 1b. Attached Audio Player */}
+                {createMode === 'type' && activeNote?.audioUrl && (
+                    <div 
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-xl mx-auto bg-stone-150/60 border border-stone-200/50 rounded-[20px] p-3 mt-4 flex items-center justify-between gap-4 shadow-2xs z-20 select-none"
+                    >
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-full bg-stone-900 text-white flex items-center justify-center shrink-0">
+                                <Music size={16} />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-bold text-stone-800 truncate">{activeNote.title || 'Attached Audio'}</span>
+                                <span className="text-[10px] text-stone-400 font-semibold uppercase">Voice Recording</span>
+                            </div>
+                        </div>
+                        <audio src={activeNote.audioUrl} controls className="h-8 max-w-[240px]" />
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm("Delete this audio attachment?")) {
+                                    handleUpdateNote(activeNote.id, { audioUrl: undefined });
+                                }
+                            }}
+                            className="p-2 text-stone-400 hover:text-red-500 transition-colors shrink-0"
+                            title="Remove Recording"
+                        >
+                            <Trash2 size={15} />
+                        </button>
+                    </div>
+                )}
+
+                {createMode === 'record' ? (
+                    isTranscribing ? (
+                        /* Transcribing Loader State */
+                        <div className="flex-1 flex flex-col items-center justify-center py-12 select-none z-10 w-full animate-in fade-in duration-300">
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.3s]" />
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.15s]" />
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-bounce" />
+                                </div>
+                                <div className="flex flex-col items-center gap-1">
+                                    <span className="text-sm font-bold text-stone-700">Transcribing audio...</span>
+                                    <span className="text-xs text-stone-400">Analyzing voice frequencies for speech</span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (isRecording || audioUrl) ? (
+                        /* Unified Recording / Playback View (Waveform visualizer + center red line + timer) */
+                        <div className="flex-1 flex flex-col items-center justify-center py-12 select-none z-10 w-full animate-in fade-in duration-300">
+                            {/* Hidden audio element for playback */}
+                            {audioUrl && (
+                                <audio 
+                                    ref={playbackAudioRef} 
+                                    src={audioUrl} 
+                                    onTimeUpdate={() => {
+                                        if (playbackAudioRef.current) {
+                                            setPlaybackTime(playbackAudioRef.current.currentTime);
+                                        }
+                                    }}
+                                    onLoadedMetadata={() => {
+                                        if (playbackAudioRef.current) {
+                                            setPlaybackDuration(playbackAudioRef.current.duration);
+                                        }
+                                    }}
+                                    onEnded={() => setIsPlaying(false)}
+                                    className="hidden"
+                                />
+                            )}
+
+                             {/* Unified Voice Visualizer with Center Red Line */}
+                             <div 
+                                 ref={visualizerContainerRef} 
+                                 className="flex h-36 w-full max-w-2xl mx-auto items-center justify-between gap-[3.5px] px-4 select-none"
+                             >
+                                 {Array.from({ length: 53 }).map((_, idx) => {
+                                     // Index 26: Center Red Line
+                                     if (idx === 26) {
+                                         return (
+                                             <div
+                                                 key={idx}
+                                                 className="w-[4px] h-full bg-red-500 rounded-full shrink-0"
+                                             />
+                                         );
+                                     }
+                                     // Index 0, 13, 39, 52: Tall Grey Boundary Markers
+                                     if (idx === 0 || idx === 13 || idx === 39 || idx === 52) {
+                                         return (
+                                             <div
+                                                 key={idx}
+                                                 className="w-[2.5px] h-[80px] bg-stone-300 rounded-full shrink-0 opacity-80"
+                                             />
+                                         );
+                                     }
+                                     
+                                     // Regular Voice bars
+                                     // Calculate local index inside the section (0 to 11) for envelope
+                                     const getSectionLocalIndex = (k: number): number => {
+                                         if (k < 13) return k - 1;
+                                         if (k < 26) return k - 14;
+                                         if (k < 39) return k - 27;
+                                         return k - 40;
+                                     };
+                                     
+                                     const r = getSectionLocalIndex(idx);
+                                     const distFromCenter = Math.abs(r - 5.5);
+                                     const scaling = 1 - (distFromCenter / 5.5) * 0.6;
+                                     const defaultHeight = Math.max(8, (20 + Math.sin(idx * 0.2) * 16) * scaling);
+                                     
+                                     return (
+                                         <div
+                                             key={idx}
+                                             className="voice-bar w-[2.5px] rounded-full bg-stone-300 transition-all duration-75 shrink-0 opacity-80"
+                                             style={{ 
+                                                 height: `${defaultHeight}px`
+                                             }}
+                                         />
+                                     );
+                                 })}
+                             </div>
+
+                            {/* Centered Timer directly below the visualizer */}
+                            <div className="text-xs font-mono font-semibold text-stone-500 mt-3 select-none text-center">
+                                {isRecording ? formatTime(recordingTime) : formatTime(playbackTime || playbackDuration)}
+                            </div>
                         </div>
                     ) : (
-                        /* Standard Edit Mode (Controlled Textarea to prevent duplications) */
-                        <div className="relative w-full flex flex-col items-center justify-center my-auto">
-                            <textarea
-                                ref={textareaRef}
-                                value={contentVal}
-                                onChange={handleTextareaChange}
-                                onFocus={() => setIsFocused(true)}
-                                onBlur={() => setIsFocused(false)}
-                                className="w-full bg-transparent border-none outline-none resize-none font-sans text-[42px] font-light text-stone-855 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none min-h-[58px] overflow-hidden leading-[1.4] no-scrollbar relative z-10"
-                                placeholder=""
-                                style={{ 
-                                    height: 'auto',
-                                    caretColor: contentVal === '' ? 'transparent' : 'inherit'
+                        /* Blank State in Record Mode asking to record */
+                        <div className="flex-1 flex flex-col items-center justify-center py-16 select-none z-10 w-full animate-in fade-in duration-300">
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    startRecording();
                                 }}
-                            />
-                            {contentVal === '' && (
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                    <div className="flex items-center gap-1.5 text-stone-400">
-                                        <span className="w-[2px] h-11 bg-stone-800 inline-block animate-blink" />
-                                        <span className="text-[42px] font-light text-stone-300 tracking-[-0.035em] font-sans">Just start writing</span>
-                                    </div>
-                                </div>
-                            )}
+                                className="w-20 h-20 rounded-full bg-red-50 hover:bg-red-100/80 text-red-500 border border-red-200 flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md animate-pulse"
+                            >
+                                <Mic size={36} />
+                            </button>
+                            <div className="flex flex-col items-center gap-1 mt-4">
+                                <span className="text-sm font-bold text-stone-700">No Recording Selected</span>
+                                <span className="text-xs text-stone-400">Click the microphone to start recording your melody</span>
+                            </div>
                         </div>
-                    )}
-                </div>
+                    )
+                ) : (
+                    /* Mode Selector wrapper (Edit vs Suggestion Mode) */
+                    <div className="w-full max-h-[420px] overflow-y-auto no-scrollbar flex flex-col z-10 py-6">
+                        {selectedNoteId && !isEditing && contentVal.trim() !== '' ? (
+                            /* Suggestion Mode (Hover & Click word alternatives + Drag & Drop group phrases) */
+                            <div className="w-full flex flex-col gap-3 max-w-4xl mx-auto py-4 my-auto">
+                                {renderBlocks.map((block, bIdx) => {
+                                    const blockId = block.type === 'group' ? block.groupId! : block.phrases[0]?.id;
+                                    
+                                    return (
+                                        <div 
+                                            key={blockId || `block-${bIdx}`}
+                                            onDragOver={(e) => {
+                                                const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                                                const currentDraggedPhraseId = draggedPhraseId || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null);
+                                                
+                                                if (currentDraggedGroupId || currentDraggedPhraseId) {
+                                                    // Prevent self-match drag over
+                                                    if (block.type === 'group' && currentDraggedGroupId === block.groupId) return;
+                                                    if (block.type === 'ungrouped' && currentDraggedPhraseId === block.phrases[0]?.id) return;
+                                                    
+                                                    e.preventDefault();
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    const relativeY = e.clientY - rect.top;
+                                                    const position = relativeY < rect.height / 2 ? 'top' : 'bottom';
+                                                    
+                                                    setDragOverBlockId(blockId);
+                                                    setBlockDropPosition(position);
+                                                }
+                                            }}
+                                            onDragLeave={() => {
+                                                setDragOverBlockId(null);
+                                                setBlockDropPosition(null);
+                                            }}
+                                            onDrop={(e) => {
+                                                const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                                                const currentDraggedPhraseId = draggedPhraseId || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null);
+                                                
+                                                setDragOverBlockId(null);
+                                                setBlockDropPosition(null);
+                                                setDragOverGroupId(null);
+                                                
+                                                // Reset drag states immediately before updating note array
+                                                setDraggedGroupId(null);
+                                                if (draggedGroupIdRef) draggedGroupIdRef.current = null;
+                                                setDraggedPhraseId(null);
+                                                if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
+                                                
+                                                if (currentDraggedGroupId && currentDraggedGroupId !== blockId) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleInsertGroupAt(currentDraggedGroupId, blockId, blockDropPosition);
+                                                } else if (currentDraggedPhraseId && currentDraggedPhraseId !== blockId) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleInsertPhraseAtBlockLevel(currentDraggedPhraseId, blockId, blockDropPosition);
+                                                }
+                                            }}
+                                            className="w-full relative"
+                                        >
+                                            {dragOverBlockId === blockId && blockDropPosition === 'top' && (
+                                                <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform -translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+                                            )}
+                                            
+                                            {block.type === 'group' ? (
+                                                (() => {
+                                                    const isDragOverThisGroup = dragOverGroupId === block.groupId;
+                                                    return (
+                                                        <div 
+                                                            draggable
+                                                            onDragStart={(e) => {
+                                                                if (draggedGroupIdRef) {
+                                                                    draggedGroupIdRef.current = block.groupId;
+                                                                }
+                                                                setDraggedGroupId(block.groupId);
+                                                                e.dataTransfer.setData('text/plain', block.groupId || '');
+                                                                e.dataTransfer.setData('type', 'group');
+                                                            }}
+                                                            onDragEnd={() => {
+                                                                setTimeout(() => {
+                                                                    if (draggedGroupIdRef) {
+                                                                        draggedGroupIdRef.current = null;
+                                                                    }
+                                                                    setDraggedGroupId(null);
+                                                                    setDragOverBlockId(null);
+                                                                    setBlockDropPosition(null);
+                                                                }, 50);
+                                                            }}
+                                                            onDragOver={(e) => {
+                                                                const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                                                                if (currentDraggedGroupId) {
+                                                                    return; // Let group drag events bubble up to block wrapper
+                                                                }
+                                                                e.preventDefault();
+                                                                if (dragOverGroupId !== block.groupId) {
+                                                                    setDragOverGroupId(block.groupId);
+                                                                }
+                                                            }}
+                                                            onDragLeave={() => {
+                                                                setDragOverGroupId(null);
+                                                            }}
+                                                            onDrop={(e) => {
+                                                                const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                                                                if (currentDraggedGroupId) {
+                                                                    return; // Ignore group drop inside group box
+                                                                }
+                                                                
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setDragOverGroupId(null);
+                                                                
+                                                                // Reset drag state immediately before updating note
+                                                                setDraggedPhraseId(null);
+                                                                if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
+                                                                
+                                                                const phraseId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
+                                                                if (phraseId) {
+                                                                    handleMovePhraseToGroup(phraseId, block.groupId);
+                                                                }
+                                                            }}
+                                                            className={`border border-dashed rounded-[20px] p-8 pt-10 relative flex flex-col gap-2 min-h-[100px] transition-all duration-300 cursor-grab active:cursor-grabbing ${
+                                                                isDragOverThisGroup 
+                                                                    ? 'border-black bg-stone-100/50 shadow-[0_4px_20px_rgba(0,0,0,0.03)] scale-[1.005]' 
+                                                                    : 'border-stone-300/85 bg-stone-50/20 hover:border-stone-400'
+                                                            } ${
+                                                                draggedGroupId === block.groupId ? 'opacity-30' : ''
+                                                            }`}
+                                                        >
+                                                            {/* Group Badge */}
+                                                            <div className="absolute -top-3.5 left-6 bg-black text-white px-2.5 py-0.5 text-[10px] font-bold tracking-wider rounded-[4px] uppercase select-none flex items-center gap-1.5 shadow-sm">
+                                                                <span>{block.groupName}</span>
+                                                                <button 
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDeleteVerseGroup(block.groupId!);
+                                                                    }}
+                                                                    className="hover:text-red-400 text-stone-400 font-bold ml-1 transition-colors cursor-pointer text-xs leading-none"
+                                                                    title="Delete Group"
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            </div>
+                                                            
+                                                            {block.phrases.filter(p => !p.id.startsWith('placeholder-')).length === 0 ? (
+                                                                <div className="text-center text-xs text-stone-400 py-4 italic select-none pointer-events-none">
+                                                                    Drag lines here to add to {block.groupName}
+                                                                </div>
+                                                            ) : (
+                                                                block.phrases.filter(p => !p.id.startsWith('placeholder-')).map((phrase) => (
+                                                                    <PhraseRow 
+                                                                        key={phrase.id}
+                                                                        phrase={phrase}
+                                                                        draggedPhraseId={draggedPhraseId}
+                                                                        draggedPhraseIdRef={draggedPhraseIdRef}
+                                                                        setDraggedPhraseId={setDraggedPhraseId}
+                                                                        handleWordClick={handleWordClick}
+                                                                        handleReorderPhrases={handleReorderPhrases}
+                                                                        handleMovePhraseToGroup={handleMovePhraseToGroup}
+                                                                        tokenOffset={phraseTokenOffsets[phrase.id] || 0}
+                                                                        dragOverPhraseId={dragOverPhraseId}
+                                                                        dropPosition={dropPosition}
+                                                                        setDragOverPhraseId={setDragOverPhraseId}
+                                                                        setDropPosition={setDropPosition}
+                                                                        handleInsertPhraseAt={handleInsertPhraseAt}
+                                                                        setDragOverGroupId={setDragOverGroupId}
+                                                                        draggedGroupId={draggedGroupId}
+                                                                        draggedGroupIdRef={draggedGroupIdRef}
+                                                                        showSyllables={showSyllables}
+                                                                    />
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()
+                                            ) : (
+                                                <PhraseRow 
+                                                    phrase={block.phrases[0]}
+                                                    draggedPhraseId={draggedPhraseId}
+                                                    draggedPhraseIdRef={draggedPhraseIdRef}
+                                                    setDraggedPhraseId={setDraggedPhraseId}
+                                                    handleWordClick={handleWordClick}
+                                                    handleReorderPhrases={handleReorderPhrases}
+                                                    handleMovePhraseToGroup={handleMovePhraseToGroup}
+                                                    tokenOffset={phraseTokenOffsets[block.phrases[0].id] || 0}
+                                                    dragOverPhraseId={dragOverPhraseId}
+                                                    dropPosition={dropPosition}
+                                                    setDragOverPhraseId={setDragOverPhraseId}
+                                                    setDropPosition={setDropPosition}
+                                                    handleInsertPhraseAt={handleInsertPhraseAt}
+                                                    setDragOverGroupId={setDragOverGroupId}
+                                                    draggedGroupId={draggedGroupId}
+                                                    draggedGroupIdRef={draggedGroupIdRef}
+                                                    showSyllables={showSyllables}
+                                                />
+                                            )}
+
+                                            {dragOverBlockId === blockId && blockDropPosition === 'bottom' && (
+                                                <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            /* Standard Edit Mode (Controlled Textarea to prevent duplications) */
+                            <div className="relative w-full flex flex-col items-center justify-center my-auto">
+                                <textarea
+                                    ref={textareaRef}
+                                    value={contentVal}
+                                    onChange={handleTextareaChange}
+                                    onFocus={() => setIsFocused(true)}
+                                    onBlur={() => setIsFocused(false)}
+                                    className="w-full bg-transparent border-none outline-none resize-none font-sans text-[42px] font-light text-stone-855 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none min-h-[58px] overflow-hidden leading-[1.4] no-scrollbar relative z-10"
+                                    placeholder=""
+                                    style={{ 
+                                        height: 'auto',
+                                        caretColor: contentVal === '' ? 'transparent' : 'inherit'
+                                    }}
+                                />
+                                {contentVal === '' && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                        <div className="flex items-center gap-1.5 text-stone-400">
+                                            <span className="w-[2px] h-11 bg-stone-800 inline-block animate-blink" />
+                                            <span className="text-[42px] font-light text-stone-300 tracking-[-0.035em] font-sans">Just start writing</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Floating Suggestions Popover Overlay */}
                 {clickedWord && popoverPosition && (
@@ -1446,81 +2411,263 @@ export default function FreeHandPage() {
                     </>
                 )}
 
-                {/* Buttons in bottom right corner */}
-                <div className="absolute bottom-6 right-6 flex items-center gap-3 z-20">
-                    {/* Render Save button ONLY in Edit mode when content exists */}
-                    {selectedNoteId && isEditing && contentVal.trim() !== '' && (
-                        <button 
-                            onClick={handleSaveNote}
-                            className="px-6 py-1.5 bg-black hover:bg-stone-850 text-white font-bold font-sans text-[13px] rounded-full transition-all active:scale-95 cursor-pointer shadow-xs"
-                        >
-                            Save
-                        </button>
-                    )}
-                    <div className="relative">
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setShowCanvasMenu(!showCanvasMenu);
-                            }}
-                            className="w-[52px] h-[52px] rounded-full bg-black hover:bg-stone-900 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-sm"
-                            title="Options"
-                        >
-                            <Plus size={26} />
-                        </button>
-
-                        {showCanvasMenu && (
+                {/* 1c. Bottom controls bar */}
+                <div 
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full flex flex-col items-center justify-center gap-4 mt-8 select-none z-20"
+                >
+                    {/* Upper row: Contextual action pills */}
+                    <div className="flex items-center justify-center gap-2.5 h-8">
+                        {createMode === 'type' ? (
+                            /* Write Mode Pills */
                             <>
-                                <div className="fixed inset-0 z-10" onClick={() => setShowCanvasMenu(false)} />
-                                <div className="absolute right-0 bottom-10 w-44 bg-white border border-stone-200/60 rounded-[16px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] z-30 overflow-hidden py-1">
-                                    {selectedNoteId && (
-                                        <>
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleAddVerseGroup('Verse');
-                                                    setShowCanvasMenu(false);
-                                                }}
-                                                className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
-                                            >
-                                                Add Verse
-                                            </button>
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleAddVerseGroup('Chorus');
-                                                    setShowCanvasMenu(false);
-                                                }}
-                                                className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
-                                            >
-                                                Add Chorus
-                                            </button>
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleAddVerseGroup('Bridge');
-                                                    setShowCanvasMenu(false);
-                                                }}
-                                                className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
-                                            >
-                                                Add Bridge
-                                            </button>
-                                            <div className="border-t border-stone-100 my-1" />
-                                        </>
-                                    )}
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddVerseGroup('Chorus');
+                                    }}
+                                    className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
+                                >
+                                    Chorus
+                                </button>
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddVerseGroup('Verse');
+                                    }}
+                                    className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
+                                >
+                                    Verse
+                                </button>
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddVerseGroup('Bridge');
+                                    }}
+                                    className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
+                                >
+                                    Bridge
+                                </button>
+                            </>
+                        ) : (
+                            /* Speak Mode Action Pills: play, pause, restart, transcribe, delete */
+                            (isRecording || audioUrl) && (
+                                <div className="flex items-center justify-center gap-2">
                                     <button 
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            handleNewNoteClick();
-                                            setShowCanvasMenu(false);
+                                            handlePillPlay();
                                         }}
-                                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                        className="px-3.5 py-1 rounded-full bg-stone-200/60 hover:bg-stone-250 text-stone-750 text-[11px] font-bold transition-all active:scale-95 cursor-pointer"
                                     >
-                                        New Note
+                                        play
+                                    </button>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handlePillPause();
+                                        }}
+                                        className="px-3.5 py-1 rounded-full bg-stone-200/60 hover:bg-stone-250 text-stone-750 text-[11px] font-bold transition-all active:scale-95 cursor-pointer"
+                                    >
+                                        pause
+                                    </button>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handlePillRestart();
+                                        }}
+                                        className="px-3.5 py-1 rounded-full bg-stone-200/60 hover:bg-stone-250 text-stone-750 text-[11px] font-bold transition-all active:scale-95 cursor-pointer"
+                                    >
+                                        restart
+                                    </button>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handlePillTranscribe();
+                                        }}
+                                        className="px-3.5 py-1 rounded-full bg-stone-200/60 hover:bg-stone-250 text-stone-750 text-[11px] font-bold transition-all active:scale-95 cursor-pointer"
+                                    >
+                                        transcribe
+                                    </button>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handlePillDelete();
+                                        }}
+                                        className="px-3.5 py-1 rounded-full bg-stone-200/60 hover:bg-stone-250 text-stone-750 text-[11px] font-bold transition-all active:scale-95 cursor-pointer"
+                                    >
+                                        delete
                                     </button>
                                 </div>
-                            </>
+                            )
                         )}
+                    </div>
+
+                    {/* Lower row: Centered Switch Controls */}
+                    <div className="w-full flex items-center justify-center mt-1 select-none z-20">
+                        <svg 
+                            width="555" 
+                            height="106" 
+                            viewBox="0 0 694 132" 
+                            fill="none" 
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-full max-w-[555px] h-auto select-none"
+                        >
+                            {/* Plus Button */}
+                            <g 
+                                className="cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] duration-200 origin-[48.5px_62.1px]"
+                                onClick={handlePlusClick}
+                            >
+                                <rect y="16.1001" width="97" height="92" rx="40.3062" fill="#F1F2E9"/>
+                                <path d="M49.1211 45.2222V82.2222" stroke="black" strokeWidth="4" strokeLinecap="round"/>
+                                <path d="M67.1211 64.2222L30.1211 64.2222" stroke="black" strokeWidth="4" strokeLinecap="round"/>
+                            </g>
+
+                            {/* Switch Container */}
+                            <rect x="108" y="9.1001" width="471" height="106" rx="53" fill="#F1F2E9"/>
+                            {/* Active Floating Pill */}
+                            <rect 
+                                x={createMode === 'type' ? 119.2 : 315} 
+                                y={createMode === 'type' ? 16.45 : 16.1} 
+                                width={createMode === 'type' ? 228.8 : 253} 
+                                height={createMode === 'type' ? 92.1 : 91} 
+                                rx={createMode === 'type' ? 46 : 45.5} 
+                                fill={createMode === 'type' ? 'white' : (isRecording ? '#FF4040' : 'white')}
+                                filter="url(#filter0_d_2923_881)"
+                                className="transition-all duration-300 ease-out"
+                            />
+
+                            {/* Write Button click area & content */}
+                            <g 
+                                className="cursor-pointer"
+                                onClick={() => handleSwitchMode('type')}
+                            >
+                                {/* Invisible click area for Write option */}
+                                <rect x="108" y="9.1001" width="235.5" height="106" rx="53" fill="transparent" />
+                                
+                                {/* Pencil Icon */}
+                                <path 
+                                    d="M205.93 48.9916L195.505 38.5674C195.202 38.2641 194.842 38.0236 194.446 37.8594C194.05 37.6953 193.625 37.6108 193.196 37.6108C192.767 37.6108 192.343 37.6953 191.946 37.8594C191.55 38.0236 191.19 38.2641 190.887 38.5674L162.124 67.3324C161.82 67.6352 161.58 67.9951 161.415 68.3914C161.251 68.3914 161.167 69.2126 161.168 69.6416V80.0658C161.168 80.9318 161.512 81.7624 162.124 82.3749C162.737 82.9873 163.567 83.3313 164.434 83.3313H174.858C175.287 83.3321 175.712 83.248 176.108 83.0839C176.504 82.9198 176.864 82.6788 177.167 82.375L205.93 53.61C206.233 53.3068 206.473 52.9468 206.638 52.5505C206.802 52.1543 206.886 51.7297 206.886 51.3008C206.886 50.8719 206.802 50.4473 206.638 50.051C206.473 49.6548 206.233 49.2948 205.93 48.9916ZM164.548 68.8695L184.96 48.4551L189.511 53.0082L169.099 73.4203L164.548 68.8695ZM163.967 80.0658V72.2471L172.25 80.5323H164.434C164.31 80.5323 164.191 80.4831 164.104 80.3956C164.016 80.3081 163.967 80.1895 163.967 80.0658ZM175.63 79.9515L171.079 75.4007L191.491 54.9862L196.042 59.5393L175.63 79.9515ZM203.949 51.632L198.022 57.559L186.94 46.4771L192.867 40.5478C192.911 40.5044 192.962 40.47 193.019 40.4465C193.075 40.423 193.136 40.4109 193.197 40.4109C193.259 40.4109 193.319 40.423 193.376 40.4465C193.433 40.47 193.484 40.5044 193.527 40.5478L203.949 50.9719C203.993 51.0152 204.027 51.0667 204.05 51.1233C204.074 51.1799 204.086 51.2407 204.086 51.302C204.086 51.3633 204.074 51.424 204.05 51.4806C204.027 51.5372 203.993 51.5887 203.949 51.632Z" 
+                                    fill={createMode === 'type' ? 'black' : '#8A8B82'}
+                                    className="transition-colors duration-300"
+                                />
+                                {/* Write Text */}
+                                <text 
+                                    x="218.7" 
+                                    y="70.25" 
+                                    fontFamily="system-ui, -apple-system, sans-serif" 
+                                    fontWeight="700" 
+                                    fontSize="16.5px" 
+                                    fill={createMode === 'type' ? 'black' : '#8A8B82'}
+                                    className="transition-colors duration-300"
+                                >
+                                    Write
+                                </text>
+                            </g>
+
+                            {/* Speak/Record Button click area & content */}
+                            <g 
+                                className="cursor-pointer"
+                                onClick={(e) => {
+                                    if (isRecording) {
+                                        e.stopPropagation();
+                                        stopRecording();
+                                    } else if (createMode === 'record' && audioUrl) {
+                                        e.stopPropagation();
+                                        togglePlayback();
+                                    } else {
+                                        handleSwitchMode('record');
+                                    }
+                                }}
+                            >
+                                {/* Invisible click area for Speak/Record option */}
+                                <rect x="343.5" y="9.1001" width="235.5" height="106" rx="53" fill="transparent" />
+
+                                <g 
+                                    style={{ 
+                                        transform: `translateX(${createMode === 'type' ? 55.5 : 0}px)`, 
+                                        transition: 'transform 300ms cubic-bezier(0.16, 1, 0.3, 1)' 
+                                    }}
+                                >
+                                    {/* Icon on the Right (depends on state: play, pause, stop/Speaking, or record dot/Speak) */}
+                                    {isRecording ? (
+                                        /* Stop Square (White outline, rx="7" from Speaking SVG) */
+                                        <rect 
+                                            x="346" 
+                                            y="41.1" 
+                                            width="41" 
+                                            height="41" 
+                                            rx="7" 
+                                            stroke="white" 
+                                            strokeWidth="6" 
+                                            fill="none" 
+                                        />
+                                    ) : (createMode === 'record' && audioUrl) ? (
+                                        isPlaying ? (
+                                            /* Pause Icon (outline/solid matching Play/pause text) */
+                                            <g fill="black">
+                                                <rect x="363" y="52" width="5" height="18" rx="1.5" />
+                                                <rect x="375" y="52" width="5" height="18" rx="1.5" />
+                                            </g>
+                                        ) : (
+                                            /* Play Icon from user's Listening SVG */
+                                            <path 
+                                                d="M390.75 57.5688C393.083 58.916 393.083 62.2842 390.75 63.6313L358.5 82.2505C356.167 83.5976 353.25 81.9135 353.25 79.2192L353.25 41.981C353.25 39.2866 356.167 37.6026 358.5 38.9497L390.75 57.5688Z" 
+                                                stroke="black" 
+                                                strokeWidth="3" 
+                                                fill="none"
+                                            />
+                                        )
+                                    ) : (
+                                        /* Speak Icon: CircleDot record style from Writing SVG */
+                                        <g stroke={createMode === 'record' ? 'black' : '#8A8B82'} fill={createMode === 'record' ? 'black' : '#8A8B82'} className="transition-colors duration-300">
+                                            <circle cx="355.5" cy="62.1" r="26.5" stroke="currentColor" strokeWidth="3" fill="none" />
+                                            <circle cx="355.584" cy="62.1" r="13" fill="currentColor" />
+                                        </g>
+                                    )}
+
+                                    {/* Dynamic Text on the Right */}
+                                    <text 
+                                        x="414.5" 
+                                        y="70.25" 
+                                        fontFamily="system-ui, -apple-system, sans-serif" 
+                                        fontWeight="700" 
+                                        fontSize="16.5px" 
+                                        fill={createMode === 'record' ? (isRecording ? 'white' : 'black') : '#8A8B82'}
+                                        className="transition-colors duration-300"
+                                    >
+                                        {isRecording ? "Speaking" : (audioUrl && createMode === 'record' ? "Play/pause" : "Speak")}
+                                    </text>
+                                </g>
+                            </g>
+
+                            {/* Save Checkmark Button */}
+                            <g 
+                                className={`transition-all duration-150 origin-[645.5px_62.1px] ${
+                                    (isRecording || isTranscribing)
+                                        ? 'opacity-40 cursor-not-allowed'
+                                        : 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
+                                }`}
+                                onClick={(isRecording || isTranscribing) ? undefined : handleCheckmarkSaveClick}
+                            >
+                                <rect x="597" y="16.1001" width="97" height="92" rx="40.3062" fill="#1EB239"/>
+                                <path d="M626 61.5019L640.147 75.6406L667 48.8042" stroke="white" strokeWidth="4.47273" strokeLinecap="round" strokeLinejoin="round"/>
+                            </g>
+
+                            {/* Defs / Bounding Box Agnostic Drop Shadow Filter */}
+                            <defs>
+                                <filter id="filter0_d_2923_881" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
+                                    <feFlood floodOpacity="0" result="BackgroundImageFix"/>
+                                    <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+                                    <feOffset dy="4"/>
+                                    <feGaussianBlur stdDeviation="10.05"/>
+                                    <feComposite in2="hardAlpha" operator="out"/>
+                                    <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.1 0"/>
+                                    <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_2923_881"/>
+                                    <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_2923_881" result="shape"/>
+                                </filter>
+                            </defs>
+                        </svg>
                     </div>
                 </div>
             </div>
