@@ -67,12 +67,9 @@ export default function SignInPage() {
                 transition={{ duration: 0.8 }}
                 className="w-full max-w-md relative z-10"
             >
-                <div className="text-center mb-12 space-y-4 flex flex-col items-center">
-                    <Link href="/" className="inline-block">
-                        <Logo size="md" />
-                    </Link>
-                    <h2 className="text-4xl font-sans font-bold text-stone-900 tracking-tight">Welcome Back</h2>
-                    <p className="text-stone-700 font-sans font-semibold text-sm">Continue your descent into mastery.</p>
+                <div className="text-center mb-12 space-y-2 flex flex-col items-center">
+                    <h2 className="text-5xl md:text-6xl font-sans font-light text-stone-900 tracking-tight">Ready to write?</h2>
+                    <p className="text-stone-600 font-sans font-light text-base md:text-lg">Sign in to continue your songwriting journey.</p>
                 </div>
 
                 <div className="bg-white/60 border border-stone-200/80 p-10 rounded-[20px] shadow-sm backdrop-blur-md">
@@ -88,7 +85,7 @@ export default function SignInPage() {
                             </motion.div>
                         )}
                         <div className="space-y-2">
-                            <label className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold ml-1">Email Address</label>
+                            <label className="text-xs text-stone-600 font-medium ml-1">Email Address</label>
                             <div className="relative group">
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 group-focus-within:text-stone-900 transition-colors" size={18} />
                                 <input
@@ -96,7 +93,7 @@ export default function SignInPage() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full bg-white border border-stone-200 rounded-[12px] py-4 pl-12 pr-4 text-stone-900 font-sans focus:outline-none focus:border-stone-800 transition-all text-sm font-medium placeholder:text-stone-400"
-                                    placeholder="maestro@conservatory.com"
+                                    placeholder="your@email.com"
                                     required
                                 />
                             </div>
@@ -104,8 +101,8 @@ export default function SignInPage() {
 
                         <div className="space-y-2">
                             <div className="flex justify-between items-center ml-1">
-                                <label className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold">Password</label>
-                                <a href="#" className="text-[10px] uppercase tracking-widest text-stone-900 hover:text-stone-700 font-bold transition-colors">Forgot?</a>
+                                <label className="text-xs text-stone-600 font-medium">Password</label>
+                                <a href="#" className="text-xs text-stone-900 hover:text-stone-700 font-medium transition-colors">Forgot?</a>
                             </div>
                             <div className="relative group">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 group-focus-within:text-stone-900 transition-colors" size={18} />
@@ -123,23 +120,23 @@ export default function SignInPage() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className={`w-full flex items-center justify-center gap-3 py-4 text-xs tracking-[0.2em] uppercase font-bold bg-stone-900 text-[#DCDDD4] hover:bg-stone-850 transition-all rounded-full ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`w-full flex items-center justify-center gap-3 py-4 text-sm font-medium bg-stone-900 text-[#DCDDD4] hover:bg-stone-850 transition-all rounded-full ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            {isLoading ? 'ESTABLISHING CONNECTION...' : 'RESUME PRACTICE'}
+                            {isLoading ? 'Signing in...' : 'Sign In'}
                             {!isLoading && <ArrowRight size={18} />}
                         </button>
                     </form>
 
                     <div className="mt-6 flex items-center gap-4">
                         <div className="h-px bg-stone-200/80 flex-grow" />
-                        <span className="text-[10px] uppercase tracking-widest text-stone-600 font-bold">or</span>
+                        <span className="text-xs text-stone-500 font-medium">or</span>
                         <div className="h-px bg-stone-200/80 flex-grow" />
                     </div>
 
                     <button
                         onClick={handleGoogleSignIn}
                         disabled={isLoading}
-                        className="mt-6 w-full flex items-center justify-center gap-3 py-4 border border-stone-200 rounded-full text-[10px] tracking-widest uppercase font-bold text-stone-900 bg-white/40 hover:bg-white/80 transition-all disabled:opacity-50"
+                        className="mt-6 w-full flex items-center justify-center gap-3 py-4 border border-stone-200 rounded-full text-sm font-medium text-stone-900 bg-white/40 hover:bg-white/80 transition-all disabled:opacity-50"
                     >
                         <svg className="w-4 h-4" viewBox="0 0 24 24">
                             <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -151,9 +148,9 @@ export default function SignInPage() {
                     </button>
 
                     <div className="mt-8 pt-8 border-t border-stone-200/80 text-center">
-                        <p className="text-[10px] text-stone-700 font-sans uppercase tracking-widest font-bold">
-                            New to the platform?{' '}
-                            <Link href="/signup" className="text-stone-900 transition-colors underline-offset-4 hover:underline">Begin your audition</Link>
+                        <p className="text-sm text-stone-600 font-sans font-medium">
+                            New to Veinote?{' '}
+                            <Link href="/signup" className="text-stone-900 transition-colors underline-offset-4 hover:underline">Sign Up</Link>
                         </p>
                     </div>
                 </div>

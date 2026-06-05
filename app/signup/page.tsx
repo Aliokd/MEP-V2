@@ -59,24 +59,21 @@ export default function SignUpPage() {
                 transition={{ duration: 0.8 }}
                 className="w-full max-w-2xl relative z-10"
             >
-                <div className="text-center mb-12 space-y-4 flex flex-col items-center">
-                    <Link href="/" className="inline-block">
-                        <Logo size="md" />
-                    </Link>
-                    <h2 className="text-4xl font-sans font-bold text-stone-900 tracking-tight">Commence Your Evolution</h2>
-                    <p className="text-stone-700 font-sans font-semibold text-sm">Join the elite network of modern virtuosos.</p>
+                <div className="text-center mb-12 space-y-2 flex flex-col items-center">
+                    <h2 className="text-5xl md:text-6xl font-sans font-light text-stone-900 tracking-tight">Start writing.</h2>
+                    <p className="text-stone-600 font-sans font-light text-base md:text-lg">Create your account to begin your songwriting journey.</p>
                 </div>
 
                 <div className="bg-white/60 border border-stone-200/80 p-8 md:p-12 rounded-[20px] shadow-sm backdrop-blur-md grid md:grid-cols-2 gap-12">
                     <div className="space-y-8 text-left">
                         <div className="space-y-4">
-                            <h3 className="text-xl font-sans font-bold text-stone-900">Membership Perks</h3>
+                            <h3 className="text-xl font-sans font-bold text-stone-900">What You Get</h3>
                             <ul className="space-y-4">
                                 {[
-                                    "Access to the Synesthesia Engine",
-                                    "Structured Masterclass Path",
-                                    "Global Networking Events",
-                                    "Maestro Performance Reviews"
+                                    "Access to songwriting tools",
+                                    "Step-by-step music lessons",
+                                    "Connect with other musicians",
+                                    "Feedback from real artists"
                                 ].map((perk, i) => (
                                     <li key={i} className="flex gap-3 text-sm text-stone-900 font-sans font-semibold items-center">
                                         <CheckCircle2 size={16} className="text-stone-900 shrink-0" />
@@ -88,9 +85,9 @@ export default function SignUpPage() {
 
                         <div className="p-6 bg-white/40 border border-stone-200/80 rounded-[12px]">
                             <p className="text-xs text-stone-800 font-sans font-medium leading-relaxed">
-                                "The foundation you build today determines the height of your symphony tomorrow."
+                                "Every great song starts with a single line."
                             </p>
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-stone-700 mt-3 font-bold">— THE MAESTRO</p>
+                            <p className="text-xs text-stone-600 mt-3 font-medium">— Peter Nordberg</p>
                         </div>
                     </div>
 
@@ -106,7 +103,7 @@ export default function SignUpPage() {
                             </motion.div>
                         )}
                         <div className="space-y-1">
-                            <label className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold ml-1">Full Name</label>
+                            <label className="text-xs text-stone-600 font-medium ml-1">Full Name</label>
                             <div className="relative group">
                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 group-focus-within:text-stone-900 transition-colors" size={16} />
                                 <input
@@ -114,14 +111,14 @@ export default function SignUpPage() {
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     className="w-full bg-white border border-stone-200 rounded-[12px] py-3 pl-12 pr-4 text-stone-900 font-sans text-sm focus:outline-none focus:border-stone-800 transition-all font-medium placeholder:text-stone-400"
-                                    placeholder="Wolfgang Mozart"
+                                    placeholder="Your name"
                                     required
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold ml-1">Email Address</label>
+                            <label className="text-xs text-stone-600 font-medium ml-1">Email Address</label>
                             <div className="relative group">
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 group-focus-within:text-stone-900 transition-colors" size={16} />
                                 <input
@@ -129,14 +126,14 @@ export default function SignUpPage() {
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     className="w-full bg-white border border-stone-200 rounded-[12px] py-3 pl-12 pr-4 text-stone-900 font-sans text-sm focus:outline-none focus:border-stone-800 transition-all font-medium placeholder:text-stone-400"
-                                    placeholder="wolf@salzburg.com"
+                                    placeholder="your@email.com"
                                     required
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold ml-1">Create Password</label>
+                            <label className="text-xs text-stone-600 font-medium ml-1">Password</label>
                             <div className="relative group">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 group-focus-within:text-stone-900 transition-colors" size={16} />
                                 <input
@@ -154,14 +151,14 @@ export default function SignUpPage() {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className={`w-full flex items-center justify-center gap-3 py-4 text-xs tracking-[0.2em] font-bold bg-stone-900 text-[#DCDDD4] hover:bg-stone-850 transition-all rounded-full ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`w-full flex items-center justify-center gap-3 py-4 text-sm font-medium bg-stone-900 text-[#DCDDD4] hover:bg-stone-850 transition-all rounded-full ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                                {isLoading ? 'PROCESSING APPLICATION...' : 'BEGIN AUDITION'}
+                                {isLoading ? 'Creating account...' : 'Create Account'}
                                 {!isLoading && <ArrowRight size={16} />}
                             </button>
                         </div>
 
-                        <p className="text-[10px] text-center text-stone-700 font-sans uppercase tracking-widest pt-2 font-bold">
+                        <p className="text-sm text-center text-stone-600 font-sans font-medium pt-2">
                             Already a member?{' '}
                             <Link href="/signin" className="text-stone-900 transition-colors underline-offset-4 hover:underline">Sign In</Link>
                         </p>
