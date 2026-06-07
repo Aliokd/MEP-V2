@@ -13,7 +13,7 @@ export default function ProfilePage() {
     return (
         <div className="space-y-12 text-stone-900 font-sans">
             <header className="space-y-4">
-                <h1 className="text-4xl font-sans font-light tracking-tight text-stone-900">Profile & Settings</h1>
+                <h1 className="text-4xl font-sans font-light tracking-tight text-stone-900">Profile & settings</h1>
                 <p className="text-stone-700 font-sans max-w-2xl text-sm font-medium">
                     Manage your account details and preferences.
                 </p>
@@ -29,7 +29,7 @@ export default function ProfilePage() {
                             </div>
                             <div>
                                 <h2 className="text-2xl font-sans font-bold text-stone-900">{user.displayName || 'Maestro'}</h2>
-                                <p className="text-stone-700 text-xs uppercase tracking-widest font-bold mt-1">Virtuoso Tier</p>
+                                <p className="text-stone-700 text-xs font-bold mt-1">Virtuoso tier</p>
                                 <p className="text-stone-700 text-sm font-medium mt-2">{user.email}</p>
                             </div>
                         </div>
@@ -84,18 +84,18 @@ export default function ProfilePage() {
                             <CreditCard size={28} />
                         </div>
                         <div>
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold mb-2">Current Plan</p>
-                            <h3 className="text-2xl font-sans font-bold text-stone-900">Virtuoso Membership</h3>
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold mb-2">Current plan</p>
+                            <h3 className="text-2xl font-sans font-bold text-stone-900">Virtuoso membership</h3>
                             <p className="text-stone-700 text-xs font-semibold mt-2">$29.99 / month</p>
                         </div>
-                        <button className="w-full py-4 bg-stone-900 text-[#DCDDD4] text-xs font-bold uppercase tracking-[0.2em] hover:bg-stone-800 transition-colors rounded-full">
-                            Manage Subscription
+                        <button className="w-full py-5 bg-stone-900 text-[#DCDDD4] text-base font-bold hover:bg-stone-800 transition-colors rounded-full">
+                            Manage subscription
                         </button>
                     </div>
 
                     <div className="bg-white/60 p-6 rounded-[16px] text-center border border-stone-200/80 shadow-xs">
                         <p className="text-xs text-stone-700 font-semibold mb-4">Need assistance?</p>
-                        <button className="text-stone-900 text-xs font-bold uppercase tracking-widest hover:underline">Contact Concierge</button>
+                        <button className="text-stone-900 text-sm font-bold hover:underline">Contact concierge</button>
                     </div>
                 </div>
             </div>

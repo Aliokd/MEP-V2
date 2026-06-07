@@ -75,9 +75,9 @@ export default function PlatformPage() {
 
         // Fill up to 10 chapters with placeholders
         const placeholderTitles = [
-            "Harmonic Resonance", "Rhythmic Architecture", "The Velvet Legato",
-            "Symphonic Geometry", "Atmospheric Tension", "Melodic Counterpoint",
-            "Spectral Dynamics", "The Final Movement", "Mastery Plateau", "Infinite Echo"
+            "Harmonic resonance", "Rhythmic architecture", "The velvet legato",
+            "Symphonic geometry", "Atmospheric tension", "Melodic counterpoint",
+            "Spectral dynamics", "The final movement", "Mastery plateau", "Infinite echo"
         ];
 
         const allChapters = [...realChapters];
@@ -125,9 +125,9 @@ export default function PlatformPage() {
 
     if (!user) return (
         <div className="h-screen flex flex-col items-center justify-center bg-[#DCDDD4] text-stone-900 gap-6">
-            <h2 className="text-3xl font-sans font-light tracking-tight">Access Restricted</h2>
+            <h2 className="text-3xl font-sans font-light tracking-tight">Access restricted</h2>
             <p className="text-stone-700/80 max-w-md text-center font-medium">Please sign in to access your movements and continue your mastery journey.</p>
-            <a href="/signin" className="px-8 py-4 bg-stone-900 text-[#DCDDD4] rounded-full font-sans text-xs uppercase tracking-widest hover:opacity-90 transition-opacity">Sign In</a>
+            <a href="/signin" className="px-10 py-5 bg-stone-900 text-[#DCDDD4] rounded-full font-sans text-base font-bold hover:opacity-90 transition-opacity">Sign in</a>
         </div>
     );
 

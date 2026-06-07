@@ -30,10 +30,10 @@ export default function MethodPage() {
                 >
                     <span className="text-gold-500 text-xs tracking-[0.4em] uppercase font-bold">THE SYNESTHESIA ENGINE</span>
                     <h1 className="text-5xl md:text-7xl lg:text-8xl leading-tight text-stone-900 dark:text-white transition-colors duration-300 font-sans font-light">
-                        See the Harmony. <br />
-                        <span className="font-bold text-gold-500">Decode the Soul.</span>
+                        See the harmony. <br />
+                        <span className="font-bold text-gold-500">Decode the soul.</span>
                     </h1>
-                    <p className="text-stone-900/60 dark:text-alabaster/60 text-xl font-sans font-light max-w-3xl mx-auto leading-relaxed transition-colors duration-300">
+                    <p className="text-stone-900/60 dark:text-alabaster/60 text-xl font-sans font-normal max-w-3xl mx-auto leading-relaxed transition-colors duration-300">
                         Traditional music theory is taught through dry textbooks and black-and-white staves.
                         We've built a system that translates sound into a visual spectrum of emotion and geometry.
                     </p>
@@ -51,7 +51,7 @@ export default function MethodPage() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-charcoal via-transparent to-transparent transition-colors duration-300" />
                     <div className="absolute bottom-12 left-12 max-w-lg space-y-4">
-                        <h2 className="text-3xl font-sans font-bold text-stone-900 dark:text-white transition-colors duration-300">Intuitive Harmonic Visualization</h2>
+                        <h2 className="text-3xl font-sans font-bold text-stone-900 dark:text-white transition-colors duration-300">Intuitive harmonic visualization</h2>
                         <p className="text-stone-900/60 dark:text-alabaster/60 text-sm font-sans leading-relaxed text-balance transition-colors duration-300">
                             The engine analyzes audio in real-time, mapping frequencies to specific colors based on the circle of fifths.
                             Complex chords become beautiful geometric shapes, making counterpoint as easy to understand as a painting.
@@ -64,32 +64,32 @@ export default function MethodPage() {
             <section className="max-w-6xl mx-auto grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-48">
                 <FeatureCard
                     icon={Layers}
-                    title="Layered Counterpoint"
+                    title="Layered counterpoint"
                     desc="Watch multiple melodies weave together in a 3D visual space, revealing the hidden architecture of the composition."
                 />
                 <FeatureCard
                     icon={Eye}
-                    title="Visual Intervals"
+                    title="Visual intervals"
                     desc="Tension and resolution are no longer abstract concepts. See the physical 'pull' between notes before you play them."
                 />
                 <FeatureCard
                     icon={Music}
-                    title="Spectral Analysis"
+                    title="Spectral analysis"
                     desc="Deep dive into the timbre of your instrument with high-fidelity spectral mapping unique to your own sound."
                 />
                 <FeatureCard
                     icon={Cpu}
-                    title="AI-Driven Synthesis"
+                    title="AI-driven synthesis"
                     desc="Our proprietary algorithm adapts to your learning pace, highlighting visual cues that resonate with your individual neural mapping."
                 />
                 <FeatureCard
                     icon={Share2}
-                    title="Collaborative Canvas"
+                    title="Collaborative canvas"
                     desc="Share your visual compositions with the community. Learn how others 'see' the same piece of music."
                 />
                 <FeatureCard
                     icon={ShieldCheck}
-                    title="Proven Pedagogy"
+                    title="Proven pedagogy"
                     desc="Back by neuroscientific research into how the brain processes multi-sensory information for faster retention."
                 />
             </section>
@@ -97,12 +97,12 @@ export default function MethodPage() {
             {/* Closing Statement */}
             <section className="max-w-4xl mx-auto text-center border-t border-stone-200 dark:border-white/5 pt-24 transition-colors duration-300">
                 <h2 className="text-4xl md:text-5xl mb-8 leading-tight text-stone-900 dark:text-white transition-colors duration-300 font-sans font-bold">The shortest path between <br /><span className="text-gold-500">thought and sound.</span></h2>
-                <p className="text-stone-900/50 dark:text-alabaster/50 text-lg font-sans font-light mb-12 transition-colors duration-300">
+                <p className="text-stone-900/50 dark:text-alabaster/50 text-lg font-sans font-normal mb-12 transition-colors duration-300">
                     By engaging both the visual and auditory cortex simultaneously, The Conservatory students learn
                     4.5x faster than traditional conservatory students.
                 </p>
-                <button className="bg-stone-900 dark:bg-alabaster text-white dark:text-charcoal px-10 py-5 rounded-xs text-xs tracking-[0.2em] font-bold hover:bg-gold-500 dark:hover:bg-gold-500 dark:hover:text-white transition-all">
-                    EXPERIENCE THE ENGINE
+                <button className="bg-stone-900 dark:bg-alabaster text-white dark:text-charcoal px-12 py-6 rounded-xs text-base font-bold hover:bg-gold-500 dark:hover:bg-gold-500 dark:hover:text-white transition-all">
+                    Experience the engine
                 </button>
             </section>
         </div>

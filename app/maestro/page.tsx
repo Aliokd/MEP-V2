@@ -54,12 +54,12 @@ export default function MaestroPage() {
                 >
                     <div className="space-y-4">
                         <span className="text-gold-500 text-xs tracking-[0.4em] uppercase font-bold">LEGACY & MASTERY</span>
-                        <h1 className="text-5xl md:text-7xl leading-tight text-stone-900 dark:text-white transition-colors duration-300 font-sans font-light">A Lifetime on the <br /><span className="text-gold-500 font-bold">Global Stage.</span></h1>
+                        <h1 className="text-5xl md:text-7xl leading-tight text-stone-900 dark:text-white transition-colors duration-300 font-sans font-light">A lifetime on the <br /><span className="text-gold-500 font-bold">global stage.</span></h1>
                     </div>
-                    <p className="text-stone-900/60 dark:text-alabaster/60 text-lg font-sans font-light leading-relaxed transition-colors duration-300">
+                    <p className="text-stone-900/60 dark:text-alabaster/60 text-lg font-sans font-normal leading-relaxed transition-colors duration-300">
                         With over four decades of experience performing in the world's most prestigious concert halls—from Carnegie Hall to the Sydney Opera House—the Maestro has dedicated his life to uncovering the universal laws of musical language.
                     </p>
-                    <p className="text-stone-900/60 dark:text-alabaster/60 text-lg font-sans font-light leading-relaxed transition-colors duration-300">
+                    <p className="text-stone-900/60 dark:text-alabaster/60 text-lg font-sans font-normal leading-relaxed transition-colors duration-300">
                         His philosophy is simple: Music is not about notes on a page; it is about the physics of emotion and the geometry of silence. After 40 years of refinement, he is ready to transfer this knowledge to the next generation of virtuosos.
                     </p>
 
@@ -101,7 +101,7 @@ export default function MaestroPage() {
                 <div className="grid md:grid-cols-3 gap-16">
                     <div className="space-y-4">
                         <BookOpen size={40} className="text-gold-500" />
-                        <h3 className="text-2xl font-sans font-bold text-stone-900 dark:text-white transition-colors duration-300">The Pedagogy</h3>
+                        <h3 className="text-2xl font-sans font-bold text-stone-900 dark:text-white transition-colors duration-300">The pedagogy</h3>
                         <p className="text-stone-900/50 dark:text-alabaster/50 text-sm font-sans leading-relaxed transition-colors duration-300">
                             Moving away from rote memorization towards architectural understanding. Learn why a chord works before you learn its name.
                         </p>
@@ -111,14 +111,14 @@ export default function MaestroPage() {
                             <div className="absolute inset-0 bg-gold-500/20 blur-lg rounded-full transition-colors duration-300" />
                             <Cpu size={40} className="text-gold-500 relative z-10" />
                         </div>
-                        <h3 className="text-2xl font-sans font-bold text-stone-900 dark:text-white transition-colors duration-300">The Technology</h3>
+                        <h3 className="text-2xl font-sans font-bold text-stone-900 dark:text-white transition-colors duration-300">The technology</h3>
                         <p className="text-stone-900/50 dark:text-alabaster/50 text-sm font-sans leading-relaxed transition-colors duration-300">
                             Leveraging real-time visualization technology to provide the kind of instant feedback that used to require a private masterclass.
                         </p>
                     </div>
                     <div className="space-y-4">
                         <Globe size={40} className="text-gold-500" />
-                        <h3 className="text-2xl font-sans font-bold text-stone-900 dark:text-white transition-colors duration-300">The Community</h3>
+                        <h3 className="text-2xl font-sans font-bold text-stone-900 dark:text-white transition-colors duration-300">The community</h3>
                         <p className="text-stone-900/50 dark:text-alabaster/50 text-sm font-sans leading-relaxed transition-colors duration-300">
                             A global network of elite musicians and dedicated students, all speaking the same visual language of harmony.
                         </p>

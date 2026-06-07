@@ -59,7 +59,10 @@ const Navigation = () => {
                         </button>
                     </div>
                 ) : (
-                    <Link href="/signin" className="font-bold hover:text-black transition-colors">Join now</Link>
+                    <div className="flex items-center gap-6">
+                        <Link href="/signin" className="hover:text-black transition-colors font-medium">Sign in</Link>
+                        <Link href="/onboarding" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">Join now</Link>
+                    </div>
                 )}
             </div>
         </nav>

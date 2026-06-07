@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Music, Check, Star, Sparkles, Wand2, ShieldCheck, CreditCard, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { ChevronRight, Music, Check, Star, Sparkles, Wand2, ShieldCheck, CreditCard, Mail, Lock, User, ArrowRight, ArrowLeft, Inbox, AlertCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 const STEPS = {
@@ -81,112 +81,141 @@ export default function OnboardingPage() {
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
+    const [isTransitioning, setIsTransitioning] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [authData, setAuthData] = useState({ name: '', email: '', password: '' });
+    
+    // Firebase Auth state
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [emailShowError, setEmailShowError] = useState(false);
+
     const router = useRouter();
-
-    const currentQuestion = QUESTIONS[currentQuestionIndex];
-
-    const playLushChord = () => {
-        try {
-            const AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
-            if (!AudioContext) return;
-
-            const ctx = new AudioContext();
-            const now = ctx.currentTime;
-
-            // Cmaj9: C3, G3, B3, E4, D5
-            const freqs = [130.81, 196.00, 246.94, 329.63, 587.33];
-
-            freqs.forEach((freq, i) => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-
-                osc.type = i === 0 ? 'sine' : 'triangle';
-                osc.frequency.setValueAtTime(freq, now);
-
-                gain.gain.setValueAtTime(0, now);
-                gain.gain.linearRampToValueAtTime(0.05, now + 0.1);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 4);
-
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-
-                osc.start(now);
-                osc.stop(now + 4);
-            });
-        } catch (e) {
-            console.error("Audio error", e);
+    const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
+    const handleBack = () => {
+        if (transitionTimeoutRef.current) {
+            clearTimeout(transitionTimeoutRef.current);
+            transitionTimeoutRef.current = null;
+        }
+        setIsTransitioning(false);
+        if (currentQuestionIndex > 0) {
+            setCurrentQuestionIndex(prev => prev - 1);
         }
     };
 
     useEffect(() => {
-        if (currentQuestion?.isVisual) {
-            playLushChord();
+        const questionId = QUESTIONS[currentQuestionIndex]?.id;
+        if (questionId) {
+            setSelectedOption(answers[questionId] || null);
         }
-    }, [currentQuestionIndex, currentQuestion]);
+    }, [currentQuestionIndex, answers]);
+
+    useEffect(() => {
+        return () => {
+            if (transitionTimeoutRef.current) {
+                clearTimeout(transitionTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    const currentQuestion = QUESTIONS[currentQuestionIndex];
 
     const handleAnswer = (value: string, color?: string) => {
+        if (isTransitioning) return;
+
+        if (value === selectedOption) {
+            // Deselect option
+            setAnswers(prev => {
+                const newAnswers = { ...prev };
+                delete newAnswers[currentQuestion.id];
+                return newAnswers;
+            });
+            setSelectedOption(null);
+            return;
+        }
+
         setSelectedOption(value);
         setAnswers(prev => ({ ...prev, [currentQuestion.id]: value }));
+        setIsTransitioning(true);
 
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
             if (color) {
                 setSelectedColor(color);
             }
 
             if (currentQuestionIndex < QUESTIONS.length - 1) {
                 setCurrentQuestionIndex(prev => prev + 1);
-                setSelectedOption(null);
             } else {
                 if (color) {
                     setTimeout(() => {
                         setCurrentStep(STEPS.HYPE);
-                        setSelectedOption(null);
                     }, 1000);
                 } else {
                     setCurrentStep(STEPS.HYPE);
-                    setSelectedOption(null);
                 }
             }
+            setIsTransitioning(false);
         }, 400);
+
+        transitionTimeoutRef.current = timeoutId;
     };
 
-    const handleAuthSubmit = async (e: React.FormEvent) => {
+    const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        if (!email || !password) {
+            setError('Please enter your email and password.');
+            return;
+        }
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters long.');
+            return;
+        }
+        
         setIsLoading(true);
-
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, authData.email, authData.password);
-            const user = userCredential.user;
+            const result = await createUserWithEmailAndPassword(auth, email, password);
+            const user = result.user;
+            
+            // Get or create display name
+            const emailPrefix = email.split('@')[0];
+            const defaultName = emailPrefix
+                .split(/[._-]/)
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
 
-            await updateProfile(user, {
-                displayName: authData.name
-            });
+            await updateProfile(user, { displayName: defaultName });
 
+            // Create Firestore user document
             await setDoc(doc(db, "users", user.uid), {
                 uid: user.uid,
-                name: authData.name,
-                email: authData.email,
+                name: defaultName,
+                email: email,
                 answers: answers,
                 createdAt: new Date().toISOString(),
-                tier: 'trial'
+                tier: 'trial',
+                lastActiveAt: new Date().toISOString()
             });
 
+            // Progress to paywall
             setCurrentStep(STEPS.PAYWALL);
         } catch (err: any) {
-            setError(err.message || 'Failed to create account.');
+            console.error('Sign-up error:', err);
+            if (err.code === 'auth/email-already-in-use') {
+                setError('This email address is already in use. Please sign in instead.');
+            } else {
+                setError(err.message || 'Failed to create account. Please check your network or try again.');
+            }
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-6 bg-[#DCDDD4]">
+        <div className="min-h-screen flex flex-col items-center justify-start md:justify-center px-6 pt-28 pb-12 md:py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">
             {/* Header / Logo */}
-            <div className="absolute top-8 left-8 md:top-12 md:left-12 z-50">
+            <div className="absolute top-8 left-0 right-0 flex justify-center md:top-12 z-50">
                 <Link href="/" className="hover:opacity-80 transition-opacity">
                     <svg width="151" height="39" viewBox="0 0 151 39" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[120px] md:w-[151px] h-auto">
                         <path d="M26.8756 9.80365C27.7045 8.52842 28.0552 7.52417 27.9276 6.79091C27.832 6.05765 27.4016 5.51568 26.6365 5.16499C25.8713 4.8143 24.8671 4.59113 23.6237 4.49549L23.8628 3.53906C24.1816 3.57094 24.7555 3.60282 25.5844 3.6347C26.4452 3.6347 27.3538 3.65064 28.3102 3.68252C29.2985 3.68252 30.0796 3.68252 30.6535 3.68252C31.323 3.68252 31.9606 3.66658 32.5663 3.6347C33.172 3.60282 33.73 3.57094 34.2401 3.53906L34.0009 4.49549C33.2358 4.71865 32.5344 5.02152 31.8968 5.40409C31.2911 5.75478 30.6535 6.3127 29.984 7.07784C29.3145 7.8111 28.5493 8.84723 27.6885 10.1862L9.85119 37.6357C9.24545 37.5719 8.63972 37.54 8.03398 37.54C7.46012 37.54 6.87033 37.5719 6.26459 37.6357L2.48671 7.55605C2.35918 6.40834 2.02444 5.62726 1.48246 5.21281C0.940486 4.76647 0.446332 4.52737 0 4.49549L0.239107 3.53906C1.16365 3.57094 2.35918 3.60282 3.8257 3.6347C5.32411 3.66658 6.80657 3.68252 8.27309 3.68252C9.99465 3.68252 11.5728 3.66658 13.0074 3.6347C14.4739 3.60282 15.6694 3.57094 16.594 3.53906L16.3549 4.49549C15.3347 4.52737 14.5217 4.65489 13.916 4.87806C13.3103 5.10122 12.8958 5.48379 12.6726 6.02577C12.4814 6.56774 12.4335 7.39665 12.5292 8.51248L14.8246 29.6017L12.6726 31.6102L26.8756 9.80365Z" fill="#363636"/>
@@ -211,48 +240,55 @@ export default function OnboardingPage() {
                             className="space-y-12"
                         >
                             <div className="space-y-8">
-                                <div className="w-4/5 mx-auto h-2 bg-[#BBBEB2]/20 rounded-full overflow-hidden relative">
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${((currentQuestionIndex + 1) / QUESTIONS.length) * 100}%` }}
-                                        transition={{ duration: 0.5, ease: "easeOut" }}
-                                        className="h-full bg-stone-900 rounded-full"
-                                    />
+                                <div className="flex items-center justify-between w-4/5 mx-auto gap-4">
+                                    {currentQuestionIndex > 0 ? (
+                                        <button
+                                            onClick={handleBack}
+                                            className="text-stone-600 hover:text-stone-900 bg-white/40 hover:bg-white border border-stone-300 hover:border-stone-400 transition-all p-2 rounded-full flex items-center justify-center shadow-sm shrink-0"
+                                            title="Go back"
+                                        >
+                                            <ArrowLeft size={16} />
+                                        </button>
+                                    ) : (
+                                        <div className="w-[34px]" />
+                                    )}
+                                    <div className="flex-grow h-2 bg-[#BBBEB2]/20 rounded-full overflow-hidden relative">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${((currentQuestionIndex + 1) / QUESTIONS.length) * 100}%` }}
+                                            transition={{ duration: 0.5, ease: "easeOut" }}
+                                            className="h-full bg-stone-900 rounded-full"
+                                        />
+                                    </div>
+                                    <div className="w-[34px]" />
                                 </div>
-                                <div className="text-center space-y-4">
-                                    <motion.span
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        key={`step-${currentQuestionIndex}`}
-                                        className="text-stone-500 text-[11px] uppercase tracking-[0.3em] font-medium block"
-                                    >
-                                        CALIBRATION PHASE {currentQuestionIndex + 1} of {QUESTIONS.length}
-                                    </motion.span>
+                                <div className="text-center">
                                     <h2 className="text-4xl md:text-[3.25rem] font-sans font-light tracking-tight text-[#363636] leading-[1.1]">
                                         {currentQuestion.question}
                                     </h2>
                                 </div>
                             </div>
 
-                            <div className="grid gap-5">
+                            <div className="grid gap-3 md:gap-5">
                                 {currentQuestion.options.map((option) => (
                                     <motion.button
                                         key={option.value}
                                         onClick={() => handleAnswer(option.value, (option as any).color)}
-                                        disabled={selectedOption !== null}
+                                        disabled={isTransitioning}
                                         whileHover={{ y: -2, scale: 1.01 }}
                                         whileTap={{ scale: 0.99 }}
-                                        className={`group relative w-full px-8 py-[26px] text-left border transition-all duration-300 rounded-full overflow-hidden ${selectedOption === option.value
+                                        className={`group relative w-full px-5 md:px-8 py-5 md:py-6 text-left border transition-all duration-300 rounded-2xl overflow-hidden ${selectedOption === option.value
                                             ? 'border-[#363636] bg-white text-stone-900 shadow-[0_8px_30px_rgba(0,0,0,0.03)]'
                                             : 'border-stone-200/80 bg-[#EFF0E7]/40 text-[#363636]/80 hover:border-[#363636]/40 hover:bg-[#EFF0E7]/80'
                                             }`}
                                     >
                                         <div className="relative flex items-center justify-between">
-                                            <span className={`text-base md:text-[17px] font-sans font-medium transition-colors duration-300 ${selectedOption === option.value ? 'text-stone-900' : 'text-[#363636]/80'
-                                                }`}>
+                                            <span className={`text-[18px] md:text-[21px] font-sans font-medium transition-colors duration-300 ${
+                                                selectedOption === option.value ? 'text-stone-950' : 'text-stone-800 group-hover:text-stone-950'
+                                            }`}>
                                                 {option.label}
                                             </span>
-                                            <ChevronRight className={`transition-all duration-500 ${selectedOption === option.value ? 'text-stone-900 translate-x-0 opacity-100' : 'text-stone-400 -translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'}`} size={18} />
+                                            <ChevronRight className={`transition-all duration-500 shrink-0 ${selectedOption === option.value ? 'text-stone-950 translate-x-0 opacity-100' : 'text-stone-600 -translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'}`} size={18} />
                                         </div>
                                     </motion.button>
                                 ))}
@@ -272,61 +308,44 @@ export default function OnboardingPage() {
                             className="space-y-8"
                         >
                             <div className="text-center space-y-2">
-                                <h2 className="text-4xl md:text-[3.25rem] font-sans font-light tracking-tight text-stone-900 leading-[1.1]">Secure Your Path</h2>
-                                <p className="text-stone-700/80 text-[15px] font-medium">Create your account to save your results and start your trial.</p>
+                                <h2 className="text-4xl md:text-[3.25rem] font-sans font-light tracking-tight text-stone-900 leading-[1.1]">Secure your path</h2>
+                                <p className="text-stone-700/80 text-[15px] font-medium">Create your credentials to continue your songwriting journey.</p>
                             </div>
 
-                            <form onSubmit={handleAuthSubmit} className="bg-[#EFF0E7] p-8 md:p-10 border border-stone-200/60 rounded-[28px] space-y-5 shadow-[0_8px_30px_rgba(0,0,0,0.015)]">
-                                {error && <p className="text-red-500 text-xs text-center">{error}</p>}
-                                <div className="space-y-1">
-                                    <label className="text-[11px] uppercase tracking-widest text-[#363636]/70 font-semibold ml-1 block mb-1">Full Name</label>
-                                    <div className="relative">
-                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
-                                        <input
-                                            type="text"
-                                            required
-                                            value={authData.name}
-                                            onChange={(e) => setAuthData({ ...authData, name: e.target.value })}
-                                            className="w-full bg-white border border-stone-200 rounded-[14px] py-4 pl-12 pr-4 text-[#363636] focus:border-[#BBBEB2] outline-none transition-all focus:ring-1 focus:ring-[#BBBEB2] text-[15px]"
-                                            placeholder="Wolfgang Mozart"
-                                        />
+                            <form onSubmit={handleSignUp} className="bg-[#EFF0E7] p-8 md:p-10 border border-stone-200/60 rounded-[28px] space-y-6 shadow-[0_8px_30px_rgba(0,0,0,0.015)]">
+                                {error && (
+                                    <div className="bg-red-500/10 border border-red-500/20 text-red-700 text-xs px-4 py-3 rounded-xl flex items-center gap-2">
+                                        <AlertCircle size={16} className="shrink-0" />
+                                        <span>{error}</span>
                                     </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[11px] uppercase tracking-widest text-[#363636]/70 font-semibold ml-1 block mb-1">Email</label>
-                                    <div className="relative">
-                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
-                                        <input
-                                            type="email"
-                                            required
-                                            value={authData.email}
-                                            onChange={(e) => setAuthData({ ...authData, email: e.target.value })}
-                                            className="w-full bg-white border border-stone-200 rounded-[14px] py-4 pl-12 pr-4 text-[#363636] focus:border-[#BBBEB2] outline-none transition-all focus:ring-1 focus:ring-[#BBBEB2] text-[15px]"
-                                            placeholder="wolf@mozart.com"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[11px] uppercase tracking-widest text-[#363636]/70 font-semibold ml-1 block mb-1">Password</label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
-                                        <input
-                                            type="password"
-                                            required
-                                            value={authData.password}
-                                            onChange={(e) => setAuthData({ ...authData, password: e.target.value })}
-                                            className="w-full bg-white border border-stone-200 rounded-[14px] py-4 pl-12 pr-4 text-[#363636] focus:border-[#BBBEB2] outline-none transition-all focus:ring-1 focus:ring-[#BBBEB2] text-[15px]"
-                                            placeholder="••••••••"
-                                        />
-                                    </div>
+                                )}
+                                <div className="space-y-4 text-left">
+                                    <input
+                                        type="email"
+                                        required
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="Email Address"
+                                        className="w-full bg-white border border-stone-200 rounded-[20px] py-5 px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-xl font-medium placeholder:text-stone-500"
+                                        disabled={isLoading}
+                                    />
+                                    <input
+                                        type="password"
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="Password"
+                                        className="w-full bg-white border border-stone-200 rounded-[20px] py-5 px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-xl font-medium placeholder:text-stone-500"
+                                        disabled={isLoading}
+                                    />
                                 </div>
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full py-5 bg-[#86BE7F] hover:opacity-95 text-stone-900 text-base font-semibold rounded-full transition-all mt-6 flex items-center justify-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.01)]"
+                                    className="w-full py-5 bg-[#86BE7F] hover:opacity-95 text-stone-900 text-xl font-semibold rounded-[20px] transition-all mt-6 flex items-center justify-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.01)] disabled:opacity-75 disabled:cursor-not-allowed"
                                 >
-                                    {isLoading ? 'CREATING ACCOUNT...' : 'CONTINUE TO RESULTS'}
-                                    <ArrowRight size={16} />
+                                    {isLoading ? 'Creating account...' : 'Continue'}
+                                    <ArrowRight className="w-5 h-5 stroke-[2.5px]" />
                                 </button>
                             </form>
                         </motion.div>
@@ -435,7 +454,7 @@ function PaywallSection() {
                         <div className="inline-block px-4 py-1.5 bg-[#FFF35F] text-stone-900 text-[11px] font-bold uppercase tracking-widest rounded-full mb-4">
                             Most Popular
                         </div>
-                        <h3 className="text-3xl font-sans font-light text-stone-900">7-Day Free Trial</h3>
+                        <h3 className="text-3xl font-sans font-light text-stone-900">7-day free trial</h3>
                         <div className="flex items-baseline justify-center gap-1">
                             <span className="text-5xl font-sans font-bold text-stone-900">$29</span>
                             <span className="text-stone-500 text-sm font-sans uppercase tracking-widest">/month</span>
@@ -458,10 +477,10 @@ function PaywallSection() {
                     <div className="space-y-4">
                         <Link
                                     href="/platform"
-                                    className="w-full py-5 bg-[#86BE7F] hover:opacity-95 text-stone-900 text-base font-semibold rounded-full transition-all flex items-center justify-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
+                                    className="w-full py-5 bg-[#86BE7F] hover:opacity-95 text-stone-900 text-xl font-semibold rounded-[20px] transition-all flex items-center justify-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
                                 >
-                                    <CreditCard size={18} />
-                                    START FREE TRIAL
+                                    <CreditCard className="w-5 h-5 stroke-[2.5px]" />
+                                    Start free trial
                                 </Link>
                         <div className="space-y-1">
                             <p className="text-[11px] text-stone-500 uppercase tracking-widest">

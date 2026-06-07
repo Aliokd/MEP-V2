@@ -180,9 +180,9 @@ export default function PracticeTab() {
                                 <span className="text-stone-500/85 text-[10px] uppercase tracking-widest block mb-1 font-bold">Step 0{currentStep}</span>
                                 <h1 className="text-4xl font-sans text-stone-900 tracking-tight font-light">
                                     {currentStep === 1 ? 'Choose theme' :
-                                        currentStep === 2 ? 'Drafting concepts - Nouns' :
-                                            currentStep === 3 ? 'Drafting concepts - Verbs' :
-                                                currentStep === 4 ? 'Link Nouns & Verbs' :
+                                        currentStep === 2 ? 'Drafting concepts - nouns' :
+                                            currentStep === 3 ? 'Drafting concepts - verbs' :
+                                                currentStep === 4 ? 'Link nouns & verbs' :
                                                     currentStep === 5 ? 'Complete the sentences' : 'Story ready now'}
                                 </h1>
                             </div>
@@ -272,8 +272,8 @@ export default function PracticeTab() {
                                             : 'bg-stone-200 text-stone-400 cursor-not-allowed'}
                                     `}
                                 >
-                                    <span className="text-xs font-bold uppercase tracking-[0.4em]">
-                                        {isStepComplete(currentStep) ? 'Next Movement' : `Fill ${10 - (currentStep === 2 ? nouns : verbs).filter(x => x.trim() !== '').length} more`}
+                                    <span className="text-base font-bold">
+                                        {isStepComplete(currentStep) ? 'Next movement' : `Fill ${10 - (currentStep === 2 ? nouns : verbs).filter(x => x.trim() !== '').length} more`}
                                     </span>
                                     {isStepComplete(currentStep) && (
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="group-hover:translate-x-2 transition-transform duration-500">
@@ -291,7 +291,7 @@ export default function PracticeTab() {
                                 <div className="p-12 relative">
                                     <div className="text-center mb-16 space-y-2">
                                         <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em] font-bold">Step 04 — Connection</p>
-                                        <h2 className="text-4xl font-sans text-stone-900 font-light tracking-tight">Link Nouns with Verbs</h2>
+                                        <h2 className="text-4xl font-sans text-stone-900 font-light tracking-tight">Link nouns with verbs</h2>
                                         <p className="text-stone-550/80 text-[10px] uppercase tracking-widest font-semibold">Connect nouns with verbs 1 by 1 (order doesn't matter)</p>
                                     </div>
 
@@ -389,11 +389,11 @@ export default function PracticeTab() {
                                             disabled={connections.length < 5}
                                             onClick={() => setCurrentStep(5)}
                                             className={`
-                                                group relative px-16 py-4 rounded-full transition-all duration-700
+                                                group relative px-20 py-5 rounded-full transition-all duration-700
                                                 ${connections.length >= 5 ? 'bg-stone-900 text-[#DCDDD4] hover:bg-stone-800 font-bold shadow-sm' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}
                                             `}
                                         >
-                                            <span className="relative z-10 text-xs font-bold uppercase tracking-[0.4em]">Apply Connections</span>
+                                            <span className="relative z-10 text-base font-bold">Apply connections</span>
                                         </button>
                                     </div>
                                 </div>
@@ -485,9 +485,9 @@ export default function PracticeTab() {
                                     <button
                                         onClick={() => setCurrentStep(6)}
                                         disabled={sentences.filter(s => s.trim() !== '').length < 5}
-                                        className={`px-16 py-4 rounded-full text-[10px] uppercase tracking-[0.4em] font-bold ${sentences.filter(s => s.trim() !== '').length >= 5 ? 'bg-stone-900 text-[#DCDDD4] hover:bg-stone-800' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}`}
+                                        className={`px-20 py-5 rounded-full text-base font-bold ${sentences.filter(s => s.trim() !== '').length >= 5 ? 'bg-stone-900 text-[#DCDDD4] hover:bg-stone-800' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}`}
                                     >
-                                        Finalize Lyrics
+                                        Finalize lyrics
                                     </button>
                                 </div>
                             </div>
@@ -559,8 +559,8 @@ export default function PracticeTab() {
                                         setVerbs(Array(10).fill(''));
                                         setConnections([]);
                                         setSentences(Array(10).fill(''));
-                                    }} className="px-16 py-4 bg-stone-900 text-[#DCDDD4] rounded-full text-[10px] uppercase tracking-[0.4em] font-bold hover:opacity-90 transition-all shadow-sm">
-                                        End Practice 2
+                                    }} className="px-20 py-5 bg-stone-900 text-[#DCDDD4] rounded-full text-base font-bold hover:opacity-90 transition-all shadow-sm">
+                                        End practice 2
                                     </button>
                                 </div>
                             </div>

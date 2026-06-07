@@ -195,7 +195,7 @@ export default function PlatformLayout({
                         </div>
                         
                         <div className="flex flex-col gap-2">
-                            <h3 className="text-2xl font-bold text-stone-850">Outstanding Effort!</h3>
+                            <h3 className="text-2xl font-bold text-stone-850">Outstanding effort!</h3>
                             <p className="text-sm text-stone-500 leading-normal">
                                 You have achieved 100% of your songwriting progress. Your daily dedication to building visual stories and lyric concepts is paying off. Keep up this momentum!
                             </p>
@@ -207,9 +207,9 @@ export default function PlatformLayout({
                                 localStorage.setItem('songwriting-progress', '0');
                                 setProgressVal(0);
                             }}
-                            className="w-full py-3.5 bg-stone-900 hover:bg-stone-800 text-white rounded-[16px] text-sm font-bold transition-all shadow-md cursor-pointer active:scale-95"
+                            className="w-full py-4.5 bg-stone-900 hover:bg-stone-800 text-white rounded-[16px] text-base font-bold transition-all shadow-md cursor-pointer active:scale-95"
                         >
-                            Start Next Journey ➔
+                            Start next journey ➔
                         </button>
                     </div>
                 </div>

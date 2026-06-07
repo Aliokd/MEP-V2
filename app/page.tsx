@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ChevronRight, ArrowUpRight, MousePointer2, Plus, Menu, Heart } from "lucide-react";
+import { ChevronRight, ArrowUpRight, ArrowRight, MousePointer2, Plus, Menu, Heart } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 const TopNav = () => {
@@ -38,13 +38,19 @@ const TopNav = () => {
             {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-10 text-[15px] text-[#363636]">
                 <Link href="#qa" className="hover:text-black transition-colors font-medium">Q&A</Link>
-                <Link href="/signin" className="font-bold hover:text-black transition-colors">Join now</Link>
+                <div className="flex items-center gap-6">
+                    <Link href="/signin" className="hover:text-black transition-colors font-medium">Sign in</Link>
+                    <Link href="/onboarding" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">Join now</Link>
+                </div>
             </div>
 
             {/* Mobile Nav */}
             <div className="flex items-center gap-6 text-[15px] text-[#363636] md:hidden">
                 <Link href="#qa" className="hover:text-black transition-colors font-medium">Q&A</Link>
-                <Link href="/signin" className="font-bold hover:text-black transition-colors">Join now</Link>
+                <div className="flex items-center gap-4">
+                    <Link href="/signin" className="hover:text-black transition-colors font-medium">Sign in</Link>
+                    <Link href="/onboarding" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-3 py-1 rounded-[12px] font-semibold text-xs transition-all">Join now</Link>
+                </div>
             </div>
         </nav>
     );
@@ -52,34 +58,34 @@ const TopNav = () => {
 
 const HeroSection = () => {
     return (
-        <section className="relative min-h-[90vh] bg-[#E6E3DB] pt-32 pb-16 flex flex-col items-center overflow-hidden">
+        <section className="relative min-h-0 md:min-h-[90vh] bg-[#E6E3DB] pt-32 pb-0 md:pb-16 flex flex-col items-center overflow-hidden">
             <TopNav />
             <div className="w-full px-6 md:px-[10%] flex flex-col md:flex-row justify-between items-start mb-16 relative z-20">
                 <h1 className="text-5xl md:text-[5.5rem] font-sans text-stone-800 leading-[1.05] tracking-tight">
-                    <span className="block md:inline">Master</span>{' '}
-                    <span className="block md:inline">the art of</span>{' '}
-                    <span className="block md:inline font-bold text-stone-900">songwriting.</span>
+                    <span className="block md:inline">The complete</span>{' '}
+                    <span className="block md:inline font-bold text-stone-900">songwriting</span>{' '}
+                    <span className="block md:inline">journey.</span>
                 </h1>
-                <div className="flex flex-col items-start mt-8 md:mt-0 max-w-[280px]">
-                    <p className="text-[14px] text-stone-700 mb-4 text-left leading-snug font-medium">
-                        From your first word, to your first verse, to a finished song ready for the world.
+                <div className="flex flex-col items-start mt-8 md:mt-0 max-w-[350px]">
+                    <p className="text-[14px] md:text-[15px] text-stone-600 mb-6 text-left leading-relaxed font-normal">
+                        From your first lyric idea to a finished song, Veinote combines powerful creative tools, expert guidance, practical exercises, and a supportive community designed to help songwriters grow and develop their craft.
                     </p>
                     <Link 
                         href="/onboarding" 
-                        className="bg-[#BBBEB2] hover:opacity-90 text-black px-7 py-4 rounded-[20px] text-base font-medium transition-all inline-flex items-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] select-none"
+                        className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-xl font-semibold transition-all inline-flex items-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] select-none"
                     >
-                        <span>Join the waitlist</span>
-                        <ArrowUpRight className="w-5 h-5 stroke-[2px]" />
+                        <span>Join now</span>
+                        <ArrowRight className="w-5 h-5 stroke-[2.5px]" />
                     </Link>
                 </div>
             </div>
 
-            <div className="w-full px-6 md:px-[10%] relative z-10 flex flex-col items-center">
+            <div className="w-full px-0 md:px-[10%] relative z-10 flex flex-col items-center -mb-[2px] md:mb-0">
                 <motion.div 
                     initial={{ y: 40, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.8, ease: "easeOut" }}
-                    className="w-full rounded-[24px] md:rounded-[32px] relative overflow-hidden flex"
+                    className="w-full rounded-none md:rounded-[32px] relative overflow-hidden flex"
                 >
                     <video 
                         src="/videos/hero_video.webm" 
@@ -177,7 +183,7 @@ const UrgencySection = () => {
     }, [hasAnimated]);
 
     return (
-        <section ref={sectionRef} className="bg-[#EDFF8E] min-h-screen px-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
+        <section ref={sectionRef} className="bg-[#EDFF8E] py-24 md:py-32 px-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
             {/* 100% Free Access blob — bottom left */}
             <img
                 src="/assets/100%25%20free%20access.svg"
@@ -225,10 +231,10 @@ const UrgencySection = () => {
                 {/* CTA Button */}
                 <Link
                     href="/onboarding"
-                    className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-base font-medium transition-all inline-flex items-center gap-3 select-none"
+                    className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-xl font-semibold transition-all inline-flex items-center gap-3 select-none"
                 >
-                    <span>Join the waitlist</span>
-                    <ArrowUpRight className="w-5 h-5 stroke-[2px]" />
+                    <span>Join now</span>
+                    <ArrowRight className="w-5 h-5 stroke-[2.5px]" />
                 </Link>
             </div>
         </section>
@@ -295,8 +301,8 @@ const DarkSection = () => {
             {/* Content Container */}
             <div className="relative z-20 max-w-3xl flex flex-col items-start justify-center flex-grow">
                 <h2 className="text-5xl md:text-[5.5rem] font-sans leading-[1.05] tracking-tight mb-12 md:mb-16">
-                    <span className="font-semibold text-white">Guided by</span> <br />
-                    <span className="font-light text-white/90">real musicians</span>
+                    <span className="font-normal text-white/90">Learn from</span> <br />
+                    <span className="font-semibold text-white">experienced professionals</span>
                 </h2>
 
                 <div className="flex flex-col items-start pl-2 md:pl-4">
@@ -316,31 +322,42 @@ const DarkSection = () => {
                         <span className="text-xl md:text-2xl font-semibold tracking-wide text-white">Peter Nordberg</span>
                     </div>
 
-                    {/* Subtitle & Badge */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-1.5">
-                        <span className="text-sm md:text-base text-white/60 italic font-light">
-                            Singer-Songwriter
+                    {/* Subtitle */}
+                    <div className="mt-1.5">
+                        <span className="text-sm md:text-base text-white/60 italic font-normal">
+                            Co-founder • singer-songwriter • producer
                         </span>
-                        <span className="hidden sm:inline text-white/20">•</span>
-                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1 rounded-full backdrop-blur-sm self-start sm:self-auto">
-                            <img 
-                                src="/assets/muso_badge.png" 
-                                alt="Muso.AI" 
-                                className="h-3 w-auto object-contain opacity-95" 
-                            />
-                            <span className="text-[11px] md:text-xs text-white/90 font-medium tracking-wide">
-                                Top 2% Worldwide
-                            </span>
-                        </div>
                     </div>
+
+                    {/* Bullet Points */}
+                    <ul className="flex flex-col gap-2 mt-4 text-sm md:text-base text-white/80 font-normal text-left">
+                        <li className="flex items-center gap-2.5">
+                            <span className="w-1.5 h-1.5 bg-[#86BE7F] rounded-full shrink-0" />
+                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                <span>Platinum-selling and top 2% songwriter worldwide</span>
+                                <div className="flex items-center bg-white/5 border border-white/10 px-2 py-0.5 rounded-full backdrop-blur-sm shrink-0">
+                                    <img 
+                                        src="/assets/muso_badge.png" 
+                                        alt="Muso.AI" 
+                                        className="h-2.5 w-auto object-contain opacity-95" 
+                                    />
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
 
                     {/* Thin Line */}
                     <div className="w-12 h-[1px] bg-white/30 my-6" />
 
                     {/* Paragraph */}
-                    <p className="text-sm md:text-base text-white/70 font-light leading-relaxed max-w-[340px] mb-6">
-                        Peter started playing music when he was young. He wrote hit songs for famous artists and became a very successful musician in Norway and Sweden, ranking in the Top 2% of songwriters worldwide.
-                    </p>
+                    <div className="space-y-4 max-w-[380px] text-sm md:text-base text-white/70 font-normal leading-relaxed mb-6 text-left">
+                        <p>
+                            With more than 30 years of songwriting experience and over 250 released songs, Peter helps develop the lessons, exercises, and creative frameworks that guide songwriters throughout Veinote.
+                        </p>
+                        <p>
+                            His career includes chart success, international releases, platinum-selling projects, and decades of experience as a songwriter, producer, performer, and educator.
+                        </p>
+                    </div>
 
                     {/* Cursive Signature */}
                     <svg 
@@ -373,7 +390,7 @@ const AISection = () => {
             {/* Headline Container with standard horizontal padding */}
             <div className="w-full px-6 md:px-[10%] relative z-10 flex flex-col items-start">
                 {/* Left-Aligned Headline */}
-                <h2 className="text-4xl md:text-[3.25rem] font-sans tracking-tight text-stone-800 mb-12 md:mb-16">
+                <h2 className="text-5xl md:text-[5.5rem] font-sans leading-[1.05] tracking-tight text-stone-800 mb-12 md:mb-16">
                     ... and intuitive tools
                 </h2>
             </div>
@@ -450,7 +467,7 @@ const FAQSection = () => {
                                     isOpen ? "grid-rows-[1fr] opacity-100 mt-4" : "grid-rows-[0fr] opacity-0"
                                 }`}
                             >
-                                <div className="overflow-hidden text-sm md:text-base text-stone-600 leading-relaxed font-light pr-8">
+                                <div className="overflow-hidden text-sm md:text-base text-stone-600 leading-relaxed font-normal pr-8">
                                     {faq.answer}
                                 </div>
                             </div>
@@ -486,7 +503,7 @@ const NewFooter = () => {
                 {/* Top Right Links */}
                 <div className="flex items-center gap-6 text-[15px] text-[#363636]">
                     <Link href="#qa" className="font-medium hover:text-black transition-colors">Q&A</Link>
-                    <Link href="/signin" className="font-bold hover:text-black transition-colors">Join now</Link>
+                    <Link href="/onboarding" className="font-bold hover:text-black transition-colors">Join now</Link>
                 </div>
             </div>
 
@@ -503,6 +520,16 @@ const NewFooter = () => {
                 <div className="flex items-center gap-2 text-[14px] md:text-[15px] text-[#363636] font-medium tracking-tight bg-white/30 backdrop-blur-lg border border-white/40 px-5 py-2.5 rounded-full shadow-sm">
                     <Heart className="w-4 h-4 fill-[#363636] stroke-none inline shrink-0" />
                     <span>Designed by humans with love, in Stockholm.</span>
+                </div>
+
+                {/* Additional footer text */}
+                <div className="mt-8 text-xs md:text-[13px] text-[#363636]/80 max-w-md mx-auto space-y-3">
+                    <p className="font-normal leading-relaxed">
+                        Discover new ideas, build your skills, and become part of a growing community of songwriters.
+                    </p>
+                    <p className="font-medium text-[#363636] leading-relaxed">
+                        Learn. Create. Practice. Connect.
+                    </p>
                 </div>
             </div>
         </footer>

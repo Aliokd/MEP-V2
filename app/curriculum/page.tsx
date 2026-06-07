@@ -21,7 +21,7 @@ const ModuleCard = ({ number, title, level, topics }: { number: string, title: s
                     <span className="text-stone-900/40 dark:text-alabaster/40 font-sans text-xs tracking-[0.1em] uppercase transition-colors duration-300">{level}</span>
                 </div>
                 <h3 className="text-3xl md:text-4xl font-sans font-bold text-stone-900 dark:text-alabaster group-hover:text-gold-500 transition-colors duration-300">{title}</h3>
-                <p className="text-stone-900/50 dark:text-alabaster/50 text-lg font-sans font-light max-w-2xl leading-relaxed transition-colors duration-300">
+                <p className="text-stone-900/50 dark:text-alabaster/50 text-lg font-sans font-normal max-w-2xl leading-relaxed transition-colors duration-300">
                     Detailed exploration of the harmonic structures and visual patterns specific to this stage of mastery.
                 </p>
                 <div className="flex flex-wrap gap-x-12 gap-y-4 pt-4">
@@ -75,8 +75,8 @@ export default function CurriculumPage() {
             <section className="max-w-7xl mx-auto mb-32">
                 <div className="text-center space-y-6 mb-24">
                     <span className="text-gold-500 text-xs tracking-[0.4em] uppercase font-bold">THE PATH TO VIRTUOSITY</span>
-                    <h1 className="text-5xl md:text-7xl lg:text-8xl leading-none text-stone-900 dark:text-white transition-colors duration-300 font-sans font-light">A Structured <br /><span className="font-bold text-gold-500">Descent into Logic.</span></h1>
-                    <p className="text-stone-900/60 dark:text-alabaster/60 text-xl font-sans font-light max-w-3xl mx-auto leading-relaxed transition-colors duration-300">
+                    <h1 className="text-5xl md:text-7xl lg:text-8xl leading-none text-stone-900 dark:text-white transition-colors duration-300 font-sans font-light">A structured <br /><span className="font-bold text-gold-500">descent into logic.</span></h1>
+                    <p className="text-stone-900/60 dark:text-alabaster/60 text-xl font-sans font-normal max-w-3xl mx-auto leading-relaxed transition-colors duration-300">
                         From the physics of sound to the complexity of orchestration. Each module is designed to build upon the last, reinforcing the visual language of the Synesthesia Engine.
                     </p>
                 </div>
@@ -84,19 +84,19 @@ export default function CurriculumPage() {
                 <div className="space-y-4">
                     <ModuleCard
                         number="01"
-                        title="The Foundation"
+                        title="The foundation"
                         level="Novice to Intermediate"
                         topics={["Physics of Airwaves", "Intervalic Geometry", "The Circle of Fifths", "Diatonic Harmony"]}
                     />
                     <ModuleCard
                         number="02"
-                        title="The Fluency"
+                        title="The fluency"
                         level="Intermediate to Advanced"
                         topics={["Modal Exploration", "Extended Chords", "Tension and Release", "Rhythmic Architecture"]}
                     />
                     <ModuleCard
                         number="03"
-                        title="The Artistry"
+                        title="The artistry"
                         level="Advanced to Virtuoso"
                         topics={["Improvisation Flows", "Orchestral Layers", "Emotional Dynamics", "Stage Presence"]}
                     />
@@ -112,8 +112,8 @@ export default function CurriculumPage() {
                         Join over 10,000 students who have mastered the language of music through our visual curriculum.
                     </p>
                 </div>
-                <button className="bg-charcoal text-alabaster px-12 py-6 text-sm uppercase font-bold tracking-[0.2em] hover:bg-black transition-colors shrink-0 group flex items-center gap-3 rounded-xs">
-                    SECURE ENROLLMENT
+                <button className="bg-charcoal text-alabaster px-12 py-6 text-base font-bold hover:bg-black transition-colors shrink-0 group flex items-center gap-3 rounded-xs">
+                    Secure enrollment
                     <ChevronRight size={18} className="group-hover:translate-x-2 transition-transform" />
                 </button>
             </section>
