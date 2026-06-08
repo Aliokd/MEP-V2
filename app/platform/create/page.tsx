@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { 
     Folder, 
     FileText, 
@@ -1023,7 +1024,9 @@ export default function CreatePage() {
 
                         const shouldUpdate = currentNoteId && currentActiveNote && currentActiveNote.isAudioOnly === true && !forceNewRecordingRef.current;
                         
+                        let finalizedNoteId = '';
                         if (shouldUpdate) {
+                            finalizedNoteId = currentNoteId;
                             const updatedContent = hasTranscription ? transcriptText.trim() : (currentActiveNote?.content && currentActiveNote.content !== 'Voice Recording\n[Attached Audio]' ? currentActiveNote.content : defaultContent);
                             const updatedPhrases = syncPhrasesWithContent(updatedContent, []);
                             handleUpdateNote(currentNoteId, { 
@@ -1037,6 +1040,7 @@ export default function CreatePage() {
                             // Check if a note was created during speech recognition in this session
                             const noteCreatedDuringSession = currentNoteId && currentNoteId !== startingNoteId;
                             if (noteCreatedDuringSession) {
+                                finalizedNoteId = currentNoteId;
                                 const updatedContent = hasTranscription ? transcriptText.trim() : (currentActiveNote?.content || defaultContent);
                                 const updatedPhrases = syncPhrasesWithContent(updatedContent, []);
                                 handleUpdateNote(currentNoteId, {
@@ -1046,10 +1050,12 @@ export default function CreatePage() {
                                     isAudioOnly: !hasTranscription
                                 });
                             } else {
+                                const newId = `n-${Date.now()}`;
+                                finalizedNoteId = newId;
                                 const title = recordingTitle.trim() || `Recording ${new Date().toLocaleDateString()}`;
                                 const initialPhrases = syncPhrasesWithContent(defaultContent, []);
                                 const newNote: SongNote = {
-                                    id: `n-${Date.now()}`,
+                                    id: newId,
                                     title: title,
                                     content: defaultContent,
                                     folderId: activeFolderIdFilter,
@@ -1066,6 +1072,11 @@ export default function CreatePage() {
                         setRecordingTitle('');
                         setIsTranscribing(false);
                         forceNewRecordingRef.current = false;
+
+                        // Upload recorded audio file to cloud storage asynchronously
+                        if (finalizedNoteId) {
+                            uploadRecordedAudio(audioBlob, finalizedNoteId);
+                        }
                     };
 
                     // Wait briefly for speech recognition to finalize its last results
@@ -1603,6 +1614,21 @@ export default function CreatePage() {
             }
             return n;
         }));
+    };
+
+    const uploadRecordedAudio = async (blob: Blob, noteId: string) => {
+        if (!user) return;
+        try {
+            const fileRef = storageRef(storage, `users/${user.uid}/recordings/${noteId}.webm`);
+            await uploadBytes(fileRef, blob);
+            const downloadUrl = await getDownloadURL(fileRef);
+            
+            // Update the note locally and in Firestore with the permanent Storage URL
+            handleUpdateNote(noteId, { audioUrl: downloadUrl });
+            console.log("Audio uploaded successfully to production storage:", downloadUrl);
+        } catch (error) {
+            console.error("Failed to upload recorded audio:", error);
+        }
     };
 
     const handleDeleteNote = (id: string, e?: React.MouseEvent) => {
