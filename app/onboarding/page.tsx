@@ -476,7 +476,7 @@ function PaywallSection() {
 
                     <div className="space-y-4">
                         <Link
-                                    href="/platform"
+                                    href="/platform/create"
                                     className="w-full py-5 bg-[#86BE7F] hover:opacity-95 text-stone-900 text-xl font-semibold rounded-[20px] transition-all flex items-center justify-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
                                 >
                                     <CreditCard className="w-5 h-5 stroke-[2.5px]" />

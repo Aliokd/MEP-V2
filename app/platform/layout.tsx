@@ -5,7 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { TreePine } from 'lucide-react';
+import { TreePine, Menu } from 'lucide-react';
+import Logo from '@/components/Logo';
 
 export default function PlatformLayout({
     children,
@@ -17,6 +18,7 @@ export default function PlatformLayout({
     const pathname = usePathname();
     
     const [showProgressPopup, setShowProgressPopup] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const popupRef = useRef<HTMLDivElement>(null);
 
     // New progress, quote, and confetti states
@@ -64,6 +66,9 @@ export default function PlatformLayout({
                 setShowTooltip(false);
             }, 6000);
 
+            // Trigger falling confetti on every progress update
+            fireLocalConfetti();
+
             // Confetti overlay trigger
             const isConfetti = localStorage.getItem('songwriting-progress-confetti');
             if (isConfetti === 'true') {
@@ -82,57 +87,68 @@ export default function PlatformLayout({
         };
     }, []);
 
-    // Local Confetti Generator
+    // Local Subtle Confetti Fountain Generator
     const fireLocalConfetti = () => {
-        const canvas = document.getElementById('confetti-canvas') as HTMLCanvasElement;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        const canvases = document.querySelectorAll('.confetti-canvas-local');
+        canvases.forEach((canvasEl) => {
+            const canvas = canvasEl as HTMLCanvasElement;
+            if (canvas.offsetWidth === 0) return;
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+            canvas.width = width;
+            canvas.height = height;
 
-        const colors = ['#1EB239', '#FF4040', '#3b82f6', '#eab308', '#ec4899', '#a855f7'];
-        const particles = Array.from({ length: 180 }).map(() => ({
-            x: Math.random() * canvas.width,
-            y: Math.random() * (canvas.height * 0.8) - (canvas.height * 0.8),
-            r: Math.random() * 6 + 4,
-            d: Math.random() * canvas.height,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            tilt: Math.random() * 10 - 5,
-            tiltAngleIncremental: Math.random() * 0.07 + 0.02,
-            tiltAngle: 0
-        }));
-
-        let animationFrameId: number;
-        const draw = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            let active = false;
-            particles.forEach((p) => {
-                p.tiltAngle += p.tiltAngleIncremental;
-                p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2.2;
-                p.tilt = Math.sin(p.tiltAngle - p.r / 2) * 15;
-
-                if (p.y <= canvas.height) {
-                    active = true;
-                }
-
-                ctx.beginPath();
-                ctx.lineWidth = p.r;
-                ctx.strokeStyle = p.color;
-                ctx.moveTo(p.x + p.tilt + p.r / 2, p.y);
-                ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 2);
-                ctx.stroke();
+            const colors = ['#1EB239', '#FF4040', '#3b82f6', '#eab308', '#ec4899', '#a855f7'];
+            const particles = Array.from({ length: 45 }).map(() => {
+                const angle = Math.PI * 1.2 + Math.random() * Math.PI * 0.6; // bias upwards in a cone
+                const speed = Math.random() * 2.5 + 1.2;
+                return {
+                    x: width / 2,
+                    y: height - 10,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    r: Math.random() * 2.5 + 2.5,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    alpha: 1,
+                    decay: Math.random() * 0.02 + 0.015
+                };
             });
 
-            if (active) {
-                animationFrameId = requestAnimationFrame(draw);
-            } else {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }
-        };
+            let animationFrameId: number;
+            const draw = () => {
+                ctx.clearRect(0, 0, width, height);
+                let active = false;
+                particles.forEach((p) => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.06; // subtle gravity
+                    p.alpha -= p.decay;
 
-        draw();
+                    if (p.alpha > 0) {
+                        active = true;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                        ctx.fillStyle = p.color;
+                        ctx.globalAlpha = p.alpha;
+                        ctx.fill();
+                    }
+                });
+
+                ctx.globalAlpha = 1.0;
+
+                if (active) {
+                    animationFrameId = requestAnimationFrame(draw);
+                } else {
+                    ctx.clearRect(0, 0, width, height);
+                }
+            };
+
+            draw();
+        });
     };
 
     // Close popup when clicking outside
@@ -174,11 +190,6 @@ export default function PlatformLayout({
 
     return (
         <div className="min-h-screen bg-[#E4E4DF] flex text-stone-900 font-sans selection:bg-stone-900/10 selection:text-stone-900">
-            {/* Confetti canvas */}
-            <canvas 
-                id="confetti-canvas" 
-                className="fixed inset-0 pointer-events-none z-50 w-screen h-screen" 
-            />
 
             {/* Congratulations Confetti Overlay Modal */}
             {showConfettiOverlay && (
@@ -216,21 +227,79 @@ export default function PlatformLayout({
             )}
 
             {/* Sidebar */}
-            <MaestroSidebar />
+            <MaestroSidebar 
+                isMobileOpen={isMobileMenuOpen} 
+                onClose={() => setIsMobileMenuOpen(false)} 
+            />
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 p-8 pl-4">
-                {/* Top Header */}
-                <header className="flex items-center justify-between px-6 pb-6 text-stone-600/70 font-sans text-xs tracking-wider z-40">
+            <div className={`
+                flex-1 flex flex-col min-w-0
+                ${pathname === '/platform/create'
+                    ? 'p-0 md:p-8'
+                    : 'p-4 md:p-8'
+                }
+            `}>
+                {/* Mobile Top Header */}
+                <header className="flex md:hidden items-center justify-between px-6 pb-4 text-stone-655 font-sans z-40 border-b border-stone-250/20 mb-0 relative bg-[#E4E4DF]">
+                    <button 
+                        onClick={() => setIsMobileMenuOpen(true)}
+                        className="p-2 -ml-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955"
+                    >
+                        <Menu size={22} className="stroke-[2.2]" />
+                    </button>
+                    
+                    <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
+                        <Link href="/platform/create">
+                            <Logo size="md" />
+                        </Link>
+                    </div>
+
+                    <Link href="/platform/profile" className="hover:text-stone-955 transition-colors font-bold uppercase tracking-[0.1em] text-[10px] bg-white border border-stone-200 px-3 py-1.5 rounded-full shadow-2xs">
+                        Profile
+                    </Link>
+                </header>
+
+                {/* Mobile Progress Bar Bar */}
+                <div className={`flex md:hidden items-center justify-center w-full px-6 pb-4 border-b border-stone-250/10 z-40 bg-[#E4E4DF] ${pathname === '/platform/create' ? 'mb-0' : 'mb-4'}`}>
+                    <div className="relative flex flex-col items-center w-full" ref={popupRef}>
+                        <canvas className="confetti-canvas-local absolute -inset-x-12 -inset-y-12 pointer-events-none z-50 rounded-full" />
+                        <div 
+                            onClick={() => setShowTooltip(!showTooltip)}
+                            className="flex items-center justify-between w-full bg-white hover:bg-stone-50 border border-stone-200/80 px-6 py-2 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-[11px] text-stone-650 font-bold uppercase tracking-wider"
+                        >
+                            <span>Progress</span>
+                            <div className="w-1/2 h-3 bg-stone-200/70 rounded-full overflow-hidden relative">
+                                <div 
+                                    className="h-full bg-[#1EB239] rounded-full transition-all duration-500 ease-out" 
+                                    style={{ width: `${progressVal}%` }} 
+                                />
+                            </div>
+                        </div>
+                        
+                        {/* Tooltip bubble centered directly below progress pill */}
+                        {showTooltip && (
+                            <div className="absolute top-11 left-1/2 -translate-x-1/2 w-64 bg-white border border-stone-200/80 rounded-[18px] p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.06)] animate-in fade-in slide-in-from-top-1.5 duration-200 flex flex-col gap-1 z-50 text-center normal-case">
+                                {/* Arrow pointing up */}
+                                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-l border-t border-stone-200/80 rotate-45 z-10" />
+                                <span className="text-[11px] font-bold text-stone-700 leading-normal">{activeQuote}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Desktop Top Header */}
+                <header className="hidden md:flex items-center justify-between px-8 pb-6 text-stone-600/70 font-sans text-xs tracking-wider z-40">
                     {/* Spacer */}
                     <div></div>
                     
                     {/* Centered navigation items: Progress Bar Capsule & Tooltip */}
                     <div className="flex items-center gap-6 font-medium">
                         <div className="relative flex flex-col items-center" ref={popupRef}>
+                            <canvas className="confetti-canvas-local absolute -inset-x-16 -inset-y-12 pointer-events-none z-50 rounded-full" />
                             <div 
                                 onClick={() => setShowTooltip(!showTooltip)}
-                                className="flex items-center gap-3 bg-white hover:bg-stone-50 border border-stone-200/80 px-4.5 py-2.5 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-[11px] text-stone-650 font-bold uppercase tracking-wider"
+                                className="flex items-center gap-3 bg-white hover:bg-stone-50 border border-stone-200/80 px-6 py-2.5 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-[11px] text-stone-650 font-bold uppercase tracking-wider"
                             >
                                 <span>Progress</span>
                                 <div className="w-24 h-3 bg-stone-200/70 rounded-full overflow-hidden relative">
@@ -252,14 +321,20 @@ export default function PlatformLayout({
                         </div>
 
                         {/* My profile link */}
-                        <Link href="/platform/profile" className="hover:text-stone-950 transition-colors font-medium uppercase tracking-[0.1em] ml-2">
+                        <Link href="/platform/profile" className="hover:text-stone-955 transition-colors font-medium uppercase tracking-[0.1em] ml-2">
                             My profile
                         </Link>
                     </div>
                 </header>
 
                 {/* Main panel container */}
-                <div className="flex-1 bg-[#F0F0EA] rounded-[32px] p-8 shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)] overflow-y-auto">
+                <div className={`
+                    flex-1 overflow-y-auto
+                    ${pathname === '/platform/create'
+                        ? 'bg-transparent p-0 rounded-none shadow-none'
+                        : 'bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] p-4 md:p-8 shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)]'
+                    }
+                `}>
                     {children}
                 </div>
             </div>

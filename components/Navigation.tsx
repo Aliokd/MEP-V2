@@ -32,11 +32,23 @@ const Navigation = () => {
     const isHome = pathname === '/';
     if (isPlatform || isOnboarding || isHome) return null; // Hide for platform, onboarding, or home
 
+    const isAuthPage = pathname === '/signin' || pathname === '/signup' || pathname === '/reset-password';
+
     const navClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
             ? "py-4 px-6 md:px-[10%] bg-[#E6E3DB]/85 backdrop-blur-lg border-b border-stone-300/10 shadow-sm" 
             : "py-8 px-6 md:px-[10%] bg-transparent"
     }`;
+
+    if (isAuthPage) {
+        return (
+            <nav className={`${navClasses} flex items-center justify-center font-sans`}>
+                <Link href="/" className="hover:opacity-80 transition-opacity">
+                    <Logo size="lg" />
+                </Link>
+            </nav>
+        );
+    }
 
     return (
         <nav className={`${navClasses} flex items-center justify-between font-sans`}>

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, AlertCircle } from 'lucide-react';
+import { ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
@@ -13,6 +13,7 @@ export default function SignInPage() {
     const [view, setView] = useState<'login' | 'forgot' | 'sent'>('login');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
@@ -29,7 +30,7 @@ export default function SignInPage() {
         setIsLoading(true);
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            router.push('/platform');
+            router.push('/platform/create');
         } catch (err: any) {
             console.error('Password sign-in error:', err);
             if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
@@ -83,7 +84,7 @@ export default function SignInPage() {
                     tier: 'performer'
                 });
             }
-            router.push('/platform');
+            router.push('/platform/create');
         } catch (err: any) {
             console.error('Google Sign-In error:', err);
             setError(err.message || 'Failed to sign in with Google.');
@@ -105,7 +106,7 @@ export default function SignInPage() {
                     <p className="text-stone-600 font-sans font-normal text-base md:text-lg">Sign in to continue your songwriting journey.</p>
                 </div>
 
-                <div className="bg-white/60 border border-stone-200/80 p-10 rounded-[20px] shadow-sm backdrop-blur-md">
+                <div className="bg-white/60 border border-stone-200/80 p-6 sm:p-10 rounded-[20px] shadow-sm backdrop-blur-md">
                     {view === 'login' && (
                         <form onSubmit={handlePasswordSignIn} className="space-y-6">
                             {error && (
@@ -121,19 +122,28 @@ export default function SignInPage() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="Email Address"
-                                    className="w-full bg-white border border-stone-200 rounded-[20px] py-5 px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-xl font-medium placeholder:text-stone-500"
+                                    className="w-full bg-white border border-stone-200 rounded-[20px] py-3.5 px-5 md:py-5 md:px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-base md:text-xl font-medium placeholder:text-stone-500 placeholder:text-base md:placeholder:text-xl"
                                     disabled={isLoading}
                                 />
                                 <div className="space-y-2">
-                                    <input
-                                        type="password"
-                                        required
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="Password"
-                                        className="w-full bg-white border border-stone-200 rounded-[20px] py-5 px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-xl font-medium placeholder:text-stone-500"
-                                        disabled={isLoading}
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            required
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="Password"
+                                            className="w-full bg-white border border-stone-200 rounded-[20px] py-3.5 pl-5 pr-12 md:py-5 md:pl-8 md:pr-14 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-base md:text-xl font-medium placeholder:text-stone-500 placeholder:text-base md:placeholder:text-xl"
+                                            disabled={isLoading}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-900 transition-colors"
+                                        >
+                                            {showPassword ? <EyeOff size={20} className="w-5 h-5" /> : <Eye size={20} className="w-5 h-5" />}
+                                        </button>
+                                    </div>
                                     <div className="text-right">
                                         <button
                                             type="button"
@@ -153,7 +163,7 @@ export default function SignInPage() {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className={`w-full flex items-center justify-center gap-3 py-5 text-xl font-semibold bg-[#86BE7F] hover:opacity-95 text-stone-900 transition-all rounded-[20px] ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`w-full flex items-center justify-center gap-3 py-3.5 md:py-5 text-base md:text-xl font-semibold bg-[#86BE7F] hover:opacity-95 text-stone-900 transition-all rounded-[20px] ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 {isLoading ? 'Signing In...' : 'Sign In'}
                                 {!isLoading && <ArrowRight className="w-5 h-5 stroke-[2.5px]" />}
@@ -173,14 +183,14 @@ export default function SignInPage() {
                                     <span>{error}</span>
                                 </div>
                             )}
-                            <div className="space-y-4 text-left">
+                             <div className="space-y-4 text-left">
                                 <input
                                     type="email"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="Email Address"
-                                    className="w-full bg-white border border-stone-200 rounded-[20px] py-5 px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-xl font-medium placeholder:text-stone-500"
+                                    className="w-full bg-white border border-stone-200 rounded-[20px] py-3.5 px-5 md:py-5 md:px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-base md:text-xl font-medium placeholder:text-stone-500 placeholder:text-base md:placeholder:text-xl"
                                     disabled={isLoading}
                                 />
                                 <p className="text-xs text-stone-500 text-center">
@@ -190,7 +200,7 @@ export default function SignInPage() {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className={`w-full flex items-center justify-center gap-3 py-5 text-xl font-semibold bg-[#86BE7F] hover:opacity-95 text-stone-900 transition-all rounded-[20px] ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`w-full flex items-center justify-center gap-3 py-3.5 md:py-5 text-base md:text-xl font-semibold bg-[#86BE7F] hover:opacity-95 text-stone-900 transition-all rounded-[20px] ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 {isLoading ? 'Sending link...' : 'Send Reset Link'}
                                 {!isLoading && <ArrowRight className="w-5 h-5 stroke-[2.5px]" />}
@@ -231,7 +241,7 @@ export default function SignInPage() {
                                     setView('login');
                                     setError('');
                                 }}
-                                className="w-full py-5 border border-stone-300 hover:bg-stone-50/50 text-stone-850 text-lg font-semibold rounded-[20px] transition-all"
+                                className="w-full py-3.5 md:py-5 border border-stone-300 hover:bg-stone-50/50 text-stone-850 text-base md:text-lg font-semibold rounded-[20px] transition-all"
                             >
                                 Back to Sign In
                             </button>
@@ -249,7 +259,7 @@ export default function SignInPage() {
                             <button
                                 onClick={handleGoogleSignIn}
                                 disabled={isLoading}
-                                className="mt-6 w-full flex items-center justify-center gap-3 py-5 border border-stone-200 rounded-[20px] text-xl font-semibold text-stone-900 bg-white hover:bg-stone-50 shadow-sm transition-all disabled:opacity-50"
+                                className="mt-4 md:mt-6 w-full flex items-center justify-center gap-3 py-3.5 md:py-5 border border-stone-200 rounded-[20px] text-base md:text-xl font-semibold text-stone-900 bg-white hover:bg-stone-50 shadow-sm transition-all disabled:opacity-50"
                             >
                                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
