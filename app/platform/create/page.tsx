@@ -635,6 +635,14 @@ interface AudioCapsulePlayerProps {
     isTranscribing?: boolean;
     isDocked: boolean;
     onDragStart: (e: React.DragEvent) => void;
+    activeNoteId?: string;
+    handleUpdateAudioNoteGroup?: (noteId: string, audioNoteId: string, targetGroupId: string | null) => void;
+    handleAttachAudioToPhrase?: (audioNoteId: string, phraseId: string | null, groupId: string | null) => void;
+    draggedAudioId?: string | null;
+    setDraggedAudioId?: (id: string | null) => void;
+    draggedAudioIdRef?: React.RefObject<string | null>;
+    setDragOverGroupId?: (id: string | null) => void;
+    setDragOverPhraseId?: (id: string | null) => void;
 }
 
 function AudioCapsuleSkeleton() {
@@ -663,11 +671,32 @@ function AudioCapsuleSkeleton() {
     );
 }
 
-function AudioCapsulePlayer({ audioNote, onRename, onDelete, onTranscribe, isTranscribing, isDocked, onDragStart }: AudioCapsulePlayerProps) {
+function AudioCapsulePlayer({ 
+    audioNote, 
+    onRename, 
+    onDelete, 
+    onTranscribe, 
+    isTranscribing, 
+    isDocked, 
+    onDragStart,
+    activeNoteId,
+    handleUpdateAudioNoteGroup,
+    handleAttachAudioToPhrase,
+    draggedAudioId,
+    setDraggedAudioId,
+    draggedAudioIdRef,
+    setDragOverGroupId,
+    setDragOverPhraseId
+}: AudioCapsulePlayerProps) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [playbackTime, setPlaybackTime] = useState(0);
     const [playbackDuration, setPlaybackDuration] = useState(audioNote.duration || 0);
     const playbackAudioRef = useRef<HTMLAudioElement | null>(null);
+
+    const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isTouchDraggingRef = useRef(false);
+    const startXRef = useRef(0);
+    const startYRef = useRef(0);
 
     useEffect(() => {
         return () => {
@@ -717,7 +746,120 @@ function AudioCapsulePlayer({ audioNote, onRename, onDelete, onTranscribe, isTra
                 draggable
                 onDragStart={onDragStart}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white border border-stone-200/80 rounded-full px-3 py-0.5 shadow-sm flex items-center gap-2.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing"
+                onTouchStart={(e) => {
+                    if (isTranscribing) return;
+                    const target = e.target as HTMLElement;
+                    if (target.closest('button') || target.closest('input') || target.closest('svg')) {
+                        return;
+                    }
+                    const touch = e.touches[0];
+                    startXRef.current = touch.clientX;
+                    startYRef.current = touch.clientY;
+                    isTouchDraggingRef.current = false;
+                    
+                    touchTimeoutRef.current = setTimeout(() => {
+                        isTouchDraggingRef.current = true;
+                        if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
+                        if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
+                        if (navigator.vibrate) {
+                            navigator.vibrate(10);
+                        }
+                    }, 300);
+                }}
+                onTouchMove={(e) => {
+                    if (isTranscribing) return;
+                    const touch = e.touches[0];
+                    if (!isTouchDraggingRef.current) {
+                        const diffX = Math.abs(touch.clientX - startXRef.current);
+                        const diffY = Math.abs(touch.clientY - startYRef.current);
+                        if (diffX > 10 || diffY > 10) {
+                            clearTimeout(touchTimeoutRef.current!);
+                        }
+                        return;
+                    }
+                    if (e.cancelable) {
+                        e.preventDefault();
+                    }
+                    
+                    const currentTarget = e.currentTarget as HTMLElement;
+                    const originalPointerEvents = currentTarget.style.pointerEvents;
+                    currentTarget.style.pointerEvents = 'none';
+                    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+                    currentTarget.style.pointerEvents = originalPointerEvents;
+                    
+                    if (!elem) return;
+                    const targetGroupRow = elem.closest('.verse-group-container');
+                    const targetPhraseRow = elem.closest('.phrase-row-container');
+                    
+                    if (targetGroupRow) {
+                        const targetGroupId = targetGroupRow.getAttribute('data-group-id');
+                        if (targetGroupId) {
+                            if (setDragOverGroupId) setDragOverGroupId(targetGroupId);
+                            if (setDragOverPhraseId) setDragOverPhraseId(null);
+                        }
+                    } else if (targetPhraseRow) {
+                        const targetPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
+                        if (targetPhraseId) {
+                            if (setDragOverPhraseId) setDragOverPhraseId(targetPhraseId);
+                            if (setDragOverGroupId) setDragOverGroupId(null);
+                        }
+                    } else {
+                        if (setDragOverGroupId) setDragOverGroupId(null);
+                        if (setDragOverPhraseId) setDragOverPhraseId(null);
+                    }
+                }}
+                onTouchEnd={(e) => {
+                    if (isTranscribing) return;
+                    clearTimeout(touchTimeoutRef.current!);
+                    if (isTouchDraggingRef.current) {
+                        isTouchDraggingRef.current = false;
+                        const touch = e.changedTouches[0];
+                        
+                        const currentTarget = e.currentTarget as HTMLElement;
+                        const originalPointerEvents = currentTarget.style.pointerEvents;
+                        currentTarget.style.pointerEvents = 'none';
+                        const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+                        currentTarget.style.pointerEvents = originalPointerEvents;
+                        
+                        let finalGroupId: string | null = null;
+                        let finalPhraseId: string | null = null;
+                        let isOverCanvas = false;
+                        
+                        if (elem) {
+                            const targetGroupRow = elem.closest('.verse-group-container');
+                            const targetPhraseRow = elem.closest('.phrase-row-container');
+                            isOverCanvas = !!elem.closest('#writing-canvas');
+                            
+                            if (targetGroupRow) {
+                                finalGroupId = targetGroupRow.getAttribute('data-group-id');
+                            } else if (targetPhraseRow) {
+                                finalPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
+                                const phraseContainer = targetPhraseRow as HTMLElement;
+                                const groupContainer = phraseContainer.closest('.verse-group-container');
+                                if (groupContainer) {
+                                    finalGroupId = groupContainer.getAttribute('data-group-id');
+                                    finalPhraseId = null;
+                                }
+                            }
+                        }
+                        
+                        if (finalGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
+                            handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, finalGroupId);
+                        } else if (finalPhraseId && handleAttachAudioToPhrase) {
+                            handleAttachAudioToPhrase(audioNote.id, finalPhraseId, null);
+                        } else if (isOverCanvas && activeNoteId && handleUpdateAudioNoteGroup) {
+                            handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, null);
+                        }
+                        
+                        if (setDraggedAudioId) setDraggedAudioId(null);
+                        if (draggedAudioIdRef) draggedAudioIdRef.current = null;
+                        if (setDragOverGroupId) setDragOverGroupId(null);
+                        if (setDragOverPhraseId) setDragOverPhraseId(null);
+                    }
+                }}
+                className={`bg-white border border-stone-200/80 rounded-full px-3 py-0.5 shadow-sm flex items-center gap-2.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing ${
+                    draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
+                }`}
             >
                 <audio 
                     ref={playbackAudioRef} 
@@ -742,7 +884,7 @@ function AudioCapsulePlayer({ audioNote, onRename, onDelete, onTranscribe, isTra
                     placeholder="Name"
                     disabled={isTranscribing}
                     onChange={(e) => onRename(e.target.value)}
-                    className="bg-transparent border-none outline-none font-bold text-[9px] text-stone-850 placeholder:text-stone-400 w-16 hover:bg-stone-50 focus:bg-stone-50 rounded px-1 py-0.2 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50"
+                    className="bg-transparent border-none outline-none font-bold text-[9px] text-stone-855 placeholder:text-stone-400 w-16 hover:bg-stone-50 focus:bg-stone-50 rounded px-1 py-0.2 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50"
                     title="Rename recording"
                 />
                 <div className="h-2.5 w-[1px] bg-stone-200" />
@@ -820,7 +962,7 @@ function AudioCapsulePlayer({ audioNote, onRename, onDelete, onTranscribe, isTra
                                 e.stopPropagation();
                                 onTranscribe();
                             }}
-                            className="text-stone-400 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-35"
+                            className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-35"
                             title="Transcribe recording"
                         >
                             <svg className="w-2.5 h-2.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -837,7 +979,7 @@ function AudioCapsulePlayer({ audioNote, onRename, onDelete, onTranscribe, isTra
                         e.stopPropagation();
                         onDelete();
                     }}
-                    className="text-stone-400 hover:text-red-600 transition-colors cursor-pointer disabled:opacity-35"
+                    className="text-stone-404 hover:text-red-600 transition-colors cursor-pointer disabled:opacity-35"
                     title="Delete recording"
                 >
                     <svg className="w-2.5 h-2.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -854,7 +996,120 @@ function AudioCapsulePlayer({ audioNote, onRename, onDelete, onTranscribe, isTra
             draggable
             onDragStart={onDragStart}
             onClick={(e) => e.stopPropagation()}
-            className="bg-white border border-stone-200/80 rounded-full px-5 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3 sm:gap-4 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0"
+            onTouchStart={(e) => {
+                if (isTranscribing) return;
+                const target = e.target as HTMLElement;
+                if (target.closest('button') || target.closest('input') || target.closest('svg')) {
+                    return;
+                }
+                const touch = e.touches[0];
+                startXRef.current = touch.clientX;
+                startYRef.current = touch.clientY;
+                isTouchDraggingRef.current = false;
+                
+                touchTimeoutRef.current = setTimeout(() => {
+                    isTouchDraggingRef.current = true;
+                    if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
+                    if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
+                    if (navigator.vibrate) {
+                        navigator.vibrate(10);
+                    }
+                }, 300);
+            }}
+            onTouchMove={(e) => {
+                if (isTranscribing) return;
+                const touch = e.touches[0];
+                if (!isTouchDraggingRef.current) {
+                    const diffX = Math.abs(touch.clientX - startXRef.current);
+                    const diffY = Math.abs(touch.clientY - startYRef.current);
+                    if (diffX > 10 || diffY > 10) {
+                        clearTimeout(touchTimeoutRef.current!);
+                    }
+                    return;
+                }
+                if (e.cancelable) {
+                    e.preventDefault();
+                }
+                
+                const currentTarget = e.currentTarget as HTMLElement;
+                const originalPointerEvents = currentTarget.style.pointerEvents;
+                currentTarget.style.pointerEvents = 'none';
+                const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+                currentTarget.style.pointerEvents = originalPointerEvents;
+                
+                if (!elem) return;
+                const targetGroupRow = elem.closest('.verse-group-container');
+                const targetPhraseRow = elem.closest('.phrase-row-container');
+                
+                if (targetGroupRow) {
+                    const targetGroupId = targetGroupRow.getAttribute('data-group-id');
+                    if (targetGroupId) {
+                        if (setDragOverGroupId) setDragOverGroupId(targetGroupId);
+                        if (setDragOverPhraseId) setDragOverPhraseId(null);
+                    }
+                } else if (targetPhraseRow) {
+                    const targetPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
+                    if (targetPhraseId) {
+                        if (setDragOverPhraseId) setDragOverPhraseId(targetPhraseId);
+                        if (setDragOverGroupId) setDragOverGroupId(null);
+                    }
+                } else {
+                    if (setDragOverGroupId) setDragOverGroupId(null);
+                    if (setDragOverPhraseId) setDragOverPhraseId(null);
+                }
+            }}
+            onTouchEnd={(e) => {
+                if (isTranscribing) return;
+                clearTimeout(touchTimeoutRef.current!);
+                if (isTouchDraggingRef.current) {
+                    isTouchDraggingRef.current = false;
+                    const touch = e.changedTouches[0];
+                    
+                    const currentTarget = e.currentTarget as HTMLElement;
+                    const originalPointerEvents = currentTarget.style.pointerEvents;
+                    currentTarget.style.pointerEvents = 'none';
+                    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+                    currentTarget.style.pointerEvents = originalPointerEvents;
+                    
+                    let finalGroupId: string | null = null;
+                    let finalPhraseId: string | null = null;
+                    let isOverCanvas = false;
+                    
+                    if (elem) {
+                        const targetGroupRow = elem.closest('.verse-group-container');
+                        const targetPhraseRow = elem.closest('.phrase-row-container');
+                        isOverCanvas = !!elem.closest('#writing-canvas');
+                        
+                        if (targetGroupRow) {
+                            finalGroupId = targetGroupRow.getAttribute('data-group-id');
+                        } else if (targetPhraseRow) {
+                            finalPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
+                            const phraseContainer = targetPhraseRow as HTMLElement;
+                            const groupContainer = phraseContainer.closest('.verse-group-container');
+                            if (groupContainer) {
+                                finalGroupId = groupContainer.getAttribute('data-group-id');
+                                finalPhraseId = null;
+                            }
+                        }
+                    }
+                    
+                    if (finalGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
+                        handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, finalGroupId);
+                    } else if (finalPhraseId && handleAttachAudioToPhrase) {
+                        handleAttachAudioToPhrase(audioNote.id, finalPhraseId, null);
+                    } else if (isOverCanvas && activeNoteId && handleUpdateAudioNoteGroup) {
+                        handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, null);
+                    }
+                    
+                    if (setDraggedAudioId) setDraggedAudioId(null);
+                    if (draggedAudioIdRef) draggedAudioIdRef.current = null;
+                    if (setDragOverGroupId) setDragOverGroupId(null);
+                    if (setDragOverPhraseId) setDragOverPhraseId(null);
+                }
+            }}
+            className={`bg-white border border-stone-200/80 rounded-full px-5 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3 sm:gap-4 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 ${
+                draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
+            }`}
         >
             <audio 
                 ref={playbackAudioRef} 
@@ -1050,10 +1305,12 @@ export default function CreatePage() {
     const [dragOverBlockId, setDragOverBlockId] = useState<string | null>(null);
     const [blockDropPosition, setBlockDropPosition] = useState<'top' | 'bottom' | null>(null);
     const [draggedGroupId, setDraggedGroupId] = useState<string | null>(null);
+    const [draggedAudioId, setDraggedAudioId] = useState<string | null>(null);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const draggedPhraseIdRef = useRef<string | null>(null);
     const draggedGroupIdRef = useRef<string | null>(null);
+    const draggedAudioIdRef = useRef<string | null>(null);
     const groupTouchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const groupIsTouchDraggingRef = useRef(false);
     const groupStartXRef = useRef(0);
@@ -3267,6 +3524,13 @@ export default function CreatePage() {
                                                     e.stopPropagation();
                                                     e.dataTransfer.setData('text/audio-note-id', audioNote.id);
                                                 }}
+                                                activeNoteId={activeNote?.id}
+                                                handleUpdateAudioNoteGroup={handleUpdateAudioNoteGroup}
+                                                handleAttachAudioToPhrase={handleAttachAudioToPhrase}
+                                                draggedAudioId={draggedAudioId}
+                                                setDraggedAudioId={setDraggedAudioId}
+                                                draggedAudioIdRef={draggedAudioIdRef}
+                                                setDragOverGroupId={setDragOverGroupId}
                                             />
                                         ))}
                                         {isRecordingSaving && <AudioCapsuleSkeleton />}
@@ -3540,6 +3804,13 @@ export default function CreatePage() {
                                                                                 e.stopPropagation();
                                                                                 e.dataTransfer.setData('text/audio-note-id', audioNote.id);
                                                                             }}
+                                                                            activeNoteId={activeNote?.id}
+                                                                            handleUpdateAudioNoteGroup={handleUpdateAudioNoteGroup}
+                                                                            handleAttachAudioToPhrase={handleAttachAudioToPhrase}
+                                                                            draggedAudioId={draggedAudioId}
+                                                                            setDraggedAudioId={setDraggedAudioId}
+                                                                            draggedAudioIdRef={draggedAudioIdRef}
+                                                                            setDragOverGroupId={setDragOverGroupId}
                                                                         />
                                                                     ))}
                                                                 </div>
@@ -3600,13 +3871,20 @@ export default function CreatePage() {
                                                                             audioNote={audioNote}
                                                                             onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
                                                                             onDelete={() => activeNote && handleDeleteAudioNote(activeNote.id, audioNote.id)}
-                                                                            onTranscribe={() => activeNote && handleTranscribeAudioNote(activeNote.id, audioNote.id, audioNote.url)}
+                                                                            onTranscribe={(activeNote && handleTranscribeAudioNote) ? (() => handleTranscribeAudioNote(activeNote.id, audioNote.id, audioNote.url)) : undefined}
                                                                             isTranscribing={transcribingAudioNoteId === audioNote.id}
                                                                             isDocked={false}
                                                                             onDragStart={(e) => {
                                                                                 e.stopPropagation();
                                                                                 e.dataTransfer.setData('text/audio-note-id', audioNote.id);
                                                                             }}
+                                                                            activeNoteId={activeNote?.id}
+                                                                            handleUpdateAudioNoteGroup={handleUpdateAudioNoteGroup}
+                                                                            handleAttachAudioToPhrase={handleAttachAudioToPhrase}
+                                                                            draggedAudioId={draggedAudioId}
+                                                                            setDraggedAudioId={setDraggedAudioId}
+                                                                            draggedAudioIdRef={draggedAudioIdRef}
+                                                                            setDragOverGroupId={setDragOverGroupId}
                                                                         />
                                                                     </div>
                                                                 ))}
