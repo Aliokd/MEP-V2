@@ -764,7 +764,7 @@ function AudioCapsulePlayer({
                         if (navigator.vibrate) {
                             navigator.vibrate(10);
                         }
-                    }, 300);
+                    }, 200);
                 }}
                 onTouchMove={(e) => {
                     if (isTranscribing) return;
@@ -772,7 +772,7 @@ function AudioCapsulePlayer({
                     if (!isTouchDraggingRef.current) {
                         const diffX = Math.abs(touch.clientX - startXRef.current);
                         const diffY = Math.abs(touch.clientY - startYRef.current);
-                        if (diffX > 10 || diffY > 10) {
+                        if (diffX > 20 || diffY > 20) {
                             clearTimeout(touchTimeoutRef.current!);
                         }
                         return;
@@ -857,7 +857,16 @@ function AudioCapsulePlayer({
                         if (setDragOverPhraseId) setDragOverPhraseId(null);
                     }
                 }}
-                className={`bg-white border border-stone-200/80 rounded-full px-3 py-0.5 shadow-sm flex items-center gap-2.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing ${
+                onTouchCancel={(e) => {
+                    if (isTranscribing) return;
+                    clearTimeout(touchTimeoutRef.current!);
+                    isTouchDraggingRef.current = false;
+                    if (setDraggedAudioId) setDraggedAudioId(null);
+                    if (draggedAudioIdRef) draggedAudioIdRef.current = null;
+                    if (setDragOverGroupId) setDragOverGroupId(null);
+                    if (setDragOverPhraseId) setDragOverPhraseId(null);
+                }}
+                className={`bg-white border border-stone-200/80 rounded-full px-3 py-0.5 shadow-sm flex items-center gap-2.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing touch-none ${
                     draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
                 }`}
             >
@@ -1014,7 +1023,7 @@ function AudioCapsulePlayer({
                     if (navigator.vibrate) {
                         navigator.vibrate(10);
                     }
-                }, 300);
+                }, 200);
             }}
             onTouchMove={(e) => {
                 if (isTranscribing) return;
@@ -1022,7 +1031,7 @@ function AudioCapsulePlayer({
                 if (!isTouchDraggingRef.current) {
                     const diffX = Math.abs(touch.clientX - startXRef.current);
                     const diffY = Math.abs(touch.clientY - startYRef.current);
-                    if (diffX > 10 || diffY > 10) {
+                    if (diffX > 20 || diffY > 20) {
                         clearTimeout(touchTimeoutRef.current!);
                     }
                     return;
@@ -1107,7 +1116,16 @@ function AudioCapsulePlayer({
                     if (setDragOverPhraseId) setDragOverPhraseId(null);
                 }
             }}
-            className={`bg-white border border-stone-200/80 rounded-full px-5 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3 sm:gap-4 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 ${
+            onTouchCancel={(e) => {
+                if (isTranscribing) return;
+                clearTimeout(touchTimeoutRef.current!);
+                isTouchDraggingRef.current = false;
+                if (setDraggedAudioId) setDraggedAudioId(null);
+                if (draggedAudioIdRef) draggedAudioIdRef.current = null;
+                if (setDragOverGroupId) setDragOverGroupId(null);
+                if (setDragOverPhraseId) setDragOverPhraseId(null);
+            }}
+            className={`bg-white border border-stone-200/80 rounded-full px-5 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3 sm:gap-4 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 touch-none ${
                 draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
             }`}
         >
