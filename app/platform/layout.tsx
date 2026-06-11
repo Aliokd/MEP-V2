@@ -235,7 +235,7 @@ export default function PlatformLayout({
             {/* Main Content Area */}
             <div className={`
                 flex-1 flex flex-col min-w-0
-                ${pathname === '/platform/create'
+                ${pathname?.startsWith('/platform/create')
                     ? 'p-0 md:p-8'
                     : 'p-4 md:p-8'
                 }
@@ -261,7 +261,7 @@ export default function PlatformLayout({
                 </header>
 
                 {/* Mobile Progress Bar Bar */}
-                <div className={`flex md:hidden items-center justify-center w-full px-6 pb-4 border-b border-stone-250/10 z-40 bg-[#E4E4DF] ${pathname === '/platform/create' ? 'mb-0' : 'mb-4'}`}>
+                <div className={`flex md:hidden items-center justify-center w-full px-6 pb-4 border-b border-stone-250/10 z-40 bg-[#E4E4DF] ${pathname?.startsWith('/platform/create') ? 'mb-0' : 'mb-4'}`}>
                     <div className="relative flex flex-col items-center w-full" ref={popupRef}>
                         <canvas className="confetti-canvas-local absolute -inset-x-12 -inset-y-12 pointer-events-none z-50 rounded-full" />
                         <div 
@@ -329,10 +329,10 @@ export default function PlatformLayout({
 
                 {/* Main panel container */}
                 <div className={`
-                    flex-1 overflow-y-auto
-                    ${pathname === '/platform/create'
-                        ? 'bg-transparent p-0 rounded-none shadow-none'
-                        : 'bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] p-4 md:p-8 shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)]'
+                    flex-1
+                    ${pathname?.startsWith('/platform/create')
+                        ? 'bg-transparent p-0 rounded-none shadow-none overflow-visible'
+                        : 'overflow-y-auto bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] p-4 md:p-8 shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)]'
                     }
                 `}>
                     {children}

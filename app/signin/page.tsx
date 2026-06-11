@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
 
@@ -18,6 +18,50 @@ export default function SignInPage() {
     const [isLoading, setIsLoading] = useState(false);
     
     const router = useRouter();
+
+    const handleAuthError = (err: any) => {
+        console.error('Google Sign-In error details:', err);
+        if (err.code === 'auth/operation-not-allowed') {
+            setError('Google Sign-In is not enabled. Please enable Google as a sign-in provider in your Firebase Console under Authentication > Sign-in method.');
+        } else if (err.code === 'auth/unauthorized-domain') {
+            setError(`This domain (${window.location.hostname}) is not authorized for Firebase Authentication. Please add it to the Authorized Domains list in your Firebase Console.`);
+        } else if (err.code === 'auth/popup-blocked') {
+            setError('Sign-in popup was blocked by your browser. Please allow popups for this site, or try again.');
+        } else if (err.code === 'auth/popup-closed-by-user') {
+            setError('Sign-in popup was closed before completing. Please try again.');
+        } else {
+            setError(err.message || 'Failed to sign in with Google.');
+        }
+    };
+
+    useEffect(() => {
+        const checkRedirectResult = async () => {
+            try {
+                const result = await getRedirectResult(auth);
+                if (result) {
+                    setIsLoading(true);
+                    const user = result.user;
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    if (!userDoc.exists()) {
+                        await setDoc(doc(db, "users", user.uid), {
+                            uid: user.uid,
+                            name: user.displayName,
+                            email: user.email,
+                            createdAt: new Date().toISOString(),
+                            tier: 'performer'
+                        });
+                    }
+                    router.push('/platform/create');
+                }
+            } catch (err: any) {
+                console.error('Redirect sign-in error:', err);
+                handleAuthError(err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        checkRedirectResult();
+    }, [router]);
 
     const handlePasswordSignIn = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -87,7 +131,19 @@ export default function SignInPage() {
             router.push('/platform/create');
         } catch (err: any) {
             console.error('Google Sign-In error:', err);
-            setError(err.message || 'Failed to sign in with Google.');
+            if (
+                err.code === 'auth/popup-blocked' ||
+                err.code === 'auth/popup-closed-by-user' ||
+                err.code === 'auth/cancelled-popup-request'
+            ) {
+                try {
+                    await signInWithRedirect(auth, googleProvider);
+                } catch (redirectErr: any) {
+                    handleAuthError(redirectErr);
+                }
+            } else {
+                handleAuthError(err);
+            }
         } finally {
             setIsLoading(false);
         }
