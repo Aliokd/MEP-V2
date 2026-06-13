@@ -2615,28 +2615,33 @@ export default function CreatePage() {
                 
                 // Case 2: Audio belongs to a group (Verse/Chorus/Bridge)
                 if (!inserted && groupId) {
-                    // Find the last phrase in this group
-                    let lastInGroupIdx = -1;
-                    for (let i = currentPhrases.length - 1; i >= 0; i--) {
+                    // Find the first phrase in this group
+                    let firstInGroupIdx = -1;
+                    for (let i = 0; i < currentPhrases.length; i++) {
                         if (currentPhrases[i].groupId === groupId) {
-                            lastInGroupIdx = i;
+                            firstInGroupIdx = i;
                             break;
                         }
                     }
-                    if (lastInGroupIdx !== -1) {
-                        currentPhrases.splice(lastInGroupIdx + 1, 0, ...newPhrasesToInsert);
+                    if (firstInGroupIdx !== -1) {
+                        currentPhrases.splice(firstInGroupIdx, 0, ...newPhrasesToInsert);
                         inserted = true;
                     } else {
-                        // Group has no phrases yet. Insert them and remove the placeholder
-                        currentPhrases = currentPhrases.filter(p => p.id !== `placeholder-${groupId}`);
-                        currentPhrases.push(...newPhrasesToInsert);
-                        inserted = true;
+                        // Group has no phrases yet. Insert them and replace the placeholder
+                        const placeholderIdx = currentPhrases.findIndex(p => p.id === `placeholder-${groupId}`);
+                        if (placeholderIdx !== -1) {
+                            currentPhrases.splice(placeholderIdx, 1, ...newPhrasesToInsert);
+                            inserted = true;
+                        } else {
+                            currentPhrases.push(...newPhrasesToInsert);
+                            inserted = true;
+                        }
                     }
                 }
                 
                 // Case 3: Free / ungrouped audio, or fallback
                 if (!inserted) {
-                    currentPhrases.push(...newPhrasesToInsert);
+                    currentPhrases.unshift(...newPhrasesToInsert);
                 }
                 
                 const finalPhrases = cleanupAndEnsurePlaceholders(currentPhrases, targetNote.verses || []);
@@ -3635,38 +3640,6 @@ export default function CreatePage() {
                     <div className="w-full flex-grow flex-1 flex flex-col z-10 py-6 relative">
                         {selectedNoteId ? (
                             <div className="w-full flex flex-col gap-3 max-w-4xl mx-auto py-4 my-auto">
-                                {/* 1b. Floating Interactive Audio Control Capsule Player Area */}
-                                {(activeAudioNotes.filter(an => !an.groupId && !phraseExists(an.phraseId)).length > 0 || isRecordingSaving) && (
-                                    <div className="flex flex-col items-center gap-3 w-full px-4 mt-2 select-none z-30">
-                                        {activeAudioNotes.filter(an => !an.groupId && !phraseExists(an.phraseId)).map(audioNote => (
-                                            <React.Fragment key={audioNote.id}>
-                                                <AudioCapsulePlayer 
-                                                    audioNote={audioNote}
-                                                    onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
-                                                    onDelete={() => activeNote && handleDeleteAudioNote(activeNote.id, audioNote.id)}
-                                                    onTranscribe={() => activeNote && handleTranscribeAudioNote(activeNote.id, audioNote.id, audioNote.url)}
-                                                    isTranscribing={transcribingAudioNoteId === audioNote.id}
-                                                    isDocked={false}
-                                                    onDragStart={(e) => {
-                                                        e.stopPropagation();
-                                                        e.dataTransfer.setData('text/audio-note-id', audioNote.id);
-                                                    }}
-                                                    activeNoteId={activeNote?.id}
-                                                    handleUpdateAudioNoteGroup={handleUpdateAudioNoteGroup}
-                                                    handleAttachAudioToPhrase={handleAttachAudioToPhrase}
-                                                    draggedAudioId={draggedAudioId}
-                                                    setDraggedAudioId={setDraggedAudioId}
-                                                    draggedAudioIdRef={draggedAudioIdRef}
-                                                    setDragOverGroupId={setDragOverGroupId}
-                                                />
-                                                {transcribingAudioNoteId === audioNote.id && (
-                                                    <LyricLinesSkeleton />
-                                                )}
-                                            </React.Fragment>
-                                        ))}
-                                        {isRecordingSaving && <AudioCapsuleSkeleton />}
-                                    </div>
-                                )}
                                 {renderBlocks.length === 0 ? (
                                     <div 
                                         className="flex-grow flex-1 flex flex-col items-center justify-center py-16 text-stone-300/80 italic text-center select-none cursor-pointer text-lg font-light hover:text-stone-400 transition-colors"
@@ -3957,6 +3930,9 @@ export default function CreatePage() {
                                                                     )
                                                                 ) : (
                                                                     <>
+                                                                        {isGroupTranscribing && (
+                                                                            <LyricLinesSkeleton />
+                                                                        )}
                                                                         {block.phrases.filter(p => !p.id.startsWith('placeholder-')).map((phrase) => {
                                                                             return (
                                                                                 <div key={phrase.id} className="flex flex-col items-center w-full gap-2">
@@ -3992,9 +3968,6 @@ export default function CreatePage() {
                                                                                 </div>
                                                                             );
                                                                         })}
-                                                                        {isGroupTranscribing && (
-                                                                            <LyricLinesSkeleton />
-                                                                        )}
                                                                     </>
                                                                 )}
                                                             </div>
@@ -4074,6 +4047,39 @@ export default function CreatePage() {
                                             </div>
                                         );
                                     })
+                                )}
+
+                                {/* 1b. Floating Interactive Audio Control Capsule Player Area */}
+                                {(activeAudioNotes.filter(an => !an.groupId && !phraseExists(an.phraseId)).length > 0 || isRecordingSaving) && (
+                                    <div className="flex flex-col items-center gap-3 w-full px-4 mt-2 select-none z-30">
+                                        {activeAudioNotes.filter(an => !an.groupId && !phraseExists(an.phraseId)).map(audioNote => (
+                                            <React.Fragment key={audioNote.id}>
+                                                <AudioCapsulePlayer 
+                                                    audioNote={audioNote}
+                                                    onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
+                                                    onDelete={() => activeNote && handleDeleteAudioNote(activeNote.id, audioNote.id)}
+                                                    onTranscribe={() => activeNote && handleTranscribeAudioNote(activeNote.id, audioNote.id, audioNote.url)}
+                                                    isTranscribing={transcribingAudioNoteId === audioNote.id}
+                                                    isDocked={false}
+                                                    onDragStart={(e) => {
+                                                        e.stopPropagation();
+                                                        e.dataTransfer.setData('text/audio-note-id', audioNote.id);
+                                                    }}
+                                                    activeNoteId={activeNote?.id}
+                                                    handleUpdateAudioNoteGroup={handleUpdateAudioNoteGroup}
+                                                    handleAttachAudioToPhrase={handleAttachAudioToPhrase}
+                                                    draggedAudioId={draggedAudioId}
+                                                    setDraggedAudioId={setDraggedAudioId}
+                                                    draggedAudioIdRef={draggedAudioIdRef}
+                                                    setDragOverGroupId={setDragOverGroupId}
+                                                />
+                                                {transcribingAudioNoteId === audioNote.id && (
+                                                    <LyricLinesSkeleton />
+                                                )}
+                                            </React.Fragment>
+                                        ))}
+                                        {isRecordingSaving && <AudioCapsuleSkeleton />}
+                                    </div>
                                 )}
                             </div>
                         ) : (
