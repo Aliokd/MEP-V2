@@ -2460,6 +2460,53 @@ export default function CreatePage() {
             }
         }
     }, [selectedNoteId, isMounted]);
+    useEffect(() => {
+        if (selectedNoteId && activeNote && isMounted) {
+            const currentPhrases = activeNote.phrases || [];
+            const hasPhrases = currentPhrases.length > 0;
+            
+            // If the note has content but phrases are not synced yet, let the initialization effect run first
+            if (activeNote.content.trim() !== '' && !hasPhrases) {
+                return;
+            }
+            
+            if (activeNote.audioNotes && activeNote.audioNotes.length > 0) {
+                const legacyUnplaced = activeNote.audioNotes.filter(
+                    an => !an.groupId && (!an.phraseId || !currentPhrases.some(p => p.id === an.phraseId))
+                );
+                
+                if (legacyUnplaced.length > 0) {
+                    const sortedLegacy = sortAudioNotesChronologically(legacyUnplaced);
+                    let newPhrases = [...currentPhrases];
+                    
+                    const updatedAudioNotes = activeNote.audioNotes.map(an => {
+                        const legacyMatch = sortedLegacy.find(sla => sla.id === an.id);
+                        if (legacyMatch) {
+                            const newPhraseId = `p-audio-${an.id}`;
+                            return { ...an, phraseId: newPhraseId };
+                        }
+                        return an;
+                    });
+                    
+                    sortedLegacy.forEach(an => {
+                        const newPhraseId = `p-audio-${an.id}`;
+                        if (!newPhrases.some(p => p.id === newPhraseId)) {
+                            newPhrases.push({
+                                id: newPhraseId,
+                                text: '',
+                                groupId: null
+                            });
+                        }
+                    });
+                    
+                    handleUpdateNote(activeNote.id, {
+                        audioNotes: updatedAudioNotes,
+                        phrases: newPhrases
+                    });
+                }
+            }
+        }
+    }, [selectedNoteId, activeNote, isMounted]);
 
 
     const handleCreateFolder = () => {
@@ -2748,29 +2795,24 @@ export default function CreatePage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                let transcriptText = (data.text || "").trim();
-                if (!transcriptText) {
-                    transcriptText = "Voice memo line one\nVoice memo line two";
-                }
+                const transcriptText = (data.text || "").trim();
                 
                 let line1 = "";
                 let line2 = "";
-                if (transcriptText.includes('\n')) {
-                    const parts = transcriptText.split('\n');
-                    line1 = parts[0].trim();
-                    line2 = parts.slice(1).join('\n').trim() || "...";
-                } else {
-                    const words = transcriptText.split(/\s+/).filter((w: string) => w.length > 0);
-                    if (words.length === 0) {
-                        line1 = "Voice memo line one";
-                        line2 = "Voice memo line two";
-                    } else if (words.length === 1) {
-                        line1 = words[0];
-                        line2 = "...";
+                if (transcriptText) {
+                    if (transcriptText.includes('\n')) {
+                        const parts = transcriptText.split('\n');
+                        line1 = parts[0].trim();
+                        line2 = parts.slice(1).join('\n').trim();
                     } else {
-                        const mid = Math.ceil(words.length / 2);
-                        line1 = words.slice(0, mid).join(" ");
-                        line2 = words.slice(mid).join(" ");
+                        const words = transcriptText.split(/\s+/).filter((w: string) => w.length > 0);
+                        if (words.length === 1) {
+                            line1 = words[0];
+                        } else if (words.length > 1) {
+                            const mid = Math.ceil(words.length / 2);
+                            line1 = words.slice(0, mid).join(" ");
+                            line2 = words.slice(mid).join(" ");
+                        }
                     }
                 }
                 
@@ -2779,12 +2821,12 @@ export default function CreatePage() {
                     text: line1,
                     groupId: groupId || null
                 };
-                const newPhrase2: Phrase = {
+                const newPhrase2: Phrase | null = line2 ? {
                     id: `p-${Math.random().toString(36).substring(2, 9)}`,
                     text: line2,
                     groupId: groupId || null
-                };
-                const newPhrasesToInsert = [newPhrase1, newPhrase2];
+                } : null;
+                const newPhrasesToInsert: Phrase[] = newPhrase2 ? [newPhrase1, newPhrase2] : [newPhrase1];
                 
                 let currentPhrases = [...(targetNote.phrases || [])];
                 let inserted = false;
@@ -2793,10 +2835,18 @@ export default function CreatePage() {
                 if (phraseId) {
                     const idx = currentPhrases.findIndex(p => p.id === phraseId);
                     if (idx !== -1) {
-                        currentPhrases.splice(idx + 1, 0, ...newPhrasesToInsert);
+                        if (currentPhrases[idx].text.trim() === '') {
+                            // Replace the empty hosting phrase with the first transcribed phrase
+                            currentPhrases.splice(idx, 1, newPhrase1);
+                            if (newPhrase2) currentPhrases.splice(idx + 1, 0, newPhrase2);
+                        } else {
+                            // If the phrase already has text, insert new phrases after it
+                            currentPhrases.splice(idx + 1, 0, ...newPhrasesToInsert);
+                        }
                         inserted = true;
                     }
                 }
+
                 
                 // Case 2: Audio belongs to a group (Verse/Chorus/Bridge)
                 if (!inserted && groupId) {
@@ -4249,36 +4299,9 @@ export default function CreatePage() {
                                     })
                                 )}
 
-                                {/* 1b. Floating Interactive Audio Control Capsule Player Area */}
-                                {(activeAudioNotes.filter(an => !an.groupId && !phraseExists(an.phraseId)).length > 0 || isRecordingSaving) && (
-                                    <div className="flex flex-col items-center gap-3 w-full px-4 mt-2 select-none z-30">
-                                        {sortAudioNotesChronologically(activeAudioNotes.filter(an => !an.groupId && !phraseExists(an.phraseId))).map(audioNote => (
-                                            <React.Fragment key={audioNote.id}>
-                                                <AudioCapsulePlayer 
-                                                    audioNote={audioNote}
-                                                    onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
-                                                    onDelete={() => activeNote && handleDeleteAudioNote(activeNote.id, audioNote.id)}
-                                                    onTranscribe={() => activeNote && handleTranscribeAudioNote(activeNote.id, audioNote.id, audioNote.url)}
-                                                    isTranscribing={transcribingAudioNoteId === audioNote.id}
-                                                    isDocked={false}
-                                                    onDragStart={(e) => {
-                                                        e.stopPropagation();
-                                                        e.dataTransfer.setData('text/audio-note-id', audioNote.id);
-                                                    }}
-                                                    activeNoteId={activeNote?.id}
-                                                    handleUpdateAudioNoteGroup={handleUpdateAudioNoteGroup}
-                                                    handleAttachAudioToPhrase={handleAttachAudioToPhrase}
-                                                    draggedAudioId={draggedAudioId}
-                                                    setDraggedAudioId={setDraggedAudioId}
-                                                    draggedAudioIdRef={draggedAudioIdRef}
-                                                    setDragOverGroupId={setDragOverGroupId}
-                                                />
-                                                {transcribingAudioNoteId === audioNote.id && (
-                                                    <LyricLinesSkeleton />
-                                                )}
-                                            </React.Fragment>
-                                        ))}
-                                        {isRecordingSaving && <AudioCapsuleSkeleton />}
+                                {isRecordingSaving && (
+                                    <div className="flex justify-center w-full py-1.5 select-none z-20">
+                                        <AudioCapsuleSkeleton />
                                     </div>
                                 )}
                             </div>
