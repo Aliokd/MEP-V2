@@ -32,7 +32,7 @@ const Navigation = () => {
     const isHome = pathname === '/';
     if (isPlatform || isOnboarding || isHome) return null; // Hide for platform, onboarding, or home
 
-    const isAuthPage = pathname === '/signin' || pathname === '/signup' || pathname === '/reset-password';
+    const isAuthPage = pathname === '/signin' || pathname === '/reset-password';
 
     const navClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
