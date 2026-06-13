@@ -757,6 +757,8 @@ interface AudioCapsulePlayerProps {
     draggedAudioIdRef?: React.RefObject<string | null>;
     setDragOverGroupId?: (id: string | null) => void;
     setDragOverPhraseId?: (id: string | null) => void;
+    dragOverGroupIdRef?: React.RefObject<string | null>;
+    dragOverPhraseIdRef?: React.RefObject<string | null>;
 }
 
 function AudioCapsuleSkeleton() {
@@ -809,7 +811,9 @@ function AudioCapsulePlayer({
     setDraggedAudioId,
     draggedAudioIdRef,
     setDragOverGroupId,
-    setDragOverPhraseId
+    setDragOverPhraseId,
+    dragOverGroupIdRef,
+    dragOverPhraseIdRef
 }: AudioCapsulePlayerProps) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [playbackTime, setPlaybackTime] = useState(0);
@@ -879,15 +883,6 @@ function AudioCapsulePlayer({
                     startXRef.current = touch.clientX;
                     startYRef.current = touch.clientY;
                     isTouchDraggingRef.current = false;
-                    
-                    touchTimeoutRef.current = setTimeout(() => {
-                        isTouchDraggingRef.current = true;
-                        if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
-                        if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
-                        if (navigator.vibrate) {
-                            navigator.vibrate(10);
-                        }
-                    }, 200);
                 }}
                 onTouchMove={(e) => {
                     if (isTranscribing) return;
@@ -895,14 +890,20 @@ function AudioCapsulePlayer({
                     if (!isTouchDraggingRef.current) {
                         const diffX = Math.abs(touch.clientX - startXRef.current);
                         const diffY = Math.abs(touch.clientY - startYRef.current);
-                        if (diffX > 20 || diffY > 20) {
-                            clearTimeout(touchTimeoutRef.current!);
+                        if (diffX > 10 || diffY > 10) {
+                            isTouchDraggingRef.current = true;
+                            if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
+                            if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
+                            if (navigator.vibrate) {
+                                navigator.vibrate(15);
+                            }
                         }
                         return;
                     }
                     if (e.cancelable) {
                         e.preventDefault();
                     }
+                    e.stopPropagation();
                     
                     const currentTarget = e.currentTarget as HTMLElement;
                     const originalPointerEvents = currentTarget.style.pointerEvents;
@@ -933,43 +934,34 @@ function AudioCapsulePlayer({
                 }}
                 onTouchEnd={(e) => {
                     if (isTranscribing) return;
-                    clearTimeout(touchTimeoutRef.current!);
                     if (isTouchDraggingRef.current) {
                         isTouchDraggingRef.current = false;
-                        const touch = e.changedTouches[0];
                         
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const originalPointerEvents = currentTarget.style.pointerEvents;
-                        currentTarget.style.pointerEvents = 'none';
-                        const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                        currentTarget.style.pointerEvents = originalPointerEvents;
-                        
-                        let finalGroupId: string | null = null;
-                        let finalPhraseId: string | null = null;
+                        let finalGroupId = dragOverGroupIdRef?.current || null;
+                        let finalPhraseId = dragOverPhraseIdRef?.current || null;
                         let isOverCanvas = false;
                         
-                        if (elem) {
-                            const targetGroupRow = elem.closest('.verse-group-container');
-                            const targetPhraseRow = elem.closest('.phrase-row-container');
-                            isOverCanvas = !!elem.closest('#writing-canvas');
-                            
-                            if (targetGroupRow) {
-                                finalGroupId = targetGroupRow.getAttribute('data-group-id');
-                            } else if (targetPhraseRow) {
-                                finalPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
-                                const phraseContainer = targetPhraseRow as HTMLElement;
-                                const groupContainer = phraseContainer.closest('.verse-group-container');
-                                if (groupContainer) {
-                                    finalGroupId = groupContainer.getAttribute('data-group-id');
-                                    finalPhraseId = null;
-                                }
-                            }
+                        if (!finalGroupId && !finalPhraseId) {
+                            const touch = e.changedTouches[0];
+                            const currentTarget = e.currentTarget as HTMLElement;
+                            const originalPointerEvents = currentTarget.style.pointerEvents;
+                            currentTarget.style.pointerEvents = 'none';
+                            const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+                            currentTarget.style.pointerEvents = originalPointerEvents;
+                            isOverCanvas = !!(elem && elem.closest('#writing-canvas'));
                         }
                         
                         if (finalGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
                             handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, finalGroupId);
                         } else if (finalPhraseId && handleAttachAudioToPhrase) {
-                            handleAttachAudioToPhrase(audioNote.id, finalPhraseId, null);
+                            const targetPhraseRow = document.querySelector(`[data-phrase-id="${finalPhraseId}"]`);
+                            const groupContainer = targetPhraseRow?.closest('.verse-group-container');
+                            const phraseGroupId = groupContainer?.getAttribute('data-group-id') || null;
+                            if (phraseGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
+                                handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, phraseGroupId);
+                            } else {
+                                handleAttachAudioToPhrase(audioNote.id, finalPhraseId, null);
+                            }
                         } else if (isOverCanvas && activeNoteId && handleUpdateAudioNoteGroup) {
                             handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, null);
                         }
@@ -982,7 +974,6 @@ function AudioCapsulePlayer({
                 }}
                 onTouchCancel={(e) => {
                     if (isTranscribing) return;
-                    clearTimeout(touchTimeoutRef.current!);
                     isTouchDraggingRef.current = false;
                     if (setDraggedAudioId) setDraggedAudioId(null);
                     if (draggedAudioIdRef) draggedAudioIdRef.current = null;
@@ -1138,15 +1129,6 @@ function AudioCapsulePlayer({
                 startXRef.current = touch.clientX;
                 startYRef.current = touch.clientY;
                 isTouchDraggingRef.current = false;
-                
-                touchTimeoutRef.current = setTimeout(() => {
-                    isTouchDraggingRef.current = true;
-                    if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
-                    if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
-                    if (navigator.vibrate) {
-                        navigator.vibrate(10);
-                    }
-                }, 200);
             }}
             onTouchMove={(e) => {
                 if (isTranscribing) return;
@@ -1154,14 +1136,20 @@ function AudioCapsulePlayer({
                 if (!isTouchDraggingRef.current) {
                     const diffX = Math.abs(touch.clientX - startXRef.current);
                     const diffY = Math.abs(touch.clientY - startYRef.current);
-                    if (diffX > 20 || diffY > 20) {
-                        clearTimeout(touchTimeoutRef.current!);
+                    if (diffX > 10 || diffY > 10) {
+                        isTouchDraggingRef.current = true;
+                        if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
+                        if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
+                        if (navigator.vibrate) {
+                            navigator.vibrate(15);
+                        }
                     }
                     return;
                 }
                 if (e.cancelable) {
                     e.preventDefault();
                 }
+                e.stopPropagation();
                 
                 const currentTarget = e.currentTarget as HTMLElement;
                 const originalPointerEvents = currentTarget.style.pointerEvents;
@@ -1192,43 +1180,34 @@ function AudioCapsulePlayer({
             }}
             onTouchEnd={(e) => {
                 if (isTranscribing) return;
-                clearTimeout(touchTimeoutRef.current!);
                 if (isTouchDraggingRef.current) {
                     isTouchDraggingRef.current = false;
-                    const touch = e.changedTouches[0];
                     
-                    const currentTarget = e.currentTarget as HTMLElement;
-                    const originalPointerEvents = currentTarget.style.pointerEvents;
-                    currentTarget.style.pointerEvents = 'none';
-                    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                    currentTarget.style.pointerEvents = originalPointerEvents;
-                    
-                    let finalGroupId: string | null = null;
-                    let finalPhraseId: string | null = null;
+                    let finalGroupId = dragOverGroupIdRef?.current || null;
+                    let finalPhraseId = dragOverPhraseIdRef?.current || null;
                     let isOverCanvas = false;
                     
-                    if (elem) {
-                        const targetGroupRow = elem.closest('.verse-group-container');
-                        const targetPhraseRow = elem.closest('.phrase-row-container');
-                        isOverCanvas = !!elem.closest('#writing-canvas');
-                        
-                        if (targetGroupRow) {
-                            finalGroupId = targetGroupRow.getAttribute('data-group-id');
-                        } else if (targetPhraseRow) {
-                            finalPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
-                            const phraseContainer = targetPhraseRow as HTMLElement;
-                            const groupContainer = phraseContainer.closest('.verse-group-container');
-                            if (groupContainer) {
-                                finalGroupId = groupContainer.getAttribute('data-group-id');
-                                finalPhraseId = null;
-                            }
-                        }
+                    if (!finalGroupId && !finalPhraseId) {
+                        const touch = e.changedTouches[0];
+                        const currentTarget = e.currentTarget as HTMLElement;
+                        const originalPointerEvents = currentTarget.style.pointerEvents;
+                        currentTarget.style.pointerEvents = 'none';
+                        const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+                        currentTarget.style.pointerEvents = originalPointerEvents;
+                        isOverCanvas = !!(elem && elem.closest('#writing-canvas'));
                     }
                     
                     if (finalGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
                         handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, finalGroupId);
                     } else if (finalPhraseId && handleAttachAudioToPhrase) {
-                        handleAttachAudioToPhrase(audioNote.id, finalPhraseId, null);
+                        const targetPhraseRow = document.querySelector(`[data-phrase-id="${finalPhraseId}"]`);
+                        const groupContainer = targetPhraseRow?.closest('.verse-group-container');
+                        const phraseGroupId = groupContainer?.getAttribute('data-group-id') || null;
+                        if (phraseGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
+                            handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, phraseGroupId);
+                        } else {
+                            handleAttachAudioToPhrase(audioNote.id, finalPhraseId, null);
+                        }
                     } else if (isOverCanvas && activeNoteId && handleUpdateAudioNoteGroup) {
                         handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, null);
                     }
@@ -1241,14 +1220,13 @@ function AudioCapsulePlayer({
             }}
             onTouchCancel={(e) => {
                 if (isTranscribing) return;
-                clearTimeout(touchTimeoutRef.current!);
                 isTouchDraggingRef.current = false;
                 if (setDraggedAudioId) setDraggedAudioId(null);
                 if (draggedAudioIdRef) draggedAudioIdRef.current = null;
                 if (setDragOverGroupId) setDragOverGroupId(null);
                 if (setDragOverPhraseId) setDragOverPhraseId(null);
             }}
-            className={`bg-white border border-stone-200/80 rounded-full px-5 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3 sm:gap-4 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 touch-none ${
+            className={`bg-white border border-stone-200/80 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-1.5 sm:gap-4 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 touch-none max-w-full ${
                 draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
             }`}
         >
@@ -1275,7 +1253,7 @@ function AudioCapsulePlayer({
                 placeholder="Name"
                 disabled={isTranscribing}
                 onChange={(e) => onRename(e.target.value)}
-                className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 w-24 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50"
+                className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 w-16 sm:w-24 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50"
                 title="Rename recording"
             />
 
@@ -1299,14 +1277,14 @@ function AudioCapsulePlayer({
                                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                                     <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
                                 </svg>
-                                <span>Play/pause</span>
+                                <span className="hidden sm:inline">Play/pause</span>
                             </>
                         ) : (
                             <>
                                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                                     <path d="M8 5v14l11-7z"/>
                                 </svg>
-                                <span>Play/pause</span>
+                                <span className="hidden sm:inline">Play/pause</span>
                             </>
                         )}
                     </button>
@@ -1318,7 +1296,7 @@ function AudioCapsulePlayer({
                         onTouchStart={handleWaveformClick}
                         onTouchMove={handleWaveformClick}
                         className="flex items-center gap-[2.5px] h-6 px-1.5 relative cursor-pointer select-none shrink-0"
-                        style={{ width: 'clamp(70px, 22vw, 130px)' }}
+                        style={{ width: 'clamp(60px, 18vw, 130px)' }}
                     >
                         <div 
                             className="absolute top-0 bottom-0 w-[2px] bg-red-500 rounded-full z-10 pointer-events-none transition-all duration-75"
@@ -1461,9 +1439,19 @@ export default function CreatePage() {
     const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
     const [draggedPhraseId, setDraggedPhraseId] = useState<string | null>(null);
     const [showCanvasMenu, setShowCanvasMenu] = useState(false);
-    const [dragOverPhraseId, setDragOverPhraseId] = useState<string | null>(null);
+    const [dragOverPhraseId, setDragOverPhraseIdState] = useState<string | null>(null);
+    const dragOverPhraseIdRef = useRef<string | null>(null);
+    const setDragOverPhraseId = (id: string | null) => {
+        setDragOverPhraseIdState(id);
+        dragOverPhraseIdRef.current = id;
+    };
     const [dropPosition, setDropPosition] = useState<'top' | 'bottom' | null>(null);
-    const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+    const [dragOverGroupId, setDragOverGroupIdState] = useState<string | null>(null);
+    const dragOverGroupIdRef = useRef<string | null>(null);
+    const setDragOverGroupId = (id: string | null) => {
+        setDragOverGroupIdState(id);
+        dragOverGroupIdRef.current = id;
+    };
     const [dragOverBlockId, setDragOverBlockId] = useState<string | null>(null);
     const [blockDropPosition, setBlockDropPosition] = useState<'top' | 'bottom' | null>(null);
     const [draggedGroupId, setDraggedGroupId] = useState<string | null>(null);
@@ -3783,7 +3771,7 @@ export default function CreatePage() {
                 const ghostLabel = draggedPhraseId
                     ? (activeNote?.phrases?.find(p => p.id === draggedPhraseId)?.text?.slice(0, 30) || 'Line')
                     : draggedAudioId
-                    ? (activeNote?.audioNotes?.find(an => an.id === draggedAudioId)?.title || 'Audio')
+                    ? (activeAudioNotes?.find(an => an.id === draggedAudioId)?.title || 'Audio')
                     : draggedGroupId
                     ? (activeNote?.verses?.find(v => v.id === draggedGroupId)?.name || 'Section')
                     : '';
@@ -4277,6 +4265,9 @@ export default function CreatePage() {
                                                                             setDraggedAudioId={setDraggedAudioId}
                                                                             draggedAudioIdRef={draggedAudioIdRef}
                                                                             setDragOverGroupId={setDragOverGroupId}
+                                                                            setDragOverPhraseId={setDragOverPhraseId}
+                                                                            dragOverGroupIdRef={dragOverGroupIdRef}
+                                                                            dragOverPhraseIdRef={dragOverPhraseIdRef}
                                                                         />
                                                                     ))}
                                                                 </div>
@@ -4362,6 +4353,9 @@ export default function CreatePage() {
                                                                                 setDraggedAudioId={setDraggedAudioId}
                                                                                 draggedAudioIdRef={draggedAudioIdRef}
                                                                                 setDragOverGroupId={setDragOverGroupId}
+                                                                                setDragOverPhraseId={setDragOverPhraseId}
+                                                                                dragOverGroupIdRef={dragOverGroupIdRef}
+                                                                                dragOverPhraseIdRef={dragOverPhraseIdRef}
                                                                             />
                                                                         </div>
                                                                         {transcribingAudioNoteId === audioNote.id && (
