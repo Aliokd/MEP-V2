@@ -14,6 +14,17 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en" suppressHydrationWarning>
+            <head>
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            if (window.location.hostname === 'mep-v2.web.app' || window.location.hostname === 'mep-v2.firebaseapp.com') {
+                                window.location.replace('https://veinote.com' + window.location.pathname + window.location.search + window.location.hash);
+                            }
+                        `
+                    }}
+                />
+            </head>
             <body className="font-sans antialiased bg-white text-stone-900 transition-colors duration-300">
                 <Providers>
                     <div className="min-h-screen flex flex-col">
