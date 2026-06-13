@@ -178,6 +178,21 @@ function FileIllustration() {
     );
 }
 
+// Touch Drag Ghost — floating indicator following the finger during drag
+function TouchDragGhost({ label, pos }: { label: string; pos: { x: number; y: number } | null }) {
+    if (!pos) return null;
+    return (
+        <div
+            className="fixed z-[9999] pointer-events-none select-none"
+            style={{ left: pos.x - 40, top: pos.y - 20, transform: 'translate(0, -100%)' }}
+        >
+            <div className="bg-stone-900 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg opacity-85 whitespace-nowrap max-w-[180px] truncate">
+                {label}
+            </div>
+        </div>
+    );
+}
+
 // Syllable counting helper functions
 const countSyllables = (text: string): number => {
     const word = text.toLowerCase().replace(/[^a-z]/g, '');
@@ -259,6 +274,7 @@ function PhraseRow({
     const isTouchDraggingRef = useRef(false);
     const startXRef = useRef(0);
     const startYRef = useRef(0);
+    const touchStartTimeRef = useRef(0);
     
     if (phrase.text.trim() === '' && hasAudioNote && !isCurrentlyEditing) {
         return (
@@ -404,6 +420,7 @@ function PhraseRow({
                 const touch = e.touches[0];
                 startXRef.current = touch.clientX;
                 startYRef.current = touch.clientY;
+                touchStartTimeRef.current = Date.now();
                 isTouchDraggingRef.current = false;
                 
                 touchTimeoutRef.current = setTimeout(() => {
@@ -413,7 +430,7 @@ function PhraseRow({
                         draggedPhraseIdRef.current = phrase.id;
                     }
                     if (navigator.vibrate) {
-                        navigator.vibrate(10);
+                        navigator.vibrate(15);
                     }
                 }, 300); // 300ms long press
             }}
@@ -423,11 +440,12 @@ function PhraseRow({
                 if (!isTouchDraggingRef.current) {
                     const diffX = Math.abs(touch.clientX - startXRef.current);
                     const diffY = Math.abs(touch.clientY - startYRef.current);
-                    if (diffX > 10 || diffY > 10) {
+                    if (diffX > 15 || diffY > 15) {
                         clearTimeout(touchTimeoutRef.current!);
                     }
                     return;
                 }
+                e.stopPropagation();
                 
                 if (e.cancelable) {
                     e.preventDefault();
@@ -489,6 +507,7 @@ function PhraseRow({
             onTouchEnd={(e) => {
                 if (isCurrentlyEditing) return;
                 clearTimeout(touchTimeoutRef.current!);
+                
                 if (isTouchDraggingRef.current) {
                     isTouchDraggingRef.current = false;
                     
@@ -544,6 +563,15 @@ function PhraseRow({
                     setDropPosition(null);
                     if (setDragOverGroupId) setDragOverGroupId(null);
                     if (setDragOverBlockId) setDragOverBlockId(null);
+                } else {
+                    // Short tap (< 250ms, < 10px movement) → tap-to-edit on mobile
+                    const tapDuration = Date.now() - touchStartTimeRef.current;
+                    const touch = e.changedTouches[0];
+                    const diffX = Math.abs(touch.clientX - startXRef.current);
+                    const diffY = Math.abs(touch.clientY - startYRef.current);
+                    if (tapDuration < 250 && diffX < 10 && diffY < 10 && onStartEditing) {
+                        onStartEditing(phrase.id);
+                    }
                 }
             }}
             onDoubleClick={(e) => {
@@ -741,7 +769,7 @@ function AudioCapsuleSkeleton() {
             <div className="bg-stone-200 h-4 w-12 rounded" />
             <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
             {/* Waveform Placeholder */}
-            <div className="flex items-center gap-[2.5px] h-6 px-1.5 shrink-0" style={{ width: '130px' }}>
+            <div className="flex items-center gap-[2.5px] h-6 px-1.5 shrink-0" style={{ width: 'clamp(70px, 22vw, 130px)' }}>
                 {Array.from({ length: 18 }).map((_, idx) => (
                     <div 
                         key={idx} 
@@ -1024,7 +1052,7 @@ function AudioCapsulePlayer({
                             onTouchStart={handleWaveformClick}
                             onTouchMove={handleWaveformClick}
                             className="flex items-center gap-[1.5px] h-3 px-1 relative cursor-pointer select-none"
-                            style={{ width: '80px' }}
+                            style={{ width: 'clamp(50px, 15vw, 80px)' }}
                         >
                             <div 
                                 className="absolute top-0 bottom-0 w-[1.5px] bg-red-500 rounded-full z-10 pointer-events-none transition-all duration-75"
@@ -1290,7 +1318,7 @@ function AudioCapsulePlayer({
                         onTouchStart={handleWaveformClick}
                         onTouchMove={handleWaveformClick}
                         className="flex items-center gap-[2.5px] h-6 px-1.5 relative cursor-pointer select-none shrink-0"
-                        style={{ width: '130px' }}
+                        style={{ width: 'clamp(70px, 22vw, 130px)' }}
                     >
                         <div 
                             className="absolute top-0 bottom-0 w-[2px] bg-red-500 rounded-full z-10 pointer-events-none transition-all duration-75"
@@ -1404,6 +1432,27 @@ export default function CreatePage() {
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
+
+    // Global touch tracking for drag ghost overlay
+    useEffect(() => {
+        const handleTouchMove = (e: TouchEvent) => {
+            const isAnyDrag = draggedPhraseIdRef.current || draggedAudioIdRef.current || draggedGroupIdRef.current;
+            if (!isAnyDrag) return;
+            const touch = e.touches[0];
+            setTouchGhostPos({ x: touch.clientX, y: touch.clientY });
+        };
+        const handleTouchEnd = () => {
+            setTouchGhostPos(null);
+        };
+        window.addEventListener('touchmove', handleTouchMove, { passive: true });
+        window.addEventListener('touchend', handleTouchEnd);
+        window.addEventListener('touchcancel', handleTouchEnd);
+        return () => {
+            window.removeEventListener('touchmove', handleTouchMove);
+            window.removeEventListener('touchend', handleTouchEnd);
+            window.removeEventListener('touchcancel', handleTouchEnd);
+        };
+    }, []);
     
     // Suggestion mode states
     const [isEditing, setIsEditing] = useState(true);
@@ -1419,6 +1468,8 @@ export default function CreatePage() {
     const [blockDropPosition, setBlockDropPosition] = useState<'top' | 'bottom' | null>(null);
     const [draggedGroupId, setDraggedGroupId] = useState<string | null>(null);
     const [draggedAudioId, setDraggedAudioId] = useState<string | null>(null);
+    const [touchGhostPos, setTouchGhostPos] = useState<{ x: number; y: number } | null>(null);
+    const [touchGhostLabel, setTouchGhostLabel] = useState<string>('');
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const draggedPhraseIdRef = useRef<string | null>(null);
@@ -1428,6 +1479,8 @@ export default function CreatePage() {
     const groupIsTouchDraggingRef = useRef(false);
     const groupStartXRef = useRef(0);
     const groupStartYRef = useRef(0);
+    const lastTapTimeRef = useRef<number>(0);
+    const canvasTouchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
     // Audio recording & metronome state variables
     const [recordingTitle, setRecordingTitle] = useState('');
@@ -1802,7 +1855,21 @@ export default function CreatePage() {
         
         try {
             if (runAudio) {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Guard: mediaDevices requires HTTPS or localhost
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert('Recording requires a secure (HTTPS) connection and browser microphone permission.');
+                    return;
+                }
+                // iOS-compatible audio constraints
+                const audioConstraints: MediaStreamConstraints = {
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 44100,
+                        channelCount: 1
+                    }
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
                 streamRef.current = stream;
                 
                 // Web Audio analyser setup
@@ -3709,7 +3776,19 @@ export default function CreatePage() {
     if (!isMounted) return null;
 
     return (
-        <div className="w-full flex flex-col gap-0 md:gap-10 text-stone-900 font-sans min-h-[calc(100vh-12rem)] pt-0 pb-10 md:py-2">
+        <div className="w-full flex flex-col gap-0 md:gap-10 text-stone-900 font-sans min-h-[calc(100dvh-12rem)] pt-0 pb-10 md:py-2">
+            
+            {/* Touch drag ghost overlay for mobile drag-and-drop */}
+            {(() => {
+                const ghostLabel = draggedPhraseId
+                    ? (activeNote?.phrases?.find(p => p.id === draggedPhraseId)?.text?.slice(0, 30) || 'Line')
+                    : draggedAudioId
+                    ? (activeNote?.audioNotes?.find(an => an.id === draggedAudioId)?.title || 'Audio')
+                    : draggedGroupId
+                    ? (activeNote?.verses?.find(v => v.id === draggedGroupId)?.name || 'Section')
+                    : '';
+                return <TouchDragGhost label={ghostLabel} pos={touchGhostPos} />;
+            })()}
             
             {/* 1. TYPING / WRITING CANVAS AREA (Top Panel) */}
             <div 
@@ -3720,6 +3799,40 @@ export default function CreatePage() {
                     } else {
                         handleAddNewPhrase(null);
                     }
+                }}
+                onTouchStart={(e) => {
+                    // Track touch start for double-tap detection
+                    const touch = e.touches[0];
+                    canvasTouchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+                }}
+                onTouchEnd={(e) => {
+                    // Double-tap to create new phrase (mobile equivalent of double-click)
+                    const now = Date.now();
+                    const touch = e.changedTouches[0];
+                    const start = canvasTouchStartRef.current;
+                    const isDragging = draggedPhraseId !== null || draggedAudioId !== null || draggedGroupId !== null;
+                    if (!isDragging && start) {
+                        const tapDuration = now - start.time;
+                        const dx = Math.abs(touch.clientX - start.x);
+                        const dy = Math.abs(touch.clientY - start.y);
+                        const isTap = tapDuration < 300 && dx < 10 && dy < 10;
+                        if (isTap) {
+                            const timeSinceLastTap = now - lastTapTimeRef.current;
+                            if (timeSinceLastTap < 350) {
+                                // Double-tap detected
+                                e.preventDefault();
+                                if (!selectedNoteId) {
+                                    handleCreateNote(activeFolderIdFilter);
+                                } else {
+                                    handleAddNewPhrase(null);
+                                }
+                                lastTapTimeRef.current = 0;
+                            } else {
+                                lastTapTimeRef.current = now;
+                            }
+                        }
+                    }
+                    canvasTouchStartRef.current = null;
                 }}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -3744,7 +3857,7 @@ export default function CreatePage() {
                         handleMovePhraseToGroup(phraseId, null);
                     }
                 }}
-                className="bg-[#FAF9F5] rounded-none md:rounded-[32px] p-4 md:p-8 flex flex-col min-h-[80vh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative cursor-text justify-between w-full"
+                className="bg-[#FAF9F5] rounded-none md:rounded-[32px] p-4 md:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative cursor-text justify-between w-full"
             >
                 {/* 1a. Canvas Header (Title and Ellipsis Menu) */}
                 <div className="w-full flex items-center justify-between gap-4 pb-4 border-b border-stone-200/40 select-none z-20">
@@ -3780,7 +3893,7 @@ export default function CreatePage() {
                                     setIsEditing(true);
                                 }
                             }}
-                            className="bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-500 placeholder:text-stone-300 focus:text-stone-855 transition-colors cursor-text select-text"
+                            className="bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-500 placeholder:text-stone-300 focus:text-stone-855 transition-colors cursor-text select-text max-w-[45vw] sm:max-w-none"
                             style={{
                                 width: `${titleWidth}px`
                             }}
@@ -4405,10 +4518,10 @@ export default function CreatePage() {
                 {/* 1c. Bottom controls bar */}
                 <div 
                     onClick={(e) => e.stopPropagation()}
-                    className="flex flex-col sm:flex-row justify-between items-center w-full px-4 md:px-8 mt-8 pb-4 select-none z-20 gap-4 sm:gap-0"
+                    className="flex flex-col sm:flex-row justify-between items-center w-full px-2 md:px-8 mt-8 pb-4 select-none z-20 gap-3 sm:gap-0"
                 >
-                    {/* Left Side: Contextual action pills */}
-                    <div className="flex flex-wrap items-center gap-2.5 h-auto">
+                    {/* Left Side: Contextual action pills — horizontally scrollable on mobile */}
+                    <div className="flex items-center gap-2.5 h-auto overflow-x-auto pb-1 w-full sm:w-auto no-scrollbar">
                         {/* Section template buttons */}
                         <div className="flex items-center gap-2">
                             <button 
