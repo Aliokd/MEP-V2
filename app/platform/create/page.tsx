@@ -48,7 +48,40 @@ interface AudioNote {
     duration: number;
     groupId: string | null;
     phraseId?: string | null;
+    createdAt?: number;
 }
+
+const getAudioNoteTimestamp = (an: AudioNote): number => {
+    if (!an) return 0;
+    if (an.createdAt) {
+        if (typeof an.createdAt === 'number') {
+            return an.createdAt;
+        }
+        if (typeof an.createdAt === 'object' && an.createdAt !== null && 'seconds' in an.createdAt) {
+            return (an.createdAt as any).seconds * 1000;
+        }
+        const parsed = Date.parse(an.createdAt as any);
+        if (!isNaN(parsed)) {
+            return parsed;
+        }
+    }
+    if (an.id) {
+        if (an.id.startsWith('rec-')) {
+            const parsedId = parseInt(an.id.replace('rec-', ''));
+            if (!isNaN(parsedId)) return parsedId;
+        }
+        if (an.id.startsWith('audio-')) {
+            const parsedId = parseInt(an.id.replace('audio-', ''));
+            if (!isNaN(parsedId)) return parsedId;
+        }
+    }
+    return 0;
+};
+
+const sortAudioNotesChronologically = (notes: AudioNote[]) => {
+    return [...notes].sort((a, b) => getAudioNoteTimestamp(a) - getAudioNoteTimestamp(b));
+};
+
 
 interface SongNote {
     id: string;
@@ -190,7 +223,8 @@ function PhraseRow({
     isCurrentlyEditing,
     onStartEditing,
     onStopEditing,
-    onUpdateText
+    onUpdateText,
+    hasAudioNote
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
@@ -219,11 +253,63 @@ function PhraseRow({
     onStartEditing?: (phraseId: string) => void;
     onStopEditing?: (createNext?: boolean) => void;
     onUpdateText?: (phraseId: string, text: string) => void;
+    hasAudioNote?: boolean;
 }) {
     const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isTouchDraggingRef = useRef(false);
     const startXRef = useRef(0);
     const startYRef = useRef(0);
+    
+    if (phrase.text.trim() === '' && hasAudioNote && !isCurrentlyEditing) {
+        return (
+            <div 
+                draggable
+                onDragStart={(e) => {
+                    e.stopPropagation();
+                    if (draggedPhraseIdRef) draggedPhraseIdRef.current = phrase.id;
+                    setDraggedPhraseId(phrase.id);
+                    e.dataTransfer.setData('text/plain', phrase.id);
+                }}
+                onDragEnd={() => {
+                    setTimeout(() => {
+                        if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
+                        setDraggedPhraseId(null);
+                        setDragOverPhraseId(null);
+                        setDropPosition(null);
+                    }, 50);
+                }}
+                onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDragOverPhraseId(phrase.id);
+                    setDropPosition('bottom');
+                }}
+                onDragLeave={() => {
+                    setDragOverPhraseId(null);
+                    setDropPosition(null);
+                }}
+                onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const draggedId = e.dataTransfer.getData('text/plain') || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null) || draggedPhraseId;
+                    setDraggedPhraseId(null);
+                    if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
+                    if (draggedId && draggedId !== phrase.id) {
+                        handleInsertPhraseAt(draggedId, phrase.id, 'bottom');
+                    }
+                    setDragOverPhraseId(null);
+                    setDropPosition(null);
+                }}
+                className="phrase-row-container h-1 w-full relative"
+                data-phrase-id={phrase.id}
+            >
+                {dragOverPhraseId === phrase.id && (
+                    <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform -translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+                )}
+            </div>
+        );
+    }
+
     const wordsList = phrase.text.split(/(\s+)/);
     
     return (
@@ -1653,7 +1739,8 @@ export default function CreatePage() {
                     title: activeNote.title || 'Audio 1', 
                     duration: activeNote.recordingDuration || 0, 
                     groupId: activeNote.audioGroupId || null,
-                    phraseId: null
+                    phraseId: null,
+                    createdAt: 0
                   }] 
                 : []))
         : [];
@@ -1753,9 +1840,28 @@ export default function CreatePage() {
                     
                     const finalizeNoteCreation = (transcriptText: string) => {
                         const hasTranscription = transcriptText.trim().length > 0;
-                        const defaultContent = hasTranscription 
-                            ? transcriptText.trim() 
-                            : '';
+                        let line1 = "";
+                        let line2 = "";
+                        if (hasTranscription) {
+                            if (transcriptText.includes('\n')) {
+                                const parts = transcriptText.split('\n');
+                                line1 = parts[0].trim();
+                                line2 = parts.slice(1).join('\n').trim() || "...";
+                            } else {
+                                const words = transcriptText.split(/\s+/).filter((w: string) => w.length > 0);
+                                if (words.length === 0) {
+                                    line1 = "";
+                                    line2 = "";
+                                } else if (words.length === 1) {
+                                    line1 = words[0];
+                                    line2 = "";
+                                } else {
+                                    const mid = Math.ceil(words.length / 2);
+                                    line1 = words.slice(0, mid).join(" ");
+                                    line2 = words.slice(mid).join(" ");
+                                }
+                            }
+                        }
                         
                         const currentNoteId = selectedNoteIdRef.current;
                         const currentNotes = notesRef.current;
@@ -1766,23 +1872,24 @@ export default function CreatePage() {
                         let finalizedNoteId = '';
                         if (shouldUpdate && currentActiveNote) {
                             finalizedNoteId = currentNoteId;
-                            let updatedContent = currentActiveNote.content || '';
-                            if (updatedContent === 'Voice Recording\n[Attached Audio]') {
-                                updatedContent = '';
-                            }
                             
-                            if (hasTranscription) {
-                                if (updatedContent.trim() === '') {
-                                    updatedContent = transcriptText.trim();
-                                } else {
-                                    updatedContent = updatedContent.trim() + '\n' + transcriptText.trim();
-                                }
-                            }
+                            const newPhraseId1 = `p-audio-${newRecId}`;
+                            const newPhrase1: Phrase = {
+                                id: newPhraseId1,
+                                text: line1,
+                                groupId: null
+                            };
                             
-                            const existingRealPhrases = (currentActiveNote.phrases || []).filter(p => !p.id.startsWith('placeholder-'));
-                            const updatedPhrases = hasTranscription 
-                                ? syncPhrasesWithContent(updatedContent, existingRealPhrases)
-                                : (currentActiveNote.phrases || []);
+                            let newPhrases = [...(currentActiveNote.phrases || []), newPhrase1];
+                            if (line2) {
+                                const newPhrase2: Phrase = {
+                                    id: `p-audio-2-${newRecId}`,
+                                    text: line2,
+                                    groupId: null
+                                };
+                                newPhrases.push(newPhrase2);
+                            }
+                            const finalPhrases = cleanupAndEnsurePlaceholders(newPhrases, currentActiveNote.verses || []);
                             
                             const existingAudioNotes = currentActiveNote.audioNotes || [];
                             const migratedNotes = [...existingAudioNotes];
@@ -1792,7 +1899,8 @@ export default function CreatePage() {
                                     url: currentActiveNote.audioUrl,
                                     title: currentActiveNote.title || 'Audio 1',
                                     duration: currentActiveNote.recordingDuration || 0,
-                                    groupId: currentActiveNote.audioGroupId || null
+                                    groupId: currentActiveNote.audioGroupId || null,
+                                    createdAt: 0
                                 });
                             }
                             const newAudioNotes = [
@@ -1802,15 +1910,19 @@ export default function CreatePage() {
                                     url: url,
                                     title: `Audio ${migratedNotes.length + 1}`,
                                     duration: durationSeconds,
-                                    groupId: null
+                                    groupId: null,
+                                    phraseId: newPhraseId1,
+                                    createdAt: Date.now()
                                 }
                             ];
+                            
+                            const updatedContent = finalPhrases.map(p => p.text).join('\n');
                             
                             handleUpdateNote(currentNoteId, { 
                                 audioUrl: url,
                                 audioNotes: newAudioNotes,
                                 content: updatedContent,
-                                phrases: updatedPhrases,
+                                phrases: finalPhrases,
                                 verses: currentActiveNote.verses || [],
                                 isAudioOnly: currentActiveNote.isAudioOnly === true ? !hasTranscription : false
                             });
@@ -1819,20 +1931,24 @@ export default function CreatePage() {
                             const noteCreatedDuringSession = currentNoteId && currentNoteId !== startingNoteId;
                             if (noteCreatedDuringSession) {
                                 finalizedNoteId = currentNoteId;
-                                let updatedContent = currentActiveNote?.content || '';
-                                if (updatedContent === 'Voice Recording\n[Attached Audio]') {
-                                    updatedContent = '';
+                                
+                                const newPhraseId1 = `p-audio-${newRecId}`;
+                                const newPhrase1: Phrase = {
+                                    id: newPhraseId1,
+                                    text: line1,
+                                    groupId: null
+                                };
+                                
+                                let newPhrases = [...(currentActiveNote?.phrases || []), newPhrase1];
+                                if (line2) {
+                                    const newPhrase2: Phrase = {
+                                        id: `p-audio-2-${newRecId}`,
+                                        text: line2,
+                                        groupId: null
+                                    };
+                                    newPhrases.push(newPhrase2);
                                 }
-                                if (hasTranscription) {
-                                    if (updatedContent.trim() === '') {
-                                        updatedContent = transcriptText.trim();
-                                    } else {
-                                        updatedContent = updatedContent.trim() + '\n' + transcriptText.trim();
-                                    }
-                                }
-                                const updatedPhrases = hasTranscription
-                                    ? syncPhrasesWithContent(updatedContent, [])
-                                    : (currentActiveNote?.phrases || []);
+                                const finalPhrases = cleanupAndEnsurePlaceholders(newPhrases, currentActiveNote?.verses || []);
                                 
                                 const existingAudioNotes = currentActiveNote?.audioNotes || [];
                                 const migratedNotes = [...existingAudioNotes];
@@ -1842,7 +1958,8 @@ export default function CreatePage() {
                                         url: currentActiveNote.audioUrl,
                                         title: currentActiveNote.title || 'Audio 1',
                                         duration: currentActiveNote.recordingDuration || 0,
-                                        groupId: currentActiveNote.audioGroupId || null
+                                        groupId: currentActiveNote.audioGroupId || null,
+                                        createdAt: 0
                                     });
                                 }
                                 const newAudioNotes = [
@@ -1852,24 +1969,42 @@ export default function CreatePage() {
                                         url: url,
                                         title: `Audio ${migratedNotes.length + 1}`,
                                         duration: durationSeconds,
-                                        groupId: null
+                                        groupId: null,
+                                        phraseId: newPhraseId1,
+                                        createdAt: Date.now()
                                     }
                                 ];
+                                
+                                const updatedContent = finalPhrases.map(p => p.text).join('\n');
                                 
                                 handleUpdateNote(currentNoteId, {
                                     audioUrl: url,
                                     audioNotes: newAudioNotes,
                                     content: updatedContent,
-                                    phrases: updatedPhrases,
+                                    phrases: finalPhrases,
                                     isAudioOnly: !hasTranscription
                                 });
                             } else {
                                 const newId = `n-${Date.now()}`;
                                 finalizedNoteId = newId;
                                 const title = recordingTitle.trim() || `Recording ${new Date().toLocaleDateString()}`;
-                                const initialPhrases = hasTranscription 
-                                    ? syncPhrasesWithContent(defaultContent, [])
-                                    : [];
+                                
+                                const newPhraseId1 = `p-audio-${newRecId}`;
+                                const newPhrase1: Phrase = {
+                                    id: newPhraseId1,
+                                    text: line1,
+                                    groupId: null
+                                };
+                                
+                                let initialPhrases = [newPhrase1];
+                                if (line2) {
+                                    const newPhrase2: Phrase = {
+                                        id: `p-audio-2-${newRecId}`,
+                                        text: line2,
+                                        groupId: null
+                                    };
+                                    initialPhrases.push(newPhrase2);
+                                }
                                 
                                 const initialAudioNotes = [
                                     {
@@ -1877,14 +2012,18 @@ export default function CreatePage() {
                                         url: url,
                                         title: `Audio 1`,
                                         duration: durationSeconds,
-                                        groupId: null
+                                        groupId: null,
+                                        phraseId: newPhraseId1,
+                                        createdAt: Date.now()
                                     }
                                 ];
+                                
+                                const updatedContent = initialPhrases.map(p => p.text).join('\n');
                                 
                                 const newNote: SongNote = {
                                     id: newId,
                                     title: title,
-                                    content: defaultContent,
+                                    content: updatedContent,
                                     folderId: activeFolderIdFilter,
                                     updatedAt: timestamp,
                                     audioUrl: url,
@@ -2396,12 +2535,26 @@ export default function CreatePage() {
         if (!confirm("Are you sure you want to delete this audio recording?")) return;
         setNotes(prev => prev.map(n => {
             if (n.id === noteId) {
+                const matchingAudio = (n.audioNotes || []).find(an => an.id === audioNoteId);
+                const attachedPhraseId = matchingAudio ? matchingAudio.phraseId : null;
+                
                 const updatedAudioNotes = (n.audioNotes || []).filter(an => an.id !== audioNoteId);
                 const latestAudio = updatedAudioNotes[updatedAudioNotes.length - 1];
+                
+                let updatedPhrases = n.phrases || [];
+                if (attachedPhraseId && attachedPhraseId.startsWith('p-audio-')) {
+                    const phraseObj = updatedPhrases.find(p => p.id === attachedPhraseId);
+                    if (phraseObj && phraseObj.text.trim() === '') {
+                        updatedPhrases = updatedPhrases.filter(p => p.id !== attachedPhraseId);
+                    }
+                }
+                const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, n.verses || []);
+                
                 return {
                     ...n,
                     audioNotes: updatedAudioNotes,
-                    audioUrl: latestAudio ? latestAudio.url : ''
+                    audioUrl: latestAudio ? latestAudio.url : '',
+                    phrases: finalPhrases
                 };
             }
             return n;
@@ -2411,15 +2564,29 @@ export default function CreatePage() {
     const handleUpdateAudioNoteGroup = (noteId: string, audioNoteId: string, targetGroupId: string | null) => {
         setNotes(prev => prev.map(n => {
             if (n.id === noteId) {
+                const matchingAudio = (n.audioNotes || []).find(an => an.id === audioNoteId);
+                const oldPhraseId = matchingAudio ? matchingAudio.phraseId : null;
+                
                 const updatedAudioNotes = (n.audioNotes || []).map(an => {
                     if (an.id === audioNoteId) {
                         return { ...an, groupId: targetGroupId, phraseId: null };
                     }
                     return an;
                 });
+                
+                let updatedPhrases = n.phrases || [];
+                if (oldPhraseId && oldPhraseId.startsWith('p-audio-')) {
+                    const phraseObj = updatedPhrases.find(p => p.id === oldPhraseId);
+                    if (phraseObj && phraseObj.text.trim() === '') {
+                        updatedPhrases = updatedPhrases.filter(p => p.id !== oldPhraseId);
+                    }
+                }
+                const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, n.verses || []);
+                
                 return {
                     ...n,
-                    audioNotes: updatedAudioNotes
+                    audioNotes: updatedAudioNotes,
+                    phrases: finalPhrases
                 };
             }
             return n;
@@ -2430,15 +2597,29 @@ export default function CreatePage() {
         if (!selectedNoteId) return;
         setNotes(prev => prev.map(n => {
             if (n.id === selectedNoteId) {
+                const matchingAudio = (n.audioNotes || []).find(an => an.id === audioNoteId);
+                const oldPhraseId = matchingAudio ? matchingAudio.phraseId : null;
+                
                 const updatedAudioNotes = (n.audioNotes || []).map(an => {
                     if (an.id === audioNoteId) {
                         return { ...an, groupId, phraseId };
                     }
                     return an;
                 });
+                
+                let updatedPhrases = n.phrases || [];
+                if (oldPhraseId && oldPhraseId !== phraseId && oldPhraseId.startsWith('p-audio-')) {
+                    const phraseObj = updatedPhrases.find(p => p.id === oldPhraseId);
+                    if (phraseObj && phraseObj.text.trim() === '') {
+                        updatedPhrases = updatedPhrases.filter(p => p.id !== oldPhraseId);
+                    }
+                }
+                const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, n.verses || []);
+                
                 return {
                     ...n,
-                    audioNotes: updatedAudioNotes
+                    audioNotes: updatedAudioNotes,
+                    phrases: finalPhrases
                 };
             }
             return n;
@@ -2459,7 +2640,11 @@ export default function CreatePage() {
             let nextPhraseId: string | null = null;
             
             if (editingPhrase && editingPhrase.text.trim() === '') {
-                finalPhrases = currentPhrases.filter(p => p.id !== editingPhraseId);
+                // Keep the phrase if it has an attached audio note
+                const hasAttachedAudio = (activeNote.audioNotes || []).some(an => an.phraseId === editingPhraseId);
+                if (!hasAttachedAudio) {
+                    finalPhrases = currentPhrases.filter(p => p.id !== editingPhraseId);
+                }
             } else if (createNext && editingPhrase) {
                 const newPhraseId = `p-${Math.random().toString(36).substring(2, 9)}`;
                 const newPhrase: Phrase = {
@@ -2641,8 +2826,20 @@ export default function CreatePage() {
                 
                 // Case 3: Free / ungrouped audio, or fallback
                 if (!inserted) {
-                    currentPhrases.unshift(...newPhrasesToInsert);
+                    currentPhrases.push(...newPhrasesToInsert);
                 }
+                
+                // Attach the audio note to the first of the newly transcribed phrases so it sticks above the text
+                const updatedAudioNotes = (targetNote.audioNotes || []).map(an => {
+                    if (an.id === audioNoteId) {
+                        return {
+                            ...an,
+                            phraseId: newPhrase1.id,
+                            groupId: newPhrase1.groupId
+                        };
+                    }
+                    return an;
+                });
                 
                 const finalPhrases = cleanupAndEnsurePlaceholders(currentPhrases, targetNote.verses || []);
                 const updatedContent = finalPhrases.map(p => p.text).join('\n');
@@ -2650,6 +2847,7 @@ export default function CreatePage() {
                 handleUpdateNote(noteId, {
                     content: updatedContent,
                     phrases: finalPhrases,
+                    audioNotes: updatedAudioNotes,
                     isAudioOnly: false
                 });
             } else {
@@ -3896,7 +4094,7 @@ export default function CreatePage() {
                                                                         </button>
                                                                     </div>
 
-                                                                    {activeAudioNotes.filter(an => an.groupId === block.groupId).map(audioNote => (
+                                                                    {sortAudioNotesChronologically(activeAudioNotes.filter(an => an.groupId === block.groupId)).map(audioNote => (
                                                                         <AudioCapsulePlayer 
                                                                             key={audioNote.id}
                                                                             audioNote={audioNote}
@@ -3964,6 +4162,7 @@ export default function CreatePage() {
                                                                                         onStartEditing={handleStartEditing}
                                                                                         onStopEditing={handleStopEditing}
                                                                                         onUpdateText={handleUpdatePhraseText}
+                                                                                        hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
                                                                                     />
                                                                                 </div>
                                                                             );
@@ -3976,7 +4175,7 @@ export default function CreatePage() {
                                                 ) : (
                                                     (() => {
                                                         const phrase = block.phrases[0];
-                                                        const phraseAudios = activeAudioNotes.filter(an => an.phraseId === phrase.id);
+                                                        const phraseAudios = sortAudioNotesChronologically(activeAudioNotes.filter(an => an.phraseId === phrase.id));
                                                         return (
                                                             <div className="flex flex-col items-center w-full gap-2">
                                                                 {phraseAudios.map(audioNote => (
@@ -4035,6 +4234,7 @@ export default function CreatePage() {
                                                                     onStartEditing={handleStartEditing}
                                                                     onStopEditing={handleStopEditing}
                                                                     onUpdateText={handleUpdatePhraseText}
+                                                                    hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
                                                                 />
                                                             </div>
                                                         );
@@ -4052,7 +4252,7 @@ export default function CreatePage() {
                                 {/* 1b. Floating Interactive Audio Control Capsule Player Area */}
                                 {(activeAudioNotes.filter(an => !an.groupId && !phraseExists(an.phraseId)).length > 0 || isRecordingSaving) && (
                                     <div className="flex flex-col items-center gap-3 w-full px-4 mt-2 select-none z-30">
-                                        {activeAudioNotes.filter(an => !an.groupId && !phraseExists(an.phraseId)).map(audioNote => (
+                                        {sortAudioNotesChronologically(activeAudioNotes.filter(an => !an.groupId && !phraseExists(an.phraseId))).map(audioNote => (
                                             <React.Fragment key={audioNote.id}>
                                                 <AudioCapsulePlayer 
                                                     audioNote={audioNote}
