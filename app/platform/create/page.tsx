@@ -2544,11 +2544,22 @@ export default function CreatePage() {
         setTranscribingAudioNoteId(audioNoteId);
         setIsTranscribing(true);
         try {
-            const audioBlob = await fetch(audioUrl).then(r => r.blob());
-            const wavBlob = await getWavBlob(audioBlob);
+            let body: any = null;
+            const headers: any = {};
+            
+            if (audioUrl.startsWith('blob:')) {
+                const audioBlob = await fetch(audioUrl).then(r => r.blob());
+                body = await getWavBlob(audioBlob);
+                headers['Content-Type'] = 'application/octet-stream';
+            } else {
+                body = JSON.stringify({ audioUrl });
+                headers['Content-Type'] = 'application/json';
+            }
+
             const response = await fetch('/api/transcribe', {
                 method: 'POST',
-                body: wavBlob,
+                headers: headers,
+                body: body,
             });
             if (response.ok) {
                 const data = await response.json();
