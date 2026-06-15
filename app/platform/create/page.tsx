@@ -209,6 +209,25 @@ const getPhraseSyllableCount = (phraseText: string): number => {
     return words.reduce((acc, word) => acc + countSyllables(word), 0);
 };
 
+// Helper to perform rect-based hit testing for mobile touch drag-and-drop
+const getElementUnderTouch = (clientX: number, clientY: number, selector: string): HTMLElement | null => {
+    if (typeof document === 'undefined') return null;
+    const elements = document.querySelectorAll(selector);
+    for (let i = 0; i < elements.length; i++) {
+        const elem = elements[i] as HTMLElement;
+        const rect = elem.getBoundingClientRect();
+        if (
+            clientX >= rect.left &&
+            clientX <= rect.right &&
+            clientY >= rect.top &&
+            clientY <= rect.bottom
+        ) {
+            return elem;
+        }
+    }
+    return null;
+};
+
 // Draggable Phrase row rendering individual words for songwriting suggestions
 // Draggable Phrase row rendering individual words for songwriting suggestions
 function PhraseRow({ 
@@ -275,6 +294,7 @@ function PhraseRow({
     const startXRef = useRef(0);
     const startYRef = useRef(0);
     const touchStartTimeRef = useRef(0);
+    const lastTapTimeRef = useRef<number>(0);
     
     if (phrase.text.trim() === '' && hasAudioNote && !isCurrentlyEditing) {
         return (
@@ -451,20 +471,9 @@ function PhraseRow({
                     e.preventDefault();
                 }
                 
-                // Temporarily disable pointer events on the dragged element so document.elementFromPoint works
-                const currentTarget = e.currentTarget as HTMLElement;
-                const originalPointerEvents = currentTarget.style.pointerEvents;
-                currentTarget.style.pointerEvents = 'none';
-                
-                const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                
-                currentTarget.style.pointerEvents = originalPointerEvents;
-                
-                if (!elem) return;
-                
-                const targetPhraseRow = elem.closest('.phrase-row-container');
-                const targetGroupRow = elem.closest('.verse-group-container');
-                const targetBlockWrapper = elem.closest('.block-wrapper');
+                const targetPhraseRow = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
+                const targetGroupRow = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
+                const targetBlockWrapper = getElementUnderTouch(touch.clientX, touch.clientY, '.block-wrapper');
                 
                 if (targetPhraseRow) {
                     const targetId = targetPhraseRow.getAttribute('data-phrase-id');
@@ -513,31 +522,21 @@ function PhraseRow({
                     
                     const touch = e.changedTouches[0];
                     
-                    // Temporarily disable pointer events on the dragged element so document.elementFromPoint works
-                    const currentTarget = e.currentTarget as HTMLElement;
-                    const originalPointerEvents = currentTarget.style.pointerEvents;
-                    currentTarget.style.pointerEvents = 'none';
-                    
-                    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                    
-                    currentTarget.style.pointerEvents = originalPointerEvents;
+                    const targetPhraseRow = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
+                    const targetGroupRow = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
+                    const targetBlockWrapper = getElementUnderTouch(touch.clientX, touch.clientY, '.block-wrapper');
+                    const isOverCanvas = !!getElementUnderTouch(touch.clientX, touch.clientY, '#writing-canvas');
                     
                     let finalPhraseId: string | null = null;
                     let finalGroupId: string | null = null;
                     let finalBlockId: string | null = null;
                     
-                    if (elem) {
-                        const targetPhraseRow = elem.closest('.phrase-row-container');
-                        const targetGroupRow = elem.closest('.verse-group-container');
-                        const targetBlockWrapper = elem.closest('.block-wrapper');
-                        
-                        if (targetPhraseRow) {
-                            finalPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
-                        } else if (targetGroupRow) {
-                            finalGroupId = targetGroupRow.getAttribute('data-group-id');
-                        } else if (targetBlockWrapper) {
-                            finalBlockId = targetBlockWrapper.getAttribute('data-block-id');
-                        }
+                    if (targetPhraseRow) {
+                        finalPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
+                    } else if (targetGroupRow) {
+                        finalGroupId = targetGroupRow.getAttribute('data-group-id');
+                    } else if (targetBlockWrapper) {
+                        finalBlockId = targetBlockWrapper.getAttribute('data-block-id');
                     }
                     
                     if (finalPhraseId && finalPhraseId !== phrase.id) {
@@ -548,11 +547,8 @@ function PhraseRow({
                         if (handleInsertPhraseAtBlockLevel) {
                             handleInsertPhraseAtBlockLevel(phrase.id, finalBlockId, blockDropPosition || null);
                         }
-                    } else if (!finalPhraseId && !finalGroupId && !finalBlockId) {
-                        // Check if dropped inside canvas, ungroup it
-                        if (elem && elem.closest('#writing-canvas')) {
-                            handleMovePhraseToGroup(phrase.id, null);
-                        }
+                    } else if (!finalPhraseId && !finalGroupId && !finalBlockId && isOverCanvas) {
+                        handleMovePhraseToGroup(phrase.id, null);
                     }
                     
                     setDraggedPhraseId(null);
@@ -564,13 +560,21 @@ function PhraseRow({
                     if (setDragOverGroupId) setDragOverGroupId(null);
                     if (setDragOverBlockId) setDragOverBlockId(null);
                 } else {
-                    // Short tap (< 250ms, < 10px movement) → tap-to-edit on mobile
-                    const tapDuration = Date.now() - touchStartTimeRef.current;
+                    // Double-tap gesture handling for mobile
+                    const now = Date.now();
+                    const timeSinceLastTap = now - lastTapTimeRef.current;
                     const touch = e.changedTouches[0];
                     const diffX = Math.abs(touch.clientX - startXRef.current);
                     const diffY = Math.abs(touch.clientY - startYRef.current);
-                    if (tapDuration < 250 && diffX < 10 && diffY < 10 && onStartEditing) {
-                        onStartEditing(phrase.id);
+                    
+                    if (diffX < 10 && diffY < 10) {
+                        if (timeSinceLastTap < 300) {
+                            e.preventDefault();
+                            if (onStartEditing) onStartEditing(phrase.id);
+                            lastTapTimeRef.current = 0;
+                        } else {
+                            lastTapTimeRef.current = now;
+                        }
                     }
                 }
             }}
@@ -592,7 +596,7 @@ function PhraseRow({
                     <textarea
                         autoFocus
                         value={phrase.text}
-                        placeholder="Write something..."
+                        placeholder=""
                         onChange={(e) => onUpdateText && onUpdateText(phrase.id, e.target.value)}
                         onBlur={() => onStopEditing && onStopEditing(false)}
                         onKeyDown={(e) => {
@@ -905,15 +909,8 @@ function AudioCapsulePlayer({
                     }
                     e.stopPropagation();
                     
-                    const currentTarget = e.currentTarget as HTMLElement;
-                    const originalPointerEvents = currentTarget.style.pointerEvents;
-                    currentTarget.style.pointerEvents = 'none';
-                    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                    currentTarget.style.pointerEvents = originalPointerEvents;
-                    
-                    if (!elem) return;
-                    const targetGroupRow = elem.closest('.verse-group-container');
-                    const targetPhraseRow = elem.closest('.phrase-row-container');
+                    const targetGroupRow = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
+                    const targetPhraseRow = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
                     
                     if (targetGroupRow) {
                         const targetGroupId = targetGroupRow.getAttribute('data-group-id');
@@ -943,12 +940,11 @@ function AudioCapsulePlayer({
                         
                         if (!finalGroupId && !finalPhraseId) {
                             const touch = e.changedTouches[0];
-                            const currentTarget = e.currentTarget as HTMLElement;
-                            const originalPointerEvents = currentTarget.style.pointerEvents;
-                            currentTarget.style.pointerEvents = 'none';
-                            const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                            currentTarget.style.pointerEvents = originalPointerEvents;
-                            isOverCanvas = !!(elem && elem.closest('#writing-canvas'));
+                            isOverCanvas = !!getElementUnderTouch(touch.clientX, touch.clientY, '#writing-canvas');
+                            const targetGroupRow = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
+                            const targetPhraseRow = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
+                            if (targetGroupRow) finalGroupId = targetGroupRow.getAttribute('data-group-id');
+                            if (targetPhraseRow) finalPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
                         }
                         
                         if (finalGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
@@ -1036,13 +1032,13 @@ function AudioCapsulePlayer({
                             )}
                         </button>
                         
-                        <div className="h-2.5 w-[1px] bg-stone-200" />
+                        <div className="hidden sm:block h-2.5 w-[1px] bg-stone-200" />
 
                         <div 
                             onClick={handleWaveformClick}
                             onTouchStart={handleWaveformClick}
                             onTouchMove={handleWaveformClick}
-                            className="flex items-center gap-[1.5px] h-3 px-1 relative cursor-pointer select-none"
+                            className="hidden sm:flex items-center gap-[1.5px] h-3 px-1 relative cursor-pointer select-none"
                             style={{ width: 'clamp(50px, 15vw, 80px)' }}
                         >
                             <div 
@@ -1069,7 +1065,7 @@ function AudioCapsulePlayer({
                             })}
                         </div>
 
-                        <div className="h-2.5 w-[1px] bg-stone-200" />
+                        <div className="hidden sm:block h-2.5 w-[1px] bg-stone-200" />
                         <span className="text-[8px] font-mono font-bold text-stone-500">
                             {formatTime(playbackTime || playbackDuration)}
                         </span>
@@ -1151,15 +1147,8 @@ function AudioCapsulePlayer({
                 }
                 e.stopPropagation();
                 
-                const currentTarget = e.currentTarget as HTMLElement;
-                const originalPointerEvents = currentTarget.style.pointerEvents;
-                currentTarget.style.pointerEvents = 'none';
-                const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                currentTarget.style.pointerEvents = originalPointerEvents;
-                
-                if (!elem) return;
-                const targetGroupRow = elem.closest('.verse-group-container');
-                const targetPhraseRow = elem.closest('.phrase-row-container');
+                const targetGroupRow = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
+                const targetPhraseRow = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
                 
                 if (targetGroupRow) {
                     const targetGroupId = targetGroupRow.getAttribute('data-group-id');
@@ -1189,12 +1178,11 @@ function AudioCapsulePlayer({
                     
                     if (!finalGroupId && !finalPhraseId) {
                         const touch = e.changedTouches[0];
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const originalPointerEvents = currentTarget.style.pointerEvents;
-                        currentTarget.style.pointerEvents = 'none';
-                        const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                        currentTarget.style.pointerEvents = originalPointerEvents;
-                        isOverCanvas = !!(elem && elem.closest('#writing-canvas'));
+                        isOverCanvas = !!getElementUnderTouch(touch.clientX, touch.clientY, '#writing-canvas');
+                        const targetGroupRow = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
+                        const targetPhraseRow = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
+                        if (targetGroupRow) finalGroupId = targetGroupRow.getAttribute('data-group-id');
+                        if (targetPhraseRow) finalPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
                     }
                     
                     if (finalGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
@@ -1288,15 +1276,14 @@ function AudioCapsulePlayer({
                             </>
                         )}
                     </button>
-
-                    <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
+                    <div className="hidden sm:block h-4 w-[1px] bg-stone-200 shrink-0" />
 
                     <div 
                         onClick={handleWaveformClick}
                         onTouchStart={handleWaveformClick}
                         onTouchMove={handleWaveformClick}
-                        className="flex items-center gap-[2.5px] h-6 px-1.5 relative cursor-pointer select-none shrink-0"
-                        style={{ width: 'clamp(60px, 18vw, 130px)' }}
+                        className="hidden sm:flex items-center gap-[2.5px] h-6 px-1.5 relative cursor-pointer select-none shrink-0"
+                        style={{ width: 'clamp(70px, 22vw, 130px)' }}
                     >
                         <div 
                             className="absolute top-0 bottom-0 w-[2px] bg-red-500 rounded-full z-10 pointer-events-none transition-all duration-75"
@@ -1326,7 +1313,7 @@ function AudioCapsulePlayer({
                         })}
                     </div>
 
-                    <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
+                    <div className="hidden sm:block h-4 w-[1px] bg-stone-200 shrink-0" />
 
                     <span className="text-[10px] font-mono font-bold text-stone-500 shrink-0">
                         {formatTime(playbackTime || playbackDuration)}
@@ -1458,6 +1445,29 @@ export default function CreatePage() {
     const [draggedAudioId, setDraggedAudioId] = useState<string | null>(null);
     const [touchGhostPos, setTouchGhostPos] = useState<{ x: number; y: number } | null>(null);
     const [touchGhostLabel, setTouchGhostLabel] = useState<string>('');
+    const [visualViewportOffset, setVisualViewportOffset] = useState(0);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.visualViewport) return;
+        
+        const updateOffset = () => {
+            const vv = window.visualViewport;
+            if (vv) {
+                const offset = window.innerHeight - vv.height;
+                setVisualViewportOffset(Math.max(0, offset));
+            }
+        };
+        
+        window.visualViewport.addEventListener('resize', updateOffset);
+        window.visualViewport.addEventListener('scroll', updateOffset);
+        
+        updateOffset();
+        
+        return () => {
+            window.visualViewport?.removeEventListener('resize', updateOffset);
+            window.visualViewport?.removeEventListener('scroll', updateOffset);
+        };
+    }, []);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const draggedPhraseIdRef = useRef<string | null>(null);
@@ -3036,15 +3046,21 @@ export default function CreatePage() {
         const val = e.target.value;
         if (!selectedNoteId) {
             // Auto create note on first character typed
+            const initialPhrases = syncPhrasesWithContent(val, []);
             const newNote: SongNote = {
                 id: `n-${Date.now()}`,
                 title: getTitleFromContent(val) || 'Untitled Note',
                 content: val,
                 folderId: activeFolderIdFilter,
-                updatedAt: new Date().toLocaleString()
+                updatedAt: new Date().toLocaleString(),
+                phrases: initialPhrases,
+                verses: []
             };
             setNotes(prev => [newNote, ...prev]);
             setSelectedNoteId(newNote.id);
+            if (initialPhrases[0]) {
+                setEditingPhraseId(initialPhrases[0].id);
+            }
             setIsEditing(true);
         } else {
             // Update active note
@@ -3986,7 +4002,9 @@ export default function CreatePage() {
                     </div>
                 </div>
 
-                    <div className="w-full flex-grow flex-1 flex flex-col z-10 py-6 relative">
+                    <div className={`w-full flex-grow flex-1 flex flex-col z-10 py-6 relative ${
+                        (isMobile && (editingPhraseId !== null || isFocused)) ? 'pb-16' : ''
+                    }`}>
                         {selectedNoteId ? (
                             <div className="w-full flex flex-col gap-3 max-w-4xl mx-auto py-4 my-auto">
                                 {renderBlocks.length === 0 ? (
@@ -4111,17 +4129,7 @@ export default function CreatePage() {
                                                                         e.preventDefault();
                                                                     }
                                                                     
-                                                                    const currentTarget = e.currentTarget as HTMLElement;
-                                                                    const originalPointerEvents = currentTarget.style.pointerEvents;
-                                                                    currentTarget.style.pointerEvents = 'none';
-                                                                    
-                                                                    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                                                                    
-                                                                    currentTarget.style.pointerEvents = originalPointerEvents;
-                                                                    
-                                                                    if (!elem) return;
-                                                                    
-                                                                    const targetBlockWrapper = elem.closest('.block-wrapper');
+                                                                    const targetBlockWrapper = getElementUnderTouch(touch.clientX, touch.clientY, '.block-wrapper');
                                                                     
                                                                     if (targetBlockWrapper) {
                                                                         const targetBlockId = targetBlockWrapper.getAttribute('data-block-id');
@@ -4145,20 +4153,11 @@ export default function CreatePage() {
                                                                         
                                                                         const touch = e.changedTouches[0];
                                                                         
-                                                                        const currentTarget = e.currentTarget as HTMLElement;
-                                                                        const originalPointerEvents = currentTarget.style.pointerEvents;
-                                                                        currentTarget.style.pointerEvents = 'none';
-                                                                        
-                                                                        const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                                                                        
-                                                                        currentTarget.style.pointerEvents = originalPointerEvents;
+                                                                        const targetBlockWrapper = getElementUnderTouch(touch.clientX, touch.clientY, '.block-wrapper');
                                                                         
                                                                         let finalBlockId: string | null = null;
-                                                                        if (elem) {
-                                                                            const targetBlockWrapper = elem.closest('.block-wrapper');
-                                                                            if (targetBlockWrapper) {
-                                                                                finalBlockId = targetBlockWrapper.getAttribute('data-block-id');
-                                                                            }
+                                                                        if (targetBlockWrapper) {
+                                                                            finalBlockId = targetBlockWrapper.getAttribute('data-block-id');
                                                                         }
                                                                         
                                                                         if (finalBlockId && finalBlockId !== block.groupId) {
@@ -4450,7 +4449,7 @@ export default function CreatePage() {
                         <div 
                             className={`
                                 bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[24px] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.08)] z-40 flex flex-col gap-5 min-w-[280px] max-w-sm animate-in fade-in zoom-in-95 duration-200
-                                ${isMobile ? 'fixed bottom-4 left-4 right-4 shadow-xl' : 'absolute'}
+                                ${isMobile ? 'absolute bottom-4 left-4 right-4 shadow-xl mx-auto' : 'absolute'}
                             `}
                             style={isMobile ? undefined : { 
                                 top: `${popoverPosition.top}px`, 
@@ -4512,10 +4511,17 @@ export default function CreatePage() {
                 {/* 1c. Bottom controls bar */}
                 <div 
                     onClick={(e) => e.stopPropagation()}
-                    className="flex flex-col sm:flex-row justify-between items-center w-full px-2 md:px-8 mt-8 pb-4 select-none z-20 gap-3 sm:gap-0"
+                    className={`flex select-none z-20 ${
+                        (isMobile && (editingPhraseId !== null || isFocused))
+                            ? "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2"
+                            : "flex-col sm:flex-row px-2 md:px-8 mt-8 pb-4 gap-3 sm:gap-0"
+                    }`}
+                    style={(isMobile && (editingPhraseId !== null || isFocused)) ? { bottom: `${visualViewportOffset}px` } : undefined}
                 >
                     {/* Left Side: Contextual action pills — horizontally scrollable on mobile */}
-                    <div className="flex items-center gap-2.5 h-auto overflow-x-auto pb-1 w-full sm:w-auto no-scrollbar">
+                    <div className={`flex items-center gap-2.5 h-auto overflow-x-auto no-scrollbar sm:w-auto ${
+                        (isMobile && (editingPhraseId !== null || isFocused)) ? 'w-auto pb-0' : 'w-full pb-1'
+                    }`}>
                         {/* Section template buttons */}
                         <div className="flex items-center gap-2">
                             <button 
