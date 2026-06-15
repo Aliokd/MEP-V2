@@ -22,7 +22,8 @@ import {
     Volume2,
     Wand2,
     Activity,
-    RotateCcw
+    RotateCcw,
+    GripVertical
 } from 'lucide-react';
 
 interface SongFolder {
@@ -275,6 +276,7 @@ function PhraseRow({
     const startXRef = useRef(0);
     const startYRef = useRef(0);
     const touchStartTimeRef = useRef(0);
+    const lastTapTimeRef = useRef(0);
     
     if (phrase.text.trim() === '' && hasAudioNote && !isCurrentlyEditing) {
         return (
@@ -564,13 +566,20 @@ function PhraseRow({
                     if (setDragOverGroupId) setDragOverGroupId(null);
                     if (setDragOverBlockId) setDragOverBlockId(null);
                 } else {
-                    // Short tap (< 250ms, < 10px movement) → tap-to-edit on mobile
+                    // Double-tap to edit on mobile (short tap < 250ms, < 10px movement)
                     const tapDuration = Date.now() - touchStartTimeRef.current;
                     const touch = e.changedTouches[0];
                     const diffX = Math.abs(touch.clientX - startXRef.current);
                     const diffY = Math.abs(touch.clientY - startYRef.current);
-                    if (tapDuration < 250 && diffX < 10 && diffY < 10 && onStartEditing) {
-                        onStartEditing(phrase.id);
+                    if (tapDuration < 250 && diffX < 10 && diffY < 10) {
+                        const now = Date.now();
+                        const timeSinceLastTap = now - lastTapTimeRef.current;
+                        if (timeSinceLastTap < 300) {
+                            if (onStartEditing) onStartEditing(phrase.id);
+                            lastTapTimeRef.current = 0;
+                        } else {
+                            lastTapTimeRef.current = now;
+                        }
                     }
                 }
             }}
@@ -592,7 +601,7 @@ function PhraseRow({
                     <textarea
                         autoFocus
                         value={phrase.text}
-                        placeholder="Write something..."
+                        placeholder=""
                         onChange={(e) => onUpdateText && onUpdateText(phrase.id, e.target.value)}
                         onBlur={() => onStopEditing && onStopEditing(false)}
                         onKeyDown={(e) => {
@@ -759,6 +768,7 @@ interface AudioCapsulePlayerProps {
     setDragOverPhraseId?: (id: string | null) => void;
     dragOverGroupIdRef?: React.RefObject<string | null>;
     dragOverPhraseIdRef?: React.RefObject<string | null>;
+    isMobile?: boolean;
 }
 
 function AudioCapsuleSkeleton() {
@@ -782,7 +792,7 @@ function AudioCapsuleSkeleton() {
             </div>
             <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
             {/* Timer Placeholder */}
-            <div className="bg-stone-200 h-3 w-8 rounded" />
+            <div className="bg-stone-200 h-3 w-8 rounded animate-pulse" />
         </div>
     );
 }
@@ -813,14 +823,15 @@ function AudioCapsulePlayer({
     setDragOverGroupId,
     setDragOverPhraseId,
     dragOverGroupIdRef,
-    dragOverPhraseIdRef
+    dragOverPhraseIdRef,
+    isMobile = false
 }: AudioCapsulePlayerProps) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [playbackTime, setPlaybackTime] = useState(0);
     const [playbackDuration, setPlaybackDuration] = useState(audioNote.duration || 0);
     const playbackAudioRef = useRef<HTMLAudioElement | null>(null);
+    const [showMenu, setShowMenu] = useState(false);
 
-    const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isTouchDraggingRef = useRef(false);
     const startXRef = useRef(0);
     const startYRef = useRef(0);
@@ -867,123 +878,129 @@ function AudioCapsulePlayer({
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (isTranscribing) return;
+        e.stopPropagation();
+        const touch = e.touches[0];
+        startXRef.current = touch.clientX;
+        startYRef.current = touch.clientY;
+        isTouchDraggingRef.current = false;
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (isTranscribing) return;
+        const touch = e.touches[0];
+        if (!isTouchDraggingRef.current) {
+            const diffX = Math.abs(touch.clientX - startXRef.current);
+            const diffY = Math.abs(touch.clientY - startYRef.current);
+            if (diffX > 5 || diffY > 5) {
+                isTouchDraggingRef.current = true;
+                if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
+                if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
+                if (navigator.vibrate) {
+                    navigator.vibrate(15);
+                }
+            }
+            return;
+        }
+        if (e.cancelable) {
+            e.preventDefault();
+        }
+        e.stopPropagation();
+        
+        const currentTarget = e.currentTarget.closest('.bg-white') as HTMLElement;
+        if (!currentTarget) return;
+        const originalPointerEvents = currentTarget.style.pointerEvents;
+        currentTarget.style.pointerEvents = 'none';
+        const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+        currentTarget.style.pointerEvents = originalPointerEvents;
+        
+        if (!elem) return;
+        const targetGroupRow = elem.closest('.verse-group-container');
+        const targetPhraseRow = elem.closest('.phrase-row-container');
+        
+        if (targetGroupRow) {
+            const targetGroupId = targetGroupRow.getAttribute('data-group-id');
+            if (targetGroupId) {
+                if (setDragOverGroupId) setDragOverGroupId(targetGroupId);
+                if (setDragOverPhraseId) setDragOverPhraseId(null);
+            }
+        } else if (targetPhraseRow) {
+            const targetPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
+            if (targetPhraseId) {
+                if (setDragOverPhraseId) setDragOverPhraseId(targetPhraseId);
+                if (setDragOverGroupId) setDragOverGroupId(null);
+            }
+        } else {
+            if (setDragOverGroupId) setDragOverGroupId(null);
+            if (setDragOverPhraseId) setDragOverPhraseId(null);
+        }
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        if (isTranscribing) return;
+        e.stopPropagation();
+        if (isTouchDraggingRef.current) {
+            isTouchDraggingRef.current = false;
+            
+            let finalGroupId = dragOverGroupIdRef?.current || null;
+            let finalPhraseId = dragOverPhraseIdRef?.current || null;
+            let isOverCanvas = false;
+            
+            if (!finalGroupId && !finalPhraseId) {
+                const touch = e.changedTouches[0];
+                const currentTarget = e.currentTarget.closest('.bg-white') as HTMLElement;
+                if (currentTarget) {
+                    const originalPointerEvents = currentTarget.style.pointerEvents;
+                    currentTarget.style.pointerEvents = 'none';
+                    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+                    currentTarget.style.pointerEvents = originalPointerEvents;
+                    isOverCanvas = !!(elem && elem.closest('#writing-canvas'));
+                }
+            }
+            
+            if (finalGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
+                handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, finalGroupId);
+            } else if (finalPhraseId && handleAttachAudioToPhrase) {
+                const targetPhraseRow = document.querySelector(`[data-phrase-id="${finalPhraseId}"]`);
+                const groupContainer = targetPhraseRow?.closest('.verse-group-container');
+                const phraseGroupId = groupContainer?.getAttribute('data-group-id') || null;
+                if (phraseGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
+                    handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, phraseGroupId);
+                } else {
+                    handleAttachAudioToPhrase(audioNote.id, finalPhraseId, null);
+                }
+            } else if (isOverCanvas && activeNoteId && handleUpdateAudioNoteGroup) {
+                handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, null);
+            }
+            
+            if (setDraggedAudioId) setDraggedAudioId(null);
+            if (draggedAudioIdRef) draggedAudioIdRef.current = null;
+            if (setDragOverGroupId) setDragOverGroupId(null);
+            if (setDragOverPhraseId) setDragOverPhraseId(null);
+        }
+    };
+
     if (isDocked) {
         return (
             <div 
                 draggable
                 onDragStart={onDragStart}
                 onClick={(e) => e.stopPropagation()}
-                onTouchStart={(e) => {
-                    if (isTranscribing) return;
-                    const target = e.target as HTMLElement;
-                    if (target.closest('button') || target.closest('input') || target.closest('svg')) {
-                        return;
-                    }
-                    const touch = e.touches[0];
-                    startXRef.current = touch.clientX;
-                    startYRef.current = touch.clientY;
-                    isTouchDraggingRef.current = false;
-                }}
-                onTouchMove={(e) => {
-                    if (isTranscribing) return;
-                    const touch = e.touches[0];
-                    if (!isTouchDraggingRef.current) {
-                        const diffX = Math.abs(touch.clientX - startXRef.current);
-                        const diffY = Math.abs(touch.clientY - startYRef.current);
-                        if (diffX > 10 || diffY > 10) {
-                            isTouchDraggingRef.current = true;
-                            if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
-                            if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
-                            if (navigator.vibrate) {
-                                navigator.vibrate(15);
-                            }
-                        }
-                        return;
-                    }
-                    if (e.cancelable) {
-                        e.preventDefault();
-                    }
-                    e.stopPropagation();
-                    
-                    const currentTarget = e.currentTarget as HTMLElement;
-                    const originalPointerEvents = currentTarget.style.pointerEvents;
-                    currentTarget.style.pointerEvents = 'none';
-                    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                    currentTarget.style.pointerEvents = originalPointerEvents;
-                    
-                    if (!elem) return;
-                    const targetGroupRow = elem.closest('.verse-group-container');
-                    const targetPhraseRow = elem.closest('.phrase-row-container');
-                    
-                    if (targetGroupRow) {
-                        const targetGroupId = targetGroupRow.getAttribute('data-group-id');
-                        if (targetGroupId) {
-                            if (setDragOverGroupId) setDragOverGroupId(targetGroupId);
-                            if (setDragOverPhraseId) setDragOverPhraseId(null);
-                        }
-                    } else if (targetPhraseRow) {
-                        const targetPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
-                        if (targetPhraseId) {
-                            if (setDragOverPhraseId) setDragOverPhraseId(targetPhraseId);
-                            if (setDragOverGroupId) setDragOverGroupId(null);
-                        }
-                    } else {
-                        if (setDragOverGroupId) setDragOverGroupId(null);
-                        if (setDragOverPhraseId) setDragOverPhraseId(null);
-                    }
-                }}
-                onTouchEnd={(e) => {
-                    if (isTranscribing) return;
-                    if (isTouchDraggingRef.current) {
-                        isTouchDraggingRef.current = false;
-                        
-                        let finalGroupId = dragOverGroupIdRef?.current || null;
-                        let finalPhraseId = dragOverPhraseIdRef?.current || null;
-                        let isOverCanvas = false;
-                        
-                        if (!finalGroupId && !finalPhraseId) {
-                            const touch = e.changedTouches[0];
-                            const currentTarget = e.currentTarget as HTMLElement;
-                            const originalPointerEvents = currentTarget.style.pointerEvents;
-                            currentTarget.style.pointerEvents = 'none';
-                            const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                            currentTarget.style.pointerEvents = originalPointerEvents;
-                            isOverCanvas = !!(elem && elem.closest('#writing-canvas'));
-                        }
-                        
-                        if (finalGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
-                            handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, finalGroupId);
-                        } else if (finalPhraseId && handleAttachAudioToPhrase) {
-                            const targetPhraseRow = document.querySelector(`[data-phrase-id="${finalPhraseId}"]`);
-                            const groupContainer = targetPhraseRow?.closest('.verse-group-container');
-                            const phraseGroupId = groupContainer?.getAttribute('data-group-id') || null;
-                            if (phraseGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
-                                handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, phraseGroupId);
-                            } else {
-                                handleAttachAudioToPhrase(audioNote.id, finalPhraseId, null);
-                            }
-                        } else if (isOverCanvas && activeNoteId && handleUpdateAudioNoteGroup) {
-                            handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, null);
-                        }
-                        
-                        if (setDraggedAudioId) setDraggedAudioId(null);
-                        if (draggedAudioIdRef) draggedAudioIdRef.current = null;
-                        if (setDragOverGroupId) setDragOverGroupId(null);
-                        if (setDragOverPhraseId) setDragOverPhraseId(null);
-                    }
-                }}
-                onTouchCancel={(e) => {
-                    if (isTranscribing) return;
-                    isTouchDraggingRef.current = false;
-                    if (setDraggedAudioId) setDraggedAudioId(null);
-                    if (draggedAudioIdRef) draggedAudioIdRef.current = null;
-                    if (setDragOverGroupId) setDragOverGroupId(null);
-                    if (setDragOverPhraseId) setDragOverPhraseId(null);
-                }}
-                className={`bg-white border border-stone-200/80 rounded-full px-3 py-0.5 shadow-sm flex items-center gap-2.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing touch-none ${
+                className={`bg-white border border-stone-200/80 rounded-full px-2.5 py-0.5 shadow-sm flex items-center gap-1.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing ${
                     draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
                 }`}
             >
+                <div 
+                    className="text-stone-400 hover:text-stone-700 cursor-grab active:cursor-grabbing p-1 -ml-1 pr-0.5 touch-none flex items-center justify-center shrink-0"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchEnd}
+                >
+                    <GripVertical size={11} className="stroke-[2.5]" />
+                </div>
+
                 <audio 
                     ref={playbackAudioRef} 
                     src={audioNote.url} 
@@ -1017,7 +1034,6 @@ function AudioCapsulePlayer({
                         <span className="w-1 h-1 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.3s]" />
                         <span className="w-1 h-1 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.15s]" />
                         <span className="w-1 h-1 rounded-full bg-emerald-500 inline-block animate-bounce" />
-                        <span>Transcribing...</span>
                     </div>
                 ) : (
                     <>
@@ -1036,62 +1052,46 @@ function AudioCapsulePlayer({
                             )}
                         </button>
                         
-                        <div className="h-2.5 w-[1px] bg-stone-200" />
-
-                        <div 
-                            onClick={handleWaveformClick}
-                            onTouchStart={handleWaveformClick}
-                            onTouchMove={handleWaveformClick}
-                            className="flex items-center gap-[1.5px] h-3 px-1 relative cursor-pointer select-none"
-                            style={{ width: 'clamp(50px, 15vw, 80px)' }}
-                        >
-                            <div 
-                                className="absolute top-0 bottom-0 w-[1.5px] bg-red-500 rounded-full z-10 pointer-events-none transition-all duration-75"
-                                style={{ left: `${playbackDuration ? (playbackTime / playbackDuration) * 100 : 0}%` }}
-                            />
-                            {Array.from({ length: 16 }).map((_, idx) => {
-                                const barPercent = idx / 16;
-                                const currentPercent = playbackDuration ? (playbackTime / playbackDuration) : 0;
-                                const isPlayed = barPercent <= currentPercent;
-                                const distFromCenter = Math.abs(idx - 7.5);
-                                const scaling = 1 - (distFromCenter / 7.5) * 0.5;
-                                const barHeight = Math.max(3, (8 + Math.sin(idx * 0.5) * 4) * scaling);
-
-                                return (
+                        {!isMobile && (
+                            <>
+                                <div className="h-2.5 w-[1px] bg-stone-200" />
+                                <div 
+                                    onClick={handleWaveformClick}
+                                    onTouchStart={handleWaveformClick}
+                                    onTouchMove={handleWaveformClick}
+                                    className="flex items-center gap-[1.5px] h-3 px-1 relative cursor-pointer select-none"
+                                    style={{ width: 'clamp(50px, 15vw, 80px)' }}
+                                >
                                     <div 
-                                        key={idx}
-                                        className={`w-[2px] rounded-full shrink-0 transition-colors ${
-                                            isPlayed ? 'bg-stone-500' : 'bg-stone-300'
-                                        }`}
-                                        style={{ height: `${barHeight}px` }}
+                                        className="absolute top-0 bottom-0 w-[1.5px] bg-red-500 rounded-full z-10 pointer-events-none transition-all duration-75"
+                                        style={{ left: `${playbackDuration ? (playbackTime / playbackDuration) * 100 : 0}%` }}
                                     />
-                                );
-                            })}
-                        </div>
+                                    {Array.from({ length: 16 }).map((_, idx) => {
+                                        const barPercent = idx / 16;
+                                        const currentPercent = playbackDuration ? (playbackTime / playbackDuration) : 0;
+                                        const isPlayed = barPercent <= currentPercent;
+                                        const distFromCenter = Math.abs(idx - 7.5);
+                                        const scaling = 1 - (distFromCenter / 7.5) * 0.5;
+                                        const barHeight = Math.max(3, (8 + Math.sin(idx * 0.5) * 4) * scaling);
+
+                                        return (
+                                            <div 
+                                                key={idx}
+                                                className={`w-[2px] rounded-full shrink-0 transition-colors ${
+                                                    isPlayed ? 'bg-stone-500' : 'bg-stone-300'
+                                                }`}
+                                                style={{ height: `${barHeight}px` }}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
 
                         <div className="h-2.5 w-[1px] bg-stone-200" />
                         <span className="text-[8px] font-mono font-bold text-stone-500">
                             {formatTime(playbackTime || playbackDuration)}
                         </span>
-                    </>
-                )}
-
-                {onTranscribe && (
-                    <>
-                        <div className="h-2.5 w-[1px] bg-stone-200" />
-                        <button 
-                            disabled={isTranscribing}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onTranscribe();
-                            }}
-                            className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-35"
-                            title="Transcribe recording"
-                        >
-                            <svg className="w-2.5 h-2.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                            </svg>
-                        </button>
                     </>
                 )}
 
@@ -1102,13 +1102,10 @@ function AudioCapsulePlayer({
                         e.stopPropagation();
                         onDelete();
                     }}
-                    className="text-stone-404 hover:text-red-600 transition-colors cursor-pointer disabled:opacity-35"
+                    className="text-stone-404 hover:text-red-650 font-bold transition-colors cursor-pointer disabled:opacity-35 text-[10px] leading-none"
                     title="Delete recording"
                 >
-                    <svg className="w-2.5 h-2.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                    ×
                 </button>
             </div>
         );
@@ -1119,117 +1116,20 @@ function AudioCapsulePlayer({
             draggable
             onDragStart={onDragStart}
             onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => {
-                if (isTranscribing) return;
-                const target = e.target as HTMLElement;
-                if (target.closest('button') || target.closest('input') || target.closest('svg')) {
-                    return;
-                }
-                const touch = e.touches[0];
-                startXRef.current = touch.clientX;
-                startYRef.current = touch.clientY;
-                isTouchDraggingRef.current = false;
-            }}
-            onTouchMove={(e) => {
-                if (isTranscribing) return;
-                const touch = e.touches[0];
-                if (!isTouchDraggingRef.current) {
-                    const diffX = Math.abs(touch.clientX - startXRef.current);
-                    const diffY = Math.abs(touch.clientY - startYRef.current);
-                    if (diffX > 10 || diffY > 10) {
-                        isTouchDraggingRef.current = true;
-                        if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
-                        if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
-                        if (navigator.vibrate) {
-                            navigator.vibrate(15);
-                        }
-                    }
-                    return;
-                }
-                if (e.cancelable) {
-                    e.preventDefault();
-                }
-                e.stopPropagation();
-                
-                const currentTarget = e.currentTarget as HTMLElement;
-                const originalPointerEvents = currentTarget.style.pointerEvents;
-                currentTarget.style.pointerEvents = 'none';
-                const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                currentTarget.style.pointerEvents = originalPointerEvents;
-                
-                if (!elem) return;
-                const targetGroupRow = elem.closest('.verse-group-container');
-                const targetPhraseRow = elem.closest('.phrase-row-container');
-                
-                if (targetGroupRow) {
-                    const targetGroupId = targetGroupRow.getAttribute('data-group-id');
-                    if (targetGroupId) {
-                        if (setDragOverGroupId) setDragOverGroupId(targetGroupId);
-                        if (setDragOverPhraseId) setDragOverPhraseId(null);
-                    }
-                } else if (targetPhraseRow) {
-                    const targetPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
-                    if (targetPhraseId) {
-                        if (setDragOverPhraseId) setDragOverPhraseId(targetPhraseId);
-                        if (setDragOverGroupId) setDragOverGroupId(null);
-                    }
-                } else {
-                    if (setDragOverGroupId) setDragOverGroupId(null);
-                    if (setDragOverPhraseId) setDragOverPhraseId(null);
-                }
-            }}
-            onTouchEnd={(e) => {
-                if (isTranscribing) return;
-                if (isTouchDraggingRef.current) {
-                    isTouchDraggingRef.current = false;
-                    
-                    let finalGroupId = dragOverGroupIdRef?.current || null;
-                    let finalPhraseId = dragOverPhraseIdRef?.current || null;
-                    let isOverCanvas = false;
-                    
-                    if (!finalGroupId && !finalPhraseId) {
-                        const touch = e.changedTouches[0];
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const originalPointerEvents = currentTarget.style.pointerEvents;
-                        currentTarget.style.pointerEvents = 'none';
-                        const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                        currentTarget.style.pointerEvents = originalPointerEvents;
-                        isOverCanvas = !!(elem && elem.closest('#writing-canvas'));
-                    }
-                    
-                    if (finalGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
-                        handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, finalGroupId);
-                    } else if (finalPhraseId && handleAttachAudioToPhrase) {
-                        const targetPhraseRow = document.querySelector(`[data-phrase-id="${finalPhraseId}"]`);
-                        const groupContainer = targetPhraseRow?.closest('.verse-group-container');
-                        const phraseGroupId = groupContainer?.getAttribute('data-group-id') || null;
-                        if (phraseGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
-                            handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, phraseGroupId);
-                        } else {
-                            handleAttachAudioToPhrase(audioNote.id, finalPhraseId, null);
-                        }
-                    } else if (isOverCanvas && activeNoteId && handleUpdateAudioNoteGroup) {
-                        handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, null);
-                    }
-                    
-                    if (setDraggedAudioId) setDraggedAudioId(null);
-                    if (draggedAudioIdRef) draggedAudioIdRef.current = null;
-                    if (setDragOverGroupId) setDragOverGroupId(null);
-                    if (setDragOverPhraseId) setDragOverPhraseId(null);
-                }
-            }}
-            onTouchCancel={(e) => {
-                if (isTranscribing) return;
-                isTouchDraggingRef.current = false;
-                if (setDraggedAudioId) setDraggedAudioId(null);
-                if (draggedAudioIdRef) draggedAudioIdRef.current = null;
-                if (setDragOverGroupId) setDragOverGroupId(null);
-                if (setDragOverPhraseId) setDragOverPhraseId(null);
-            }}
-            className={`bg-white border border-stone-200/80 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-1.5 sm:gap-4 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 touch-none max-w-full ${
+            className={`bg-white border border-stone-200/80 rounded-full px-3 py-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex items-center gap-2 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 w-full max-w-[85%] sm:max-w-[360px] mx-auto my-1.5 ${
                 draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
             }`}
         >
+            <div 
+                className="text-stone-400 hover:text-stone-700 cursor-grab active:cursor-grabbing p-1 -ml-1 pr-0.5 touch-none flex items-center justify-center shrink-0"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchEnd}
+            >
+                <GripVertical size={13} className="stroke-[2.5]" />
+            </div>
+
             <audio 
                 ref={playbackAudioRef} 
                 src={audioNote.url} 
@@ -1253,124 +1153,136 @@ function AudioCapsulePlayer({
                 placeholder="Name"
                 disabled={isTranscribing}
                 onChange={(e) => onRename(e.target.value)}
-                className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 w-16 sm:w-24 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50"
+                className="bg-transparent border-none outline-none font-bold text-[11px] text-stone-850 placeholder:text-stone-400 w-16 sm:w-24 shrink hover:bg-stone-50 focus:bg-stone-50 rounded px-1 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 truncate"
                 title="Rename recording"
             />
 
-            <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
+            <div className="h-3.5 w-[1px] bg-stone-200 shrink-0" />
 
             {isTranscribing ? (
-                <div className="flex items-center gap-2 text-emerald-600 animate-pulse text-xs font-bold py-1 px-4 shrink-0">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.3s]" />
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.15s]" />
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce" />
-                    <span>Transcribing audio...</span>
+                <div className="flex items-center gap-1 text-emerald-600 animate-pulse text-[10px] font-bold shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-bounce" />
                 </div>
             ) : (
                 <>
                     <button 
                         onClick={togglePlayback}
-                        className="flex items-center gap-1.5 text-stone-700 hover:text-stone-900 transition-colors cursor-pointer text-xs font-bold shrink-0"
+                        className="flex items-center text-stone-750 hover:text-stone-900 transition-colors cursor-pointer shrink-0"
                     >
                         {isPlaying ? (
-                            <>
-                                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                                </svg>
-                                <span className="hidden sm:inline">Play/pause</span>
-                            </>
+                            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                            </svg>
                         ) : (
-                            <>
-                                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                                    <path d="M8 5v14l11-7z"/>
-                                </svg>
-                                <span className="hidden sm:inline">Play/pause</span>
-                            </>
+                            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
                         )}
                     </button>
 
-                    <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
-
-                    <div 
-                        onClick={handleWaveformClick}
-                        onTouchStart={handleWaveformClick}
-                        onTouchMove={handleWaveformClick}
-                        className="flex items-center gap-[2.5px] h-6 px-1.5 relative cursor-pointer select-none shrink-0"
-                        style={{ width: 'clamp(60px, 18vw, 130px)' }}
-                    >
-                        <div 
-                            className="absolute top-0 bottom-0 w-[2px] bg-red-500 rounded-full z-10 pointer-events-none transition-all duration-75"
-                            style={{ 
-                                left: `${playbackDuration ? (playbackTime / playbackDuration) * 100 : 0}%` 
-                            }}
-                        />
-
-                        {Array.from({ length: 24 }).map((_, idx) => {
-                            const barPercent = idx / 24;
-                            const currentPercent = playbackDuration ? (playbackTime / playbackDuration) : 0;
-                            const isPlayed = barPercent <= currentPercent;
-                            
-                            const distFromCenter = Math.abs(idx - 11.5);
-                            const scaling = 1 - (distFromCenter / 11.5) * 0.6;
-                            const barHeight = Math.max(4, (12 + Math.sin(idx * 0.5) * 8) * scaling);
-
-                            return (
+                    {!isMobile && (
+                        <>
+                            <div className="h-3.5 w-[1px] bg-stone-200 shrink-0" />
+                            <div 
+                                onClick={handleWaveformClick}
+                                onTouchStart={handleWaveformClick}
+                                onTouchMove={handleWaveformClick}
+                                className="flex items-center gap-[1.5px] h-4 px-1 relative cursor-pointer select-none shrink-0"
+                                style={{ width: 'clamp(50px, 15vw, 90px)' }}
+                            >
                                 <div 
-                                    key={idx}
-                                    className={`w-[3px] rounded-full shrink-0 transition-colors ${
-                                        isPlayed ? 'bg-stone-500' : 'bg-stone-300'
-                                    }`}
-                                    style={{ height: `${barHeight}px` }}
+                                    className="absolute top-0 bottom-0 w-[1.5px] bg-red-500 rounded-full z-10 pointer-events-none transition-all duration-75"
+                                    style={{ 
+                                        left: `${playbackDuration ? (playbackTime / playbackDuration) * 100 : 0}%` 
+                                    }}
                                 />
-                            );
-                        })}
-                    </div>
 
-                    <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
+                                {Array.from({ length: 12 }).map((_, idx) => {
+                                    const barPercent = idx / 12;
+                                    const currentPercent = playbackDuration ? (playbackTime / playbackDuration) : 0;
+                                    const isPlayed = barPercent <= currentPercent;
+                                    
+                                    const distFromCenter = Math.abs(idx - 5.5);
+                                    const scaling = 1 - (distFromCenter / 5.5) * 0.5;
+                                    const barHeight = Math.max(3, (8 + Math.sin(idx * 0.5) * 4) * scaling);
 
-                    <span className="text-[10px] font-mono font-bold text-stone-500 shrink-0">
+                                    return (
+                                        <div 
+                                            key={idx}
+                                            className={`w-[2px] rounded-full shrink-0 transition-colors ${
+                                                isPlayed ? 'bg-stone-500' : 'bg-stone-300'
+                                            }`}
+                                            style={{ height: `${barHeight}px` }}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
+
+                    <div className="h-3.5 w-[1px] bg-stone-200 shrink-0" />
+
+                    <span className="text-[9px] font-mono font-bold text-stone-500 shrink-0">
                         {formatTime(playbackTime || playbackDuration)}
                     </span>
                 </>
             )}
 
-            {onTranscribe && (
-                <>
-                    <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
-                    <button 
-                        disabled={isTranscribing}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onTranscribe();
-                        }}
-                        className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer shrink-0 disabled:opacity-35"
-                        title="Transcribe recording"
-                    >
-                        <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                    </button>
-                </>
-            )}
+            <div className="h-3.5 w-[1px] bg-stone-200 shrink-0" />
 
-            <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
+            {/* Actions Menu button */}
+            <div className="relative shrink-0 flex items-center justify-center">
+                <button
+                    disabled={isTranscribing}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setShowMenu(!showMenu);
+                    }}
+                    className="text-stone-400 hover:text-stone-700 hover:bg-stone-100 p-1 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center disabled:opacity-35"
+                    title="Audio options"
+                >
+                    <MoreVertical size={13} className="stroke-[2.5]" />
+                </button>
 
-            <button 
-                disabled={isTranscribing}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                }}
-                className="text-stone-405 hover:text-red-600 transition-colors cursor-pointer shrink-0 disabled:opacity-35"
-                title="Delete recording"
-            >
-                <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
-                </svg>
-            </button>
+                {showMenu && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                        <div className="absolute right-0 bottom-full mb-2 w-32 bg-white border border-stone-200/80 rounded-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-1.5 z-50 flex flex-col gap-1">
+                            {onTranscribe && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowMenu(false);
+                                        onTranscribe();
+                                    }}
+                                    className="w-full px-2.5 py-1.5 rounded-md text-[11px] font-bold text-left text-stone-700 hover:bg-stone-50 hover:text-stone-900 flex items-center gap-1.5 cursor-pointer"
+                                >
+                                    <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                    <span>Transcribe</span>
+                                </button>
+                            )}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowMenu(false);
+                                    onDelete();
+                                }}
+                                className="w-full px-2.5 py-1.5 rounded-md text-[11px] font-bold text-left text-red-650 hover:bg-red-50 hover:text-red-700 flex items-center gap-1.5 cursor-pointer"
+                            >
+                                <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                                <span>Delete</span>
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     );
 }
@@ -1760,9 +1672,12 @@ export default function CreatePage() {
         if (isDataLoaded) {
             localStorage.setItem('veinote-create-notes', JSON.stringify(notes));
             if (user) {
-                setDoc(doc(db, "users", user.uid), {
-                    createNotes: notes
-                }, { merge: true }).catch(err => console.error("Error updating notes in Firestore:", err));
+                const timer = setTimeout(() => {
+                    setDoc(doc(db, "users", user.uid), {
+                        createNotes: notes
+                    }, { merge: true }).catch(err => console.error("Error updating notes in Firestore:", err));
+                }, 1000);
+                return () => clearTimeout(timer);
             }
         }
     }, [notes, isDataLoaded, user]);
@@ -3986,7 +3901,9 @@ export default function CreatePage() {
                     </div>
                 </div>
 
-                    <div className="w-full flex-grow flex-1 flex flex-col z-10 py-6 relative">
+                    <div className={`w-full flex-grow flex-1 flex flex-col z-10 py-6 relative ${
+                        (isMobile && (editingPhraseId !== null || isFocused)) ? 'pb-16' : ''
+                    }`}>
                         {selectedNoteId ? (
                             <div className="w-full flex flex-col gap-3 max-w-4xl mx-auto py-4 my-auto">
                                 {renderBlocks.length === 0 ? (
@@ -4268,6 +4185,7 @@ export default function CreatePage() {
                                                                             setDragOverPhraseId={setDragOverPhraseId}
                                                                             dragOverGroupIdRef={dragOverGroupIdRef}
                                                                             dragOverPhraseIdRef={dragOverPhraseIdRef}
+                                                                            isMobile={isMobile}
                                                                         />
                                                                     ))}
                                                                 </div>
@@ -4356,6 +4274,7 @@ export default function CreatePage() {
                                                                                 setDragOverPhraseId={setDragOverPhraseId}
                                                                                 dragOverGroupIdRef={dragOverGroupIdRef}
                                                                                 dragOverPhraseIdRef={dragOverPhraseIdRef}
+                                                                             isMobile={isMobile}
                                                                             />
                                                                         </div>
                                                                         {transcribingAudioNoteId === audioNote.id && (
@@ -4364,6 +4283,7 @@ export default function CreatePage() {
                                                                     </React.Fragment>
                                                                 ))}
                                                                 <PhraseRow 
+                                                                    key={phrase.id}
                                                                     phrase={phrase}
                                                                     draggedPhraseId={draggedPhraseId}
                                                                     draggedPhraseIdRef={draggedPhraseIdRef}
@@ -4449,8 +4369,8 @@ export default function CreatePage() {
                         }} />
                         <div 
                             className={`
-                                bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[24px] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.08)] z-40 flex flex-col gap-5 min-w-[280px] max-w-sm animate-in fade-in zoom-in-95 duration-200
-                                ${isMobile ? 'fixed bottom-4 left-4 right-4 shadow-xl' : 'absolute'}
+                                bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[24px] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.08)] z-50 flex flex-col gap-5 min-w-[280px] max-w-sm animate-in fade-in zoom-in-95 duration-200
+                                ${isMobile ? 'absolute bottom-4 left-4 right-4 shadow-xl' : 'absolute'}
                             `}
                             style={isMobile ? undefined : { 
                                 top: `${popoverPosition.top}px`, 
@@ -4512,10 +4432,16 @@ export default function CreatePage() {
                 {/* 1c. Bottom controls bar */}
                 <div 
                     onClick={(e) => e.stopPropagation()}
-                    className="flex flex-col sm:flex-row justify-between items-center w-full px-2 md:px-8 mt-8 pb-4 select-none z-20 gap-3 sm:gap-0"
+                    className={`flex justify-between items-center w-full select-none z-20 ${
+                        (isMobile && (editingPhraseId !== null || isFocused))
+                            ? "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2"
+                            : "flex-col sm:flex-row px-2 md:px-8 mt-8 pb-4 gap-3 sm:gap-0"
+                    }`}
                 >
                     {/* Left Side: Contextual action pills — horizontally scrollable on mobile */}
-                    <div className="flex items-center gap-2.5 h-auto overflow-x-auto pb-1 w-full sm:w-auto no-scrollbar">
+                    <div className={`flex items-center gap-2.5 h-auto overflow-x-auto no-scrollbar sm:w-auto ${
+                        (isMobile && (editingPhraseId !== null || isFocused)) ? 'w-auto pb-0' : 'w-full pb-1'
+                    }`}>
                         {/* Section template buttons */}
                         <div className="flex items-center gap-2">
                             <button 
