@@ -22,8 +22,130 @@ import {
     Volume2,
     Wand2,
     Activity,
-    RotateCcw
+    RotateCcw,
+    Check,
+    Ruler,
+    Lightbulb,
+    ArrowLeft,
+    ChevronLeft,
+    ChevronRight,
+    Sparkles,
+    Coffee,
+    Heart,
+    BookOpen,
+    Key,
+    ArrowUpRight,
+    Compass,
+    Brain
 } from 'lucide-react';
+
+interface InspirationCard {
+    id: string;
+    title: string;
+    category: string;
+    questions: string[];
+    bgGradient: string;
+    textColor: string;
+}
+
+const INSPIRATION_CARDS: InspirationCard[] = [
+    {
+        id: 'midnight-coffee',
+        title: 'The Midnight Coffee Shop',
+        category: 'Daily Life',
+        bgGradient: 'from-amber-50 to-orange-100/50',
+        textColor: 'text-amber-900',
+        questions: [
+            'Who is sitting at the table in the corner, and what are they writing?',
+            'What song is playing quietly in the background?',
+            'What secret does the barista know about this place?'
+        ]
+    },
+    {
+        id: 'childhood-bedroom',
+        title: 'Your Childhood Bedroom',
+        category: 'Nostalgia',
+        bgGradient: 'from-rose-50 to-pink-100/55',
+        textColor: 'text-rose-900',
+        questions: [
+            'What was the view outside the window on a rainy afternoon?',
+            'If the walls could talk, what secret would they whisper?',
+            'What object from that room do you miss the most?'
+        ]
+    },
+    {
+        id: 'forgotten-station',
+        title: 'A Forgotten Train Station',
+        category: 'History',
+        bgGradient: 'from-blue-50 to-indigo-100/50',
+        textColor: 'text-indigo-900',
+        questions: [
+            'Where were the passengers heading before the station was abandoned?',
+            'What does the overgrown platform look like now?',
+            'Whose ghost still waits for the 5:15 train?'
+        ]
+    },
+    {
+        id: 'forest-storm',
+        title: 'Storm in the Forest',
+        category: 'Nature',
+        bgGradient: 'from-emerald-50 to-teal-100/50',
+        textColor: 'text-emerald-900',
+        questions: [
+            'What color is the sky right before the first thunderclap?',
+            'How do the trees react to the heavy wind?',
+            'Where do the birds seek shelter?'
+        ]
+    },
+    {
+        id: 'edge-cosmos',
+        title: 'The Edge of the Cosmos',
+        category: 'Space & Sci-Fi',
+        bgGradient: 'from-violet-50 to-purple-100/50',
+        textColor: 'text-violet-900',
+        questions: [
+            'What does the silence of empty space sound like to you?',
+            'If you could send a single message back to Earth, what would it say?',
+            'What shape does the galaxy take from this distance?'
+        ]
+    },
+    {
+        id: 'clockmaker-dilemma',
+        title: "The Clockmaker's Dilemma",
+        category: 'Philosophy',
+        bgGradient: 'from-stone-100 to-amber-100/30',
+        textColor: 'text-stone-850',
+        questions: [
+            'If you could pause time for one hour, what would you fix?',
+            'Does time move faster when we are looking away?',
+            'What happens to a second that is forgotten?'
+        ]
+    },
+    {
+        id: 'solo-runner',
+        title: 'The Solo Runner',
+        category: 'Sports & Motion',
+        bgGradient: 'from-lime-50 to-emerald-100/40',
+        textColor: 'text-lime-900',
+        questions: [
+            'What rhythm does the heartbeat create at the peak of the run?',
+            'What thoughts fade away with every mile passed?',
+            'What is the runner escaping, or running toward?'
+        ]
+    },
+    {
+        id: 'locked-drawer',
+        title: 'The Locked Drawer',
+        category: 'Secrets & Dreams',
+        bgGradient: 'from-orange-50 to-red-100/40',
+        textColor: 'text-orange-900',
+        questions: [
+            'What key is hidden to open this drawer?',
+            'What handwritten letter lies inside, yellowed with age?',
+            'Why was it locked away in the first place?'
+        ]
+    }
+];
 
 interface SongFolder {
     id: string;
@@ -1495,7 +1617,49 @@ export default function CreatePage() {
     const [transcribingAudioNoteId, setTranscribingAudioNoteId] = useState<string | null>(null);
     const [editingPhraseId, setEditingPhraseId] = useState<string | null>(null);
     const recognitionRef = useRef<any>(null);
+
+    // Creative Tools Suite State Variables
+    const [showToolsPanel, setShowToolsPanel] = useState(false);
+    const [activeToolTab, setActiveToolTab] = useState<'tuner' | 'tempo' | 'lexicon' | 'inspiration'>('tuner');
+
+    // Tuner States
+    const [tunerActive, setTunerActive] = useState(false);
+    const [tunerFreq, setTunerFreq] = useState<number | null>(null);
+    const [tunerNote, setTunerNote] = useState<string>('--');
+    const [tunerCents, setTunerCents] = useState<number>(0);
+    const [refTonePlaying, setRefTonePlaying] = useState(false);
+    const [tunerModeAuto, setTunerModeAuto] = useState(true);
+    const [savedTuning, setSavedTuning] = useState<{ note: string; freq: number; cents: number; timestamp: string } | null>(null);
+
+    // Tap Tempo States
+    const [tapTimes, setTapTimes] = useState<number[]>([]);
     
+    // Rhyme Lexicon States
+    const [lexiconWord, setLexiconWord] = useState('');
+    const [lexiconMode, setLexiconMode] = useState<'rhyme' | 'near' | 'synonym'>('rhyme');
+    const [lexiconResults, setLexiconResults] = useState<any[]>([]);
+    const [lexiconLoading, setLexiconLoading] = useState(false);
+
+    // Inspiration States
+    const [currentStarter, setCurrentStarter] = useState('');
+    const [currentTheme, setCurrentTheme] = useState<{ mood: string; setting: string; keywords: string[] } | null>(null);
+    const [inspirationCards, setInspirationCards] = useState<InspirationCard[]>([]);
+    const [currentCardIndex, setCurrentCardIndex] = useState(0);
+    const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+    const [inspirationAnswers, setInspirationAnswers] = useState<Record<string, Record<string, string[]>>>({});
+    const [inspirationDragOffset, setInspirationDragOffset] = useState(0);
+    const [swipingToBack, setSwipingToBack] = useState(false);
+    const inspirationTouchStartXRef = useRef(0);
+    const inspirationDragStartXRef = useRef(0);
+
+    // Tuner Audio Refs
+    const tunerAudioContextRef = useRef<AudioContext | null>(null);
+    const tunerAnalyserRef = useRef<AnalyserNode | null>(null);
+    const tunerMicStreamRef = useRef<MediaStream | null>(null);
+    const tunerOscillatorRef = useRef<OscillatorNode | null>(null);
+    const tunerAnimationRef = useRef<number | null>(null);
+    const chordbookTunerRef = useRef<any>(null);
+
     // Scroll and title layout measurements
     const [scrollHeight, setScrollHeight] = useState(0);
     const [scrollTop, setScrollTop] = useState(0);
@@ -1777,6 +1941,21 @@ export default function CreatePage() {
         }
     }, [notes, isDataLoaded, user]);
 
+    // Shuffle inspiration cards and load answers from localStorage on mount
+    useEffect(() => {
+        const shuffled = [...INSPIRATION_CARDS].sort(() => Math.random() - 0.5);
+        setInspirationCards(shuffled);
+
+        const saved = localStorage.getItem('veinote-inspiration-answers');
+        if (saved) {
+            try {
+                setInspirationAnswers(JSON.parse(saved));
+            } catch (e) {
+                console.error('Failed to parse inspiration answers', e);
+            }
+        }
+    }, []);
+
     const activeNote = notes.find(n => n.id === selectedNoteId) || null;
 
     // Ensure we have a unified list of audio notes, migrating legacy audioUrl if needed
@@ -1838,6 +2017,420 @@ export default function CreatePage() {
             }
         };
     }, [isMetronomePlaying, metronomeBpm]);
+
+    // ----------------------------------------------------
+    // CREATIVE TOOLS SUITE LOGIC (Tuner, Tap, Lexicon, Inspiration)
+    // ----------------------------------------------------
+    const insertTextAtCursor = (textToInsert: string) => {
+        let currentVal = activeNote ? activeNote.content : '';
+        let newCursorPos = textToInsert.length;
+        
+        if (textareaRef.current) {
+            const start = textareaRef.current.selectionStart;
+            const end = textareaRef.current.selectionEnd;
+            currentVal = currentVal.substring(0, start) + textToInsert + currentVal.substring(end);
+            newCursorPos = start + textToInsert.length;
+            
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.focus();
+                    textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                }
+            }, 50);
+        } else {
+            currentVal = currentVal ? currentVal + "\n" + textToInsert : textToInsert;
+        }
+
+        if (!selectedNoteId) {
+            const initialPhrases = syncPhrasesWithContent(currentVal, []);
+            const newNote: SongNote = {
+                id: `n-${Date.now()}`,
+                title: getTitleFromContent(currentVal) || 'Untitled Note',
+                content: currentVal,
+                folderId: activeFolderIdFilter,
+                updatedAt: new Date().toLocaleString(),
+                phrases: initialPhrases,
+                verses: []
+            };
+            setNotes(prev => [newNote, ...prev]);
+            setSelectedNoteId(newNote.id);
+            if (initialPhrases[0]) {
+                setEditingPhraseId(initialPhrases[0].id);
+            }
+            setIsEditing(true);
+        } else {
+            handleUpdateNote(selectedNoteId, { 
+                content: currentVal,
+                title: getTitleFromContent(currentVal) || 'Untitled Note'
+            });
+        }
+    };
+
+    // Autocorrelation pitch detection algorithm
+    const autoCorrelate = (buffer: Float32Array, sampleRate: number): number => {
+        const SIZE = buffer.length;
+        let rms = 0;
+        for (let i = 0; i < SIZE; i++) {
+            rms += buffer[i] * buffer[i];
+        }
+        rms = Math.sqrt(rms / SIZE);
+        if (rms < 0.008) return -1; // too quiet
+
+        let r = new Float32Array(SIZE);
+        for (let lag = 0; lag < SIZE; lag++) {
+            let sum = 0;
+            for (let i = 0; i < SIZE - lag; i++) {
+                sum += buffer[i] * buffer[i + lag];
+            }
+            r[lag] = sum;
+        }
+
+        // Find the first zero crossing
+        let zeroCrossing = 0;
+        for (let i = 0; i < SIZE - 1; i++) {
+            if (r[i] > 0 && r[i + 1] <= 0) {
+                zeroCrossing = i;
+                break;
+            }
+        }
+
+        if (zeroCrossing === 0) {
+            zeroCrossing = 15;
+        }
+
+        let peakLag = -1;
+        let peakVal = 0;
+        for (let lag = zeroCrossing; lag < SIZE; lag++) {
+            if (r[lag] > peakVal) {
+                if (lag > 0 && lag < SIZE - 1 && r[lag] > r[lag - 1] && r[lag] > r[lag + 1]) {
+                    peakVal = r[lag];
+                    peakLag = lag;
+                }
+            }
+        }
+
+        if (peakLag !== -1) {
+            const alpha = r[peakLag - 1];
+            const beta = r[peakLag];
+            const gamma = r[peakLag + 1];
+            const denom = alpha - 2 * beta + gamma;
+            if (Math.abs(denom) > 1e-5) {
+                let p = 0.5 * (alpha - gamma) / denom;
+                let refinedLag = peakLag + p;
+                return sampleRate / refinedLag;
+            }
+            return sampleRate / peakLag;
+        }
+        return -1;
+    };
+
+    const noteStrings = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+    const getNoteFromFrequency = (frequency: number) => {
+        const noteNum = 12 * (Math.log2(frequency / 440)) + 69;
+        const roundedNoteNum = Math.round(noteNum);
+        const centsValue = Math.round((noteNum - roundedNoteNum) * 100);
+        const noteName = noteStrings[((roundedNoteNum % 12) + 12) % 12];
+        return { noteName, centsValue };
+    };
+
+    const startTunerMic = async () => {
+        try {
+            stopReferenceTone();
+
+            // Dynamic import to prevent SSR server compilation crashes
+            const { createTuner } = await import('@chordbook/tuner');
+
+            if (chordbookTunerRef.current) {
+                try {
+                    chordbookTunerRef.current.stop();
+                } catch (e) {}
+            }
+
+            const tuner = createTuner({
+                onNote: (note: any) => {
+                    if (note && note.frequency) {
+                        setTunerFreq(Math.round(note.frequency * 10) / 10);
+                        
+                        // Normalize note name (replace Unicode sharp sign ♯ with #)
+                        const normalizedNoteName = note.name ? note.name.replace('♯', '#') : '--';
+                        
+                        if (tunerModeAuto) {
+                            setTunerNote(normalizedNoteName);
+                            setTunerCents(Math.max(-50, Math.min(50, Math.round(note.cents))));
+                        } else {
+                            // Manual mode: calculate cents deviation relative to the nearest octave of A (440Hz)
+                            const distToA = 12 * Math.log2(note.frequency / 440);
+                            const nearestOctaveA = Math.round(distToA / 12) * 12;
+                            const centsValue = Math.round((distToA - nearestOctaveA) * 100);
+                            setTunerNote('A');
+                            setTunerCents(Math.max(-50, Math.min(50, centsValue)));
+                        }
+                    }
+                },
+                updateInterval: 50,
+                clarityThreshold: 0.85
+            });
+
+            chordbookTunerRef.current = tuner;
+
+            // Resume AudioContext inside the user gesture before awaiting getUserMedia to avoid browser block
+            if (tuner.context) {
+                await tuner.context.resume();
+            }
+
+            await tuner.start();
+            setTunerActive(true);
+        } catch (err) {
+            console.error("Tuner mic activation error:", err);
+            setTunerActive(false);
+            alert("Could not access microphone for tuning. Please check settings.");
+        }
+    };
+
+    const stopTunerMic = () => {
+        if (chordbookTunerRef.current) {
+            try {
+                chordbookTunerRef.current.stop();
+            } catch (err) {
+                console.error("Error stopping Chordbook tuner:", err);
+            }
+            chordbookTunerRef.current = null;
+        }
+        setTunerActive(false);
+        setTunerFreq(null);
+        setTunerNote('--');
+        setTunerCents(0);
+    };
+
+    const startReferenceTone = () => {
+        try {
+            stopTunerMic();
+
+            if (tunerAudioContextRef.current) {
+                tunerAudioContextRef.current.close().catch(console.error);
+            }
+
+            const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+            const audioCtx = new AudioCtxClass();
+            tunerAudioContextRef.current = audioCtx;
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime); // A4 440Hz
+            
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.15);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            tunerOscillatorRef.current = osc;
+            osc.start();
+            setRefTonePlaying(true);
+        } catch (err) {
+            console.error("Reference tone audio error:", err);
+            setRefTonePlaying(false);
+        }
+    };
+
+    const stopReferenceTone = () => {
+        if (tunerOscillatorRef.current && tunerAudioContextRef.current) {
+            try {
+                tunerAudioContextRef.current.close().catch(console.error);
+            } catch (err) {
+                console.error(err);
+            }
+            tunerOscillatorRef.current = null;
+            tunerAudioContextRef.current = null;
+        }
+        setRefTonePlaying(false);
+    };
+
+    const toggleReferenceTone = () => {
+        if (refTonePlaying) {
+            stopReferenceTone();
+        } else {
+            startReferenceTone();
+        }
+    };
+
+    const toggleTunerMic = () => {
+        if (tunerActive) {
+            stopTunerMic();
+        } else {
+            startTunerMic();
+        }
+    };
+
+    const handleSaveTuning = () => {
+        if (!tunerActive || !tunerFreq) return;
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setSavedTuning({
+            note: tunerNote,
+            freq: tunerFreq,
+            cents: tunerCents,
+            timestamp: timeStr
+        });
+    };
+
+    const cleanupTunerAudio = () => {
+        stopTunerMic();
+        stopReferenceTone();
+    };
+
+    useEffect(() => {
+        if (!showToolsPanel) {
+            cleanupTunerAudio();
+        }
+    }, [showToolsPanel]);
+
+    useEffect(() => {
+        cleanupTunerAudio();
+    }, [activeToolTab]);
+
+    useEffect(() => {
+        return () => {
+            cleanupTunerAudio();
+        };
+    }, []);
+
+    const handleTapTempo = (e?: React.MouseEvent | React.KeyboardEvent) => {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+        const now = Date.now();
+        
+        let newTaps = [...tapTimes];
+        if (newTaps.length > 0 && now - newTaps[newTaps.length - 1] > 2000) {
+            newTaps = [];
+        }
+        
+        newTaps.push(now);
+        if (newTaps.length > 8) {
+            newTaps.shift();
+        }
+        setTapTimes(newTaps);
+        
+        if (newTaps.length > 1) {
+            let sumIntervals = 0;
+            for (let i = 1; i < newTaps.length; i++) {
+                sumIntervals += (newTaps[i] - newTaps[i - 1]);
+            }
+            const avgIntervalMs = sumIntervals / (newTaps.length - 1);
+            const calculatedBpmValue = Math.round(60000 / avgIntervalMs);
+            const finalBpm = Math.max(40, Math.min(240, calculatedBpmValue));
+            setMetronomeBpm(finalBpm);
+        }
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (showToolsPanel && activeToolTab === 'tempo' && e.code === 'Space') {
+                e.preventDefault();
+                handleTapTempo();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showToolsPanel, activeToolTab, tapTimes]);
+
+    const searchRhymeLexicon = async (word: string, mode: 'rhyme' | 'near' | 'synonym') => {
+        if (!word.trim()) {
+            setLexiconResults([]);
+            return;
+        }
+        setLexiconLoading(true);
+        try {
+            let relParam = 'rel_rhy';
+            if (mode === 'near') relParam = 'rel_nry';
+            if (mode === 'synonym') relParam = 'ml';
+            
+            const response = await fetch(`https://api.datamuse.com/words?${relParam}=${encodeURIComponent(word.trim())}&max=40`);
+            const data = await response.json();
+            
+            const formatted = data.map((item: any) => ({
+                word: item.word,
+                score: item.score,
+                syllables: item.numSyllables || 1
+            }));
+            
+            setLexiconResults(formatted);
+        } catch (err) {
+            console.error("Datamuse API error:", err);
+            setLexiconResults([]);
+        } finally {
+            setLexiconLoading(false);
+        }
+    };
+
+    const handleLexiconSearch = (e: React.FormEvent) => {
+        if (e) e.preventDefault();
+        searchRhymeLexicon(lexiconWord, lexiconMode);
+    };
+
+    useEffect(() => {
+        if (lexiconWord.trim()) {
+            const delayDebounce = setTimeout(() => {
+                searchRhymeLexicon(lexiconWord, lexiconMode);
+            }, 600);
+            return () => clearTimeout(delayDebounce);
+        } else {
+            setLexiconResults([]);
+        }
+    }, [lexiconWord, lexiconMode]);
+
+    const lyricStartersList = [
+        "Under the weight of a neon sky...",
+        "I found your letters in the attic dust...",
+        "We built a house on shifting sand...",
+        "The clock is ticking backward in the dark...",
+        "Shadows dance where we used to stand...",
+        "Raindrops falling on a broken windshield...",
+        "I heard your voice in the static of the radio...",
+        "We walked the line until the road ran out...",
+        "Gold rings and old strings, that's all you left...",
+        "The city sleeps while our secrets burn...",
+        "Cigarette smoke on a velvet chair...",
+        "A pocket full of dreams and a tank half dry...",
+        "Lost in the spaces between what we said..."
+    ];
+
+    const moodsList = ["Melancholic", "Hopeful", "Nostalgic", "Rebellious", "Serene", "Haunting", "Electric", "Bittersweet"];
+    const settingsList = ["a rainy cafe", "a crowded subway station", "a highway at midnight", "a coastal cliffside", "an empty ballroom", "a neon-lit diner", "a childhood bedroom"];
+    const keywordsPool = [
+        ["hollow", "echo", "promise", "anchor"],
+        ["tide", "drift", "horizon", "salt"],
+        ["smoke", "velvet", "whisper", "clock"],
+        ["neon", "sparks", "wire", "gravity"],
+        ["dust", "portrait", "attic", "key"],
+        ["highway", "speed", "fog", "headlights"]
+    ];
+
+    const generateLyricStarter = () => {
+        const rand = lyricStartersList[Math.floor(Math.random() * lyricStartersList.length)];
+        setCurrentStarter(rand);
+    };
+
+    const generateThemePrompt = () => {
+        const mood = moodsList[Math.floor(Math.random() * moodsList.length)];
+        const setting = settingsList[Math.floor(Math.random() * settingsList.length)];
+        const keywords = keywordsPool[Math.floor(Math.random() * keywordsPool.length)];
+        setCurrentTheme({ mood, setting, keywords });
+    };
+
+    useEffect(() => {
+        if (showToolsPanel && activeToolTab === 'inspiration') {
+            if (!currentStarter) generateLyricStarter();
+            if (!currentTheme) generateThemePrompt();
+        }
+    }, [showToolsPanel, activeToolTab]);
 
     // ----------------------------------------------------
     // VOICE RECORDING & AUDIO VISUALIZER LOGIC
@@ -3777,6 +4370,712 @@ export default function CreatePage() {
         return () => window.removeEventListener('resize', update);
     }, [contentVal, isEditing]);
 
+    // Creative Tools Suite rendering functions
+    const renderTunerScale = () => {
+        const noteIdx = noteStrings.indexOf(tunerNote);
+        if (noteIdx === -1 || !tunerActive) {
+            return (
+                <div className="flex items-center justify-between w-full px-4 py-2 border-y border-stone-200 text-[10px] font-bold text-stone-400 select-none">
+                    <span>B</span><span>C</span><span>C#</span>
+                    <span className="text-[#FF4040] text-sm font-black border-b-2 border-[#FF4040] pb-0.5">D</span>
+                    <span>D#</span><span>E</span><span>F</span>
+                </div>
+            );
+        }
+        const neighbors = [-3, -2, -1, 0, 1, 2, 3];
+        return (
+            <div className="flex items-center justify-between w-full px-4 py-2 border-y border-stone-200/80 text-[10px] font-bold text-stone-400 select-none">
+                {neighbors.map(offset => {
+                    const idx = (noteIdx + offset + 12) % 12;
+                    const name = noteStrings[idx];
+                    if (offset === 0) {
+                        return (
+                            <span key={offset} className="text-[#FF4040] text-sm font-black border-b-2 border-[#FF4040] pb-0.5">
+                                {name}
+                            </span>
+                        );
+                    }
+                    return <span key={offset}>{name}</span>;
+                })}
+            </div>
+        );
+    };
+
+    const renderGuitarTuner = () => {
+        return (
+            <div className="flex flex-col gap-4 w-full">
+                <div className="flex flex-col md:flex-row gap-4 w-full">
+                    {/* Left Cream Container */}
+                    <div className="bg-[#FAF9F6] border border-stone-200/60 rounded-[24px] p-5 flex flex-col justify-between items-center w-full md:w-[42%] min-h-[210px] text-stone-850">
+                        <div className="flex flex-col items-center select-none w-full">
+                            <span className="text-5xl font-black tracking-tight text-stone-850">{tunerNote}</span>
+                            {tunerActive && tunerFreq ? (
+                                <span className="text-[11px] font-extrabold text-stone-500 mt-1 uppercase tracking-wider">
+                                    {tunerFreq}Hz
+                                </span>
+                            ) : (
+                                <span className="text-[11px] font-extrabold text-stone-300 mt-1 uppercase tracking-wider">
+                                    --- Hz
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="w-full my-3">
+                            {renderTunerScale()}
+                        </div>
+
+                        <div className="w-full flex gap-2 mt-1">
+                            {/* Start Tuner Button */}
+                            <button
+                                onClick={toggleTunerMic}
+                                className={`flex-grow py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-sm text-center ${
+                                    tunerActive
+                                        ? 'bg-stone-700 text-white animate-pulse border border-stone-700'
+                                        : 'bg-stone-950 text-white hover:bg-stone-900 border border-stone-955'
+                                }`}
+                                type="button"
+                            >
+                                {tunerActive ? 'Stop Tuner' : 'Start Tuner'}
+                            </button>
+
+                            {/* Save Checkmark Button */}
+                            <button
+                                onClick={handleSaveTuning}
+                                disabled={!tunerActive || !tunerFreq}
+                                className={`px-4 py-2.5 rounded-xl transition-all active:scale-95 cursor-pointer border flex items-center justify-center ${
+                                    tunerActive && tunerFreq
+                                        ? 'bg-stone-950 text-white border-stone-955 hover:bg-stone-900 shadow-sm'
+                                        : 'bg-transparent text-stone-300 border-stone-200 cursor-not-allowed'
+                                }`}
+                                title="Save current tuning value"
+                                type="button"
+                            >
+                                <Check size={16} className="stroke-[2.5]" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Right Light Container */}
+                    <div className="bg-[#FAF9F6] border border-stone-200/60 rounded-[24px] p-6 flex flex-col items-center justify-center flex-grow min-h-[210px]">
+                        <svg width="100%" height="100%" viewBox="38 20 204 116" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[350px]">
+                            {/* Background scale arc */}
+                            <path d="M 40 130 A 100 100 0 0 1 240 130" stroke="#E6E6E2" strokeWidth="4" strokeLinecap="round" />
+                            
+                            {/* Center reference tick */}
+                            <line x1="140" y1="130" x2="140" y2="122" stroke="#FF4040" strokeWidth="2.5" strokeLinecap="round" />
+
+                            {/* Gauge Ticks */}
+                            {[-40, -35, -30, -25, -20, -15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40].map((tick) => {
+                                const angle = tick * 1.5;
+                                const isMajor = tick % 20 === 0;
+                                const showNumber = tick !== 0 && tick % 20 === 0;
+                                const tickLen = isMajor ? 10 : 5;
+                                return (
+                                    <g key={tick} transform={`rotate(${angle}, 140, 130)`}>
+                                        <line
+                                            x1="140"
+                                            y1="30"
+                                            x2="140"
+                                            y2={30 + tickLen}
+                                            stroke={isMajor ? "#78716C" : "#D6D3D1"}
+                                            strokeWidth={isMajor ? 1.5 : 0.8}
+                                        />
+                                        {showNumber && (
+                                            <text
+                                                x="140"
+                                                y={30 + tickLen + 12}
+                                                textAnchor="middle"
+                                                className="text-[9px] font-extrabold text-stone-500 fill-stone-500 font-sans"
+                                                transform={`rotate(${-angle}, 140, ${30 + tickLen + 8})`}
+                                            >
+                                                {tick}
+                                            </text>
+                                        )}
+                                    </g>
+                                );
+                            })}
+
+                            {/* Red Needle */}
+                            <g transform={`rotate(${tunerCents * 1.5}, 140, 130)`} style={{ transition: 'transform 0.1s ease-out' }}>
+                                <line x1="140" y1="130" x2="140" y2="25" stroke="#FF4040" strokeWidth="2.2" strokeLinecap="round" />
+                                <circle cx="140" cy="130" r="5" fill="#FF4040" />
+                                <circle cx="140" cy="130" r="2.5" fill="white" />
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderTapTempo = () => {
+        return (
+            <div className="flex flex-col gap-3 w-full">
+                <button
+                    onClick={(e) => handleTapTempo(e)}
+                    className="w-full h-32 bg-stone-50 hover:bg-stone-100/50 border-2 border-dashed border-stone-200 hover:border-stone-400 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all active:scale-[0.99] select-none group py-4"
+                    type="button"
+                >
+                    <span className="text-[10px] font-extrabold text-stone-400 uppercase tracking-widest mb-1 select-none">Click or Tap here</span>
+                    <span className="text-3xl font-black text-stone-800 select-none">{metronomeBpm} BPM</span>
+                    <span className="text-[9px] text-stone-500 mt-2 select-none group-hover:text-stone-600 transition-colors">Press Spacebar to tap, or click anywhere inside this box</span>
+                </button>
+
+                <div className="flex items-center justify-between bg-stone-50 border border-stone-200/60 p-3 rounded-xl">
+                    <div className="flex items-center gap-2 select-none">
+                        <Music size={14} className="text-stone-500" />
+                        <span className="text-xs font-semibold text-stone-700">Metronome Tick Sound</span>
+                    </div>
+                    <button
+                        onClick={() => setIsMetronomePlaying(!isMetronomePlaying)}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer ${
+                            isMetronomePlaying 
+                                ? 'bg-stone-900 text-white' 
+                                : 'bg-white text-stone-850 border border-stone-200 shadow-2xs hover:bg-stone-50'
+                        }`}
+                        type="button"
+                    >
+                        {isMetronomePlaying ? 'Stop Metronome' : 'Start Metronome'}
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const renderRhymeLexicon = () => {
+        const groupedBySyllables: Record<number, typeof lexiconResults> = {};
+        lexiconResults.forEach(item => {
+            const syl = item.syllables || 1;
+            if (!groupedBySyllables[syl]) groupedBySyllables[syl] = [];
+            groupedBySyllables[syl].push(item);
+        });
+
+        return (
+            <div className="flex flex-col gap-3.5 w-full">
+                <form onSubmit={handleLexiconSearch} className="flex gap-2">
+                    <div className="relative flex-grow">
+                        <input
+                            type="text"
+                            placeholder="Type a word to search (e.g. sky, love, time)..."
+                            value={lexiconWord}
+                            onChange={(e) => setLexiconWord(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-sans placeholder:text-stone-400 font-semibold focus:outline-none focus:border-stone-400"
+                        />
+                        {lexiconLoading && (
+                            <div className="absolute right-3 top-3 w-3.5 h-3.5 border-2 border-stone-400 border-t-transparent rounded-full animate-spin" />
+                        )}
+                    </div>
+                    <select
+                        value={lexiconMode}
+                        onChange={(e: any) => setLexiconMode(e.target.value)}
+                        className="px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-stone-400 cursor-pointer"
+                    >
+                        <option value="rhyme">Perfect Rhyme</option>
+                        <option value="near">Near Rhyme</option>
+                        <option value="synonym">Synonyms</option>
+                    </select>
+                </form>
+
+                {lexiconResults.length === 0 ? (
+                    <div className="bg-stone-50 border border-stone-150 rounded-xl p-6 text-center select-none">
+                        <p className="text-xs text-stone-400 font-medium">Type a word to search for rhymes or synonyms.</p>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-3.5 max-h-48 overflow-y-auto mt-1 pr-1 no-scrollbar">
+                        {Object.keys(groupedBySyllables).map(sylKey => {
+                            const syl = parseInt(sylKey);
+                            const words = groupedBySyllables[syl];
+                            return (
+                                <div key={syl} className="flex flex-col gap-1.5">
+                                    <span className="text-[9px] text-stone-450 font-bold uppercase tracking-wider select-none">
+                                        {syl} {syl === 1 ? 'Syllable' : 'Syllables'}
+                                    </span>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {words.map((item, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => {
+                                                    insertTextAtCursor(item.word + ' ');
+                                                    navigator.clipboard.writeText(item.word).catch(console.error);
+                                                }}
+                                                className="px-2.5 py-1 bg-stone-50 hover:bg-stone-900 border border-stone-200 hover:border-stone-900 rounded-lg text-xs font-semibold text-stone-800 hover:text-white transition-all cursor-pointer shadow-2xs active:scale-95"
+                                                title="Click to insert and copy"
+                                                type="button"
+                                            >
+                                                {item.word}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderInspirationTools = () => {
+        const cards = inspirationCards.length > 0 ? inspirationCards : INSPIRATION_CARDS;
+        const activeCard = cards[currentCardIndex % cards.length];
+        const prevCard = cards[(currentCardIndex - 1 + cards.length) % cards.length];
+        const nextCard = cards[(currentCardIndex + 1) % cards.length];
+        const noteKey = selectedNoteId || 'global';
+        const cardAnswers = (inspirationAnswers[noteKey] || {})[activeCard.id] || ['', '', ''];
+
+        const triggerSwipeAnimation = (isNext: boolean) => {
+            if (swipingToBack) return;
+            // Reset drag offset immediately — card sinks to back, not flies sideways
+            setInspirationDragOffset(0);
+            setSwipingToBack(true);
+            setTimeout(() => {
+                if (isNext) {
+                    setCurrentCardIndex((prev) => (prev === cards.length - 1 ? 0 : prev + 1));
+                } else {
+                    setCurrentCardIndex((prev) => (prev === 0 ? cards.length - 1 : prev - 1));
+                }
+                setSwipingToBack(false);
+            }, 320);
+        };
+
+        const handlePrevCard = () => {
+            triggerSwipeAnimation(false);
+        };
+
+        const handleNextCard = () => {
+            triggerSwipeAnimation(true);
+        };
+
+        const handleSaveAnswer = (cardId: string, qIdx: number, val: string) => {
+            const noteAnswers = { ...(inspirationAnswers[noteKey] || {}) };
+            const cardAnswersCopy = [...(noteAnswers[cardId] || ['', '', ''])];
+            cardAnswersCopy[qIdx] = val;
+            noteAnswers[cardId] = cardAnswersCopy;
+
+            const updated = {
+                ...inspirationAnswers,
+                [noteKey]: noteAnswers
+            };
+            setInspirationAnswers(updated);
+            localStorage.setItem('veinote-inspiration-answers', JSON.stringify(updated));
+        };
+
+        // Swipe touch gesture handlers
+        const handleTouchStart = (e: React.TouchEvent) => {
+            if (swipingToBack) return;
+            inspirationTouchStartXRef.current = e.touches[0].clientX;
+        };
+
+        const handleTouchMove = (e: React.TouchEvent) => {
+            if (swipingToBack || inspirationTouchStartXRef.current === 0) return;
+            const diffX = e.touches[0].clientX - inspirationTouchStartXRef.current;
+            setInspirationDragOffset(diffX);
+        };
+
+        const handleTouchEnd = (e: React.TouchEvent) => {
+            if (swipingToBack || inspirationTouchStartXRef.current === 0) return;
+            const touch = e.changedTouches[0] || e.touches[0];
+            const endX = touch ? touch.clientX : inspirationTouchStartXRef.current;
+            const diffX = endX - inspirationTouchStartXRef.current;
+            inspirationTouchStartXRef.current = 0;
+
+            if (Math.abs(diffX) > 50) {
+                // Sink card to back of stack
+                setInspirationDragOffset(0);
+                triggerSwipeAnimation(diffX < 0);
+            } else {
+                // Smooth snap-back, no spring/elastic
+                setInspirationDragOffset(0);
+                setExpandedCardId(activeCard.id);
+            }
+        };
+
+        // Swipe mouse drag gesture handlers
+        const handleMouseDown = (e: React.MouseEvent) => {
+            if (swipingToBack) return;
+            inspirationDragStartXRef.current = e.clientX;
+        };
+
+        const handleMouseMove = (e: React.MouseEvent) => {
+            if (swipingToBack || inspirationDragStartXRef.current === 0) return;
+            const diffX = e.clientX - inspirationDragStartXRef.current;
+            setInspirationDragOffset(diffX);
+        };
+
+        const handleMouseUp = (e: React.MouseEvent) => {
+            if (swipingToBack || inspirationDragStartXRef.current === 0) return;
+            const diffX = e.clientX - inspirationDragStartXRef.current;
+            inspirationDragStartXRef.current = 0;
+
+            if (Math.abs(diffX) > 50) {
+                // Sink card to back of stack
+                setInspirationDragOffset(0);
+                triggerSwipeAnimation(diffX < 0);
+            } else {
+                // Smooth snap-back, no spring/elastic
+                setInspirationDragOffset(0);
+                setExpandedCardId(activeCard.id);
+            }
+        };
+
+        const handleMouseLeave = () => {
+            if (swipingToBack || inspirationDragStartXRef.current === 0) return;
+            inspirationDragStartXRef.current = 0;
+            setInspirationDragOffset(0);
+        };
+
+        const getCategoryIcon = (category: string) => {
+            switch (category) {
+                case 'Daily Life':
+                    return <Coffee size={15} className="text-stone-700" />;
+                case 'Nostalgia':
+                    return <Heart size={15} className="text-stone-700 fill-stone-700/10" />;
+                case 'History':
+                    return <BookOpen size={15} className="text-stone-700" />;
+                case 'Nature':
+                    return <Compass size={15} className="text-stone-700" />;
+                case 'Space & Sci-Fi':
+                    return <Sparkles size={15} className="text-stone-700" />;
+                case 'Philosophy':
+                    return <Brain size={15} className="text-stone-700" />;
+                case 'Sports & Motion':
+                    return <Activity size={15} className="text-stone-700" />;
+                case 'Secrets & Dreams':
+                    return <Key size={15} className="text-stone-700" />;
+                default:
+                    return <Sparkles size={15} className="text-stone-700" />;
+            }
+        };
+
+        // Compute 3D Stack interactive style adjustments based on drag offset
+        const isDragging = inspirationDragOffset !== 0 && !swipingToBack;
+
+        const prevDragRatio = Math.min(1, inspirationDragOffset > 0 ? (inspirationDragOffset / 80) : 0);
+        const prevRotation = -8 + (prevDragRatio * 8);
+        const prevTranslateX = -42 + (prevDragRatio * 42);
+        const prevScale = 0.92 + (prevDragRatio * 0.08);
+        const prevOpacity = 0.4 + (prevDragRatio * 0.4);
+
+        const nextDragRatio = Math.min(1, inspirationDragOffset < 0 ? (Math.abs(inspirationDragOffset) / 80) : 0);
+        const nextRotation = 6 - (nextDragRatio * 6);
+        const nextTranslateX = 42 - (nextDragRatio * 42);
+        const nextScale = 0.92 + (nextDragRatio * 0.08);
+        const nextOpacity = 0.4 + (nextDragRatio * 0.4);
+
+        // Drag-follow opacity (only used while manually dragging, not when sinking)
+        const activeDragOpacity = Math.max(0, 1 - (Math.abs(inspirationDragOffset) / 280));
+
+        if (expandedCardId && expandedCardId === activeCard.id) {
+            return (
+                <div className="flex flex-col gap-4 w-full animate-in fade-in zoom-in-95 duration-250">
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-3 border-b border-stone-100 select-none">
+                        <button
+                            onClick={() => setExpandedCardId(null)}
+                            className="flex items-center gap-1.5 text-xs font-bold text-stone-500 hover:text-stone-855 cursor-pointer transition-colors"
+                            type="button"
+                        >
+                            <ChevronLeft size={16} className="stroke-[2.5]" />
+                            <span>Back to Cards</span>
+                        </button>
+                        <span className="text-[10px] font-extrabold text-stone-500 uppercase tracking-wider bg-stone-100 px-2.5 py-1 rounded-full shadow-3xs border border-stone-200/10">
+                            {activeCard.category}
+                        </span>
+                    </div>
+
+                    {/* Title & Body */}
+                    <div className="flex flex-col gap-1 select-none">
+                        <h3 className="text-xl font-black tracking-tight text-stone-850">
+                            {activeCard.title}
+                        </h3>
+                        <p className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider mt-1">
+                            Answer the prompts to inspire your writing:
+                        </p>
+                    </div>
+
+                    {/* Questions Form */}
+                    <div className="flex flex-col gap-4 overflow-y-auto max-h-[220px] pr-1 no-scrollbar">
+                        {activeCard.questions.map((q, qIdx) => {
+                            const currentVal = cardAnswers[qIdx] || '';
+                            return (
+                                <div key={qIdx} className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-bold text-stone-750 select-none leading-relaxed">
+                                        {qIdx + 1}. {q}
+                                    </label>
+                                    <textarea
+                                        value={currentVal}
+                                        onChange={(e) => handleSaveAnswer(activeCard.id, qIdx, e.target.value)}
+                                        placeholder="Type your thoughts, imagery, or lyrics ideas..."
+                                        rows={2}
+                                        className="w-full px-3.5 py-2.5 bg-stone-50 hover:bg-stone-100/30 focus:bg-white border border-stone-200 focus:border-stone-400 rounded-xl text-xs font-sans placeholder:text-stone-400 font-semibold focus:outline-none transition-all resize-none shadow-3xs"
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Back to Work Button */}
+                    <button
+                        onClick={() => setShowToolsPanel(false)}
+                        className="w-full mt-2 py-3 rounded-xl bg-stone-950 text-white hover:bg-stone-900 font-bold text-xs transition-all active:scale-[0.98] cursor-pointer shadow-sm text-center"
+                        type="button"
+                    >
+                        Back to Canvas
+                    </button>
+                </div>
+            );
+        }
+
+        // Swiper View (Stacked Neutral Cards on Soft Pink Background)
+        return (
+            <div className="flex flex-col gap-4 w-full animate-in fade-in duration-200">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-2 select-none border-b border-stone-100">
+                    <span className="text-[11px] font-extrabold text-stone-400 uppercase tracking-widest">Inspirations</span>
+                    <button
+                        onClick={() => setShowToolsPanel(false)}
+                        className="text-[10px] font-bold text-stone-500 hover:text-stone-855 transition-colors uppercase tracking-wider cursor-pointer flex items-center gap-0.5"
+                        type="button"
+                    >
+                        <span>Back to Canvas</span>
+                        <ChevronRight size={14} className="stroke-[2.5]" />
+                    </button>
+                </div>
+
+                {/* 3D Stack Container on Soft Pink background */}
+                <div className="relative w-full h-[280px] bg-[#FFE4E6]/40 border border-pink-100 rounded-[32px] flex flex-col justify-center items-center overflow-hidden py-4 select-none">
+                    
+                    {/* Card Stack Layout */}
+                    <div className="relative w-[320px] h-[190px] flex items-center justify-center">
+                        
+                        {/* Prev Card (Tilted Left, Behind) */}
+                        <div 
+                            className="absolute w-[260px] h-[170px] bg-white border border-stone-200 rounded-[24px] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.03)] opacity-40 select-none flex flex-col justify-between items-start"
+                            style={{ 
+                                transform: `rotate(${prevRotation}deg) translateX(${prevTranslateX}px) translateY(4px) scale(${prevScale})`,
+                                opacity: Math.min(1, Math.max(0.15, prevOpacity)),
+                                transition: isDragging ? 'none' : 'all 0.28s ease-out',
+                                zIndex: 5 
+                            }}
+                        >
+                            <div className="w-8 h-8 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center shadow-3xs">
+                                {getCategoryIcon(prevCard.category)}
+                            </div>
+                            <div className="mt-2 text-left w-full">
+                                <h4 className="text-[13px] font-bold text-stone-400 leading-snug line-clamp-2">
+                                    {prevCard.title}
+                                </h4>
+                            </div>
+                            <div className="w-full flex justify-between items-end">
+                                <span className="text-[9px] font-bold text-stone-355 border-b border-stone-200">Read prompts</span>
+                                <div className="w-6 h-6 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center text-stone-300">
+                                    <ArrowUpRight size={12} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Next Card (Tilted Right, Behind) */}
+                        <div 
+                            className="absolute w-[260px] h-[170px] bg-white border border-stone-200 rounded-[24px] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.03)] opacity-40 select-none flex flex-col justify-between items-start"
+                            style={{ 
+                                transform: `rotate(${nextRotation}deg) translateX(${nextTranslateX}px) translateY(4px) scale(${nextScale})`,
+                                opacity: Math.min(1, Math.max(0.15, nextOpacity)),
+                                transition: isDragging ? 'none' : 'all 0.28s ease-out',
+                                zIndex: 5 
+                            }}
+                        >
+                            <div className="w-8 h-8 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center shadow-3xs">
+                                {getCategoryIcon(nextCard.category)}
+                            </div>
+                            <div className="mt-2 text-left w-full">
+                                <h4 className="text-[13px] font-bold text-stone-400 leading-snug line-clamp-2">
+                                    {nextCard.title}
+                                </h4>
+                            </div>
+                            <div className="w-full flex justify-between items-end">
+                                <span className="text-[9px] font-bold text-stone-355 border-b border-stone-200">Read prompts</span>
+                                <div className="w-6 h-6 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center text-stone-300">
+                                    <ArrowUpRight size={12} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Active Card (Front, Center) */}
+                        <div
+                            onTouchStart={handleTouchStart}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={handleTouchEnd}
+                            onTouchCancel={handleTouchEnd}
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onMouseLeave={handleMouseLeave}
+                            onDragStart={(e) => e.preventDefault()}
+                            className="absolute w-[260px] h-[170px] bg-white border border-stone-200/80 rounded-[24px] p-6 shadow-[0_12px_28px_rgba(0,0,0,0.06)] flex flex-col justify-between items-start cursor-pointer select-none"
+                            style={swipingToBack ? {
+                                // Sink-to-back: shrink, fade, drop behind other cards
+                                transform: 'scale(0.82) translateY(18px) rotate(4deg)',
+                                transition: 'transform 0.32s ease-out, opacity 0.32s ease-out',
+                                opacity: 0,
+                                zIndex: 2,
+                                pointerEvents: 'none'
+                            } : {
+                                transform: `translateX(${inspirationDragOffset}px) rotate(${inspirationDragOffset * 0.04}deg) scale(1.02)`,
+                                transition: isDragging ? 'none' : 'transform 0.18s ease-out, opacity 0.18s ease-out',
+                                opacity: activeDragOpacity,
+                                zIndex: 10
+                            }}
+                        >
+                            {/* Top Badge Icon */}
+                            <div className="w-8 h-8 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center shadow-3xs">
+                                {getCategoryIcon(activeCard.category)}
+                            </div>
+                            
+                            {/* Card Content Title */}
+                            <div className="mt-2 text-left w-full">
+                                <h4 className="text-[14px] font-extrabold tracking-tight text-stone-850 leading-snug line-clamp-2 font-sans">
+                                    {activeCard.title}
+                                </h4>
+                                <span className="text-[8.5px] font-extrabold uppercase tracking-wider text-stone-450 block mt-0.5">
+                                    {activeCard.category}
+                                </span>
+                            </div>
+
+                            {/* Bottom CTA & Icon button */}
+                            <div className="w-full flex justify-between items-end">
+                                <span className="text-[9.5px] font-extrabold text-stone-600 hover:text-[#FF4060] transition-colors border-b border-stone-300 pb-0.5">
+                                    Read prompts
+                                </span>
+                                <div className="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center shadow-sm hover:bg-[#FF4060] transition-colors">
+                                    <ArrowUpRight size={14} className="stroke-[2.5]" />
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                {/* Sub Card Navigation Controls */}
+                <div className="flex items-center justify-center gap-3 mt-1">
+                    <button
+                        onClick={handlePrevCard}
+                        className="w-8 h-8 rounded-full border border-stone-200 bg-white text-stone-500 hover:text-stone-855 flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 transition-colors active:scale-95"
+                        type="button"
+                        title="Previous card"
+                    >
+                        <ChevronLeft size={16} className="stroke-[2.5]" />
+                    </button>
+                    <span className="text-[9px] font-extrabold text-stone-400 uppercase tracking-widest min-w-[32px] text-center select-none">
+                        {currentCardIndex + 1} / {cards.length}
+                    </span>
+                    <button
+                        onClick={handleNextCard}
+                        className="w-8 h-8 rounded-full border border-stone-200 bg-white text-stone-500 hover:text-stone-855 flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 transition-colors active:scale-95"
+                        type="button"
+                        title="Next card"
+                    >
+                        <ChevronRight size={16} className="stroke-[2.5]" />
+                    </button>
+                </div>
+
+            </div>
+        );
+    };
+
+    const renderToolsPanel = () => {
+        if (!showToolsPanel) return null;
+
+        if (activeToolTab === 'inspiration') {
+            return (
+                <div className="w-full max-w-[680px] bg-white border border-stone-200/80 rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.1)] p-5 mb-4 flex flex-col gap-4 animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
+                    {/* Content area for inspiration only */}
+                    <div className="w-full">
+                        {renderInspirationTools()}
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="w-full max-w-[680px] bg-white border border-stone-200/80 rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.1)] p-5 mb-4 flex flex-col gap-4 animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
+                {/* Content area based on active tab */}
+                <div className="w-full">
+                    {activeToolTab === 'tuner' && renderGuitarTuner()}
+                    {activeToolTab === 'tempo' && renderTapTempo()}
+                    {activeToolTab === 'lexicon' && renderRhymeLexicon()}
+                </div>
+
+                {/* Horizontal separator */}
+                <div className="border-t border-stone-100 w-full" />
+
+                {/* Tab row navigation */}
+                <div className="flex items-center justify-around px-2 select-none">
+                    <button
+                        onClick={() => setActiveToolTab('tuner')}
+                        className={`transition-all duration-200 cursor-pointer ${
+                            activeToolTab === 'tuner'
+                                ? 'text-xs md:text-[13px] font-bold px-4 py-1.5 bg-[#EAEAEA] text-stone-850 rounded-full'
+                                : 'text-[11px] md:text-xs font-medium px-3 py-1.5 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
+                        }`}
+                        type="button"
+                    >
+                        Guitar tuner
+                    </button>
+                    <button
+                        onClick={() => setActiveToolTab('tempo')}
+                        className={`transition-all duration-200 cursor-pointer ${
+                            activeToolTab === 'tempo'
+                                ? 'text-xs md:text-[13px] font-bold px-4 py-1.5 bg-[#EAEAEA] text-stone-850 rounded-full'
+                                : 'text-[11px] md:text-xs font-medium px-3 py-1.5 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
+                        }`}
+                        type="button"
+                    >
+                        Tap tempo
+                    </button>
+                    <button
+                        onClick={() => setActiveToolTab('lexicon')}
+                        className={`transition-all duration-200 cursor-pointer ${
+                            activeToolTab === 'lexicon'
+                                ? 'text-xs md:text-[13px] font-bold px-4 py-1.5 bg-[#EAEAEA] text-stone-850 rounded-full'
+                                : 'text-[11px] md:text-xs font-medium px-3 py-1.5 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
+                        }`}
+                        type="button"
+                    >
+                        Rhyme lexicon
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const handleToolsToggle = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (showToolsPanel) {
+            if (activeToolTab !== 'inspiration') {
+                setShowToolsPanel(false);
+            } else {
+                setActiveToolTab('tuner');
+            }
+        } else {
+            setShowToolsPanel(true);
+            setActiveToolTab('tuner');
+        }
+    };
+
+    const handleInspirationToggle = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (showToolsPanel) {
+            if (activeToolTab === 'inspiration') {
+                setShowToolsPanel(false);
+            } else {
+                setActiveToolTab('inspiration');
+            }
+        } else {
+            setShowToolsPanel(true);
+            setActiveToolTab('inspiration');
+        }
+    };
+
     if (!isMounted) return null;
 
     return (
@@ -3861,7 +5160,7 @@ export default function CreatePage() {
                         handleMovePhraseToGroup(phraseId, null);
                     }
                 }}
-                className="bg-[#FAF9F5] rounded-none md:rounded-[32px] p-4 md:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative cursor-text justify-between w-full"
+                className="bg-white border border-stone-200/60 shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative cursor-text justify-between w-full"
             >
                 {/* 1a. Canvas Header (Title and Ellipsis Menu) */}
                 <div className="w-full flex items-center justify-between gap-4 pb-4 border-b border-stone-200/40 select-none z-20">
@@ -3905,7 +5204,10 @@ export default function CreatePage() {
                         />
                         <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 bg-stone-100 text-stone-600 border border-stone-200 rounded-full px-3 py-1 text-[11px] font-medium tracking-wide flex items-center gap-1.5 pointer-events-none shadow-3xs select-none shrink-0 ml-[1%]">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>{metronomeBpm} BPM</span>
+                            <span>
+                                {metronomeBpm} BPM
+                                {savedTuning ? ` • Tuner: ${savedTuning.note} (${savedTuning.freq}Hz, ${savedTuning.cents === 0 ? '0' : savedTuning.cents > 0 ? `+${savedTuning.cents}` : savedTuning.cents}¢)` : ''}
+                            </span>
                         </div>
                     </div>
                     
@@ -4410,6 +5712,37 @@ export default function CreatePage() {
                                         <AudioCapsuleSkeleton />
                                     </div>
                                 )}
+
+                                {/* Centered Chorus, Verse, and Bridge Buttons */}
+                                <div className="flex items-center justify-center gap-2.5 mt-8 pb-2 w-full select-none z-20">
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAddVerseGroup('Chorus');
+                                        }}
+                                        className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
+                                    >
+                                        Chorus
+                                    </button>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAddVerseGroup('Verse');
+                                        }}
+                                        className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
+                                    >
+                                        Verse
+                                    </button>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAddVerseGroup('Bridge');
+                                        }}
+                                        className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
+                                    >
+                                        Bridge
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <div className="absolute inset-0 px-[10%] flex flex-col items-center justify-center pointer-events-none z-10">
@@ -4508,57 +5841,26 @@ export default function CreatePage() {
                     </>
                 )}
 
+                {/* Creative Tools Panel */}
+                {showToolsPanel && (
+                    <div className="absolute bottom-[104px] left-1/2 -translate-x-1/2 w-full max-w-[680px] px-4 z-30">
+                        {renderToolsPanel()}
+                    </div>
+                )}
+
                 {/* 1c. Bottom controls bar */}
                 <div 
                     onClick={(e) => e.stopPropagation()}
-                    className={`flex select-none z-20 ${
+                    className={`flex select-none z-20 justify-center ${
                         (isMobile && (editingPhraseId !== null || isFocused))
-                            ? "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2"
-                            : "flex-col sm:flex-row px-2 md:px-8 mt-8 pb-4 gap-3 sm:gap-0"
+                            ? "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2 justify-center"
+                            : "px-2 md:px-8 mt-8 pb-4"
                     }`}
                     style={(isMobile && (editingPhraseId !== null || isFocused)) ? { bottom: `${visualViewportOffset}px` } : undefined}
                 >
-                    {/* Left Side: Contextual action pills — horizontally scrollable on mobile */}
-                    <div className={`flex items-center gap-2.5 h-auto overflow-x-auto no-scrollbar sm:w-auto ${
-                        (isMobile && (editingPhraseId !== null || isFocused)) ? 'w-auto pb-0' : 'w-full pb-1'
-                    }`}>
-                        {/* Section template buttons */}
-                        <div className="flex items-center gap-2">
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAddVerseGroup('Chorus');
-                                }}
-                                className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
-                            >
-                                Chorus
-                            </button>
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAddVerseGroup('Verse');
-                                }}
-                                className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
-                            >
-                                Verse
-                            </button>
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAddVerseGroup('Bridge');
-                                }}
-                                className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
-                            >
-                                Bridge
-                            </button>
-                        </div>
-
-
-                    </div>
-
-                    {/* Right Side: Button Row (✓ SAVE, REC, +) */}
+                    {/* Right Side: Button Row (✓ SAVE, REC, Tools, Inspiration) */}
                     <div className="flex items-center gap-3">
-                        {/* Revert adjustments button */}
+                        {/* Revert adjustments button (placed outside the capsule for clean alignment) */}
                         {activeNote && activeNote.content !== lastSavedContent && (
                             <button
                                 onClick={handleRevertChanges}
@@ -4569,61 +5871,89 @@ export default function CreatePage() {
                             </button>
                         )}
 
-                        {/* ✓ SAVE button */}
-                        <button
-                            onClick={isSaveDisabled ? undefined : handleCheckmarkSaveClick}
-                            disabled={isSaveDisabled}
-                            className={`font-bold text-xs uppercase tracking-wider transition-all duration-150 px-4 py-2 rounded-full ${
-                                isSaveDisabled 
-                                    ? 'text-stone-300 cursor-not-allowed opacity-35' 
-                                    : 'text-[#1EB239] hover:bg-stone-50 hover:text-[#199931] cursor-pointer'
-                            }`}
-                        >
-                            ✓ SAVE
-                        </button>
-
-                        {/* REC capsule button */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (isRecording) {
-                                    stopRecording();
-                                } else {
-                                    startRecording();
-                                }
-                            }}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer ${
-                                isRecording 
-                                    ? 'bg-[#FF4040] text-white animate-pulse' 
-                                    : 'border border-stone-300 bg-white text-stone-750 hover:bg-stone-50'
-                            }`}
-                        >
-                            {isRecording ? (
-                                <>
-                                    <div className="w-2 h-2 rounded-full bg-white animate-ping absolute" />
-                                    <Square size={10} className="fill-white text-white shrink-0 z-10" />
-                                    <span className="z-10">Recording {formatTime(recordingTime)}</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-                                    <span>REC</span>
-                                </>
+                        {/* Primary actions capsule */}
+                        <div className="flex items-center gap-2.5 bg-white border border-stone-200/60 p-2 rounded-full shadow-[0_12px_36px_rgba(0,0,0,0.06)] w-fit pointer-events-auto">
+                            {/* ✓ SAVE button */}
+                            {activeNote && activeNote.content !== lastSavedContent && (
+                                <button
+                                    onClick={handleCheckmarkSaveClick}
+                                    className="h-10 px-5 flex items-center gap-2 rounded-full border border-stone-200/50 bg-white font-sans font-extrabold text-xs uppercase tracking-wider text-[#1EB239] hover:bg-stone-50 transition-all duration-150 cursor-pointer active:scale-95 shadow-3xs"
+                                >
+                                    <Check size={14} className="stroke-[3]" />
+                                    <span>SAVE</span>
+                                </button>
                             )}
-                        </button>
 
-                        {/* + button */}
-                        <button
-                            onClick={handlePlusClick}
-                            className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 active:scale-95 cursor-pointer shadow-2xs ${
-                                activeNote?.audioUrl 
-                                    ? 'bg-black text-white hover:bg-stone-800' 
-                                    : 'bg-white border border-stone-300 text-stone-900 hover:bg-stone-50'
-                            }`}
-                            title="New note"
-                        >
-                            <Plus size={16} />
-                        </button>
+                            {/* REC capsule button */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isRecording) {
+                                        stopRecording();
+                                    } else {
+                                        startRecording();
+                                    }
+                                }}
+                                className={`h-10 px-5 flex items-center gap-2 rounded-full text-xs font-extrabold transition-all duration-200 cursor-pointer border border-stone-200/50 active:scale-95 shadow-3xs ${
+                                    isRecording 
+                                        ? 'bg-[#FF4040] text-white animate-pulse' 
+                                        : 'bg-white text-[#FF4040] hover:bg-red-50/50'
+                                }`}
+                            >
+                                {isRecording ? (
+                                    <>
+                                        <div className="w-2.5 h-2.5 rounded-full bg-white animate-ping absolute" />
+                                        <Square size={10} className="fill-white text-white shrink-0 z-10" />
+                                        <span className="z-10">Recording {formatTime(recordingTime)}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="w-2.5 h-2.5 rounded-full bg-[#FF4040] shrink-0" />
+                                        <span>REC</span>
+                                    </>
+                                )}
+                            </button>
+
+                            {/* Tools button */}
+                            <button
+                                onClick={handleToolsToggle}
+                                className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
+                                    showToolsPanel && activeToolTab !== 'inspiration'
+                                        ? 'bg-[#F2F2F2] text-stone-900 font-extrabold'
+                                        : 'bg-white text-stone-750 hover:bg-stone-50'
+                                }`}
+                                title="Creative Tools"
+                                type="button"
+                            >
+                                <div className="relative w-5.5 h-5.5 flex items-center justify-center pointer-events-none gap-0.5">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={showToolsPanel && activeToolTab !== 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
+                                        {/* Vertical Pencil (left) */}
+                                        <path d="M6 21V9l2-4 2 4v12H6z" />
+                                        <path d="M6 18h4" />
+                                        <path d="M6 9h4" />
+                                        {/* Vertical Ruler (right) */}
+                                        <rect x="14" y="3" width="5" height="18" rx="0.5" />
+                                        <line x1="14" y1="7" x2="16.5" y2="7" />
+                                        <line x1="14" y1="11" x2="16.5" y2="11" />
+                                        <line x1="14" y1="15" x2="16.5" y2="15" />
+                                    </svg>
+                                </div>
+                            </button>
+
+                            {/* Inspiration button */}
+                            <button
+                                onClick={handleInspirationToggle}
+                                className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
+                                    showToolsPanel && activeToolTab === 'inspiration'
+                                        ? 'bg-[#F2F2F2] text-stone-900 font-extrabold'
+                                        : 'bg-white text-stone-750 hover:bg-stone-50'
+                                }`}
+                                title="Inspiration Tools"
+                                type="button"
+                            >
+                                <Lightbulb size={18} className={`stroke-[1.6] ${showToolsPanel && activeToolTab === 'inspiration' ? 'text-stone-850' : 'text-stone-600'}`} />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

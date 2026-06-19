@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { TreePine, Menu } from 'lucide-react';
+import { TreePine, Menu, User } from 'lucide-react';
 import Logo from '@/components/Logo';
 
 export default function PlatformLayout({
@@ -189,7 +189,9 @@ export default function PlatformLayout({
     }
 
     return (
-        <div className="min-h-screen bg-[#E4E4DF] flex text-stone-900 font-sans selection:bg-stone-900/10 selection:text-stone-900">
+        <div className={`min-h-screen flex text-stone-900 font-sans selection:bg-stone-900/10 selection:text-stone-900 transition-colors duration-200 ${
+            pathname?.startsWith('/platform/create') ? 'bg-[#FAF9F5] md:bg-[#E4E4DF]' : 'bg-[#E4E4DF]'
+        }`}>
 
             {/* Congratulations Confetti Overlay Modal */}
             {showConfettiOverlay && (
@@ -241,7 +243,9 @@ export default function PlatformLayout({
                 }
             `}>
                 {/* Mobile Top Header */}
-                <header className="flex md:hidden items-center justify-between px-6 pb-4 text-stone-655 font-sans z-40 border-b border-stone-250/20 mb-0 relative bg-[#E4E4DF]">
+                <header className={`flex md:hidden items-center justify-between px-6 pt-6 pb-4 text-stone-655 font-sans z-40 mb-0 relative transition-colors duration-205 ${
+                    pathname?.startsWith('/platform/create') ? 'bg-[#F5F4EE] border-none' : 'bg-[#E4E4DF] border-b border-stone-250/20'
+                }`}>
                     <button 
                         onClick={() => setIsMobileMenuOpen(true)}
                         className="p-2 -ml-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955"
@@ -255,21 +259,26 @@ export default function PlatformLayout({
                         </Link>
                     </div>
 
-                    <Link href="/platform/profile" className="hover:text-stone-955 transition-colors font-bold uppercase tracking-[0.1em] text-[10px] bg-white border border-stone-200 px-3 py-1.5 rounded-full shadow-2xs">
-                        Profile
+                    <Link 
+                        href="/platform/profile" 
+                        className="p-2 -mr-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955 flex items-center justify-center"
+                    >
+                        <User size={22} className="stroke-[2.2]" />
                     </Link>
                 </header>
 
                 {/* Mobile Progress Bar Bar */}
-                <div className={`flex md:hidden items-center justify-center w-full px-6 pb-4 border-b border-stone-250/10 z-40 bg-[#E4E4DF] ${pathname?.startsWith('/platform/create') ? 'mb-0' : 'mb-4'}`}>
+                <div className={`flex md:hidden items-center justify-center w-full px-6 pb-4 z-40 transition-colors duration-205 ${
+                    pathname?.startsWith('/platform/create') ? 'bg-[#F5F4EE] border-none mb-0' : 'bg-[#E4E4DF] border-b border-stone-250/10 mb-4'
+                }`}>
                     <div className="relative flex flex-col items-center w-full" ref={popupRef}>
                         <canvas className="confetti-canvas-local absolute -inset-x-12 -inset-y-12 pointer-events-none z-50 rounded-full" />
                         <div 
                             onClick={() => setShowTooltip(!showTooltip)}
-                            className="flex items-center justify-between w-full bg-white hover:bg-stone-50 border border-stone-200/80 px-6 py-2 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-[11px] text-stone-650 font-bold uppercase tracking-wider"
+                            className="flex items-center justify-between w-full bg-white border border-stone-200/40 px-6 py-3.5 rounded-[20px] select-none cursor-pointer transition-all active:scale-[0.99] shadow-2xs font-sans text-xs text-stone-500 font-medium normal-case"
                         >
                             <span>Progress</span>
-                            <div className="w-1/2 h-3 bg-stone-200/70 rounded-full overflow-hidden relative">
+                            <div className="flex-1 ml-6 h-2.5 bg-stone-200/70 rounded-full overflow-hidden relative">
                                 <div 
                                     className="h-full bg-[#1EB239] rounded-full transition-all duration-500 ease-out" 
                                     style={{ width: `${progressVal}%` }} 
@@ -331,7 +340,7 @@ export default function PlatformLayout({
                 <div className={`
                     flex-1
                     ${pathname?.startsWith('/platform/create')
-                        ? 'bg-transparent p-0 rounded-none shadow-none overflow-visible'
+                        ? 'bg-transparent md:bg-[#FAF9F5] p-0 md:p-8 rounded-none md:rounded-[32px] shadow-none'
                         : 'overflow-y-auto bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] p-4 md:p-8 shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)]'
                     }
                 `}>
