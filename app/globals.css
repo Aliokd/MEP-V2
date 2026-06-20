@@ -142,3 +142,12 @@ input:-webkit-autofill:active {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
 }
+
+/* Styling to override line hover highlight when a word token inside it is hovered */
+@media (hover: hover) {
+    /* If a word token inside the phrase-row-container is being hovered, transparent the phrase-row hover styling */
+    .phrase-row-container:has(.word-token:hover) .phrase-row-text {
+        border-color: transparent !important;
+        background-color: transparent !important;
+    }
+}

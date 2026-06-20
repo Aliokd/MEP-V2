@@ -380,7 +380,18 @@ function PhraseRow({
     onStartEditing,
     onStopEditing,
     onUpdateText,
-    hasAudioNote
+    onBackspaceAtStart,
+    selectionOffset,
+    draggedWord,
+    setDraggedWord,
+    dragOverWordIndex,
+    setDragOverWordIndex,
+    handleWordDrop,
+    handleWordDropOnPhrase,
+    hasAudioNote,
+    handlePlaceAudioAsLineAt,
+    draggedAudioId,
+    draggedAudioIdRef
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
@@ -409,7 +420,18 @@ function PhraseRow({
     onStartEditing?: (phraseId: string) => void;
     onStopEditing?: (createNext?: boolean) => void;
     onUpdateText?: (phraseId: string, text: string) => void;
+    onBackspaceAtStart?: (phraseId: string) => void;
+    selectionOffset?: number;
+    draggedWord?: { word: string; phraseId: string; wordIndex: number } | null;
+    setDraggedWord?: (info: { word: string; phraseId: string; wordIndex: number } | null) => void;
+    dragOverWordIndex?: { phraseId: string; wordIndex: number; position: 'left' | 'right' } | null;
+    setDragOverWordIndex?: (info: { phraseId: string; wordIndex: number; position: 'left' | 'right' } | null) => void;
+    handleWordDrop?: (source: any, target: any) => void;
+    handleWordDropOnPhrase?: (source: any, targetPhraseId: string) => void;
     hasAudioNote?: boolean;
+    handlePlaceAudioAsLineAt?: (audioNoteId: string, targetPhraseId: string, position: 'top' | 'bottom') => void;
+    draggedAudioId?: string | null;
+    draggedAudioIdRef?: React.RefObject<string | null>;
 }) {
     const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isTouchDraggingRef = useRef(false);
@@ -417,6 +439,22 @@ function PhraseRow({
     const startYRef = useRef(0);
     const touchStartTimeRef = useRef(0);
     const lastTapTimeRef = useRef<number>(0);
+    
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+    useEffect(() => {
+        if (isCurrentlyEditing && textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+            
+            if (typeof selectionOffset === 'number') {
+                textareaRef.current.setSelectionRange(selectionOffset, selectionOffset);
+            } else {
+                const valLength = phrase.text.length;
+                textareaRef.current.setSelectionRange(valLength, valLength);
+            }
+        }
+    }, [isCurrentlyEditing, selectionOffset, phrase.text]);
     
     if (phrase.text.trim() === '' && hasAudioNote && !isCurrentlyEditing) {
         return (
@@ -449,6 +487,17 @@ function PhraseRow({
                 onDrop={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    
+                    const currentDraggedAudioId = e.dataTransfer.getData('text/audio-note-id') || (draggedAudioIdRef ? draggedAudioIdRef.current : null) || draggedAudioId;
+                    if (currentDraggedAudioId) {
+                        if (handlePlaceAudioAsLineAt) {
+                            handlePlaceAudioAsLineAt(currentDraggedAudioId, phrase.id, 'bottom');
+                        }
+                        setDragOverPhraseId(null);
+                        setDropPosition(null);
+                        return;
+                    }
+                    
                     const draggedId = e.dataTransfer.getData('text/plain') || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null) || draggedPhraseId;
                     setDraggedPhraseId(null);
                     if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
@@ -462,7 +511,10 @@ function PhraseRow({
                 data-phrase-id={phrase.id}
             >
                 {dragOverPhraseId === phrase.id && (
-                    <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform -translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+                    <div className="absolute top-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                    </div>
                 )}
             </div>
         );
@@ -498,6 +550,56 @@ function PhraseRow({
             }}
             onDragOver={(e) => {
                 if (isCurrentlyEditing) return;
+                
+                // If it is a word drag
+                if (e.dataTransfer.types.includes('text/word-drag-info') || draggedWord) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    setDragOverPhraseId(null);
+                    setDropPosition(null);
+
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const relativeX = e.clientX - rect.left;
+                    
+                    const wordIndices: number[] = [];
+                    wordsList.forEach((token, idx) => {
+                        if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/)) {
+                            wordIndices.push(idx);
+                        }
+                    });
+                    
+                    if (wordIndices.length === 0) {
+                        if (setDragOverWordIndex) {
+                            setDragOverWordIndex({ phraseId: phrase.id, wordIndex: -1, position: 'left' });
+                        }
+                    } else {
+                        if (relativeX < rect.width / 2) {
+                            if (setDragOverWordIndex) {
+                                setDragOverWordIndex({ phraseId: phrase.id, wordIndex: wordIndices[0], position: 'left' });
+                            }
+                        } else {
+                            if (setDragOverWordIndex) {
+                                setDragOverWordIndex({ phraseId: phrase.id, wordIndex: wordIndices[wordIndices.length - 1], position: 'right' });
+                            }
+                        }
+                    }
+                    return;
+                }
+
+                // If it is an audio note drag
+                const isAudioDrag = e.dataTransfer.types.includes('text/audio-note-id');
+                if (isAudioDrag) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const relativeY = e.clientY - rect.top;
+                    const position = relativeY < rect.height / 2 ? 'top' : 'bottom';
+                    setDragOverPhraseId(phrase.id);
+                    setDropPosition(position);
+                    return;
+                }
+
                 const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
                 if (currentDraggedGroupId) {
                     return; // Let group drag events bubble up to block level
@@ -516,14 +618,54 @@ function PhraseRow({
                 if (isCurrentlyEditing) return;
                 setDragOverPhraseId(null);
                 setDropPosition(null);
+                if (setDragOverWordIndex) setDragOverWordIndex(null);
             }}
             onDrop={(e) => {
                 if (isCurrentlyEditing) return;
-                const audioNoteId = e.dataTransfer.getData('text/audio-note-id');
+                
+                const dragInfoStr = e.dataTransfer.getData('text/word-drag-info');
+                if (dragInfoStr && handleWordDrop) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const dragInfo = JSON.parse(dragInfoStr);
+                    
+                    if (dragOverWordIndex && dragOverWordIndex.phraseId === phrase.id) {
+                        handleWordDrop(dragInfo, {
+                            phraseId: phrase.id,
+                            targetWordIndex: dragOverWordIndex.wordIndex,
+                            position: dragOverWordIndex.position
+                        });
+                    } else {
+                        const wordIndices: number[] = [];
+                        wordsList.forEach((token, idx) => {
+                            if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/)) {
+                                wordIndices.push(idx);
+                            }
+                        });
+                        const targetIdx = wordIndices.length > 0 ? wordIndices[wordIndices.length - 1] : -1;
+                        handleWordDrop(dragInfo, {
+                            phraseId: phrase.id,
+                            targetWordIndex: targetIdx,
+                            position: 'right'
+                        });
+                    }
+                    
+                    setDragOverPhraseId(null);
+                    setDropPosition(null);
+                    if (setDragOverWordIndex) setDragOverWordIndex(null);
+                    if (setDraggedWord) setDraggedWord(null);
+                    return;
+                }
+
+                const audioNoteId = e.dataTransfer.getData('text/audio-note-id') || (draggedAudioIdRef ? draggedAudioIdRef.current : null) || draggedAudioId;
                 if (audioNoteId) {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (handleAttachAudioToPhrase) {
+                    if (dropPosition === 'top' || dropPosition === 'bottom') {
+                        if (handlePlaceAudioAsLineAt) {
+                            handlePlaceAudioAsLineAt(audioNoteId, phrase.id, dropPosition);
+                        }
+                    } else if (handleAttachAudioToPhrase) {
                         const isPlaceholder = phrase.id.startsWith('placeholder-');
                         const targetPhraseId = phrase.groupId ? null : (isPlaceholder ? null : phrase.id);
                         handleAttachAudioToPhrase(audioNoteId, targetPhraseId, phrase.groupId);
@@ -709,13 +851,17 @@ function PhraseRow({
             className="phrase-row-container flex flex-col w-full relative transition-all duration-200"
             data-phrase-id={phrase.id}
         >
-            {dragOverPhraseId === phrase.id && dropPosition === 'top' && (
-                <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform -translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+            {dragOverPhraseId === phrase.id && dropPosition === 'top' && !hasAudioNote && (
+                <div className="absolute top-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                </div>
             )}
             
             {isCurrentlyEditing ? (
                 <div className="text-[26px] md:text-[42px] font-light text-stone-855 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4">
                     <textarea
+                        ref={textareaRef}
                         autoFocus
                         value={phrase.text}
                         placeholder=""
@@ -726,57 +872,127 @@ function PhraseRow({
                                 e.preventDefault();
                                 if (onStopEditing) onStopEditing(true);
                             }
+                            if (e.key === 'Backspace') {
+                                const target = e.currentTarget;
+                                if (target.selectionStart === 0 && target.selectionEnd === 0) {
+                                    if (onBackspaceAtStart) {
+                                        e.preventDefault();
+                                        onBackspaceAtStart(phrase.id);
+                                    }
+                                }
+                            }
                         }}
                         className="w-full bg-transparent border-none outline-none resize-none font-sans text-[26px] md:text-[42px] font-light text-stone-855 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none leading-[1.4] py-0 no-scrollbar"
                         style={{ height: 'auto', minHeight: '1.4em' }}
-                        onFocus={(e) => {
-                            const val = e.target.value;
-                            e.target.value = '';
-                            e.target.value = val; // Move cursor to end
-                            e.target.style.height = 'auto';
-                            e.target.style.height = `${e.target.scrollHeight}px`;
-                        }}
                         inputMode="text"
                     />
                 </div>
             ) : (
                 <div 
                     className={`
-                        text-[26px] md:text-[42px] font-light text-stone-855 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-0.5 px-4 rounded-[12px] transition-all duration-200 cursor-grab active:cursor-grabbing w-full
+                        phrase-row-text text-[26px] md:text-[42px] font-light text-stone-855 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-1.5 px-4 rounded-[16px] transition-all duration-200 cursor-grab active:cursor-grabbing w-full border border-transparent hover:border-stone-200/50 hover:bg-stone-50/30 group/line
                         ${draggedPhraseId === phrase.id ? 'opacity-30' : ''}
                     `}
                 >
-                    {wordsList.map((token, idx) => {
-                        if (/^\s+$/.test(token)) {
-                            return <span key={idx} className="whitespace-pre-wrap">{token}</span>;
-                        }
-                        
-                        // Parse alphabetical word to isolate punctuation
-                        const match = token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/);
-                        if (match) {
-                            const prePunc = match[1];
-                            const word = match[2];
-                            const postPunc = match[3];
-                            return (
-                                <span key={idx} className={`inline-block ${draggedPhraseId !== null ? 'pointer-events-none' : ''}`} onClick={(e) => e.stopPropagation()}>
-                                    {prePunc}
-                                    <span 
-                                        onClick={(e) => handleWordClick(e, word, tokenOffset + idx)}
-                                        className="hover:bg-stone-200/70 text-stone-855 hover:text-stone-955 rounded-[12px] px-2 py-0.5 cursor-pointer transition-colors duration-200"
-                                    >
-                                        {word}
+                    {wordsList.length === 1 && wordsList[0].trim() === '' && dragOverWordIndex?.phraseId === phrase.id && dragOverWordIndex?.wordIndex === -1 ? (
+                        <span className="inline-block border-2 border-dashed border-indigo-400/80 bg-indigo-50/10 text-indigo-500 rounded-[12px] px-6 py-1 text-lg font-normal animate-pulse select-none mx-auto w-fit">
+                            Drop word here
+                        </span>
+                    ) : (
+                        wordsList.map((token, idx) => {
+                            if (/^\s+$/.test(token)) {
+                                return <span key={idx} className="whitespace-pre-wrap">{token}</span>;
+                            }
+                            
+                            // Parse alphabetical word to isolate punctuation
+                            const match = token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/);
+                            if (match) {
+                                const prePunc = match[1];
+                                const word = match[2];
+                                const postPunc = match[3];
+                                
+                                const isWordDragged = draggedWord?.phraseId === phrase.id && draggedWord?.wordIndex === idx;
+                                const isWordDragOver = dragOverWordIndex?.phraseId === phrase.id && dragOverWordIndex?.wordIndex === idx;
+
+                                return (
+                                    <span key={idx} className={`inline-block ${draggedPhraseId !== null ? 'pointer-events-none' : ''}`} onClick={(e) => e.stopPropagation()}>
+                                        {prePunc}
+                                        <span 
+                                            draggable={!isCurrentlyEditing}
+                                            onDragStart={(e) => {
+                                                e.stopPropagation();
+                                                const wordInfo = { word, phraseId: phrase.id, wordIndex: idx };
+                                                if (setDraggedWord) setDraggedWord(wordInfo);
+                                                e.dataTransfer.setData('text/plain', word);
+                                                e.dataTransfer.setData('text/word-drag-info', JSON.stringify(wordInfo));
+                                            }}
+                                            onDragEnd={() => {
+                                                if (setDraggedWord) setDraggedWord(null);
+                                                if (setDragOverWordIndex) setDragOverWordIndex(null);
+                                            }}
+                                            onDragOver={(e) => {
+                                                if (!draggedWord) return;
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                const relativeX = e.clientX - rect.left;
+                                                const position = relativeX < rect.width / 2 ? 'left' : 'right';
+                                                if (setDragOverWordIndex) setDragOverWordIndex({ phraseId: phrase.id, wordIndex: idx, position });
+                                            }}
+                                            onDragLeave={() => {
+                                                if (setDragOverWordIndex) setDragOverWordIndex(null);
+                                            }}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                const dragInfoStr = e.dataTransfer.getData('text/word-drag-info');
+                                                if (dragInfoStr && handleWordDrop) {
+                                                    const dragInfo = JSON.parse(dragInfoStr);
+                                                    handleWordDrop(dragInfo, { phraseId: phrase.id, targetWordIndex: idx, position: dragOverWordIndex?.position || 'left' });
+                                                }
+                                                if (setDraggedWord) setDraggedWord(null);
+                                                if (setDragOverWordIndex) setDragOverWordIndex(null);
+                                            }}
+                                            onClick={(e) => handleWordClick(e, word, tokenOffset + idx)}
+                                            className={`
+                                                word-token hover:bg-stone-200/90 text-stone-855 hover:text-stone-955 rounded-[8px] px-1.5 py-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 inline-block select-none relative
+                                                ${isWordDragged ? 'opacity-30' : ''}
+                                                ${isWordDragOver ? 'bg-amber-100/80 scale-105' : ''}
+                                            `}
+                                        >
+                                            {/* Left drop indicator line */}
+                                            {isWordDragOver && dragOverWordIndex?.position === 'left' && (
+                                                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-indigo-500 rounded-full transform -translate-x-1/2 pointer-events-none z-40 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]">
+                                                    <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                    <div className="absolute bottom-0 translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                </div>
+                                            )}
+                                            
+                                            {word}
+                                            
+                                            {/* Right drop indicator line */}
+                                            {isWordDragOver && dragOverWordIndex?.position === 'right' && (
+                                                <div className="absolute right-0 top-0 bottom-0 w-[3px] bg-indigo-500 rounded-full transform translate-x-1/2 pointer-events-none z-40 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]">
+                                                    <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                    <div className="absolute bottom-0 translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                </div>
+                                            )}
+                                        </span>
+                                        {postPunc}
                                     </span>
-                                    {postPunc}
-                                </span>
-                            );
-                        }
-                        return <span key={idx}>{token}</span>;
-                    })}
+                                );
+                            }
+                            return <span key={idx}>{token}</span>;
+                        })
+                    )}
                 </div>
             )}
 
             {dragOverPhraseId === phrase.id && dropPosition === 'bottom' && (
-                <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                </div>
             )}
 
             {showSyllables && phrase.text.trim() !== '' && !isCurrentlyEditing && (
@@ -875,6 +1091,7 @@ interface AudioCapsulePlayerProps {
     isTranscribing?: boolean;
     isDocked: boolean;
     onDragStart: (e: React.DragEvent) => void;
+    onDragEnd?: (e: React.DragEvent) => void;
     activeNoteId?: string;
     handleUpdateAudioNoteGroup?: (noteId: string, audioNoteId: string, targetGroupId: string | null) => void;
     handleAttachAudioToPhrase?: (audioNoteId: string, phraseId: string | null, groupId: string | null) => void;
@@ -930,6 +1147,7 @@ function AudioCapsulePlayer({
     isTranscribing, 
     isDocked, 
     onDragStart,
+    onDragEnd,
     activeNoteId,
     handleUpdateAudioNoteGroup,
     handleAttachAudioToPhrase,
@@ -998,6 +1216,7 @@ function AudioCapsulePlayer({
             <div 
                 draggable
                 onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
                 onClick={(e) => e.stopPropagation()}
                 onTouchStart={(e) => {
                     if (isTranscribing) return;
@@ -1236,6 +1455,7 @@ function AudioCapsulePlayer({
         <div 
             draggable
             onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => {
                 if (isTranscribing) return;
@@ -1616,6 +1836,9 @@ export default function CreatePage() {
     const [isRecordingSaving, setIsRecordingSaving] = useState(false);
     const [transcribingAudioNoteId, setTranscribingAudioNoteId] = useState<string | null>(null);
     const [editingPhraseId, setEditingPhraseId] = useState<string | null>(null);
+    const [cursorSelectionOffset, setCursorSelectionOffset] = useState<{ phraseId: string; offset: number } | null>(null);
+    const [draggedWord, setDraggedWord] = useState<{ word: string; phraseId: string; wordIndex: number } | null>(null);
+    const [dragOverWordIndex, setDragOverWordIndex] = useState<{ phraseId: string; wordIndex: number; position: 'left' | 'right' } | null>(null);
     const recognitionRef = useRef<any>(null);
 
     // Creative Tools Suite State Variables
@@ -3266,26 +3489,61 @@ export default function CreatePage() {
         }));
     };
 
+    const handleAudioDragStart = (e: React.DragEvent, audioId: string) => {
+        e.stopPropagation();
+        e.dataTransfer.setData('text/audio-note-id', audioId);
+        setDraggedAudioId(audioId);
+        if (draggedAudioIdRef) draggedAudioIdRef.current = audioId;
+    };
+
+    const handleAudioDragEnd = () => {
+        setDraggedAudioId(null);
+        if (draggedAudioIdRef) draggedAudioIdRef.current = null;
+        setDragOverPhraseId(null);
+        setDropPosition(null);
+        setDragOverGroupId(null);
+        setDragOverWordIndex(null);
+        setDragOverBlockId(null);
+        setBlockDropPosition(null);
+    };
+
     const handleUpdateAudioNoteGroup = (noteId: string, audioNoteId: string, targetGroupId: string | null) => {
+        setDraggedAudioId(null);
+        if (draggedAudioIdRef) draggedAudioIdRef.current = null;
+        setDragOverPhraseId(null);
+        setDropPosition(null);
+        setDragOverGroupId(null);
+
         setNotes(prev => prev.map(n => {
             if (n.id === noteId) {
                 const matchingAudio = (n.audioNotes || []).find(an => an.id === audioNoteId);
                 const oldPhraseId = matchingAudio ? matchingAudio.phraseId : null;
                 
+                const dedicatedPhraseId = targetGroupId === null ? `p-audio-${audioNoteId}` : null;
+                
                 const updatedAudioNotes = (n.audioNotes || []).map(an => {
                     if (an.id === audioNoteId) {
-                        return { ...an, groupId: targetGroupId, phraseId: null };
+                        return { ...an, groupId: targetGroupId, phraseId: dedicatedPhraseId };
                     }
                     return an;
                 });
                 
                 let updatedPhrases = n.phrases || [];
-                if (oldPhraseId && oldPhraseId.startsWith('p-audio-')) {
+                if (oldPhraseId && oldPhraseId !== dedicatedPhraseId && oldPhraseId.startsWith('p-audio-')) {
                     const phraseObj = updatedPhrases.find(p => p.id === oldPhraseId);
                     if (phraseObj && phraseObj.text.trim() === '') {
                         updatedPhrases = updatedPhrases.filter(p => p.id !== oldPhraseId);
                     }
                 }
+                
+                if (dedicatedPhraseId && !updatedPhrases.some(p => p.id === dedicatedPhraseId)) {
+                    updatedPhrases.push({
+                        id: dedicatedPhraseId,
+                        text: '',
+                        groupId: null
+                    });
+                }
+                
                 const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, n.verses || []);
                 
                 return {
@@ -3299,6 +3557,12 @@ export default function CreatePage() {
     };
 
     const handleAttachAudioToPhrase = (audioNoteId: string, phraseId: string | null, groupId: string | null) => {
+        setDraggedAudioId(null);
+        if (draggedAudioIdRef) draggedAudioIdRef.current = null;
+        setDragOverPhraseId(null);
+        setDropPosition(null);
+        setDragOverGroupId(null);
+
         if (!selectedNoteId) return;
         setNotes(prev => prev.map(n => {
             if (n.id === selectedNoteId) {
@@ -3331,8 +3595,76 @@ export default function CreatePage() {
         }));
     };
 
+    const handlePlaceAudioAsLineAt = (audioNoteId: string, targetPhraseId: string, position: 'top' | 'bottom') => {
+        setDraggedAudioId(null);
+        if (draggedAudioIdRef) draggedAudioIdRef.current = null;
+        setDragOverPhraseId(null);
+        setDropPosition(null);
+        setDragOverGroupId(null);
+        setDragOverBlockId(null);
+        setBlockDropPosition(null);
+
+        if (!selectedNoteId) return;
+
+        setNotes(prev => prev.map(n => {
+            if (n.id === selectedNoteId) {
+                const audioNotes = n.audioNotes || [];
+                const matchingAudio = audioNotes.find(an => an.id === audioNoteId);
+                if (!matchingAudio) return n;
+
+                const oldPhraseId = matchingAudio.phraseId;
+                
+                const currentPhrases = n.phrases || [];
+                const targetIdx = currentPhrases.findIndex(p => p.id === targetPhraseId);
+                if (targetIdx === -1) return n;
+
+                const targetPhrase = currentPhrases[targetIdx];
+                const targetGroupId = targetPhrase.groupId;
+
+                const dedicatedPhraseId = `p-audio-${audioNoteId}`;
+                let updatedPhrases = [...currentPhrases];
+
+                if (oldPhraseId && oldPhraseId.startsWith('p-audio-')) {
+                    const oldPhraseObj = updatedPhrases.find(p => p.id === oldPhraseId);
+                    if (oldPhraseObj && oldPhraseObj.text.trim() === '') {
+                        updatedPhrases = updatedPhrases.filter(p => p.id !== oldPhraseId);
+                    }
+                }
+
+                const newTargetIdx = updatedPhrases.findIndex(p => p.id === targetPhraseId);
+                if (newTargetIdx === -1) return n;
+
+                const spliceIdx = position === 'top' ? newTargetIdx : newTargetIdx + 1;
+
+                const newPhrase: Phrase = {
+                    id: dedicatedPhraseId,
+                    text: '',
+                    groupId: targetGroupId
+                };
+                updatedPhrases.splice(spliceIdx, 0, newPhrase);
+
+                const updatedAudioNotes = audioNotes.map(an => {
+                    if (an.id === audioNoteId) {
+                        return { ...an, phraseId: dedicatedPhraseId, groupId: targetGroupId };
+                    }
+                    return an;
+                });
+
+                const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, n.verses || []);
+
+                return {
+                    ...n,
+                    audioNotes: updatedAudioNotes,
+                    phrases: finalPhrases
+                };
+            }
+            return n;
+        }));
+    };
+
     const handleStartEditing = (phraseId: string) => {
         setEditingPhraseId(phraseId);
+        setCursorSelectionOffset(null);
     };
 
     const handleStopEditing = (createNext = false) => {
@@ -3371,9 +3703,314 @@ export default function CreatePage() {
             });
             
             setEditingPhraseId(nextPhraseId);
+            setCursorSelectionOffset(null);
         } else {
             setEditingPhraseId(null);
+            setCursorSelectionOffset(null);
         }
+    };
+
+    const handleBackspaceAtStart = (phraseId: string) => {
+        if (!selectedNoteId || !activeNote) return;
+        const currentPhrases = activeNote.phrases || [];
+        const realPhrases = currentPhrases.filter(p => !p.id.startsWith('placeholder-'));
+        const editingIdx = realPhrases.findIndex(p => p.id === phraseId);
+        if (editingIdx <= 0) return; // No previous phrase to merge into
+        
+        const currentPhrase = realPhrases[editingIdx];
+        const previousPhrase = realPhrases[editingIdx - 1];
+        
+        const prevText = previousPhrase.text;
+        const currentText = currentPhrase.text;
+        const mergedText = prevText + currentText;
+        
+        let updatedPhrases = currentPhrases.map(p => {
+            if (p.id === previousPhrase.id) {
+                return { ...p, text: mergedText };
+            }
+            return p;
+        });
+        
+        const hasAttachedAudio = (activeNote.audioNotes || []).some(an => an.phraseId === phraseId);
+        if (!hasAttachedAudio) {
+            updatedPhrases = updatedPhrases.filter(p => p.id !== phraseId);
+        } else {
+            updatedPhrases = updatedPhrases.map(p => {
+                if (p.id === phraseId) {
+                    return { ...p, text: '' };
+                }
+                return p;
+            });
+        }
+        
+        const sanitizedPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, activeNote.verses || []);
+        const newContent = sanitizedPhrases.map(p => p.text).join('\n');
+        
+        handleUpdateNote(selectedNoteId, {
+            phrases: sanitizedPhrases,
+            content: newContent,
+            title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+        });
+        
+        setEditingPhraseId(previousPhrase.id);
+        setCursorSelectionOffset({
+            phraseId: previousPhrase.id,
+            offset: prevText.length
+        });
+    };
+
+    const handleWordDrop = (
+        source: { word: string; phraseId: string; wordIndex: number },
+        target: { phraseId: string; targetWordIndex: number; position: 'left' | 'right' }
+    ) => {
+        if (!selectedNoteId || !activeNote) return;
+        const currentPhrases = activeNote.phrases || [];
+        const sourcePhrase = currentPhrases.find(p => p.id === source.phraseId);
+        const targetPhrase = currentPhrases.find(p => p.id === target.phraseId);
+        if (!sourcePhrase || !targetPhrase) return;
+
+        const sourceTokens = sourcePhrase.text.split(/(\s+)/);
+        const targetTokens = targetPhrase.text.split(/(\s+)/);
+        
+        if (source.wordIndex >= sourceTokens.length) return;
+        if (target.targetWordIndex !== -1 && target.targetWordIndex >= targetTokens.length) return;
+        const draggedToken = sourceTokens[source.wordIndex];
+
+        let updatedSourceTokens = [...sourceTokens];
+        if (source.wordIndex + 1 < updatedSourceTokens.length && /^\s+$/.test(updatedSourceTokens[source.wordIndex + 1])) {
+            updatedSourceTokens.splice(source.wordIndex, 2);
+        } else if (source.wordIndex - 1 >= 0 && /^\s+$/.test(updatedSourceTokens[source.wordIndex - 1])) {
+            updatedSourceTokens.splice(source.wordIndex - 1, 2);
+        } else {
+            updatedSourceTokens.splice(source.wordIndex, 1);
+        }
+        const newSourceText = updatedSourceTokens.join('').trim();
+
+        let updatedTargetTokens: string[] = [];
+        if (target.targetWordIndex === -1) {
+            updatedTargetTokens = [draggedToken];
+        } else if (source.phraseId === target.phraseId) {
+            let adjustedTargetIdx = target.targetWordIndex;
+            if (source.wordIndex < target.targetWordIndex) {
+                const removedCount = (source.wordIndex + 1 < sourceTokens.length && /^\s+$/.test(sourceTokens[source.wordIndex + 1])) || (source.wordIndex - 1 >= 0 && /^\s+$/.test(sourceTokens[source.wordIndex - 1])) ? 2 : 1;
+                adjustedTargetIdx = Math.max(0, target.targetWordIndex - removedCount);
+            }
+            if (target.position === 'left') {
+                updatedTargetTokens = [
+                    ...updatedSourceTokens.slice(0, adjustedTargetIdx),
+                    draggedToken,
+                    " ",
+                    ...updatedSourceTokens.slice(adjustedTargetIdx)
+                ];
+            } else {
+                updatedTargetTokens = [
+                    ...updatedSourceTokens.slice(0, adjustedTargetIdx + 1),
+                    " ",
+                    draggedToken,
+                    ...updatedSourceTokens.slice(adjustedTargetIdx + 1)
+                ];
+            }
+        } else {
+            if (target.position === 'left') {
+                updatedTargetTokens = [
+                    ...targetTokens.slice(0, target.targetWordIndex),
+                    draggedToken,
+                    " ",
+                    ...targetTokens.slice(target.targetWordIndex)
+                ];
+            } else {
+                updatedTargetTokens = [
+                    ...targetTokens.slice(0, target.targetWordIndex + 1),
+                    " ",
+                    draggedToken,
+                    ...targetTokens.slice(target.targetWordIndex + 1)
+                ];
+            }
+        }
+        const newTargetText = updatedTargetTokens.join('').trim();
+
+        let updatedPhrases = currentPhrases.map(p => {
+            if (p.id === source.phraseId && p.id === target.phraseId) {
+                return { ...p, text: newTargetText };
+            }
+            if (p.id === source.phraseId) {
+                return { ...p, text: newSourceText };
+            }
+            if (p.id === target.phraseId) {
+                return { ...p, text: newTargetText };
+            }
+            return p;
+        });
+
+        const hasAttachedAudio = (activeNote.audioNotes || []).some(an => an.phraseId === source.phraseId);
+        if (newSourceText === '' && !hasAttachedAudio && source.phraseId !== target.phraseId) {
+            updatedPhrases = updatedPhrases.filter(p => p.id !== source.phraseId);
+        }
+
+        const sanitizedPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, activeNote.verses || []);
+        const newContent = sanitizedPhrases.map(p => p.text).join('\n');
+
+        handleUpdateNote(selectedNoteId, {
+            phrases: sanitizedPhrases,
+            content: newContent,
+            title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+        });
+    };
+
+    const handleWordDropOnPhrase = (
+        source: { word: string; phraseId: string; wordIndex: number },
+        targetPhraseId: string
+    ) => {
+        if (!selectedNoteId || !activeNote) return;
+        if (source.phraseId === targetPhraseId) return;
+
+        const currentPhrases = activeNote.phrases || [];
+        const sourcePhrase = currentPhrases.find(p => p.id === source.phraseId);
+        const targetPhrase = currentPhrases.find(p => p.id === targetPhraseId);
+        if (!sourcePhrase || !targetPhrase) return;
+
+        const sourceTokens = sourcePhrase.text.split(/(\s+)/);
+        if (source.wordIndex >= sourceTokens.length) return;
+        const draggedToken = sourceTokens[source.wordIndex];
+
+        const isPlaceholder = targetPhraseId.startsWith('placeholder-');
+        if (isPlaceholder) {
+            const targetGroupId = targetPhraseId.replace('placeholder-', '');
+            const newPhraseId = `p-${Math.random().toString(36).substring(2, 9)}`;
+            const newPhrase: Phrase = {
+                id: newPhraseId,
+                text: draggedToken,
+                groupId: targetGroupId
+            };
+
+            let updatedSourceTokens = [...sourceTokens];
+            if (source.wordIndex + 1 < updatedSourceTokens.length && /^\s+$/.test(updatedSourceTokens[source.wordIndex + 1])) {
+                updatedSourceTokens.splice(source.wordIndex, 2);
+            } else if (source.wordIndex - 1 >= 0 && /^\s+$/.test(updatedSourceTokens[source.wordIndex - 1])) {
+                updatedSourceTokens.splice(source.wordIndex - 1, 2);
+            } else {
+                updatedSourceTokens.splice(source.wordIndex, 1);
+            }
+            const newSourceText = updatedSourceTokens.join('').trim();
+
+            let updatedPhrases = currentPhrases.map(p => {
+                if (p.id === source.phraseId) {
+                    return { ...p, text: newSourceText };
+                }
+                return p;
+            });
+
+            const placeholderIdx = currentPhrases.findIndex(p => p.id === targetPhraseId);
+            if (placeholderIdx !== -1) {
+                updatedPhrases.splice(placeholderIdx, 0, newPhrase);
+            } else {
+                updatedPhrases.push(newPhrase);
+            }
+
+            const hasAttachedAudio = (activeNote.audioNotes || []).some(an => an.phraseId === source.phraseId);
+            if (newSourceText === '' && !hasAttachedAudio) {
+                updatedPhrases = updatedPhrases.filter(p => p.id !== source.phraseId);
+            }
+
+            const sanitizedPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, activeNote.verses || []);
+            const newContent = sanitizedPhrases.map(p => p.text).join('\n');
+
+            handleUpdateNote(selectedNoteId, {
+                phrases: sanitizedPhrases,
+                content: newContent,
+                title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+            });
+            return;
+        }
+
+        let updatedSourceTokens = [...sourceTokens];
+        if (source.wordIndex + 1 < updatedSourceTokens.length && /^\s+$/.test(updatedSourceTokens[source.wordIndex + 1])) {
+            updatedSourceTokens.splice(source.wordIndex, 2);
+        } else if (source.wordIndex - 1 >= 0 && /^\s+$/.test(updatedSourceTokens[source.wordIndex - 1])) {
+            updatedSourceTokens.splice(source.wordIndex - 1, 2);
+        } else {
+            updatedSourceTokens.splice(source.wordIndex, 1);
+        }
+        const newSourceText = updatedSourceTokens.join('').trim();
+        const newTargetText = (targetPhrase.text.trim() + " " + draggedToken).trim();
+
+        let updatedPhrases = currentPhrases.map(p => {
+            if (p.id === source.phraseId) {
+                return { ...p, text: newSourceText };
+            }
+            if (p.id === targetPhraseId) {
+                return { ...p, text: newTargetText };
+            }
+            return p;
+        });
+
+        const hasAttachedAudio = (activeNote.audioNotes || []).some(an => an.phraseId === source.phraseId);
+        if (newSourceText === '' && !hasAttachedAudio) {
+            updatedPhrases = updatedPhrases.filter(p => p.id !== source.phraseId);
+        }
+
+        const sanitizedPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, activeNote.verses || []);
+        const newContent = sanitizedPhrases.map(p => p.text).join('\n');
+
+        handleUpdateNote(selectedNoteId, {
+            phrases: sanitizedPhrases,
+            content: newContent,
+            title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+        });
+    };
+
+    const handleWordDropOnEmptyCanvas = (
+        source: { word: string; phraseId: string; wordIndex: number }
+    ) => {
+        if (!selectedNoteId || !activeNote) return;
+
+        const currentPhrases = activeNote.phrases || [];
+        const sourcePhrase = currentPhrases.find(p => p.id === source.phraseId);
+        if (!sourcePhrase) return;
+
+        const sourceTokens = sourcePhrase.text.split(/(\s+)/);
+        if (source.wordIndex >= sourceTokens.length) return;
+        const draggedToken = sourceTokens[source.wordIndex];
+
+        const newPhraseId = `p-${Math.random().toString(36).substring(2, 9)}`;
+        const newPhrase: Phrase = {
+            id: newPhraseId,
+            text: draggedToken,
+            groupId: null
+        };
+
+        let updatedSourceTokens = [...sourceTokens];
+        if (source.wordIndex + 1 < updatedSourceTokens.length && /^\s+$/.test(updatedSourceTokens[source.wordIndex + 1])) {
+            updatedSourceTokens.splice(source.wordIndex, 2);
+        } else if (source.wordIndex - 1 >= 0 && /^\s+$/.test(updatedSourceTokens[source.wordIndex - 1])) {
+            updatedSourceTokens.splice(source.wordIndex - 1, 2);
+        } else {
+            updatedSourceTokens.splice(source.wordIndex, 1);
+        }
+        const newSourceText = updatedSourceTokens.join('').trim();
+
+        let updatedPhrases = currentPhrases.map(p => {
+            if (p.id === source.phraseId) {
+                return { ...p, text: newSourceText };
+            }
+            return p;
+        });
+
+        updatedPhrases.push(newPhrase);
+
+        const hasAttachedAudio = (activeNote.audioNotes || []).some(an => an.phraseId === source.phraseId);
+        if (newSourceText === '' && !hasAttachedAudio) {
+            updatedPhrases = updatedPhrases.filter(p => p.id !== source.phraseId);
+        }
+
+        const sanitizedPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, activeNote.verses || []);
+        const newContent = sanitizedPhrases.map(p => p.text).join('\n');
+
+        handleUpdateNote(selectedNoteId, {
+            phrases: sanitizedPhrases,
+            content: newContent,
+            title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+        });
     };
 
     const handleUpdatePhraseText = (phraseId: string, newText: string) => {
@@ -5140,6 +5777,15 @@ export default function CreatePage() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                     e.preventDefault();
+                    
+                    const dragInfoStr = e.dataTransfer.getData('text/word-drag-info');
+                    if (dragInfoStr && handleWordDropOnEmptyCanvas) {
+                        e.stopPropagation();
+                        const dragInfo = JSON.parse(dragInfoStr);
+                        handleWordDropOnEmptyCanvas(dragInfo);
+                        return;
+                    }
+
                     const audioPillId = e.dataTransfer.getData('text/audio-pill');
                     if (audioPillId && activeNote) {
                         handleUpdateNote(activeNote.id, { audioGroupId: null });
@@ -5371,7 +6017,10 @@ export default function CreatePage() {
                                                 }}
                                             >
                                                 {dragOverBlockId === blockId && blockDropPosition === 'top' && (
-                                                    <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform -translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+                                                    <div className="absolute top-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
+                                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                    </div>
                                                 )}
                                                 
                                                 {block.type === 'group' ? (
@@ -5493,6 +6142,16 @@ export default function CreatePage() {
                                                                     setDragOverGroupId(null);
                                                                 }}
                                                                 onDrop={(e) => {
+                                                                    const dragInfoStr = e.dataTransfer.getData('text/word-drag-info');
+                                                                    if (dragInfoStr && handleWordDropOnPhrase) {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        const dragInfo = JSON.parse(dragInfoStr);
+                                                                        handleWordDropOnPhrase(dragInfo, `placeholder-${block.groupId}`);
+                                                                        setDragOverGroupId(null);
+                                                                        return;
+                                                                    }
+
                                                                     const audioNoteId = e.dataTransfer.getData('text/audio-note-id');
                                                                     if (audioNoteId && activeNote) {
                                                                         e.preventDefault();
@@ -5555,10 +6214,8 @@ export default function CreatePage() {
                                                                             onTranscribe={() => activeNote && handleTranscribeAudioNote(activeNote.id, audioNote.id, audioNote.url)}
                                                                             isTranscribing={transcribingAudioNoteId === audioNote.id}
                                                                             isDocked={true}
-                                                                            onDragStart={(e) => {
-                                                                                e.stopPropagation();
-                                                                                e.dataTransfer.setData('text/audio-note-id', audioNote.id);
-                                                                            }}
+                                                                            onDragStart={(e) => handleAudioDragStart(e, audioNote.id)}
+                                                                            onDragEnd={handleAudioDragEnd}
                                                                             activeNoteId={activeNote?.id}
                                                                             handleUpdateAudioNoteGroup={handleUpdateAudioNoteGroup}
                                                                             handleAttachAudioToPhrase={handleAttachAudioToPhrase}
@@ -5617,7 +6274,18 @@ export default function CreatePage() {
                                                                                         onStartEditing={handleStartEditing}
                                                                                         onStopEditing={handleStopEditing}
                                                                                         onUpdateText={handleUpdatePhraseText}
+                                                                                        onBackspaceAtStart={handleBackspaceAtStart}
+                                                                                        selectionOffset={cursorSelectionOffset?.phraseId === phrase.id ? cursorSelectionOffset.offset : undefined}
+                                                                                        draggedWord={draggedWord}
+                                                                                        setDraggedWord={setDraggedWord}
+                                                                                        dragOverWordIndex={dragOverWordIndex}
+                                                                                        setDragOverWordIndex={setDragOverWordIndex}
+                                                                                        handleWordDrop={handleWordDrop}
+                                                                                        handleWordDropOnPhrase={handleWordDropOnPhrase}
                                                                                         hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
+                                                                                        handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
+                                                                                        draggedAudioId={draggedAudioId}
+                                                                                        draggedAudioIdRef={draggedAudioIdRef}
                                                                                     />
                                                                                 </div>
                                                                             );
@@ -5633,9 +6301,152 @@ export default function CreatePage() {
                                                         const phraseAudios = sortAudioNotesChronologically(activeAudioNotes.filter(an => an.phraseId === phrase.id));
                                                         return (
                                                             <div className="flex flex-col items-center w-full gap-2">
-                                                                {phraseAudios.map(audioNote => (
+                                                                {phraseAudios.map((audioNote, idx) => (
                                                                     <React.Fragment key={audioNote.id}>
-                                                                        <div className="flex justify-center w-full py-1 select-none z-20">
+                                                                        <div 
+                                                                            onDragOver={(e) => {
+                                                                                if (editingPhraseId === phrase.id) return;
+                                                                                
+                                                                                // If it is a word drag
+                                                                                if (e.dataTransfer.types.includes('text/word-drag-info') || draggedWord) {
+                                                                                    e.preventDefault();
+                                                                                    e.stopPropagation();
+                                                                                    
+                                                                                    if (setDragOverWordIndex) {
+                                                                                        const wordIndices: number[] = [];
+                                                                                        const tokens = phrase.text.split(/(\s+)/);
+                                                                                        tokens.forEach((token, idx) => {
+                                                                                            if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/)) {
+                                                                                                wordIndices.push(idx);
+                                                                                            }
+                                                                                        });
+                                                                                        
+                                                                                        if (wordIndices.length === 0) {
+                                                                                            setDragOverWordIndex({ phraseId: phrase.id, wordIndex: -1, position: 'left' });
+                                                                                        } else {
+                                                                                            setDragOverWordIndex({ phraseId: phrase.id, wordIndex: wordIndices[0], position: 'left' });
+                                                                                        }
+                                                                                    }
+                                                                                    return;
+                                                                                }
+
+                                                                                // If it is an audio note drag
+                                                                                const currentDraggedAudioId = draggedAudioId || (draggedAudioIdRef ? draggedAudioIdRef.current : null);
+                                                                                const isAudioDrag = e.dataTransfer.types.includes('text/audio-note-id') || currentDraggedAudioId;
+                                                                                if (isAudioDrag) {
+                                                                                    if (currentDraggedAudioId === audioNote.id) {
+                                                                                        return; // Do not intercept drag over on ourselves!
+                                                                                    }
+                                                                                    e.preventDefault();
+                                                                                    e.stopPropagation();
+                                                                                    
+                                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                                    const relativeY = e.clientY - rect.top;
+                                                                                    const position = relativeY < rect.height / 2 ? 'top' : 'bottom';
+                                                                                    
+                                                                                    setDragOverPhraseId(phrase.id);
+                                                                                    setDropPosition(position);
+                                                                                    return;
+                                                                                }
+
+                                                                                const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                                                                                if (currentDraggedGroupId) {
+                                                                                    return; // Let group drag events bubble up
+                                                                                }
+
+                                                                                e.preventDefault();
+                                                                                e.stopPropagation();
+
+                                                                                const currentDraggedId = draggedPhraseId || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null);
+                                                                                if (currentDraggedId === phrase.id) return;
+
+                                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                                const relativeY = e.clientY - rect.top;
+                                                                                const position = relativeY < rect.height / 2 ? 'top' : 'bottom';
+                                                                                
+                                                                                setDragOverPhraseId(phrase.id);
+                                                                                setDropPosition(position);
+                                                                            }}
+                                                                            onDragLeave={() => {
+                                                                                if (editingPhraseId === phrase.id) return;
+                                                                                setDragOverPhraseId(null);
+                                                                                setDropPosition(null);
+                                                                                if (setDragOverWordIndex) {
+                                                                                    setDragOverWordIndex(null);
+                                                                                }
+                                                                            }}
+                                                                            onDrop={(e) => {
+                                                                                if (editingPhraseId === phrase.id) return;
+                                                                                
+                                                                                const dragInfoStr = e.dataTransfer.getData('text/word-drag-info');
+                                                                                if (dragInfoStr && handleWordDrop) {
+                                                                                    e.preventDefault();
+                                                                                    e.stopPropagation();
+                                                                                    const dragInfo = JSON.parse(dragInfoStr);
+                                                                                    
+                                                                                    const tokens = phrase.text.split(/(\s+)/);
+                                                                                    const wordIndices: number[] = [];
+                                                                                    tokens.forEach((token, idx) => {
+                                                                                        if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/)) {
+                                                                                            wordIndices.push(idx);
+                                                                                        }
+                                                                                    });
+                                                                                    
+                                                                                    const targetIdx = wordIndices.length > 0 ? wordIndices[0] : -1;
+                                                                                handleWordDrop(dragInfo, { phraseId: phrase.id, targetWordIndex: targetIdx, position: 'left' });
+                                                                                    
+                                                                                    if (setDraggedWord) setDraggedWord(null);
+                                                                                    if (setDragOverWordIndex) setDragOverWordIndex(null);
+                                                                                    return;
+                                                                                }
+
+                                                                                const audioNoteId = e.dataTransfer.getData('text/audio-note-id') || (draggedAudioIdRef ? draggedAudioIdRef.current : null) || draggedAudioId;
+                                                                                if (audioNoteId) {
+                                                                                    e.preventDefault();
+                                                                                    e.stopPropagation();
+                                                                                    if (dropPosition === 'top' || dropPosition === 'bottom') {
+                                                                                        if (handlePlaceAudioAsLineAt) {
+                                                                                            handlePlaceAudioAsLineAt(audioNoteId, phrase.id, dropPosition);
+                                                                                        }
+                                                                                    } else if (handleAttachAudioToPhrase) {
+                                                                                        const isPlaceholder = phrase.id.startsWith('placeholder-');
+                                                                                        const targetPhraseId = isPlaceholder ? null : phrase.id;
+                                                                                        handleAttachAudioToPhrase(audioNoteId, targetPhraseId, phrase.groupId);
+                                                                                    }
+                                                                                    setDragOverPhraseId(null);
+                                                                                    setDropPosition(null);
+                                                                                    return;
+                                                                                }
+
+                                                                                const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
+                                                                                if (currentDraggedGroupId) return;
+
+                                                                                e.preventDefault();
+                                                                                e.stopPropagation();
+                                                                                
+                                                                                const draggedId = e.dataTransfer.getData('text/plain') || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null) || draggedPhraseId;
+                                                                                
+                                                                                setDraggedPhraseId(null);
+                                                                                if (draggedPhraseIdRef) {
+                                                                                    draggedPhraseIdRef.current = null;
+                                                                                }
+
+                                                                                if (draggedId && draggedId !== phrase.id) {
+                                                                                    handleInsertPhraseAt(draggedId, phrase.id, dropPosition);
+                                                                                }
+                                                                                setDragOverPhraseId(null);
+                                                                                setDropPosition(null);
+                                                                            }}
+                                                                            className="flex justify-center w-full py-1 select-none z-20 relative"
+                                                                        >
+                                                                            {/* Horizontal line drop indicator line (top) above the first audio card */}
+                                                                            {idx === 0 && dragOverPhraseId === phrase.id && dropPosition === 'top' && (
+                                                                                <div className="absolute top-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
+                                                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                                                </div>
+                                                                            )}
+
                                                                             <AudioCapsulePlayer 
                                                                                 audioNote={audioNote}
                                                                                 onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
@@ -5643,10 +6454,8 @@ export default function CreatePage() {
                                                                                 onTranscribe={(activeNote && handleTranscribeAudioNote) ? (() => handleTranscribeAudioNote(activeNote.id, audioNote.id, audioNote.url)) : undefined}
                                                                                 isTranscribing={transcribingAudioNoteId === audioNote.id}
                                                                                 isDocked={false}
-                                                                                onDragStart={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    e.dataTransfer.setData('text/audio-note-id', audioNote.id);
-                                                                                }}
+                                                                                onDragStart={(e) => handleAudioDragStart(e, audioNote.id)}
+                                                                                onDragEnd={handleAudioDragEnd}
                                                                                 activeNoteId={activeNote?.id}
                                                                                 handleUpdateAudioNoteGroup={handleUpdateAudioNoteGroup}
                                                                                 handleAttachAudioToPhrase={handleAttachAudioToPhrase}
@@ -5692,7 +6501,18 @@ export default function CreatePage() {
                                                                     onStartEditing={handleStartEditing}
                                                                     onStopEditing={handleStopEditing}
                                                                     onUpdateText={handleUpdatePhraseText}
+                                                                    onBackspaceAtStart={handleBackspaceAtStart}
+                                                                    selectionOffset={cursorSelectionOffset?.phraseId === phrase.id ? cursorSelectionOffset.offset : undefined}
+                                                                    draggedWord={draggedWord}
+                                                                    setDraggedWord={setDraggedWord}
+                                                                    dragOverWordIndex={dragOverWordIndex}
+                                                                    setDragOverWordIndex={setDragOverWordIndex}
+                                                                    handleWordDrop={handleWordDrop}
+                                                                    handleWordDropOnPhrase={handleWordDropOnPhrase}
                                                                     hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
+                                                                    handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
+                                                                    draggedAudioId={draggedAudioId}
+                                                                    draggedAudioIdRef={draggedAudioIdRef}
                                                                 />
                                                             </div>
                                                         );
@@ -5700,7 +6520,10 @@ export default function CreatePage() {
                                                 )}
                                                 
                                                 {dragOverBlockId === blockId && blockDropPosition === 'bottom' && (
-                                                    <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-black/50 rounded-[0.75px] transform translate-y-1/2 pointer-events-none z-30 animate-pulse" />
+                                                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
+                                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                    </div>
                                                 )}
                                             </div>
                                         );
