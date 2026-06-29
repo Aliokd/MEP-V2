@@ -147,8 +147,8 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                                     <div className={`
                                         flex items-center gap-4 px-4 py-3 rounded-[12px] transition-all group cursor-pointer
                                         ${isActive 
-                                            ? 'bg-white text-stone-900 shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40' 
-                                            : 'text-stone-600 hover:text-stone-900 hover:bg-white/30'
+                                            ? 'bg-white text-stone-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40' 
+                                            : 'text-stone-500 hover:text-stone-800 hover:bg-white/30'
                                         }
                                         ${isCollapsed && !isMobile ? 'justify-center px-0' : ''}
                                     `}>
@@ -156,16 +156,16 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                                         {isCollapsed && !isMobile ? (
                                             <Icon 
                                                 size={18} 
-                                                className={`${isActive ? 'text-stone-900' : 'text-stone-500 group-hover:text-stone-700'} stroke-[2.2] shrink-0`} 
+                                                className={`${isActive ? 'text-stone-800' : 'text-stone-500 group-hover:text-stone-700'} stroke-[2.2] shrink-0`} 
                                             />
                                         ) : (
                                             /* Show text when expanded or on mobile */
                                             <div className="flex items-center gap-2 select-none">
-                                                <span className="font-sans text-[20px] font-medium tracking-wide whitespace-nowrap">
+                                                <span className="font-sans text-[22px] font-semibold tracking-wide whitespace-nowrap">
                                                     {item.label}
                                                 </span>
                                                 {item.label === 'Connect' && (
-                                                    <span className="text-[10px] font-semibold text-stone-400 bg-stone-200/50 px-2 py-0.5 rounded-full uppercase tracking-wider font-sans ml-1">
+                                                    <span className="text-[10px] font-bold text-stone-500 bg-white border border-stone-200/60 px-2 py-0.5 rounded-full uppercase tracking-wider font-sans ml-1.5 shadow-3xs">
                                                         soon
                                                     </span>
                                                 )}
