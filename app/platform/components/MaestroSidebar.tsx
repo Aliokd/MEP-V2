@@ -160,7 +160,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                                             />
                                         ) : (
                                             /* Show text when expanded or on mobile */
-                                            <span className="font-sans text-[15px] font-bold tracking-wide whitespace-nowrap">
+                                            <span className="font-sans text-[18px] font-semibold tracking-wide whitespace-nowrap">
                                                 {item.label}
                                             </span>
                                         )}
