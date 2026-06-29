@@ -22,7 +22,7 @@ export interface Song {
     coverUrl?: string;
 }
 
-export const SAMPLE_SONGS: Song[] = [
+const ORIGINAL_SAMPLE_SONGS: Song[] = [
     {
         id: "song-2",
         title: "Shape of You",
@@ -1265,5 +1265,50 @@ export const SAMPLE_SONGS: Song[] = [
                 ]
             }
         ]
+    }
+];
+
+export const SAMPLE_SONGS: Song[] = [
+    {
+        id: "song-1",
+        title: "Castle on the Hill",
+        artist: "Ed Sheeran",
+        audioUrl: "/shape_of_you.mp3",
+        coverUrl: "https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=800&auto=format&fit=crop",
+        lyrics: ORIGINAL_SAMPLE_SONGS[0].lyrics
+    },
+    ORIGINAL_SAMPLE_SONGS[0], // song-2 Shape of You
+    ORIGINAL_SAMPLE_SONGS[1], // song-3 Do You Love
+    {
+        id: "song-4",
+        title: "Thinking Out Loud",
+        artist: "Ed Sheeran",
+        audioUrl: "/shape_of_you.mp3",
+        coverUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800&auto=format&fit=crop",
+        lyrics: ORIGINAL_SAMPLE_SONGS[0].lyrics
+    },
+    {
+        id: "song-5",
+        title: "Perfect",
+        artist: "Ed Sheeran",
+        audioUrl: "/shape_of_you.mp3",
+        coverUrl: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=800&auto=format&fit=crop",
+        lyrics: ORIGINAL_SAMPLE_SONGS[0].lyrics
+    },
+    {
+        id: "song-6",
+        title: "Photograph",
+        artist: "Ed Sheeran",
+        audioUrl: "/shape_of_you.mp3",
+        coverUrl: "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?q=80&w=800&auto=format&fit=crop",
+        lyrics: ORIGINAL_SAMPLE_SONGS[0].lyrics
+    },
+    {
+        id: "song-7",
+        title: "Galway Girl",
+        artist: "Ed Sheeran",
+        audioUrl: "/shape_of_you.mp3",
+        coverUrl: "https://images.unsplash.com/photo-1487180142328-054b783fc471?q=80&w=800&auto=format&fit=crop",
+        lyrics: ORIGINAL_SAMPLE_SONGS[0].lyrics
     }
 ];

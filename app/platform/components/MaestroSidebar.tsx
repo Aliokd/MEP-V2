@@ -52,12 +52,10 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
     };
 
     const menuItems = [
-        {label: 'Create', href: '/platform/create', icon: PenTool },
-        { label: 'Lectures', href: '/platform', icon: BookOpen },
+        { label: 'Create', href: '/platform/create', icon: PenTool },
+        { label: 'Learn', href: '/platform', icon: BookOpen },
         { label: 'Practice', href: '/platform/practice', icon: Music },
-        { label: 'Community', href: '#', icon: Users },
-        { label: 'Advanced', href: '#', icon: Zap },
-        { label: 'Ask AI', href: '#', icon: Bot },
+        { label: 'Connect', href: '#', icon: Users },
     ];
 
     const bottomItems = [
@@ -104,7 +102,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                             {isMobile ? (
                                 <button
                                     onClick={onClose}
-                                    className="ml-auto w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 transition-all text-stone-700 hover:text-stone-950 shadow-xs"
+                                    className="ml-auto w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 transition-all text-stone-700 hover:text-stone-955 shadow-xs"
                                 >
                                     <X size={18} />
                                 </button>
@@ -140,7 +138,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                     )}
 
                     {/* Navigation Menu */}
-                    <nav className="flex flex-col gap-2 w-full">
+                    <nav className="flex flex-col gap-2.5 w-full">
                         {menuItems.map((item) => {
                             const isActive = pathname === item.href || (item.href === '/platform' && pathname.startsWith('/platform/lesson'));
                             const Icon = item.icon;
@@ -154,12 +152,15 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                                         }
                                         ${isCollapsed && !isMobile ? 'justify-center px-0' : ''}
                                     `}>
-                                        <Icon 
-                                            size={16} 
-                                            className={`${isActive ? 'text-stone-900' : 'text-stone-500 group-hover:text-stone-700'} stroke-[2] shrink-0`} 
-                                        />
-                                        {(!isCollapsed || isMobile) && (
-                                            <span className="font-sans text-[13px] font-medium tracking-wide whitespace-nowrap">
+                                        {/* Show icon only when sidebar is collapsed/minimized (and not on mobile) */}
+                                        {isCollapsed && !isMobile ? (
+                                            <Icon 
+                                                size={18} 
+                                                className={`${isActive ? 'text-stone-900' : 'text-stone-500 group-hover:text-stone-700'} stroke-[2.2] shrink-0`} 
+                                            />
+                                        ) : (
+                                            /* Show text when expanded or on mobile */
+                                            <span className="font-sans text-[15px] font-bold tracking-wide whitespace-nowrap">
                                                 {item.label}
                                             </span>
                                         )}
