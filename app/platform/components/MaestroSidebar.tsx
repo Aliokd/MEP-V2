@@ -165,7 +165,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                                                     {item.label}
                                                 </span>
                                                 {item.label === 'Connect' && (
-                                                    <span className="text-[10px] font-light text-stone-500 bg-white border border-stone-200/50 px-2 py-0.5 rounded-full tracking-wide font-sans ml-1.5 shadow-3xs opacity-50 whitespace-nowrap">
+                                                    <span className="text-[10px] font-normal text-stone-500 bg-white border border-stone-200/50 px-2 py-0.5 rounded-full tracking-wide font-sans ml-1.5 shadow-3xs opacity-50 whitespace-nowrap">
                                                         Coming Soon
                                                     </span>
                                                 )}
