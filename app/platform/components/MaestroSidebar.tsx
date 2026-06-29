@@ -160,9 +160,16 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                                             />
                                         ) : (
                                             /* Show text when expanded or on mobile */
-                                            <span className="font-sans text-[18px] font-semibold tracking-wide whitespace-nowrap">
-                                                {item.label}
-                                            </span>
+                                            <div className="flex items-center gap-2 select-none">
+                                                <span className="font-sans text-[20px] font-medium tracking-wide whitespace-nowrap">
+                                                    {item.label}
+                                                </span>
+                                                {item.label === 'Connect' && (
+                                                    <span className="text-[10px] font-semibold text-stone-400 bg-stone-200/50 px-2 py-0.5 rounded-full uppercase tracking-wider font-sans ml-1">
+                                                        soon
+                                                    </span>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 </Link>
