@@ -3,8 +3,11 @@ import { Providers } from '@/context/Providers';
 import Navigation from '@/components/Navigation';
 
 export const metadata = {
-    title: 'VEINOTE | Master the Language of Music',
-    description: 'Revolutionizing music education through the synthesis of technology and timeless artistry.',
+    title: 'Veinote - The home of human songwriting',
+    description: 'No AI-generated songs. You create them. You own them.',
+    icons: {
+        icon: '/favicon.png',
+    },
 };
 
 export default function RootLayout({
