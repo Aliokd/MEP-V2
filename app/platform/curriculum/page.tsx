@@ -2,6 +2,9 @@ import { getUserConstellation, Lesson } from '@/app/actions/lesson-actions';
 import { PlayCircle, CheckCircle2, Lock } from 'lucide-react';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
+
 // Helper to format seconds
 const formatDuration = (seconds: number) => {
     const min = Math.floor(seconds / 60);

@@ -2,7 +2,62 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /projects/{projectId} {
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      
+      // Read: owner, existing collaborator, or has a pending invitation doc
+      // Use get() with defaults to safely handle legacy docs that may not have all fields
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.get('ownerId', '') ||
+        request.auth.uid in resource.data.get('collaborators', []) ||
+        exists(/databases/$(database)/documents/invitations/$(projectId + "_" + request.auth.uid))
+      );
+      
+      // Update: owner, existing collaborator, or any authenticated user adding only themselves to collaborators
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.get('ownerId', '') ||
+        request.auth.uid in resource.data.get('collaborators', []) ||
+        (
+          // Self-add pattern: user is only adding themselves to the collaborators list
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['collaborators']) &&
+          request.resource.data.collaborators.toSet().difference(resource.data.get('collaborators', []).toSet()).hasOnly([request.auth.uid])
+        ) ||
+        (
+          // Legacy doc repair: user is setting ownerId to themselves on a doc that has no owner
+          resource.data.get('ownerId', '') == '' &&
+          request.resource.data.ownerId == request.auth.uid
+        )
+      );
+      
+      allow delete: if request.auth != null && request.auth.uid == resource.data.get('ownerId', '');
+      
+      // Sub-collection for signaling WebRTC handshake messages
+      match /signaling/{signalId} {
+        allow read, write: if request.auth != null && (
+          request.auth.uid == get(/databases/$(database)/documents/projects/$(projectId)).data.get('ownerId', '') ||
+          request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.get('collaborators', [])
+        );
+      }
+      
+      // Sub-collection for direct fallback presence updates
+      match /presence/{userId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    match /invitations/{inviteId} {
+      allow create: if request.auth != null;
+      // Allow read/update/delete if you are the invitee (by UID or email), or you are the sender
+      allow read, update, delete: if request.auth != null && (
+        request.auth.uid == resource.data.get('inviteeId', '') ||
+        request.auth.uid == resource.data.get('senderId', '') ||
+        request.auth.token.email == resource.data.get('inviteeEmail', '')
+      );
     }
   }
 }
