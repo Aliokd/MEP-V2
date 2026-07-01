@@ -3,6 +3,9 @@ import SynesthesiaCanvas from '../../components/SynesthesiaCanvas';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
+
 export default async function LessonPage({ params }: { params: { lessonId: string } }) {
     const lesson = await getLessonDetails(params.lessonId);
 

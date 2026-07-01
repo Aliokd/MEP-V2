@@ -3,8 +3,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, updateDoc, writeBatch, arrayRemove, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { 
+    migrateLegacyNotesToProjects,
+    inviteCollaboratorByEmail,
+    removeCollaboratorFromProject,
+    getCollaboratorProfiles,
+    calculateContributionsPercentage
+} from './collabUtils';
 import { 
     Folder, 
     FileText, 
@@ -36,8 +43,13 @@ import {
     Key,
     ArrowUpRight,
     Compass,
-    Brain
+    Brain,
+    Share2,
+    Users,
+    UserPlus,
+    Loader2
 } from 'lucide-react';
+
 
 interface InspirationCard {
     id: string;
@@ -391,7 +403,8 @@ function PhraseRow({
     hasAudioNote,
     handlePlaceAudioAsLineAt,
     draggedAudioId,
-    draggedAudioIdRef
+    draggedAudioIdRef,
+    activeRemoteUsers
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
@@ -432,6 +445,7 @@ function PhraseRow({
     handlePlaceAudioAsLineAt?: (audioNoteId: string, targetPhraseId: string, position: 'top' | 'bottom') => void;
     draggedAudioId?: string | null;
     draggedAudioIdRef?: React.RefObject<string | null>;
+    activeRemoteUsers?: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null }};
 }) {
     const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isTouchDraggingRef = useRef(false);
@@ -521,12 +535,38 @@ function PhraseRow({
     }
 
     const wordsList = phrase.text.split(/(\s+)/);
+    const isLockedByRemote = !!(phrase as any).lockedBy && !isCurrentlyEditing;
+    const lockingUser = isLockedByRemote && activeRemoteUsers && (phrase as any).lockedBy ? activeRemoteUsers[(phrase as any).lockedBy] : null;
+    const lockerName = lockingUser ? lockingUser.name : 'Collaborator';
+    const lockerColor = lockingUser ? lockingUser.color : 'rose';
+
+    const colorClasses = {
+        rose: 'border-rose-300 bg-rose-50/15 text-rose-800',
+        emerald: 'border-emerald-300 bg-emerald-50/15 text-emerald-800',
+        amber: 'border-amber-300 bg-amber-50/15 text-amber-800',
+        violet: 'border-violet-300 bg-violet-50/15 text-violet-800',
+        cyan: 'border-cyan-300 bg-cyan-50/15 text-cyan-800',
+        fuchsia: 'border-fuchsia-300 bg-fuchsia-50/15 text-fuchsia-800',
+        indigo: 'border-indigo-300 bg-indigo-50/15 text-indigo-800'
+    };
+    const lockerClass = isLockedByRemote ? (colorClasses[lockerColor as keyof typeof colorClasses] || colorClasses.rose) : '';
+
+    const badgeColorClasses = {
+        rose: 'bg-rose-500',
+        emerald: 'bg-emerald-500',
+        amber: 'bg-amber-500',
+        violet: 'bg-violet-500',
+        cyan: 'bg-cyan-500',
+        fuchsia: 'bg-fuchsia-500',
+        indigo: 'bg-indigo-500'
+    };
+    const badgeBg = isLockedByRemote ? (badgeColorClasses[lockerColor as keyof typeof badgeColorClasses] || badgeColorClasses.rose) : '';
     
     return (
         <div 
-            draggable={!isCurrentlyEditing}
+            draggable={!isCurrentlyEditing && !isLockedByRemote}
             onDragStart={(e) => {
-                if (isCurrentlyEditing) return;
+                if (isCurrentlyEditing || isLockedByRemote) return;
                 e.stopPropagation();
                 if (draggedPhraseIdRef) {
                     draggedPhraseIdRef.current = phrase.id;
@@ -700,7 +740,7 @@ function PhraseRow({
                 }
             }}
             onTouchStart={(e) => {
-                if (isCurrentlyEditing) return;
+                if (isCurrentlyEditing || isLockedByRemote) return;
                 const touch = e.touches[0];
                 startXRef.current = touch.clientX;
                 startYRef.current = touch.clientY;
@@ -719,7 +759,7 @@ function PhraseRow({
                 }, 300); // 300ms long press
             }}
             onTouchMove={(e) => {
-                if (isCurrentlyEditing) return;
+                if (isCurrentlyEditing || isLockedByRemote) return;
                 const touch = e.touches[0];
                 if (!isTouchDraggingRef.current) {
                     const diffX = Math.abs(touch.clientX - startXRef.current);
@@ -834,6 +874,7 @@ function PhraseRow({
                     if (diffX < 10 && diffY < 10) {
                         if (timeSinceLastTap < 300) {
                             e.preventDefault();
+                            if (isLockedByRemote) return;
                             if (onStartEditing) onStartEditing(phrase.id);
                             lastTapTimeRef.current = 0;
                         } else {
@@ -844,13 +885,21 @@ function PhraseRow({
             }}
             onDoubleClick={(e) => {
                 e.stopPropagation();
+                if (isLockedByRemote) return;
                 if (onStartEditing) {
                     onStartEditing(phrase.id);
                 }
             }}
-            className="phrase-row-container flex flex-col w-full relative transition-all duration-200"
+            className="phrase-row-container flex flex-col w-full relative transition-all duration-200 animate-in fade-in"
             data-phrase-id={phrase.id}
         >
+            {isLockedByRemote && (
+                <div className={`absolute left-1/2 -translate-x-1/2 -top-3.5 select-none pointer-events-none text-white text-[9px] font-extrabold tracking-widest uppercase px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm z-40 ${badgeBg}`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                    <span>{lockerName} Typing</span>
+                </div>
+            )}
+            
             {dragOverPhraseId === phrase.id && dropPosition === 'top' && !hasAudioNote && (
                 <div className="absolute top-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
@@ -890,7 +939,8 @@ function PhraseRow({
             ) : (
                 <div 
                     className={`
-                        phrase-row-text text-[26px] md:text-[42px] font-light text-stone-855 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-1.5 px-4 rounded-[16px] transition-all duration-200 cursor-grab active:cursor-grabbing w-full border border-transparent hover:border-stone-200/50 hover:bg-stone-50/30 group/line
+                        phrase-row-text text-[26px] md:text-[42px] font-light text-stone-855 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-1.5 px-4 rounded-[16px] transition-all duration-200 w-full border border-transparent
+                        ${isLockedByRemote ? `cursor-not-allowed border-dashed opacity-70 ${lockerClass}` : 'cursor-grab active:cursor-grabbing hover:border-stone-200/50 hover:bg-stone-50/30 group/line'}
                         ${draggedPhraseId === phrase.id ? 'opacity-30' : ''}
                     `}
                 >
@@ -1704,6 +1754,41 @@ function AudioCapsulePlayer({
     );
 }
 
+interface JoinedPillProps {
+    name: string;
+    onDismiss: () => void;
+}
+
+function JoinedPill({ name, onDismiss }: JoinedPillProps) {
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            onDismiss();
+        }, 4000);
+        return () => clearTimeout(timer);
+    }, [onDismiss]);
+
+    return (
+        <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-200/70 text-emerald-800 rounded-full text-[14px] font-sans font-medium tracking-wide animate-in fade-in slide-in-from-left-3 duration-250 shadow-3xs shrink-0 select-none">
+            <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>{name} has joined</span>
+            <button
+                type="button"
+                onClick={onDismiss}
+                className="text-emerald-500 hover:text-emerald-700 ml-1 p-0.5 rounded-full hover:bg-emerald-100 transition-colors cursor-pointer shrink-0"
+                title="Dismiss"
+            >
+                <svg className="w-3 h-3 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    );
+}
+
 export default function CreatePage() {
     const { user } = useAuth();
     const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -1732,6 +1817,44 @@ export default function CreatePage() {
     const [isMobile, setIsMobile] = useState(false);
     const [lastAwardedContent, setLastAwardedContent] = useState<string>('');
     const [lastSavedContent, setLastSavedContent] = useState<string>('');
+
+    // Real-Time Collaboration States
+    const [isCollaborative, setIsCollaborative] = useState(false);
+    const [collaborators, setCollaborators] = useState<string[]>([]);
+    const [collaboratorProfiles, setCollaboratorProfiles] = useState<{[uid: string]: { name: string; email: string }}>({});
+    const [activeRemoteUsers, setActiveRemoteUsers] = useState<{[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null }}>({});
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [previewInviteId, setPreviewInviteId] = useState<string | null>(null);
+    const isCanvasPreview = previewInviteId !== null;
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteStatus, setInviteStatus] = useState<{ type: 'success' | 'error' | ''; message: string }>({ type: '', message: '' });
+    const [isInviting, setIsInviting] = useState(false);
+    const [currentUserColor, setCurrentUserColor] = useState<string>('indigo');
+    const [confirmCloseCollab, setConfirmCloseCollab] = useState<{
+        isOpen: boolean;
+        type: 'decline_invite' | 'close_collab' | null;
+        invite?: any;
+        projectId?: string | null;
+    }>({ isOpen: false, type: null });
+
+    // Curated elegant neutral colors for collaborators
+    const COLLABORATOR_COLORS = [
+        '#A5AFDF',
+        '#86BE7F',
+        '#FFF35F',
+        '#ADCDC0',
+        '#46455D'
+    ];
+
+    // Generate or fetch user color on mount
+    useEffect(() => {
+        if (user) {
+            // Pick a random color from the palette
+            const randomIndex = Math.floor(Math.random() * COLLABORATOR_COLORS.length);
+            const color = COLLABORATOR_COLORS[randomIndex];
+            setCurrentUserColor(color);
+        }
+    }, [user]);
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -1821,6 +1944,8 @@ export default function CreatePage() {
     const groupStartYRef = useRef(0);
     const lastTapTimeRef = useRef<number>(0);
     const canvasTouchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+    const writingCanvasRef = useRef<HTMLDivElement>(null);
+    const remoteCursorsRef = useRef<{[uid: string]: HTMLDivElement | null}>({});
 
     // Audio recording & metronome state variables
     const [recordingTitle, setRecordingTitle] = useState('');
@@ -2043,36 +2168,144 @@ export default function CreatePage() {
         }
     };
 
-    // Load initial data from Firestore with localStorage fallback
     useEffect(() => {
-        const loadInitialData = async () => {
-            let initialFolders: SongFolder[] = [];
-            let initialNotes: SongNote[] = [];
-            let loadedFromFirestore = false;
+        let unsubOwn: (() => void) | null = null;
+        let unsubCollab: (() => void) | null = null;
 
+        const init = async () => {
             if (user) {
                 try {
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    await migrateLegacyNotesToProjects(user.uid);
+
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+                    let initialFolders: SongFolder[] = [];
                     if (userDoc.exists()) {
                         const userData = userDoc.data();
                         if (userData.createFolders) {
                             initialFolders = userData.createFolders;
-                            loadedFromFirestore = true;
+                            setFolders(userData.createFolders);
                         }
-                        if (userData.createNotes) {
-                            initialNotes = userData.createNotes;
-                            loadedFromFirestore = true;
+                        if (!userData.email || !userData.name) {
+                            await setDoc(userDocRef, {
+                                uid: user.uid,
+                                name: user.displayName || user.email?.split('@')[0] || 'Collaborator',
+                                email: user.email || ''
+                            }, { merge: true });
                         }
+                    } else {
+                        await setDoc(userDocRef, {
+                            uid: user.uid,
+                            name: user.displayName || user.email?.split('@')[0] || 'Collaborator',
+                            email: user.email || '',
+                            createdAt: new Date().toISOString()
+                        }, { merge: true });
                     }
+
+                    const ownQuery = query(collection(db, "projects"), where("ownerId", "==", user.uid));
+                    const collabQuery = query(collection(db, "projects"), where("collaborators", "array-contains", user.uid));
+
+                    let ownNotes: SongNote[] = [];
+                    let collabNotes: SongNote[] = [];
+                    let initialLoadComplete = false;
+
+                    const updateNotesState = async (forceFallback = false) => {
+                        const mergedMap = new Map<string, SongNote>();
+                        ownNotes.forEach(n => mergedMap.set(n.id, n));
+                        collabNotes.forEach(n => mergedMap.set(n.id, n));
+                        let merged = Array.from(mergedMap.values());
+
+                        if (merged.length === 0 && forceFallback && !initialLoadComplete) {
+                            initialLoadComplete = true;
+                            // Fallback to localStorage
+                            const savedNotes = localStorage.getItem('veinote-create-notes');
+                            let fallbackNotes: SongNote[] = [];
+                            if (savedNotes) {
+                                fallbackNotes = JSON.parse(savedNotes);
+                            } else {
+                                fallbackNotes = [
+                                    { 
+                                        id: 'n-1', 
+                                        title: 'Ocean Breeze Lyrics', 
+                                        content: 'Ocean Breeze Lyrics\n\nVerse 1:\nWalking down the sandy beach\nFeel the warmth within my reach\n\nChorus:\nOcean breeze, carry me away\nTo the place where we used to play...', 
+                                        folderId: 'f-1', 
+                                        updatedAt: new Date().toLocaleString() 
+                                    },
+                                    { 
+                                        id: 'n-2', 
+                                        title: 'A minor progression', 
+                                        content: 'A minor progression\n\nChords:\nAm - F - C - G\n\nTempo: 120bpm\nFeel: Ethereal and flowing.\nTry adding a violin counter-melody in the chorus.', 
+                                        folderId: 'f-2', 
+                                        updatedAt: new Date().toLocaleString() 
+                                    },
+                                    { 
+                                        id: 'n-3', 
+                                        title: 'Songwriting Prompts', 
+                                        content: 'Songwriting Prompts\n\n- Write about nostalgia for a city you only visited once.\n- Use the word "spectral" in the bridge.\n- Start the song on a subdominant major chord.', 
+                                        folderId: null, 
+                                        updatedAt: new Date().toLocaleString() 
+                                    }
+                                ];
+                                localStorage.setItem('veinote-create-notes', JSON.stringify(fallbackNotes));
+                            }
+                            
+                            // Upload defaults to projects collection
+                            try {
+                                const batch = writeBatch(db);
+                                for (const note of fallbackNotes) {
+                                    const ref = doc(db, "projects", note.id);
+                                    batch.set(ref, {
+                                        ...note,
+                                        ownerId: user.uid,
+                                        collaborators: []
+                                    }, { merge: true });
+                                }
+                                await batch.commit();
+                            } catch (err) {
+                                console.error("Error migrating local defaults to Firestore:", err);
+                            }
+                            return;
+                        }
+
+                        initialLoadComplete = true;
+                        setNotes(merged);
+                        setIsDataLoaded(true);
+
+                        if (merged.length > 0) {
+                            setSelectedNoteId(prev => {
+                                if (prev && merged.some(n => n.id === prev)) {
+                                    return prev;
+                                }
+                                return null;
+                            });
+                        }
+                    };
+
+                    unsubOwn = onSnapshot(ownQuery, (snap) => {
+                        ownNotes = [];
+                        snap.forEach(doc => {
+                            ownNotes.push({ id: doc.id, ...doc.data() } as SongNote);
+                        });
+                        updateNotesState(true);
+                    }, (err) => console.error("Error listening to own projects:", err));
+
+                    unsubCollab = onSnapshot(collabQuery, (snap) => {
+                        collabNotes = [];
+                        snap.forEach(doc => {
+                            collabNotes.push({ id: doc.id, ...doc.data() } as SongNote);
+                        });
+                        updateNotesState(true);
+                    }, (err) => console.error("Error listening to collab projects:", err));
+
                 } catch (err) {
                     console.error("Error loading data from Firestore:", err);
                 }
-            }
-
-            // Fallback to localStorage if not found/loaded from Firestore
-            if (!loadedFromFirestore) {
+            } else {
+                // Fallback to localStorage if not found/loaded from Firestore
                 const savedFolders = localStorage.getItem('veinote-create-folders');
                 const savedNotes = localStorage.getItem('veinote-create-notes');
+                let initialFolders = [];
+                let initialNotes = [];
 
                 if (savedFolders) {
                     initialFolders = JSON.parse(savedFolders);
@@ -2119,26 +2352,27 @@ export default function CreatePage() {
                     localStorage.setItem('veinote-create-notes', JSON.stringify(initialNotes));
                 }
 
-                // If user is logged in, upload the migrated/local data to Firestore
-                if (user) {
-                    try {
-                        await setDoc(doc(db, "users", user.uid), {
-                            createFolders: initialFolders,
-                            createNotes: initialNotes
-                        }, { merge: true });
-                    } catch (err) {
-                        console.error("Error saving initial data to Firestore:", err);
-                    }
+                setFolders(initialFolders);
+                setNotes(initialNotes);
+                setIsDataLoaded(true);
+
+                if (initialNotes.length > 0) {
+                    setSelectedNoteId(prev => {
+                        if (prev && initialNotes.some(n => n.id === prev)) {
+                            return prev;
+                        }
+                        return null;
+                    });
                 }
             }
-
-            setFolders(initialFolders);
-            setNotes(initialNotes);
-            setIsDataLoaded(true);
-            setIsMounted(true);
         };
 
-        loadInitialData();
+        init();
+
+        return () => {
+            if (unsubOwn) unsubOwn();
+            if (unsubCollab) unsubCollab();
+        };
     }, [user]);
 
     // Save changes to localStorage and Firestore
@@ -2156,16 +2390,423 @@ export default function CreatePage() {
     useEffect(() => {
         if (isDataLoaded) {
             localStorage.setItem('veinote-create-notes', JSON.stringify(notes));
-            if (user) {
-                setDoc(doc(db, "users", user.uid), {
-                    createNotes: notes
-                }, { merge: true }).catch(err => console.error("Error updating notes in Firestore:", err));
-            }
         }
-    }, [notes, isDataLoaded, user]);
+    }, [notes, isDataLoaded]);
+
+    // 1a. Live Preview Mirror Subscription: When in preview mode, subscribe to the invited
+    //     project in real-time so the invitee sees every live edit by the project owner.
+    useEffect(() => {
+        if (!previewInviteId || !user) return;
+
+        // Find the invite to get the projectId
+        const invite = pendingInvites.find(inv => inv.id === previewInviteId);
+        if (!invite) return;
+
+        const projectId = invite.projectId;
+
+        const unsub = onSnapshot(doc(db, "projects", projectId), (snapshot) => {
+            if (!snapshot.exists()) return;
+            const data = snapshot.data();
+
+            // Merge/upsert the live project data into local notes state so
+            // the canvas renders it in real-time (full mirror of owner's edits)
+            setNotes(prev => {
+                const exists = prev.some(n => n.id === projectId);
+                if (exists) {
+                    return prev.map(n =>
+                        n.id === projectId
+                            ? { ...n, ...data, id: projectId } as SongNote
+                            : n
+                    );
+                }
+                return [{ ...data, id: projectId } as SongNote, ...prev];
+            });
+
+            // Ensure the preview project is selected so the canvas renders it
+            setSelectedNoteId(projectId);
+        }, (err) => {
+            console.error("Live preview mirror subscription error:", err);
+        });
+
+        return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [previewInviteId, user]);
+
+    // 1. Subscription Effect: Listen to active collaborative project in real-time
+    useEffect(() => {
+        if (!selectedNoteId || !user || !isDataLoaded) return;
+
+        const unsub = onSnapshot(doc(db, "projects", selectedNoteId), (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.data();
+                setNotes(prev => {
+                    const existingNote = prev.find(n => n.id === selectedNoteId);
+                    if (!existingNote) {
+                        return [{ id: snapshot.id, ...data } as SongNote, ...prev];
+                    }
+
+                    // Deep compare content to prevent recursive state update loops
+                    const isTitleIdentical = existingNote.title === data.title;
+                    const isContentIdentical = existingNote.content === data.content;
+                    const isFolderIdentical = existingNote.folderId === data.folderId;
+                    const isAudioOnlyIdentical = existingNote.isAudioOnly === data.isAudioOnly;
+                    
+                    const isPhrasesLengthIdentical = (existingNote.phrases || []).length === (data.phrases || []).length;
+                    const isAudioLengthIdentical = (existingNote.audioNotes || []).length === (data.audioNotes || []).length;
+
+                    if (isTitleIdentical && isContentIdentical && isFolderIdentical && isAudioOnlyIdentical && isPhrasesLengthIdentical && isAudioLengthIdentical) {
+                        const localPhrases = existingNote.phrases || [];
+                        const remotePhrases = data.phrases || [];
+                        
+                        let hasLockChanges = false;
+                        let hasContentChanges = false;
+                        
+                        for (let i = 0; i < remotePhrases.length; i++) {
+                            const lp = localPhrases.find(p => p.id === remotePhrases[i].id);
+                            if (!lp) {
+                                hasContentChanges = true;
+                                break;
+                            }
+                            if (lp.text !== remotePhrases[i].text) {
+                                if (lp.id !== editingPhraseId) {
+                                    hasContentChanges = true;
+                                }
+                            }
+                            if (lp.lockedBy !== remotePhrases[i].lockedBy) {
+                                hasLockChanges = true;
+                            }
+                        }
+                        
+                        if (!hasContentChanges && !hasLockChanges) {
+                            return prev;
+                        }
+                    }
+
+                    return prev.map(n => {
+                        if (n.id === selectedNoteId) {
+                            const localLockedPhraseId = editingPhraseId;
+                            const mergedPhrases = (data.phrases || []).map((remoteP: any) => {
+                                if (remoteP.id === localLockedPhraseId) {
+                                    const localP = n.phrases?.find(p => p.id === localLockedPhraseId);
+                                    return { ...remoteP, text: localP?.text || remoteP.text };
+                                }
+                                return remoteP;
+                            });
+
+                            return {
+                                ...n,
+                                ...data,
+                                phrases: mergedPhrases
+                            };
+                        }
+                        return n;
+                    });
+                });
+            }
+        }, (err) => {
+            console.error("Firestore subscription error:", err);
+        });
+
+        return () => unsub();
+    }, [selectedNoteId, user, isDataLoaded, editingPhraseId]);
+
+
+
+    // 3. Presence Effect: Listen to remote presence details
+    useEffect(() => {
+        if (!selectedNoteId || !user || !isDataLoaded) {
+            setActiveRemoteUsers({});
+            return;
+        }
+
+        const unsub = onSnapshot(collection(db, "projects", selectedNoteId, "presence"), (snapshot) => {
+            const users: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null }} = {};
+            
+            snapshot.forEach(d => {
+                if (d.id !== user.uid) {
+                    const data = d.data();
+                    if (data.x !== -999 && data.y !== -999) {
+                        users[d.id] = {
+                            name: data.name || 'Collaborator',
+                            color: data.color || 'rose',
+                            cursor: { x: data.x, y: data.y },
+                            activePhraseId: data.activePhraseId || null
+                        };
+                    }
+                }
+            });
+            
+            setActiveRemoteUsers(users);
+        }, (err) => {
+            console.error("Presence snapshot error:", err);
+        });
+
+        return () => unsub();
+    }, [selectedNoteId, user, isDataLoaded, currentUserColor]);
+
+    const lastCursorWriteRef = useRef<number>(0);
+    
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!selectedNoteId || !user || !writingCanvasRef.current) return;
+        
+        const now = Date.now();
+        if (now - lastCursorWriteRef.current < 120) return; // 120ms throttle
+        lastCursorWriteRef.current = now;
+
+        const rect = writingCanvasRef.current.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+        const presenceRef = doc(db, "projects", selectedNoteId, "presence", user.uid);
+        setDoc(presenceRef, {
+            name: user.displayName || user.email?.split('@')[0] || 'Collaborator',
+            color: currentUserColor,
+            x: x,
+            y: y,
+            activePhraseId: editingPhraseId,
+            updatedAt: new Date().toISOString()
+        }, { merge: true }).catch(err => console.error("Error updating presence:", err));
+    };
+
+    const handleMouseLeave = () => {
+        if (!selectedNoteId || !user) return;
+        const presenceRef = doc(db, "projects", selectedNoteId, "presence", user.uid);
+        setDoc(presenceRef, {
+            x: -999,
+            y: -999,
+            activePhraseId: null,
+            updatedAt: new Date().toISOString()
+        }, { merge: true }).catch(err => console.error("Error clearing presence:", err));
+    };
+
+    const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+
+    const [acceptedNotifications, setAcceptedNotifications] = useState<any[]>([]);
+
+    // Listen to invitations sent by me that were accepted but I haven't acknowledged yet
+    useEffect(() => {
+        if (!user) {
+            setAcceptedNotifications([]);
+            return;
+        }
+
+        const q = query(
+            collection(db, "invitations"),
+            where("senderId", "==", user.uid),
+            where("status", "==", "accepted"),
+            where("senderNotified", "==", false)
+        );
+
+        const unsub = onSnapshot(q, (snapshot) => {
+            const list: any[] = [];
+            snapshot.forEach(docSnap => {
+                list.push({ id: docSnap.id, ...docSnap.data() });
+            });
+            setAcceptedNotifications(list);
+        }, (err) => {
+            console.error("Error listening to accepted notifications:", err);
+        });
+
+        return () => unsub();
+    }, [user]);
+
+    const handleDismissAcceptedNotification = async (notificationId: string) => {
+        try {
+            await updateDoc(doc(db, "invitations", notificationId), {
+                senderNotified: true
+            });
+        } catch (err) {
+            console.error("Error dismissing accepted notification:", err);
+        }
+    };
+
+    // 4. Invite Effect: Listen to pending invitations for this user (matched by UID)
+    useEffect(() => {
+        if (!user) {
+            setPendingInvites([]);
+            return;
+        }
+
+        const q = query(
+            collection(db, "invitations"),
+            where("inviteeId", "==", user.uid),
+            where("status", "==", "pending")
+        );
+
+        const unsub = onSnapshot(q, (snapshot) => {
+            const invites: any[] = [];
+            snapshot.forEach(doc => {
+                invites.push({ id: doc.id, ...doc.data() });
+            });
+            setPendingInvites(invites);
+        }, (err) => {
+            console.error("Error listening to invitations:", err);
+        });
+
+        return () => unsub();
+    }, [user]);
+
+    // Hook to claim pending email invitations on login/signup
+    useEffect(() => {
+        if (!user || !user.email) return;
+
+        const claimInvites = async () => {
+            try {
+                const userEmail = user.email.toLowerCase().trim();
+                const q = query(
+                    collection(db, "invitations"),
+                    where("inviteeEmail", "==", userEmail),
+                    where("inviteeId", "==", "")
+                );
+                
+                const snapshot = await getDocs(q);
+                if (!snapshot.empty) {
+                    const batch = writeBatch(db);
+                    snapshot.forEach(docSnap => {
+                        const data = docSnap.data();
+                        const newInviteId = `${data.projectId}_${user.uid}`;
+                        const newInviteRef = doc(db, "invitations", newInviteId);
+                        batch.set(newInviteRef, {
+                            ...data,
+                            id: newInviteId,
+                            inviteeId: user.uid
+                        });
+                        batch.delete(docSnap.ref);
+                    });
+                    await batch.commit();
+                    console.log("Claimed pending invitations for email with deterministic IDs:", userEmail);
+                }
+            } catch (err) {
+                console.error("Error claiming invitations:", err);
+            }
+        };
+
+        claimInvites();
+    }, [user]);
+
+    const handleAcceptInvite = async (invite: any) => {
+        if (!user) return;
+        try {
+            const deterministicId = `${invite.projectId}_${user.uid}`;
+            const inviteeName = user.displayName || user.email?.split('@')[0] || 'Collaborator';
+
+            // Step 1: Ensure a deterministic invitation doc exists with inviteeId set.
+            // If the invite had a non-deterministic email-based ID, create the canonical doc first.
+            if (invite.id !== deterministicId) {
+                await setDoc(doc(db, "invitations", deterministicId), {
+                    ...invite,
+                    id: deterministicId,
+                    inviteeId: user.uid,
+                    inviteeName,
+                    status: 'accepted',
+                    senderNotified: false,
+                });
+                // Delete the old non-deterministic doc (best-effort, non-blocking)
+                updateDoc(doc(db, "invitations", invite.id), { status: 'accepted' }).catch(() => {});
+            } else {
+                // Step 1b: Update the existing deterministic invitation doc in place.
+                await updateDoc(doc(db, "invitations", deterministicId), {
+                    status: 'accepted',
+                    inviteeId: user.uid,
+                    inviteeName,
+                    senderNotified: false,
+                });
+            }
+
+            // Step 2: Add user to project collaborators.
+            // The rule allows this because the user is only adding themselves
+            // (affectedKeys == ['collaborators'] && difference == [uid]).
+            await updateDoc(doc(db, "projects", invite.projectId), {
+                collaborators: arrayUnion(user.uid)
+            });
+
+            // Step 3: Exit preview mode and open the project canvas.
+            setPreviewInviteId(null);
+
+            const projectDoc = await getDoc(doc(db, "projects", invite.projectId));
+            if (projectDoc.exists()) {
+                const noteData = projectDoc.data() as SongNote;
+                const currentCollaborators = projectDoc.data().collaborators || [];
+                setNotes(prev => {
+                    if (prev.some(n => n.id === invite.projectId)) {
+                        return prev.map(n => n.id === invite.projectId
+                            ? { ...noteData, id: invite.projectId, collaborators: currentCollaborators }
+                            : n
+                        );
+                    }
+                    return [{ ...noteData, id: invite.projectId, collaborators: currentCollaborators }, ...prev];
+                });
+                setSelectedNoteId(invite.projectId);
+            }
+        } catch (err) {
+            console.error("Error accepting invitation:", err);
+            // Exit preview cleanly so the user is never stuck
+            setPreviewInviteId(null);
+            setSelectedNoteId(null);
+        }
+    };
+
+    const handleDeclineInvite = async (invite: any) => {
+        if (!user) return;
+        try {
+            // 1. Update invitation status to declined
+            await updateDoc(doc(db, "invitations", invite.id), {
+                status: 'declined'
+            });
+
+            // 2. Clear preview state, deselect canvas, and purge the preview note from local state.
+            //    This always returns the invitee to their own blank canvas.
+            setPreviewInviteId(null);
+            setSelectedNoteId(null);
+            setNotes(prev => prev.filter(n => n.id !== invite.projectId));
+        } catch (err) {
+            console.error("Error declining invitation:", err);
+        }
+    };
+
+    const handleCloseCollaboration = async (projectId: string) => {
+        if (!user) return;
+        try {
+            const projectRef = doc(db, "projects", projectId);
+            const projectDoc = await getDoc(projectRef);
+            if (!projectDoc.exists()) return;
+            
+            const projectData = projectDoc.data();
+            const ownerId = projectData.ownerId;
+            
+            if (ownerId === user.uid) {
+                // If current user is the owner, remove all collaborators and reset presence
+                await updateDoc(projectRef, {
+                    collaborators: []
+                });
+                setCollaborators([]);
+                setCollaboratorProfiles({});
+            } else {
+                // If current user is a collaborator, remove themselves from collaborators list
+                await updateDoc(projectRef, {
+                    collaborators: arrayRemove(user.uid)
+                });
+                
+                // Also update the invitation status to declined so they don't get invited again automatically
+                const inviteId = `${projectId}_${user.uid}`;
+                await updateDoc(doc(db, "invitations", inviteId), {
+                    status: 'declined'
+                }).catch(() => {});
+                
+                // Reset active workspace state
+                setSelectedNoteId(null);
+                setNotes(prev => prev.filter(n => n.id !== projectId));
+            }
+        } catch (err) {
+            console.error("Error closing collaboration:", err);
+        } finally {
+            setConfirmCloseCollab({ isOpen: false, type: null });
+        }
+    };
 
     // Shuffle inspiration cards and load answers from localStorage on mount
     useEffect(() => {
+        setIsMounted(true);
         const shuffled = [...INSPIRATION_CARDS].sort(() => Math.random() - 0.5);
         setInspirationCards(shuffled);
 
@@ -2179,7 +2820,105 @@ export default function CreatePage() {
         }
     }, []);
 
+    // Real-time collaborator details loading hook
+    useEffect(() => {
+        const loadCollaboratorDetails = async () => {
+            if (selectedNoteId && user) {
+                try {
+                    const projectDoc = await getDoc(doc(db, "projects", selectedNoteId));
+                    if (projectDoc.exists()) {
+                        const projData = projectDoc.data();
+                        setIsCollaborative(true);
+                        const collabList = projData.collaborators || [];
+                        setCollaborators(collabList);
+                        
+                        if (collabList.length > 0) {
+                            const profiles = await getCollaboratorProfiles(collabList);
+                            setCollaboratorProfiles(profiles);
+                        }
+                    } else {
+                        setIsCollaborative(false);
+                        setCollaborators([]);
+                        setCollaboratorProfiles({});
+                    }
+                } catch (err) {
+                    console.error("Error loading collaborator details:", err);
+                }
+            } else {
+                setIsCollaborative(false);
+                setCollaborators([]);
+                setCollaboratorProfiles({});
+            }
+        };
+
+        loadCollaboratorDetails();
+    }, [selectedNoteId, user]);
+
+    const handleInviteCollaborator = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedNoteId || !inviteEmail.trim() || !user) return;
+        setIsInviting(true);
+        setInviteStatus({ type: '', message: '' });
+
+        // Ensure the active note document exists in the projects collection before sending invitation.
+        // Using setDoc with merge:true handles both new docs (create rule) and existing docs (update rule)
+        // and always stamps ownerId + collaborators so the rules can evaluate correctly.
+        const active = notes.find(n => n.id === selectedNoteId);
+        if (active) {
+            try {
+                const docRef = doc(db, "projects", selectedNoteId);
+                await setDoc(docRef, {
+                    ...active,
+                    folderId: null,
+                    ownerId: user.uid,
+                    collaborators: active.collaborators || [],
+                }, { merge: true });
+
+                setNotes(prev => prev.map(n =>
+                    n.id === selectedNoteId ? { ...n, folderId: null } : n
+                ));
+            } catch (err) {
+                console.error("Error syncing note to Firestore before invite:", err);
+            }
+        }
+
+        
+        const senderName = user.displayName || user.email?.split('@')[0] || 'Collaborator';
+        const res = await inviteCollaboratorByEmail(selectedNoteId, inviteEmail, user.uid, senderName);
+        if (res.success) {
+            setInviteStatus({ type: 'success', message: res.message });
+            setInviteEmail('');
+            // Refetch profiles to update list
+            try {
+                const projectDoc = await getDoc(doc(db, "projects", selectedNoteId));
+                if (projectDoc.exists()) {
+                    const collabList = projectDoc.data().collaborators || [];
+                    setCollaborators(collabList);
+                    const profiles = await getCollaboratorProfiles(collabList);
+                    setCollaboratorProfiles(profiles);
+                }
+            } catch (err) {
+                console.error("Error updating collaborators list after invite:", err);
+            }
+        } else {
+            setInviteStatus({ type: 'error', message: res.message });
+        }
+        setIsInviting(false);
+    };
+
+    const handleRemoveCollaborator = async (collaboratorUid: string) => {
+        if (!selectedNoteId) return;
+        const success = await removeCollaboratorFromProject(selectedNoteId, collaboratorUid);
+        if (success) {
+            setCollaborators(prev => prev.filter(uid => uid !== collaboratorUid));
+            const updatedProfiles = { ...collaboratorProfiles };
+            delete updatedProfiles[collaboratorUid];
+            setCollaboratorProfiles(updatedProfiles);
+        }
+    };
+
     const activeNote = notes.find(n => n.id === selectedNoteId) || null;
+    const isNoteBlank = !isCanvasPreview && (!selectedNoteId || (activeNote && activeNote.content.trim() === '' && (activeNote.title === '' || activeNote.title === 'Untitled Note' || activeNote.title === 'Project name')));
 
     // Ensure we have a unified list of audio notes, migrating legacy audioUrl if needed
     const activeAudioNotes = activeNote 
@@ -3409,7 +4148,7 @@ export default function CreatePage() {
             id: newNoteId,
             title: '',
             content: '',
-            folderId: folderId || activeFolderIdFilter,
+            folderId: user ? null : (folderId || activeFolderIdFilter),
             updatedAt: timestamp,
             phrases: [{
                 id: newPhraseId,
@@ -3421,21 +4160,96 @@ export default function CreatePage() {
         setNotes(prev => [newNote, ...prev]);
         setSelectedNoteId(newNoteId);
         setEditingPhraseId(newPhraseId);
+
+        if (user) {
+            const docRef = doc(db, "projects", newNoteId);
+            setDoc(docRef, {
+                ...newNote,
+                ownerId: user.uid,
+                collaborators: []
+            }).catch(err => console.error("Error creating project in Firestore:", err));
+        }
     };
 
     const handleUpdateNote = (id: string, updates: Partial<SongNote>) => {
+        if (isCanvasPreview) return;
         setNotes(prev => prev.map(n => {
             if (n.id === id) {
                 let finalTitle = updates.title !== undefined ? updates.title : n.title;
                 if (n.isTitleLocked && updates.title !== undefined && !updates.isTitleLocked) {
                     finalTitle = n.title;
                 }
-                return {
+                const updatedNote = {
                     ...n,
                     ...updates,
                     title: finalTitle,
-                    updatedAt: new Date().toLocaleString()
+                    updatedAt: new Date().toLocaleString(),
+                    folderId: user ? null : (updates.folderId !== undefined ? updates.folderId : n.folderId)
                 };
+
+                if (user) {
+                    const docRef = doc(db, "projects", id);
+                    
+                    const cleanPhrases = (updatedNote.phrases || []).map((p: any) => ({
+                        id: p.id,
+                        text: p.text || '',
+                        groupId: p.groupId || null,
+                        authorId: p.authorId || user.uid,
+                        lockedBy: p.lockedBy || null
+                    }));
+
+                    const cleanAudio = (updatedNote.audioNotes || []).map((an: any) => ({
+                        id: an.id,
+                        url: an.url || '',
+                        title: an.title || '',
+                        duration: an.duration || 0,
+                        groupId: an.groupId || null,
+                        phraseId: an.phraseId || null,
+                        createdAt: an.createdAt || 0,
+                        authorId: an.authorId || user.uid
+                    }));
+
+                    const existingContributions = (updatedNote as any).contributions || {};
+                    let userChars = 0;
+                    let userLines = 0;
+                    cleanPhrases.forEach(p => {
+                        if (p.authorId === user.uid) {
+                            userChars += p.text.length;
+                            userLines++;
+                        }
+                    });
+                    let userRecs = 0;
+                    cleanAudio.forEach(an => {
+                        if (an.authorId === user.uid) {
+                            userRecs++;
+                        }
+                    });
+                    const updatedContributions = {
+                        ...existingContributions,
+                        [user.uid]: {
+                            charactersTyped: userChars,
+                            linesCreated: userLines,
+                            recordingsAdded: userRecs,
+                            lastActive: new Date().toISOString()
+                        }
+                    };
+
+                    setDoc(docRef, {
+                        id: updatedNote.id,
+                        title: updatedNote.title || 'Untitled Note',
+                        content: updatedNote.content || '',
+                        folderId: null,
+                        isAudioOnly: updatedNote.isAudioOnly || false,
+                        isTitleLocked: updatedNote.isTitleLocked || false,
+                        verses: updatedNote.verses || [],
+                        phrases: cleanPhrases,
+                        audioNotes: cleanAudio,
+                        contributions: updatedContributions,
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true }).catch(err => console.error("Error updating project note in Firestore:", err));
+                }
+
+                return updatedNote;
             }
             return n;
         }));
@@ -3450,6 +4264,13 @@ export default function CreatePage() {
                     }
                     return an;
                 });
+                
+                if (user) {
+                    updateDoc(doc(db, "projects", noteId), {
+                        audioNotes: updatedAudioNotes
+                    }).catch(err => console.error("Error renaming audio note in Firestore:", err));
+                }
+
                 return {
                     ...n,
                     audioNotes: updatedAudioNotes
@@ -3478,6 +4299,14 @@ export default function CreatePage() {
                 }
                 const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, n.verses || []);
                 
+                if (user) {
+                    updateDoc(doc(db, "projects", noteId), {
+                        audioNotes: updatedAudioNotes,
+                        audioUrl: latestAudio ? latestAudio.url : '',
+                        phrases: finalPhrases
+                    }).catch(err => console.error("Error deleting audio note in Firestore:", err));
+                }
+
                 return {
                     ...n,
                     audioNotes: updatedAudioNotes,
@@ -3514,46 +4343,45 @@ export default function CreatePage() {
         setDropPosition(null);
         setDragOverGroupId(null);
 
-        setNotes(prev => prev.map(n => {
-            if (n.id === noteId) {
-                const matchingAudio = (n.audioNotes || []).find(an => an.id === audioNoteId);
-                const oldPhraseId = matchingAudio ? matchingAudio.phraseId : null;
-                
-                const dedicatedPhraseId = targetGroupId === null ? `p-audio-${audioNoteId}` : null;
-                
-                const updatedAudioNotes = (n.audioNotes || []).map(an => {
-                    if (an.id === audioNoteId) {
-                        return { ...an, groupId: targetGroupId, phraseId: dedicatedPhraseId };
-                    }
-                    return an;
-                });
-                
-                let updatedPhrases = n.phrases || [];
-                if (oldPhraseId && oldPhraseId !== dedicatedPhraseId && oldPhraseId.startsWith('p-audio-')) {
-                    const phraseObj = updatedPhrases.find(p => p.id === oldPhraseId);
-                    if (phraseObj && phraseObj.text.trim() === '') {
-                        updatedPhrases = updatedPhrases.filter(p => p.id !== oldPhraseId);
-                    }
-                }
-                
-                if (dedicatedPhraseId && !updatedPhrases.some(p => p.id === dedicatedPhraseId)) {
-                    updatedPhrases.push({
-                        id: dedicatedPhraseId,
-                        text: '',
-                        groupId: null
-                    });
-                }
-                
-                const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, n.verses || []);
-                
-                return {
-                    ...n,
-                    audioNotes: updatedAudioNotes,
-                    phrases: finalPhrases
-                };
+        const targetNote = notesRef.current.find(n => n.id === noteId);
+        if (!targetNote) return;
+
+        const matchingAudio = (targetNote.audioNotes || []).find(an => an.id === audioNoteId);
+        const oldPhraseId = matchingAudio ? matchingAudio.phraseId : null;
+        
+        const dedicatedPhraseId = targetGroupId === null ? `p-audio-${audioNoteId}` : null;
+        
+        const updatedAudioNotes = (targetNote.audioNotes || []).map(an => {
+            if (an.id === audioNoteId) {
+                return { ...an, groupId: targetGroupId, phraseId: dedicatedPhraseId };
             }
-            return n;
-        }));
+            return an;
+        });
+        
+        let updatedPhrases = targetNote.phrases || [];
+        if (oldPhraseId && oldPhraseId !== dedicatedPhraseId && oldPhraseId.startsWith('p-audio-')) {
+            const phraseObj = updatedPhrases.find(p => p.id === oldPhraseId);
+            if (phraseObj && phraseObj.text.trim() === '') {
+                updatedPhrases = updatedPhrases.filter(p => p.id !== oldPhraseId);
+            }
+        }
+        
+        if (dedicatedPhraseId && !updatedPhrases.some(p => p.id === dedicatedPhraseId)) {
+            updatedPhrases.push({
+                id: dedicatedPhraseId,
+                text: '',
+                groupId: null
+            });
+        }
+        
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, targetNote.verses || []);
+        const updatedContent = finalPhrases.map(p => p.text).join('\n');
+
+        handleUpdateNote(noteId, {
+            audioNotes: updatedAudioNotes,
+            phrases: finalPhrases,
+            content: updatedContent
+        });
     };
 
     const handleAttachAudioToPhrase = (audioNoteId: string, phraseId: string | null, groupId: string | null) => {
@@ -3564,35 +4392,34 @@ export default function CreatePage() {
         setDragOverGroupId(null);
 
         if (!selectedNoteId) return;
-        setNotes(prev => prev.map(n => {
-            if (n.id === selectedNoteId) {
-                const matchingAudio = (n.audioNotes || []).find(an => an.id === audioNoteId);
-                const oldPhraseId = matchingAudio ? matchingAudio.phraseId : null;
-                
-                const updatedAudioNotes = (n.audioNotes || []).map(an => {
-                    if (an.id === audioNoteId) {
-                        return { ...an, groupId, phraseId };
-                    }
-                    return an;
-                });
-                
-                let updatedPhrases = n.phrases || [];
-                if (oldPhraseId && oldPhraseId !== phraseId && oldPhraseId.startsWith('p-audio-')) {
-                    const phraseObj = updatedPhrases.find(p => p.id === oldPhraseId);
-                    if (phraseObj && phraseObj.text.trim() === '') {
-                        updatedPhrases = updatedPhrases.filter(p => p.id !== oldPhraseId);
-                    }
-                }
-                const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, n.verses || []);
-                
-                return {
-                    ...n,
-                    audioNotes: updatedAudioNotes,
-                    phrases: finalPhrases
-                };
+        const targetNote = notesRef.current.find(n => n.id === selectedNoteId);
+        if (!targetNote) return;
+
+        const matchingAudio = (targetNote.audioNotes || []).find(an => an.id === audioNoteId);
+        const oldPhraseId = matchingAudio ? matchingAudio.phraseId : null;
+        
+        const updatedAudioNotes = (targetNote.audioNotes || []).map(an => {
+            if (an.id === audioNoteId) {
+                return { ...an, groupId, phraseId };
             }
-            return n;
-        }));
+            return an;
+        });
+        
+        let updatedPhrases = targetNote.phrases || [];
+        if (oldPhraseId && oldPhraseId !== phraseId && oldPhraseId.startsWith('p-audio-')) {
+            const phraseObj = updatedPhrases.find(p => p.id === oldPhraseId);
+            if (phraseObj && phraseObj.text.trim() === '') {
+                updatedPhrases = updatedPhrases.filter(p => p.id !== oldPhraseId);
+            }
+        }
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, targetNote.verses || []);
+        const updatedContent = finalPhrases.map(p => p.text).join('\n');
+
+        handleUpdateNote(selectedNoteId, {
+            audioNotes: updatedAudioNotes,
+            phrases: finalPhrases,
+            content: updatedContent
+        });
     };
 
     const handlePlaceAudioAsLineAt = (audioNoteId: string, targetPhraseId: string, position: 'top' | 'bottom') => {
@@ -3605,69 +4432,88 @@ export default function CreatePage() {
         setBlockDropPosition(null);
 
         if (!selectedNoteId) return;
+        const targetNote = notesRef.current.find(n => n.id === selectedNoteId);
+        if (!targetNote) return;
 
-        setNotes(prev => prev.map(n => {
-            if (n.id === selectedNoteId) {
-                const audioNotes = n.audioNotes || [];
-                const matchingAudio = audioNotes.find(an => an.id === audioNoteId);
-                if (!matchingAudio) return n;
+        const audioNotes = targetNote.audioNotes || [];
+        const matchingAudio = audioNotes.find(an => an.id === audioNoteId);
+        if (!matchingAudio) return;
 
-                const oldPhraseId = matchingAudio.phraseId;
-                
-                const currentPhrases = n.phrases || [];
-                const targetIdx = currentPhrases.findIndex(p => p.id === targetPhraseId);
-                if (targetIdx === -1) return n;
+        const oldPhraseId = matchingAudio.phraseId;
+        
+        const currentPhrases = targetNote.phrases || [];
+        const targetIdx = currentPhrases.findIndex(p => p.id === targetPhraseId);
+        if (targetIdx === -1) return;
 
-                const targetPhrase = currentPhrases[targetIdx];
-                const targetGroupId = targetPhrase.groupId;
+        const targetPhrase = currentPhrases[targetIdx];
+        const targetGroupId = targetPhrase.groupId;
 
-                const dedicatedPhraseId = `p-audio-${audioNoteId}`;
-                let updatedPhrases = [...currentPhrases];
+        const dedicatedPhraseId = `p-audio-${audioNoteId}`;
+        let updatedPhrases = [...currentPhrases];
 
-                if (oldPhraseId && oldPhraseId.startsWith('p-audio-')) {
-                    const oldPhraseObj = updatedPhrases.find(p => p.id === oldPhraseId);
-                    if (oldPhraseObj && oldPhraseObj.text.trim() === '') {
-                        updatedPhrases = updatedPhrases.filter(p => p.id !== oldPhraseId);
-                    }
-                }
-
-                const newTargetIdx = updatedPhrases.findIndex(p => p.id === targetPhraseId);
-                if (newTargetIdx === -1) return n;
-
-                const spliceIdx = position === 'top' ? newTargetIdx : newTargetIdx + 1;
-
-                const newPhrase: Phrase = {
-                    id: dedicatedPhraseId,
-                    text: '',
-                    groupId: targetGroupId
-                };
-                updatedPhrases.splice(spliceIdx, 0, newPhrase);
-
-                const updatedAudioNotes = audioNotes.map(an => {
-                    if (an.id === audioNoteId) {
-                        return { ...an, phraseId: dedicatedPhraseId, groupId: targetGroupId };
-                    }
-                    return an;
-                });
-
-                const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, n.verses || []);
-
-                return {
-                    ...n,
-                    audioNotes: updatedAudioNotes,
-                    phrases: finalPhrases
-                };
+        if (oldPhraseId && oldPhraseId.startsWith('p-audio-')) {
+            const oldPhraseObj = updatedPhrases.find(p => p.id === oldPhraseId);
+            if (oldPhraseObj && oldPhraseObj.text.trim() === '') {
+                updatedPhrases = updatedPhrases.filter(p => p.id !== oldPhraseId);
             }
-            return n;
-        }));
+        }
+
+        const newTargetIdx = updatedPhrases.findIndex(p => p.id === targetPhraseId);
+        if (newTargetIdx === -1) return;
+
+        const spliceIdx = position === 'top' ? newTargetIdx : newTargetIdx + 1;
+
+        const newPhrase: Phrase = {
+            id: dedicatedPhraseId,
+            text: '',
+            groupId: targetGroupId
+        };
+        updatedPhrases.splice(spliceIdx, 0, newPhrase);
+
+        const updatedAudioNotes = audioNotes.map(an => {
+            if (an.id === audioNoteId) {
+                return { ...an, phraseId: dedicatedPhraseId, groupId: targetGroupId };
+            }
+            return an;
+        });
+
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, targetNote.verses || []);
+        const updatedContent = finalPhrases.map(p => p.text).join('\n');
+
+        handleUpdateNote(selectedNoteId, {
+            audioNotes: updatedAudioNotes,
+            phrases: finalPhrases,
+            content: updatedContent
+        });
     };
 
-    const handleStartEditing = (phraseId: string) => {
+    const handleStartEditing = async (phraseId: string) => {
+        if (isCanvasPreview) return;
         setEditingPhraseId(phraseId);
         setCursorSelectionOffset(null);
+
+        // Write lockedBy to Firestore
+        if (selectedNoteId && user) {
+            try {
+                const docRef = doc(db, "projects", selectedNoteId);
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    const phrases = snap.data().phrases || [];
+                    const updated = phrases.map((p: any) => {
+                        if (p.id === phraseId) {
+                            return { ...p, lockedBy: user.uid };
+                        }
+                        return p;
+                    });
+                    await updateDoc(docRef, { phrases: updated });
+                }
+            } catch (err) {
+                console.error("Error setting focus lock in Firestore:", err);
+            }
+        }
     };
 
-    const handleStopEditing = (createNext = false) => {
+    const handleStopEditing = async (createNext = false) => {
         if (selectedNoteId && activeNote && editingPhraseId) {
             const currentPhrases = activeNote.phrases || [];
             const editingIdx = currentPhrases.findIndex(p => p.id === editingPhraseId);
@@ -3677,7 +4523,6 @@ export default function CreatePage() {
             let nextPhraseId: string | null = null;
             
             if (editingPhrase && editingPhrase.text.trim() === '') {
-                // Keep the phrase if it has an attached audio note
                 const hasAttachedAudio = (activeNote.audioNotes || []).some(an => an.phraseId === editingPhraseId);
                 if (!hasAttachedAudio) {
                     finalPhrases = currentPhrases.filter(p => p.id !== editingPhraseId);
@@ -3694,16 +4539,39 @@ export default function CreatePage() {
             }
             
             const sanitizedPhrases = cleanupAndEnsurePlaceholders(finalPhrases, activeNote.verses || []);
-            const newContent = sanitizedPhrases.map(p => p.text).join('\n');
+            
+            // Release lock on editingPhrase
+            const updatedPhrases = sanitizedPhrases.map((p: any) => {
+                if (p.id === editingPhraseId) {
+                    return { ...p, lockedBy: null };
+                }
+                return p;
+            });
+            
+            const newContent = updatedPhrases.map(p => p.text).join('\n');
             
             handleUpdateNote(selectedNoteId, {
-                phrases: sanitizedPhrases,
+                phrases: updatedPhrases,
                 content: newContent,
                 title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
             });
             
             setEditingPhraseId(nextPhraseId);
             setCursorSelectionOffset(null);
+            
+            // Immediately sync to database to release lock
+            if (user) {
+                try {
+                    await updateDoc(doc(db, "projects", selectedNoteId), {
+                        phrases: updatedPhrases,
+                        content: newContent,
+                        title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note',
+                        updatedAt: new Date().toISOString()
+                    });
+                } catch (err) {
+                    console.error("Error releasing focus lock in Firestore:", err);
+                }
+            }
         } else {
             setEditingPhraseId(null);
             setCursorSelectionOffset(null);
@@ -4037,6 +4905,7 @@ export default function CreatePage() {
     };
 
     const handleAddNewPhrase = (groupId: string | null = null) => {
+        if (isCanvasPreview) return;
         if (!selectedNoteId || !activeNote) return;
         const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
             ? activeNote.phrases
@@ -4211,27 +5080,25 @@ export default function CreatePage() {
     const uploadRecordedAudio = async (blob: Blob, noteId: string, recId: string) => {
         if (!user) return;
         try {
-            const fileRef = storageRef(storage, `users/${user.uid}/recordings/${noteId}_${recId}.webm`);
+            const fileRef = storageRef(storage, `users/${user.uid}/recordings/${noteId}_RecId_${recId}.webm`);
             await uploadBytes(fileRef, blob);
             const downloadUrl = await getDownloadURL(fileRef);
             
-            setNotes(prev => prev.map(n => {
-                if (n.id === noteId) {
-                    const updatedAudioNotes = (n.audioNotes || []).map(an => {
-                        if (an.id === recId) {
-                            return { ...an, url: downloadUrl };
-                        }
-                        return an;
-                    });
-                    const latestAudio = updatedAudioNotes[updatedAudioNotes.length - 1];
-                    return {
-                        ...n,
-                        audioNotes: updatedAudioNotes,
-                        audioUrl: latestAudio ? latestAudio.url : n.audioUrl
-                    };
-                }
-                return n;
-            }));
+            const targetNote = notesRef.current.find(n => n.id === noteId);
+            if (targetNote) {
+                const updatedAudioNotes = (targetNote.audioNotes || []).map(an => {
+                    if (an.id === recId) {
+                        return { ...an, url: downloadUrl };
+                    }
+                    return an;
+                });
+                const latestAudio = updatedAudioNotes[updatedAudioNotes.length - 1];
+                
+                handleUpdateNote(noteId, {
+                    audioNotes: updatedAudioNotes,
+                    audioUrl: latestAudio ? latestAudio.url : targetNote.audioUrl
+                });
+            }
             console.log("Audio uploaded successfully to production storage:", downloadUrl);
         } catch (error) {
             console.error("Failed to upload recorded audio:", error);
@@ -4245,6 +5112,9 @@ export default function CreatePage() {
         if (selectedNoteId === id) {
             setSelectedNoteId(null);
             setIsEditing(false);
+        }
+        if (user) {
+            deleteDoc(doc(db, "projects", id)).catch(err => console.error("Error deleting project in Firestore:", err));
         }
     };
 
@@ -4293,11 +5163,27 @@ export default function CreatePage() {
             }
             setIsEditing(true);
         } else {
-            // Update active note
-            handleUpdateNote(selectedNoteId, { 
-                content: val, 
-                title: getTitleFromContent(val) || 'Untitled Note'
-            });
+            const active = notes.find(n => n.id === selectedNoteId);
+            const wasBlank = !active || (active.content.trim() === '' && (active.title === '' || active.title === 'Untitled Note' || active.title === 'Project name'));
+            
+            if (wasBlank && val.trim() !== '') {
+                const initialPhrases = syncPhrasesWithContent(val, []);
+                handleUpdateNote(selectedNoteId, { 
+                    content: val, 
+                    title: getTitleFromContent(val) || 'Untitled Note',
+                    phrases: initialPhrases
+                });
+                if (initialPhrases[0]) {
+                    setEditingPhraseId(initialPhrases[0].id);
+                }
+                setIsEditing(true);
+            } else {
+                // Update active note normally
+                handleUpdateNote(selectedNoteId, { 
+                    content: val, 
+                    title: getTitleFromContent(val) || 'Untitled Note'
+                });
+            }
         }
     };
 
@@ -4368,8 +5254,6 @@ export default function CreatePage() {
                 "Crafting art requires patience, and you are doing great."
             ];
             const randomQuote = proverbs[Math.floor(Math.random() * proverbs.length)];
-            localStorage.setItem('songwriting-progress-quote', randomQuote);
-            localStorage.setItem('songwriting-progress-show-tooltip', 'true');
             
             if (nextProgress === 100) {
                 localStorage.setItem('songwriting-progress-confetti', 'true');
@@ -4394,6 +5278,22 @@ export default function CreatePage() {
                 triggerProgressBonus(activeNote.content, true);
                 setLastAwardedContent(activeNote.content);
             }
+            
+            // Collaborative contribution progress integration
+            if (isCollaborative && user) {
+                const percentages = calculateContributionsPercentage(activeNote);
+                const myCont = percentages[user.uid] || 0;
+                if (myCont > 0) {
+                    const bonusAmount = Math.max(1, Math.min(10, Math.round(myCont / 10)));
+                    const currentProgressStr = localStorage.getItem('songwriting-progress') || '35';
+                    let currentProgress = parseInt(currentProgressStr);
+                    const nextProgress = Math.min(100, currentProgress + bonusAmount);
+                    localStorage.setItem('songwriting-progress', nextProgress.toString());
+                    
+                    window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
+                }
+            }
+            
             setLastSavedContent(activeNote.content);
         }
     };
@@ -4941,12 +5841,8 @@ export default function CreatePage() {
         n.content.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // Filter notes based on folder and search state
-    const displayNotes = searchQuery !== '' 
-        ? filteredNotes 
-        : (activeFolderIdFilter 
-            ? filteredNotes.filter(n => n.folderId === activeFolderIdFilter)
-            : filteredNotes.filter(n => n.folderId === null));
+    // Filter notes based on search state (folders are removed)
+    const displayNotes = filteredNotes;
 
     const contentVal = activeNote ? activeNote.content : '';
     const activePhrases = getActivePhrases(activeNote);
@@ -5718,6 +6614,7 @@ export default function CreatePage() {
     return (
         <div className="w-full flex flex-col gap-0 md:gap-10 text-stone-900 font-sans min-h-[calc(100dvh-12rem)] pt-0 pb-10 md:py-2">
             
+            
             {/* Touch drag ghost overlay for mobile drag-and-drop */}
             {(() => {
                 const ghostLabel = draggedPhraseId
@@ -5732,6 +6629,7 @@ export default function CreatePage() {
             
             {/* 1. TYPING / WRITING CANVAS AREA (Top Panel) */}
             <div 
+                ref={writingCanvasRef}
                 id="writing-canvas"
                 onDoubleClick={(e) => {
                     if (!selectedNoteId) {
@@ -5775,6 +6673,8 @@ export default function CreatePage() {
                     canvasTouchStartRef.current = null;
                 }}
                 onDragOver={(e) => e.preventDefault()}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
                 onDrop={(e) => {
                     e.preventDefault();
                     
@@ -5809,19 +6709,25 @@ export default function CreatePage() {
                 className="bg-white border border-stone-200/60 shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative cursor-text justify-between w-full"
             >
                 {/* 1a. Canvas Header (Title and Ellipsis Menu) */}
-                <div className="w-full flex items-center justify-between gap-4 pb-4 border-b border-stone-200/40 select-none z-20">
+                <div 
+                    className="w-full flex items-center justify-between gap-4 pb-4 border-b border-stone-200/40 select-none z-20"
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                >
                     <div className="flex-1 flex items-center justify-start gap-4 group relative">
                         {/* Hidden measuring span for accurate dynamic input width */}
                         <span 
                             ref={titleMeasureRef} 
                             className="absolute opacity-0 pointer-events-none invisible whitespace-pre font-medium text-xl md:text-[22px] font-sans"
                         >
-                            {titleText || "Song and melody title"}
+                            {titleText || "Project name"}
                         </span>
                         <input
                             type="text"
                             value={isRecording ? recordingTitle : (activeNote ? activeNote.title : '')}
-                            placeholder="Song and melody title"
+                            placeholder="Project name"
+                            readOnly={isCanvasPreview}
                             onChange={(e) => {
                                 if (isRecording) {
                                     setRecordingTitle(e.target.value);
@@ -5833,7 +6739,7 @@ export default function CreatePage() {
                                         id: `n-${Date.now()}`,
                                         title: e.target.value,
                                         content: '',
-                                        folderId: activeFolderIdFilter,
+                                        folderId: null,
                                         updatedAt: new Date().toLocaleString(),
                                         isTitleLocked: true
                                     };
@@ -5857,104 +6763,333 @@ export default function CreatePage() {
                         </div>
                     </div>
                     
-                    {/* Ellipsis Dropdown Menu Options */}
-                    <div className="relative">
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setShowCanvasMenu(!showCanvasMenu);
-                            }}
-                            className="w-8 h-8 rounded-full hover:bg-stone-100/80 text-stone-500 hover:text-stone-800 flex items-center justify-center transition-all cursor-pointer active:scale-95"
-                            title="Options"
-                        >
-                            <MoreVertical size={18} />
-                        </button>
+                    {/* Collaborative Users Avatars & Share Button */}
+                    <div className="flex items-center gap-3 mr-1">
+                        {/* Collaborator Avatars */}
+                        {selectedNoteId && collaborators.length > 0 && (
+                            <div className="hidden sm:flex items-center -space-x-2">
+                                {collaborators.slice(0, 3).map((collabUid) => {
+                                    const profile = collaboratorProfiles[collabUid] || { name: 'Collaborator', email: '' };
+                                    const hash = collabUid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                                    const isActive = activeRemoteUsers[collabUid] !== undefined;
+                                    const color = isActive 
+                                        ? activeRemoteUsers[collabUid].color 
+                                        : COLLABORATOR_COLORS[hash % COLLABORATOR_COLORS.length];
 
-                        {showCanvasMenu && (
-                            <>
-                                <div className="fixed inset-0 z-30" onClick={() => setShowCanvasMenu(false)} />
-                                <div className="absolute right-0 mt-2 w-56 bg-white border border-stone-200/60 rounded-[20px] shadow-[0_6px_28px_rgba(0,0,0,0.08)] p-3.5 z-40 flex flex-col gap-2.5">
-                                    <div className="flex flex-col gap-1.5 pb-2 border-b border-stone-100">
-                                        <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Songwriting Helpers</span>
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setShowSyllables(!showSyllables);
+                                    return (
+                                        <div 
+                                            key={collabUid} 
+                                            className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] border-2 border-white capitalize select-none relative group/avatar ${
+                                                isActive ? 'ring-1 ring-emerald-500' : ''
+                                            }`}
+                                            style={{ 
+                                                backgroundColor: color,
+                                                color: (() => {
+                                                    const cleanColor = color.toUpperCase().replace('#', '');
+                                                    if (cleanColor.length === 6) {
+                                                        const r = parseInt(cleanColor.substring(0, 2), 16);
+                                                        const g = parseInt(cleanColor.substring(2, 4), 16);
+                                                        const b = parseInt(cleanColor.substring(4, 6), 16);
+                                                        const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+                                                        return luma > 0.65 ? '#1C1917' : '#FFFFFF';
+                                                    }
+                                                    return '#FFFFFF';
+                                                })()
                                             }}
-                                            className={`w-full px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors flex items-center justify-between cursor-pointer ${showSyllables ? 'bg-stone-900 text-white' : 'text-stone-700 bg-stone-50 hover:bg-stone-100'}`}
+                                            title={`${profile.name} (${isActive ? 'Active' : 'Offline'})`}
                                         >
-                                            <span>Syllable Counter</span>
-                                            <span className="text-[9px] font-bold uppercase">{showSyllables ? 'ON' : 'OFF'}</span>
-                                        </button>
-                                        
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setIsMetronomePlaying(!isMetronomePlaying);
-                                            }}
-                                            className={`w-full px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors flex items-center justify-between cursor-pointer ${isMetronomePlaying ? 'bg-[#44403c] text-white' : 'text-stone-700 bg-stone-50 hover:bg-stone-100'}`}
-                                        >
-                                            <span>Metronome</span>
-                                            <span className="text-[9px] font-bold uppercase">{isMetronomePlaying ? 'ON' : 'OFF'}</span>
-                                        </button>
-                                        
-                                        <div className="flex items-center justify-between px-1 mt-1">
-                                            <span className="text-[9px] text-stone-500 font-semibold">{metronomeBpm} BPM</span>
-                                            <div className="flex gap-1">
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setMetronomeBpm(b => Math.max(40, b - 5));
-                                                    }}
-                                                    className="w-4 h-4 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-[10px]"
-                                                >
-                                                    -
-                                                </button>
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setMetronomeBpm(b => Math.min(240, b + 5));
-                                                    }}
-                                                    className="w-4 h-4 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-[10px]"
-                                                >
-                                                    +
-                                                </button>
-                                            </div>
+                                            {profile.name[0]}
+                                            {isActive && (
+                                                <span className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-emerald-500 border border-white rounded-full" />
+                                            )}
                                         </div>
+                                    );
+                                })}
+                                {collaborators.length > 3 && (
+                                    <div className="w-7 h-7 rounded-full bg-stone-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-stone-500 select-none">
+                                        +{collaborators.length - 3}
                                     </div>
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleNewNoteClick();
-                                            setShowCanvasMenu(false);
-                                        }}
-                                        className="w-full px-3 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
-                                    >
-                                        New Note
-                                    </button>
-                                    {selectedNoteId && (
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteNote(selectedNoteId);
-                                                setShowCanvasMenu(false);
-                                            }}
-                                            className="w-full px-3 py-1.5 text-left text-xs font-semibold text-red-650 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
-                                        >
-                                            Delete Note
-                                        </button>
-                                    )}
-                                </div>
-                            </>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Yellow pending invitation badge */}
+                        {pendingInvites.length > 0 && (
+                            <div className="flex items-center gap-1.5 bg-yellow-400 text-stone-900 rounded-full pl-3.5 pr-2 py-1.5 text-xs font-sans font-semibold tracking-wide shadow-3xs shrink-0 animate-pulse">
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const firstInvite = pendingInvites[0];
+                                        setPreviewInviteId(firstInvite.id);
+                                        setSelectedNoteId(firstInvite.projectId);
+                                        setShowShareModal(false);
+                                    }}
+                                    className="flex items-center gap-1.5 text-stone-900 hover:text-stone-950 font-semibold cursor-pointer outline-none select-none text-left"
+                                >
+                                    <span className="w-1.5 h-1.5 bg-stone-900 rounded-full animate-ping shrink-0" />
+                                    <span>{pendingInvites[0].senderName || "Someone"} invited you</span>
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setConfirmCloseCollab({
+                                            isOpen: true,
+                                            type: 'decline_invite',
+                                            invite: pendingInvites[0]
+                                        });
+                                    }}
+                                    className="text-stone-900/60 hover:text-stone-900 p-0.5 rounded-full hover:bg-stone-900/10 transition-colors ml-1 cursor-pointer outline-none flex items-center justify-center shrink-0"
+                                    title="Decline invitation"
+                                >
+                                    <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Green active collaboration badge */}
+                        {selectedNoteId && (collaborators.length > 0 || (activeNote && activeNote.ownerId !== user?.uid)) && (
+                            <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/65 text-emerald-800 rounded-full pl-3.5 pr-2 py-1.5 text-xs font-sans font-semibold tracking-wide shadow-3xs shrink-0 select-none">
+                                <span className="relative flex h-1.5 w-1.5 shrink-0 mr-0.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                                </span>
+                                <span>
+                                    {activeNote && activeNote.ownerId !== user?.uid
+                                        ? `Co-writing with ${collaboratorProfiles[activeNote.ownerId]?.name || 'Owner'}`
+                                        : 'Co-writing'
+                                    }
+                                </span>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setConfirmCloseCollab({
+                                            isOpen: true,
+                                            type: 'close_collab',
+                                            projectId: selectedNoteId
+                                        });
+                                    }}
+                                    className="text-emerald-500/65 hover:text-emerald-800 p-0.5 rounded-full hover:bg-emerald-100 transition-colors ml-1 cursor-pointer outline-none flex items-center justify-center shrink-0"
+                                    title="End collaboration"
+                                >
+                                    <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Collaborate with Users Button */}
+                        {!isCanvasPreview && (
+                            <button 
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (!selectedNoteId) {
+                                        const newNoteId = `n-${Date.now()}`;
+                                        const newPhraseId = `p-${Math.random().toString(36).substring(2, 9)}`;
+                                        const timestamp = new Date().toLocaleString();
+                                        
+                                        const newNote: SongNote = {
+                                            id: newNoteId,
+                                            title: '',
+                                            content: '',
+                                            folderId: null,
+                                            updatedAt: timestamp,
+                                            phrases: [{
+                                                id: newPhraseId,
+                                                text: '',
+                                                groupId: null
+                                            }],
+                                            verses: []
+                                        };
+                                        setNotes(prev => [newNote, ...prev]);
+                                        setSelectedNoteId(newNoteId);
+                                        // Do not set editingPhraseId here so the canvas does not auto-activate/focus
+
+                                        if (user) {
+                                            const docRef = doc(db, "projects", newNoteId);
+                                            setDoc(docRef, {
+                                                ...newNote,
+                                                ownerId: user.uid,
+                                                collaborators: []
+                                            }).catch(err => console.error("Error creating project in Firestore:", err));
+                                        }
+                                    }
+                                    setShowShareModal(true);
+                                }}
+                                className="relative flex items-center gap-2 px-5 py-1.5 bg-stone-100/65 hover:bg-stone-200/50 text-stone-700 hover:text-stone-900 border border-stone-200/40 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs"
+                                title="Collaborate on this project"
+                            >
+                                <Users size={18} className="stroke-[1.6]" />
+                                <span>Collaborate</span>
+                            </button>
+                        )}
+
+                        {/* Inline "joined" pill — appears next to Collaborate button, auto-dismisses */}
+                        {acceptedNotifications.map((notif) => (
+                            <JoinedPill
+                                key={notif.id}
+                                name={notif.inviteeName || notif.inviteeEmail?.split('@')[0] || 'Someone'}
+                                onDismiss={() => handleDismissAcceptedNotification(notif.id)}
+                            />
+                        ))}
+                        {/* Ellipsis Dropdown Menu Options */}
+                        {!isCanvasPreview && (
+                            <div className="relative">
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowCanvasMenu(!showCanvasMenu);
+                                    }}
+                                    className="w-8 h-8 rounded-full hover:bg-stone-100/80 text-stone-500 hover:text-stone-800 flex items-center justify-center transition-all cursor-pointer active:scale-95"
+                                    title="Options"
+                                >
+                                    <MoreVertical size={18} />
+                                </button>
+
+                                {showCanvasMenu && (
+                                    <>
+                                        <div className="fixed inset-0 z-30" onClick={() => setShowCanvasMenu(false)} />
+                                        <div className="absolute right-0 mt-2 w-56 bg-white border border-stone-200/60 rounded-[20px] shadow-[0_6px_28px_rgba(0,0,0,0.08)] p-3.5 z-40 flex flex-col gap-2.5">
+                                            <div className="flex flex-col gap-1.5 pb-2 border-b border-stone-100">
+                                                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Songwriting Helpers</span>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setShowSyllables(!showSyllables);
+                                                    }}
+                                                    className={`w-full px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors flex items-center justify-between cursor-pointer ${showSyllables ? 'bg-stone-900 text-white' : 'text-stone-700 bg-stone-50 hover:bg-stone-100'}`}
+                                                >
+                                                    <span>Syllable Counter</span>
+                                                    <span className="text-[9px] font-bold uppercase">{showSyllables ? 'ON' : 'OFF'}</span>
+                                                </button>
+                                                
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsMetronomePlaying(!isMetronomePlaying);
+                                                    }}
+                                                    className={`w-full px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors flex items-center justify-between cursor-pointer ${isMetronomePlaying ? 'bg-[#44403c] text-white' : 'text-stone-700 bg-stone-50 hover:bg-stone-100'}`}
+                                                >
+                                                    <span>Metronome</span>
+                                                    <span className="text-[9px] font-bold uppercase">{isMetronomePlaying ? 'ON' : 'OFF'}</span>
+                                                </button>
+                                                
+                                                <div className="flex items-center justify-between px-1 mt-1">
+                                                    <span className="text-[9px] text-stone-500 font-semibold">{metronomeBpm} BPM</span>
+                                                    <div className="flex gap-1">
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setMetronomeBpm(b => Math.max(40, b - 5));
+                                                            }}
+                                                            className="w-4 h-4 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-[10px]"
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setMetronomeBpm(b => Math.min(240, b + 5));
+                                                            }}
+                                                            className="w-4 h-4 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-[10px]"
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleNewNoteClick();
+                                                    setShowCanvasMenu(false);
+                                                }}
+                                                className="w-full px-3 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                            >
+                                                New Note
+                                            </button>
+                                            {selectedNoteId && (
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteNote(selectedNoteId);
+                                                        setShowCanvasMenu(false);
+                                                    }}
+                                                    className="w-full px-3 py-1.5 text-left text-xs font-semibold text-red-650 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                >
+                                                    Delete Note
+                                                </button>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
-
                     <div className={`w-full flex-grow flex-1 flex flex-col z-10 py-6 relative ${
                         (isMobile && (editingPhraseId !== null || isFocused)) ? 'pb-16' : ''
                     }`}>
-                        {selectedNoteId ? (
-                            <div className="w-full flex flex-col gap-3 max-w-4xl mx-auto py-4 my-auto">
+                        {!isNoteBlank ? (
+                            <div className="w-full flex flex-col gap-3 max-w-4xl mx-auto py-4">
+                                {(() => {
+                                    const previewInvite = pendingInvites.find(inv => inv.id === previewInviteId);
+                                    if (!isCanvasPreview || !previewInvite) return null;
+                                    return (
+                                        <div className="w-full bg-white border border-stone-200 rounded-2xl px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm z-30 relative">
+                                            <div className="flex items-start gap-3">
+                                                {/* Live pulse indicator */}
+                                                <div className="flex items-center gap-1.5 mt-0.5 shrink-0">
+                                                    <span className="relative flex h-2 w-2">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                                                    </span>
+                                                    <span className="text-[10px] font-sans font-bold text-red-500 tracking-widest uppercase">Live</span>
+                                                </div>
+                                                <div className="text-left">
+                                                    <h4 className="text-sm font-sans font-semibold text-stone-800">
+                                                        <span className="font-semibold">{previewInvite.senderName}</span> is inviting you to co-write this project
+                                                    </h4>
+                                                    <p className="text-xs font-sans text-stone-400 mt-0.5">
+                                                        You&apos;re watching their canvas live. Every edit they make appears here in real-time. Accept to join, or decline to go back to your canvas.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        handleDeclineInvite(previewInvite);
+                                                        setSelectedNoteId(null);
+                                                    }}
+                                                    className="px-4 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-500 rounded-full text-xs font-sans font-semibold transition-colors cursor-pointer"
+                                                >
+                                                    Decline
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleAcceptInvite(previewInvite)}
+                                                    className="px-5 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-full text-xs font-sans font-semibold transition-colors cursor-pointer"
+                                                >
+                                                    Accept & Join
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                                {/* Read-only lock in preview mode — no blur, no tint, just blocks all interaction */}
+                                <div className={`relative ${isCanvasPreview ? 'select-none' : ''}`}>
+                                    {isCanvasPreview && (
+                                        <div
+                                            className="absolute inset-0 z-20"
+                                            style={{ pointerEvents: 'all', cursor: 'default' }}
+                                        />
+                                    )}
+                                    <div className={isCanvasPreview ? 'pointer-events-none' : ''}>
                                 {renderBlocks.length === 0 ? (
                                     <div 
                                         className="flex-grow flex-1 flex flex-col items-center justify-center py-16 text-stone-300/80 italic text-center select-none cursor-pointer text-lg font-light hover:text-stone-400 transition-colors"
@@ -6286,6 +7421,7 @@ export default function CreatePage() {
                                                                                         handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
                                                                                         draggedAudioId={draggedAudioId}
                                                                                         draggedAudioIdRef={draggedAudioIdRef}
+                                                                                        activeRemoteUsers={activeRemoteUsers}
                                                                                     />
                                                                                 </div>
                                                                             );
@@ -6513,6 +7649,7 @@ export default function CreatePage() {
                                                                     handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
                                                                     draggedAudioId={draggedAudioId}
                                                                     draggedAudioIdRef={draggedAudioIdRef}
+                                                                    activeRemoteUsers={activeRemoteUsers}
                                                                 />
                                                             </div>
                                                         );
@@ -6529,6 +7666,8 @@ export default function CreatePage() {
                                         );
                                     })
                                 )}
+                                    </div>
+                                </div>
 
                                 {isRecordingSaving && (
                                     <div className="flex justify-center w-full py-1.5 select-none z-20">
@@ -6779,6 +7918,63 @@ export default function CreatePage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Remote Collaborator Cursors Layer */}
+                {Object.keys(activeRemoteUsers).map((uid) => {
+                    const rUser = activeRemoteUsers[uid];
+                    if (!rUser.cursor) return null;
+                    const color = rUser.color;
+                    
+                    return (
+                        <div 
+                            key={uid}
+                            className="absolute pointer-events-none z-50 select-none transition-all duration-100 ease-out flex flex-col items-start"
+                            style={{ 
+                                left: `${rUser.cursor.x}%`, 
+                                top: `${rUser.cursor.y}%`,
+                                transform: 'translate(-5px, -6px)'
+                            }}
+                        >
+                            <svg 
+                                className="w-8 h-8 drop-shadow-[0_2px_4px_rgba(0,0,0,0.12)]"
+                                viewBox="0 0 134 134"
+                                fill="none"
+                            >
+                                <path 
+                                    d="M21.2375 23.4624C21.2375 12.8168 32.7622 6.16301 41.9815 11.4858L119.002 55.9536C129.653 62.103 127.579 78.0549 115.71 81.2766L75.1725 92.279C74.4705 92.4696 73.8309 92.8418 73.3179 93.3577L44.8724 121.964C36.1719 130.713 21.2373 124.551 21.2373 112.212L21.2375 23.4624Z" 
+                                    stroke="white" 
+                                    strokeWidth="9.6803"
+                                />
+                                <path 
+                                    d="M26.0776 24.6597C26.0776 17.2078 34.1446 12.5503 40.5981 16.2763L115.143 59.3147C122.598 63.6193 121.147 74.7852 112.838 77.0404L74.0838 87.5595C72.4453 88.0043 70.9525 88.8721 69.7553 90.0761L42.6222 117.362C36.5318 123.487 26.0776 119.174 26.0776 110.536L26.0776 24.6597Z" 
+                                    fill={color} 
+                                    stroke="black" 
+                                    strokeWidth="7.60595"
+                                />
+                            </svg>
+                            
+                            <div 
+                                className="mt-1.5 text-[13px] font-sans font-bold px-3.5 py-1 rounded-full shadow-2xs whitespace-nowrap select-none capitalize"
+                                style={{ 
+                                    backgroundColor: color,
+                                    color: (() => {
+                                        const cleanColor = color.toUpperCase().replace('#', '');
+                                        if (cleanColor.length === 6) {
+                                            const r = parseInt(cleanColor.substring(0, 2), 16);
+                                            const g = parseInt(cleanColor.substring(2, 4), 16);
+                                            const b = parseInt(cleanColor.substring(4, 6), 16);
+                                            const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+                                            return luma > 0.65 ? '#1C1917' : '#FFFFFF';
+                                        }
+                                        return '#FFFFFF';
+                                    })()
+                                }}
+                            >
+                                {rUser.name.split(' ')[0]}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             {/* 2. DIRECTORY GRID AREA (Bottom Section) */}
@@ -6787,65 +7983,16 @@ export default function CreatePage() {
                 {/* Header Controls & Navigation */}
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3 relative">
-                        {activeFolderIdFilter ? (
-                            <div className="flex items-center gap-2 text-[14px] font-bold text-stone-500">
-                                <button 
-                                    onClick={() => setActiveFolderIdFilter(null)}
-                                    onDragOver={handleDragOver}
-                                    onDragEnter={() => setIsDragOverRoot(true)}
-                                    onDragLeave={() => setIsDragOverRoot(false)}
-                                    onDrop={(e) => {
-                                        handleDropOnRoot(e);
-                                        setIsDragOverRoot(false);
-                                    }}
-                                    className={`transition-colors uppercase tracking-wider text-[11px] px-2 py-1 rounded-[8px] ${isDragOverRoot ? 'bg-stone-200 text-stone-800 border border-dashed border-stone-400' : 'hover:text-stone-800'}`}
-                                >
-                                    My folders and files
-                                </button>
-                                <span className="text-stone-300 font-normal">/</span>
-                                <span className="text-stone-800 font-bold">{folders.find(f => f.id === activeFolderIdFilter)?.name}</span>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-2.5">
-                                <h2 className="text-[15px] font-bold text-stone-550 uppercase tracking-wider">My folders and files</h2>
-                                <div className="relative">
-                                    <button 
-                                        onClick={() => setShowNewItemMenu(!showNewItemMenu)}
-                                        className="w-6 h-6 rounded-full bg-stone-300/40 hover:bg-stone-300/60 text-stone-600 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
-                                    >
-                                        <Plus size={12} />
-                                    </button>
-                                    
-                                    {showNewItemMenu && (
-                                        <>
-                                            <div className="fixed inset-0 z-10" onClick={() => setShowNewItemMenu(false)} />
-                                            <div className="absolute left-0 mt-2 w-40 bg-white border border-stone-200/60 rounded-[16px] shadow-[0_4px_24px_rgba(0,0,0,0.06)] z-20 overflow-hidden py-1">
-                                                <button 
-                                                    onClick={() => {
-                                                        handleCreateFolder();
-                                                        setShowNewItemMenu(false);
-                                                    }}
-                                                    className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
-                                                >
-                                                    <Folder size={12} className="text-stone-500" />
-                                                    New Folder
-                                                </button>
-                                                <button 
-                                                    onClick={() => {
-                                                        handleCreateNote(activeFolderIdFilter);
-                                                        setShowNewItemMenu(false);
-                                                    }}
-                                                    className="w-full px-4 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 cursor-pointer"
-                                                >
-                                                    <FileText size={12} className="text-stone-550" />
-                                                    New File
-                                                </button>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                        <div className="flex items-center gap-2.5">
+                            <h2 className="text-[15px] font-bold text-stone-550 uppercase tracking-wider">My Projects</h2>
+                            <button 
+                                onClick={() => handleCreateNote()}
+                                className="w-6 h-6 rounded-full bg-stone-300/40 hover:bg-stone-300/60 text-stone-600 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+                                title="Create new project"
+                            >
+                                <Plus size={12} />
+                            </button>
+                        </div>
                     </div>
                     
                     {/* Search Field */}
@@ -6863,52 +8010,6 @@ export default function CreatePage() {
 
                 {/* Combined Folders/Files Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-                    {/* Render Folders (Only on root view and not searching) */}
-                    {activeFolderIdFilter === null && searchQuery === '' && (
-                        folders.map(folder => {
-                            const count = notes.filter(n => n.folderId === folder.id).length;
-                            const isDragOverThis = dragOverFolderId === folder.id;
-                            
-                            return (
-                                <div 
-                                    key={folder.id}
-                                    onClick={() => setActiveFolderIdFilter(folder.id)}
-                                    onDragOver={handleDragOver}
-                                    onDragEnter={() => setDragOverFolderId(folder.id)}
-                                    onDragLeave={() => setDragOverFolderId(null)}
-                                    onDrop={(e) => {
-                                        handleDropOnFolder(e, folder.id);
-                                        setDragOverFolderId(null);
-                                    }}
-                                    className={`
-                                        group cursor-pointer flex flex-col gap-3 relative transition-all duration-300 rounded-[20px] md:rounded-[28px] p-2 md:p-4 -m-2 md:-m-4 border border-transparent
-                                        hover:bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:border-stone-200/40
-                                        ${isDragOverThis ? 'bg-white shadow-[0_8px_30px_rgba(0,0,0,0.06)] border-stone-400 scale-[1.03] ring-2 ring-stone-900/5' : ''}
-                                    `}
-                                >
-                                    <FolderIllustration folderId={folder.id} />
-                                    
-                                    <div className="flex flex-col gap-0.5 text-center mt-1">
-                                        <span className="font-bold text-[14px] text-stone-850 group-hover:text-stone-955 truncate transition-colors">
-                                            {folder.name}
-                                        </span>
-                                        <span className="text-[11px] text-stone-400 font-semibold">
-                                            {count} {count === 1 ? 'file' : 'files'}
-                                        </span>
-                                    </div>
-                                    
-                                    {/* Delete Folder */}
-                                    <button 
-                                        onClick={(e) => handleDeleteFolder(folder.id, e)}
-                                        className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-405 z-10 cursor-pointer"
-                                        title="Delete Folder"
-                                    >
-                                        <Trash2 size={12} />
-                                    </button>
-                                </div>
-                            );
-                        })
-                    )}
 
                     {/* Render Files / Notes */}
                     {displayNotes.map(note => {
@@ -6946,12 +8047,166 @@ export default function CreatePage() {
                     })}
 
                     {/* Empty States */}
-                    {displayNotes.length === 0 && (activeFolderIdFilter !== null || searchQuery !== '') && (
+                    {displayNotes.length === 0 && (
                         <div className="col-span-full text-center py-16 border border-stone-200 border-dashed rounded-[28px] bg-white/20">
-                            <p className="text-sm text-stone-400 italic">No notes found here.</p>
+                            <p className="text-sm text-stone-400 italic">No projects found. Click the + button to create a new project!</p>
                         </div>
                     )}
                 </div>
+            {/* Real-Time Collaboration Share Modal Overlay */}
+            {showShareModal && (
+                <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <form 
+                        onSubmit={handleInviteCollaborator}
+                        className="bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-8 animate-in zoom-in-95 duration-200 relative max-h-[90vh] overflow-y-auto no-scrollbar"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="text-3xl md:text-[38px] leading-[1.25] font-sans font-light text-stone-600 tracking-[-0.035em]">
+                            Invite someone to collaborate with you in this project
+                        </h3>
+
+                        {/* Pending Invites List */}
+                        {pendingInvites.length > 0 && (
+                            <div className="flex flex-col gap-3 pb-6 border-b border-stone-100">
+                                <h4 className="text-[14px] font-sans font-medium text-stone-400">Pending invites</h4>
+                                <div className="flex flex-col gap-2.5">
+                                    {pendingInvites.map(invite => (
+                                        <div key={invite.id} className="flex items-center justify-between bg-stone-50 p-4 rounded-xl border border-stone-150/40">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm text-stone-700 font-medium">{invite.senderName} invited you</span>
+                                                <span className="text-[10px] text-stone-400">to collaborate on {invite.projectTitle || "Project"}</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleAcceptInvite(invite)}
+                                                    className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-full transition-colors cursor-pointer"
+                                                >
+                                                    Accept
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeclineInvite(invite)}
+                                                    className="px-4 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-700 text-xs font-semibold rounded-full transition-colors cursor-pointer"
+                                                >
+                                                    Decline
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex flex-col gap-6">
+                            <input 
+                                type="email" 
+                                required
+                                placeholder="Enter collaborator email"
+                                value={inviteEmail}
+                                onChange={(e) => setInviteEmail(e.target.value)}
+                                className="w-full bg-stone-50 border border-stone-200 rounded-full px-6 py-4 text-[17px] font-sans font-medium outline-none focus:bg-white focus:border-stone-400 transition-all placeholder:text-stone-300"
+                            />
+
+                            <div className="flex items-center justify-end gap-3.5 mt-2">
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        setShowShareModal(false);
+                                        setInviteStatus({ type: '', message: '' });
+                                    }}
+                                    className="px-8 py-3 bg-stone-100/75 hover:bg-stone-200/50 text-stone-600 rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer"
+                                >
+                                    Close
+                                </button>
+                                <button 
+                                    type="submit"
+                                    disabled={isInviting}
+                                    className="px-8 py-3 bg-stone-900 hover:bg-stone-850 text-white rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                    {isInviting ? "Inviting..." : "Invite"}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Status Message */}
+                        {inviteStatus.message && (
+                            <p className={`text-xs font-semibold text-center -mt-2 px-1 ${
+                                inviteStatus.type === 'success' ? 'text-emerald-600' : 'text-red-600'
+                            }`}>
+                                {inviteStatus.message}
+                            </p>
+                        )}
+
+                        {/* Access/Collaborators List */}
+                        {selectedNoteId && (
+                            <div className="flex flex-col gap-3 pt-6 border-t border-stone-100">
+                                <h4 className="text-[14px] font-sans font-medium text-stone-400">Who's in?</h4>
+                                <div className="flex flex-wrap items-center gap-2 mt-1 max-h-36 overflow-y-auto no-scrollbar">
+                                    {/* Owner Tag */}
+                                    <div className="flex items-center gap-1.5 py-1.5 pr-3">
+                                        <span className="text-sm font-sans font-medium text-stone-700">
+                                            {activeNote?.ownerId === user?.uid ? "Me" : (collaboratorProfiles[activeNote?.ownerId || '']?.name || "Owner")}
+                                        </span>
+                                        <span className="text-[10px] text-stone-400 font-sans bg-stone-100/80 px-1.5 py-0.5 rounded-md font-medium">Owner</span>
+                                    </div>
+
+                                    {/* Collaborators Tags */}
+                                    {collaborators.map((collabUid) => {
+                                        const profile = collaboratorProfiles[collabUid] || { name: 'Collaborator', email: '' };
+                                        return (
+                                            <div key={collabUid} className="flex items-center gap-1.5 bg-stone-50 border border-stone-200/60 rounded-full px-4 py-1.5">
+                                                <span className="text-sm font-sans font-medium text-stone-700">{profile.name}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </form>
+                </div>
+            )}
+
+            {/* Confirmation dialog to close/end collaboration or decline invites */}
+            {confirmCloseCollab.isOpen && (
+                <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setConfirmCloseCollab({ isOpen: false, type: null })}>
+                    <div 
+                        className="bg-white rounded-[24px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="text-2xl font-sans font-light text-stone-700 tracking-[-0.025em] leading-[1.3]">
+                            Are you sure you want to close the collaboration?
+                        </h3>
+                        <p className="text-sm text-stone-500 leading-relaxed font-sans font-medium">
+                            {confirmCloseCollab.type === 'decline_invite'
+                                ? "This will decline the invitation and clean the project from your canvas."
+                                : "This will disconnect the project's real-time collaboration. If you are a collaborator, you will leave this project."
+                            }
+                        </p>
+                        <div className="flex items-center justify-center gap-4 mt-2">
+                            <button
+                                onClick={() => setConfirmCloseCollab({ isOpen: false, type: null })}
+                                className="px-6 py-2.5 bg-stone-100 hover:bg-stone-200/70 text-stone-600 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (confirmCloseCollab.type === 'decline_invite') {
+                                        await handleDeclineInvite(confirmCloseCollab.invite);
+                                        setConfirmCloseCollab({ isOpen: false, type: null });
+                                    } else if (confirmCloseCollab.type === 'close_collab' && confirmCloseCollab.projectId) {
+                                        await handleCloseCollaboration(confirmCloseCollab.projectId);
+                                    }
+                                }}
+                                className="px-6 py-2.5 bg-red-500 hover:bg-red-650 text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
+                            >
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             </div>
         </div>
     );
