@@ -36,6 +36,7 @@ import {
     ArrowLeft,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
     Sparkles,
     Coffee,
     Heart,
@@ -1809,6 +1810,9 @@ export default function CreatePage() {
 
     const [activeFolderIdFilter, setActiveFolderIdFilter] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isMyProjectsOpen, setIsMyProjectsOpen] = useState(false);
+    const [isCollabProjectsOpen, setIsCollabProjectsOpen] = useState(false);
+    const [projectViewStyle, setProjectViewStyle] = useState<'grid' | 'list'>('grid');
     const [showNewItemMenu, setShowNewItemMenu] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -1817,6 +1821,7 @@ export default function CreatePage() {
     const [isMobile, setIsMobile] = useState(false);
     const [lastAwardedContent, setLastAwardedContent] = useState<string>('');
     const [lastSavedContent, setLastSavedContent] = useState<string>('');
+    const [savedFlash, setSavedFlash] = useState(false); // Brief "Saved ✓" animation on SAVE button
 
     // Real-Time Collaboration States
     const [isCollaborative, setIsCollaborative] = useState(false);
@@ -1961,6 +1966,33 @@ export default function CreatePage() {
     const [isRecordingSaving, setIsRecordingSaving] = useState(false);
     const [transcribingAudioNoteId, setTranscribingAudioNoteId] = useState<string | null>(null);
     const [editingPhraseId, setEditingPhraseId] = useState<string | null>(null);
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [localTitleText, setLocalTitleText] = useState('');
+
+    useEffect(() => {
+        if (!isEditingTitle) {
+            const currentNote = notes.find(n => n.id === selectedNoteId);
+            setLocalTitleText(isRecording ? recordingTitle : (currentNote ? currentNote.title : ''));
+        }
+    }, [selectedNoteId, notes, isRecording, recordingTitle, isEditingTitle]);
+
+    // Auto-save project title when clicking anywhere outside the canvas header
+    useEffect(() => {
+        if (!isEditingTitle) return;
+        
+        const handleGlobalClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (target && !target.closest('#canvas-header')) {
+                handleSaveTitle();
+            }
+        };
+        
+        document.addEventListener('click', handleGlobalClick);
+        return () => {
+            document.removeEventListener('click', handleGlobalClick);
+        };
+    }, [isEditingTitle, localTitleText, selectedNoteId]);
+
     const [cursorSelectionOffset, setCursorSelectionOffset] = useState<{ phraseId: string; offset: number } | null>(null);
     const [draggedWord, setDraggedWord] = useState<{ word: string; phraseId: string; wordIndex: number } | null>(null);
     const [dragOverWordIndex, setDragOverWordIndex] = useState<{ phraseId: string; wordIndex: number; position: 'left' | 'right' } | null>(null);
@@ -2012,8 +2044,7 @@ export default function CreatePage() {
     const [scrollHeight, setScrollHeight] = useState(0);
     const [scrollTop, setScrollTop] = useState(0);
     const [clientHeight, setClientHeight] = useState(0);
-    const [titleWidth, setTitleWidth] = useState(240);
-    const titleMeasureRef = useRef<HTMLSpanElement>(null);
+
     const speechTranscriptRef = useRef<string>('');
     const speechTranscriptAccumulated = useRef<string>('');
     const speechTranscriptSession = useRef<string>('');
@@ -2439,6 +2470,7 @@ export default function CreatePage() {
         const unsub = onSnapshot(doc(db, "projects", selectedNoteId), (snapshot) => {
             if (snapshot.exists()) {
                 const data = snapshot.data();
+                setCollaborators(data.collaborators || []);
                 setNotes(prev => {
                     const existingNote = prev.find(n => n.id === selectedNoteId);
                     if (!existingNote) {
@@ -2737,6 +2769,7 @@ export default function CreatePage() {
                     return [{ ...noteData, id: invite.projectId, collaborators: currentCollaborators }, ...prev];
                 });
                 setSelectedNoteId(invite.projectId);
+                setShowShareModal(false);
             }
         } catch (err) {
             console.error("Error accepting invitation:", err);
@@ -2820,38 +2853,49 @@ export default function CreatePage() {
         }
     }, []);
 
-    // Real-time collaborator details loading hook
+    // Real-time collaborator details loading hook (using onSnapshot)
     useEffect(() => {
-        const loadCollaboratorDetails = async () => {
-            if (selectedNoteId && user) {
-                try {
-                    const projectDoc = await getDoc(doc(db, "projects", selectedNoteId));
-                    if (projectDoc.exists()) {
-                        const projData = projectDoc.data();
-                        setIsCollaborative(true);
-                        const collabList = projData.collaborators || [];
-                        setCollaborators(collabList);
-                        
-                        if (collabList.length > 0) {
-                            const profiles = await getCollaboratorProfiles(collabList);
-                            setCollaboratorProfiles(profiles);
-                        }
+        if (!selectedNoteId || !user) {
+            setIsCollaborative(false);
+            setCollaborators([]);
+            setCollaboratorProfiles({});
+            return;
+        }
+
+        const projectRef = doc(db, "projects", selectedNoteId);
+        const unsubscribe = onSnapshot(projectRef, async (docSnap) => {
+            if (docSnap.exists()) {
+                const projData = docSnap.data();
+                setIsCollaborative(true);
+                const collabList = projData.collaborators || [];
+                setCollaborators(collabList);
+                
+                // Fetch collaborator profiles if there are any
+                if (collabList.length > 0) {
+                    const profiles = await getCollaboratorProfiles(collabList);
+                    // Also fetch owner profile if the current user is a collaborator
+                    if (projData.ownerId && projData.ownerId !== user.uid) {
+                        const ownerProfile = await getCollaboratorProfiles([projData.ownerId]);
+                        setCollaboratorProfiles(prev => ({ ...prev, ...profiles, ...ownerProfile }));
                     } else {
-                        setIsCollaborative(false);
-                        setCollaborators([]);
-                        setCollaboratorProfiles({});
+                        setCollaboratorProfiles(prev => ({ ...prev, ...profiles }));
                     }
-                } catch (err) {
-                    console.error("Error loading collaborator details:", err);
+                } else if (projData.ownerId && projData.ownerId !== user.uid) {
+                    const ownerProfile = await getCollaboratorProfiles([projData.ownerId]);
+                    setCollaboratorProfiles(prev => ({ ...prev, ...ownerProfile }));
+                } else {
+                    setCollaboratorProfiles({});
                 }
             } else {
                 setIsCollaborative(false);
                 setCollaborators([]);
                 setCollaboratorProfiles({});
             }
-        };
+        }, (err) => {
+            console.error("Error listening to collaborator details:", err);
+        });
 
-        loadCollaboratorDetails();
+        return () => unsubscribe();
     }, [selectedNoteId, user]);
 
     const handleInviteCollaborator = async (e: React.FormEvent) => {
@@ -2918,7 +2962,13 @@ export default function CreatePage() {
     };
 
     const activeNote = notes.find(n => n.id === selectedNoteId) || null;
-    const isNoteBlank = !isCanvasPreview && (!selectedNoteId || (activeNote && activeNote.content.trim() === '' && (activeNote.title === '' || activeNote.title === 'Untitled Note' || activeNote.title === 'Project name')));
+    const isNoteBlank = !isCanvasPreview && (!selectedNoteId || (activeNote && activeNote.content.trim() === ''));
+    const activeNoteCollabList = activeNote?.collaborators || [];
+    const isActiveCollab = !!(selectedNoteId && (
+        collaborators.length > 0 || 
+        activeNoteCollabList.length > 0 || 
+        (activeNote && activeNote.ownerId && activeNote.ownerId !== user?.uid)
+    ));
 
     // Ensure we have a unified list of audio notes, migrating legacy audioUrl if needed
     const activeAudioNotes = activeNote 
@@ -4150,6 +4200,7 @@ export default function CreatePage() {
             content: '',
             folderId: user ? null : (folderId || activeFolderIdFilter),
             updatedAt: timestamp,
+            ownerId: user ? user.uid : undefined,
             phrases: [{
                 id: newPhraseId,
                 text: '',
@@ -4253,6 +4304,31 @@ export default function CreatePage() {
             }
             return n;
         }));
+    };
+
+    const handleSaveTitle = () => {
+        if (isRecording) {
+            setIsEditingTitle(false);
+            return;
+        }
+        if (selectedNoteId) {
+            handleUpdateNote(selectedNoteId, { title: localTitleText, isTitleLocked: true });
+        } else if (localTitleText.trim() !== '') {
+            // Auto-create a note if none is selected
+            const newNote: SongNote = {
+                id: `n-${Date.now()}`,
+                title: localTitleText,
+                content: '',
+                folderId: null,
+                updatedAt: new Date().toLocaleString(),
+                ownerId: user ? user.uid : undefined,
+                isTitleLocked: true
+            };
+            setNotes(prev => [newNote, ...prev]);
+            setSelectedNoteId(newNote.id);
+            setIsEditing(true);
+        }
+        setIsEditingTitle(false);
     };
 
     const handleRenameAudioNote = (noteId: string, audioNoteId: string, newTitle: string) => {
@@ -5164,7 +5240,7 @@ export default function CreatePage() {
             setIsEditing(true);
         } else {
             const active = notes.find(n => n.id === selectedNoteId);
-            const wasBlank = !active || (active.content.trim() === '' && (active.title === '' || active.title === 'Untitled Note' || active.title === 'Project name'));
+            const wasBlank = !active || (active.content.trim() === '');
             
             if (wasBlank && val.trim() !== '') {
                 const initialPhrases = syncPhrasesWithContent(val, []);
@@ -5273,6 +5349,10 @@ export default function CreatePage() {
             });
             setIsEditing(false); // Enter Suggestion Mode on Save
             
+            // Trigger brief "Saved ✓" flash on the button
+            setSavedFlash(true);
+            setTimeout(() => setSavedFlash(false), 1800);
+            
             // Progress bar and quotes trigger
             if (activeNote.content !== lastAwardedContent) {
                 triggerProgressBonus(activeNote.content, true);
@@ -5297,6 +5377,7 @@ export default function CreatePage() {
             setLastSavedContent(activeNote.content);
         }
     };
+
 
     const handleRevertChanges = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -5834,7 +5915,13 @@ export default function CreatePage() {
         }
     };
 
-    const notesFilteredByMode = notes;
+    const getNoteTime = (note: SongNote) => {
+        if (!note.updatedAt) return 0;
+        const parsed = Date.parse(note.updatedAt);
+        return isNaN(parsed) ? 0 : parsed;
+    };
+
+    const notesFilteredByMode = [...notes].sort((a, b) => getNoteTime(b) - getNoteTime(a));
 
     const filteredNotes = notesFilteredByMode.filter(n => 
         n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -5873,14 +5960,7 @@ export default function CreatePage() {
         currentTokenIndex += phraseTokens.length;
     }
 
-    const titleText = isRecording ? recordingTitle : (activeNote ? activeNote.title : '');
 
-    useEffect(() => {
-        if (titleMeasureRef.current) {
-            const width = titleMeasureRef.current.offsetWidth;
-            setTitleWidth(Math.min(550, Math.max(240, width + 20)));
-        }
-    }, [titleText, isDataLoaded]);
 
     const updateScrollbarInfo = () => {
         if (textareaRef.current) {
@@ -6609,6 +6689,85 @@ export default function CreatePage() {
         }
     };
 
+    const myProjects = displayNotes.filter(n => !n.ownerId || n.ownerId === user?.uid);
+    const collabProjects = displayNotes.filter(n => n.ownerId && n.ownerId !== user?.uid);
+
+    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (searchQuery.trim() !== '') {
+                const hasMyMatches = myProjects.length > 0;
+                const hasCollabMatches = collabProjects.length > 0;
+                setIsMyProjectsOpen(hasMyMatches);
+                setIsCollabProjectsOpen(hasCollabMatches);
+            }
+        }
+    };
+
+    const renderProjectCard = (note: SongNote) => {
+        const isSelected = selectedNoteId === note.id;
+        return (
+            <div 
+                key={note.id}
+                onClick={() => setSelectedNoteId(note.id)}
+                draggable
+                onDragStart={(e) => handleDragStart(e, note.id)}
+                className={`
+                    group cursor-pointer flex flex-col gap-4 relative transition-all duration-300 rounded-[24px] md:rounded-[32px] p-4 md:p-6 border border-transparent select-none min-h-[170px] justify-between
+                    hover:bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:border-stone-200/40 active:cursor-grabbing
+                    ${isSelected ? 'bg-white shadow-[0_8px_30px_rgba(0,0,0,0.03)] border-stone-200/40' : ''}
+                `}
+            >
+                <FileIllustration />
+                
+                <div className="flex flex-col gap-0.5 text-center mt-1">
+                    <span className="font-bold text-[14px] text-stone-800 group-hover:text-stone-955 truncate transition-colors">
+                        {note.title || 'Untitled Note'}
+                    </span>
+                </div>
+                
+                {/* Delete Note */}
+                <button 
+                    onClick={(e) => handleDeleteNote(note.id, e)}
+                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 z-10 cursor-pointer"
+                    title="Delete Note"
+                >
+                    <Trash2 size={12} />
+                </button>
+            </div>
+        );
+    };
+
+    const renderProjectListCard = (note: SongNote) => {
+        const isSelected = selectedNoteId === note.id;
+        return (
+            <div
+                key={note.id}
+                onClick={() => setSelectedNoteId(note.id)}
+                draggable
+                onDragStart={(e) => handleDragStart(e, note.id)}
+                className={`
+                    group cursor-pointer flex items-center justify-between px-6 py-4 rounded-[16px] border border-stone-200/10 transition-all duration-200 active:scale-[0.99] select-none
+                    ${isSelected ? 'bg-white shadow-[0_4px_15px_rgba(0,0,0,0.015)] border-stone-200/30' : 'bg-white/40 hover:bg-white/70 hover:border-stone-200/25'}
+                `}
+            >
+                <span className={`font-sans text-[14px] transition-colors truncate ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-850'}`}>
+                    {note.title || 'Untitled Note'}
+                </span>
+                
+                <div className="flex items-center gap-2 shrink-0">
+                    <button
+                        onClick={(e) => handleDeleteNote(note.id, e)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
+                        title="Delete Note"
+                    >
+                        <Trash2 size={13} />
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     if (!isMounted) return null;
 
     return (
@@ -6710,50 +6869,67 @@ export default function CreatePage() {
             >
                 {/* 1a. Canvas Header (Title and Ellipsis Menu) */}
                 <div 
-                    className="w-full flex items-center justify-between gap-4 pb-4 border-b border-stone-200/40 select-none z-20"
+                    id="canvas-header"
+                    className="w-full flex items-center justify-between gap-4 pb-4 border-b border-stone-200/40 select-none z-20 cursor-default"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
                     onDoubleClick={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
                     onTouchEnd={(e) => e.stopPropagation()}
                 >
-                    <div className="flex-1 flex items-center justify-start gap-4 group relative">
-                        {/* Hidden measuring span for accurate dynamic input width */}
-                        <span 
-                            ref={titleMeasureRef} 
-                            className="absolute opacity-0 pointer-events-none invisible whitespace-pre font-medium text-xl md:text-[22px] font-sans"
-                        >
-                            {titleText || "Project name"}
-                        </span>
+                    <div className="flex-1 min-w-0 flex items-center justify-start gap-3 md:gap-4 group relative">
                         <input
+                            key="project-title-input"
+                            id="project-title-input"
                             type="text"
-                            value={isRecording ? recordingTitle : (activeNote ? activeNote.title : '')}
+                            value={isRecording ? recordingTitle : (isEditingTitle ? localTitleText : (activeNote ? activeNote.title : ''))}
                             placeholder="Project name"
                             readOnly={isCanvasPreview}
+                            onFocus={() => {
+                                setIsEditingTitle(true);
+                                setLocalTitleText(activeNote ? activeNote.title : '');
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleSaveTitle();
+                                    e.currentTarget.blur();
+                                } else if (e.key === 'Escape') {
+                                    setLocalTitleText(activeNote ? activeNote.title : '');
+                                    setIsEditingTitle(false);
+                                    e.currentTarget.blur();
+                                }
+                            }}
                             onChange={(e) => {
                                 if (isRecording) {
                                     setRecordingTitle(e.target.value);
-                                } else if (selectedNoteId) {
-                                    handleUpdateNote(selectedNoteId, { title: e.target.value, isTitleLocked: true });
                                 } else {
-                                    // Auto-create a note if none is selected and user starts typing the title
-                                    const newNote: SongNote = {
-                                        id: `n-${Date.now()}`,
-                                        title: e.target.value,
-                                        content: '',
-                                        folderId: null,
-                                        updatedAt: new Date().toLocaleString(),
-                                        isTitleLocked: true
-                                    };
-                                    setNotes(prev => [newNote, ...prev]);
-                                    setSelectedNoteId(newNote.id);
-                                    setIsEditing(true);
+                                    setLocalTitleText(e.target.value);
                                 }
                             }}
-                            className="bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-500 placeholder:text-stone-300 focus:text-stone-855 transition-colors cursor-text select-text max-w-[45vw] sm:max-w-none"
+                            className="bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-500 placeholder:text-stone-300 focus:text-stone-855 transition-colors cursor-text select-text w-full min-w-0"
                             style={{
-                                width: `${titleWidth}px`
+                                maxWidth: isEditingTitle ? 'calc(100% - 150px)' : 'calc(100% - 80px)'
                             }}
                             onClick={(e) => e.stopPropagation()}
                         />
+                        {isEditingTitle && !isRecording && (
+                            <button
+                                type="button"
+                                onMouseDown={(e) => {
+                                    // Prevent input blur before click event fires
+                                    e.preventDefault();
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSaveTitle();
+                                }}
+                                className="w-8 h-8 bg-white border border-stone-200 shadow-[0_3px_12px_rgba(0,0,0,0.08)] rounded-full text-emerald-600 hover:text-emerald-700 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                                title="Save project name"
+                            >
+                                <Check size={16} className="stroke-[3px]" />
+                            </button>
+                        )}
                         <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 bg-stone-100 text-stone-600 border border-stone-200 rounded-full px-3 py-1 text-[11px] font-medium tracking-wide flex items-center gap-1.5 pointer-events-none shadow-3xs select-none shrink-0 ml-[1%]">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             <span>
@@ -6763,169 +6939,171 @@ export default function CreatePage() {
                         </div>
                     </div>
                     
-                    {/* Collaborative Users Avatars & Share Button */}
-                    <div className="flex items-center gap-3 mr-1">
-                        {/* Collaborator Avatars */}
-                        {selectedNoteId && collaborators.length > 0 && (
-                            <div className="hidden sm:flex items-center -space-x-2">
-                                {collaborators.slice(0, 3).map((collabUid) => {
-                                    const profile = collaboratorProfiles[collabUid] || { name: 'Collaborator', email: '' };
-                                    const hash = collabUid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                                    const isActive = activeRemoteUsers[collabUid] !== undefined;
-                                    const color = isActive 
-                                        ? activeRemoteUsers[collabUid].color 
-                                        : COLLABORATOR_COLORS[hash % COLLABORATOR_COLORS.length];
-
-                                    return (
-                                        <div 
-                                            key={collabUid} 
-                                            className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] border-2 border-white capitalize select-none relative group/avatar ${
-                                                isActive ? 'ring-1 ring-emerald-500' : ''
-                                            }`}
-                                            style={{ 
-                                                backgroundColor: color,
-                                                color: (() => {
-                                                    const cleanColor = color.toUpperCase().replace('#', '');
-                                                    if (cleanColor.length === 6) {
-                                                        const r = parseInt(cleanColor.substring(0, 2), 16);
-                                                        const g = parseInt(cleanColor.substring(2, 4), 16);
-                                                        const b = parseInt(cleanColor.substring(4, 6), 16);
-                                                        const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-                                                        return luma > 0.65 ? '#1C1917' : '#FFFFFF';
-                                                    }
-                                                    return '#FFFFFF';
-                                                })()
-                                            }}
-                                            title={`${profile.name} (${isActive ? 'Active' : 'Offline'})`}
-                                        >
-                                            {profile.name[0]}
-                                            {isActive && (
-                                                <span className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-emerald-500 border border-white rounded-full" />
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                                {collaborators.length > 3 && (
-                                    <div className="w-7 h-7 rounded-full bg-stone-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-stone-500 select-none">
-                                        +{collaborators.length - 3}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Yellow pending invitation badge */}
-                        {pendingInvites.length > 0 && (
-                            <div className="flex items-center gap-1.5 bg-yellow-400 text-stone-900 rounded-full pl-3.5 pr-2 py-1.5 text-xs font-sans font-semibold tracking-wide shadow-3xs shrink-0 animate-pulse">
+                    {/* Collaborative Users Share Button */}
+                    <div className="flex items-center gap-3 mr-1 shrink-0">
+                        {/* Unified Collab Button (Pending Invitation / Active / Passive States) */}
+                        {!isCanvasPreview && (
+                            pendingInvites.length > 0 ? (
                                 <button 
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        const firstInvite = pendingInvites[0];
-                                        setPreviewInviteId(firstInvite.id);
-                                        setSelectedNoteId(firstInvite.projectId);
-                                        setShowShareModal(false);
+                                        setShowShareModal(true);
                                     }}
-                                    className="flex items-center gap-1.5 text-stone-900 hover:text-stone-950 font-semibold cursor-pointer outline-none select-none text-left"
+                                    className="relative flex items-center gap-2 pl-3.5 pr-2.5 py-1.5 bg-yellow-400 border border-yellow-500 text-stone-900 hover:bg-yellow-500 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-pulse"
+                                    title="View incoming invitation"
                                 >
-                                    <span className="w-1.5 h-1.5 bg-stone-900 rounded-full animate-ping shrink-0" />
+                                    <span className="relative flex h-1.5 w-1.5 shrink-0 mr-0.5">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-stone-900 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-stone-900" />
+                                    </span>
                                     <span>{pendingInvites[0].senderName || "Someone"} invited you</span>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setConfirmCloseCollab({
+                                                isOpen: true,
+                                                type: 'decline_invite',
+                                                invite: pendingInvites[0]
+                                            });
+                                        }}
+                                        className="text-stone-900/60 hover:text-stone-950 p-0.5 rounded-full hover:bg-stone-900/10 transition-colors ml-1 cursor-pointer outline-none flex items-center justify-center shrink-0"
+                                        title="Decline invitation"
+                                    >
+                                        <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
                                 </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setConfirmCloseCollab({
-                                            isOpen: true,
-                                            type: 'decline_invite',
-                                            invite: pendingInvites[0]
-                                        });
-                                    }}
-                                    className="text-stone-900/60 hover:text-stone-900 p-0.5 rounded-full hover:bg-stone-900/10 transition-colors ml-1 cursor-pointer outline-none flex items-center justify-center shrink-0"
-                                    title="Decline invitation"
+                            ) : isActiveCollab ? (
+                                <button 
+                                    onClick={() => setShowShareModal(true)}
+                                    className="relative flex items-center gap-2 pl-3.5 pr-2.5 py-1.5 bg-emerald-50 border border-emerald-200/65 text-emerald-800 hover:bg-emerald-100/80 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs select-none shrink-0 animate-fade-in"
+                                    title="View collaboration details"
                                 >
-                                    <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                                    </svg>
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Green active collaboration badge */}
-                        {selectedNoteId && (collaborators.length > 0 || (activeNote && activeNote.ownerId !== user?.uid)) && (
-                            <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/65 text-emerald-800 rounded-full pl-3.5 pr-2 py-1.5 text-xs font-sans font-semibold tracking-wide shadow-3xs shrink-0 select-none">
-                                <span className="relative flex h-1.5 w-1.5 shrink-0 mr-0.5">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-                                </span>
-                                <span>
-                                    {activeNote && activeNote.ownerId !== user?.uid
-                                        ? `Co-writing with ${collaboratorProfiles[activeNote.ownerId]?.name || 'Owner'}`
-                                        : 'Co-writing'
-                                    }
-                                </span>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setConfirmCloseCollab({
-                                            isOpen: true,
-                                            type: 'close_collab',
-                                            projectId: selectedNoteId
-                                        });
-                                    }}
-                                    className="text-emerald-500/65 hover:text-emerald-800 p-0.5 rounded-full hover:bg-emerald-100 transition-colors ml-1 cursor-pointer outline-none flex items-center justify-center shrink-0"
-                                    title="End collaboration"
-                                >
-                                    <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                                    </svg>
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Collaborate with Users Button */}
-                        {!isCanvasPreview && (
-                            <button 
-                                onClick={async (e) => {
-                                    e.stopPropagation();
-                                    if (!selectedNoteId) {
-                                        const newNoteId = `n-${Date.now()}`;
-                                        const newPhraseId = `p-${Math.random().toString(36).substring(2, 9)}`;
-                                        const timestamp = new Date().toLocaleString();
-                                        
-                                        const newNote: SongNote = {
-                                            id: newNoteId,
-                                            title: '',
-                                            content: '',
-                                            folderId: null,
-                                            updatedAt: timestamp,
-                                            phrases: [{
-                                                id: newPhraseId,
-                                                text: '',
-                                                groupId: null
-                                            }],
-                                            verses: []
-                                        };
-                                        setNotes(prev => [newNote, ...prev]);
-                                        setSelectedNoteId(newNoteId);
-                                        // Do not set editingPhraseId here so the canvas does not auto-activate/focus
-
-                                        if (user) {
-                                            const docRef = doc(db, "projects", newNoteId);
-                                            setDoc(docRef, {
-                                                ...newNote,
-                                                ownerId: user.uid,
-                                                collaborators: []
-                                            }).catch(err => console.error("Error creating project in Firestore:", err));
+                                    <span className="relative flex h-1.5 w-1.5 shrink-0 mr-0.5">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                                    </span>
+                                    <span>
+                                        {activeNote && activeNote.ownerId && activeNote.ownerId !== user?.uid
+                                            ? `Co-writing with ${collaboratorProfiles[activeNote.ownerId]?.name || 'Owner'}`
+                                            : (collaborators.length > 0
+                                                ? `Co-writing with ${collaboratorProfiles[collaborators[0]]?.name || 'Collaborator'}${collaborators.length > 1 ? ` & ${collaborators.length - 1} others` : ''}`
+                                                : 'Co-writing'
+                                            )
                                         }
-                                    }
-                                    setShowShareModal(true);
-                                }}
-                                className="relative flex items-center gap-2 px-5 py-1.5 bg-stone-100/65 hover:bg-stone-200/50 text-stone-700 hover:text-stone-900 border border-stone-200/40 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs"
-                                title="Collaborate on this project"
-                            >
-                                <Users size={18} className="stroke-[1.6]" />
-                                <span>Collaborate</span>
-                            </button>
+                                    </span>
+                                    
+                                    {/* Collaborator Avatars inline inside button */}
+                                    {collaborators.length > 0 && (
+                                        <div className="flex items-center -space-x-1.5 ml-1 mr-0.5">
+                                            {collaborators.slice(0, 3).map((collabUid) => {
+                                                const profile = collaboratorProfiles[collabUid] || { name: 'Collaborator', email: '' };
+                                                const hash = collabUid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                                                const isUserActive = activeRemoteUsers[collabUid] !== undefined;
+                                                const color = isUserActive 
+                                                    ? activeRemoteUsers[collabUid].color 
+                                                    : COLLABORATOR_COLORS[hash % COLLABORATOR_COLORS.length];
+
+                                                return (
+                                                    <div 
+                                                        key={collabUid} 
+                                                        className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] border border-emerald-50 capitalize select-none relative shrink-0 ${
+                                                            isUserActive ? 'ring-[1px] ring-emerald-500/50' : ''
+                                                        }`}
+                                                        style={{ 
+                                                            backgroundColor: color,
+                                                            color: (() => {
+                                                                const cleanColor = color.toUpperCase().replace('#', '');
+                                                                if (cleanColor.length === 6) {
+                                                                    const r = parseInt(cleanColor.substring(0, 2), 16);
+                                                                    const g = parseInt(cleanColor.substring(2, 4), 16);
+                                                                    const b = parseInt(cleanColor.substring(4, 6), 16);
+                                                                    const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+                                                                    return luma > 0.65 ? '#1C1917' : '#FFFFFF';
+                                                                }
+                                                                return '#FFFFFF';
+                                                            })()
+                                                        }}
+                                                        title={`${profile.name} (${isUserActive ? 'Active' : 'Offline'})`}
+                                                    >
+                                                        {profile.name[0]}
+                                                    </div>
+                                                );
+                                            })}
+                                            {collaborators.length > 3 && (
+                                                <div className="w-6 h-6 rounded-full bg-emerald-100 border border-emerald-50 flex items-center justify-center text-[8px] font-bold text-emerald-800 select-none shrink-0">
+                                                    +{collaborators.length - 3}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setConfirmCloseCollab({
+                                                isOpen: true,
+                                                type: 'close_collab',
+                                                projectId: selectedNoteId
+                                            });
+                                        }}
+                                        className="text-emerald-500/65 hover:text-emerald-850 p-0.5 rounded-full hover:bg-emerald-100 transition-colors ml-1 cursor-pointer outline-none flex items-center justify-center shrink-0"
+                                        title="End collaboration"
+                                    >
+                                        <svg className="w-3 h-3 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
+                                </button>
+                            ) : (
+                                <button 
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (!selectedNoteId) {
+                                            const newNoteId = `n-${Date.now()}`;
+                                            const newPhraseId = `p-${Math.random().toString(36).substring(2, 9)}`;
+                                            const timestamp = new Date().toLocaleString();
+                                            
+                                            const newNote: SongNote = {
+                                                id: newNoteId,
+                                                title: '',
+                                                content: '',
+                                                folderId: null,
+                                                updatedAt: timestamp,
+                                                ownerId: user ? user.uid : undefined,
+                                                phrases: [{
+                                                    id: newPhraseId,
+                                                    text: '',
+                                                    groupId: null
+                                                }],
+                                                verses: []
+                                            };
+                                            setNotes(prev => [newNote, ...prev]);
+                                            setSelectedNoteId(newNoteId);
+                                            
+                                            if (user) {
+                                                const docRef = doc(db, "projects", newNoteId);
+                                                setDoc(docRef, {
+                                                    ...newNote,
+                                                    ownerId: user.uid,
+                                                    collaborators: []
+                                                }).catch(err => console.error("Error creating project in Firestore:", err));
+                                            }
+                                        }
+                                        setShowShareModal(true);
+                                    }}
+                                    className="relative flex items-center gap-2 px-5 py-1.5 bg-stone-100/65 hover:bg-stone-200/50 text-stone-700 hover:text-stone-900 border border-stone-200/40 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in"
+                                    title="Collaborate on this project"
+                                >
+                                    <Users size={18} className="stroke-[1.6]" />
+                                    <span>Collab</span>
+                                </button>
+                            )
                         )}
 
                         {/* Inline "joined" pill — appears next to Collaborate button, auto-dismisses */}
@@ -6953,62 +7131,14 @@ export default function CreatePage() {
                                 {showCanvasMenu && (
                                     <>
                                         <div className="fixed inset-0 z-30" onClick={() => setShowCanvasMenu(false)} />
-                                        <div className="absolute right-0 mt-2 w-56 bg-white border border-stone-200/60 rounded-[20px] shadow-[0_6px_28px_rgba(0,0,0,0.08)] p-3.5 z-40 flex flex-col gap-2.5">
-                                            <div className="flex flex-col gap-1.5 pb-2 border-b border-stone-100">
-                                                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Songwriting Helpers</span>
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setShowSyllables(!showSyllables);
-                                                    }}
-                                                    className={`w-full px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors flex items-center justify-between cursor-pointer ${showSyllables ? 'bg-stone-900 text-white' : 'text-stone-700 bg-stone-50 hover:bg-stone-100'}`}
-                                                >
-                                                    <span>Syllable Counter</span>
-                                                    <span className="text-[9px] font-bold uppercase">{showSyllables ? 'ON' : 'OFF'}</span>
-                                                </button>
-                                                
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setIsMetronomePlaying(!isMetronomePlaying);
-                                                    }}
-                                                    className={`w-full px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors flex items-center justify-between cursor-pointer ${isMetronomePlaying ? 'bg-[#44403c] text-white' : 'text-stone-700 bg-stone-50 hover:bg-stone-100'}`}
-                                                >
-                                                    <span>Metronome</span>
-                                                    <span className="text-[9px] font-bold uppercase">{isMetronomePlaying ? 'ON' : 'OFF'}</span>
-                                                </button>
-                                                
-                                                <div className="flex items-center justify-between px-1 mt-1">
-                                                    <span className="text-[9px] text-stone-500 font-semibold">{metronomeBpm} BPM</span>
-                                                    <div className="flex gap-1">
-                                                        <button 
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setMetronomeBpm(b => Math.max(40, b - 5));
-                                                            }}
-                                                            className="w-4 h-4 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-[10px]"
-                                                        >
-                                                            -
-                                                        </button>
-                                                        <button 
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setMetronomeBpm(b => Math.min(240, b + 5));
-                                                            }}
-                                                            className="w-4 h-4 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-[10px]"
-                                                        >
-                                                            +
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <div className="absolute right-0 mt-2 w-48 bg-white border border-stone-200/60 rounded-[20px] shadow-[0_6px_28px_rgba(0,0,0,0.08)] p-3 z-40 flex flex-col gap-2">
                                             <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handleNewNoteClick();
                                                     setShowCanvasMenu(false);
                                                 }}
-                                                className="w-full px-3 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                             >
                                                 New Note
                                             </button>
@@ -7019,7 +7149,7 @@ export default function CreatePage() {
                                                         handleDeleteNote(selectedNoteId);
                                                         setShowCanvasMenu(false);
                                                     }}
-                                                    className="w-full px-3 py-1.5 text-left text-xs font-semibold text-red-650 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                    className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-red-650 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                                 >
                                                     Delete Note
                                                 </button>
@@ -7036,51 +7166,7 @@ export default function CreatePage() {
                     }`}>
                         {!isNoteBlank ? (
                             <div className="w-full flex flex-col gap-3 max-w-4xl mx-auto py-4">
-                                {(() => {
-                                    const previewInvite = pendingInvites.find(inv => inv.id === previewInviteId);
-                                    if (!isCanvasPreview || !previewInvite) return null;
-                                    return (
-                                        <div className="w-full bg-white border border-stone-200 rounded-2xl px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm z-30 relative">
-                                            <div className="flex items-start gap-3">
-                                                {/* Live pulse indicator */}
-                                                <div className="flex items-center gap-1.5 mt-0.5 shrink-0">
-                                                    <span className="relative flex h-2 w-2">
-                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-                                                    </span>
-                                                    <span className="text-[10px] font-sans font-bold text-red-500 tracking-widest uppercase">Live</span>
-                                                </div>
-                                                <div className="text-left">
-                                                    <h4 className="text-sm font-sans font-semibold text-stone-800">
-                                                        <span className="font-semibold">{previewInvite.senderName}</span> is inviting you to co-write this project
-                                                    </h4>
-                                                    <p className="text-xs font-sans text-stone-400 mt-0.5">
-                                                        You&apos;re watching their canvas live. Every edit they make appears here in real-time. Accept to join, or decline to go back to your canvas.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        handleDeclineInvite(previewInvite);
-                                                        setSelectedNoteId(null);
-                                                    }}
-                                                    className="px-4 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-500 rounded-full text-xs font-sans font-semibold transition-colors cursor-pointer"
-                                                >
-                                                    Decline
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleAcceptInvite(previewInvite)}
-                                                    className="px-5 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-full text-xs font-sans font-semibold transition-colors cursor-pointer"
-                                                >
-                                                    Accept & Join
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
+
                                 {/* Read-only lock in preview mode — no blur, no tint, just blocks all interaction */}
                                 <div className={`relative ${isCanvasPreview ? 'select-none' : ''}`}>
                                     {isCanvasPreview && (
@@ -7823,7 +7909,7 @@ export default function CreatePage() {
                     {/* Right Side: Button Row (✓ SAVE, REC, Tools, Inspiration) */}
                     <div className="flex items-center gap-3">
                         {/* Revert adjustments button (placed outside the capsule for clean alignment) */}
-                        {activeNote && activeNote.content !== lastSavedContent && (
+                        {activeNote && activeNote.content !== lastSavedContent && !isActiveCollab && (
                             <button
                                 onClick={handleRevertChanges}
                                 className="text-stone-400 hover:text-stone-700 hover:bg-stone-100 p-2 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center"
@@ -7835,14 +7921,22 @@ export default function CreatePage() {
 
                         {/* Primary actions capsule */}
                         <div className="flex items-center gap-2.5 bg-white border border-stone-200/60 p-2 rounded-full shadow-[0_12px_36px_rgba(0,0,0,0.06)] w-fit pointer-events-auto">
-                            {/* ✓ SAVE button */}
-                            {activeNote && activeNote.content !== lastSavedContent && (
+                            {/* ✓ SAVE button — always visible during active collab, otherwise only when content differs */}
+                            {activeNote && (activeNote.content !== lastSavedContent || isActiveCollab) && (
                                 <button
                                     onClick={handleCheckmarkSaveClick}
-                                    className="h-10 px-5 flex items-center gap-2 rounded-full border border-stone-200/50 bg-white font-sans font-extrabold text-xs uppercase tracking-wider text-[#1EB239] hover:bg-stone-50 transition-all duration-150 cursor-pointer active:scale-95 shadow-3xs"
+                                    disabled={savedFlash}
+                                    className={`h-10 px-5 flex items-center gap-2 rounded-full border font-sans font-extrabold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 shadow-3xs select-none ${
+                                        savedFlash
+                                            ? 'border-emerald-300 bg-emerald-50 text-emerald-600 scale-95'
+                                            : isActiveCollab && activeNote.content === lastSavedContent
+                                                ? 'border-stone-200/50 bg-white text-stone-400 hover:text-emerald-600 hover:bg-stone-50'
+                                                : 'border-stone-200/50 bg-white text-[#1EB239] hover:bg-stone-50'
+                                    }`}
+                                    title={isActiveCollab ? 'Save to Collab Projects' : 'Save'}
                                 >
                                     <Check size={14} className="stroke-[3]" />
-                                    <span>SAVE</span>
+                                    <span>{savedFlash ? 'Saved ✓' : isActiveCollab ? 'SAVE' : 'SAVE'}</span>
                                 </button>
                             )}
 
@@ -7978,13 +8072,13 @@ export default function CreatePage() {
             </div>
 
             {/* 2. DIRECTORY GRID AREA (Bottom Section) */}
-            <div className="space-y-6 mt-6 px-4 md:px-0">
+            <div className="space-y-8 mt-6 px-4 md:px-0">
                 
                 {/* Header Controls & Navigation */}
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3 relative">
                         <div className="flex items-center gap-2.5">
-                            <h2 className="text-[15px] font-bold text-stone-550 uppercase tracking-wider">My Projects</h2>
+                            <h2 className="text-[15px] font-bold text-stone-550 uppercase tracking-wider">Workspace</h2>
                             <button 
                                 onClick={() => handleCreateNote()}
                                 className="w-6 h-6 rounded-full bg-stone-300/40 hover:bg-stone-300/60 text-stone-600 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
@@ -7995,64 +8089,158 @@ export default function CreatePage() {
                         </div>
                     </div>
                     
-                    {/* Search Field */}
-                    <div className="flex items-center gap-2 bg-white/40 border border-stone-250/25 px-3.5 py-1.5 rounded-[12px] text-stone-750 w-44 focus-within:w-56 focus-within:bg-white focus-within:border-stone-355 transition-all duration-300">
-                        <Search size={12} className="text-stone-400" />
-                        <input 
-                            type="text" 
-                            placeholder="Search workspace..." 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-transparent border-none outline-none w-full text-xs font-sans placeholder:text-stone-400 font-medium"
-                        />
+                    {/* View Style & Search Capsule */}
+                    <div className="flex items-center gap-4">
+                        {/* Grid / List Style Toggle */}
+                        <div className="flex items-center bg-stone-100 p-0.5 rounded-full border border-stone-200/40 select-none">
+                            <button
+                                type="button"
+                                onClick={() => setProjectViewStyle('grid')}
+                                className={`px-2.5 py-1 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                                    projectViewStyle === 'grid'
+                                        ? 'bg-white shadow-3xs text-stone-800'
+                                        : 'text-stone-400 hover:text-stone-600'
+                                }`}
+                                title="Grid View"
+                            >
+                                <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="14" width="7" height="7"></rect>
+                                    <rect x="3" y="14" width="7" height="7"></rect>
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setProjectViewStyle('list')}
+                                className={`px-2.5 py-1 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                                    projectViewStyle === 'list'
+                                        ? 'bg-white shadow-3xs text-stone-800'
+                                        : 'text-stone-400 hover:text-stone-600'
+                                }`}
+                                title="List View"
+                            >
+                                <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Search Field */}
+                        <div className="flex items-center gap-2 bg-white/40 border border-stone-250/25 px-3.5 py-1.5 rounded-[12px] text-stone-750 w-44 focus-within:w-56 focus-within:bg-white focus-within:border-stone-355 transition-all duration-300">
+                            <Search size={12} className="text-stone-400" />
+                            <input 
+                                type="text" 
+                                placeholder="Search workspace..." 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={handleSearchKeyDown}
+                                className="bg-transparent border-none outline-none w-full text-xs font-sans placeholder:text-stone-400 font-medium"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div className="flex flex-col gap-6">
+                    {/* Category 1: Collaboration Projects */}
+                    <div className={`transition-all duration-300 rounded-[24px] ${
+                        isCollabProjectsOpen 
+                            ? 'bg-stone-200/20 border border-stone-250/20 py-3 px-5 md:py-4 md:px-6 min-h-[300px] flex flex-col' 
+                            : 'bg-transparent'
+                    }`}>
+                        <button 
+                            type="button"
+                            onClick={() => setIsCollabProjectsOpen(!isCollabProjectsOpen)}
+                            className={`w-full flex items-center justify-between px-6 py-6 md:py-8 rounded-[24px] transition-all duration-300 group cursor-pointer outline-none select-none text-stone-855 ${
+                                isCollabProjectsOpen 
+                                    ? 'bg-transparent border border-transparent' 
+                                    : 'bg-transparent border border-stone-250/20 hover:bg-stone-200/30'
+                            }`}
+                        >
+                            <span className="font-sans font-light text-xl md:text-[22px] tracking-tight">Collab Projects</span>
+                            <span className={`transform transition-transform duration-300 ease-in-out ${isCollabProjectsOpen ? 'rotate-180' : 'rotate-0'} flex items-center justify-center text-stone-400 group-hover:text-stone-600`}>
+                                <ChevronDown size={20} />
+                            </span>
+                        </button>
+                        
+                        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
+                            isCollabProjectsOpen 
+                                ? 'max-h-[1000px] opacity-100 mt-4 px-4 pb-4 md:pb-6 flex-1 flex flex-col' 
+                                : 'max-h-0 opacity-0 pointer-events-none'
+                        }`}>
+                            {collabProjects.length === 0 ? (
+                                <div className="text-center py-16 border border-stone-200/50 border-dashed rounded-[24px] bg-white/10 select-none flex-1 flex flex-col items-center justify-center min-h-[180px]">
+                                    <p className="text-xs text-stone-400 italic">No collab projects found.</p>
+                                </div>
+                            ) : (
+                                projectViewStyle === 'grid' ? (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 p-1">
+                                        {collabProjects.map(renderProjectCard)}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-2.5 w-full">
+                                        {collabProjects.map(renderProjectListCard)}
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Category 2: My Projects */}
+                    <div className={`transition-all duration-300 rounded-[24px] ${
+                        isMyProjectsOpen 
+                            ? 'bg-stone-200/20 border border-stone-250/20 py-3 px-5 md:py-4 md:px-6 min-h-[300px] flex flex-col' 
+                            : 'bg-transparent'
+                    }`}>
+                        <button 
+                            type="button"
+                            onClick={() => setIsMyProjectsOpen(!isMyProjectsOpen)}
+                            className={`w-full flex items-center justify-between px-6 py-6 md:py-8 rounded-[24px] transition-all duration-300 group cursor-pointer outline-none select-none text-stone-855 ${
+                                isMyProjectsOpen 
+                                    ? 'bg-transparent border border-transparent' 
+                                    : 'bg-transparent border border-stone-250/20 hover:bg-stone-200/30'
+                            }`}
+                        >
+                            <span className="font-sans font-light text-xl md:text-[22px] tracking-tight">My Projects</span>
+                            <span className={`transform transition-transform duration-300 ease-in-out ${isMyProjectsOpen ? 'rotate-180' : 'rotate-0'} flex items-center justify-center text-stone-400 group-hover:text-stone-600`}>
+                                <ChevronDown size={20} />
+                            </span>
+                        </button>
+                        
+                        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
+                            isMyProjectsOpen 
+                                ? 'max-h-[2000px] opacity-100 mt-4 px-4 pb-4 md:pb-6 flex-1 flex flex-col' 
+                                : 'max-h-0 opacity-0 pointer-events-none'
+                        }`}>
+                            {myProjects.length === 0 ? (
+                                <div className="text-center py-16 border border-stone-200/50 border-dashed rounded-[24px] bg-white/10 select-none flex-1 flex flex-col items-center justify-center min-h-[180px]">
+                                    <p className="text-xs text-stone-400 italic">No personal projects found.</p>
+                                </div>
+                            ) : (
+                                projectViewStyle === 'grid' ? (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 p-1">
+                                        {myProjects.map(renderProjectCard)}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-2.5 w-full">
+                                        {myProjects.map(renderProjectListCard)}
+                                    </div>
+                                )
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Combined Folders/Files Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-
-                    {/* Render Files / Notes */}
-                    {displayNotes.map(note => {
-                        const isSelected = selectedNoteId === note.id;
-                        return (
-                            <div 
-                                key={note.id}
-                                onClick={() => setSelectedNoteId(note.id)}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, note.id)}
-                                className={`
-                                    group cursor-pointer flex flex-col gap-3 relative transition-all duration-300 rounded-[20px] md:rounded-[28px] p-2 md:p-4 -m-2 md:-m-4 border border-transparent
-                                    hover:bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:border-stone-200/40 active:cursor-grabbing
-                                    ${isSelected ? 'bg-white shadow-[0_8px_30px_rgba(0,0,0,0.03)] border-stone-200/40' : ''}
-                                `}
-                            >
-                                <FileIllustration />
-                                
-                                <div className="flex flex-col gap-0.5 text-center mt-1">
-                                    <span className="font-bold text-[14px] text-stone-800 group-hover:text-stone-955 truncate transition-colors">
-                                        {note.title || 'Untitled Note'}
-                                    </span>
-                                </div>
-                                
-                                {/* Delete Note */}
-                                <button 
-                                    onClick={(e) => handleDeleteNote(note.id, e)}
-                                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-405 z-10 cursor-pointer"
-                                    title="Delete Note"
-                                >
-                                    <Trash2 size={12} />
-                                </button>
-                            </div>
-                        );
-                    })}
-
-                    {/* Empty States */}
-                    {displayNotes.length === 0 && (
-                        <div className="col-span-full text-center py-16 border border-stone-200 border-dashed rounded-[28px] bg-white/20">
-                            <p className="text-sm text-stone-400 italic">No projects found. Click the + button to create a new project!</p>
-                        </div>
-                    )}
-                </div>
+                {/* Combined Empty State when both lists are empty */}
+                {myProjects.length === 0 && collabProjects.length === 0 && (
+                    <div className="text-center py-16 border border-stone-200 border-dashed rounded-[28px] bg-white/20 select-none">
+                        <p className="text-sm text-stone-400 italic">No projects found. Click the + button to create a new project!</p>
+                    </div>
+                )}
             {/* Real-Time Collaboration Share Modal Overlay */}
             {showShareModal && (
                 <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
