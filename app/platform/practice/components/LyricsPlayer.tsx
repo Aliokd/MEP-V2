@@ -37,6 +37,22 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
         setSelectedBlockIdx(null);
     }, [song.id, song.lyrics]);
 
+    // Track song completion when all slots are correctly matched
+    useEffect(() => {
+        if (!song || !song.lyrics || song.lyrics.length === 0) return;
+        
+        // Check if all slots have correct assignments
+        const correctCount = song.lyrics.filter((_, idx) => assignments[idx] === idx).length;
+        if (correctCount === song.lyrics.length) {
+            const completedPractices = JSON.parse(localStorage.getItem('mep-completed-practices') || '[]');
+            if (!completedPractices.includes(song.id)) {
+                completedPractices.push(song.id);
+                localStorage.setItem('mep-completed-practices', JSON.stringify(completedPractices));
+                window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
+            }
+        }
+    }, [assignments, song]);
+
     // Audio progress polling callback
     const updateProgress = useCallback(() => {
         if (audioRef.current && isPlaying) {
@@ -391,7 +407,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
                         >
                             {/* Slot overlay card label sitting on top-left border */}
                             {isCorrect && (
-                                <div className="absolute -top-3.5 left-6 bg-white border border-[#86BE7F] rounded-[4px] px-3.5 py-0.5 text-xs text-[#1EB239] font-serif italic shadow-2xs flex items-center gap-1.5 font-bold">
+                                <div className="absolute -top-3.5 left-6 bg-white border border-[#86BE7F] rounded-[4px] px-3.5 py-0.5 text-xs text-[#86BE7F] font-serif italic shadow-2xs flex items-center gap-1.5 font-bold">
                                     {label} <Check size={11} className="stroke-[3]" />
                                 </div>
                             )}

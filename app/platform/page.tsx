@@ -6,8 +6,6 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getUserConstellation, ConstellationData } from '@/app/actions/lesson-actions';
-import ChapterProgress from './components/ChapterProgress';
-import LessonContent from './components/LessonContent';
 import ChapterList from './components/ChapterList';
 import Logo from '@/components/Logo';
 import Link from 'next/link';
@@ -59,6 +57,14 @@ export default function PlatformPage() {
             return () => clearTimeout(timeoutId);
         }
     }, [user]);
+
+    useEffect(() => {
+        if (data) {
+            const masteredIds = data.user.lessonProgress.filter(p => p.status === 'MASTERED').map(p => p.lessonId);
+            localStorage.setItem('mep-completed-lessons', JSON.stringify(masteredIds));
+            window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
+        }
+    }, [data]);
 
     const chapters = useMemo(() => {
         if (!data) return [];
@@ -117,25 +123,31 @@ export default function PlatformPage() {
         return data.user.lessonProgress.some(p => p.lessonId === currentLesson.id && p.status === 'MASTERED');
     }, [data, currentLesson]);
 
-    if (authLoading) return (
-        <div className="h-screen flex items-center justify-center bg-[#DCDDD4]">
-            <div className="w-8 h-8 border-t-2 border-stone-900 rounded-full animate-spin" />
+    if (authLoading || !data) return (
+        <div className="w-full max-w-6xl mx-auto mt-0 mb-20 flex flex-col gap-4 animate-pulse">
+            {[...Array(3)].map((_, i) => (
+                <div 
+                    key={i} 
+                    className="w-full border border-stone-200/60 rounded-[20px] p-6 bg-white/40 flex justify-between items-center"
+                >
+                    <div className="flex flex-col gap-2.5 w-full">
+                        <div className="h-5 w-48 bg-stone-300/30 rounded-full" />
+                        <div className="h-3.5 w-32 bg-stone-200/20 rounded-full" />
+                    </div>
+                    <div className="w-5 h-5 bg-stone-300/30 rounded-full" />
+                </div>
+            ))}
         </div>
     );
 
     if (!user) return (
-        <div className="h-screen flex flex-col items-center justify-center bg-[#DCDDD4] text-stone-900 gap-6">
+        <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center text-stone-900 gap-6 p-8 bg-transparent">
             <h2 className="text-3xl font-sans font-light tracking-tight">Access restricted</h2>
             <p className="text-stone-700/80 max-w-md text-center font-medium">Please sign in to access your movements and continue your mastery journey.</p>
-            <a href="/signin" className="px-10 py-5 bg-stone-900 text-[#DCDDD4] rounded-full font-sans text-base font-bold hover:opacity-90 transition-opacity">Sign in</a>
+            <a href="/signin" className="px-10 py-5 bg-stone-900 text-[#FAF9F5] rounded-full font-sans text-base font-bold hover:opacity-90 transition-opacity">Sign in</a>
         </div>
     );
 
-    if (!data) return (
-        <div className="h-screen flex items-center justify-center bg-[#DCDDD4]">
-            <div className="w-8 h-8 border-t-2 border-stone-900 rounded-full animate-spin" />
-        </div>
-    );
 
     const handleLogout = async () => {
         try {
@@ -164,6 +176,16 @@ export default function PlatformPage() {
         });
     };
 
+    const handleNextChapter = () => {
+        if (!currentChapterId) return;
+        const currentIdx = chapters.findIndex(c => c.id === currentChapterId);
+        if (currentIdx !== -1 && currentIdx < chapters.length - 1) {
+            const nextChapter = chapters[currentIdx + 1];
+            setCurrentChapterId(nextChapter.id);
+            setCurrentLessonIndex(0);
+        }
+    };
+
     return (
         <div className="w-full max-w-6xl mx-auto flex flex-col items-center">
             <ChapterList
@@ -185,6 +207,7 @@ export default function PlatformPage() {
                 onBack={() => setCurrentLessonIndex(prev => Math.max(0, prev - 1))}
                 onNext={() => setCurrentLessonIndex(prev => Math.min((currentChapter?.lessons.length || 1) - 1, prev + 1))}
                 onComplete={handleComplete}
+                onNextChapter={handleNextChapter}
             />
         </div>
     );

@@ -13,7 +13,7 @@ export default function PracticePage() {
     const router = useRouter();
 
     if (authLoading) return (
-        <div className="h-screen flex items-center justify-center bg-[#DCDDD4]">
+        <div className="flex-1 min-h-[400px] flex items-center justify-center bg-transparent">
             <div className="w-8 h-8 border-t-2 border-stone-900 rounded-full animate-spin" />
         </div>
     );

@@ -21,22 +21,58 @@ export default function PlatformLayout({
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const popupRef = useRef<HTMLDivElement>(null);
 
-    // New progress, quote, and confetti states
-    const [progressVal, setProgressVal] = useState(35);
+    // Progress breakdowns and state values
+    const [progressVal, setProgressVal] = useState(0);
+    const [completedLessonsCount, setCompletedLessonsCount] = useState(0);
+    const [createMinutes, setCreateMinutes] = useState(0);
+    const [completedPracticesCount, setCompletedPracticesCount] = useState(0);
+
+    const [learnProgress, setLearnProgress] = useState(0);
+    const [createProgress, setCreateProgress] = useState(0);
+    const [practiceProgress, setPracticeProgress] = useState(0);
+
     const [showTooltip, setShowTooltip] = useState(false);
     const [activeQuote, setActiveQuote] = useState('Remember, small actions makes progress');
     const [showConfettiOverlay, setShowConfettiOverlay] = useState(false);
     const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const recalculateProgress = () => {
+        // 1. Learn Progress: (completed lessons / 4) * 100
+        const completedLessons = JSON.parse(localStorage.getItem('mep-completed-lessons') || '[]');
+        const totalLessons = 4;
+        const lCount = completedLessons.length;
+        const lPercent = Math.min(100, Math.round((lCount / totalLessons) * 100));
+
+        // 2. Create Progress: (minutes spent / 30) * 100
+        const createSeconds = parseInt(localStorage.getItem('mep-create-seconds') || '0');
+        const mins = Math.floor(createSeconds / 60);
+        const targetMins = 30;
+        const cPercent = Math.min(100, Math.round((mins / targetMins) * 100));
+
+        // 3. Practice Progress: (completed practices / 7) * 100
+        const completedPractices = JSON.parse(localStorage.getItem('mep-completed-practices') || '[]');
+        const totalPractices = 7;
+        const pCount = completedPractices.length;
+        const pPercent = Math.min(100, Math.round((pCount / totalPractices) * 100));
+
+        // 4. General Progress: average of the three
+        const generalPercent = Math.round((lPercent + cPercent + pPercent) / 3);
+
+        setCompletedLessonsCount(lCount);
+        setCreateMinutes(mins);
+        setCompletedPracticesCount(pCount);
+
+        setLearnProgress(lPercent);
+        setCreateProgress(cPercent);
+        setPracticeProgress(pPercent);
+        setProgressVal(generalPercent);
+
+        localStorage.setItem('songwriting-progress', generalPercent.toString());
+    };
+
     // Load initial values from localStorage
     useEffect(() => {
-        const storedProgress = localStorage.getItem('songwriting-progress');
-        if (storedProgress) {
-            setProgressVal(parseInt(storedProgress));
-        } else {
-            localStorage.setItem('songwriting-progress', '35');
-            setProgressVal(35);
-        }
+        recalculateProgress();
 
         const storedQuote = localStorage.getItem('songwriting-progress-quote');
         if (storedQuote) {
@@ -50,10 +86,8 @@ export default function PlatformLayout({
     // Listen to songwriting-progress-updated event
     useEffect(() => {
         const handleProgressUpdate = () => {
-            const storedProgress = localStorage.getItem('songwriting-progress');
-            if (storedProgress) {
-                setProgressVal(parseInt(storedProgress));
-            }
+            recalculateProgress();
+            
             const storedQuote = localStorage.getItem('songwriting-progress-quote');
             if (storedQuote) {
                 setActiveQuote(storedQuote);
@@ -102,7 +136,7 @@ export default function PlatformLayout({
             canvas.width = width;
             canvas.height = height;
 
-            const colors = ['#1EB239', '#FF4040', '#3b82f6', '#eab308', '#ec4899', '#a855f7'];
+            const colors = ['#86BE7F', '#FF4040', '#3b82f6', '#eab308', '#ec4899', '#a855f7'];
             const particles = Array.from({ length: 45 }).map(() => {
                 const angle = Math.PI * 1.2 + Math.random() * Math.PI * 0.6; // bias upwards in a cone
                 const speed = Math.random() * 2.5 + 1.2;
@@ -280,7 +314,7 @@ export default function PlatformLayout({
                             <span>Progress</span>
                             <div className="flex-1 ml-6 h-2.5 bg-stone-200/70 rounded-full overflow-hidden relative">
                                 <div 
-                                    className="h-full bg-[#1EB239] rounded-full transition-all duration-500 ease-out" 
+                                    className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out" 
                                     style={{ width: `${progressVal}%` }} 
                                 />
                             </div>
@@ -288,10 +322,59 @@ export default function PlatformLayout({
                         
                         {/* Tooltip bubble centered directly below progress pill */}
                         {showTooltip && (
-                            <div className="absolute top-11 left-1/2 -translate-x-1/2 w-64 bg-white border border-stone-200/80 rounded-[18px] p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.06)] animate-in fade-in slide-in-from-top-1.5 duration-200 flex flex-col gap-1 z-50 text-center normal-case">
+                            <div className="absolute top-12 left-1/2 -translate-x-1/2 w-72 bg-white border border-stone-200/80 rounded-[20px] p-5 shadow-[0_12px_36px_rgba(0,0,0,0.08)] animate-in fade-in slide-in-from-top-1.5 duration-200 flex flex-col gap-4 z-50 normal-case">
                                 {/* Arrow pointing up */}
                                 <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-l border-t border-stone-200/80 rotate-45 z-10" />
-                                <span className="text-[11px] font-bold text-stone-700 leading-normal">{activeQuote}</span>
+                                
+                                {/* General Progress */}
+                                <div className="flex flex-col gap-0.5 text-center">
+                                    <span className="text-[10px] text-stone-400 font-sans uppercase tracking-widest font-bold">General Progress</span>
+                                    <span className="text-3xl font-serif italic text-stone-900 font-light">{progressVal}%</span>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="h-px bg-stone-100 w-full" />
+
+                                {/* Breakdowns */}
+                                <div className="flex flex-col gap-3.5">
+                                    {/* Learn Progress */}
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
+                                            <span>Learn</span>
+                                            <span className="text-stone-500 normal-case font-medium">{completedLessonsCount} / 4 lessons</span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
+                                            <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${learnProgress}%` }} />
+                                        </div>
+                                    </div>
+
+                                    {/* Create Progress */}
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
+                                            <span>Create</span>
+                                            <span className="text-stone-500 normal-case font-medium">{createMinutes} / 30 min</span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
+                                            <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${createProgress}%` }} />
+                                        </div>
+                                    </div>
+
+                                    {/* Practice Progress */}
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
+                                            <span>Practice</span>
+                                            <span className="text-stone-500 normal-case font-medium">{completedPracticesCount} / 7 completed</span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
+                                            <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${practiceProgress}%` }} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Tagline */}
+                                <div className="text-[10px] text-stone-400 font-sans italic text-center pt-2.5 border-t border-stone-100 leading-normal">
+                                    "{activeQuote}"
+                                </div>
                             </div>
                         )}
                     </div>
@@ -313,7 +396,7 @@ export default function PlatformLayout({
                                 <span>Progress</span>
                                 <div className="w-24 h-3 bg-stone-200/70 rounded-full overflow-hidden relative">
                                     <div 
-                                        className="h-full bg-[#1EB239] rounded-full transition-all duration-500 ease-out" 
+                                        className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out" 
                                         style={{ width: `${progressVal}%` }} 
                                     />
                                 </div>
@@ -321,10 +404,59 @@ export default function PlatformLayout({
                             
                             {/* Tooltip bubble centered directly below progress pill */}
                             {showTooltip && (
-                                <div className="absolute top-12 left-1/2 -translate-x-1/2 w-64 bg-white border border-stone-200/80 rounded-[18px] p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.06)] animate-in fade-in slide-in-from-top-1.5 duration-200 flex flex-col gap-1 z-50 text-center normal-case">
+                                <div className="absolute top-12 left-1/2 -translate-x-1/2 w-72 bg-white border border-stone-200/80 rounded-[20px] p-5 shadow-[0_12px_36px_rgba(0,0,0,0.08)] animate-in fade-in slide-in-from-top-1.5 duration-200 flex flex-col gap-4 z-50 normal-case">
                                     {/* Arrow pointing up */}
                                     <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-l border-t border-stone-200/80 rotate-45 z-10" />
-                                    <span className="text-[11px] font-bold text-stone-700 leading-normal">{activeQuote}</span>
+                                    
+                                    {/* General Progress */}
+                                    <div className="flex flex-col gap-0.5 text-center">
+                                        <span className="text-[10px] text-stone-400 font-sans uppercase tracking-widest font-bold">General Progress</span>
+                                        <span className="text-3xl font-serif italic text-stone-900 font-light">{progressVal}%</span>
+                                    </div>
+
+                                    {/* Divider */}
+                                    <div className="h-px bg-stone-100 w-full" />
+
+                                    {/* Breakdowns */}
+                                    <div className="flex flex-col gap-3.5">
+                                        {/* Learn Progress */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
+                                                <span>Learn</span>
+                                                <span className="text-stone-500 normal-case font-medium">{completedLessonsCount} / 4 lessons</span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
+                                                <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${learnProgress}%` }} />
+                                            </div>
+                                        </div>
+
+                                        {/* Create Progress */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <div className="flex justify-between items-center text-[10px] font-sans text-[#787870] font-bold uppercase tracking-wider">
+                                                <span>Create</span>
+                                                <span className="text-stone-500 normal-case font-medium">{createMinutes} / 30 min</span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
+                                                <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${createProgress}%` }} />
+                                            </div>
+                                        </div>
+
+                                        {/* Practice Progress */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
+                                                <span>Practice</span>
+                                                <span className="text-stone-500 normal-case font-medium">{completedPracticesCount} / 7 completed</span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
+                                                <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${practiceProgress}%` }} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Tagline */}
+                                    <div className="text-[10px] text-stone-400 font-sans italic text-center pt-2.5 border-t border-stone-100 leading-normal">
+                                        "{activeQuote}"
+                                    </div>
                                 </div>
                             )}
                         </div>

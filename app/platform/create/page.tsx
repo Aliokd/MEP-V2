@@ -1803,6 +1803,19 @@ export default function CreatePage() {
         selectedNoteIdRef.current = selectedNoteId;
     }, [selectedNoteId]);
 
+    // Track active session creation time (accumulate seconds spent in Create tab)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const storedSeconds = parseInt(localStorage.getItem('mep-create-seconds') || '0');
+            const nextSeconds = storedSeconds + 10; // add 10 seconds
+            localStorage.setItem('mep-create-seconds', nextSeconds.toString());
+            
+            // Dispatch event to update the platform header progress calculations
+            window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
+        }, 10000); // every 10 seconds
+        return () => clearInterval(interval);
+    }, []);
+
     const notesRef = useRef<SongNote[]>([]);
     useEffect(() => {
         notesRef.current = notes;
@@ -7931,7 +7944,7 @@ export default function CreatePage() {
                                             ? 'border-emerald-300 bg-emerald-50 text-emerald-600 scale-95'
                                             : isActiveCollab && activeNote.content === lastSavedContent
                                                 ? 'border-stone-200/50 bg-white text-stone-400 hover:text-emerald-600 hover:bg-stone-50'
-                                                : 'border-stone-200/50 bg-white text-[#1EB239] hover:bg-stone-50'
+                                                : 'border-stone-200/50 bg-white text-[#86BE7F] hover:bg-stone-50'
                                     }`}
                                     title={isActiveCollab ? 'Save to Collab Projects' : 'Save'}
                                 >

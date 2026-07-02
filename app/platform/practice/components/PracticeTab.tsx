@@ -454,7 +454,7 @@ export default function PracticeTab() {
                                                                 y1={`${(conn.n * 15.83) + 15}%`}
                                                                 x2="68%"
                                                                 y2={`${(conn.v * 15.83) + 15}%`}
-                                                                stroke={isActive ? "#1EB239" : "#9E9E94"}
+                                                                stroke={isActive ? "#86BE7F" : "#9E9E94"}
                                                                 strokeWidth={isActive ? "2.5" : "1.2"}
                                                                 strokeOpacity={isActive ? "0.85" : "0.45"}
                                                                 className="animate-in fade-in duration-500"
@@ -533,8 +533,8 @@ export default function PracticeTab() {
                                                             >
                                                                 <div className="flex items-center gap-2 w-full justify-between pointer-events-none text-xs md:text-sm">
                                                                     <div className={`w-1.5 h-1.5 rounded-full border transition-all duration-300 shrink-0 mr-2
-                                                                        ${isConnected 
-                                                                            ? 'bg-[#1EB239] border-[#1EB239]' 
+                                                                         ${isConnected 
+                                                                            ? 'bg-[#86BE7F] border-[#86BE7F]' 
                                                                             : canConnect 
                                                                                 ? 'bg-transparent border-[#86BE7F] group-hover:scale-125' 
                                                                                 : 'bg-transparent border-stone-350'}`} 
