@@ -43,3 +43,7 @@ firebase-debug.log*
 brain
 dataconnect/.dataconnect/
 
+# Large Video Assets
+/public/videos/Welcome - onboarding/
+
+

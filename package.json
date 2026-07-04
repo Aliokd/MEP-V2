@@ -7,7 +7,7 @@
     "node": "22"
   },
   "scripts": {
-    "dev": "start http://localhost:3000/platform && next dev",
+    "dev": "start http://localhost:3000/platform/create && next dev",
     "build": "next build",
     "lint": "eslint .",
     "preview": "vite preview"

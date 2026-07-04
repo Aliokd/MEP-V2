@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { TreePine, Menu, User } from 'lucide-react';
+import { TreePine, Menu, User, Play, Pause, X } from 'lucide-react';
 import Logo from '@/components/Logo';
 
 export default function PlatformLayout({
@@ -22,14 +22,21 @@ export default function PlatformLayout({
     const popupRef = useRef<HTMLDivElement>(null);
 
     // Progress breakdowns and state values
-    const [progressVal, setProgressVal] = useState(0);
+    const [progressLevel, setProgressLevel] = useState(1);
+    const [levelProgress, setLevelProgress] = useState(0); // 0-100% toward next level
     const [completedLessonsCount, setCompletedLessonsCount] = useState(0);
-    const [createMinutes, setCreateMinutes] = useState(0);
-    const [completedPracticesCount, setCompletedPracticesCount] = useState(0);
 
-    const [learnProgress, setLearnProgress] = useState(0);
-    const [createProgress, setCreateProgress] = useState(0);
-    const [practiceProgress, setPracticeProgress] = useState(0);
+    // Create section sub-metrics
+    const [wordsTyped, setWordsTyped] = useState(0);
+    const [recordingMinutes, setRecordingMinutes] = useState(0);
+
+    // Practice section sub-metrics
+    const [practiceMinutes, setPracticeMinutes] = useState(0);
+
+    // Level milestone criteria (Level 1 → Level 2)
+    const L1_WORDS   = 200;  // words
+    const L1_LESSONS = 2;    // chapters checked
+    const L1_PRACTICE = 30;  // minutes
 
     const [showTooltip, setShowTooltip] = useState(false);
     const [activeQuote, setActiveQuote] = useState('Remember, small actions makes progress');
@@ -37,37 +44,39 @@ export default function PlatformLayout({
     const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const recalculateProgress = () => {
-        // 1. Learn Progress: (completed lessons / 4) * 100
+        // Learn: how many lessons checked (no cap)
         const completedLessons = JSON.parse(localStorage.getItem('mep-completed-lessons') || '[]');
-        const totalLessons = 4;
         const lCount = completedLessons.length;
-        const lPercent = Math.min(100, Math.round((lCount / totalLessons) * 100));
 
-        // 2. Create Progress: (minutes spent / 30) * 100
-        const createSeconds = parseInt(localStorage.getItem('mep-create-seconds') || '0');
-        const mins = Math.floor(createSeconds / 60);
-        const targetMins = 30;
-        const cPercent = Math.min(100, Math.round((mins / targetMins) * 100));
+        // Create: words typed (from all notes)
+        const words = parseInt(localStorage.getItem('mep-create-words-typed') || '0');
 
-        // 3. Practice Progress: (completed practices / 7) * 100
-        const completedPractices = JSON.parse(localStorage.getItem('mep-completed-practices') || '[]');
-        const totalPractices = 7;
-        const pCount = completedPractices.length;
-        const pPercent = Math.min(100, Math.round((pCount / totalPractices) * 100));
+        // Create: recording minutes (live timer + saved recordings via notes watcher)
+        const recordingSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
+        const recMins = parseFloat((recordingSeconds / 60).toFixed(1));
 
-        // 4. General Progress: average of the three
-        const generalPercent = Math.round((lPercent + cPercent + pPercent) / 3);
+        // Practice: minutes spent on Practice page (no cap)
+        const practiceSeconds = parseInt(localStorage.getItem('mep-practice-seconds') || '0');
+        const pracMins = parseFloat((practiceSeconds / 60).toFixed(1));
+
+        // Level calculation — Level 1 → Level 2 milestones:
+        // 200 words created, 2 lessons checked, 30 min practiced
+        const wordsCrit    = Math.min(1, words / L1_WORDS);
+        const lessonsCrit  = Math.min(1, lCount / L1_LESSONS);
+        const practiceCrit = Math.min(1, pracMins / L1_PRACTICE);
+        const avgProgress  = Math.round(((wordsCrit + lessonsCrit + practiceCrit) / 3) * 100);
+
+        const allMet = wordsCrit >= 1 && lessonsCrit >= 1 && practiceCrit >= 1;
+        const level = allMet ? 2 : 1;
 
         setCompletedLessonsCount(lCount);
-        setCreateMinutes(mins);
-        setCompletedPracticesCount(pCount);
+        setWordsTyped(words);
+        setRecordingMinutes(recMins);
+        setPracticeMinutes(pracMins);
+        setProgressLevel(level);
+        setLevelProgress(allMet ? 100 : avgProgress);
 
-        setLearnProgress(lPercent);
-        setCreateProgress(cPercent);
-        setPracticeProgress(pPercent);
-        setProgressVal(generalPercent);
-
-        localStorage.setItem('songwriting-progress', generalPercent.toString());
+        localStorage.setItem('songwriting-progress', avgProgress.toString());
     };
 
     // Load initial values from localStorage
@@ -85,7 +94,7 @@ export default function PlatformLayout({
 
     // Listen to songwriting-progress-updated event
     useEffect(() => {
-        const handleProgressUpdate = () => {
+        const handleProgressUpdate = (e: Event) => {
             recalculateProgress();
             
             const storedQuote = localStorage.getItem('songwriting-progress-quote');
@@ -93,24 +102,46 @@ export default function PlatformLayout({
                 setActiveQuote(storedQuote);
             }
             
-            // Show tooltip automatically
-            setShowTooltip(true);
-            if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
-            tooltipTimeoutRef.current = setTimeout(() => {
-                setShowTooltip(false);
-            }, 6000);
+            const customEvent = e as CustomEvent;
+            const isMajorTask = customEvent.detail?.triggerType === 'major-task';
+            
+            // Get today's date identifier to track daily triggers
+            const todayStr = new Date().toDateString();
+            const lastFirstActionDate = localStorage.getItem('mep-last-auto-pop-first-action-date');
+            const lastMajorTaskDate = localStorage.getItem('mep-last-auto-pop-major-task-date');
+            
+            let shouldAutoPop = false;
+            
+            if (lastFirstActionDate !== todayStr) {
+                // First action of the day!
+                shouldAutoPop = true;
+                localStorage.setItem('mep-last-auto-pop-first-action-date', todayStr);
+            } else if (isMajorTask && lastMajorTaskDate !== todayStr) {
+                // Major task completed today!
+                shouldAutoPop = true;
+                localStorage.setItem('mep-last-auto-pop-major-task-date', todayStr);
+            }
+            
+            if (shouldAutoPop) {
+                // Show tooltip automatically
+                setShowTooltip(true);
+                if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+                tooltipTimeoutRef.current = setTimeout(() => {
+                    setShowTooltip(false);
+                }, 6000);
 
-            // Trigger falling confetti on every progress update
-            fireLocalConfetti();
+                // Trigger falling confetti on every progress update
+                fireLocalConfetti();
 
-            // Confetti overlay trigger
-            const isConfetti = localStorage.getItem('songwriting-progress-confetti');
-            if (isConfetti === 'true') {
-                setShowConfettiOverlay(true);
-                setTimeout(() => {
-                    fireLocalConfetti();
-                }, 100);
-                localStorage.setItem('songwriting-progress-confetti', 'false');
+                // Confetti overlay trigger
+                const isConfetti = localStorage.getItem('songwriting-progress-confetti');
+                if (isConfetti === 'true') {
+                    setShowConfettiOverlay(true);
+                    setTimeout(() => {
+                        fireLocalConfetti();
+                    }, 100);
+                    localStorage.setItem('songwriting-progress-confetti', 'false');
+                }
             }
         };
 
@@ -202,6 +233,83 @@ export default function PlatformLayout({
             router.push('/signin');
         }
     }, [user, loading, router]);
+
+    const [showWelcomeVideoModal, setShowWelcomeVideoModal] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [isRedirecting, setIsRedirecting] = useState(false);
+    const [hasEnded, setHasEnded] = useState(false);
+
+    useEffect(() => {
+        if (!loading && user) {
+            const seen = localStorage.getItem('mep-welcome-video-seen');
+            if (!seen) {
+                setShowWelcomeVideoModal(true);
+                if (pathname === '/platform') {
+                    setIsRedirecting(true);
+                    router.push('/platform/create');
+                }
+            }
+        }
+    }, [user, loading, pathname, router]);
+
+    useEffect(() => {
+        if (showWelcomeVideoModal && videoRef.current) {
+            const playTimeout = setTimeout(() => {
+                if (videoRef.current) {
+                    videoRef.current.play().then(() => {
+                        setIsPlaying(true);
+                        setHasEnded(false);
+                    }).catch(err => {
+                        console.log("Autoplay unmuted blocked, showing overlay:", err);
+                        setIsPlaying(false);
+                    });
+                }
+            }, 250);
+            return () => clearTimeout(playTimeout);
+        }
+    }, [showWelcomeVideoModal]);
+
+    const handleCloseWelcomeModal = () => {
+        setShowWelcomeVideoModal(false);
+        localStorage.setItem('mep-welcome-video-seen', 'true');
+        if (videoRef.current) {
+            videoRef.current.pause();
+            setIsPlaying(false);
+        }
+        setHasEnded(false);
+    };
+
+    const handleReplay = () => {
+        setHasEnded(false);
+        setIsPlaying(true);
+        if (videoRef.current) {
+            videoRef.current.currentTime = 0;
+            videoRef.current.play().catch(err => {
+                console.error("Replay play failed:", err);
+            });
+        }
+    };
+
+    const togglePlay = () => {
+        if (videoRef.current) {
+            if (hasEnded) {
+                handleReplay();
+                return;
+            }
+            if (isPlaying) {
+                videoRef.current.pause();
+                setIsPlaying(false);
+            } else {
+                videoRef.current.play().then(() => {
+                    setIsPlaying(true);
+                    setHasEnded(false);
+                }).catch(err => {
+                    console.error("Video play failed:", err);
+                });
+            }
+        }
+    };
 
     if (loading) return (
         <div className="h-screen flex items-center justify-center bg-[#E4E4DF]">
@@ -311,13 +419,14 @@ export default function PlatformLayout({
                             onClick={() => setShowTooltip(!showTooltip)}
                             className="flex items-center justify-between w-full bg-white border border-stone-200/40 px-6 py-3.5 rounded-[20px] select-none cursor-pointer transition-all active:scale-[0.99] shadow-2xs font-sans text-xs text-stone-500 font-medium normal-case"
                         >
-                            <span>Progress</span>
+                            <span className="font-bold text-stone-700">Level {progressLevel}</span>
                             <div className="flex-1 ml-6 h-2.5 bg-stone-200/70 rounded-full overflow-hidden relative">
                                 <div 
                                     className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out" 
-                                    style={{ width: `${progressVal}%` }} 
+                                    style={{ width: `${levelProgress}%` }} 
                                 />
                             </div>
+                            <span className="ml-3 text-[10px] text-stone-400 font-medium tabular-nums">{levelProgress}%</span>
                         </div>
                         
                         {/* Tooltip bubble centered directly below progress pill */}
@@ -326,10 +435,13 @@ export default function PlatformLayout({
                                 {/* Arrow pointing up */}
                                 <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-l border-t border-stone-200/80 rotate-45 z-10" />
                                 
-                                {/* General Progress */}
+                                {/* Level header */}
                                 <div className="flex flex-col gap-0.5 text-center">
-                                    <span className="text-[10px] text-stone-400 font-sans uppercase tracking-widest font-bold">General Progress</span>
-                                    <span className="text-3xl font-serif italic text-stone-900 font-light">{progressVal}%</span>
+                                    <span className="text-[10px] text-stone-400 font-sans uppercase tracking-widest font-bold">Your progress</span>
+                                    <span className="text-3xl font-serif italic text-stone-900 font-light">Level {progressLevel}</span>
+                                    {progressLevel === 1 && (
+                                        <span className="text-[10px] text-stone-400 font-sans mt-0.5">Complete all 3 goals to reach Level 2</span>
+                                    )}
                                 </div>
 
                                 {/* Divider */}
@@ -337,43 +449,52 @@ export default function PlatformLayout({
 
                                 {/* Breakdowns */}
                                 <div className="flex flex-col gap-3.5">
-                                    {/* Learn Progress */}
-                                    <div className="flex flex-col gap-1.5">
-                                        <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
-                                            <span>Learn</span>
-                                            <span className="text-stone-500 normal-case font-medium">{completedLessonsCount} / 4 lessons</span>
-                                        </div>
-                                        <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
-                                            <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${learnProgress}%` }} />
-                                        </div>
-                                    </div>
-
-                                    {/* Create Progress */}
+                                    {/* Create */}
                                     <div className="flex flex-col gap-1.5">
                                         <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
                                             <span>Create</span>
-                                            <span className="text-stone-500 normal-case font-medium">{createMinutes} / 30 min</span>
+                                            <span className={`normal-case font-medium text-[10px] ${wordsTyped >= L1_WORDS ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
+                                                {wordsTyped >= L1_WORDS ? '✓' : ''} {wordsTyped} words · {recordingMinutes} min rec
+                                            </span>
                                         </div>
-                                        <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
-                                            <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${createProgress}%` }} />
+                                        <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((wordsTyped / L1_WORDS) * 100))}%` }} />
                                         </div>
+                                        <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_WORDS} words written</div>
                                     </div>
 
-                                    {/* Practice Progress */}
+                                    {/* Learn */}
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
+                                            <span>Learn</span>
+                                            <span className={`normal-case font-medium text-[10px] ${completedLessonsCount >= L1_LESSONS ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
+                                                {completedLessonsCount >= L1_LESSONS ? '✓' : ''} {completedLessonsCount} chapters checked
+                                            </span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((completedLessonsCount / L1_LESSONS) * 100))}%` }} />
+                                        </div>
+                                        <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_LESSONS} chapters learned</div>
+                                    </div>
+
+                                    {/* Practice */}
                                     <div className="flex flex-col gap-1.5">
                                         <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
                                             <span>Practice</span>
-                                            <span className="text-stone-500 normal-case font-medium">{completedPracticesCount} / 7 completed</span>
+                                            <span className={`normal-case font-medium text-[10px] ${practiceMinutes >= L1_PRACTICE ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
+                                                {practiceMinutes >= L1_PRACTICE ? '✓' : ''} {practiceMinutes} min practiced
+                                            </span>
                                         </div>
-                                        <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
-                                            <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${practiceProgress}%` }} />
+                                        <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((practiceMinutes / L1_PRACTICE) * 100))}%` }} />
                                         </div>
+                                        <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_PRACTICE} min of practice</div>
                                     </div>
                                 </div>
 
                                 {/* Tagline */}
                                 <div className="text-[10px] text-stone-400 font-sans italic text-center pt-2.5 border-t border-stone-100 leading-normal">
-                                    "{activeQuote}"
+                                    &ldquo;{activeQuote}&rdquo;
                                 </div>
                             </div>
                         )}
@@ -393,13 +514,14 @@ export default function PlatformLayout({
                                 onClick={() => setShowTooltip(!showTooltip)}
                                 className="flex items-center gap-3 bg-white hover:bg-stone-50 border border-stone-200/80 px-6 py-2.5 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-[11px] text-stone-650 font-bold uppercase tracking-wider"
                             >
-                                <span>Progress</span>
+                                <span>Level {progressLevel}</span>
                                 <div className="w-24 h-3 bg-stone-200/70 rounded-full overflow-hidden relative">
                                     <div 
                                         className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out" 
-                                        style={{ width: `${progressVal}%` }} 
+                                        style={{ width: `${levelProgress}%` }} 
                                     />
                                 </div>
+                                <span className="text-[10px] text-stone-400 font-medium tabular-nums normal-case">{levelProgress}%</span>
                             </div>
                             
                             {/* Tooltip bubble centered directly below progress pill */}
@@ -408,10 +530,13 @@ export default function PlatformLayout({
                                     {/* Arrow pointing up */}
                                     <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-l border-t border-stone-200/80 rotate-45 z-10" />
                                     
-                                    {/* General Progress */}
+                                    {/* Level header */}
                                     <div className="flex flex-col gap-0.5 text-center">
-                                        <span className="text-[10px] text-stone-400 font-sans uppercase tracking-widest font-bold">General Progress</span>
-                                        <span className="text-3xl font-serif italic text-stone-900 font-light">{progressVal}%</span>
+                                        <span className="text-[10px] text-stone-400 font-sans uppercase tracking-widest font-bold">Your progress</span>
+                                        <span className="text-3xl font-serif italic text-stone-900 font-light">Level {progressLevel}</span>
+                                        {progressLevel === 1 && (
+                                            <span className="text-[10px] text-stone-400 font-sans mt-0.5">Complete all 3 goals to reach Level 2</span>
+                                        )}
                                     </div>
 
                                     {/* Divider */}
@@ -419,43 +544,52 @@ export default function PlatformLayout({
 
                                     {/* Breakdowns */}
                                     <div className="flex flex-col gap-3.5">
-                                        {/* Learn Progress */}
-                                        <div className="flex flex-col gap-1.5">
-                                            <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
-                                                <span>Learn</span>
-                                                <span className="text-stone-500 normal-case font-medium">{completedLessonsCount} / 4 lessons</span>
-                                            </div>
-                                            <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
-                                                <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${learnProgress}%` }} />
-                                            </div>
-                                        </div>
-
-                                        {/* Create Progress */}
+                                        {/* Create */}
                                         <div className="flex flex-col gap-1.5">
                                             <div className="flex justify-between items-center text-[10px] font-sans text-[#787870] font-bold uppercase tracking-wider">
                                                 <span>Create</span>
-                                                <span className="text-stone-500 normal-case font-medium">{createMinutes} / 30 min</span>
+                                                <span className={`normal-case font-medium text-[10px] ${wordsTyped >= L1_WORDS ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
+                                                    {wordsTyped >= L1_WORDS ? '✓' : ''} {wordsTyped} words · {recordingMinutes} min rec
+                                                </span>
                                             </div>
-                                            <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
-                                                <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${createProgress}%` }} />
+                                            <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((wordsTyped / L1_WORDS) * 100))}%` }} />
                                             </div>
+                                            <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_WORDS} words written</div>
                                         </div>
 
-                                        {/* Practice Progress */}
+                                        {/* Learn */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
+                                                <span>Learn</span>
+                                                <span className={`normal-case font-medium text-[10px] ${completedLessonsCount >= L1_LESSONS ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
+                                                    {completedLessonsCount >= L1_LESSONS ? '✓' : ''} {completedLessonsCount} chapters checked
+                                                </span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((completedLessonsCount / L1_LESSONS) * 100))}%` }} />
+                                            </div>
+                                            <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_LESSONS} chapters learned</div>
+                                        </div>
+
+                                        {/* Practice */}
                                         <div className="flex flex-col gap-1.5">
                                             <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
                                                 <span>Practice</span>
-                                                <span className="text-stone-500 normal-case font-medium">{completedPracticesCount} / 7 completed</span>
+                                                <span className={`normal-case font-medium text-[10px] ${practiceMinutes >= L1_PRACTICE ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
+                                                    {practiceMinutes >= L1_PRACTICE ? '✓' : ''} {practiceMinutes} min practiced
+                                                </span>
                                             </div>
-                                            <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden relative">
-                                                <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${practiceProgress}%` }} />
+                                            <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((practiceMinutes / L1_PRACTICE) * 100))}%` }} />
                                             </div>
+                                            <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_PRACTICE} min of practice</div>
                                         </div>
                                     </div>
 
                                     {/* Tagline */}
                                     <div className="text-[10px] text-stone-400 font-sans italic text-center pt-2.5 border-t border-stone-100 leading-normal">
-                                        "{activeQuote}"
+                                        &ldquo;{activeQuote}&rdquo;
                                     </div>
                                 </div>
                             )}
@@ -476,9 +610,79 @@ export default function PlatformLayout({
                         : 'overflow-y-auto bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] p-4 md:p-8 shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)]'
                     }
                 `}>
-                    {children}
+                    {isRedirecting ? (
+                        <div className="w-full max-w-6xl mx-auto mt-0 mb-20 flex flex-col gap-4 animate-pulse">
+                            {[...Array(3)].map((_, i) => (
+                                <div key={i} className="w-full border border-stone-200/60 rounded-[20px] p-6 bg-white/40 flex justify-between items-center h-24" />
+                            ))}
+                        </div>
+                    ) : (
+                        children
+                    )}
                 </div>
             </div>
+
+            {/* Welcome Video Overlay Modal */}
+            {showWelcomeVideoModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#FAF9F5]/10 backdrop-blur-[16px] p-0 md:p-12 transition-all duration-500">
+                    <button
+                        onClick={handleCloseWelcomeModal}
+                        className="fixed top-4 right-4 md:top-8 md:right-8 p-2.5 md:p-3 bg-white/80 md:bg-transparent backdrop-blur-xs md:backdrop-blur-none rounded-full text-stone-900 hover:opacity-75 transition-all duration-200 cursor-pointer active:scale-95 z-[110]"
+                        aria-label="Close welcome video"
+                    >
+                        <X className="w-6 h-6 md:w-8 md:h-8 stroke-[1.5]" />
+                    </button>
+                    
+                    <div className="relative w-full max-w-full md:w-[80%] md:max-w-[80%] aspect-video bg-white rounded-none md:rounded-[32px] shadow-[0_24px_60px_rgba(0,0,0,0.12)] overflow-hidden flex items-center justify-center border-none md:border md:border-white/40">
+                        <video
+                            ref={videoRef}
+                            src="/videos/Welcome%20-%20onboarding/Welcome_V3.mov"
+                            className="w-full h-full block object-cover bg-white"
+                            onClick={togglePlay}
+                            onPlay={() => setIsPlaying(true)}
+                            onPause={() => setIsPlaying(false)}
+                            onEnded={() => {
+                                setIsPlaying(false);
+                                setHasEnded(true);
+                            }}
+                            controls={isPlaying && !hasEnded}
+                            playsInline
+                        />
+                        
+                        {!isPlaying && !hasEnded && (
+                            <div 
+                                onClick={togglePlay}
+                                className="absolute inset-0 flex items-center justify-center bg-white cursor-pointer group transition-all duration-300 z-10"
+                            >
+                                <Play className="w-24 h-24 md:w-32 md:h-32 fill-stone-200 text-stone-200 stroke-none group-hover:scale-105 transition-all duration-300" />
+                            </div>
+                        )}
+
+                        {hasEnded && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-20 p-8 text-center animate-in fade-in duration-300">
+                                <h3 className="text-3xl font-sans font-light text-stone-900 mb-2">Workspace ready.</h3>
+                                <p className="text-stone-500 max-w-md text-sm mb-8 font-medium">
+                                    You're all set to start writing lyrics, analyzing chords, and creating visual music stories.
+                                </p>
+                                <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-xs sm:max-w-md justify-center">
+                                    <button
+                                        onClick={handleCloseWelcomeModal}
+                                        className="w-full sm:w-auto px-10 py-4.5 bg-[#86BE7F] hover:opacity-95 text-stone-900 text-base font-bold rounded-[18px] transition-all shadow-[0_4px_12px_rgba(134,190,127,0.2)] cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        Start now
+                                    </button>
+                                    <button
+                                        onClick={handleReplay}
+                                        className="w-full sm:w-auto px-8 py-4.5 border border-stone-205 hover:bg-stone-50 text-stone-700 text-base font-semibold rounded-[18px] transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        Replay video
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

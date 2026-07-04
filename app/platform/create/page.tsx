@@ -1821,6 +1821,27 @@ export default function CreatePage() {
         notesRef.current = notes;
     }, [notes]);
 
+    // Calculate total words typed and total saved recording duration across all notes and sync to localStorage
+    useEffect(() => {
+        const totalWords = notes.reduce((sum, note) => {
+            const words = (note.content || '').trim().split(/\s+/).filter(w => w.length > 0).length;
+            return sum + words;
+        }, 0);
+        localStorage.setItem('mep-create-words-typed', totalWords.toString());
+
+        const totalRecordingsDuration = notes.reduce((sum, note) => {
+            const noteDuration = note.recordingDuration || 0;
+            const audioNotesDuration = (note.audioNotes || []).reduce((aSum, an) => aSum + (an.duration || 0), 0);
+            return sum + noteDuration + audioNotesDuration;
+        }, 0);
+
+        const currentSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
+        const nextSeconds = Math.max(currentSeconds, totalRecordingsDuration);
+        localStorage.setItem('mep-create-recording-seconds', nextSeconds.toString());
+
+        window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
+    }, [notes]);
+
     const [activeFolderIdFilter, setActiveFolderIdFilter] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isMyProjectsOpen, setIsMyProjectsOpen] = useState(false);
@@ -2975,7 +2996,14 @@ export default function CreatePage() {
     };
 
     const activeNote = notes.find(n => n.id === selectedNoteId) || null;
-    const isNoteBlank = !isCanvasPreview && (!selectedNoteId || (activeNote && activeNote.content.trim() === ''));
+    const isNoteBlank = !isCanvasPreview && (
+        !selectedNoteId ||
+        (activeNote && 
+            activeNote.content.trim() === '' &&
+            (!activeNote.phrases || activeNote.phrases.length === 0) &&
+            (!activeNote.audioNotes || activeNote.audioNotes.length === 0)
+        )
+    );
     const activeNoteCollabList = activeNote?.collaborators || [];
     const isActiveCollab = !!(selectedNoteId && (
         collaborators.length > 0 || 
@@ -3849,6 +3877,9 @@ export default function CreatePage() {
             // Recording timer
             timerRef.current = setInterval(() => {
                 setRecordingTime(t => t + 1);
+                const storedSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
+                localStorage.setItem('mep-create-recording-seconds', (storedSeconds + 1).toString());
+                window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
             }, 1000);
             
             if (runAudio) {
@@ -3955,6 +3986,9 @@ export default function CreatePage() {
             
             timerRef.current = setInterval(() => {
                 setRecordingTime(t => t + 1);
+                const storedSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
+                localStorage.setItem('mep-create-recording-seconds', (storedSeconds + 1).toString());
+                window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
             }, 1000);
             
             if (recognitionRef.current) {
@@ -5388,6 +5422,9 @@ export default function CreatePage() {
             }
             
             setLastSavedContent(activeNote.content);
+            window.dispatchEvent(new CustomEvent('songwriting-progress-updated', {
+                detail: { triggerType: 'major-task' }
+            }));
         }
     };
 
