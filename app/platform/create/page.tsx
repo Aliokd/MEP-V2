@@ -1790,12 +1790,31 @@ function JoinedPill({ name, onDismiss }: JoinedPillProps) {
     );
 }
 
+// Helper: read notes cache from localStorage synchronously
+function readCachedNotes(): SongNote[] {
+    if (typeof window === 'undefined') return [];
+    try {
+        const raw = localStorage.getItem('veinote-create-notes');
+        return raw ? (JSON.parse(raw) as SongNote[]) : [];
+    } catch { return []; }
+}
+function readCachedFolders(): SongFolder[] {
+    if (typeof window === 'undefined') return [];
+    try {
+        const raw = localStorage.getItem('veinote-create-folders');
+        return raw ? (JSON.parse(raw) as SongFolder[]) : [];
+    } catch { return []; }
+}
+
 export default function CreatePage() {
     const { user } = useAuth();
-    const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-    const [folders, setFolders] = useState<SongFolder[]>([]);
-    const [notes, setNotes] = useState<SongNote[]>([]);
+    // Pre-populate from cache so the workspace renders instantly on first paint.
+    // Firestore listeners will silently merge fresher data in the background.
+    const [isDataLoaded, setIsDataLoaded] = useState(() => readCachedNotes().length > 0);
+
+    const [folders, setFolders] = useState<SongFolder[]>(() => readCachedFolders());
+    const [notes, setNotes] = useState<SongNote[]>(() => readCachedNotes());
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
     const selectedNoteIdRef = useRef<string | null>(null);
@@ -1974,6 +1993,22 @@ export default function CreatePage() {
     }, []);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        const handleWelcomeClosed = () => {
+            if (textareaRef.current) {
+                setTimeout(() => {
+                    if (textareaRef.current) {
+                        textareaRef.current.focus();
+                    }
+                }, 150);
+            }
+        };
+        window.addEventListener('mep-welcome-video-closed', handleWelcomeClosed);
+        return () => {
+            window.removeEventListener('mep-welcome-video-closed', handleWelcomeClosed);
+        };
+    }, []);
     const draggedPhraseIdRef = useRef<string | null>(null);
     const draggedGroupIdRef = useRef<string | null>(null);
     const draggedAudioIdRef = useRef<string | null>(null);
@@ -2240,32 +2275,35 @@ export default function CreatePage() {
         const init = async () => {
             if (user) {
                 try {
-                    await migrateLegacyNotesToProjects(user.uid);
+                    // Run migration non-blocking — don't await so we don't delay the snapshot setup
+                    migrateLegacyNotesToProjects(user.uid).catch(err =>
+                        console.warn("Migration error (non-critical):", err)
+                    );
 
+                    // Update user profile doc in background — non-blocking
                     const userDocRef = doc(db, "users", user.uid);
-                    const userDoc = await getDoc(userDocRef);
-                    let initialFolders: SongFolder[] = [];
-                    if (userDoc.exists()) {
-                        const userData = userDoc.data();
-                        if (userData.createFolders) {
-                            initialFolders = userData.createFolders;
-                            setFolders(userData.createFolders);
-                        }
-                        if (!userData.email || !userData.name) {
-                            await setDoc(userDocRef, {
+                    getDoc(userDocRef).then(userDoc => {
+                        if (userDoc.exists()) {
+                            const userData = userDoc.data();
+                            if (userData.createFolders && userData.createFolders.length > 0) {
+                                setFolders(userData.createFolders);
+                            }
+                            if (!userData.email || !userData.name) {
+                                setDoc(userDocRef, {
+                                    uid: user.uid,
+                                    name: user.displayName || user.email?.split('@')[0] || 'Collaborator',
+                                    email: user.email || ''
+                                }, { merge: true }).catch(console.error);
+                            }
+                        } else {
+                            setDoc(userDocRef, {
                                 uid: user.uid,
                                 name: user.displayName || user.email?.split('@')[0] || 'Collaborator',
-                                email: user.email || ''
-                            }, { merge: true });
+                                email: user.email || '',
+                                createdAt: new Date().toISOString()
+                            }, { merge: true }).catch(console.error);
                         }
-                    } else {
-                        await setDoc(userDocRef, {
-                            uid: user.uid,
-                            name: user.displayName || user.email?.split('@')[0] || 'Collaborator',
-                            email: user.email || '',
-                            createdAt: new Date().toISOString()
-                        }, { merge: true });
-                    }
+                    }).catch(err => console.error("Error loading user doc:", err));
 
                     const ownQuery = query(collection(db, "projects"), where("ownerId", "==", user.uid));
                     const collabQuery = query(collection(db, "projects"), where("collaborators", "array-contains", user.uid));
@@ -4267,6 +4305,63 @@ export default function CreatePage() {
                 collaborators: []
             }).catch(err => console.error("Error creating project in Firestore:", err));
         }
+    };
+
+    const handleShareToCommunity = () => {
+        const activeNote = notes.find(n => n.id === selectedNoteId) || null;
+        if (!activeNote) return;
+
+        const title = activeNote.title?.trim() || 'Untitled Song';
+        const lyricsLines = activeNote.phrases && activeNote.phrases.length > 0
+            ? activeNote.phrases.map(p => p.text).filter(t => t.trim().length > 0)
+            : (activeNote.content || '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+        if (lyricsLines.length === 0) {
+            alert("Please write some lyrics before sharing to the community!");
+            return;
+        }
+
+        const displayName = user?.displayName || user?.email?.split('@')[0] || 'Songwriter';
+        const initials = displayName
+            .split(' ')
+            .map(n => n[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase();
+
+        const newPost = {
+            id: 'post-shared-' + Date.now(),
+            author: displayName,
+            avatarFallback: initials || 'SW',
+            time: 'Just now',
+            projectName: title,
+            body: 'Shared from Create section.',
+            lyrics: lyricsLines,
+            attachment: activeNote.audioUrl ? {
+                name: 'audio_take.mp3',
+                type: 'audio/mp3',
+                url: activeNote.audioUrl
+            } : null,
+            kudos: 0,
+            liked: false,
+            comments: []
+        };
+
+        const saved = localStorage.getItem('mep-connect-posts-v4');
+        let currentPosts = [];
+        if (saved) {
+            try {
+                currentPosts = JSON.parse(saved);
+            } catch (e) {
+                console.error("Error reading community posts:", e);
+            }
+        }
+
+        const updatedPosts = [newPost, ...currentPosts];
+        localStorage.setItem('mep-connect-posts-v4', JSON.stringify(updatedPosts));
+
+        // Redirect to Connect tab
+        window.location.href = '/platform/connect';
     };
 
     const handleUpdateNote = (id: string, updates: Partial<SongNote>) => {
@@ -7154,6 +7249,21 @@ export default function CreatePage() {
                                     <span>Collab</span>
                                 </button>
                             )
+                        )}
+
+                        {/* Share to Community button */}
+                        {!isCanvasPreview && selectedNoteId && activeNote && (
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleShareToCommunity();
+                                }}
+                                className="relative flex items-center gap-2 px-5 py-1.5 bg-stone-900 hover:bg-stone-850 text-[#FAF9F5] border border-stone-900 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in"
+                                title="Share this song to Connect community feed"
+                            >
+                                <Share2 size={18} className="stroke-[1.6]" />
+                                <span>Share</span>
+                            </button>
                         )}
 
                         {/* Inline "joined" pill — appears next to Collaborate button, auto-dismisses */}
