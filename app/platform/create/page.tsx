@@ -1801,6 +1801,9 @@ export default function CreatePage() {
     const [isEditing, setIsEditing] = useState(true);
     const [clickedWord, setClickedWord] = useState<string | null>(null);
     const [clickedTokenIndex, setClickedTokenIndex] = useState<number | null>(null);
+    const [wordMode, setWordMode] = useState<'lexicon' | 'synonyms'>('lexicon');
+    const [wordSynonyms, setWordSynonyms] = useState<string[]>([]);
+    const [isSynonymsLoading, setIsSynonymsLoading] = useState(false);
     const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
     const [draggedPhraseId, setDraggedPhraseId] = useState<string | null>(null);
     const [showCanvasMenu, setShowCanvasMenu] = useState(false);
@@ -1899,6 +1902,34 @@ export default function CreatePage() {
             setLocalTitleText(isRecording ? recordingTitle : (currentNote ? currentNote.title : ''));
         }
     }, [selectedNoteId, notes, isRecording, recordingTitle, isEditingTitle]);
+
+    // Fetch synonyms for the clickedWord from Datamuse API
+    useEffect(() => {
+        if (!clickedWord) {
+            setWordSynonyms([]);
+            setWordMode('lexicon'); // Reset mode to default
+            return;
+        }
+        let cancelled = false;
+        setIsSynonymsLoading(true);
+        const clean = clickedWord.toLowerCase().replace(/[^a-z]/g, '');
+        (async () => {
+            try {
+                const response = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(clean)}&max=8`);
+                const data = await response.json();
+                if (!cancelled) {
+                    const list = data.map((item: any) => item.word);
+                    setWordSynonyms(list);
+                }
+            } catch (err) {
+                console.error("Synonyms API error:", err);
+                if (!cancelled) setWordSynonyms([]);
+            } finally {
+                if (!cancelled) setIsSynonymsLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [clickedWord]);
 
     // Auto-save project title when clicking anywhere outside the canvas header
     useEffect(() => {
@@ -5823,13 +5854,69 @@ export default function CreatePage() {
 
     // Word suggestion click handler in Suggestion Mode
     const getCompatibilityScore = (word: string, context: string): number => {
-        let hash = 0;
-        const combined = word.toLowerCase() + context.toLowerCase();
-        for (let i = 0; i < combined.length; i++) {
-            hash = (hash << 5) - hash + combined.charCodeAt(i);
-            hash |= 0;
+        if (!word || !clickedWord) return 50;
+        
+        const w = word.toLowerCase().trim();
+        const orig = clickedWord.toLowerCase().trim();
+        const canvasText = context.toLowerCase();
+        
+        let score = 55; // Base score
+        
+        // 1. Length/Rhythm proximity
+        const lenDiff = Math.abs(w.length - orig.length);
+        if (lenDiff === 0) score += 10;
+        else if (lenDiff === 1) score += 7;
+        else if (lenDiff === 2) score += 4;
+        
+        // Syllable/Vowel group count proximity
+        const countSyllables = (str: string) => (str.match(/[aeiouy]{1,2}/g) || []).length || 1;
+        const sylDiff = Math.abs(countSyllables(w) - countSyllables(orig));
+        if (sylDiff === 0) score += 12;
+        else if (sylDiff === 1) score += 6;
+        
+        // 2. Vowel sound/Assonance match
+        const getVowels = (str: string) => str.replace(/[^aeiouy]/g, '');
+        if (getVowels(w) === getVowels(orig) && w !== orig) {
+            score += 15; // perfect assonance!
+        } else {
+            // partial vowel overlap
+            const v1 = new Set(getVowels(w));
+            const v2 = new Set(getVowels(orig));
+            let intersection = 0;
+            v1.forEach(v => { if (v2.has(v)) intersection++; });
+            if (intersection > 0) score += intersection * 4;
         }
-        return 45 + Math.abs(hash % 54);
+        
+        // 3. Lyric context analysis (rhyme matching with end words in canvas)
+        const lines = canvasText.split('\n').map(l => l.trim()).filter(Boolean);
+        const endWords = lines.map(line => {
+            const parts = line.split(/\s+/);
+            return parts[parts.length - 1]?.replace(/[^a-z]/g, '') || '';
+        }).filter(Boolean);
+        
+        // Check if suggestion rhymes or shares endings with any end word of other lines
+        let hasRhymeMatch = false;
+        for (const ew of endWords) {
+            if (ew === w || ew.length < 3 || w.length < 3) continue;
+            // Check suffix match of last 2 or 3 characters (e.g. -ing, -ight, -y, -ear)
+            if (w.endsWith(ew.slice(-3)) || ew.endsWith(w.slice(-3))) {
+                score += 15;
+                hasRhymeMatch = true;
+                break;
+            } else if (w.endsWith(ew.slice(-2)) || ew.endsWith(w.slice(-2))) {
+                score += 8;
+                hasRhymeMatch = true;
+                break;
+            }
+        }
+        
+        // 4. Alliteration match with current phrase
+        if (w[0] === orig[0] && w !== orig) {
+            score += 8;
+        }
+        
+        // Bound between 40 and 99
+        return Math.max(40, Math.min(99, score));
     };
 
     const handleWordClick = (e: React.MouseEvent, word: string, tokenIndex: number) => {
@@ -7869,36 +7956,74 @@ export default function CreatePage() {
                             
                             <div className="border-t border-stone-100/80 my-0.5" />
                             
+                            {/* Segment selector for Lexicon vs Synonyms */}
+                            <div className="flex bg-stone-100/70 p-0.5 rounded-[12px] w-full select-none">
+                                <button 
+                                    onClick={() => setWordMode('lexicon')}
+                                    className={`flex-1 text-[11px] font-bold py-1.5 rounded-[10px] transition-all cursor-pointer ${
+                                        wordMode === 'lexicon' 
+                                            ? 'bg-white text-stone-850 shadow-xs' 
+                                            : 'text-stone-400 hover:text-stone-600'
+                                    }`}
+                                >
+                                    Lexicon
+                                </button>
+                                <button 
+                                    onClick={() => setWordMode('synonyms')}
+                                    className={`flex-1 text-[11px] font-bold py-1.5 rounded-[10px] transition-all cursor-pointer ${
+                                        wordMode === 'synonyms' 
+                                            ? 'bg-white text-stone-850 shadow-xs' 
+                                            : 'text-stone-400 hover:text-stone-600'
+                                    }`}
+                                >
+                                    Synonyms
+                                </button>
+                            </div>
+
                             {/* Suggestions Alternatives */}
                             <div className="flex flex-col gap-2.5">
-                                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none">Elegant Alternatives</span>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {getSuggestions(clickedWord).map((suggestion, idx) => {
-                                        const score = getCompatibilityScore(suggestion, contentVal);
-                                        return (
-                                            <button
-                                                key={idx}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleSelectSuggestion(suggestion);
-                                                }}
-                                                className="group flex items-center justify-between p-3.5 bg-stone-50/50 hover:bg-stone-900 border border-stone-200/50 hover:border-stone-900 rounded-[16px] transition-all cursor-pointer shadow-2xs hover:shadow-sm"
-                                            >
-                                                <span className="text-[13px] font-bold text-stone-800 group-hover:text-white transition-colors">
-                                                    {suggestion}
-                                                </span>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-12 h-1 bg-stone-200/70 group-hover:bg-white/20 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-stone-700 group-hover:bg-white rounded-full transition-all duration-300" style={{ width: `${score}%` }} />
-                                                    </div>
-                                                    <span className="text-[10px] font-bold text-stone-500 group-hover:text-white/80 transition-colors w-7 text-right">
-                                                        {score}%
+                                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none">
+                                    {wordMode === 'lexicon' ? 'Elegant Alternatives' : 'Synonyms'}
+                                </span>
+                                
+                                {wordMode === 'synonyms' && isSynonymsLoading ? (
+                                    <div className="flex flex-col items-center justify-center py-6 text-stone-400 gap-2">
+                                        <Loader2 className="w-5 h-5 animate-spin text-stone-400" />
+                                        <span className="text-xs font-medium">Fetching synonyms...</span>
+                                    </div>
+                                ) : wordMode === 'synonyms' && wordSynonyms.length === 0 ? (
+                                    <div className="text-center py-6 text-xs font-medium text-stone-400 select-none">
+                                        No synonyms found.
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-2 max-h-[190px] overflow-y-auto pr-1">
+                                        {(wordMode === 'lexicon' ? getSuggestions(clickedWord) : wordSynonyms).map((suggestion, idx) => {
+                                            const score = getCompatibilityScore(suggestion, contentVal);
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleSelectSuggestion(suggestion);
+                                                    }}
+                                                    className="group flex items-center justify-between p-3.5 bg-stone-50/50 hover:bg-stone-900 border border-stone-200/50 hover:border-stone-900 rounded-[16px] transition-all cursor-pointer shadow-2xs hover:shadow-sm"
+                                                >
+                                                    <span className="text-[13px] font-bold text-stone-800 group-hover:text-white transition-colors">
+                                                        {suggestion}
                                                     </span>
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-12 h-1 bg-stone-200/70 group-hover:bg-white/20 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-stone-700 group-hover:bg-white rounded-full transition-all duration-300" style={{ width: `${score}%` }} />
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-stone-500 group-hover:text-white/80 transition-colors w-7 text-right">
+                                                            {score}%
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </>
