@@ -48,7 +48,8 @@ import {
     Share2,
     Users,
     UserPlus,
-    Loader2
+    Loader2,
+    RefreshCw
 } from 'lucide-react';
 
 
@@ -1165,12 +1166,12 @@ function AudioCapsuleSkeleton() {
             <div className="bg-stone-200 h-4 w-12 rounded" />
             <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
             {/* Waveform Placeholder */}
-            <div className="flex items-center gap-[2.5px] h-6 px-1.5 shrink-0" style={{ width: 'clamp(70px, 22vw, 130px)' }}>
-                {Array.from({ length: 18 }).map((_, idx) => (
+            <div className="flex items-center gap-[2px] h-6 px-1.5 shrink-0" style={{ width: 'clamp(70px, 22vw, 130px)' }}>
+                {Array.from({ length: 24 }).map((_, idx) => (
                     <div 
                         key={idx} 
-                        className="w-[3px] bg-stone-200 rounded-full" 
-                        style={{ height: `${8 + Math.sin(idx * 0.5) * 6}px` }} 
+                        className="w-[1.5px] bg-stone-200 rounded-full flex-shrink-0" 
+                        style={{ height: `${4 + Math.abs(Math.sin(idx * 0.45)) * 10}px` }} 
                     />
                 ))}
             </div>
@@ -1189,6 +1190,9 @@ function LyricLinesSkeleton() {
         </div>
     );
 }
+
+// Global cache to prevent decoding/fetching the same audio peaks repeatedly when component re-renders/remounts.
+const peaksCache = new Map<string, number[]>();
 
 function AudioCapsulePlayer({ 
     audioNote, 
@@ -1215,18 +1219,89 @@ function AudioCapsulePlayer({
     const [playbackDuration, setPlaybackDuration] = useState(audioNote.duration || 0);
     const playbackAudioRef = useRef<HTMLAudioElement | null>(null);
 
+    const BAR_COUNT_SMALL = 28;
+    const BAR_COUNT_LARGE = 55;
+
+    const cacheKey = `${audioNote.id}-${isDocked ? 'small' : 'large'}`;
+
+    // Decoded waveform peaks — fetched once, cached globally by ID
+    const [waveformPeaks, setWaveformPeaks] = useState<number[]>(() => {
+        return peaksCache.get(cacheKey) || [];
+    });
+    const [peaksLoaded, setPeaksLoaded] = useState(() => {
+        return peaksCache.has(cacheKey);
+    });
+
+    // Fetch and decode audio to get real waveform amplitude peaks.
+    // This never touches the <audio> element so sound is NEVER affected.
+    useEffect(() => {
+        if (!audioNote.url) return;
+        
+        // If we already have peaks for this ID, immediately load them and skip fetch
+        if (peaksCache.has(cacheKey)) {
+            if (!peaksLoaded) {
+                setWaveformPeaks(peaksCache.get(cacheKey) || []);
+                setPeaksLoaded(true);
+            }
+            return;
+        }
+
+        let cancelled = false;
+        const barCount = isDocked ? BAR_COUNT_SMALL : BAR_COUNT_LARGE;
+        (async () => {
+            try {
+                const response = await fetch(audioNote.url);
+                const arrayBuffer = await response.arrayBuffer();
+                // Use OfflineAudioContext just to decode — no playback routing
+                const offlineCtx = new OfflineAudioContext(1, 1, 44100);
+                const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+                const data = audioBuffer.getChannelData(0);
+                const blockSize = Math.floor(data.length / barCount);
+                const peaks: number[] = [];
+                for (let i = 0; i < barCount; i++) {
+                    let max = 0;
+                    for (let j = 0; j < blockSize; j++) {
+                        const sample = Math.abs(data[i * blockSize + j] || 0);
+                        if (sample > max) max = sample;
+                    }
+                    peaks.push(max);
+                }
+                // Normalize peaks to 0–1
+                const maxPeak = Math.max(...peaks, 0.01);
+                const normalized = peaks.map(p => p / maxPeak);
+                if (!cancelled) {
+                    peaksCache.set(cacheKey, normalized);
+                    setWaveformPeaks(normalized);
+                    setPeaksLoaded(true);
+                }
+            } catch {
+                // Fallback: synthetic sine wave
+                if (!cancelled) {
+                    const barCount2 = isDocked ? BAR_COUNT_SMALL : BAR_COUNT_LARGE;
+                    const fallbackPeaks = Array.from({ length: barCount2 }, (_, i) => {
+                        const wave = 0.35 * Math.sin(i * 0.15) + 0.45 * Math.sin(i * 0.35) + 0.2 * Math.sin(i * 0.8);
+                        const distFromCenter = Math.abs(i - (barCount2 - 1) / 2);
+                        const scaling = Math.max(0.1, 1 - (distFromCenter / ((barCount2 - 1) / 2)) * 0.85);
+                        return Math.max(0.12, (0.2 + Math.abs(wave) * 0.8) * scaling);
+                    });
+                    peaksCache.set(cacheKey, fallbackPeaks);
+                    setWaveformPeaks(fallbackPeaks);
+                    setPeaksLoaded(true);
+                }
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [audioNote.url, isDocked, peaksLoaded, cacheKey]);
+
+    // Cleanup audio on unmount
+    useEffect(() => {
+        return () => { playbackAudioRef.current?.pause(); };
+    }, []);
+
     const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isTouchDraggingRef = useRef(false);
     const startXRef = useRef(0);
     const startYRef = useRef(0);
-
-    useEffect(() => {
-        return () => {
-            if (playbackAudioRef.current) {
-                playbackAudioRef.current.pause();
-            }
-        };
-    }, []);
 
     const togglePlayback = () => {
         if (!playbackAudioRef.current) return;
@@ -1234,10 +1309,9 @@ function AudioCapsulePlayer({
             playbackAudioRef.current.pause();
             setIsPlaying(false);
         } else {
+            // Pause all other audio elements
             document.querySelectorAll('audio').forEach(el => {
-                if (el !== playbackAudioRef.current) {
-                    el.pause();
-                }
+                if (el !== playbackAudioRef.current) el.pause();
             });
             playbackAudioRef.current.play().catch(err => console.error("Playback failed:", err));
             setIsPlaying(true);
@@ -1248,400 +1322,243 @@ function AudioCapsulePlayer({
         e.stopPropagation();
         if (!playbackAudioRef.current || !playbackDuration) return;
         const rect = e.currentTarget.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clickX = clientX - rect.left;
-        const percent = Math.max(0, Math.min(1, clickX / rect.width));
-        const newTime = percent * playbackDuration;
-        playbackAudioRef.current.currentTime = newTime;
-        setPlaybackTime(newTime);
+        const clientX = e.touches ? e.touches[0]?.clientX : e.clientX;
+        if (!clientX) return;
+        const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        playbackAudioRef.current.currentTime = percent * playbackDuration;
+        setPlaybackTime(percent * playbackDuration);
     };
 
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const formatTime = (s: number) =>
+        `${Math.floor(s / 60).toString().padStart(2, '0')}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
+
+    // Shared touch drag handlers (for draggable pill)
+    const sharedTouchHandlers = {
+        onTouchStart: (e: React.TouchEvent) => {
+            if (isTranscribing) return;
+            const target = e.target as HTMLElement;
+            if (target.closest('button') || target.closest('input') || target.closest('svg')) return;
+            startXRef.current = e.touches[0].clientX;
+            startYRef.current = e.touches[0].clientY;
+            isTouchDraggingRef.current = false;
+        },
+        onTouchMove: (e: React.TouchEvent) => {
+            if (isTranscribing) return;
+            const touch = e.touches[0];
+            if (!isTouchDraggingRef.current) {
+                if (Math.abs(touch.clientX - startXRef.current) > 10 || Math.abs(touch.clientY - startYRef.current) > 10) {
+                    isTouchDraggingRef.current = true;
+                    if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
+                    if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
+                    if (navigator.vibrate) navigator.vibrate(15);
+                }
+                return;
+            }
+            if (e.cancelable) e.preventDefault();
+            e.stopPropagation();
+            const gr = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
+            const pr = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
+            if (gr) { const id = gr.getAttribute('data-group-id'); if (id) { if (setDragOverGroupId) setDragOverGroupId(id); if (setDragOverPhraseId) setDragOverPhraseId(null); } }
+            else if (pr) { const id = pr.getAttribute('data-phrase-id'); if (id) { if (setDragOverPhraseId) setDragOverPhraseId(id); if (setDragOverGroupId) setDragOverGroupId(null); } }
+            else { if (setDragOverGroupId) setDragOverGroupId(null); if (setDragOverPhraseId) setDragOverPhraseId(null); }
+        },
+        onTouchEnd: (e: React.TouchEvent) => {
+            if (isTranscribing || !isTouchDraggingRef.current) return;
+            isTouchDraggingRef.current = false;
+            let fg = dragOverGroupIdRef?.current || null, fp = dragOverPhraseIdRef?.current || null, canvas = false;
+            if (!fg && !fp) {
+                const t = e.changedTouches[0];
+                canvas = !!getElementUnderTouch(t.clientX, t.clientY, '#writing-canvas');
+                const gr = getElementUnderTouch(t.clientX, t.clientY, '.verse-group-container');
+                const pr = getElementUnderTouch(t.clientX, t.clientY, '.phrase-row-container');
+                if (gr) fg = gr.getAttribute('data-group-id');
+                if (pr) fp = pr.getAttribute('data-phrase-id');
+            }
+            if (fg && activeNoteId && handleUpdateAudioNoteGroup) handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, fg);
+            else if (fp && handleAttachAudioToPhrase) {
+                const pr = document.querySelector(`[data-phrase-id="${fp}"]`);
+                const pgid = pr?.closest('.verse-group-container')?.getAttribute('data-group-id') || null;
+                if (pgid && activeNoteId && handleUpdateAudioNoteGroup) handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, pgid);
+                else handleAttachAudioToPhrase(audioNote.id, fp, null);
+            } else if (canvas && activeNoteId && handleUpdateAudioNoteGroup) handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, null);
+            if (setDraggedAudioId) setDraggedAudioId(null);
+            if (draggedAudioIdRef) draggedAudioIdRef.current = null;
+            if (setDragOverGroupId) setDragOverGroupId(null);
+            if (setDragOverPhraseId) setDragOverPhraseId(null);
+        },
+        onTouchCancel: () => {
+            if (isTranscribing) return;
+            isTouchDraggingRef.current = false;
+            if (setDraggedAudioId) setDraggedAudioId(null);
+            if (draggedAudioIdRef) draggedAudioIdRef.current = null;
+            if (setDragOverGroupId) setDragOverGroupId(null);
+            if (setDragOverPhraseId) setDragOverPhraseId(null);
+        }
     };
 
+    // The audio element — never routed through Web Audio, so sound always works
+    const renderAudioEl = () => (
+        <audio
+            ref={playbackAudioRef}
+            src={audioNote.url}
+            onTimeUpdate={() => { if (playbackAudioRef.current) setPlaybackTime(playbackAudioRef.current.currentTime); }}
+            onLoadedMetadata={() => { if (playbackAudioRef.current) setPlaybackDuration(playbackAudioRef.current.duration); }}
+            onEnded={() => setIsPlaying(false)}
+            className="hidden"
+        />
+    );
+
+    // WaveSurfer-style waveform using decoded peaks
+    const renderWaveformViz = (small: boolean) => {
+        const maxBarH = small ? 10 : 28;
+        const minBarH = small ? 2 : 3;
+        const containerH = small ? 'h-[12px]' : 'h-[32px]';
+        const containerW = small ? { width: 'clamp(52px,14vw,80px)' } : { width: 'clamp(90px,22vw,160px)' };
+        const currentPercent = playbackDuration ? playbackTime / playbackDuration : 0;
+        
+        // Use beautiful realistic voice-like fallback shape if fetch fails/loads
+        const fallbackLength = small ? BAR_COUNT_SMALL : BAR_COUNT_LARGE;
+        const peaks = waveformPeaks.length > 0
+            ? waveformPeaks
+            : Array.from({ length: fallbackLength }, (_, i) => {
+                const wave = 0.35 * Math.sin(i * 0.15) + 0.45 * Math.sin(i * 0.35) + 0.2 * Math.sin(i * 0.8);
+                const distFromCenter = Math.abs(i - (fallbackLength - 1) / 2);
+                const scaling = Math.max(0.1, 1 - (distFromCenter / ((fallbackLength - 1) / 2)) * 0.85);
+                return Math.max(0.12, (0.2 + Math.abs(wave) * 0.8) * scaling);
+              });
+
+        return (
+            <div
+                onClick={handleWaveformClick}
+                onTouchStart={handleWaveformClick}
+                className={`relative flex items-center justify-between ${containerH} cursor-pointer select-none`}
+                style={containerW}
+            >
+                {/* Playhead */}
+                <div
+                    className="absolute top-0 bottom-0 w-[1px] bg-stone-500 z-10 pointer-events-none"
+                    style={{ left: `${currentPercent * 100}%`, transition: 'left 80ms linear' }}
+                />
+                {peaks.map((peak, i) => {
+                    const barPercent = i / peaks.length;
+                    const isPlayed = barPercent <= currentPercent;
+                    const isNearPlayhead = Math.abs(barPercent - currentPercent) < (1.5 / peaks.length);
+                    const h = Math.max(minBarH, peak * maxBarH);
+                    return (
+                        <div
+                            key={i}
+                            style={{
+                                height: `${h}px`,
+                                width: '1.5px',
+                                borderRadius: '2px',
+                                flexShrink: 0,
+                                backgroundColor: isPlayed ? '#44403c' : '#d6d3d1',
+                                transform: (isPlaying && isNearPlayhead) ? 'scaleY(1.25)' : 'scaleY(1)',
+                                transition: 'background-color 60ms, transform 80ms ease-out',
+                                transformOrigin: 'center',
+                            }}
+                        />
+                    );
+                })}
+            </div>
+        );
+    };
+
+    // ─── DOCKED (small pill) layout ───────────────────────────────────────────
     if (isDocked) {
         return (
-            <div 
-                draggable
-                onDragStart={onDragStart}
-                onDragEnd={onDragEnd}
-                onClick={(e) => e.stopPropagation()}
-                onTouchStart={(e) => {
-                    if (isTranscribing) return;
-                    const target = e.target as HTMLElement;
-                    if (target.closest('button') || target.closest('input') || target.closest('svg')) {
-                        return;
-                    }
-                    const touch = e.touches[0];
-                    startXRef.current = touch.clientX;
-                    startYRef.current = touch.clientY;
-                    isTouchDraggingRef.current = false;
-                }}
-                onTouchMove={(e) => {
-                    if (isTranscribing) return;
-                    const touch = e.touches[0];
-                    if (!isTouchDraggingRef.current) {
-                        const diffX = Math.abs(touch.clientX - startXRef.current);
-                        const diffY = Math.abs(touch.clientY - startYRef.current);
-                        if (diffX > 10 || diffY > 10) {
-                            isTouchDraggingRef.current = true;
-                            if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
-                            if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
-                            if (navigator.vibrate) {
-                                navigator.vibrate(15);
-                            }
-                        }
-                        return;
-                    }
-                    if (e.cancelable) {
-                        e.preventDefault();
-                    }
-                    e.stopPropagation();
-                    
-                    const targetGroupRow = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
-                    const targetPhraseRow = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
-                    
-                    if (targetGroupRow) {
-                        const targetGroupId = targetGroupRow.getAttribute('data-group-id');
-                        if (targetGroupId) {
-                            if (setDragOverGroupId) setDragOverGroupId(targetGroupId);
-                            if (setDragOverPhraseId) setDragOverPhraseId(null);
-                        }
-                    } else if (targetPhraseRow) {
-                        const targetPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
-                        if (targetPhraseId) {
-                            if (setDragOverPhraseId) setDragOverPhraseId(targetPhraseId);
-                            if (setDragOverGroupId) setDragOverGroupId(null);
-                        }
-                    } else {
-                        if (setDragOverGroupId) setDragOverGroupId(null);
-                        if (setDragOverPhraseId) setDragOverPhraseId(null);
-                    }
-                }}
-                onTouchEnd={(e) => {
-                    if (isTranscribing) return;
-                    if (isTouchDraggingRef.current) {
-                        isTouchDraggingRef.current = false;
-                        
-                        let finalGroupId = dragOverGroupIdRef?.current || null;
-                        let finalPhraseId = dragOverPhraseIdRef?.current || null;
-                        let isOverCanvas = false;
-                        
-                        if (!finalGroupId && !finalPhraseId) {
-                            const touch = e.changedTouches[0];
-                            isOverCanvas = !!getElementUnderTouch(touch.clientX, touch.clientY, '#writing-canvas');
-                            const targetGroupRow = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
-                            const targetPhraseRow = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
-                            if (targetGroupRow) finalGroupId = targetGroupRow.getAttribute('data-group-id');
-                            if (targetPhraseRow) finalPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
-                        }
-                        
-                        if (finalGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
-                            handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, finalGroupId);
-                        } else if (finalPhraseId && handleAttachAudioToPhrase) {
-                            const targetPhraseRow = document.querySelector(`[data-phrase-id="${finalPhraseId}"]`);
-                            const groupContainer = targetPhraseRow?.closest('.verse-group-container');
-                            const phraseGroupId = groupContainer?.getAttribute('data-group-id') || null;
-                            if (phraseGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
-                                handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, phraseGroupId);
-                            } else {
-                                handleAttachAudioToPhrase(audioNote.id, finalPhraseId, null);
-                            }
-                        } else if (isOverCanvas && activeNoteId && handleUpdateAudioNoteGroup) {
-                            handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, null);
-                        }
-                        
-                        if (setDraggedAudioId) setDraggedAudioId(null);
-                        if (draggedAudioIdRef) draggedAudioIdRef.current = null;
-                        if (setDragOverGroupId) setDragOverGroupId(null);
-                        if (setDragOverPhraseId) setDragOverPhraseId(null);
-                    }
-                }}
-                onTouchCancel={(e) => {
-                    if (isTranscribing) return;
-                    isTouchDraggingRef.current = false;
-                    if (setDraggedAudioId) setDraggedAudioId(null);
-                    if (draggedAudioIdRef) draggedAudioIdRef.current = null;
-                    if (setDragOverGroupId) setDragOverGroupId(null);
-                    if (setDragOverPhraseId) setDragOverPhraseId(null);
-                }}
+            <div
+                draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
+                onClick={(e) => e.stopPropagation()} {...sharedTouchHandlers}
                 className={`bg-white border border-stone-200/80 rounded-full px-3 py-0.5 shadow-sm flex items-center gap-2.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing touch-none ${
                     draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
                 }`}
             >
-                <audio 
-                    ref={playbackAudioRef} 
-                    src={audioNote.url} 
-                    onTimeUpdate={() => {
-                        if (playbackAudioRef.current) {
-                            setPlaybackTime(playbackAudioRef.current.currentTime);
-                        }
-                    }}
-                    onLoadedMetadata={() => {
-                        if (playbackAudioRef.current) {
-                            setPlaybackDuration(playbackAudioRef.current.duration);
-                        }
-                    }}
-                    onEnded={() => setIsPlaying(false)}
-                    className="hidden"
-                />
+                {renderAudioEl()}
 
-                <input 
-                    type="text"
-                    value={audioNote.title || ''}
-                    placeholder="Name"
-                    disabled={isTranscribing}
-                    onChange={(e) => onRename(e.target.value)}
-                    className="bg-transparent border-none outline-none font-bold text-[9px] text-stone-855 placeholder:text-stone-400 w-16 hover:bg-stone-50 focus:bg-stone-50 rounded px-1 py-0.2 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50"
+                {/* Title */}
+                <input
+                    type="text" value={audioNote.title || ''} placeholder="Name"
+                    disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
+                    className="bg-transparent border-none outline-none font-bold text-[9px] text-stone-700 placeholder:text-stone-400 w-16 hover:bg-stone-50 focus:bg-stone-50 rounded px-1 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50"
                     title="Rename recording"
                 />
-                <div className="h-2.5 w-[1px] bg-stone-200" />
-                
+
+                <div className="h-2.5 w-px bg-stone-200 shrink-0" />
+
                 {isTranscribing ? (
                     <div className="flex items-center gap-1 text-emerald-600 animate-pulse text-[9px] font-bold shrink-0">
-                        <span className="w-1 h-1 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.3s]" />
-                        <span className="w-1 h-1 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.15s]" />
+                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]" />
+                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.15s]" />
                         <span className="w-1 h-1 rounded-full bg-emerald-500 inline-block animate-bounce" />
                         <span>Transcribing...</span>
                     </div>
                 ) : (
                     <>
-                        <button 
-                            onClick={togglePlayback}
-                            className="flex items-center text-stone-700 hover:text-stone-900 transition-colors cursor-pointer"
-                        >
-                            {isPlaying ? (
-                                <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
-                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                                </svg>
-                            ) : (
-                                <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
-                                    <path d="M8 5v14l11-7z"/>
-                                </svg>
-                            )}
+                        {/* Play / Pause */}
+                        <button onClick={togglePlayback} className="flex items-center text-stone-600 hover:text-stone-900 transition-colors cursor-pointer shrink-0">
+                            {isPlaying
+                                ? <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                : <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            }
                         </button>
-                        
-                        <div className="hidden sm:block h-2.5 w-[1px] bg-stone-200" />
 
-                        <div 
-                            onClick={handleWaveformClick}
-                            onTouchStart={handleWaveformClick}
-                            onTouchMove={handleWaveformClick}
-                            className="hidden sm:flex items-center gap-[1.5px] h-3 px-1 relative cursor-pointer select-none"
-                            style={{ width: 'clamp(50px, 15vw, 80px)' }}
-                        >
-                            <div 
-                                className="absolute top-0 bottom-0 w-[1.5px] bg-red-500 rounded-full z-10 pointer-events-none transition-all duration-75"
-                                style={{ left: `${playbackDuration ? (playbackTime / playbackDuration) * 100 : 0}%` }}
-                            />
-                            {Array.from({ length: 16 }).map((_, idx) => {
-                                const barPercent = idx / 16;
-                                const currentPercent = playbackDuration ? (playbackTime / playbackDuration) : 0;
-                                const isPlayed = barPercent <= currentPercent;
-                                const distFromCenter = Math.abs(idx - 7.5);
-                                const scaling = 1 - (distFromCenter / 7.5) * 0.5;
-                                const barHeight = Math.max(3, (8 + Math.sin(idx * 0.5) * 4) * scaling);
+                        {/* Waveform */}
+                        <div className="hidden sm:block h-2.5 w-px bg-stone-200 shrink-0" />
+                        <div className="hidden sm:block">{renderWaveformViz(true)}</div>
+                        <div className="hidden sm:block h-2.5 w-px bg-stone-200 shrink-0" />
 
-                                return (
-                                    <div 
-                                        key={idx}
-                                        className={`w-[2px] rounded-full shrink-0 transition-colors ${
-                                            isPlayed ? 'bg-stone-500' : 'bg-stone-300'
-                                        }`}
-                                        style={{ height: `${barHeight}px` }}
-                                    />
-                                );
-                            })}
-                        </div>
-
-                        <div className="hidden sm:block h-2.5 w-[1px] bg-stone-200" />
-                        <span className="text-[8px] font-mono font-bold text-stone-500">
+                        {/* Timer */}
+                        <span className="text-[8px] font-mono font-bold text-stone-500 shrink-0">
                             {formatTime(playbackTime || playbackDuration)}
                         </span>
                     </>
                 )}
 
+                {/* Transcribe */}
                 {onTranscribe && (
-                    <>
-                        <div className="h-2.5 w-[1px] bg-stone-200" />
-                        <button 
-                            disabled={isTranscribing}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onTranscribe();
-                            }}
-                            className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-35"
-                            title="Transcribe recording"
-                        >
-                            <svg className="w-2.5 h-2.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                            </svg>
-                        </button>
-                    </>
+                    <><div className="h-2.5 w-px bg-stone-200 shrink-0" />
+                    <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onTranscribe(); }}
+                        className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-35" title="Transcribe recording">
+                        <RefreshCw className="w-2.5 h-2.5" strokeWidth={2.2} />
+                    </button></>
                 )}
 
-                <div className="h-2.5 w-[1px] bg-stone-200" />
-                <button 
-                    disabled={isTranscribing}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete();
-                    }}
-                    className="text-stone-404 hover:text-red-600 transition-colors cursor-pointer disabled:opacity-35"
-                    title="Delete recording"
-                >
+                {/* Delete */}
+                <div className="h-2.5 w-px bg-stone-200 shrink-0" />
+                <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                    className="text-stone-404 hover:text-red-500 transition-colors cursor-pointer disabled:opacity-35" title="Delete recording">
                     <svg className="w-2.5 h-2.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
                 </button>
             </div>
         );
     }
 
+    // ─── LARGE (floating pill) layout ─────────────────────────────────────────
     return (
-        <div 
-            draggable
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => {
-                if (isTranscribing) return;
-                const target = e.target as HTMLElement;
-                if (target.closest('button') || target.closest('input') || target.closest('svg')) {
-                    return;
-                }
-                const touch = e.touches[0];
-                startXRef.current = touch.clientX;
-                startYRef.current = touch.clientY;
-                isTouchDraggingRef.current = false;
-            }}
-            onTouchMove={(e) => {
-                if (isTranscribing) return;
-                const touch = e.touches[0];
-                if (!isTouchDraggingRef.current) {
-                    const diffX = Math.abs(touch.clientX - startXRef.current);
-                    const diffY = Math.abs(touch.clientY - startYRef.current);
-                    if (diffX > 10 || diffY > 10) {
-                        isTouchDraggingRef.current = true;
-                        if (setDraggedAudioId) setDraggedAudioId(audioNote.id);
-                        if (draggedAudioIdRef) draggedAudioIdRef.current = audioNote.id;
-                        if (navigator.vibrate) {
-                            navigator.vibrate(15);
-                        }
-                    }
-                    return;
-                }
-                if (e.cancelable) {
-                    e.preventDefault();
-                }
-                e.stopPropagation();
-                
-                const targetGroupRow = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
-                const targetPhraseRow = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
-                
-                if (targetGroupRow) {
-                    const targetGroupId = targetGroupRow.getAttribute('data-group-id');
-                    if (targetGroupId) {
-                        if (setDragOverGroupId) setDragOverGroupId(targetGroupId);
-                        if (setDragOverPhraseId) setDragOverPhraseId(null);
-                    }
-                } else if (targetPhraseRow) {
-                    const targetPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
-                    if (targetPhraseId) {
-                        if (setDragOverPhraseId) setDragOverPhraseId(targetPhraseId);
-                        if (setDragOverGroupId) setDragOverGroupId(null);
-                    }
-                } else {
-                    if (setDragOverGroupId) setDragOverGroupId(null);
-                    if (setDragOverPhraseId) setDragOverPhraseId(null);
-                }
-            }}
-            onTouchEnd={(e) => {
-                if (isTranscribing) return;
-                if (isTouchDraggingRef.current) {
-                    isTouchDraggingRef.current = false;
-                    
-                    let finalGroupId = dragOverGroupIdRef?.current || null;
-                    let finalPhraseId = dragOverPhraseIdRef?.current || null;
-                    let isOverCanvas = false;
-                    
-                    if (!finalGroupId && !finalPhraseId) {
-                        const touch = e.changedTouches[0];
-                        isOverCanvas = !!getElementUnderTouch(touch.clientX, touch.clientY, '#writing-canvas');
-                        const targetGroupRow = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
-                        const targetPhraseRow = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
-                        if (targetGroupRow) finalGroupId = targetGroupRow.getAttribute('data-group-id');
-                        if (targetPhraseRow) finalPhraseId = targetPhraseRow.getAttribute('data-phrase-id');
-                    }
-                    
-                    if (finalGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
-                        handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, finalGroupId);
-                    } else if (finalPhraseId && handleAttachAudioToPhrase) {
-                        const targetPhraseRow = document.querySelector(`[data-phrase-id="${finalPhraseId}"]`);
-                        const groupContainer = targetPhraseRow?.closest('.verse-group-container');
-                        const phraseGroupId = groupContainer?.getAttribute('data-group-id') || null;
-                        if (phraseGroupId && activeNoteId && handleUpdateAudioNoteGroup) {
-                            handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, phraseGroupId);
-                        } else {
-                            handleAttachAudioToPhrase(audioNote.id, finalPhraseId, null);
-                        }
-                    } else if (isOverCanvas && activeNoteId && handleUpdateAudioNoteGroup) {
-                        handleUpdateAudioNoteGroup(activeNoteId, audioNote.id, null);
-                    }
-                    
-                    if (setDraggedAudioId) setDraggedAudioId(null);
-                    if (draggedAudioIdRef) draggedAudioIdRef.current = null;
-                    if (setDragOverGroupId) setDragOverGroupId(null);
-                    if (setDragOverPhraseId) setDragOverPhraseId(null);
-                }
-            }}
-            onTouchCancel={(e) => {
-                if (isTranscribing) return;
-                isTouchDraggingRef.current = false;
-                if (setDraggedAudioId) setDraggedAudioId(null);
-                if (draggedAudioIdRef) draggedAudioIdRef.current = null;
-                if (setDragOverGroupId) setDragOverGroupId(null);
-                if (setDragOverPhraseId) setDragOverPhraseId(null);
-            }}
-            className={`bg-white border border-stone-200/80 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-1.5 sm:gap-4 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 touch-none max-w-full ${
+        <div
+            draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
+            onClick={(e) => e.stopPropagation()} {...sharedTouchHandlers}
+            className={`bg-white border border-stone-200/80 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-1.5 sm:gap-3 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 touch-none max-w-full ${
                 draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
             }`}
         >
-            <audio 
-                ref={playbackAudioRef} 
-                src={audioNote.url} 
-                onTimeUpdate={() => {
-                    if (playbackAudioRef.current) {
-                        setPlaybackTime(playbackAudioRef.current.currentTime);
-                    }
-                }}
-                onLoadedMetadata={() => {
-                    if (playbackAudioRef.current) {
-                        setPlaybackDuration(playbackAudioRef.current.duration);
-                    }
-                }}
-                onEnded={() => setIsPlaying(false)}
-                className="hidden"
-            />
+            {renderAudioEl()}
 
-            <input 
-                type="text"
-                value={audioNote.title || ''}
-                placeholder="Name"
-                disabled={isTranscribing}
-                onChange={(e) => onRename(e.target.value)}
-                className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 w-16 sm:w-24 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50"
+            {/* Title */}
+            <input
+                type="text" value={audioNote.title || ''} placeholder="Name"
+                disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
+                className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 w-16 sm:w-20 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50"
                 title="Rename recording"
             />
 
-            <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
+            <div className="h-4 w-px bg-stone-200 shrink-0" />
 
             {isTranscribing ? (
-                <div className="flex items-center gap-2 text-emerald-600 animate-pulse text-xs font-bold py-1 px-4 shrink-0">
+                <div className="flex items-center gap-2 text-emerald-600 animate-pulse text-xs font-bold py-1 px-2 shrink-0">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.3s]" />
                     <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.15s]" />
                     <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce" />
@@ -1649,106 +1566,44 @@ function AudioCapsulePlayer({
                 </div>
             ) : (
                 <>
-                    <button 
-                        onClick={togglePlayback}
-                        className="flex items-center gap-1.5 text-stone-700 hover:text-stone-900 transition-colors cursor-pointer text-xs font-bold shrink-0"
-                    >
-                        {isPlaying ? (
-                            <>
-                                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                                </svg>
-                                <span className="hidden sm:inline">Play/pause</span>
-                            </>
-                        ) : (
-                            <>
-                                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                                    <path d="M8 5v14l11-7z"/>
-                                </svg>
-                                <span className="hidden sm:inline">Play/pause</span>
-                            </>
-                        )}
+                    {/* Play / Pause */}
+                    <button onClick={togglePlayback}
+                        className="flex items-center gap-1.5 text-stone-600 hover:text-stone-900 transition-colors cursor-pointer text-xs font-semibold shrink-0">
+                        {isPlaying
+                            ? <><svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg><span className="hidden sm:inline">Pause</span></>
+                            : <><svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span className="hidden sm:inline">Play</span></>
+                        }
                     </button>
-                    <div className="hidden sm:block h-4 w-[1px] bg-stone-200 shrink-0" />
 
-                    <div 
-                        onClick={handleWaveformClick}
-                        onTouchStart={handleWaveformClick}
-                        onTouchMove={handleWaveformClick}
-                        className="hidden sm:flex items-center gap-[2.5px] h-6 px-1.5 relative cursor-pointer select-none shrink-0"
-                        style={{ width: 'clamp(70px, 22vw, 130px)' }}
-                    >
-                        <div 
-                            className="absolute top-0 bottom-0 w-[2px] bg-red-500 rounded-full z-10 pointer-events-none transition-all duration-75"
-                            style={{ 
-                                left: `${playbackDuration ? (playbackTime / playbackDuration) * 100 : 0}%` 
-                            }}
-                        />
+                    {/* Waveform */}
+                    <div className="hidden sm:block h-4 w-px bg-stone-200 shrink-0" />
+                    <div className="hidden sm:block shrink-0">{renderWaveformViz(false)}</div>
+                    <div className="hidden sm:block h-4 w-px bg-stone-200 shrink-0" />
 
-                        {Array.from({ length: 24 }).map((_, idx) => {
-                            const barPercent = idx / 24;
-                            const currentPercent = playbackDuration ? (playbackTime / playbackDuration) : 0;
-                            const isPlayed = barPercent <= currentPercent;
-                            
-                            const distFromCenter = Math.abs(idx - 11.5);
-                            const scaling = 1 - (distFromCenter / 11.5) * 0.6;
-                            const barHeight = Math.max(4, (12 + Math.sin(idx * 0.5) * 8) * scaling);
-
-                            return (
-                                <div 
-                                    key={idx}
-                                    className={`w-[3px] rounded-full shrink-0 transition-colors ${
-                                        isPlayed ? 'bg-stone-500' : 'bg-stone-300'
-                                    }`}
-                                    style={{ height: `${barHeight}px` }}
-                                />
-                            );
-                        })}
-                    </div>
-
-                    <div className="hidden sm:block h-4 w-[1px] bg-stone-200 shrink-0" />
-
+                    {/* Timer */}
                     <span className="text-[10px] font-mono font-bold text-stone-500 shrink-0">
                         {formatTime(playbackTime || playbackDuration)}
                     </span>
                 </>
             )}
 
+            {/* Transcribe */}
             {onTranscribe && (
-                <>
-                    <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
-                    <button 
-                        disabled={isTranscribing}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onTranscribe();
-                        }}
-                        className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer shrink-0 disabled:opacity-35"
-                        title="Transcribe recording"
-                    >
-                        <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                    </button>
-                </>
+                <><div className="h-4 w-px bg-stone-200 shrink-0" />
+                <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onTranscribe(); }}
+                    className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer shrink-0 disabled:opacity-35" title="Transcribe recording">
+                    <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} />
+                </button></>
             )}
 
-            <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
-
-            <button 
-                disabled={isTranscribing}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                }}
-                className="text-stone-405 hover:text-red-600 transition-colors cursor-pointer shrink-0 disabled:opacity-35"
-                title="Delete recording"
-            >
+            {/* Delete */}
+            <div className="h-4 w-px bg-stone-200 shrink-0" />
+            <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="text-stone-404 hover:text-red-500 transition-colors cursor-pointer shrink-0 disabled:opacity-35" title="Delete recording">
                 <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    <line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
                 </svg>
             </button>
         </div>
