@@ -6490,10 +6490,11 @@ export default function CreatePage() {
                         onSlideChange={(swiper) => {
                             setCurrentCardIndex(swiper.activeIndex);
                         }}
-                        className="w-[520px] h-[340px] overflow-visible"
+                        className="w-[520px] h-[340px]"
+                        style={{ overflow: 'visible' }}
                     >
                         {cards.map((card) => (
-                            <SwiperSlide key={card.id} className="rounded-[38px] overflow-visible">
+                            <SwiperSlide key={card.id} className="rounded-[38px]" style={{ overflow: 'visible' }}>
                                 <div
                                     className="relative w-full h-full bg-stone-900 cursor-pointer select-none rounded-[38px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.48)] border border-white/10"
                                     onClick={() => setExpandedCardId(card.id)}
