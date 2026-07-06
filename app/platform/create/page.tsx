@@ -68,91 +68,91 @@ interface InspirationCard {
 
 const INSPIRATION_CARDS: InspirationCard[] = [
     {
-        id: 'midnight-coffee',
-        title: 'The Midnight Coffee Shop',
-        category: 'Daily Life',
-        bgImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=600&auto=format&fit=crop',
+        id: 'nature-river-valley',
+        title: 'The Misty River Valley',
+        category: 'Rivers',
+        bgImage: '/assets/inspiration/nature_river_valley.jpg',
         questions: [
-            'Who is sitting at the table in the corner, and what are they writing?',
-            'What song is playing quietly in the background?',
-            'What secret does the barista know about this place?'
+            'Where does the winding river lead, and what secrets does it carry to the ocean?',
+            'How does the golden hour light change the colors of the mist rising from the hills?',
+            'If the fog could whisper a melody, would it sound like a longing sigh?'
         ]
     },
     {
-        id: 'childhood-bedroom',
-        title: 'Your Childhood Bedroom',
-        category: 'Nostalgia',
-        bgImage: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&auto=format&fit=crop',
+        id: 'nature-deep-forest',
+        title: 'The Whispering Pine Forest',
+        category: 'Forests',
+        bgImage: '/assets/inspiration/nature_deep_forest.jpg',
         questions: [
-            'What was the view outside the window on a rainy afternoon?',
-            'If the walls could talk, what secret would they whisper?',
-            'What object from that room do you miss the most?'
+            'What do the ancient pines tell each other when the wind sweeps through the valley?',
+            'If you followed the sunbeams filtering through the branches, what would you discover?',
+            'How does the scent of damp moss and pine needles inspire a quiet acoustic progression?'
         ]
     },
     {
-        id: 'forgotten-station',
-        title: 'A Forgotten Train Station',
-        category: 'History',
-        bgImage: 'https://images.unsplash.com/photo-1541417904950-b855846fe074?q=80&w=600&auto=format&fit=crop',
+        id: 'nature-tropical-jungle',
+        title: 'The Hidden Jungle Waterfall',
+        category: 'Tropical',
+        bgImage: '/assets/inspiration/nature_tropical_jungle.jpg',
         questions: [
-            'Where were the passengers heading before the station was abandoned?',
-            'What does the overgrown platform look like now?',
-            'Whose ghost still waits for the 5:15 train?'
+            'Whose ancient footsteps carved the path to this secret waterfall?',
+            'What does the continuous roar of cascading water sound like when the jungle falls silent?',
+            'If this crystal-clear pool was a mirror, what hidden truth would it reveal about you?'
         ]
     },
     {
-        id: 'forest-storm',
-        title: 'Storm in the Forest',
-        category: 'Nature',
-        bgImage: 'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=600&auto=format&fit=crop',
+        id: 'nature-ocean-coastline',
+        title: 'The Sunset Cliffs & Ocean',
+        category: 'Coastline',
+        bgImage: '/assets/inspiration/nature_ocean_coastline.jpg',
         questions: [
-            'What color is the sky right before the first thunderclap?',
-            'How do the trees react to the heavy wind?',
-            'Where do the birds seek shelter?'
+            'What story is written in the rugged layers of the towering rocky cliffs?',
+            'How does the rhythm of crashing waves against the stone set the tempo of your thoughts?',
+            'Where does the horizon end when the crimson sunset meets the infinite ocean?'
         ]
     },
     {
-        id: 'edge-cosmos',
-        title: 'The Edge of the Cosmos',
-        category: 'Space & Sci-Fi',
-        bgImage: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop',
+        id: 'nature-mountain-lake',
+        title: 'The Serene Alpine Lake',
+        category: 'Reflections',
+        bgImage: '/assets/inspiration/nature_mountain_lake.jpg',
         questions: [
-            'What does the silence of empty space sound like to you?',
-            'If you could send a single message back to Earth, what would it say?',
-            'What shape does the galaxy take from this distance?'
+            'What does the perfect mirror reflection of the snow-capped peak tell us about stillness?',
+            'How does the absolute silence of the mountain dawn make you feel?',
+            'What lies beneath the calm, deep waters of the alpine lake?'
         ]
     },
     {
-        id: 'clockmaker-dilemma',
-        title: "The Clockmaker's Dilemma",
-        category: 'Philosophy',
-        bgImage: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=600&auto=format&fit=crop',
+        id: 'nature-desert-oasis',
+        title: 'The Starry Desert Oasis',
+        category: 'Oases',
+        bgImage: '/assets/inspiration/nature_desert_oasis.jpg',
         questions: [
-            'If you could pause time for one hour, what would you fix?',
-            'Does time move faster when we are looking away?',
-            'What happens to a second that is forgotten?'
+            'How does the cool water of the oasis feel after a long journey across the hot red sands?',
+            'What song do the palm trees sing when the desert wind rises at night?',
+            'Which star in the vast twilight sky are you searching for?'
         ]
     },
     {
-        id: 'solo-runner',
-        title: 'The Solo Runner',
-        category: 'Sports & Motion',
-        bgImage: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?q=80&w=600&auto=format&fit=crop',
+        id: 'nature-canyon-river',
+        title: 'The Golden River Canyon',
+        category: 'Canyons',
+        bgImage: '/assets/inspiration/nature_canyon_river.jpg',
         questions: [
-            'What rhythm does the heartbeat create at the peak of the run?',
-            'What thoughts fade away with every mile passed?',
-            'What is the runner escaping, or running toward?'
+            'What has the river carved away from these golden-orange cliffs over millions of years?',
+            'How do the deep shadows in the canyon gorge make you feel at sunset?',
+            'What echo would return to you if you shouted your deepest wish from the cliff edge?'
         ]
     },
     {
-        id: 'locked-drawer',
-        title: 'The Locked Drawer',
-        category: 'Secrets & Dreams',
-        bgImage: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=600&auto=format&fit=crop',
+        id: 'nature-misty-meadow',
+        title: 'The Misty Highland Meadow',
+        category: 'Meadows',
+        bgImage: '/assets/inspiration/nature_misty_meadow.jpg',
         questions: [
-            'What key is hidden to open this drawer?',
-            'What handwritten letter lies inside, yellowed with age?',
-            'Why was it locked away in the first place?'
+            'What secrets are hidden under the morning dew on the wildflowers?',
+            'How does the gentle slope of the green hills make you feel as you walk through the mist?',
+            'If this highland breeze was a breath, what would it clear from your mind?'
         ]
     }
 ];
