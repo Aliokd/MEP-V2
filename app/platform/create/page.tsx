@@ -7977,6 +7977,9 @@ export default function CreatePage() {
                                     if (isRecording) {
                                         stopRecording();
                                     } else {
+                                        if (showToolsPanel && activeToolTab !== 'inspiration') {
+                                            setShowToolsPanel(false);
+                                        }
                                         startRecording();
                                     }
                                 }}
