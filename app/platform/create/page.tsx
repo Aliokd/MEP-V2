@@ -6532,7 +6532,6 @@ export default function CreatePage() {
     };
 
     const renderToolsPanel = () => {
-        if (!showToolsPanel) return null;
 
         if (activeToolTab === 'inspiration') {
             if (!expandedCardId) {
@@ -7908,11 +7907,19 @@ export default function CreatePage() {
                 )}
 
                 {/* Creative Tools Panel */}
-                {showToolsPanel && (
-                    <div className="absolute bottom-[120px] left-1/2 -translate-x-1/2 w-full max-w-[952px] px-4 z-30">
-                        {renderToolsPanel()}
-                    </div>
-                )}
+                <div 
+                    className={`absolute left-1/2 -translate-x-1/2 w-full max-w-[952px] px-4 z-30 transition-all duration-300 ease-out origin-bottom transform ${
+                        showToolsPanel
+                            ? "translate-y-0 scale-100 opacity-100 pointer-events-auto"
+                            : "translate-y-24 scale-0 opacity-0 pointer-events-none"
+                    } ${
+                        (activeToolTab === 'inspiration' && !expandedCardId)
+                            ? "bottom-[65px]"
+                            : "bottom-[120px]"
+                    }`}
+                >
+                    {renderToolsPanel()}
+                </div>
 
                 <div 
                     onClick={(e) => e.stopPropagation()}
