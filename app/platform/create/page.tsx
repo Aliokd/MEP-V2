@@ -8100,26 +8100,26 @@ export default function CreatePage() {
                     style={(isMobile && (editingPhraseId !== null || isFocused)) ? { bottom: `${visualViewportOffset}px` } : undefined}
                 >
                     {/* Right Side: Button Row (✓ SAVE, REC, Tools, Inspiration) */}
-                    <div className="flex items-center gap-3.5">
+                    <div className="flex items-center gap-4">
                         {/* Revert adjustments button (placed outside the capsule for clean alignment) */}
                         {activeNote && activeNote.content !== lastSavedContent && !isActiveCollab && (
                             <button
                                 onClick={handleRevertChanges}
-                                className="text-stone-404 hover:text-stone-700 hover:bg-stone-100 p-2.5 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center"
+                                className="text-stone-404 hover:text-stone-700 hover:bg-stone-100 p-3 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center"
                                 title="Revert to last saved state"
                             >
-                                <RotateCcw size={17} className="stroke-[2.5]" />
+                                <RotateCcw size={20} className="stroke-[2.5]" />
                             </button>
                         )}
 
                         {/* Primary actions capsule */}
-                        <div className="flex items-center gap-3 bg-white border border-stone-200/60 p-2.5 rounded-full shadow-[0_14px_42px_rgba(0,0,0,0.07)] w-fit pointer-events-auto">
+                        <div className="flex items-center gap-3.5 bg-white border border-stone-200/60 p-3 rounded-full shadow-[0_16px_48px_rgba(0,0,0,0.08)] w-fit pointer-events-auto">
                             {/* ✓ SAVE button — always visible during active collab, otherwise only when content differs */}
                             {activeNote && (activeNote.content !== lastSavedContent || isActiveCollab) && (
                                 <button
                                     onClick={handleCheckmarkSaveClick}
                                     disabled={savedFlash}
-                                    className={`h-12 px-6 flex items-center gap-2.5 rounded-full border font-sans font-extrabold text-[13.5px] uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 shadow-3xs select-none ${
+                                    className={`h-14 px-7 flex items-center gap-3 rounded-full border font-sans font-extrabold text-[15.5px] uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 shadow-3xs select-none ${
                                         savedFlash
                                             ? 'border-emerald-300 bg-emerald-50 text-emerald-600 scale-95'
                                             : isActiveCollab && activeNote.content === lastSavedContent
@@ -8128,7 +8128,7 @@ export default function CreatePage() {
                                     }`}
                                     title={isActiveCollab ? 'Save to Collab Projects' : 'Save'}
                                 >
-                                    <Check size={17} className="stroke-[3]" />
+                                    <Check size={20} className="stroke-[3]" />
                                     <span>{savedFlash ? 'Saved ✓' : isActiveCollab ? 'SAVE' : 'SAVE'}</span>
                                 </button>
                             )}
@@ -8143,7 +8143,7 @@ export default function CreatePage() {
                                         startRecording();
                                     }
                                 }}
-                                className={`h-12 px-6 flex items-center gap-2.5 rounded-full text-[13.5px] font-extrabold transition-all duration-200 cursor-pointer border border-stone-200/50 active:scale-95 shadow-3xs ${
+                                className={`h-14 px-7 flex items-center gap-3 rounded-full text-[15.5px] font-extrabold transition-all duration-200 cursor-pointer border border-stone-200/50 active:scale-95 shadow-3xs ${
                                     isRecording 
                                         ? 'bg-[#FF4040] text-white animate-pulse' 
                                         : 'bg-white text-[#FF4040] hover:bg-red-50/50'
@@ -8151,13 +8151,13 @@ export default function CreatePage() {
                             >
                                 {isRecording ? (
                                     <>
-                                        <div className="w-3 h-3 rounded-full bg-white animate-ping absolute" />
-                                        <Square size={12} className="fill-white text-white shrink-0 z-10" />
+                                        <div className="w-3.5 h-3.5 rounded-full bg-white animate-ping absolute" />
+                                        <Square size={14} className="fill-white text-white shrink-0 z-10" />
                                         <span className="z-10">Recording {formatTime(recordingTime)}</span>
                                     </>
                                 ) : (
                                     <>
-                                        <span className="w-3 h-3 rounded-full bg-[#FF4040] shrink-0" />
+                                        <span className="w-3.5 h-3.5 rounded-full bg-[#FF4040] shrink-0" />
                                         <span>REC</span>
                                     </>
                                 )}
@@ -8166,7 +8166,7 @@ export default function CreatePage() {
                             {/* Tools button */}
                             <button
                                 onClick={handleToolsToggle}
-                                className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
+                                className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
                                     showToolsPanel && activeToolTab !== 'inspiration'
                                         ? 'bg-[#F2F2F2] text-stone-900 font-extrabold'
                                         : 'bg-white text-stone-750 hover:bg-stone-50'
@@ -8174,8 +8174,8 @@ export default function CreatePage() {
                                 title="Creative Tools"
                                 type="button"
                             >
-                                <div className="relative w-6.5 h-6.5 flex items-center justify-center pointer-events-none gap-0.5">
-                                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={showToolsPanel && activeToolTab !== 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
+                                <div className="relative w-7.5 h-7.5 flex items-center justify-center pointer-events-none gap-0.5">
+                                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={showToolsPanel && activeToolTab !== 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
                                         {/* Vertical Pencil (left) */}
                                         <path d="M6 21V9l2-4 2 4v12H6z" />
                                         <path d="M6 18h4" />
@@ -8192,7 +8192,7 @@ export default function CreatePage() {
                             {/* Inspiration button */}
                             <button
                                 onClick={handleInspirationToggle}
-                                className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
+                                className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
                                     showToolsPanel && activeToolTab === 'inspiration'
                                         ? 'bg-[#F2F2F2] text-stone-900 font-extrabold'
                                         : 'bg-white text-stone-750 hover:bg-stone-50'
@@ -8200,7 +8200,18 @@ export default function CreatePage() {
                                 title="Inspiration Tools"
                                 type="button"
                             >
-                                <Lightbulb size={21} className={`stroke-[1.6] ${showToolsPanel && activeToolTab === 'inspiration' ? 'text-stone-850' : 'text-stone-600'}`} />
+                                <div className="relative w-7.5 h-7.5 flex items-center justify-center pointer-events-none">
+                                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" className={showToolsPanel && activeToolTab === 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
+                                        {/* Clean bulb shape matching tools icon stroke weight */}
+                                        <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .6 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+                                        <path d="M9 18h6" />
+                                        <path d="M10 22h4" />
+                                        {/* Simple ray lines */}
+                                        <line x1="12" y1="2.5" x2="12" y2="4" />
+                                        <line x1="21.5" y1="8" x2="20" y2="8" />
+                                        <line x1="4" y1="8" x2="2.5" y2="8" />
+                                    </svg>
+                                </div>
                             </button>
                         </div>
                     </div>
