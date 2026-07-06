@@ -6484,6 +6484,9 @@ export default function CreatePage() {
                         effect={'cards'}
                         grabCursor={true}
                         modules={[EffectCards]}
+                        cardsEffect={{
+                            slideShadows: false
+                        }}
                         onSwiper={(swiper) => {
                             inspirationSwiperRef.current = swiper;
                         }}
@@ -6496,7 +6499,7 @@ export default function CreatePage() {
                         {cards.map((card) => (
                             <SwiperSlide key={card.id} className="rounded-[38px]" style={{ overflow: 'visible' }}>
                                 <div
-                                    className="relative w-full h-full bg-stone-900 cursor-pointer select-none rounded-[38px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.48)] border border-white/10"
+                                    className="relative w-full h-full bg-stone-900 cursor-pointer select-none rounded-[38px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.18)] border border-white/10"
                                     onClick={() => setExpandedCardId(card.id)}
                                     style={{
                                         backgroundImage: `url(${card.bgImage})`,
@@ -6513,7 +6516,7 @@ export default function CreatePage() {
                                             <h4 className="text-[24px] font-extrabold text-white tracking-tight leading-tight line-clamp-1">
                                                 {card.title}
                                             </h4>
-                                            <span className="text-[13.5px] font-bold uppercase tracking-widest text-stone-250 mt-1">
+                                            <span className="text-[12.5px] font-normal uppercase tracking-widest text-white/80 mt-1">
                                                 {card.category}
                                             </span>
                                         </div>
