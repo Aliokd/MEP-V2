@@ -1671,6 +1671,7 @@ export default function CreatePage() {
     const [folders, setFolders] = useState<SongFolder[]>(() => readCachedFolders());
     const [notes, setNotes] = useState<SongNote[]>(() => readCachedNotes());
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+    const [shareStatus, setShareStatus] = useState<'idle' | 'sharing' | 'shared'>('idle');
 
     const selectedNoteIdRef = useRef<string | null>(null);
     useEffect(() => {
@@ -2381,6 +2382,21 @@ export default function CreatePage() {
             localStorage.setItem('veinote-create-notes', JSON.stringify(notes));
         }
     }, [notes, isDataLoaded]);
+
+    // Auto-open project if query parameter noteId is present
+    useEffect(() => {
+        if (isDataLoaded && notes.length > 0) {
+            const params = new URLSearchParams(window.location.search);
+            const noteIdParam = params.get('noteId');
+            if (noteIdParam && notes.some(n => n.id === noteIdParam)) {
+                setSelectedNoteId(noteIdParam);
+                
+                // Clear the query parameter from URL to prevent reopening on reload
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
+            }
+        }
+    }, [isDataLoaded, notes]);
 
     // 1a. Live Preview Mirror Subscription: When in preview mode, subscribe to the invited
     //     project in real-time so the invitee sees every live edit by the project owner.
@@ -4193,7 +4209,12 @@ export default function CreatePage() {
         }
     };
 
-    const handleShareToCommunity = () => {
+    const handleShareToCommunity = async () => {
+        if (shareStatus === 'shared') {
+            window.location.href = '/platform/connect';
+            return;
+        }
+
         const activeNote = notes.find(n => n.id === selectedNoteId) || null;
         if (!activeNote) return;
 
@@ -4207,6 +4228,8 @@ export default function CreatePage() {
             return;
         }
 
+        setShareStatus('sharing');
+
         const displayName = user?.displayName || user?.email?.split('@')[0] || 'Songwriter';
         const initials = displayName
             .split(' ')
@@ -4215,8 +4238,9 @@ export default function CreatePage() {
             .slice(0, 2)
             .toUpperCase();
 
+        const postId = 'post-shared-' + Date.now();
         const newPost = {
-            id: 'post-shared-' + Date.now(),
+            id: postId,
             author: displayName,
             avatarFallback: initials || 'SW',
             time: 'Just now',
@@ -4229,25 +4253,33 @@ export default function CreatePage() {
                 url: activeNote.audioUrl
             } : null,
             kudos: 0,
-            liked: false,
-            comments: []
+            likedBy: [],
+            comments: [],
+            reposts: 0,
+            repostedBy: [],
+            createdAt: Date.now()
         };
 
-        const saved = localStorage.getItem('mep-connect-posts-v4');
-        let currentPosts = [];
-        if (saved) {
-            try {
-                currentPosts = JSON.parse(saved);
-            } catch (e) {
-                console.error("Error reading community posts:", e);
+        try {
+            await setDoc(doc(db, 'connect_posts', postId), newPost);
+            setShareStatus('shared');
+            setTimeout(() => {
+                window.location.href = '/platform/connect';
+            }, 1800);
+        } catch (err) {
+            console.error("Error sharing post to Firestore:", err);
+            // Fallback storage
+            const saved = localStorage.getItem('mep-connect-posts-v4');
+            let currentPosts = [];
+            if (saved) {
+                try { currentPosts = JSON.parse(saved); } catch (e) {}
             }
+            localStorage.setItem('mep-connect-posts-v4', JSON.stringify([newPost, ...currentPosts]));
+            setShareStatus('shared');
+            setTimeout(() => {
+                window.location.href = '/platform/connect';
+            }, 1800);
         }
-
-        const updatedPosts = [newPost, ...currentPosts];
-        localStorage.setItem('mep-connect-posts-v4', JSON.stringify(updatedPosts));
-
-        // Redirect to Connect tab
-        window.location.href = '/platform/connect';
     };
 
     const handleUpdateNote = (id: string, updates: Partial<SongNote>) => {
@@ -7200,11 +7232,33 @@ export default function CreatePage() {
                                     e.stopPropagation();
                                     handleShareToCommunity();
                                 }}
-                                className="relative flex items-center gap-2 px-5 py-1.5 bg-stone-900 hover:bg-stone-850 text-[#FAF9F5] border border-stone-900 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in"
-                                title="Share this song to Connect community feed"
+                                disabled={shareStatus === 'sharing'}
+                                className={`relative flex items-center gap-2 px-5 py-1.5 border rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in
+                                    ${shareStatus === 'shared'
+                                        ? 'bg-green-650 border-green-650 text-white hover:bg-green-700 hover:border-green-700'
+                                        : 'bg-stone-900 border-stone-900 text-[#FAF9F5] hover:bg-stone-850'
+                                    }
+                                `}
+                                title={shareStatus === 'shared' ? 'Go to community Connect feed' : 'Share this song to Connect community feed'}
                             >
-                                <Share2 size={18} className="stroke-[1.6]" />
-                                <span>Share</span>
+                                {shareStatus === 'idle' && (
+                                    <>
+                                        <Share2 size={18} className="stroke-[1.6]" />
+                                        <span>Share</span>
+                                    </>
+                                )}
+                                {shareStatus === 'sharing' && (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin stroke-[1.6]" />
+                                        <span>Sharing...</span>
+                                    </>
+                                )}
+                                {shareStatus === 'shared' && (
+                                    <>
+                                        <Check size={18} className="stroke-[2.5]" />
+                                        <span>Shared Successfully! Check Now</span>
+                                    </>
+                                )}
                             </button>
                         )}
 
@@ -8036,7 +8090,6 @@ export default function CreatePage() {
                     </div>
                 )}
 
-                {/* 1c. Bottom controls bar */}
                 <div 
                     onClick={(e) => e.stopPropagation()}
                     className={`flex select-none z-20 justify-center ${
@@ -8047,26 +8100,26 @@ export default function CreatePage() {
                     style={(isMobile && (editingPhraseId !== null || isFocused)) ? { bottom: `${visualViewportOffset}px` } : undefined}
                 >
                     {/* Right Side: Button Row (✓ SAVE, REC, Tools, Inspiration) */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3.5">
                         {/* Revert adjustments button (placed outside the capsule for clean alignment) */}
                         {activeNote && activeNote.content !== lastSavedContent && !isActiveCollab && (
                             <button
                                 onClick={handleRevertChanges}
-                                className="text-stone-400 hover:text-stone-700 hover:bg-stone-100 p-2 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center"
+                                className="text-stone-404 hover:text-stone-700 hover:bg-stone-100 p-2.5 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center"
                                 title="Revert to last saved state"
                             >
-                                <RotateCcw size={14} className="stroke-[2.5]" />
+                                <RotateCcw size={17} className="stroke-[2.5]" />
                             </button>
                         )}
 
                         {/* Primary actions capsule */}
-                        <div className="flex items-center gap-2.5 bg-white border border-stone-200/60 p-2 rounded-full shadow-[0_12px_36px_rgba(0,0,0,0.06)] w-fit pointer-events-auto">
+                        <div className="flex items-center gap-3 bg-white border border-stone-200/60 p-2.5 rounded-full shadow-[0_14px_42px_rgba(0,0,0,0.07)] w-fit pointer-events-auto">
                             {/* ✓ SAVE button — always visible during active collab, otherwise only when content differs */}
                             {activeNote && (activeNote.content !== lastSavedContent || isActiveCollab) && (
                                 <button
                                     onClick={handleCheckmarkSaveClick}
                                     disabled={savedFlash}
-                                    className={`h-10 px-5 flex items-center gap-2 rounded-full border font-sans font-extrabold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 shadow-3xs select-none ${
+                                    className={`h-12 px-6 flex items-center gap-2.5 rounded-full border font-sans font-extrabold text-[13.5px] uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 shadow-3xs select-none ${
                                         savedFlash
                                             ? 'border-emerald-300 bg-emerald-50 text-emerald-600 scale-95'
                                             : isActiveCollab && activeNote.content === lastSavedContent
@@ -8075,7 +8128,7 @@ export default function CreatePage() {
                                     }`}
                                     title={isActiveCollab ? 'Save to Collab Projects' : 'Save'}
                                 >
-                                    <Check size={14} className="stroke-[3]" />
+                                    <Check size={17} className="stroke-[3]" />
                                     <span>{savedFlash ? 'Saved ✓' : isActiveCollab ? 'SAVE' : 'SAVE'}</span>
                                 </button>
                             )}
@@ -8090,7 +8143,7 @@ export default function CreatePage() {
                                         startRecording();
                                     }
                                 }}
-                                className={`h-10 px-5 flex items-center gap-2 rounded-full text-xs font-extrabold transition-all duration-200 cursor-pointer border border-stone-200/50 active:scale-95 shadow-3xs ${
+                                className={`h-12 px-6 flex items-center gap-2.5 rounded-full text-[13.5px] font-extrabold transition-all duration-200 cursor-pointer border border-stone-200/50 active:scale-95 shadow-3xs ${
                                     isRecording 
                                         ? 'bg-[#FF4040] text-white animate-pulse' 
                                         : 'bg-white text-[#FF4040] hover:bg-red-50/50'
@@ -8098,13 +8151,13 @@ export default function CreatePage() {
                             >
                                 {isRecording ? (
                                     <>
-                                        <div className="w-2.5 h-2.5 rounded-full bg-white animate-ping absolute" />
-                                        <Square size={10} className="fill-white text-white shrink-0 z-10" />
+                                        <div className="w-3 h-3 rounded-full bg-white animate-ping absolute" />
+                                        <Square size={12} className="fill-white text-white shrink-0 z-10" />
                                         <span className="z-10">Recording {formatTime(recordingTime)}</span>
                                     </>
                                 ) : (
                                     <>
-                                        <span className="w-2.5 h-2.5 rounded-full bg-[#FF4040] shrink-0" />
+                                        <span className="w-3 h-3 rounded-full bg-[#FF4040] shrink-0" />
                                         <span>REC</span>
                                     </>
                                 )}
@@ -8113,7 +8166,7 @@ export default function CreatePage() {
                             {/* Tools button */}
                             <button
                                 onClick={handleToolsToggle}
-                                className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
+                                className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
                                     showToolsPanel && activeToolTab !== 'inspiration'
                                         ? 'bg-[#F2F2F2] text-stone-900 font-extrabold'
                                         : 'bg-white text-stone-750 hover:bg-stone-50'
@@ -8121,8 +8174,8 @@ export default function CreatePage() {
                                 title="Creative Tools"
                                 type="button"
                             >
-                                <div className="relative w-5.5 h-5.5 flex items-center justify-center pointer-events-none gap-0.5">
-                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={showToolsPanel && activeToolTab !== 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
+                                <div className="relative w-6.5 h-6.5 flex items-center justify-center pointer-events-none gap-0.5">
+                                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={showToolsPanel && activeToolTab !== 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
                                         {/* Vertical Pencil (left) */}
                                         <path d="M6 21V9l2-4 2 4v12H6z" />
                                         <path d="M6 18h4" />
@@ -8139,7 +8192,7 @@ export default function CreatePage() {
                             {/* Inspiration button */}
                             <button
                                 onClick={handleInspirationToggle}
-                                className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
+                                className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
                                     showToolsPanel && activeToolTab === 'inspiration'
                                         ? 'bg-[#F2F2F2] text-stone-900 font-extrabold'
                                         : 'bg-white text-stone-750 hover:bg-stone-50'
@@ -8147,7 +8200,7 @@ export default function CreatePage() {
                                 title="Inspiration Tools"
                                 type="button"
                             >
-                                <Lightbulb size={18} className={`stroke-[1.6] ${showToolsPanel && activeToolTab === 'inspiration' ? 'text-stone-850' : 'text-stone-600'}`} />
+                                <Lightbulb size={21} className={`stroke-[1.6] ${showToolsPanel && activeToolTab === 'inspiration' ? 'text-stone-850' : 'text-stone-600'}`} />
                             </button>
                         </div>
                     </div>
