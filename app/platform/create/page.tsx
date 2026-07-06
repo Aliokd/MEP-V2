@@ -7919,8 +7919,8 @@ export default function CreatePage() {
                 <div 
                     className={`absolute left-1/2 -translate-x-1/2 w-full max-w-[952px] px-4 z-30 transition-all duration-300 ease-out origin-bottom transform pointer-events-none ${
                         showToolsPanel
-                            ? "translate-y-0 scale-100 opacity-100"
-                            : "translate-y-24 scale-0 opacity-0"
+                            ? "scale-100 opacity-100"
+                            : "scale-0 opacity-0"
                     } ${
                         (activeToolTab === 'inspiration' && !expandedCardId)
                             ? "bottom-[65px]"
