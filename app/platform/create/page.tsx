@@ -63,8 +63,7 @@ interface InspirationCard {
     title: string;
     category: string;
     questions: string[];
-    bgGradient: string;
-    textColor: string;
+    bgImage: string;
 }
 
 const INSPIRATION_CARDS: InspirationCard[] = [
@@ -72,8 +71,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'midnight-coffee',
         title: 'The Midnight Coffee Shop',
         category: 'Daily Life',
-        bgGradient: 'from-amber-50 to-orange-100/50',
-        textColor: 'text-amber-900',
+        bgImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=600&auto=format&fit=crop',
         questions: [
             'Who is sitting at the table in the corner, and what are they writing?',
             'What song is playing quietly in the background?',
@@ -84,8 +82,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'childhood-bedroom',
         title: 'Your Childhood Bedroom',
         category: 'Nostalgia',
-        bgGradient: 'from-rose-50 to-pink-100/55',
-        textColor: 'text-rose-900',
+        bgImage: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&auto=format&fit=crop',
         questions: [
             'What was the view outside the window on a rainy afternoon?',
             'If the walls could talk, what secret would they whisper?',
@@ -96,8 +93,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'forgotten-station',
         title: 'A Forgotten Train Station',
         category: 'History',
-        bgGradient: 'from-blue-50 to-indigo-100/50',
-        textColor: 'text-indigo-900',
+        bgImage: 'https://images.unsplash.com/photo-1541417904950-b855846fe074?q=80&w=600&auto=format&fit=crop',
         questions: [
             'Where were the passengers heading before the station was abandoned?',
             'What does the overgrown platform look like now?',
@@ -108,8 +104,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'forest-storm',
         title: 'Storm in the Forest',
         category: 'Nature',
-        bgGradient: 'from-emerald-50 to-teal-100/50',
-        textColor: 'text-emerald-900',
+        bgImage: 'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=600&auto=format&fit=crop',
         questions: [
             'What color is the sky right before the first thunderclap?',
             'How do the trees react to the heavy wind?',
@@ -120,8 +115,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'edge-cosmos',
         title: 'The Edge of the Cosmos',
         category: 'Space & Sci-Fi',
-        bgGradient: 'from-violet-50 to-purple-100/50',
-        textColor: 'text-violet-900',
+        bgImage: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop',
         questions: [
             'What does the silence of empty space sound like to you?',
             'If you could send a single message back to Earth, what would it say?',
@@ -132,8 +126,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'clockmaker-dilemma',
         title: "The Clockmaker's Dilemma",
         category: 'Philosophy',
-        bgGradient: 'from-stone-100 to-amber-100/30',
-        textColor: 'text-stone-850',
+        bgImage: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=600&auto=format&fit=crop',
         questions: [
             'If you could pause time for one hour, what would you fix?',
             'Does time move faster when we are looking away?',
@@ -144,8 +137,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'solo-runner',
         title: 'The Solo Runner',
         category: 'Sports & Motion',
-        bgGradient: 'from-lime-50 to-emerald-100/40',
-        textColor: 'text-lime-900',
+        bgImage: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?q=80&w=600&auto=format&fit=crop',
         questions: [
             'What rhythm does the heartbeat create at the peak of the run?',
             'What thoughts fade away with every mile passed?',
@@ -156,8 +148,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'locked-drawer',
         title: 'The Locked Drawer',
         category: 'Secrets & Dreams',
-        bgGradient: 'from-orange-50 to-red-100/40',
-        textColor: 'text-orange-900',
+        bgImage: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=600&auto=format&fit=crop',
         questions: [
             'What key is hidden to open this drawer?',
             'What handwritten letter lies inside, yellowed with age?',
@@ -6520,31 +6511,31 @@ export default function CreatePage() {
                             {cards.map((card) => (
                                 <SwiperSlide key={card.id} className="rounded-[34px] overflow-hidden">
                                     <div
-                                        className="w-full h-full bg-white border border-stone-200/80 rounded-[34px] p-8.5 shadow-[0_16px_40px_rgba(0,0,0,0.06)] flex flex-col justify-between items-start cursor-pointer select-none"
+                                        className="relative w-full h-full bg-stone-900 cursor-pointer select-none rounded-[34px] overflow-hidden"
                                         onClick={() => setExpandedCardId(card.id)}
+                                        style={{
+                                            backgroundImage: `url(${card.bgImage})`,
+                                            backgroundSize: 'cover',
+                                            backgroundPosition: 'center',
+                                        }}
                                     >
-                                        {/* Top Badge Icon */}
-                                        <div className="w-11 h-11 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center shadow-3xs">
-                                            {getCategoryIcon(card.category)}
-                                        </div>
-                                        
-                                        {/* Card Content Title */}
-                                        <div className="mt-3 text-left w-full font-sans">
-                                            <h4 className="text-[19.5px] font-extrabold tracking-tight text-stone-850 leading-snug line-clamp-2">
-                                                {card.title}
-                                            </h4>
-                                            <span className="text-[12px] font-extrabold uppercase tracking-wider text-stone-455 block mt-1">
-                                                {card.category}
-                                            </span>
-                                        </div>
+                                        {/* Soft gradient overlay on top of background image to make sure glass overlay stands out */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-stone-950/20 via-transparent to-transparent pointer-events-none" />
 
-                                        {/* Bottom CTA & Icon button */}
-                                        <div className="w-full flex justify-between items-end">
-                                            <span className="text-[13.5px] font-extrabold text-stone-600 hover:text-[#FF4060] transition-colors border-b border-stone-300 pb-0.5">
-                                                Read prompts
-                                            </span>
-                                            <div className="w-11 h-11 rounded-full bg-stone-950 text-white flex items-center justify-center shadow-sm hover:bg-[#FF4060] transition-colors">
-                                                <ArrowUpRight size={20} className="stroke-[2.5]" />
+                                        {/* Floating Glassy Overlay Container */}
+                                        <div className="absolute bottom-3 left-3 right-3 bg-stone-900/60 backdrop-blur-md border border-white/10 rounded-[24px] p-5 flex items-center justify-between gap-3 shadow-lg hover:bg-stone-900/75 transition-all">
+                                            <div className="flex flex-col text-left font-sans select-none min-w-0">
+                                                <h4 className="text-[18px] font-extrabold text-white tracking-tight leading-tight line-clamp-1">
+                                                    {card.title}
+                                                </h4>
+                                                <span className="text-[11px] font-bold uppercase tracking-widest text-stone-250 mt-1">
+                                                    {card.category}
+                                                </span>
+                                            </div>
+                                            
+                                            {/* Expand arrow */}
+                                            <div className="w-11 h-11 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center shadow-2xs hover:bg-white/25 active:scale-95 transition-all shrink-0">
+                                                <ArrowUpRight size={20} className="stroke-[2.5] text-white" />
                                             </div>
                                         </div>
                                     </div>
