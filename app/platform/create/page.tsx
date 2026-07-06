@@ -52,6 +52,11 @@ import {
     RefreshCw
 } from 'lucide-react';
 
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { EffectCards } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/effect-cards';
+
 
 interface InspirationCard {
     id: string;
@@ -1987,6 +1992,7 @@ export default function CreatePage() {
     const [swipingToBack, setSwipingToBack] = useState(false);
     const inspirationTouchStartXRef = useRef(0);
     const inspirationDragStartXRef = useRef(0);
+    const inspirationSwiperRef = useRef<any>(null);
 
     // Tuner Audio Refs
     const tunerAudioContextRef = useRef<AudioContext | null>(null);
@@ -6354,27 +6360,12 @@ export default function CreatePage() {
         const noteKey = selectedNoteId || 'global';
         const cardAnswers = (inspirationAnswers[noteKey] || {})[activeCard.id] || ['', '', ''];
 
-        const triggerSwipeAnimation = (isNext: boolean) => {
-            if (swipingToBack) return;
-            // Reset drag offset immediately — card sinks to back, not flies sideways
-            setInspirationDragOffset(0);
-            setSwipingToBack(true);
-            setTimeout(() => {
-                if (isNext) {
-                    setCurrentCardIndex((prev) => (prev === cards.length - 1 ? 0 : prev + 1));
-                } else {
-                    setCurrentCardIndex((prev) => (prev === 0 ? cards.length - 1 : prev - 1));
-                }
-                setSwipingToBack(false);
-            }, 320);
-        };
-
         const handlePrevCard = () => {
-            triggerSwipeAnimation(false);
+            inspirationSwiperRef.current?.slidePrev();
         };
 
         const handleNextCard = () => {
-            triggerSwipeAnimation(true);
+            inspirationSwiperRef.current?.slideNext();
         };
 
         const handleSaveAnswer = (cardId: string, qIdx: number, val: string) => {
@@ -6389,70 +6380,6 @@ export default function CreatePage() {
             };
             setInspirationAnswers(updated);
             localStorage.setItem('veinote-inspiration-answers', JSON.stringify(updated));
-        };
-
-        // Swipe touch gesture handlers
-        const handleTouchStart = (e: React.TouchEvent) => {
-            if (swipingToBack) return;
-            inspirationTouchStartXRef.current = e.touches[0].clientX;
-        };
-
-        const handleTouchMove = (e: React.TouchEvent) => {
-            if (swipingToBack || inspirationTouchStartXRef.current === 0) return;
-            const diffX = e.touches[0].clientX - inspirationTouchStartXRef.current;
-            setInspirationDragOffset(diffX);
-        };
-
-        const handleTouchEnd = (e: React.TouchEvent) => {
-            if (swipingToBack || inspirationTouchStartXRef.current === 0) return;
-            const touch = e.changedTouches[0] || e.touches[0];
-            const endX = touch ? touch.clientX : inspirationTouchStartXRef.current;
-            const diffX = endX - inspirationTouchStartXRef.current;
-            inspirationTouchStartXRef.current = 0;
-
-            if (Math.abs(diffX) > 50) {
-                // Sink card to back of stack
-                setInspirationDragOffset(0);
-                triggerSwipeAnimation(diffX < 0);
-            } else {
-                // Smooth snap-back, no spring/elastic
-                setInspirationDragOffset(0);
-                setExpandedCardId(activeCard.id);
-            }
-        };
-
-        // Swipe mouse drag gesture handlers
-        const handleMouseDown = (e: React.MouseEvent) => {
-            if (swipingToBack) return;
-            inspirationDragStartXRef.current = e.clientX;
-        };
-
-        const handleMouseMove = (e: React.MouseEvent) => {
-            if (swipingToBack || inspirationDragStartXRef.current === 0) return;
-            const diffX = e.clientX - inspirationDragStartXRef.current;
-            setInspirationDragOffset(diffX);
-        };
-
-        const handleMouseUp = (e: React.MouseEvent) => {
-            if (swipingToBack || inspirationDragStartXRef.current === 0) return;
-            const diffX = e.clientX - inspirationDragStartXRef.current;
-            inspirationDragStartXRef.current = 0;
-
-            if (Math.abs(diffX) > 50) {
-                // Sink card to back of stack
-                setInspirationDragOffset(0);
-                triggerSwipeAnimation(diffX < 0);
-            } else {
-                // Smooth snap-back, no spring/elastic
-                setInspirationDragOffset(0);
-                setExpandedCardId(activeCard.id);
-            }
-        };
-
-        const handleMouseLeave = () => {
-            if (swipingToBack || inspirationDragStartXRef.current === 0) return;
-            inspirationDragStartXRef.current = 0;
-            setInspirationDragOffset(0);
         };
 
         const getCategoryIcon = (category: string) => {
@@ -6576,113 +6503,54 @@ export default function CreatePage() {
                 {/* 3D Stack Container on Soft Pink background */}
                 <div className="relative w-full h-[392px] bg-[#FFE4E6]/40 border border-pink-100 rounded-[45px] flex flex-col justify-center items-center overflow-hidden py-6 select-none">
                     
-                    {/* Card Stack Layout */}
-                    <div className="relative w-[448px] h-[266px] flex items-center justify-center">
-                        
-                        {/* Prev Card (Tilted Left, Behind) */}
-                        <div 
-                            className="absolute w-[364px] h-[238px] bg-white border border-stone-200 rounded-[34px] p-8.5 shadow-[0_6px_18px_rgba(0,0,0,0.03)] opacity-40 select-none flex flex-col justify-between items-start"
-                            style={{ 
-                                transform: `rotate(${prevRotation}deg) translateX(${prevTranslateX}px) translateY(6px) scale(${prevScale})`,
-                                opacity: Math.min(1, Math.max(0.15, prevOpacity)),
-                                transition: isDragging ? 'none' : 'all 0.28s ease-out',
-                                zIndex: 5 
+                    {/* Swiper wrapper with exact size */}
+                    <div className="w-[364px] h-[238px]">
+                        <Swiper
+                            effect={'cards'}
+                            grabCursor={true}
+                            modules={[EffectCards]}
+                            onSwiper={(swiper) => {
+                                inspirationSwiperRef.current = swiper;
                             }}
-                        >
-                            <div className="w-11 h-11 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center shadow-3xs">
-                                {getCategoryIcon(prevCard.category)}
-                            </div>
-                            <div className="mt-3 text-left w-full">
-                                <h4 className="text-[18px] font-bold text-stone-400 leading-snug line-clamp-2">
-                                    {prevCard.title}
-                                </h4>
-                            </div>
-                            <div className="w-full flex justify-between items-end">
-                                <span className="text-[12.5px] font-bold text-stone-355 border-b border-stone-200">Read prompts</span>
-                                <div className="w-8.5 h-8.5 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center text-stone-300">
-                                    <ArrowUpRight size={17} />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Next Card (Tilted Right, Behind) */}
-                        <div 
-                            className="absolute w-[364px] h-[238px] bg-white border border-stone-200 rounded-[34px] p-8.5 shadow-[0_6px_18px_rgba(0,0,0,0.03)] opacity-40 select-none flex flex-col justify-between items-start"
-                            style={{ 
-                                transform: `rotate(${nextRotation}deg) translateX(${nextTranslateX}px) translateY(6px) scale(${nextScale})`,
-                                opacity: Math.min(1, Math.max(0.15, nextOpacity)),
-                                transition: isDragging ? 'none' : 'all 0.28s ease-out',
-                                zIndex: 5 
+                            onSlideChange={(swiper) => {
+                                setCurrentCardIndex(swiper.activeIndex);
                             }}
+                            className="w-full h-full"
                         >
-                            <div className="w-11 h-11 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center shadow-3xs">
-                                {getCategoryIcon(nextCard.category)}
-                            </div>
-                            <div className="mt-3 text-left w-full">
-                                <h4 className="text-[18px] font-bold text-stone-400 leading-snug line-clamp-2">
-                                    {nextCard.title}
-                                </h4>
-                            </div>
-                            <div className="w-full flex justify-between items-end">
-                                <span className="text-[12.5px] font-bold text-stone-355 border-b border-stone-200">Read prompts</span>
-                                <div className="w-8.5 h-8.5 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center text-stone-300">
-                                    <ArrowUpRight size={17} />
-                                </div>
-                            </div>
-                        </div>
+                            {cards.map((card) => (
+                                <SwiperSlide key={card.id} className="rounded-[34px] overflow-hidden">
+                                    <div
+                                        className="w-full h-full bg-white border border-stone-200/80 rounded-[34px] p-8.5 shadow-[0_16px_40px_rgba(0,0,0,0.06)] flex flex-col justify-between items-start cursor-pointer select-none"
+                                        onClick={() => setExpandedCardId(card.id)}
+                                    >
+                                        {/* Top Badge Icon */}
+                                        <div className="w-11 h-11 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center shadow-3xs">
+                                            {getCategoryIcon(card.category)}
+                                        </div>
+                                        
+                                        {/* Card Content Title */}
+                                        <div className="mt-3 text-left w-full font-sans">
+                                            <h4 className="text-[19.5px] font-extrabold tracking-tight text-stone-850 leading-snug line-clamp-2">
+                                                {card.title}
+                                            </h4>
+                                            <span className="text-[12px] font-extrabold uppercase tracking-wider text-stone-455 block mt-1">
+                                                {card.category}
+                                            </span>
+                                        </div>
 
-                        {/* Active Card (Front, Center) */}
-                        <div
-                            onTouchStart={handleTouchStart}
-                            onTouchMove={handleTouchMove}
-                            onTouchEnd={handleTouchEnd}
-                            onTouchCancel={handleTouchEnd}
-                            onMouseDown={handleMouseDown}
-                            onMouseMove={handleMouseMove}
-                            onMouseUp={handleMouseUp}
-                            onMouseLeave={handleMouseLeave}
-                            onDragStart={(e) => e.preventDefault()}
-                            className="absolute w-[364px] h-[238px] bg-white border border-stone-200/80 rounded-[34px] p-8.5 shadow-[0_16px_40px_rgba(0,0,0,0.06)] flex flex-col justify-between items-start cursor-pointer select-none"
-                            style={swipingToBack ? {
-                                // Sink-to-back: shrink, fade, drop behind other cards
-                                transform: 'scale(0.82) translateY(24px) rotate(4deg)',
-                                transition: 'transform 0.32s ease-out, opacity 0.32s ease-out',
-                                opacity: 0,
-                                zIndex: 2,
-                                pointerEvents: 'none'
-                            } : {
-                                transform: `translateX(${inspirationDragOffset}px) rotate(${inspirationDragOffset * 0.04}deg) scale(1.02)`,
-                                transition: isDragging ? 'none' : 'transform 0.18s ease-out, opacity 0.18s ease-out',
-                                opacity: activeDragOpacity,
-                                zIndex: 10
-                            }}
-                        >
-                            {/* Top Badge Icon */}
-                            <div className="w-11 h-11 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center shadow-3xs">
-                                {getCategoryIcon(activeCard.category)}
-                            </div>
-                            
-                            {/* Card Content Title */}
-                            <div className="mt-3 text-left w-full">
-                                <h4 className="text-[19.5px] font-extrabold tracking-tight text-stone-850 leading-snug line-clamp-2 font-sans">
-                                    {activeCard.title}
-                                </h4>
-                                <span className="text-[12px] font-extrabold uppercase tracking-wider text-stone-455 block mt-1">
-                                    {activeCard.category}
-                                </span>
-                            </div>
-
-                            {/* Bottom CTA & Icon button */}
-                            <div className="w-full flex justify-between items-end">
-                                <span className="text-[13.5px] font-extrabold text-stone-600 hover:text-[#FF4060] transition-colors border-b border-stone-300 pb-0.5">
-                                    Read prompts
-                                </span>
-                                <div className="w-11 h-11 rounded-full bg-stone-950 text-white flex items-center justify-center shadow-sm hover:bg-[#FF4060] transition-colors">
-                                    <ArrowUpRight size={20} className="stroke-[2.5]" />
-                                </div>
-                            </div>
-                        </div>
-
+                                        {/* Bottom CTA & Icon button */}
+                                        <div className="w-full flex justify-between items-end">
+                                            <span className="text-[13.5px] font-extrabold text-stone-600 hover:text-[#FF4060] transition-colors border-b border-stone-300 pb-0.5">
+                                                Read prompts
+                                            </span>
+                                            <div className="w-11 h-11 rounded-full bg-stone-950 text-white flex items-center justify-center shadow-sm hover:bg-[#FF4060] transition-colors">
+                                                <ArrowUpRight size={20} className="stroke-[2.5]" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </SwiperSlide>
+                            ))}
+                        </Swiper>
                     </div>
                 </div>
 
