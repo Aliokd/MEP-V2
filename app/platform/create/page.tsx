@@ -6477,9 +6477,9 @@ export default function CreatePage() {
 
         // Swiper View (Clean card stack floating in white space)
         return (
-            <div className="flex justify-center items-center w-full select-none py-4 animate-in fade-in duration-200">
-                {/* Swiper wrapper with larger size */}
-                <div className="w-[540px] h-[354px]">
+            <div className="flex justify-center items-center w-full select-none py-8 animate-in fade-in duration-200">
+                {/* Swiper wrapper with padding space for shadows */}
+                <div className="w-[580px] h-[400px] flex items-center justify-center overflow-visible">
                     <Swiper
                         effect={'cards'}
                         grabCursor={true}
@@ -6490,12 +6490,12 @@ export default function CreatePage() {
                         onSlideChange={(swiper) => {
                             setCurrentCardIndex(swiper.activeIndex);
                         }}
-                        className="w-full h-full"
+                        className="w-[520px] h-[340px] overflow-visible"
                     >
                         {cards.map((card) => (
-                            <SwiperSlide key={card.id} className="rounded-[38px] overflow-hidden">
+                            <SwiperSlide key={card.id} className="rounded-[38px] overflow-visible">
                                 <div
-                                    className="relative w-full h-full bg-stone-900 cursor-pointer select-none rounded-[38px] overflow-hidden"
+                                    className="relative w-full h-full bg-stone-900 cursor-pointer select-none rounded-[38px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.48)] border border-white/10"
                                     onClick={() => setExpandedCardId(card.id)}
                                     style={{
                                         backgroundImage: `url(${card.bgImage})`,
@@ -6535,14 +6535,21 @@ export default function CreatePage() {
         if (!showToolsPanel) return null;
 
         if (activeToolTab === 'inspiration') {
-            return (
-                <div className="w-full max-w-[952px] bg-white border border-stone-200/80 rounded-[45px] shadow-[0_18px_56px_rgba(0,0,0,0.11)] p-7 mb-5 flex flex-col gap-6 animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
-                    {/* Content area for inspiration only */}
-                    <div className="w-full">
+            if (!expandedCardId) {
+                return (
+                    <div className="w-full max-w-[952px] mb-5 flex flex-col items-center justify-center animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
                         {renderInspirationTools()}
                     </div>
-                </div>
-            );
+                );
+            } else {
+                return (
+                    <div className="w-full max-w-[952px] bg-white border border-stone-200/80 rounded-[45px] shadow-[0_18px_56px_rgba(0,0,0,0.11)] p-7 mb-5 flex flex-col gap-6 animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
+                        <div className="w-full">
+                            {renderInspirationTools()}
+                        </div>
+                    </div>
+                );
+            }
         }
 
         return (
