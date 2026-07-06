@@ -6107,22 +6107,22 @@ export default function CreatePage() {
         const noteIdx = noteStrings.indexOf(tunerNote);
         if (noteIdx === -1 || !tunerActive) {
             return (
-                <div className="flex items-center justify-between w-full px-4 py-2 border-y border-stone-200 text-[10px] font-bold text-stone-400 select-none">
+                <div className="flex items-center justify-between w-full px-6 py-3 border-y border-stone-200 text-[14px] font-bold text-stone-400 select-none">
                     <span>B</span><span>C</span><span>C#</span>
-                    <span className="text-[#FF4040] text-sm font-black border-b-2 border-[#FF4040] pb-0.5">D</span>
+                    <span className="text-[#FF4040] text-[19.5px] font-black border-b-2 border-[#FF4040] pb-0.5">D</span>
                     <span>D#</span><span>E</span><span>F</span>
                 </div>
             );
         }
         const neighbors = [-3, -2, -1, 0, 1, 2, 3];
         return (
-            <div className="flex items-center justify-between w-full px-4 py-2 border-y border-stone-200/80 text-[10px] font-bold text-stone-400 select-none">
+            <div className="flex items-center justify-between w-full px-6 py-3 border-y border-stone-200/80 text-[14px] font-bold text-stone-400 select-none">
                 {neighbors.map(offset => {
                     const idx = (noteIdx + offset + 12) % 12;
                     const name = noteStrings[idx];
                     if (offset === 0) {
                         return (
-                            <span key={offset} className="text-[#FF4040] text-sm font-black border-b-2 border-[#FF4040] pb-0.5">
+                            <span key={offset} className="text-[#FF4040] text-[19.5px] font-black border-b-2 border-[#FF4040] pb-0.5">
                                 {name}
                             </span>
                         );
@@ -6135,32 +6135,32 @@ export default function CreatePage() {
 
     const renderGuitarTuner = () => {
         return (
-            <div className="flex flex-col gap-4 w-full">
-                <div className="flex flex-col md:flex-row gap-4 w-full">
+            <div className="flex flex-col gap-6 w-full">
+                <div className="flex flex-col md:flex-row gap-6 w-full">
                     {/* Left Cream Container */}
-                    <div className="bg-[#FAF9F6] border border-stone-200/60 rounded-[24px] p-5 flex flex-col justify-between items-center w-full md:w-[42%] min-h-[210px] text-stone-850">
+                    <div className="bg-[#FAF9F6] border border-stone-200/60 rounded-[34px] p-7 flex flex-col justify-between items-center w-full md:w-[42%] min-h-[294px] text-stone-850">
                         <div className="flex flex-col items-center select-none w-full">
-                            <span className="text-5xl font-black tracking-tight text-stone-850">{tunerNote}</span>
+                            <span className="text-7xl font-black tracking-tight text-stone-855">{tunerNote}</span>
                             {tunerActive && tunerFreq ? (
-                                <span className="text-[11px] font-extrabold text-stone-500 mt-1 uppercase tracking-wider">
+                                <span className="text-[15.5px] font-extrabold text-stone-500 mt-1.5 uppercase tracking-wider">
                                     {tunerFreq}Hz
                                 </span>
                             ) : (
-                                <span className="text-[11px] font-extrabold text-stone-300 mt-1 uppercase tracking-wider">
+                                <span className="text-[15.5px] font-extrabold text-stone-300 mt-1.5 uppercase tracking-wider">
                                     --- Hz
                                 </span>
                             )}
                         </div>
 
-                        <div className="w-full my-3">
+                        <div className="w-full my-4">
                             {renderTunerScale()}
                         </div>
 
-                        <div className="w-full flex gap-2 mt-1">
+                        <div className="w-full flex gap-3 mt-1.5">
                             {/* Start Tuner Button */}
                             <button
                                 onClick={toggleTunerMic}
-                                className={`flex-grow py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-sm text-center ${
+                                className={`flex-grow py-3.5 rounded-2xl text-[15.5px] font-extrabold transition-all active:scale-95 cursor-pointer shadow-sm text-center ${
                                     tunerActive
                                         ? 'bg-stone-700 text-white animate-pulse border border-stone-700'
                                         : 'bg-stone-950 text-white hover:bg-stone-900 border border-stone-955'
@@ -6174,7 +6174,7 @@ export default function CreatePage() {
                             <button
                                 onClick={handleSaveTuning}
                                 disabled={!tunerActive || !tunerFreq}
-                                className={`px-4 py-2.5 rounded-xl transition-all active:scale-95 cursor-pointer border flex items-center justify-center ${
+                                className={`px-5.5 py-3.5 rounded-2xl transition-all active:scale-95 cursor-pointer border flex items-center justify-center ${
                                     tunerActive && tunerFreq
                                         ? 'bg-stone-950 text-white border-stone-955 hover:bg-stone-900 shadow-sm'
                                         : 'bg-transparent text-stone-300 border-stone-200 cursor-not-allowed'
@@ -6182,14 +6182,14 @@ export default function CreatePage() {
                                 title="Save current tuning value"
                                 type="button"
                             >
-                                <Check size={16} className="stroke-[2.5]" />
+                                <Check size={22} className="stroke-[2.5]" />
                             </button>
                         </div>
                     </div>
 
                     {/* Right Light Container */}
-                    <div className="bg-[#FAF9F6] border border-stone-200/60 rounded-[24px] p-6 flex flex-col items-center justify-center flex-grow min-h-[210px]">
-                        <svg width="100%" height="100%" viewBox="38 20 204 116" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[350px]">
+                    <div className="bg-[#FAF9F6] border border-stone-200/60 rounded-[34px] p-8 flex flex-col items-center justify-center flex-grow min-h-[294px]">
+                        <svg width="100%" height="100%" viewBox="38 20 204 116" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[490px]">
                             {/* Background scale arc */}
                             <path d="M 40 130 A 100 100 0 0 1 240 130" stroke="#E6E6E2" strokeWidth="4" strokeLinecap="round" />
                             
@@ -6215,10 +6215,10 @@ export default function CreatePage() {
                                         {showNumber && (
                                             <text
                                                 x="140"
-                                                y={30 + tickLen + 12}
+                                                y={30 + tickLen + 16}
                                                 textAnchor="middle"
-                                                className="text-[9px] font-extrabold text-stone-500 fill-stone-500 font-sans"
-                                                transform={`rotate(${-angle}, 140, ${30 + tickLen + 8})`}
+                                                className="text-[12.5px] font-extrabold text-stone-500 fill-stone-500 font-sans"
+                                                transform={`rotate(${-angle}, 140, ${30 + tickLen + 11})`}
                                             >
                                                 {tick}
                                             </text>
@@ -6231,7 +6231,6 @@ export default function CreatePage() {
                             <g transform={`rotate(${tunerCents * 1.5}, 140, 130)`} style={{ transition: 'transform 0.1s ease-out' }}>
                                 <line x1="140" y1="130" x2="140" y2="25" stroke="#FF4040" strokeWidth="2.2" strokeLinecap="round" />
                                 <circle cx="140" cy="130" r="5" fill="#FF4040" />
-                                <circle cx="140" cy="130" r="2.5" fill="white" />
                             </g>
                         </svg>
                     </div>
@@ -6242,25 +6241,25 @@ export default function CreatePage() {
 
     const renderTapTempo = () => {
         return (
-            <div className="flex flex-col gap-3 w-full">
+            <div className="flex flex-col gap-4.5 w-full">
                 <button
                     onClick={(e) => handleTapTempo(e)}
-                    className="w-full h-32 bg-stone-50 hover:bg-stone-100/50 border-2 border-dashed border-stone-200 hover:border-stone-400 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all active:scale-[0.99] select-none group py-4"
+                    className="w-full h-44 bg-stone-50 hover:bg-stone-100/50 border-2 border-dashed border-stone-200 hover:border-stone-400 rounded-3xl flex flex-col items-center justify-center cursor-pointer transition-all active:scale-[0.99] select-none group py-6"
                     type="button"
                 >
-                    <span className="text-[10px] font-extrabold text-stone-400 uppercase tracking-widest mb-1 select-none">Click or Tap here</span>
-                    <span className="text-3xl font-black text-stone-800 select-none">{metronomeBpm} BPM</span>
-                    <span className="text-[9px] text-stone-500 mt-2 select-none group-hover:text-stone-600 transition-colors">Press Spacebar to tap, or click anywhere inside this box</span>
+                    <span className="text-[14px] font-extrabold text-stone-400 uppercase tracking-widest mb-1.5 select-none">Click or Tap here</span>
+                    <span className="text-[42px] font-black text-stone-800 select-none">{metronomeBpm} BPM</span>
+                    <span className="text-[12.5px] text-stone-500 mt-3 select-none group-hover:text-stone-600 transition-colors">Press Spacebar to tap, or click anywhere inside this box</span>
                 </button>
 
-                <div className="flex items-center justify-between bg-stone-50 border border-stone-200/60 p-3 rounded-xl">
-                    <div className="flex items-center gap-2 select-none">
-                        <Music size={14} className="text-stone-500" />
-                        <span className="text-xs font-semibold text-stone-700">Metronome Tick Sound</span>
+                <div className="flex items-center justify-between bg-stone-50 border border-stone-200/60 p-4.5 rounded-2xl">
+                    <div className="flex items-center gap-3 select-none">
+                        <Music size={20} className="text-stone-500" />
+                        <span className="text-[16.5px] font-bold text-stone-700">Metronome Tick Sound</span>
                     </div>
                     <button
                         onClick={() => setIsMetronomePlaying(!isMetronomePlaying)}
-                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer ${
+                        className={`px-6 py-2.5 rounded-xl text-[15.5px] font-bold transition-all active:scale-95 cursor-pointer ${
                             isMetronomePlaying 
                                 ? 'bg-stone-900 text-white' 
                                 : 'bg-white text-stone-850 border border-stone-200 shadow-2xs hover:bg-stone-50'
@@ -6283,24 +6282,24 @@ export default function CreatePage() {
         });
 
         return (
-            <div className="flex flex-col gap-3.5 w-full">
-                <form onSubmit={handleLexiconSearch} className="flex gap-2">
+            <div className="flex flex-col gap-5 w-full">
+                <form onSubmit={handleLexiconSearch} className="flex gap-3">
                     <div className="relative flex-grow">
                         <input
                             type="text"
                             placeholder="Type a word to search (e.g. sky, love, time)..."
                             value={lexiconWord}
                             onChange={(e) => setLexiconWord(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-sans placeholder:text-stone-400 font-semibold focus:outline-none focus:border-stone-400"
+                            className="w-full px-6 py-3.5 bg-stone-50 border border-stone-200 rounded-2xl text-[16.5px] font-sans placeholder:text-stone-400 font-semibold focus:outline-none focus:border-stone-400"
                         />
                         {lexiconLoading && (
-                            <div className="absolute right-3 top-3 w-3.5 h-3.5 border-2 border-stone-400 border-t-transparent rounded-full animate-spin" />
+                            <div className="absolute right-4 top-4.5 w-5 h-5 border-2 border-stone-400 border-t-transparent rounded-full animate-spin" />
                         )}
                     </div>
                     <select
                         value={lexiconMode}
                         onChange={(e: any) => setLexiconMode(e.target.value)}
-                        className="px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:border-stone-400 cursor-pointer"
+                        className="px-5 py-3.5 bg-stone-50 border border-stone-200 rounded-2xl text-[16.5px] font-bold text-stone-700 focus:outline-none focus:border-stone-400 cursor-pointer"
                     >
                         <option value="rhyme">Perfect Rhyme</option>
                         <option value="near">Near Rhyme</option>
@@ -6309,20 +6308,20 @@ export default function CreatePage() {
                 </form>
 
                 {lexiconResults.length === 0 ? (
-                    <div className="bg-stone-50 border border-stone-150 rounded-xl p-6 text-center select-none">
-                        <p className="text-xs text-stone-400 font-medium">Type a word to search for rhymes or synonyms.</p>
+                    <div className="bg-stone-50 border border-stone-150 rounded-2xl p-8.5 text-center select-none">
+                        <p className="text-[16.5px] text-stone-400 font-medium">Type a word to search for rhymes or synonyms.</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-3.5 max-h-48 overflow-y-auto mt-1 pr-1 no-scrollbar">
+                    <div className="flex flex-col gap-5 max-h-[268px] overflow-y-auto mt-1.5 pr-1 no-scrollbar">
                         {Object.keys(groupedBySyllables).map(sylKey => {
                             const syl = parseInt(sylKey);
                             const words = groupedBySyllables[syl];
                             return (
-                                <div key={syl} className="flex flex-col gap-1.5">
-                                    <span className="text-[9px] text-stone-450 font-bold uppercase tracking-wider select-none">
+                                <div key={syl} className="flex flex-col gap-2">
+                                    <span className="text-[12.5px] text-stone-450 font-bold uppercase tracking-wider select-none">
                                         {syl} {syl === 1 ? 'Syllable' : 'Syllables'}
                                     </span>
-                                    <div className="flex flex-wrap gap-1.5">
+                                    <div className="flex flex-wrap gap-2">
                                         {words.map((item, idx) => (
                                             <button
                                                 key={idx}
@@ -6330,7 +6329,7 @@ export default function CreatePage() {
                                                     insertTextAtCursor(item.word + ' ');
                                                     navigator.clipboard.writeText(item.word).catch(console.error);
                                                 }}
-                                                className="px-2.5 py-1 bg-stone-50 hover:bg-stone-900 border border-stone-200 hover:border-stone-900 rounded-lg text-xs font-semibold text-stone-800 hover:text-white transition-all cursor-pointer shadow-2xs active:scale-95"
+                                                className="px-3.5 py-1.5 bg-stone-50 hover:bg-stone-900 border border-stone-200 hover:border-stone-900 rounded-xl text-[16.5px] font-semibold text-stone-800 hover:text-white transition-all cursor-pointer shadow-2xs active:scale-95"
                                                 title="Click to insert and copy"
                                                 type="button"
                                             >
@@ -6459,23 +6458,23 @@ export default function CreatePage() {
         const getCategoryIcon = (category: string) => {
             switch (category) {
                 case 'Daily Life':
-                    return <Coffee size={15} className="text-stone-700" />;
+                    return <Coffee size={21} className="text-stone-700" />;
                 case 'Nostalgia':
-                    return <Heart size={15} className="text-stone-700 fill-stone-700/10" />;
+                    return <Heart size={21} className="text-stone-700 fill-stone-700/10" />;
                 case 'History':
-                    return <BookOpen size={15} className="text-stone-700" />;
+                    return <BookOpen size={21} className="text-stone-700" />;
                 case 'Nature':
-                    return <Compass size={15} className="text-stone-700" />;
+                    return <Compass size={21} className="text-stone-700" />;
                 case 'Space & Sci-Fi':
-                    return <Sparkles size={15} className="text-stone-700" />;
+                    return <Sparkles size={21} className="text-stone-700" />;
                 case 'Philosophy':
-                    return <Brain size={15} className="text-stone-700" />;
+                    return <Brain size={21} className="text-stone-700" />;
                 case 'Sports & Motion':
-                    return <Activity size={15} className="text-stone-700" />;
+                    return <Activity size={21} className="text-stone-700" />;
                 case 'Secrets & Dreams':
-                    return <Key size={15} className="text-stone-700" />;
+                    return <Key size={21} className="text-stone-700" />;
                 default:
-                    return <Sparkles size={15} className="text-stone-700" />;
+                    return <Sparkles size={21} className="text-stone-700" />;
             }
         };
 
@@ -6484,13 +6483,13 @@ export default function CreatePage() {
 
         const prevDragRatio = Math.min(1, inspirationDragOffset > 0 ? (inspirationDragOffset / 80) : 0);
         const prevRotation = -8 + (prevDragRatio * 8);
-        const prevTranslateX = -42 + (prevDragRatio * 42);
+        const prevTranslateX = -58 + (prevDragRatio * 58);
         const prevScale = 0.92 + (prevDragRatio * 0.08);
         const prevOpacity = 0.4 + (prevDragRatio * 0.4);
 
         const nextDragRatio = Math.min(1, inspirationDragOffset < 0 ? (Math.abs(inspirationDragOffset) / 80) : 0);
         const nextRotation = 6 - (nextDragRatio * 6);
-        const nextTranslateX = 42 - (nextDragRatio * 42);
+        const nextTranslateX = 58 - (nextDragRatio * 58);
         const nextScale = 0.92 + (nextDragRatio * 0.08);
         const nextOpacity = 0.4 + (nextDragRatio * 0.4);
 
@@ -6499,47 +6498,47 @@ export default function CreatePage() {
 
         if (expandedCardId && expandedCardId === activeCard.id) {
             return (
-                <div className="flex flex-col gap-4 w-full animate-in fade-in zoom-in-95 duration-250">
+                <div className="flex flex-col gap-6 w-full animate-in fade-in zoom-in-95 duration-250">
                     {/* Header */}
-                    <div className="flex items-center justify-between pb-3 border-b border-stone-100 select-none">
+                    <div className="flex items-center justify-between pb-4 border-b border-stone-100 select-none">
                         <button
                             onClick={() => setExpandedCardId(null)}
-                            className="flex items-center gap-1.5 text-xs font-bold text-stone-500 hover:text-stone-855 cursor-pointer transition-colors"
+                            className="flex items-center gap-2 text-[16.5px] font-bold text-stone-500 hover:text-stone-855 cursor-pointer transition-colors"
                             type="button"
                         >
-                            <ChevronLeft size={16} className="stroke-[2.5]" />
+                            <ChevronLeft size={22} className="stroke-[2.5]" />
                             <span>Back to Cards</span>
                         </button>
-                        <span className="text-[10px] font-extrabold text-stone-500 uppercase tracking-wider bg-stone-100 px-2.5 py-1 rounded-full shadow-3xs border border-stone-200/10">
+                        <span className="text-[14px] font-extrabold text-stone-500 uppercase tracking-wider bg-stone-100 px-3.5 py-1.5 rounded-full shadow-3xs border border-stone-200/10">
                             {activeCard.category}
                         </span>
                     </div>
 
                     {/* Title & Body */}
-                    <div className="flex flex-col gap-1 select-none">
-                        <h3 className="text-xl font-black tracking-tight text-stone-850">
+                    <div className="flex flex-col gap-1.5 select-none">
+                        <h3 className="text-3xl font-black tracking-tight text-stone-855">
                             {activeCard.title}
                         </h3>
-                        <p className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider mt-1">
+                        <p className="text-[14px] text-stone-400 font-semibold uppercase tracking-wider mt-1.5">
                             Answer the prompts to inspire your writing:
                         </p>
                     </div>
 
                     {/* Questions Form */}
-                    <div className="flex flex-col gap-4 overflow-y-auto max-h-[220px] pr-1 no-scrollbar">
+                    <div className="flex flex-col gap-6 overflow-y-auto max-h-[308px] pr-1 no-scrollbar">
                         {activeCard.questions.map((q, qIdx) => {
                             const currentVal = cardAnswers[qIdx] || '';
                             return (
-                                <div key={qIdx} className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-bold text-stone-750 select-none leading-relaxed">
+                                <div key={qIdx} className="flex flex-col gap-2">
+                                    <label className="text-[16.5px] font-bold text-stone-750 select-none leading-relaxed">
                                         {qIdx + 1}. {q}
                                     </label>
                                     <textarea
                                         value={currentVal}
                                         onChange={(e) => handleSaveAnswer(activeCard.id, qIdx, e.target.value)}
                                         placeholder="Type your thoughts, imagery, or lyrics ideas..."
-                                        rows={2}
-                                        className="w-full px-3.5 py-2.5 bg-stone-50 hover:bg-stone-100/30 focus:bg-white border border-stone-200 focus:border-stone-400 rounded-xl text-xs font-sans placeholder:text-stone-400 font-semibold focus:outline-none transition-all resize-none shadow-3xs"
+                                        rows={3}
+                                        className="w-full px-5 py-3.5 bg-stone-50 hover:bg-stone-100/30 focus:bg-white border border-stone-200 focus:border-stone-400 rounded-2xl text-[16.5px] font-sans placeholder:text-stone-400 font-semibold focus:outline-none transition-all resize-none shadow-3xs"
                                     />
                                 </div>
                             );
@@ -6549,7 +6548,7 @@ export default function CreatePage() {
                     {/* Back to Work Button */}
                     <button
                         onClick={() => setShowToolsPanel(false)}
-                        className="w-full mt-2 py-3 rounded-xl bg-stone-950 text-white hover:bg-stone-900 font-bold text-xs transition-all active:scale-[0.98] cursor-pointer shadow-sm text-center"
+                        className="w-full mt-3 py-4 rounded-2xl bg-stone-950 text-white hover:bg-stone-900 font-bold text-[16.5px] transition-all active:scale-[0.98] cursor-pointer shadow-sm text-center"
                         type="button"
                     >
                         Back to Canvas
@@ -6560,74 +6559,74 @@ export default function CreatePage() {
 
         // Swiper View (Stacked Neutral Cards on Soft Pink Background)
         return (
-            <div className="flex flex-col gap-4 w-full animate-in fade-in duration-200">
+            <div className="flex flex-col gap-6 w-full animate-in fade-in duration-200">
                 {/* Header */}
-                <div className="flex items-center justify-between pb-2 select-none border-b border-stone-100">
-                    <span className="text-[11px] font-extrabold text-stone-400 uppercase tracking-widest">Inspirations</span>
+                <div className="flex items-center justify-between pb-3 select-none border-b border-stone-100">
+                    <span className="text-[15.5px] font-extrabold text-stone-400 uppercase tracking-widest">Inspirations</span>
                     <button
                         onClick={() => setShowToolsPanel(false)}
-                        className="text-[10px] font-bold text-stone-500 hover:text-stone-855 transition-colors uppercase tracking-wider cursor-pointer flex items-center gap-0.5"
+                        className="text-[14px] font-bold text-stone-500 hover:text-stone-855 transition-colors uppercase tracking-wider cursor-pointer flex items-center gap-1"
                         type="button"
                     >
                         <span>Back to Canvas</span>
-                        <ChevronRight size={14} className="stroke-[2.5]" />
+                        <ChevronRight size={20} className="stroke-[2.5]" />
                     </button>
                 </div>
 
                 {/* 3D Stack Container on Soft Pink background */}
-                <div className="relative w-full h-[280px] bg-[#FFE4E6]/40 border border-pink-100 rounded-[32px] flex flex-col justify-center items-center overflow-hidden py-4 select-none">
+                <div className="relative w-full h-[392px] bg-[#FFE4E6]/40 border border-pink-100 rounded-[45px] flex flex-col justify-center items-center overflow-hidden py-6 select-none">
                     
                     {/* Card Stack Layout */}
-                    <div className="relative w-[320px] h-[190px] flex items-center justify-center">
+                    <div className="relative w-[448px] h-[266px] flex items-center justify-center">
                         
                         {/* Prev Card (Tilted Left, Behind) */}
                         <div 
-                            className="absolute w-[260px] h-[170px] bg-white border border-stone-200 rounded-[24px] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.03)] opacity-40 select-none flex flex-col justify-between items-start"
+                            className="absolute w-[364px] h-[238px] bg-white border border-stone-200 rounded-[34px] p-8.5 shadow-[0_6px_18px_rgba(0,0,0,0.03)] opacity-40 select-none flex flex-col justify-between items-start"
                             style={{ 
-                                transform: `rotate(${prevRotation}deg) translateX(${prevTranslateX}px) translateY(4px) scale(${prevScale})`,
+                                transform: `rotate(${prevRotation}deg) translateX(${prevTranslateX}px) translateY(6px) scale(${prevScale})`,
                                 opacity: Math.min(1, Math.max(0.15, prevOpacity)),
                                 transition: isDragging ? 'none' : 'all 0.28s ease-out',
                                 zIndex: 5 
                             }}
                         >
-                            <div className="w-8 h-8 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center shadow-3xs">
+                            <div className="w-11 h-11 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center shadow-3xs">
                                 {getCategoryIcon(prevCard.category)}
                             </div>
-                            <div className="mt-2 text-left w-full">
-                                <h4 className="text-[13px] font-bold text-stone-400 leading-snug line-clamp-2">
+                            <div className="mt-3 text-left w-full">
+                                <h4 className="text-[18px] font-bold text-stone-400 leading-snug line-clamp-2">
                                     {prevCard.title}
                                 </h4>
                             </div>
                             <div className="w-full flex justify-between items-end">
-                                <span className="text-[9px] font-bold text-stone-355 border-b border-stone-200">Read prompts</span>
-                                <div className="w-6 h-6 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center text-stone-300">
-                                    <ArrowUpRight size={12} />
+                                <span className="text-[12.5px] font-bold text-stone-355 border-b border-stone-200">Read prompts</span>
+                                <div className="w-8.5 h-8.5 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center text-stone-300">
+                                    <ArrowUpRight size={17} />
                                 </div>
                             </div>
                         </div>
 
                         {/* Next Card (Tilted Right, Behind) */}
                         <div 
-                            className="absolute w-[260px] h-[170px] bg-white border border-stone-200 rounded-[24px] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.03)] opacity-40 select-none flex flex-col justify-between items-start"
+                            className="absolute w-[364px] h-[238px] bg-white border border-stone-200 rounded-[34px] p-8.5 shadow-[0_6px_18px_rgba(0,0,0,0.03)] opacity-40 select-none flex flex-col justify-between items-start"
                             style={{ 
-                                transform: `rotate(${nextRotation}deg) translateX(${nextTranslateX}px) translateY(4px) scale(${nextScale})`,
+                                transform: `rotate(${nextRotation}deg) translateX(${nextTranslateX}px) translateY(6px) scale(${nextScale})`,
                                 opacity: Math.min(1, Math.max(0.15, nextOpacity)),
                                 transition: isDragging ? 'none' : 'all 0.28s ease-out',
                                 zIndex: 5 
                             }}
                         >
-                            <div className="w-8 h-8 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center shadow-3xs">
+                            <div className="w-11 h-11 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center shadow-3xs">
                                 {getCategoryIcon(nextCard.category)}
                             </div>
-                            <div className="mt-2 text-left w-full">
-                                <h4 className="text-[13px] font-bold text-stone-400 leading-snug line-clamp-2">
+                            <div className="mt-3 text-left w-full">
+                                <h4 className="text-[18px] font-bold text-stone-400 leading-snug line-clamp-2">
                                     {nextCard.title}
                                 </h4>
                             </div>
                             <div className="w-full flex justify-between items-end">
-                                <span className="text-[9px] font-bold text-stone-355 border-b border-stone-200">Read prompts</span>
-                                <div className="w-6 h-6 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center text-stone-300">
-                                    <ArrowUpRight size={12} />
+                                <span className="text-[12.5px] font-bold text-stone-355 border-b border-stone-200">Read prompts</span>
+                                <div className="w-8.5 h-8.5 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center text-stone-300">
+                                    <ArrowUpRight size={17} />
                                 </div>
                             </div>
                         </div>
@@ -6643,10 +6642,10 @@ export default function CreatePage() {
                             onMouseUp={handleMouseUp}
                             onMouseLeave={handleMouseLeave}
                             onDragStart={(e) => e.preventDefault()}
-                            className="absolute w-[260px] h-[170px] bg-white border border-stone-200/80 rounded-[24px] p-6 shadow-[0_12px_28px_rgba(0,0,0,0.06)] flex flex-col justify-between items-start cursor-pointer select-none"
+                            className="absolute w-[364px] h-[238px] bg-white border border-stone-200/80 rounded-[34px] p-8.5 shadow-[0_16px_40px_rgba(0,0,0,0.06)] flex flex-col justify-between items-start cursor-pointer select-none"
                             style={swipingToBack ? {
                                 // Sink-to-back: shrink, fade, drop behind other cards
-                                transform: 'scale(0.82) translateY(18px) rotate(4deg)',
+                                transform: 'scale(0.82) translateY(24px) rotate(4deg)',
                                 transition: 'transform 0.32s ease-out, opacity 0.32s ease-out',
                                 opacity: 0,
                                 zIndex: 2,
@@ -6659,27 +6658,27 @@ export default function CreatePage() {
                             }}
                         >
                             {/* Top Badge Icon */}
-                            <div className="w-8 h-8 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center shadow-3xs">
+                            <div className="w-11 h-11 rounded-full bg-stone-50 border border-stone-150 flex items-center justify-center shadow-3xs">
                                 {getCategoryIcon(activeCard.category)}
                             </div>
                             
                             {/* Card Content Title */}
-                            <div className="mt-2 text-left w-full">
-                                <h4 className="text-[14px] font-extrabold tracking-tight text-stone-850 leading-snug line-clamp-2 font-sans">
+                            <div className="mt-3 text-left w-full">
+                                <h4 className="text-[19.5px] font-extrabold tracking-tight text-stone-850 leading-snug line-clamp-2 font-sans">
                                     {activeCard.title}
                                 </h4>
-                                <span className="text-[8.5px] font-extrabold uppercase tracking-wider text-stone-450 block mt-0.5">
+                                <span className="text-[12px] font-extrabold uppercase tracking-wider text-stone-455 block mt-1">
                                     {activeCard.category}
                                 </span>
                             </div>
 
                             {/* Bottom CTA & Icon button */}
                             <div className="w-full flex justify-between items-end">
-                                <span className="text-[9.5px] font-extrabold text-stone-600 hover:text-[#FF4060] transition-colors border-b border-stone-300 pb-0.5">
+                                <span className="text-[13.5px] font-extrabold text-stone-600 hover:text-[#FF4060] transition-colors border-b border-stone-300 pb-0.5">
                                     Read prompts
                                 </span>
-                                <div className="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center shadow-sm hover:bg-[#FF4060] transition-colors">
-                                    <ArrowUpRight size={14} className="stroke-[2.5]" />
+                                <div className="w-11 h-11 rounded-full bg-stone-950 text-white flex items-center justify-center shadow-sm hover:bg-[#FF4060] transition-colors">
+                                    <ArrowUpRight size={20} className="stroke-[2.5]" />
                                 </div>
                             </div>
                         </div>
@@ -6688,28 +6687,27 @@ export default function CreatePage() {
                 </div>
 
                 {/* Sub Card Navigation Controls */}
-                <div className="flex items-center justify-center gap-3 mt-1">
+                <div className="flex items-center justify-center gap-4 mt-1.5">
                     <button
                         onClick={handlePrevCard}
-                        className="w-8 h-8 rounded-full border border-stone-200 bg-white text-stone-500 hover:text-stone-855 flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 transition-colors active:scale-95"
+                        className="w-11 h-11 rounded-full border border-stone-200 bg-white text-stone-500 hover:text-stone-855 flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 transition-colors active:scale-95"
                         type="button"
                         title="Previous card"
                     >
-                        <ChevronLeft size={16} className="stroke-[2.5]" />
+                        <ChevronLeft size={22} className="stroke-[2.5]" />
                     </button>
-                    <span className="text-[9px] font-extrabold text-stone-400 uppercase tracking-widest min-w-[32px] text-center select-none">
+                    <span className="text-[12.5px] font-extrabold text-stone-400 uppercase tracking-widest min-w-[45px] text-center select-none">
                         {currentCardIndex + 1} / {cards.length}
                     </span>
                     <button
                         onClick={handleNextCard}
-                        className="w-8 h-8 rounded-full border border-stone-200 bg-white text-stone-500 hover:text-stone-855 flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 transition-colors active:scale-95"
+                        className="w-11 h-11 rounded-full border border-stone-200 bg-white text-stone-500 hover:text-stone-855 flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 transition-colors active:scale-95"
                         type="button"
                         title="Next card"
                     >
-                        <ChevronRight size={16} className="stroke-[2.5]" />
+                        <ChevronRight size={22} className="stroke-[2.5]" />
                     </button>
                 </div>
-
             </div>
         );
     };
@@ -6719,7 +6717,7 @@ export default function CreatePage() {
 
         if (activeToolTab === 'inspiration') {
             return (
-                <div className="w-full max-w-[680px] bg-white border border-stone-200/80 rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.1)] p-5 mb-4 flex flex-col gap-4 animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
+                <div className="w-full max-w-[952px] bg-white border border-stone-200/80 rounded-[45px] shadow-[0_18px_56px_rgba(0,0,0,0.11)] p-7 mb-5 flex flex-col gap-6 animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
                     {/* Content area for inspiration only */}
                     <div className="w-full">
                         {renderInspirationTools()}
@@ -6729,7 +6727,7 @@ export default function CreatePage() {
         }
 
         return (
-            <div className="w-full max-w-[680px] bg-white border border-stone-200/80 rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.1)] p-5 mb-4 flex flex-col gap-4 animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
+            <div className="w-full max-w-[952px] bg-white border border-stone-200/80 rounded-[45px] shadow-[0_18px_56px_rgba(0,0,0,0.11)] p-7 mb-5 flex flex-col gap-6 animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
                 {/* Content area based on active tab */}
                 <div className="w-full">
                     {activeToolTab === 'tuner' && renderGuitarTuner()}
@@ -6746,8 +6744,8 @@ export default function CreatePage() {
                         onClick={() => setActiveToolTab('tuner')}
                         className={`transition-all duration-200 cursor-pointer ${
                             activeToolTab === 'tuner'
-                                ? 'text-xs md:text-[13px] font-bold px-4 py-1.5 bg-[#EAEAEA] text-stone-850 rounded-full'
-                                : 'text-[11px] md:text-xs font-medium px-3 py-1.5 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
+                                ? 'text-[15.5px] font-extrabold px-6 py-2.5 bg-[#EAEAEA] text-stone-850 rounded-full'
+                                : 'text-[14px] font-bold px-4.5 py-2 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
                         }`}
                         type="button"
                     >
@@ -6757,8 +6755,8 @@ export default function CreatePage() {
                         onClick={() => setActiveToolTab('tempo')}
                         className={`transition-all duration-200 cursor-pointer ${
                             activeToolTab === 'tempo'
-                                ? 'text-xs md:text-[13px] font-bold px-4 py-1.5 bg-[#EAEAEA] text-stone-850 rounded-full'
-                                : 'text-[11px] md:text-xs font-medium px-3 py-1.5 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
+                                ? 'text-[15.5px] font-extrabold px-6 py-2.5 bg-[#EAEAEA] text-stone-850 rounded-full'
+                                : 'text-[14px] font-bold px-4.5 py-2 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
                         }`}
                         type="button"
                     >
@@ -6768,8 +6766,8 @@ export default function CreatePage() {
                         onClick={() => setActiveToolTab('lexicon')}
                         className={`transition-all duration-200 cursor-pointer ${
                             activeToolTab === 'lexicon'
-                                ? 'text-xs md:text-[13px] font-bold px-4 py-1.5 bg-[#EAEAEA] text-stone-850 rounded-full'
-                                : 'text-[11px] md:text-xs font-medium px-3 py-1.5 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
+                                ? 'text-[15.5px] font-extrabold px-6 py-2.5 bg-[#EAEAEA] text-stone-850 rounded-full'
+                                : 'text-[14px] font-bold px-4.5 py-2 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
                         }`}
                         type="button"
                     >
@@ -8085,7 +8083,7 @@ export default function CreatePage() {
 
                 {/* Creative Tools Panel */}
                 {showToolsPanel && (
-                    <div className="absolute bottom-[104px] left-1/2 -translate-x-1/2 w-full max-w-[680px] px-4 z-30">
+                    <div className="absolute bottom-[120px] left-1/2 -translate-x-1/2 w-full max-w-[952px] px-4 z-30">
                         {renderToolsPanel()}
                     </div>
                 )}
