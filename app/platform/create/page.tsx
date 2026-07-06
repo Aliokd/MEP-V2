@@ -6610,6 +6610,7 @@ export default function CreatePage() {
                 setShowToolsPanel(false);
             } else {
                 setActiveToolTab('tuner');
+                setExpandedCardId(null);
             }
         } else {
             setShowToolsPanel(true);
@@ -6621,7 +6622,11 @@ export default function CreatePage() {
         e.stopPropagation();
         if (showToolsPanel) {
             if (activeToolTab === 'inspiration') {
-                setShowToolsPanel(false);
+                if (expandedCardId) {
+                    setExpandedCardId(null);
+                } else {
+                    setShowToolsPanel(false);
+                }
             } else {
                 setActiveToolTab('inspiration');
             }
