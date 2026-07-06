@@ -6475,97 +6475,57 @@ export default function CreatePage() {
             );
         }
 
-        // Swiper View (Stacked Neutral Cards on Soft Pink Background)
+        // Swiper View (Clean card stack floating in white space)
         return (
-            <div className="flex flex-col gap-6 w-full animate-in fade-in duration-200">
-                {/* Header */}
-                <div className="flex items-center justify-between pb-3 select-none border-b border-stone-100">
-                    <span className="text-[15.5px] font-extrabold text-stone-400 uppercase tracking-widest">Inspirations</span>
-                    <button
-                        onClick={() => setShowToolsPanel(false)}
-                        className="text-[14px] font-bold text-stone-500 hover:text-stone-855 transition-colors uppercase tracking-wider cursor-pointer flex items-center gap-1"
-                        type="button"
+            <div className="flex justify-center items-center w-full select-none py-4 animate-in fade-in duration-200">
+                {/* Swiper wrapper with larger size */}
+                <div className="w-[540px] h-[354px]">
+                    <Swiper
+                        effect={'cards'}
+                        grabCursor={true}
+                        modules={[EffectCards]}
+                        onSwiper={(swiper) => {
+                            inspirationSwiperRef.current = swiper;
+                        }}
+                        onSlideChange={(swiper) => {
+                            setCurrentCardIndex(swiper.activeIndex);
+                        }}
+                        className="w-full h-full"
                     >
-                        <span>Back to Canvas</span>
-                        <ChevronRight size={20} className="stroke-[2.5]" />
-                    </button>
-                </div>
+                        {cards.map((card) => (
+                            <SwiperSlide key={card.id} className="rounded-[38px] overflow-hidden">
+                                <div
+                                    className="relative w-full h-full bg-stone-900 cursor-pointer select-none rounded-[38px] overflow-hidden"
+                                    onClick={() => setExpandedCardId(card.id)}
+                                    style={{
+                                        backgroundImage: `url(${card.bgImage})`,
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center',
+                                    }}
+                                >
+                                    {/* Soft gradient overlay on top of background image to make sure glass overlay stands out */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950/25 via-transparent to-transparent pointer-events-none" />
 
-                {/* 3D Stack Container on Soft Pink background */}
-                <div className="relative w-full h-[392px] bg-[#FFE4E6]/40 border border-pink-100 rounded-[45px] flex flex-col justify-center items-center overflow-hidden py-6 select-none">
-                    
-                    {/* Swiper wrapper with exact size */}
-                    <div className="w-[364px] h-[238px]">
-                        <Swiper
-                            effect={'cards'}
-                            grabCursor={true}
-                            modules={[EffectCards]}
-                            onSwiper={(swiper) => {
-                                inspirationSwiperRef.current = swiper;
-                            }}
-                            onSlideChange={(swiper) => {
-                                setCurrentCardIndex(swiper.activeIndex);
-                            }}
-                            className="w-full h-full"
-                        >
-                            {cards.map((card) => (
-                                <SwiperSlide key={card.id} className="rounded-[34px] overflow-hidden">
-                                    <div
-                                        className="relative w-full h-full bg-stone-900 cursor-pointer select-none rounded-[34px] overflow-hidden"
-                                        onClick={() => setExpandedCardId(card.id)}
-                                        style={{
-                                            backgroundImage: `url(${card.bgImage})`,
-                                            backgroundSize: 'cover',
-                                            backgroundPosition: 'center',
-                                        }}
-                                    >
-                                        {/* Soft gradient overlay on top of background image to make sure glass overlay stands out */}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-stone-950/20 via-transparent to-transparent pointer-events-none" />
-
-                                        {/* Floating Glassy Overlay Container */}
-                                        <div className="absolute bottom-3 left-3 right-3 bg-stone-900/60 backdrop-blur-md border border-white/10 rounded-[24px] p-5 flex items-center justify-between gap-3 shadow-lg hover:bg-stone-900/75 transition-all">
-                                            <div className="flex flex-col text-left font-sans select-none min-w-0">
-                                                <h4 className="text-[18px] font-extrabold text-white tracking-tight leading-tight line-clamp-1">
-                                                    {card.title}
-                                                </h4>
-                                                <span className="text-[11px] font-bold uppercase tracking-widest text-stone-250 mt-1">
-                                                    {card.category}
-                                                </span>
-                                            </div>
-                                            
-                                            {/* Expand arrow */}
-                                            <div className="w-11 h-11 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center shadow-2xs hover:bg-white/25 active:scale-95 transition-all shrink-0">
-                                                <ArrowUpRight size={20} className="stroke-[2.5] text-white" />
-                                            </div>
+                                    {/* Floating Glassy Overlay Container */}
+                                    <div className="absolute bottom-4 left-4 right-4 bg-stone-900/60 backdrop-blur-md border border-white/10 rounded-[28px] p-6 flex items-center justify-between gap-4 shadow-lg hover:bg-stone-900/75 transition-all">
+                                        <div className="flex flex-col text-left font-sans select-none min-w-0">
+                                            <h4 className="text-[24px] font-extrabold text-white tracking-tight leading-tight line-clamp-1">
+                                                {card.title}
+                                            </h4>
+                                            <span className="text-[13.5px] font-bold uppercase tracking-widest text-stone-250 mt-1">
+                                                {card.category}
+                                            </span>
+                                        </div>
+                                        
+                                        {/* Expand arrow */}
+                                        <div className="w-14 h-14 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center shadow-2xs hover:bg-white/25 active:scale-95 transition-all shrink-0">
+                                            <ArrowUpRight size={24} className="stroke-[2.5] text-white" />
                                         </div>
                                     </div>
-                                </SwiperSlide>
-                            ))}
-                        </Swiper>
-                    </div>
-                </div>
-
-                {/* Sub Card Navigation Controls */}
-                <div className="flex items-center justify-center gap-4 mt-1.5">
-                    <button
-                        onClick={handlePrevCard}
-                        className="w-11 h-11 rounded-full border border-stone-200 bg-white text-stone-500 hover:text-stone-855 flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 transition-colors active:scale-95"
-                        type="button"
-                        title="Previous card"
-                    >
-                        <ChevronLeft size={22} className="stroke-[2.5]" />
-                    </button>
-                    <span className="text-[12.5px] font-extrabold text-stone-400 uppercase tracking-widest min-w-[45px] text-center select-none">
-                        {currentCardIndex + 1} / {cards.length}
-                    </span>
-                    <button
-                        onClick={handleNextCard}
-                        className="w-11 h-11 rounded-full border border-stone-200 bg-white text-stone-500 hover:text-stone-855 flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 transition-colors active:scale-95"
-                        type="button"
-                        title="Next card"
-                    >
-                        <ChevronRight size={22} className="stroke-[2.5]" />
-                    </button>
+                                </div>
+                            </SwiperSlide>
+                        ))}
+                    </Swiper>
                 </div>
             </div>
         );
