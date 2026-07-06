@@ -8174,17 +8174,9 @@ export default function CreatePage() {
                                 title="Creative Tools"
                                 type="button"
                             >
-                                <div className="relative w-7.5 h-7.5 flex items-center justify-center pointer-events-none gap-0.5">
-                                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={showToolsPanel && activeToolTab !== 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
-                                        {/* Vertical Pencil (left) */}
-                                        <path d="M6 21V9l2-4 2 4v12H6z" />
-                                        <path d="M6 18h4" />
-                                        <path d="M6 9h4" />
-                                        {/* Vertical Ruler (right) */}
-                                        <rect x="14" y="3" width="5" height="18" rx="0.5" />
-                                        <line x1="14" y1="7" x2="16.5" y2="7" />
-                                        <line x1="14" y1="11" x2="16.5" y2="11" />
-                                        <line x1="14" y1="15" x2="16.5" y2="15" />
+                                <div className="relative w-7.5 h-7.5 flex items-center justify-center pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 256 256" className={showToolsPanel && activeToolTab !== 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
+                                        <path d="M208,32H160a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H160V176h24a8,8,0,0,0,0-16H160V136h24a8,8,0,0,0,0-16H160V96h24a8,8,0,0,0,0-16H160V48h48V208ZM77.66,26.34a8,8,0,0,0-11.32,0l-32,32A8,8,0,0,0,32,64V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V64a8,8,0,0,0-2.34-5.66ZM48,176V80H64v96ZM80,80H96v96H80ZM72,43.31,92.69,64H51.31ZM48,208V192H96v16Z" />
                                     </svg>
                                 </div>
                             </button>
@@ -8201,15 +8193,8 @@ export default function CreatePage() {
                                 type="button"
                             >
                                 <div className="relative w-7.5 h-7.5 flex items-center justify-center pointer-events-none">
-                                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" className={showToolsPanel && activeToolTab === 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
-                                        {/* Clean bulb shape matching tools icon stroke weight */}
-                                        <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .6 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
-                                        <path d="M9 18h6" />
-                                        <path d="M10 22h4" />
-                                        {/* Simple ray lines */}
-                                        <line x1="12" y1="2.5" x2="12" y2="4" />
-                                        <line x1="21.5" y1="8" x2="20" y2="8" />
-                                        <line x1="4" y1="8" x2="2.5" y2="8" />
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 256 256" className={showToolsPanel && activeToolTab === 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
+                                        <path d="M128,24A80.09,80.09,0,0,0,64,155.67V184a16,16,0,0,0,16,16h96a16,16,0,0,0,16-16V155.67A80.09,80.09,0,0,0,128,24Zm32,160H96V176h64Zm0-16H96V155.67a80.12,80.12,0,0,0,64,0ZM128,40a64.07,64.07,0,0,1,64,64c0,23.36-12.75,44.75-32,54.89V144H96v18.89C76.75,152.75,64,131.36,64,108A64.07,64.07,0,0,1,128,40Zm-24,176h48a8,8,0,0,1,0,16H104a8,8,0,0,1,0-16Z" />
                                     </svg>
                                 </div>
                             </button>
