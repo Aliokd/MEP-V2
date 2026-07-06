@@ -6416,7 +6416,7 @@ export default function CreatePage() {
 
         if (expandedCardId && expandedCardId === activeCard.id) {
             return (
-                <div className="flex flex-col gap-6 w-full animate-in fade-in zoom-in-95 duration-250">
+                <div className="flex flex-col gap-6 w-full">
                     {/* Header */}
                     <div className="flex items-center justify-between pb-4 border-b border-stone-100 select-none">
                         <button
@@ -6477,7 +6477,7 @@ export default function CreatePage() {
 
         // Swiper View (Clean card stack floating in white space)
         return (
-            <div className="flex justify-center items-center w-full select-none py-8 animate-in fade-in duration-200">
+            <div className="flex justify-center items-center w-full select-none py-8">
                 {/* Swiper wrapper with padding space for shadows */}
                 <div className="w-[580px] h-[400px] flex items-center justify-center overflow-visible">
                     <Swiper
@@ -6540,13 +6540,13 @@ export default function CreatePage() {
         if (activeToolTab === 'inspiration') {
             if (!expandedCardId) {
                 return (
-                    <div className="w-full max-w-[952px] mb-5 flex flex-col items-center justify-center animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
+                    <div className="w-full max-w-[952px] mb-5 flex flex-col items-center justify-center pointer-events-auto">
                         {renderInspirationTools()}
                     </div>
                 );
             } else {
                 return (
-                    <div className="w-full max-w-[952px] bg-white border border-stone-200/80 rounded-[45px] shadow-[0_18px_56px_rgba(0,0,0,0.11)] p-7 mb-5 flex flex-col gap-6 animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
+                    <div className="w-full max-w-[952px] bg-white border border-stone-200/80 rounded-[45px] shadow-[0_18px_56px_rgba(0,0,0,0.11)] p-7 mb-5 flex flex-col gap-6 pointer-events-auto">
                         <div className="w-full">
                             {renderInspirationTools()}
                         </div>
@@ -6556,7 +6556,7 @@ export default function CreatePage() {
         }
 
         return (
-            <div className="w-full max-w-[952px] bg-white border border-stone-200/80 rounded-[45px] shadow-[0_18px_56px_rgba(0,0,0,0.11)] p-7 mb-5 flex flex-col gap-6 animate-in slide-in-from-bottom-3 fade-in duration-300 pointer-events-auto">
+            <div className="w-full max-w-[952px] bg-white border border-stone-200/80 rounded-[45px] shadow-[0_18px_56px_rgba(0,0,0,0.11)] p-7 mb-5 flex flex-col gap-6 pointer-events-auto">
                 {/* Content area based on active tab */}
                 <div className="w-full">
                     {activeToolTab === 'tuner' && renderGuitarTuner()}
@@ -7917,7 +7917,9 @@ export default function CreatePage() {
 
                 {/* Creative Tools Panel */}
                 <div 
-                    className={`absolute left-1/2 -translate-x-1/2 w-full max-w-[952px] px-4 z-30 transition-all duration-300 ease-out origin-bottom transform pointer-events-none ${
+                    className={`absolute left-1/2 -translate-x-1/2 w-full max-w-[952px] px-4 z-30 transition-all duration-300 ease-out transform pointer-events-none ${
+                        activeToolTab === 'inspiration' ? 'origin-[61%_bottom]' : 'origin-[53.5%_bottom]'
+                    } ${
                         showToolsPanel
                             ? "scale-100 opacity-100"
                             : "scale-0 opacity-0"
