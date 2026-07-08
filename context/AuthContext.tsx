@@ -18,6 +18,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Playwright testing mock user override
+        if (typeof window !== 'undefined') {
+            const mockUserJson = localStorage.getItem('playwright_mock_user');
+            if (mockUserJson) {
+                try {
+                    const mockUser = JSON.parse(mockUserJson);
+                    setUser(mockUser as User);
+                    setLoading(false);
+                    return;
+                } catch (e) {
+                    console.error("Error parsing playwright_mock_user in AuthContext:", e);
+                }
+            }
+        }
+
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
             setLoading(false);

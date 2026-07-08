@@ -360,7 +360,7 @@ export default function PlatformLayout({
                             onClick={() => {
                                 setShowConfettiOverlay(false);
                                 localStorage.setItem('songwriting-progress', '0');
-                                setProgressVal(0);
+                                setLevelProgress(0);
                             }}
                             className="w-full py-4.5 bg-stone-900 hover:bg-stone-800 text-white rounded-[16px] text-base font-bold transition-all shadow-md cursor-pointer active:scale-95"
                         >

@@ -55,7 +55,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
         { label: 'Create', href: '/platform/create', icon: PenTool },
         { label: 'Learn', href: '/platform', icon: BookOpen },
         { label: 'Practice', href: '/platform/practice', icon: Music },
-        { label: 'Connect', href: '#', icon: Users },
+        { label: 'Connect', href: '/platform/connect', icon: Users },
     ];
 
     const bottomItems = [
@@ -164,11 +164,6 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                                                 <span className="font-sans text-[22px] font-medium tracking-wide whitespace-nowrap">
                                                     {item.label}
                                                 </span>
-                                                {item.label === 'Connect' && (
-                                                    <span className="text-[10px] font-normal text-stone-500 bg-white border border-stone-200/50 px-2 py-0.5 rounded-full tracking-wide font-sans ml-1.5 shadow-3xs opacity-50 whitespace-nowrap">
-                                                        Coming Soon
-                                                    </span>
-                                                )}
                                             </div>
                                         )}
                                     </div>

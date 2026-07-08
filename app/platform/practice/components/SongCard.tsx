@@ -37,16 +37,11 @@ export default function SongCard({ song, index, isSelected, isPlaying, onClick }
                     hover: { y: -14, rotate: 20, opacity: 1, transition: { type: 'spring', stiffness: 200, damping: 15 } },
                     selected: { y: -18, rotate: 12, opacity: 1, transition: { type: 'spring', stiffness: 250, damping: 20 } }
                 }}
-                animate={isSelected ? (isPlaying ? "playing" : "selected") : "unselected"}
-                whileHover={!isSelected ? 'hover' : undefined}
-                // Custom transition to rotate the vinyl record infinitely when playing
-                {...(isSelected && isPlaying ? {
-                    animate: { y: -18, rotate: 360 },
-                    transition: {
-                        y: { type: 'spring', stiffness: 250, damping: 20 },
-                        rotate: { ease: "linear", duration: 3.5, repeat: Infinity }
-                    }
-                } : {})}
+                animate={isSelected && isPlaying ? { y: -18, rotate: 360 } : (isSelected ? "selected" : "unselected")}
+                transition={isSelected && isPlaying ? {
+                    y: { type: 'spring', stiffness: 250, damping: 20 },
+                    rotate: { ease: "linear", duration: 3.5, repeat: Infinity }
+                } : undefined}
             >
                 {/* Center hole sticker */}
                 <div 
