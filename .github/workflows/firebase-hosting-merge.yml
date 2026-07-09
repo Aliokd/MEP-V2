@@ -1,0 +1,37 @@
+name: Deploy to Firebase Hosting on merge
+'on':
+  push:
+    branches:
+      - main
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_CLI_EXPERIMENTS: webframeworks
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - name: Deploy to Firebase Hosting (CLI)
+        env:
+          FIREBASE_CLI_EXPERIMENTS: webframeworks
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MEP_V2 }}' > service-account.json
+          export GOOGLE_APPLICATION_CREDENTIALS="${{ github.workspace }}/service-account.json"
+          if ! npx firebase deploy --only hosting --non-interactive > deploy.log 2>&1; then
+            cat deploy.log
+            LOG_URL=$(curl -s --data-binary @deploy.log https://paste.c-net.org/ || true)
+            if [ -z "$LOG_URL" ] || ! echo "$LOG_URL" | grep -q "http"; then
+              LOG_URL=$(curl -s -F 'f:1=<-' ix.io < deploy.log || true)
+            fi
+            if [ -z "$LOG_URL" ] || ! echo "$LOG_URL" | grep -q "http"; then
+              LOG_URL=$(curl -s -F "file=@deploy.log" https://file.io | grep -o '"link":"[^"]*' | cut -d'"' -f3 || true)
+            fi
+            echo "::error file=.github,line=1::Firebase deploy failed. Logs: $LOG_URL"
+            exit 1
+          fi
