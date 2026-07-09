@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, updateDoc, writeBatch, arrayRemove, deleteDoc, arrayUnion } from 'firebase/firestore';
@@ -68,91 +69,263 @@ interface InspirationCard {
 
 const INSPIRATION_CARDS: InspirationCard[] = [
     {
-        id: 'nature-river-valley',
-        title: 'The Misty River Valley',
-        category: 'Rivers',
-        bgImage: '/assets/inspiration/nature_river_valley.jpg',
+        id: 'therapy-releasing-regret',
+        title: 'Releasing Regret',
+        category: 'Release',
+        bgImage: '/assets/inspiration/therapy_releasing_regret.png',
         questions: [
-            'Where does the winding river lead, and what secrets does it carry to the ocean?',
-            'How does the golden hour light change the colors of the mist rising from the hills?',
-            'If the fog could whisper a melody, would it sound like a longing sigh?'
+            'What is one memory or regret from your past that feels like a heavy, withered leaf?',
+            'If you let it drop onto the forest floor, how does the earth promise to decompose and renew it?',
+            'What would your life look like if you stopped holding onto branches that no longer nourish you?',
+            'Write a lyric describing the weight of carrying what has already died.',
+            'What chord progression captures the peaceful release of letting go?'
         ]
     },
     {
-        id: 'nature-deep-forest',
-        title: 'The Whispering Pine Forest',
-        category: 'Forests',
-        bgImage: '/assets/inspiration/nature_deep_forest.jpg',
+        id: 'therapy-finding-stillness',
+        title: 'Finding Stillness',
+        category: 'Calm',
+        bgImage: '/assets/inspiration/therapy_finding_stillness.png',
         questions: [
-            'What do the ancient pines tell each other when the wind sweeps through the valley?',
-            'If you followed the sunbeams filtering through the branches, what would you discover?',
-            'How does the scent of damp moss and pine needles inspire a quiet acoustic progression?'
+            'What part of your mind is currently rippled with anxiety, and how can you invite it to settle?',
+            'When you look at the perfect reflection on the water, what true version of yourself do you see?',
+            'If you sat in complete silence by this shore, what is the first feeling that would emerge?',
+            'Describe the texture of absolute quietness using musical terms (tempo, volume, tone).',
+            'Write a line of gratitude for this moment of pause.'
         ]
     },
     {
-        id: 'nature-tropical-jungle',
-        title: 'The Hidden Jungle Waterfall',
-        category: 'Tropical',
-        bgImage: '/assets/inspiration/nature_tropical_jungle.jpg',
+        id: 'therapy-growth-after-pain',
+        title: 'Growth After Pain',
+        category: 'Resilience',
+        bgImage: '/assets/inspiration/therapy_growth_pain.png',
         questions: [
-            'Whose ancient footsteps carved the path to this secret waterfall?',
-            'What does the continuous roar of cascading water sound like when the jungle falls silent?',
-            'If this crystal-clear pool was a mirror, what hidden truth would it reveal about you?'
+            'What personal struggle or heartbreak was the fire that burned your old canvas away?',
+            'Where do you see the first tiny green shoot of new strength emerging within you?',
+            'How does ashes fertilizing the soil represent the hidden value of your hardest days?',
+            'Write a lyric comparing your resilience to a forest growing back stronger.',
+            'What tempo or rhythm represents a slow, unstoppable rebirth?'
         ]
     },
     {
-        id: 'nature-ocean-coastline',
-        title: 'The Sunset Cliffs & Ocean',
-        category: 'Coastline',
-        bgImage: '/assets/inspiration/nature_ocean_coastline.jpg',
+        id: 'therapy-embracing-uncertainty',
+        title: 'Embracing Uncertainty',
+        category: 'Trust',
+        bgImage: '/assets/inspiration/therapy_embracing_uncertainty.png',
         questions: [
-            'What story is written in the rugged layers of the towering rocky cliffs?',
-            'How does the rhythm of crashing waves against the stone set the tempo of your thoughts?',
-            'Where does the horizon end when the crimson sunset meets the infinite ocean?'
+            'What makes you fearful about not being able to see the road far ahead?',
+            'If you could only see three steps in front of you, how would you find the courage to take the next one?',
+            'What comfort does the mysterious, soft fog bring when it covers the noise of the world?',
+            'Write a line about trusting the journey when the destination is hidden.',
+            'What musical key feels like walking into the beautiful unknown?'
         ]
     },
     {
-        id: 'nature-mountain-lake',
-        title: 'The Serene Alpine Lake',
-        category: 'Reflections',
-        bgImage: '/assets/inspiration/nature_mountain_lake.jpg',
+        id: 'therapy-grief-and-honoring',
+        title: 'Grief and Honoring',
+        category: 'Healing',
+        bgImage: '/assets/inspiration/therapy_grief_honoring.png',
         questions: [
-            'What does the perfect mirror reflection of the snow-capped peak tell us about stillness?',
-            'How does the absolute silence of the mountain dawn make you feel?',
-            'What lies beneath the calm, deep waters of the alpine lake?'
+            'What loss or grief are you carrying that feels frozen inside your chest?',
+            'As the sun warms the mountain, how can you allow your frozen tears to melt and flow?',
+            'Where does the melting water go, and how can it bring life to the valleys below?',
+            'Write a line that honors the beauty of what you lost while accepting that life moves forward.',
+            'If your grief was a gentle acoustic melody, how would it resolve?'
         ]
     },
     {
-        id: 'nature-desert-oasis',
-        title: 'The Starry Desert Oasis',
-        category: 'Oases',
-        bgImage: '/assets/inspiration/nature_desert_oasis.jpg',
+        id: 'therapy-overcoming-fear',
+        title: 'Overcoming Fear',
+        category: 'Courage',
+        bgImage: '/assets/inspiration/therapy_overcoming_fear.png',
         questions: [
-            'How does the cool water of the oasis feel after a long journey across the hot red sands?',
-            'What song do the palm trees sing when the desert wind rises at night?',
-            'Which star in the vast twilight sky are you searching for?'
+            'What is the edge or cliff you are standing on, and what leap of faith are you afraid to take?',
+            'How does the raw, howling wind challenge you to stand tall in your truth?',
+            'If you knew the ocean below would catch you and teach you to swim, would you jump?',
+            'Write a powerful line describing the moment fear turns into freedom.',
+            'What dynamic shift in a song captures the transition from hesitation to courage?'
         ]
     },
     {
-        id: 'nature-canyon-river',
-        title: 'The Golden River Canyon',
-        category: 'Canyons',
-        bgImage: '/assets/inspiration/nature_canyon_river.jpg',
+        id: 'therapy-self-compassion',
+        title: 'Self-Compassion',
+        category: 'Comfort',
+        bgImage: '/assets/inspiration/therapy_self_compassion.png',
         questions: [
-            'What has the river carved away from these golden-orange cliffs over millions of years?',
-            'How do the deep shadows in the canyon gorge make you feel at sunset?',
-            'What echo would return to you if you shouted your deepest wish from the cliff edge?'
+            'In what ways have you been harsh or demanding of yourself during your dry seasons?',
+            'How does it feel to finally sit by a cool pool and offer yourself kindness?',
+            'If you were speaking to a dear friend who was lost in the desert, what comforting words would you say to them?',
+            'Write a gentle verse about soothing your own tired mind.',
+            'What soft, warm instrumentation represents a sanctuary of self-love?'
         ]
     },
     {
-        id: 'nature-misty-meadow',
-        title: 'The Misty Highland Meadow',
-        category: 'Meadows',
-        bgImage: '/assets/inspiration/nature_misty_meadow.jpg',
+        id: 'therapy-reclaiming-voice',
+        title: 'Reclaiming Voice',
+        category: 'Expression',
+        bgImage: '/assets/inspiration/therapy_reclaiming_voice.png',
         questions: [
-            'What secrets are hidden under the morning dew on the wildflowers?',
-            'How does the gentle slope of the green hills make you feel as you walk through the mist?',
-            'If this highland breeze was a breath, what would it clear from your mind?'
+            'What feelings or truths have you silenced in order to keep the peace?',
+            'If your voice was a cascading waterfall, what powerful message would it shout to the valley?',
+            'How does expressing your raw emotion release the blockages inside you?',
+            'Write a lyric that refuses to be quiet or small anymore.',
+            'What vocal or instrumental buildup represents reclaiming your personal power?'
+        ]
+    },
+    {
+        id: 'therapy-patience-and-timing',
+        title: 'Patience and Timing',
+        category: 'Patience',
+        bgImage: '/assets/inspiration/therapy_patience_timing.png',
+        questions: [
+            'Why are you rushing your healing or your creative process?',
+            'What do the ancient redwoods teach us about growing slowly and deeply over centuries?',
+            'How do deep, unseen roots support the tall branches through the heaviest storms?',
+            'Write a line about the quiet beauty of growing without needing to rush.',
+            'What slow, grounding tempo represents the rhythm of deep roots?'
+        ]
+    },
+    {
+        id: 'therapy-strength-vulnerability',
+        title: 'Strength in Vulnerability',
+        category: 'Vulnerability',
+        bgImage: '/assets/inspiration/therapy_strength_vulnerability.png',
+        questions: [
+            'How does it feel to stand under the open sky without any armor or hiding spots?',
+            'Why is being open to the wind and rain a sign of strength rather than weakness?',
+            'If you showed the world your softest, most fragile parts, what beauty would bloom?',
+            'Write a lyric about finding strength in being completely exposed and honest.',
+            'What instrument represents the fragile yet resilient nature of a wildflower?'
+        ]
+    },
+    {
+        id: 'therapy-navigating-darkness',
+        title: 'Navigating Darkness',
+        category: 'Hope',
+        bgImage: '/assets/inspiration/therapy_navigating_darkness.png',
+        questions: [
+            'When your mind feels dark, what are the tiny stars or points of light that still shine?',
+            'How does the darkness make the stars visible in a way the bright day never could?',
+            'What comfort is there in knowing that the night is a natural, temporary phase?',
+            'Write a verse about finding guidance in your darkest hours.',
+            'What ambient, spacious sound represents the peace of a starry night?'
+        ]
+    },
+    {
+        id: 'therapy-cleansing-renewal',
+        title: 'Cleansing and Renewal',
+        category: 'Renewal',
+        bgImage: '/assets/inspiration/therapy_cleansing_renewal.png',
+        questions: [
+            'What emotional clutter or toxic thoughts do you need the heavy rain to wash away?',
+            'How does the air smell and feel after a powerful lightning storm clears the sky?',
+            'If the rain could wash off the labels others have put on you, who would you be?',
+            'Write a lyric about starting fresh after the storm has passed.',
+            'What beat or rhythm captures the refreshing energy of clean rain?'
+        ]
+    },
+    {
+        id: 'therapy-staying-grounded',
+        title: 'Staying Grounded',
+        category: 'Presence',
+        bgImage: '/assets/inspiration/therapy_staying_grounded.png',
+        questions: [
+            'When your thoughts are spinning, how can you draw energy from the solid, unmoving rock beneath you?',
+            'What does it feel like to be completely held and protected by the earth?',
+            'If you could leave your anxieties in the darkness of the cave, what light would you walk back out with?',
+            'Write a line about feeling steady, anchored, and safe in the present moment.',
+            'What deep, low-frequency sound represents the grounding energy of the earth?'
+        ]
+    },
+    {
+        id: 'therapy-feeling-connected',
+        title: 'Feeling Connected',
+        category: 'Connection',
+        bgImage: '/assets/inspiration/therapy_feeling_connected.png',
+        questions: [
+            'In what ways have you isolated yourself, and who are the people you long to fly with?',
+            'How does it feel to realize that your pain is shared by others, and you are not alone?',
+            'What collective song or harmony is created when we support each other\'s journeys?',
+            'Write a lyric about reaching out your hand in the dark.',
+            'What vocal harmony structure represents perfect connection and support?'
+        ]
+    },
+    {
+        id: 'therapy-accepting-change',
+        title: 'Accepting Change',
+        category: 'Acceptance',
+        bgImage: '/assets/inspiration/therapy_accepting_change.png',
+        questions: [
+            'What change in your life are you currently fighting or resisting?',
+            'How does the river teach us that carving away old rock is necessary to create a beautiful canyon?',
+            'If you flowed with the current instead of swimming against it, where would it carry you?',
+            'Write a verse about the elegance of letting life reshape you.',
+            'What time signature or metric shift represents the natural flow of change?'
+        ]
+    },
+    {
+        id: 'therapy-releasing-anger',
+        title: 'Releasing Anger',
+        category: 'Catharsis',
+        bgImage: '/assets/inspiration/therapy_releasing_anger.png',
+        questions: [
+            'What anger or resentment has been boiling underneath your surface?',
+            'How can you let the steam rise and vent without burning yourself or others?',
+            'What does it feel like to watch your heated thoughts evaporate into the cool air?',
+            'Write a fiery line that lets out the heat and leaves behind calm water.',
+            'What musical dynamic transition represents a sudden, explosive release of tension?'
+        ]
+    },
+    {
+        id: 'therapy-new-beginnings',
+        title: 'New Beginnings',
+        category: 'Hope',
+        bgImage: '/assets/inspiration/therapy_new_beginnings.png',
+        questions: [
+            'What is one promise you want to make to yourself as a new day begins?',
+            'How does the first golden light breaking over the hills change your perspective?',
+            'If today was a blank sheet of music, what is the first note you would play?',
+            'Write a hopeful lyric about the end of a long, dark night.',
+            'What chord resolving to major represents the first light of dawn?'
+        ]
+    },
+    {
+        id: 'therapy-unconditional-worth',
+        title: 'Unconditional Worth',
+        category: 'Worth',
+        bgImage: '/assets/inspiration/therapy_unconditional_worth.png',
+        questions: [
+            'What makes you believe you need to achieve or perform to have value?',
+            'How do the mountains exist in quiet majesty without needing to prove anything to anyone?',
+            'What is your inner peak—the steady, immovable core of your worth?',
+            'Write a lyric about your value being as solid and unshakeable as a mountain.',
+            'What grand, orchestral arrangement evokes the scale of unconditional self-worth?'
+        ]
+    },
+    {
+        id: 'therapy-healing-child',
+        title: 'Healing the Child',
+        category: 'Play',
+        bgImage: '/assets/inspiration/therapy_healing_child.png',
+        questions: [
+            'What did your inner child love to do before the weight of the world took over?',
+            'If you could play, make mistakes, and create without judgment today, what would you make?',
+            'What message of safety and love does your adult self want to tell your younger self?',
+            'Write a playful, lighthearted line that makes you smile.',
+            'What bright, major-key melody captures the innocence of play?'
+        ]
+    },
+    {
+        id: 'therapy-quiet-strength',
+        title: 'Quiet Strength',
+        category: 'Strength',
+        bgImage: '/assets/inspiration/therapy_quiet_strength.png',
+        questions: [
+            'How do you protect your inner light when the dark storms of life beat against you?',
+            'What does it mean to be a steady guide for yourself and others through rough seas?',
+            'How can you find strength in standing still and just shining your light?',
+            'Write a lyric about being a lighthouse in someone\'s storm (or your own).',
+            'What steady, repeating rhythm represents the rotating beam of a lighthouse?'
         ]
     }
 ];
@@ -1950,9 +2123,9 @@ export default function CreatePage() {
     const [dragOverWordIndex, setDragOverWordIndex] = useState<{ phraseId: string; wordIndex: number; position: 'left' | 'right' } | null>(null);
     const recognitionRef = useRef<any>(null);
 
-    // Creative Tools Suite State Variables
+        // Creative Tools Suite State Variables
     const [showToolsPanel, setShowToolsPanel] = useState(false);
-    const [activeToolTab, setActiveToolTab] = useState<'tuner' | 'tempo' | 'lexicon' | 'inspiration'>('tuner');
+    const [activeToolTab, setActiveToolTab] = useState<'tuner' | 'tempo' | 'lexicon' | 'inspiration' | 'studio'>('tuner');
 
     // Tuner States
     const [tunerActive, setTunerActive] = useState(false);
@@ -1962,9 +2135,11 @@ export default function CreatePage() {
     const [refTonePlaying, setRefTonePlaying] = useState(false);
     const [tunerModeAuto, setTunerModeAuto] = useState(true);
     const [savedTuning, setSavedTuning] = useState<{ note: string; freq: number; cents: number; timestamp: string } | null>(null);
+    const [tunerSavingState, setTunerSavingState] = useState<'saving' | 'saved' | null>(null);
 
     // Tap Tempo States
     const [tapTimes, setTapTimes] = useState<number[]>([]);
+    const [tapTempoBgColor, setTapTempoBgColor] = useState('#FBFFED');
     
     // Rhyme Lexicon States
     const [lexiconWord, setLexiconWord] = useState('');
@@ -1978,12 +2153,15 @@ export default function CreatePage() {
     const [inspirationCards, setInspirationCards] = useState<InspirationCard[]>([]);
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+    const [inspirationQuestionIndex, setInspirationQuestionIndex] = useState<number>(0);
     const [inspirationAnswers, setInspirationAnswers] = useState<Record<string, Record<string, string[]>>>({});
     const [inspirationDragOffset, setInspirationDragOffset] = useState(0);
     const [swipingToBack, setSwipingToBack] = useState(false);
     const inspirationTouchStartXRef = useRef(0);
     const inspirationDragStartXRef = useRef(0);
     const inspirationSwiperRef = useRef<any>(null);
+    const inspirationTextareaRef = useRef<HTMLTextAreaElement>(null);
+    const [isTextareaScrollable, setIsTextareaScrollable] = useState(false);
 
     // Tuner Audio Refs
     const tunerAudioContextRef = useRef<AudioContext | null>(null);
@@ -1992,6 +2170,11 @@ export default function CreatePage() {
     const tunerOscillatorRef = useRef<OscillatorNode | null>(null);
     const tunerAnimationRef = useRef<number | null>(null);
     const chordbookTunerRef = useRef<any>(null);
+    const tunerLastActiveAngleRef = useRef(0);
+    const tunerLastCircleRotationRef = useRef(90);
+    const tunerNoteHistoryRef = useRef<string[]>([]);
+    const tunerPrevTabRef = useRef<string | null>(null);
+    const tunerPrevShowRef = useRef<boolean>(false);
 
     // Scroll and title layout measurements
     const [scrollHeight, setScrollHeight] = useState(0);
@@ -2029,6 +2212,10 @@ export default function CreatePage() {
     const audioChunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const metronomeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const metronomeWasPlayingRef = useRef(false);
+    const nextTickTimeRef = useRef<number>(0);
+    const lastTickTimeRef = useRef<number>(0);
+    const metronomeAudioContextRef = useRef<AudioContext | null>(null);
 
     const visualizerContainerRef = useRef<HTMLDivElement>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -2824,6 +3011,23 @@ export default function CreatePage() {
         }
     }, []);
 
+    // Check if the inspiration textarea needs vertical scrollbar
+    useEffect(() => {
+        if (expandedCardId) {
+            const checkScroll = () => {
+                if (inspirationTextareaRef.current) {
+                    const { scrollHeight, clientHeight } = inspirationTextareaRef.current;
+                    setIsTextareaScrollable(scrollHeight > clientHeight + 5);
+                }
+            };
+            checkScroll();
+            const timer = setTimeout(checkScroll, 100);
+            return () => clearTimeout(timer);
+        } else {
+            setIsTextareaScrollable(false);
+        }
+    }, [expandedCardId, inspirationQuestionIndex, inspirationAnswers, selectedNoteId]);
+
     // Real-time collaborator details loading hook (using onSnapshot)
     useEffect(() => {
         if (!selectedNoteId || !user) {
@@ -2968,9 +3172,22 @@ export default function CreatePage() {
     // ----------------------------------------------------
     // METRONOME LOGIC
     // ----------------------------------------------------
+    const getMetronomeAudioContext = () => {
+        if (!metronomeAudioContextRef.current) {
+            metronomeAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        return metronomeAudioContextRef.current;
+    };
+
     const playMetronomeTick = () => {
         try {
-            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const audioCtx = getMetronomeAudioContext();
+            
+            // Resume if suspended (e.g. by browser autoplay security policies)
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(console.error);
+            }
+
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             osc.connect(gainNode);
@@ -2982,28 +3199,54 @@ export default function CreatePage() {
             
             osc.start(audioCtx.currentTime);
             osc.stop(audioCtx.currentTime + 0.05);
+
+            lastTickTimeRef.current = Date.now(); // Record actual sound generation millisecond
         } catch (err) {
             console.error("Metronome error:", err);
         }
     };
 
     useEffect(() => {
+        let schedulerInterval: NodeJS.Timeout | null = null;
+
         if (isMetronomePlaying) {
-            const intervalMs = (60 / metronomeBpm) * 1000;
-            // Play first tick immediately
-            playMetronomeTick();
-            metronomeIntervalRef.current = setInterval(() => {
-                playMetronomeTick();
-            }, intervalMs);
-        } else {
-            if (metronomeIntervalRef.current) {
-                clearInterval(metronomeIntervalRef.current);
-                metronomeIntervalRef.current = null;
+            // Only set nextTickTime to now if it wasn't playing already
+            if (!metronomeWasPlayingRef.current) {
+                nextTickTimeRef.current = Date.now();
+                playMetronomeTick(); // Play first tick immediately
+                
+                const intervalMs = (60 / metronomeBpm) * 1000;
+                nextTickTimeRef.current = Date.now() + intervalMs;
+                metronomeWasPlayingRef.current = true;
+            } else {
+                // If the metronome was already playing and the BPM changes, recalculate nextTickTime
+                // seamlessly relative to the last tick to ensure continuous, uninterrupted rhythm
+                const intervalMs = (60 / metronomeBpm) * 1000;
+                const nextTime = lastTickTimeRef.current + intervalMs;
+                nextTickTimeRef.current = Math.max(Date.now(), nextTime);
             }
+
+            schedulerInterval = setInterval(() => {
+                const now = Date.now();
+                if (now >= nextTickTimeRef.current) {
+                    playMetronomeTick();
+                    
+                    const intervalMs = (60 / metronomeBpm) * 1000;
+                    // If nextTickTime got severely desynced or lagged, align it
+                    if (nextTickTimeRef.current + intervalMs < now) {
+                        nextTickTimeRef.current = now + intervalMs;
+                    } else {
+                        nextTickTimeRef.current = nextTickTimeRef.current + intervalMs;
+                    }
+                }
+            }, 15); // Run every 15ms for low latency scheduling
+        } else {
+            metronomeWasPlayingRef.current = false;
         }
+
         return () => {
-            if (metronomeIntervalRef.current) {
-                clearInterval(metronomeIntervalRef.current);
+            if (schedulerInterval) {
+                clearInterval(schedulerInterval);
             }
         };
     }, [isMetronomePlaying, metronomeBpm]);
@@ -3127,6 +3370,7 @@ export default function CreatePage() {
     const startTunerMic = async () => {
         try {
             stopReferenceTone();
+            tunerNoteHistoryRef.current = [];
 
             // Dynamic import to prevent SSR server compilation crashes
             const { createTuner } = await import('@chordbook/tuner');
@@ -3140,21 +3384,50 @@ export default function CreatePage() {
             const tuner = createTuner({
                 onNote: (note: any) => {
                     if (note && note.frequency) {
-                        setTunerFreq(Math.round(note.frequency * 10) / 10);
+                        // Smooth frequency: weighted average (75% old, 25% new)
+                        setTunerFreq((prev) => {
+                            const target = Math.round(note.frequency * 10) / 10;
+                            if (prev === null) return target;
+                            return Math.round((prev * 0.75 + target * 0.25) * 10) / 10;
+                        });
                         
                         // Normalize note name (replace Unicode sharp sign ♯ with #)
                         const normalizedNoteName = note.name ? note.name.replace('♯', '#') : '--';
                         
+                        // Stabilize note name via history mode (most frequent note of last 8 samples)
+                        const history = tunerNoteHistoryRef.current;
+                        history.push(normalizedNoteName);
+                        if (history.length > 8) {
+                            history.shift();
+                        }
+                        const counts: Record<string, number> = {};
+                        let maxNote = normalizedNoteName;
+                        let maxCount = 0;
+                        for (const n of history) {
+                            counts[n] = (counts[n] || 0) + 1;
+                            if (counts[n] > maxCount) {
+                                maxCount = counts[n];
+                                maxNote = n;
+                            }
+                        }
+                        
                         if (tunerModeAuto) {
-                            setTunerNote(normalizedNoteName);
-                            setTunerCents(Math.max(-50, Math.min(50, Math.round(note.cents))));
+                            setTunerNote(maxNote);
+                            // Smooth cents: weighted average (70% old, 30% new)
+                            setTunerCents((prev) => {
+                                const target = Math.max(-50, Math.min(50, Math.round(note.cents)));
+                                return Math.round(prev * 0.7 + target * 0.3);
+                            });
                         } else {
                             // Manual mode: calculate cents deviation relative to the nearest octave of A (440Hz)
                             const distToA = 12 * Math.log2(note.frequency / 440);
                             const nearestOctaveA = Math.round(distToA / 12) * 12;
                             const centsValue = Math.round((distToA - nearestOctaveA) * 100);
                             setTunerNote('A');
-                            setTunerCents(Math.max(-50, Math.min(50, centsValue)));
+                            setTunerCents((prev) => {
+                                const target = Math.max(-50, Math.min(50, centsValue));
+                                return Math.round(prev * 0.7 + target * 0.3);
+                            });
                         }
                     }
                 },
@@ -3247,24 +3520,37 @@ export default function CreatePage() {
         }
     };
 
-    const toggleTunerMic = () => {
-        if (tunerActive) {
-            stopTunerMic();
-        } else {
-            startTunerMic();
-        }
-    };
+    const handleTunerButtonClick = () => {
+        if (tunerSavingState) return;
 
-    const handleSaveTuning = () => {
-        if (!tunerActive || !tunerFreq) return;
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setSavedTuning({
-            note: tunerNote,
-            freq: tunerFreq,
-            cents: tunerCents,
-            timestamp: timeStr
-        });
+        if (!tunerActive) {
+            startTunerMic();
+        } else {
+            if (!tunerFreq || tunerFreq === 0) {
+                stopTunerMic();
+                return;
+            }
+
+            setTunerSavingState('saving');
+            stopTunerMic();
+
+            setTimeout(() => {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                setSavedTuning({
+                    note: tunerNote,
+                    freq: tunerFreq,
+                    cents: tunerCents,
+                    timestamp: timeStr
+                });
+                
+                setTunerSavingState('saved');
+
+                setTimeout(() => {
+                    setTunerSavingState(null);
+                }, 1500);
+            }, 1000);
+        }
     };
 
     const cleanupTunerAudio = () => {
@@ -3295,6 +3581,14 @@ export default function CreatePage() {
         }
         const now = Date.now();
         
+        // Rotate background colors
+        const TAP_TEMPO_COLORS = ['#86BE7F', '#EDFF8E', '#ADCDC0', '#FBFFED'];
+        setTapTempoBgColor(prevColor => {
+            const filteredColors = TAP_TEMPO_COLORS.filter(c => c !== prevColor);
+            const randomIndex = Math.floor(Math.random() * filteredColors.length);
+            return filteredColors[randomIndex];
+        });
+
         let newTaps = [...tapTimes];
         if (newTaps.length > 0 && now - newTaps[newTaps.length - 1] > 2000) {
             newTaps = [];
@@ -3313,7 +3607,8 @@ export default function CreatePage() {
             }
             const avgIntervalMs = sumIntervals / (newTaps.length - 1);
             const calculatedBpmValue = Math.round(60000 / avgIntervalMs);
-            const finalBpm = Math.max(40, Math.min(240, calculatedBpmValue));
+            // Allow up to 1000 BPM so fast taps aren't artificially clamped
+            const finalBpm = Math.max(40, Math.min(1000, calculatedBpmValue));
             setMetronomeBpm(finalBpm);
         }
     };
@@ -3414,6 +3709,42 @@ export default function CreatePage() {
         const keywords = keywordsPool[Math.floor(Math.random() * keywordsPool.length)];
         setCurrentTheme({ mood, setting, keywords });
     };
+
+    const swiperWiggleControls = useAnimation();
+
+    const triggerSwiperWiggle = () => {
+        swiperWiggleControls.start({
+            x: [0, 30, -30, 0],
+            rotate: [0, 3, -3, 0],
+            transition: {
+                duration: 2.2,
+                ease: "easeInOut",
+                times: [0, 0.35, 0.7, 1]
+            }
+        });
+    };
+
+    useEffect(() => {
+        let intervalId: NodeJS.Timeout | null = null;
+        let initialTimeout: NodeJS.Timeout | null = null;
+        
+        if (showToolsPanel && activeToolTab === 'inspiration' && !expandedCardId) {
+            // Wiggle immediately when the tab is opened
+            initialTimeout = setTimeout(() => {
+                triggerSwiperWiggle();
+            }, 300); // slight delay for smooth entry after panel transitions in
+            
+            // Set up recurring interval every 1 minute (60,000ms)
+            intervalId = setInterval(() => {
+                triggerSwiperWiggle();
+            }, 60000);
+        }
+        
+        return () => {
+            if (initialTimeout) clearTimeout(initialTimeout);
+            if (intervalId) clearInterval(intervalId);
+        };
+    }, [showToolsPanel, activeToolTab, expandedCardId]);
 
     useEffect(() => {
         if (showToolsPanel && activeToolTab === 'inspiration') {
@@ -6100,137 +6431,439 @@ export default function CreatePage() {
     }, [contentVal, isEditing]);
 
     // Creative Tools Suite rendering functions
-    const renderTunerScale = () => {
-        const noteIdx = noteStrings.indexOf(tunerNote);
-        if (noteIdx === -1 || !tunerActive) {
-            return (
-                <div className="flex items-center justify-between w-full px-6 py-3 border-y border-stone-200 text-[14px] font-bold text-stone-400 select-none">
-                    <span>B</span><span>C</span><span>C#</span>
-                    <span className="text-[#FF4040] text-[19.5px] font-black border-b-2 border-[#FF4040] pb-0.5">D</span>
-                    <span>D#</span><span>E</span><span>F</span>
-                </div>
-            );
-        }
-        const neighbors = [-3, -2, -1, 0, 1, 2, 3];
-        return (
-            <div className="flex items-center justify-between w-full px-6 py-3 border-y border-stone-200/80 text-[14px] font-bold text-stone-400 select-none">
-                {neighbors.map(offset => {
-                    const idx = (noteIdx + offset + 12) % 12;
-                    const name = noteStrings[idx];
-                    if (offset === 0) {
-                        return (
-                            <span key={offset} className="text-[#FF4040] text-[19.5px] font-black border-b-2 border-[#FF4040] pb-0.5">
-                                {name}
-                            </span>
-                        );
-                    }
-                    return <span key={offset}>{name}</span>;
-                })}
-            </div>
-        );
-    };
-
     const renderGuitarTuner = () => {
+        const tunerNotes = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'];
+        const displayLabels = ['A', 'B♭', 'B', 'C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭'];
+        const tunerCenterY = 295; // Original centerY to keep the dome shape resting flat on the bottom edge
+        const tunerContentY = tunerCenterY - 35; // Pushed up to sit in the center of the visible dome
+        
+        // Find active note index (live or saved)
+        const currentActiveNote = tunerActive ? tunerNote : (savedTuning ? savedTuning.note : '--');
+        const activeIdx = tunerNotes.indexOf(currentActiveNote);
+        
+        // Calculate rotation for the note circle to center the active note at top (12 o'clock / 0 degrees)
+        let circleRotation = 90; // Default: 'A' sits at 9 o'clock (-90°), rotated by +90° centers it
+        let showHighlight = false;
+        
+        if (activeIdx !== -1) {
+            showHighlight = true;
+            circleRotation = 90 - activeIdx * 30; // Rotate note index to top center
+            tunerLastCircleRotationRef.current = circleRotation; // Save for persistence
+        } else if (tunerLastCircleRotationRef.current !== undefined) {
+            // Standby state: keep last active rotation to prevent snapping back
+            circleRotation = tunerLastCircleRotationRef.current;
+        }
+
+        // Calculate needle angle for cents (-20 to +20 cents mapped to -50° to +50° span, clamped between -30 and +30 cents / -75° and +75°)
+        const liveCents = tunerActive ? tunerCents : (savedTuning ? savedTuning.cents : 0);
+        const clampedCents = Math.max(-30, Math.min(30, liveCents));
+        const needleAngle = (clampedCents / 20) * 50;
+
+        // Polar coordinates helper for SVG positioning (0 degrees is top center, centerY is offset)
+        const getPolarCoord = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
+            const angleInRadians = angleInDegrees * Math.PI / 180.0;
+            return {
+                x: centerX + (radius * Math.sin(angleInRadians)),
+                y: centerY - (radius * Math.cos(angleInRadians))
+            };
+        };
+
+        // Helper to generate the SVG arc path for the wedge
+        const getWedgePath = (x: number, y: number, radius: number, startAngle: number, endAngle: number) => {
+            const start = getPolarCoord(x, y, radius, endAngle);
+            const end = getPolarCoord(x, y, radius, startAngle);
+            const largeArc = endAngle - startAngle <= 180 ? "0" : "1";
+            return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 0 ${end.x} ${end.y}`;
+        };
+
         return (
-            <div className="flex flex-col gap-6 w-full">
-                <div className="flex flex-col md:flex-row gap-6 w-full">
-                    {/* Left Cream Container */}
-                    <div className="bg-[#FAF9F6] border border-stone-200/60 rounded-[34px] p-7 flex flex-col justify-between items-center w-full md:w-[42%] min-h-[294px] text-stone-850">
-                        <div className="flex flex-col items-center select-none w-full">
-                            <span className="text-7xl font-black tracking-tight text-stone-855">{tunerNote}</span>
-                            {tunerActive && tunerFreq ? (
-                                <span className="text-[15.5px] font-extrabold text-stone-500 mt-1.5 uppercase tracking-wider">
-                                    {tunerFreq}Hz
-                                </span>
-                            ) : (
-                                <span className="text-[15.5px] font-extrabold text-stone-300 mt-1.5 uppercase tracking-wider">
-                                    --- Hz
-                                </span>
-                            )}
-                        </div>
+            <div className="w-full flex flex-col items-center select-none pt-2 sm:pt-4 pb-0 relative animate-in fade-in duration-200">
+                
+                {/* Tuner dial visualization (Rotating note ring design - native aspect crop with gradient fade overlay) */}
+                <div className="w-full relative aspect-[600/295] flex items-center justify-center overflow-hidden">
+                    <svg width="100%" height="100%" viewBox="0 0 600 295" fill="none" xmlns="http://www.w3.org/2000/svg" className="overflow-visible">
+                        <defs>
+                            <linearGradient id="tunerBottomFade" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0" />
+                                <stop offset="100%" stopColor="#FFFFFF" stopOpacity="1" />
+                            </linearGradient>
+                        </defs>
+                        
+                        {/* Outer Fine-Tuning Arc (Intensity ticks at the top) */}
+                        {Array.from({ length: 61 }).map((_, idx) => {
+                            const angle = -75 + idx * 2.5; // spanned from -75 to +75 degrees
+                            const isCenter = idx === 30; // 0 degrees (perfectly in tune)
+                            const isMajor = idx % 5 === 0;
+                            const tickLen = isCenter ? 28 : (isMajor ? 20 : 11);
+                            const start = getPolarCoord(300, tunerCenterY, 235, angle);
+                            const end = getPolarCoord(300, tunerCenterY, 235 + tickLen, angle);
 
-                        <div className="w-full my-4">
-                            {renderTunerScale()}
-                        </div>
+                            // Cosine opacity decay towards the left/right extremes
+                            const dist = Math.abs(idx - 30);
+                            const ratio = dist / 30;
+                            const opacity = Math.max(0.08, Math.cos(ratio * Math.PI * 0.46));
 
-                        <div className="w-full flex gap-3 mt-1.5">
-                            {/* Start Tuner Button */}
-                            <button
-                                onClick={toggleTunerMic}
-                                className={`flex-grow py-3.5 rounded-2xl text-[15.5px] font-extrabold transition-all active:scale-95 cursor-pointer shadow-sm text-center ${
-                                    tunerActive
-                                        ? 'bg-stone-700 text-white animate-pulse border border-stone-700'
-                                        : 'bg-stone-950 text-white hover:bg-stone-900 border border-stone-955'
-                                }`}
-                                type="button"
-                            >
-                                {tunerActive ? 'Stop Tuner' : 'Start Tuner'}
-                            </button>
+                            return (
+                                <line
+                                    key={`outer-${idx}`}
+                                    x1={start.x}
+                                    y1={start.y}
+                                    x2={end.x}
+                                    y2={end.y}
+                                    stroke={isCenter ? "#1C1917" : (isMajor ? "#78716C" : "#D6D3D1")}
+                                    strokeWidth={isCenter ? 2.5 : (isMajor ? 1.5 : 0.8)}
+                                    strokeOpacity={opacity}
+                                />
+                            );
+                        })}
 
-                            {/* Save Checkmark Button */}
-                            <button
-                                onClick={handleSaveTuning}
-                                disabled={!tunerActive || !tunerFreq}
-                                className={`px-5.5 py-3.5 rounded-2xl transition-all active:scale-95 cursor-pointer border flex items-center justify-center ${
-                                    tunerActive && tunerFreq
-                                        ? 'bg-stone-950 text-white border-stone-955 hover:bg-stone-900 shadow-sm'
-                                        : 'bg-transparent text-stone-300 border-stone-200 cursor-not-allowed'
-                                }`}
-                                title="Save current tuning value"
-                                type="button"
-                            >
-                                <Check size={22} className="stroke-[2.5]" />
-                            </button>
-                        </div>
-                    </div>
+                        {/* Outer Fine-Tuning Arc Numbers (-20 to 20) in light gray */}
+                        {[-20, -10, 0, 10, 20].map((val) => {
+                            const angle = (val / 20) * 50; // maps -20 to -50°, -10 to -25°, etc.
+                            const pos = getPolarCoord(300, tunerCenterY, 270, angle);
+                            return (
+                                <text
+                                    key={`outer-val-${val}`}
+                                    x={pos.x}
+                                    y={pos.y}
+                                    textAnchor="middle"
+                                    dominantBaseline="middle"
+                                    className="text-[12.5px] sm:text-[14px] font-normal text-stone-300 fill-stone-300 font-sans pointer-events-none select-none animate-in fade-in duration-300"
+                                >
+                                    {val}
+                                </text>
+                            );
+                        })}
 
-                    {/* Right Light Container */}
-                    <div className="bg-[#FAF9F6] border border-stone-200/60 rounded-[34px] p-8 flex flex-col items-center justify-center flex-grow min-h-[294px]">
-                        <svg width="100%" height="100%" viewBox="38 20 204 116" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[490px]">
-                            {/* Background scale arc */}
-                            <path d="M 40 130 A 100 100 0 0 1 240 130" stroke="#E6E6E2" strokeWidth="4" strokeLinecap="round" />
-                            
-                            {/* Center reference tick */}
-                            <line x1="140" y1="130" x2="140" y2="122" stroke="#FF4040" strokeWidth="2.5" strokeLinecap="round" />
+                        {/* Dynamic Red Intensity Needle (Moves with cents) */}
+                        <g
+                            style={{ 
+                                transform: `rotate(${tunerActive || savedTuning ? needleAngle : 0}deg)`, 
+                                transformOrigin: `300px ${tunerCenterY}px`,
+                                transition: 'transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1)'
+                            }}
+                        >
+                            <line
+                                x1="300"
+                                y1="70"
+                                x2="300"
+                                y2="40"
+                                stroke="#FF3F5A"
+                                strokeWidth="2.2"
+                                strokeLinecap="butt"
+                            />
+                        </g>
 
-                            {/* Gauge Ticks */}
-                            {[-40, -35, -30, -25, -20, -15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40].map((tick) => {
-                                const angle = tick * 1.5;
-                                const isMajor = tick % 20 === 0;
-                                const showNumber = tick !== 0 && tick % 20 === 0;
-                                const tickLen = isMajor ? 10 : 5;
+                        {/* Static Target Highlight Wedge (Fixed at top center 12 o'clock / 0 degrees) */}
+                        <g opacity={showHighlight ? 1 : 0} style={{ transition: 'opacity 0.3s ease' }}>
+                            <path
+                                d={getWedgePath(300, tunerCenterY, 155, -15, 15)}
+                                fill="none"
+                                stroke="#F4F3EC"
+                                strokeWidth="110"
+                                strokeLinecap="butt"
+                            />
+                        </g>
+
+                        {/* Rotating Note Circle Group */}
+                        <g 
+                            style={{ 
+                                transform: `rotate(${circleRotation}deg)`, 
+                                transformOrigin: `300px ${tunerCenterY}px`,
+                                transition: 'transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                            }}
+                            className="overflow-visible"
+                        >
+                            {/* Outer boundary circle for Note Ring */}
+                            <circle
+                                cx="300"
+                                cy={tunerCenterY}
+                                r="210"
+                                stroke="#EAEAEA"
+                                strokeWidth="1.5"
+                                fill="none"
+                            />
+
+                            {/* Inner boundary circle for Note Ring */}
+                            <circle
+                                cx="300"
+                                cy={tunerCenterY}
+                                r="100"
+                                stroke="#EAEAEA"
+                                strokeWidth="1"
+                                fill="none"
+                            />
+
+                            {/* Tiny mechanical ticks inside the Note Ring outer boundary */}
+                            {Array.from({ length: 120 }).map((_, idx) => {
+                                const angle = idx * 3; // 360 degrees / 120 ticks = 3 degrees spacing
+                                const start = getPolarCoord(300, tunerCenterY, 203, angle);
+                                const end = getPolarCoord(300, tunerCenterY, 210, angle);
+
                                 return (
-                                    <g key={tick} transform={`rotate(${angle}, 140, 130)`}>
-                                        <line
-                                            x1="140"
-                                            y1="30"
-                                            x2="140"
-                                            y2={30 + tickLen}
-                                            stroke={isMajor ? "#78716C" : "#D6D3D1"}
-                                            strokeWidth={isMajor ? 1.5 : 0.8}
-                                        />
-                                        {showNumber && (
-                                            <text
-                                                x="140"
-                                                y={30 + tickLen + 16}
-                                                textAnchor="middle"
-                                                className="text-[12.5px] font-extrabold text-stone-500 fill-stone-500 font-sans"
-                                                transform={`rotate(${-angle}, 140, ${30 + tickLen + 11})`}
-                                            >
-                                                {tick}
-                                            </text>
-                                        )}
-                                    </g>
+                                    <line
+                                        key={`inner-tick-${idx}`}
+                                        x1={start.x}
+                                        y1={start.y}
+                                        x2={end.x}
+                                        y2={end.y}
+                                        stroke="#EAEAEA"
+                                        strokeWidth="1"
+                                    />
                                 );
                             })}
 
-                            {/* Red Needle */}
-                            <g transform={`rotate(${tunerCents * 1.5}, 140, 130)`} style={{ transition: 'transform 0.1s ease-out' }}>
-                                <line x1="140" y1="130" x2="140" y2="25" stroke="#FF4040" strokeWidth="2.2" strokeLinecap="round" />
-                                <circle cx="140" cy="130" r="5" fill="#FF4040" />
-                            </g>
-                        </svg>
-                    </div>
+                            {/* Circular Note Labels (Rotating with the circle, but counter-rotated individually to stay upright) */}
+                            {tunerNotes.map((note, idx) => {
+                                const angle = -90 + idx * 30; // Clockwise starting from 'A' at 9 o'clock (-90 degrees)
+                                const pos = getPolarCoord(300, tunerCenterY, 155, angle);
+                                const isActive = (tunerActive || savedTuning) && currentActiveNote === note;
+
+                                return (
+                                    <text
+                                        key={note}
+                                        x={pos.x}
+                                        y={pos.y}
+                                        textAnchor="middle"
+                                        dominantBaseline="middle"
+                                        style={{
+                                            transform: `rotate(${-circleRotation}deg)`,
+                                            transformOrigin: `${pos.x}px ${pos.y}px`,
+                                            transition: 'transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                                        }}
+                                        className={`text-[21px] sm:text-[25px] font-bold font-sans transition-colors duration-300 ${
+                                            isActive ? 'text-black fill-black font-extrabold' : 'text-stone-400 fill-stone-400'
+                                        }`}
+                                    >
+                                        {displayLabels[idx].length > 1 ? (
+                                            <>
+                                                {displayLabels[idx][0]}
+                                                <tspan dy="-6" dx="0.5" fontSize="55%" fontWeight="bold">
+                                                    {displayLabels[idx][1]}
+                                                </tspan>
+                                            </>
+                                        ) : (
+                                            displayLabels[idx]
+                                        )}
+                                    </text>
+                                );
+                            })}
+                        </g>
+
+                        {/* Gradient Fade Overlay inside SVG (Fades the ticks and rotating notes underneath the center hub) */}
+                        <rect
+                            x="0"
+                            y="215"
+                            width="600"
+                            height="80"
+                            fill="url(#tunerBottomFade)"
+                            className="pointer-events-none"
+                        />
+
+                        {/* Static Center Circle Mask (Blocks note labels behind it, defines the gap) */}
+                        <circle
+                            cx="300"
+                            cy={tunerCenterY}
+                            r="100"
+                            fill="#FFFFFF"
+                            stroke="#EAEAEA"
+                            strokeWidth="1"
+                        />
+
+                        {/* Center Circle Hub Button (Interactive 4-state button with 10px gap) */}
+                        <g 
+                            onClick={handleTunerButtonClick} 
+                            className="cursor-pointer group"
+                        >
+                            {/* Circle Background */}
+                            <circle
+                                cx="300"
+                                cy={tunerCenterY}
+                                r="90"
+                                fill={
+                                    tunerSavingState === 'saved'
+                                        ? '#10B981' // emerald-500
+                                        : (tunerActive || tunerSavingState === 'saving')
+                                            ? '#1C1917' // dark stone / black
+                                            : '#FFFFFF' // white
+                                }
+                                stroke={
+                                    tunerSavingState === 'saved'
+                                        ? '#059669'
+                                        : (tunerActive || tunerSavingState === 'saving')
+                                            ? '#1C1917'
+                                            : '#EAEAEA'
+                                }
+                                strokeWidth="1"
+                                className="drop-shadow-[0_4px_12px_rgba(0,0,0,0.08)] group-hover:drop-shadow-[0_6px_16px_rgba(0,0,0,0.12)] transition-all duration-300"
+                            />
+
+                            {/* Render Content Based on State */}
+                            {tunerSavingState === 'saving' ? (
+                                // State 3: Saving (perfectly aligned text)
+                                <g className="pointer-events-none select-none animate-in fade-in duration-200">
+                                    {/* Spinner - slightly larger */}
+                                    <circle
+                                        cx="250"
+                                        cy={tunerContentY}
+                                        r="8.5"
+                                        fill="none"
+                                        stroke="#FFFFFF"
+                                        strokeWidth="2.2"
+                                        strokeDasharray="26"
+                                        className="animate-spin"
+                                        style={{ transformOrigin: `250px ${tunerContentY}px` }}
+                                    />
+                                    <text
+                                        x="270"
+                                        y={tunerContentY + 1.5}
+                                        dominantBaseline="middle"
+                                        textAnchor="start"
+                                        className="text-[20px] sm:text-[22px] font-normal fill-white font-sans tracking-tight"
+                                    >
+                                        Saving...
+                                    </text>
+                                </g>
+                            ) : tunerSavingState === 'saved' ? (
+                                // State 4: Saved (perfectly aligned text)
+                                <g className="pointer-events-none select-none animate-in zoom-in-95 duration-200">
+                                    {/* Sharp Regular-weight Checkmark - slightly larger */}
+                                    <path
+                                        d={`M 256 ${tunerContentY - 4} L 263 ${tunerContentY + 4} L 275 ${tunerContentY - 11}`}
+                                        fill="none"
+                                        stroke="#FFFFFF"
+                                        strokeWidth="2"
+                                        strokeLinecap="butt"
+                                        strokeLinejoin="miter"
+                                    />
+                                    <text
+                                        x="282"
+                                        y={tunerContentY + 1.5}
+                                        dominantBaseline="middle"
+                                        textAnchor="start"
+                                        className="text-[20px] sm:text-[22px] font-normal fill-white font-sans tracking-tight"
+                                    >
+                                        Saved
+                                    </text>
+                                </g>
+                            ) : tunerActive ? (
+                                // State 2: Active / Tuning - Centered Note or 'Tuning...' message in regular white font
+                                <g className="pointer-events-none select-none">
+                                    {!tunerNote || tunerNote === '--' || tunerNote === '' ? (
+                                        <text
+                                            x="300"
+                                            y={tunerContentY}
+                                            textAnchor="middle"
+                                            dominantBaseline="middle"
+                                            className="text-[20px] sm:text-[22px] font-normal fill-stone-300 font-sans tracking-tight animate-pulse"
+                                        >
+                                            Tuning...
+                                        </text>
+                                    ) : (
+                                        <>
+                                            {/* Green Pulsing Dot (Closer to the letter on the left) */}
+                                            <circle
+                                                cx={currentActiveNote.length > 1 ? 260 : 272}
+                                                cy={tunerContentY}
+                                                r="5.5"
+                                                fill="#10B981"
+                                                className="animate-pulse"
+                                            />
+                                            {/* Large Note Name (Perfecty centered in the middle of the circle) */}
+                                            <text
+                                                x="300"
+                                                y={tunerContentY}
+                                                textAnchor="middle"
+                                                dominantBaseline="middle"
+                                                className="text-[46px] sm:text-[50px] font-black fill-white font-sans tracking-tight"
+                                            >
+                                                {currentActiveNote.length > 1 ? (
+                                                    <>
+                                                        {currentActiveNote[0]}
+                                                        <tspan dy="-12" dx="1" fontSize="50%" fontWeight="black">
+                                                            {currentActiveNote[1]}
+                                                        </tspan>
+                                                    </>
+                                                ) : (
+                                                    currentActiveNote
+                                                )}
+                                            </text>
+                                            {/* Frequency (Smaller, closer to the right side of the letter, and a little bit down) */}
+                                            <text
+                                                x="318"
+                                                y={tunerContentY + 9}
+                                                textAnchor="start"
+                                                dominantBaseline="middle"
+                                                className="text-[11.5px] sm:text-[12.5px] font-bold fill-stone-400 font-sans tracking-tight"
+                                            >
+                                                {tunerFreq} HZ
+                                            </text>
+                                        </>
+                                    )}
+                                </g>
+                            ) : savedTuning ? (
+                                // Saved Result State - Stacked layout (Icon on top, value below)
+                                <g 
+                                    className="pointer-events-none select-none group-hover:scale-[1.02] transition-transform duration-300"
+                                    style={{ transformOrigin: `300px ${tunerContentY}px` }}
+                                >
+                                    {/* Slightly bigger repeat icon on top, centered horizontally */}
+                                    <g transform={`translate(289, ${tunerContentY - 28})`}>
+                                        <path
+                                            d="M 17.5 7.5 A 7 7 0 1 0 18 11.5"
+                                            fill="none"
+                                            stroke="#57534E"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                        <path
+                                            d="M 18 3.5 L 18 8 L 13.5 8"
+                                            fill="none"
+                                            stroke="#57534E"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </g>
+                                    {/* Saved Value Text below it, centered horizontally */}
+                                    <text
+                                        x="300"
+                                        y={tunerContentY + 15}
+                                        dominantBaseline="middle"
+                                        textAnchor="middle"
+                                        className="text-[14.5px] sm:text-[15.5px] font-medium fill-stone-500 font-sans tracking-tight"
+                                    >
+                                        {savedTuning.note} • {savedTuning.freq} Hz
+                                    </text>
+                                </g>
+                            ) : (
+                                // State 1: Start (Idle) - Dot and Text perfectly centered horizontally together
+                                <g 
+                                    className="pointer-events-none select-none group-hover:scale-[1.02] transition-transform duration-300"
+                                    style={{ transformOrigin: `300px ${tunerContentY}px` }}
+                                >
+                                    {/* Lighter grey dot */}
+                                    <circle
+                                        cx="267"
+                                        cy={tunerContentY}
+                                        r="6"
+                                        fill="#D6D3D1"
+                                    />
+                                    {/* Text "Start" */}
+                                    <text
+                                        x="284"
+                                        y={tunerContentY}
+                                        dominantBaseline="middle"
+                                        textAnchor="start"
+                                        className="text-[21px] sm:text-[23px] font-medium fill-stone-600 font-sans tracking-tight"
+                                    >
+                                        Start
+                                    </text>
+                                </g>
+                            )}
+                        </g>
+                    </svg>
                 </div>
             </div>
         );
@@ -6238,32 +6871,62 @@ export default function CreatePage() {
 
     const renderTapTempo = () => {
         return (
-            <div className="flex flex-col gap-4.5 w-full">
-                <button
+            <div 
+                className="flex flex-col gap-4.5 w-full animate-in fade-in zoom-in-95 duration-200"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+            >
+                {/* Main Tap Tempo Box (Larger size, beige background, black text) */}
+                <div
                     onClick={(e) => handleTapTempo(e)}
-                    className="w-full h-44 bg-stone-50 hover:bg-stone-100/50 border-2 border-dashed border-stone-200 hover:border-stone-400 rounded-3xl flex flex-col items-center justify-center cursor-pointer transition-all active:scale-[0.99] select-none group py-6"
-                    type="button"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                    className="w-full h-80 sm:h-96 rounded-3xl flex flex-col items-center justify-center cursor-pointer transition-all duration-500 ease-in-out active:scale-[0.99] select-none py-8 shadow-sm border-none relative overflow-hidden"
+                    style={{ backgroundColor: tapTempoBgColor }}
                 >
-                    <span className="text-[14px] font-extrabold text-stone-400 uppercase tracking-widest mb-1.5 select-none">Click or Tap here</span>
-                    <span className="text-[42px] font-black text-stone-800 select-none">{metronomeBpm} BPM</span>
-                    <span className="text-[12.5px] text-stone-500 mt-3 select-none group-hover:text-stone-600 transition-colors">Press Spacebar to tap, or click anywhere inside this box</span>
-                </button>
+                    <span className="text-[110px] sm:text-[130px] md:text-[150px] font-black text-black select-none leading-none tracking-tight">
+                        {metronomeBpm}
+                    </span>
+                    <span className="text-[15px] sm:text-[17px] font-extrabold text-black uppercase tracking-[0.25em] mt-1 select-none">
+                        BPM
+                    </span>
 
-                <div className="flex items-center justify-between bg-stone-50 border border-stone-200/60 p-4.5 rounded-2xl">
-                    <div className="flex items-center gap-3 select-none">
-                        <Music size={20} className="text-stone-500" />
-                        <span className="text-[16.5px] font-bold text-stone-700">Metronome Tick Sound</span>
-                    </div>
+                    {/* Integrated Metronome Control Button */}
                     <button
-                        onClick={() => setIsMetronomePlaying(!isMetronomePlaying)}
-                        className={`px-6 py-2.5 rounded-xl text-[15.5px] font-bold transition-all active:scale-95 cursor-pointer ${
+                        onClick={(e) => {
+                            e.stopPropagation(); // Prevent triggering tap tempo
+                            setIsMetronomePlaying(!isMetronomePlaying);
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => e.stopPropagation()}
+                        className={`mt-8 px-6 py-2.5 rounded-full text-[13px] sm:text-[15px] font-extrabold transition-all duration-200 active:scale-95 cursor-pointer shadow-sm select-none flex items-center gap-2 border-none ${
                             isMetronomePlaying 
-                                ? 'bg-stone-900 text-white' 
-                                : 'bg-white text-stone-850 border border-stone-200 shadow-2xs hover:bg-stone-50'
+                                ? 'bg-black text-white hover:bg-stone-900' 
+                                : 'bg-white text-black hover:bg-stone-50'
                         }`}
                         type="button"
                     >
-                        {isMetronomePlaying ? 'Stop Metronome' : 'Start Metronome'}
+                        {isMetronomePlaying ? (
+                            <>
+                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                                <span>Stop Metronome</span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="w-2.5 h-2.5 rounded-full bg-stone-300 shrink-0" />
+                                <span>Start Metronome</span>
+                            </>
+                        )}
                     </button>
                 </div>
             </div>
@@ -6349,7 +7012,11 @@ export default function CreatePage() {
         const prevCard = cards[(currentCardIndex - 1 + cards.length) % cards.length];
         const nextCard = cards[(currentCardIndex + 1) % cards.length];
         const noteKey = selectedNoteId || 'global';
-        const cardAnswers = (inspirationAnswers[noteKey] || {})[activeCard.id] || ['', '', ''];
+        const expandedCard = expandedCardId ? cards.find(c => c.id === expandedCardId) : null;
+        const activeCardForAnswers = expandedCard || activeCard;
+        const cardAnswers = (inspirationAnswers[noteKey] || {})[activeCardForAnswers.id] || ['', '', '', '', ''];
+
+        const cardTransition = { type: 'spring', stiffness: 300, damping: 28 };
 
         const handlePrevCard = () => {
             inspirationSwiperRef.current?.slidePrev();
@@ -6361,7 +7028,7 @@ export default function CreatePage() {
 
         const handleSaveAnswer = (cardId: string, qIdx: number, val: string) => {
             const noteAnswers = { ...(inspirationAnswers[noteKey] || {}) };
-            const cardAnswersCopy = [...(noteAnswers[cardId] || ['', '', ''])];
+            const cardAnswersCopy = [...(noteAnswers[cardId] || ['', '', '', '', ''])];
             cardAnswersCopy[qIdx] = val;
             noteAnswers[cardId] = cardAnswersCopy;
 
@@ -6373,164 +7040,361 @@ export default function CreatePage() {
             localStorage.setItem('veinote-inspiration-answers', JSON.stringify(updated));
         };
 
-        const getCategoryIcon = (category: string) => {
-            switch (category) {
-                case 'Daily Life':
-                    return <Coffee size={21} className="text-stone-700" />;
-                case 'Nostalgia':
-                    return <Heart size={21} className="text-stone-700 fill-stone-700/10" />;
-                case 'History':
-                    return <BookOpen size={21} className="text-stone-700" />;
-                case 'Nature':
-                    return <Compass size={21} className="text-stone-700" />;
-                case 'Space & Sci-Fi':
-                    return <Sparkles size={21} className="text-stone-700" />;
-                case 'Philosophy':
-                    return <Brain size={21} className="text-stone-700" />;
-                case 'Sports & Motion':
-                    return <Activity size={21} className="text-stone-700" />;
-                case 'Secrets & Dreams':
-                    return <Key size={21} className="text-stone-700" />;
-                default:
-                    return <Sparkles size={21} className="text-stone-700" />;
+        const handleCopySummaryToCanvas = () => {
+            if (!expandedCard) return;
+            const answers = cardAnswers;
+            let textToInsert = `\n\n${expandedCard.title.toUpperCase()}\n`;
+            let addedAny = false;
+            for (let i = 0; i < 5; i++) {
+                const ans = answers[i] || '';
+                if (ans.trim() !== '') {
+                    textToInsert += `${ans}\n`;
+                    addedAny = true;
+                }
             }
+            if (addedAny) {
+                insertTextAtCursor(textToInsert);
+            }
+            setExpandedCardId(null);
+            setInspirationQuestionIndex(0);
+            setShowToolsPanel(false);
         };
 
-        // Compute 3D Stack interactive style adjustments based on drag offset
-        const isDragging = inspirationDragOffset !== 0 && !swipingToBack;
-
-        const prevDragRatio = Math.min(1, inspirationDragOffset > 0 ? (inspirationDragOffset / 80) : 0);
-        const prevRotation = -8 + (prevDragRatio * 8);
-        const prevTranslateX = -58 + (prevDragRatio * 58);
-        const prevScale = 0.92 + (prevDragRatio * 0.08);
-        const prevOpacity = 0.4 + (prevDragRatio * 0.4);
-
-        const nextDragRatio = Math.min(1, inspirationDragOffset < 0 ? (Math.abs(inspirationDragOffset) / 80) : 0);
-        const nextRotation = 6 - (nextDragRatio * 6);
-        const nextTranslateX = 58 - (nextDragRatio * 58);
-        const nextScale = 0.92 + (nextDragRatio * 0.08);
-        const nextOpacity = 0.4 + (nextDragRatio * 0.4);
-
-        // Drag-follow opacity (only used while manually dragging, not when sinking)
-        const activeDragOpacity = Math.max(0, 1 - (Math.abs(inspirationDragOffset) / 280));
-
-        if (expandedCardId && expandedCardId === activeCard.id) {
-            return (
-                <div className="flex flex-col gap-6 w-full">
-                    {/* Header */}
-                    <div className="flex items-center justify-between pb-4 border-b border-stone-100 select-none">
-                        <button
-                            onClick={() => setExpandedCardId(null)}
-                            className="flex items-center gap-2 text-[16.5px] font-bold text-stone-500 hover:text-stone-855 cursor-pointer transition-colors"
-                            type="button"
-                        >
-                            <ChevronLeft size={22} className="stroke-[2.5]" />
-                            <span>Back to Cards</span>
-                        </button>
-                        <span className="text-[14px] font-extrabold text-stone-500 uppercase tracking-wider bg-stone-100 px-3.5 py-1.5 rounded-full shadow-3xs border border-stone-200/10">
-                            {activeCard.category}
-                        </span>
-                    </div>
-
-                    {/* Title & Body */}
-                    <div className="flex flex-col gap-1.5 select-none">
-                        <h3 className="text-3xl font-black tracking-tight text-stone-855">
-                            {activeCard.title}
-                        </h3>
-                        <p className="text-[14px] text-stone-400 font-semibold uppercase tracking-wider mt-1.5">
-                            Answer the prompts to inspire your writing:
-                        </p>
-                    </div>
-
-                    {/* Questions Form */}
-                    <div className="flex flex-col gap-6 overflow-y-auto max-h-[308px] pr-1 no-scrollbar">
-                        {activeCard.questions.map((q, qIdx) => {
-                            const currentVal = cardAnswers[qIdx] || '';
-                            return (
-                                <div key={qIdx} className="flex flex-col gap-2">
-                                    <label className="text-[16.5px] font-bold text-stone-750 select-none leading-relaxed">
-                                        {qIdx + 1}. {q}
-                                    </label>
-                                    <textarea
-                                        value={currentVal}
-                                        onChange={(e) => handleSaveAnswer(activeCard.id, qIdx, e.target.value)}
-                                        placeholder="Type your thoughts, imagery, or lyrics ideas..."
-                                        rows={3}
-                                        className="w-full px-5 py-3.5 bg-stone-50 hover:bg-stone-100/30 focus:bg-white border border-stone-200 focus:border-stone-400 rounded-2xl text-[16.5px] font-sans placeholder:text-stone-400 font-semibold focus:outline-none transition-all resize-none shadow-3xs"
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Back to Work Button */}
-                    <button
-                        onClick={() => setShowToolsPanel(false)}
-                        className="w-full mt-3 py-4 rounded-2xl bg-stone-950 text-white hover:bg-stone-900 font-bold text-[16.5px] transition-all active:scale-[0.98] cursor-pointer shadow-sm text-center"
-                        type="button"
-                    >
-                        Back to Canvas
-                    </button>
-                </div>
-            );
-        }
-
-        // Swiper View (Clean card stack floating in white space)
         return (
-            <div className="flex justify-center items-center w-full select-none py-8">
-                {/* Swiper wrapper with padding space for shadows */}
-                <div className="w-[580px] h-[400px] flex items-center justify-center overflow-visible">
-                    <Swiper
-                        effect={'cards'}
-                        grabCursor={true}
-                        modules={[EffectCards]}
-                        cardsEffect={{
-                            slideShadows: false
-                        }}
-                        onSwiper={(swiper) => {
-                            inspirationSwiperRef.current = swiper;
-                        }}
-                        onSlideChange={(swiper) => {
-                            setCurrentCardIndex(swiper.activeIndex);
-                        }}
-                        className="w-[520px] h-[340px]"
-                        style={{ overflow: 'visible' }}
-                    >
-                        {cards.map((card) => (
-                            <SwiperSlide key={card.id} className="rounded-[38px]" style={{ overflow: 'visible' }}>
-                                <div
-                                    className="relative w-full h-full bg-stone-900 cursor-pointer select-none rounded-[38px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.18)] border border-white/10"
-                                    onClick={() => setExpandedCardId(card.id)}
+            <div className="relative w-full max-w-[856px] min-h-[280px] sm:min-h-[340px] md:min-h-[400px] flex items-center justify-center overflow-visible">
+                <AnimatePresence mode="wait">
+                    {!expandedCardId ? (
+                        <motion.div
+                            key="swiper-view"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.25 }}
+                            className="flex justify-center items-center w-full select-none py-4 sm:py-8"
+                        >
+                            <div className="w-[90vw] sm:w-[460px] md:w-[580px] h-[280px] sm:h-[320px] md:h-[400px] flex items-center justify-center overflow-visible">
+                                <Swiper
+                                    initialSlide={currentCardIndex}
+                                    effect={'cards'}
+                                    grabCursor={true}
+                                    modules={[EffectCards]}
+                                    cardsEffect={{
+                                        slideShadows: false
+                                    }}
+                                    onSwiper={(swiper) => {
+                                        inspirationSwiperRef.current = swiper;
+                                    }}
+                                    onSlideChange={(swiper) => {
+                                        setCurrentCardIndex(swiper.activeIndex);
+                                    }}
+                                    className="w-[80vw] sm:w-[400px] md:w-[520px] h-[220px] sm:h-[270px] md:h-[340px]"
+                                    style={{ overflow: 'visible' }}
+                                >
+                                    {cards.map((card, idx) => (
+                                        <SwiperSlide key={card.id} className="rounded-[24px] sm:rounded-[32px] md:rounded-[38px]" style={{ overflow: 'visible' }}>
+                                            <motion.div
+                                                layoutId={`inspiration-card-container-${card.id}`}
+                                                transition={cardTransition}
+                                                animate={idx === currentCardIndex ? swiperWiggleControls : undefined}
+                                                className={`relative w-full h-full bg-stone-900 cursor-pointer select-none rounded-[24px] sm:rounded-[32px] md:rounded-[38px] overflow-hidden border border-white/10 transition-shadow duration-300 ${
+                                                    idx === currentCardIndex 
+                                                        ? 'shadow-[0_20px_45px_rgba(0,0,0,0.25)]' 
+                                                        : 'shadow-[0_4px_12px_rgba(0,0,0,0.12)]'
+                                                }`}
+                                                onClick={() => {
+                                                    setExpandedCardId(card.id);
+                                                    setInspirationQuestionIndex(0);
+                                                }}
+                                            >
+                                                {/* Background Image - rendered as layout element to prevent distortion */}
+                                                <motion.div
+                                                    layoutId={`inspiration-card-bg-${card.id}`}
+                                                    transition={cardTransition}
+                                                    className="absolute inset-0 bg-cover bg-center"
+                                                    style={{
+                                                        backgroundImage: `url(${card.bgImage})`,
+                                                    }}
+                                                >
+                                                    {/* Blurry Vignette Overlay */}
+                                                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                                                        <div 
+                                                            className="absolute inset-0 backdrop-blur-[3px]" 
+                                                            style={{
+                                                                maskImage: 'radial-gradient(circle at center, transparent 40%, black 100%)',
+                                                                WebkitMaskImage: 'radial-gradient(circle at center, transparent 40%, black 100%)'
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </motion.div>
+
+                                                {/* Soft gradient overlay on top of background image to make sure glass overlay stands out */}
+                                                <div className="absolute inset-0 bg-gradient-to-t from-stone-955/25 via-transparent to-transparent pointer-events-none" />
+
+                                                {/* Floating Glassy Overlay Container */}
+                                                <motion.div 
+                                                    layoutId={`inspiration-card-glass-${card.id}`}
+                                                    transition={cardTransition}
+                                                    className="absolute bottom-3 sm:bottom-5 left-3 sm:left-5 right-3 sm:right-5 bg-white/20 backdrop-blur-[50px] rounded-[18px] sm:rounded-[24px] md:rounded-[30px] pt-3 pb-4 md:pt-4 md:pb-6 pl-6 pr-16 sm:pl-8 sm:pr-20 md:pl-10 md:pr-24 flex flex-col justify-center text-left font-sans select-none min-w-0 shadow-lg hover:bg-white/25 transition-all z-[10]"
+                                                >
+                                                    <div className="flex flex-col gap-1 md:gap-2">
+                                                        <motion.h4 
+                                                            layoutId={`inspiration-card-title-${card.id}`}
+                                                            transition={cardTransition}
+                                                            className="text-[17px] sm:text-[21px] md:text-[26px] font-medium text-[#F8F8F4] tracking-[-0.01em] leading-tight line-clamp-1"
+                                                        >
+                                                            {card.title}
+                                                        </motion.h4>
+                                                        <motion.span 
+                                                            layoutId={`inspiration-card-category-${card.id}`}
+                                                            transition={cardTransition}
+                                                            className="text-[11px] sm:text-[13px] md:text-[15px] font-normal text-[#F8F8F4]/80 tracking-[-0.01em] leading-tight"
+                                                        >
+                                                            {card.category}
+                                                        </motion.span>
+                                                    </div>
+                                                    
+                                                    {/* Expand arrow */}
+                                                    <div className="absolute right-5 sm:right-7 md:right-9 top-1/2 -translate-y-1/2 flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer shrink-0">
+                                                        <svg viewBox="0 0 24 24" fill="none" className="w-5.5 h-5.5 sm:w-7 sm:h-7 md:w-[30px] md:h-[30px] text-[#F8F8F4]" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M15 3h6v6"/>
+                                                            <path d="M9 21H3v-6"/>
+                                                            <path d="M21 3l-7 7"/>
+                                                            <path d="M3 21l7-7"/>
+                                                        </svg>
+                                                    </div>
+                                                </motion.div>
+                                            </motion.div>
+                                        </SwiperSlide>
+                                    ))}
+                                </Swiper>
+                            </div>
+                        </motion.div>
+                    ) : (
+                        expandedCard && (
+                            <motion.div
+                                key={`expanded-${expandedCard.id}`}
+                                layoutId={`inspiration-card-container-${expandedCard.id}`}
+                                transition={cardTransition}
+                                className="w-[92vw] sm:w-[680px] md:w-[800px] h-[480px] sm:h-[520px] md:h-[560px] rounded-[24px] sm:rounded-[32px] md:rounded-[38px] bg-stone-900 overflow-hidden shadow-2xl relative border border-white/10 select-none animate-in fade-in duration-200"
+                            >
+                                {/* Background Image - rendered as layout element to prevent distortion */}
+                                <motion.div
+                                    layoutId={`inspiration-card-bg-${expandedCard.id}`}
+                                    transition={cardTransition}
+                                    className="absolute inset-0 bg-cover bg-center"
                                     style={{
-                                        backgroundImage: `url(${card.bgImage})`,
-                                        backgroundSize: 'cover',
-                                        backgroundPosition: 'center',
+                                        backgroundImage: `url(${expandedCard.bgImage})`,
                                     }}
                                 >
-                                    {/* Soft gradient overlay on top of background image to make sure glass overlay stands out */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950/25 via-transparent to-transparent pointer-events-none" />
-
-                                    {/* Floating Glassy Overlay Container */}
-                                    <div className="absolute bottom-4 left-4 right-4 bg-stone-900/60 backdrop-blur-md border border-white/10 rounded-[28px] p-6 flex items-center justify-between gap-4 shadow-lg hover:bg-stone-900/75 transition-all">
-                                        <div className="flex flex-col text-left font-sans select-none min-w-0">
-                                            <h4 className="text-[24px] font-extrabold text-white tracking-tight leading-tight line-clamp-1">
-                                                {card.title}
-                                            </h4>
-                                            <span className="text-[12.5px] font-normal uppercase tracking-widest text-white/80 mt-1">
-                                                {card.category}
-                                            </span>
-                                        </div>
-                                        
-                                        {/* Expand arrow */}
-                                        <div className="w-14 h-14 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center shadow-2xs hover:bg-white/25 active:scale-95 transition-all shrink-0">
-                                            <ArrowUpRight size={24} className="stroke-[2.5] text-white" />
-                                        </div>
+                                    {/* Blurry Vignette Overlay */}
+                                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                                        <div 
+                                            className="absolute inset-0 backdrop-blur-[3px]" 
+                                            style={{
+                                                maskImage: 'radial-gradient(circle at center, transparent 40%, black 100%)',
+                                                WebkitMaskImage: 'radial-gradient(circle at center, transparent 40%, black 100%)'
+                                            }}
+                                        />
                                     </div>
-                                </div>
-                            </SwiperSlide>
-                        ))}
-                    </Swiper>
-                </div>
+                                </motion.div>
+
+                                <motion.div
+                                    layoutId={`inspiration-card-glass-${expandedCard.id}`}
+                                    transition={cardTransition}
+                                    className="absolute inset-3 sm:inset-5 md:inset-6 bg-black/40 backdrop-blur-[50px] rounded-[18px] sm:rounded-[24px] md:rounded-[30px] p-6 sm:p-10 flex flex-col justify-between border border-white/5 z-[10]"
+                                >
+                                    {inspirationQuestionIndex === 5 ? (
+                                        // Summary View
+                                        <div className="w-full flex-1 flex flex-col justify-between h-full text-left">
+                                            {/* Header */}
+                                            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                                                <div>
+                                                    <motion.h4 
+                                                        layoutId={`inspiration-card-title-${expandedCard.id}`}
+                                                        transition={cardTransition}
+                                                        className="text-[16px] sm:text-[20px] md:text-[22px] font-medium text-white tracking-tight leading-tight"
+                                                    >
+                                                        {expandedCard.title}
+                                                    </motion.h4>
+                                                    <motion.span 
+                                                        layoutId={`inspiration-card-category-${expandedCard.id}`}
+                                                        transition={cardTransition}
+                                                        className="text-[11px] sm:text-[13px] md:text-[14px] text-white/40 font-normal uppercase tracking-wider block mt-0.5"
+                                                    >
+                                                        {expandedCard.category}
+                                                    </motion.span>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        setExpandedCardId(null);
+                                                        setInspirationQuestionIndex(0);
+                                                    }}
+                                                    className="text-white/40 hover:text-white cursor-pointer transition-all shrink-0 p-1 hover:bg-white/5 rounded-full"
+                                                    type="button"
+                                                >
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5.5 h-5.5 sm:w-7 sm:h-7">
+                                                        <path d="M4 14h6v6M10 14l-7 7M20 10h-6V4M14 10l7-7" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            {/* Answers */}
+                                            <div className="flex-1 overflow-y-auto my-6 pr-4 inspiration-scroll-container flex flex-col gap-6">
+                                                <style>{`
+                                                    .inspiration-scroll-container::-webkit-scrollbar {
+                                                        width: 4px;
+                                                        height: 0px;
+                                                    }
+                                                    .inspiration-scroll-container::-webkit-scrollbar-track {
+                                                        background: transparent;
+                                                    }
+                                                    .inspiration-scroll-container::-webkit-scrollbar-thumb {
+                                                        background: rgba(255, 255, 255, 0.2);
+                                                        border-radius: 9999px;
+                                                    }
+                                                    .inspiration-scroll-container::-webkit-scrollbar-button {
+                                                        display: none;
+                                                    }
+                                                `}</style>
+                                                {expandedCard.questions.map((q, qIdx) => {
+                                                    const ans = cardAnswers[qIdx] || '';
+                                                    return (
+                                                        <div key={qIdx} className="flex flex-col gap-1 text-left">
+                                                            <span className="text-[12px] sm:text-[13.5px] font-normal text-white/50">
+                                                                {q}
+                                                            </span>
+                                                            <p className="text-[18px] sm:text-[22px] md:text-[24px] font-medium text-[#8FFFA0] leading-relaxed break-words">
+                                                                {ans.trim() !== '' ? ans : '[No answer response written]'}
+                                                            </p>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Actions - Text only, no containers */}
+                                            <div className="flex items-center justify-between border-t border-white/10 pt-5 mt-auto select-none">
+                                                <button
+                                                    onClick={() => setInspirationQuestionIndex(4)}
+                                                    className="text-white/60 hover:text-white transition-colors cursor-pointer text-[15px] sm:text-[17px] font-medium bg-transparent border-none p-0 outline-none"
+                                                    type="button"
+                                                >
+                                                    Back
+                                                </button>
+                                                <button
+                                                    onClick={handleCopySummaryToCanvas}
+                                                    className="text-[#8FFFA0] hover:text-[#7ce48d] transition-colors cursor-pointer text-[15px] sm:text-[17px] font-semibold bg-transparent border-none p-0 outline-none"
+                                                    type="button"
+                                                >
+                                                    Add to Canvas
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        // Questions slider
+                                        <div className="w-full flex-1 flex flex-col justify-between h-full">
+                                            {/* Header */}
+                                            <div className="flex items-start justify-between select-none">
+                                                <div className="flex flex-col gap-0.5 text-left">
+                                                    <motion.h4 
+                                                        layoutId={`inspiration-card-title-${expandedCard.id}`}
+                                                        transition={cardTransition}
+                                                        className="text-[16px] sm:text-[20px] md:text-[22px] font-medium text-white tracking-tight leading-tight"
+                                                    >
+                                                        {expandedCard.title}
+                                                    </motion.h4>
+                                                    <motion.span 
+                                                        layoutId={`inspiration-card-category-${expandedCard.id}`}
+                                                        transition={cardTransition}
+                                                        className="text-[11px] sm:text-[13px] md:text-[14px] text-white/40 font-normal uppercase tracking-wider block mt-0.5"
+                                                    >
+                                                        {expandedCard.category}
+                                                    </motion.span>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        setExpandedCardId(null);
+                                                        setInspirationQuestionIndex(0);
+                                                    }}
+                                                    className="text-white/40 hover:text-white cursor-pointer transition-all shrink-0 p-1 hover:bg-white/5 rounded-full"
+                                                    type="button"
+                                                >
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5.5 h-5.5 sm:w-7 sm:h-7">
+                                                        <path d="M4 14h6v6M10 14l-7 7M20 10h-6V4M14 10l7-7" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            {/* Middle Content */}
+                                            <div className="flex-1 flex flex-col justify-center text-left my-4 md:my-6 relative">
+                                                <h3 className="text-[20px] sm:text-[28px] md:text-[34px] font-medium tracking-tight text-white leading-snug max-w-[90%]">
+                                                    {expandedCard.questions[inspirationQuestionIndex]}
+                                                </h3>
+                                                <div className="relative flex-1 w-full flex mt-4">
+                                                    <style>{`
+                                                        .inspiration-textarea-scroll::-webkit-scrollbar {
+                                                            width: 4px;
+                                                            height: 0px;
+                                                        }
+                                                        .inspiration-textarea-scroll::-webkit-scrollbar-track {
+                                                            background: transparent;
+                                                        }
+                                                        .inspiration-textarea-scroll::-webkit-scrollbar-thumb {
+                                                            background: rgba(255, 255, 255, 0.2);
+                                                            border-radius: 9999px;
+                                                        }
+                                                        .inspiration-textarea-scroll::-webkit-scrollbar-button {
+                                                            display: none;
+                                                        }
+                                                    `}</style>
+                                                    <textarea
+                                                        key={inspirationQuestionIndex}
+                                                        ref={inspirationTextareaRef}
+                                                        value={cardAnswers[inspirationQuestionIndex] || ''}
+                                                        onChange={(e) => {
+                                                            handleSaveAnswer(expandedCard.id, inspirationQuestionIndex, e.target.value);
+                                                        }}
+                                                        autoFocus
+                                                        className="w-full flex-1 bg-transparent border-none text-[26px] sm:text-[36px] md:text-[44px] text-[#8FFFA0] font-sans font-normal caret-[#8FFFA0] focus:outline-none focus:ring-0 resize-none leading-relaxed py-2 pr-4 inspiration-textarea-scroll h-full min-h-[140px]"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Bottom Nav: Back  X/5  Next */}
+                                            <div className="flex items-center justify-center gap-4 mt-2 select-none">
+                                                <div className="w-24 text-right">
+                                                    <button
+                                                        onClick={() => inspirationQuestionIndex > 0 && setInspirationQuestionIndex(prev => prev - 1)}
+                                                        className={`font-sans font-medium text-[16px] sm:text-[20px] transition-all cursor-pointer ${
+                                                            inspirationQuestionIndex > 0 
+                                                                ? 'text-white/80 hover:text-white' 
+                                                                : 'text-white/20 cursor-not-allowed'
+                                                        }`}
+                                                        disabled={inspirationQuestionIndex === 0}
+                                                        type="button"
+                                                    >
+                                                        Back
+                                                    </button>
+                                                </div>
+                                                <span className="font-sans font-light text-[13px] sm:text-[16px] text-white/40 tracking-[0.12em] select-none text-center w-16">
+                                                    {inspirationQuestionIndex + 1}/5
+                                                </span>
+                                                <div className="w-24 text-left">
+                                                    <button
+                                                        onClick={() => setInspirationQuestionIndex(prev => prev + 1)}
+                                                        className="font-sans font-medium text-[16px] sm:text-[20px] text-white hover:text-[#8FFFA0] transition-colors cursor-pointer"
+                                                        type="button"
+                                                    >
+                                                        Next
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            </motion.div>
+                        )
+                    )}
+                </AnimatePresence>
             </div>
         );
     };
@@ -6538,43 +7402,46 @@ export default function CreatePage() {
     const renderToolsPanel = () => {
 
         if (activeToolTab === 'inspiration') {
-            if (!expandedCardId) {
-                return (
-                    <div className="w-full max-w-[952px] mb-5 flex flex-col items-center justify-center pointer-events-auto">
-                        {renderInspirationTools()}
-                    </div>
-                );
-            } else {
-                return (
-                    <div className="w-full max-w-[952px] bg-white border border-stone-200/80 rounded-[45px] shadow-[0_18px_56px_rgba(0,0,0,0.11)] p-7 mb-5 flex flex-col gap-6 pointer-events-auto">
-                        <div className="w-full">
-                            {renderInspirationTools()}
-                        </div>
-                    </div>
-                );
-            }
+            return (
+                <div 
+                    className="w-full max-w-[856px] mb-3 sm:mb-5 flex flex-col items-center justify-center pointer-events-auto"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                >
+                    {renderInspirationTools()}
+                </div>
+            );
         }
 
         return (
-            <div className="w-full max-w-[952px] bg-white border border-stone-200/80 rounded-[45px] shadow-[0_18px_56px_rgba(0,0,0,0.11)] p-7 mb-5 flex flex-col gap-6 pointer-events-auto">
+            <div className={`w-full max-w-[856px] bg-white border border-stone-200/80 rounded-[24px] sm:rounded-[36px] md:rounded-[45px] p-4 sm:p-6 md:p-7 mb-3 sm:mb-5 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all ${
+                activeToolTab === 'tuner' ? 'gap-0' : 'gap-4 sm:gap-6'
+            }`}>
                 {/* Content area based on active tab */}
                 <div className="w-full">
                     {activeToolTab === 'tuner' && renderGuitarTuner()}
                     {activeToolTab === 'tempo' && renderTapTempo()}
                     {activeToolTab === 'lexicon' && renderRhymeLexicon()}
+                    {activeToolTab === 'studio' && (
+                        <div className="flex flex-col items-center justify-center py-12 md:py-16 text-center select-none animate-in fade-in zoom-in-95 duration-200">
+                            <span className="text-[20px] sm:text-[24px] font-bold text-stone-700 tracking-tight">Demo Studio</span>
+                            <span className="text-[13.5px] sm:text-[15.5px] text-stone-400 font-medium mt-2">Coming soon...</span>
+                        </div>
+                    )}
                 </div>
 
-                {/* Horizontal separator */}
-                <div className="border-t border-stone-100 w-full" />
-
                 {/* Tab row navigation */}
-                <div className="flex items-center justify-around px-2 select-none">
+                <div className="w-full bg-[#F9F9F9] rounded-[20px] md:rounded-[34px] p-2 shadow-[inset_0_0_14px_rgba(0,0,0,0.05)] flex items-center justify-between select-none relative z-10">
                     <button
                         onClick={() => setActiveToolTab('tuner')}
-                        className={`transition-all duration-200 cursor-pointer ${
+                        className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
                             activeToolTab === 'tuner'
-                                ? 'text-[15.5px] font-extrabold px-6 py-2.5 bg-[#EAEAEA] text-stone-850 rounded-full'
-                                : 'text-[14px] font-bold px-4.5 py-2 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
+                                ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
+                                : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
                         }`}
                         type="button"
                     >
@@ -6582,10 +7449,10 @@ export default function CreatePage() {
                     </button>
                     <button
                         onClick={() => setActiveToolTab('tempo')}
-                        className={`transition-all duration-200 cursor-pointer ${
+                        className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
                             activeToolTab === 'tempo'
-                                ? 'text-[15.5px] font-extrabold px-6 py-2.5 bg-[#EAEAEA] text-stone-850 rounded-full'
-                                : 'text-[14px] font-bold px-4.5 py-2 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
+                                ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
+                                : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
                         }`}
                         type="button"
                     >
@@ -6593,14 +7460,25 @@ export default function CreatePage() {
                     </button>
                     <button
                         onClick={() => setActiveToolTab('lexicon')}
-                        className={`transition-all duration-200 cursor-pointer ${
+                        className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
                             activeToolTab === 'lexicon'
-                                ? 'text-[15.5px] font-extrabold px-6 py-2.5 bg-[#EAEAEA] text-stone-850 rounded-full'
-                                : 'text-[14px] font-bold px-4.5 py-2 text-stone-400 hover:text-stone-600 rounded-full bg-transparent'
+                                ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
+                                : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
                         }`}
                         type="button"
                     >
                         Rhyme lexicon
+                    </button>
+                    <button
+                        onClick={() => setActiveToolTab('studio')}
+                        className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
+                            activeToolTab === 'studio'
+                                ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
+                                : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
+                        }`}
+                        type="button"
+                    >
+                        Demo studio
                     </button>
                 </div>
             </div>

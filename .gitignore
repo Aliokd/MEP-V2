@@ -42,6 +42,10 @@ firebase-debug.log*
 .agent
 brain
 dataconnect/.dataconnect/
+playwright-report/
+test-results/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
 
 # Large Video Assets
 /public/videos/Welcome - onboarding/

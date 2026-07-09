@@ -10,7 +10,8 @@
     "dev": "start http://localhost:3000/platform/create && next dev",
     "build": "next build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@chordbook/tuner": "^0.0.3",
