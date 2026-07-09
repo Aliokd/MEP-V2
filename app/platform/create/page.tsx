@@ -50,7 +50,11 @@ import {
     Users,
     UserPlus,
     Loader2,
-    RefreshCw
+    RefreshCw,
+    Upload,
+    ArrowRight,
+    Undo2,
+    Redo2
 } from 'lucide-react';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -402,6 +406,7 @@ interface SongNote {
     isTitleLocked?: boolean;
     audioGroupId?: string | null;
     audioNotes?: AudioNote[];
+    forceHistoryPush?: boolean;
 }
 
 
@@ -1136,7 +1141,7 @@ function PhraseRow({
                                                 word-token hover:bg-stone-200/90 text-stone-855 hover:text-stone-955 rounded-[8px] px-1.5 py-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 inline-block select-none relative
                                                 ${isWordDragged ? 'opacity-30' : ''}
                                                 ${isWordDragOver ? 'bg-amber-100/80 scale-105' : ''}
-                                                ${isWordClicked ? 'bg-stone-200/90 text-stone-955 font-bold shadow-xs scale-102 z-10' : ''}
+                                                ${isWordClicked ? 'bg-stone-200/90 text-stone-955 font-semibold shadow-xs scale-102 z-10' : ''}
                                             `}
                                         >
                                             {/* Left drop indicator line */}
@@ -1805,6 +1810,28 @@ export default function CreatePage() {
         selectedNoteIdRef.current = selectedNoteId;
     }, [selectedNoteId]);
 
+    const [undoStack, setUndoStack] = useState<{ content: string; phrases: Phrase[]; verses: VerseGroup[]; audioNotes: AudioNote[] }[]>([]);
+    const [redoStack, setRedoStack] = useState<{ content: string; phrases: Phrase[]; verses: VerseGroup[]; audioNotes: AudioNote[] }[]>([]);
+    const lastHistoryStateRef = useRef<{ content: string; phrases: Phrase[]; verses: VerseGroup[]; audioNotes: AudioNote[] } | null>(null);
+    const lastHistoryPushTimeRef = useRef<number>(0);
+
+    useEffect(() => {
+        setUndoStack([]);
+        setRedoStack([]);
+        const active = notes.find(n => n.id === selectedNoteId);
+        if (active) {
+            lastHistoryStateRef.current = {
+                content: active.content || '',
+                phrases: JSON.parse(JSON.stringify(active.phrases || [])),
+                verses: JSON.parse(JSON.stringify(active.verses || [])),
+                audioNotes: JSON.parse(JSON.stringify(active.audioNotes || []))
+            };
+        } else {
+            lastHistoryStateRef.current = null;
+        }
+        lastHistoryPushTimeRef.current = 0;
+    }, [selectedNoteId]);
+
     // Track active session creation time (accumulate seconds spent in Create tab)
     useEffect(() => {
         const interval = setInterval(() => {
@@ -2106,6 +2133,8 @@ export default function CreatePage() {
     const [inspirationAnswers, setInspirationAnswers] = useState<Record<string, Record<string, string[]>>>({});
     const [inspirationDragOffset, setInspirationDragOffset] = useState(0);
     const [swipingToBack, setSwipingToBack] = useState(false);
+    const [activeInspirationIndex, setActiveInspirationIndex] = useState(8);
+    const [transitionEnabled, setTransitionEnabled] = useState(true);
     const inspirationTouchStartXRef = useRef(0);
     const inspirationDragStartXRef = useRef(0);
     const inspirationSwiperRef = useRef<any>(null);
@@ -3086,14 +3115,45 @@ export default function CreatePage() {
     };
 
     const activeNote = notes.find(n => n.id === selectedNoteId) || null;
+    const carouselCards = INSPIRATION_CARDS.slice(0, 8);
     const isNoteBlank = !isCanvasPreview && (
         !selectedNoteId ||
-        (activeNote && 
-            activeNote.content.trim() === '' &&
+        !activeNote ||
+        (activeNote.content.trim() === '' &&
             (!activeNote.phrases || activeNote.phrases.length === 0) &&
             (!activeNote.audioNotes || activeNote.audioNotes.length === 0)
         )
     );
+
+    // Preload inspiration card background images to prevent any rendering delay
+    useEffect(() => {
+        carouselCards.forEach(card => {
+            const img = new Image();
+            img.src = card.bgImage;
+        });
+    }, []);
+
+    // Auto-scroll the inspirations carousel in the empty canvas state (every 3.5 seconds)
+    useEffect(() => {
+        if (!isNoteBlank) return;
+        const interval = setInterval(() => {
+            setActiveInspirationIndex(prev => prev + 1);
+        }, 3500);
+        return () => clearInterval(interval);
+    }, [isNoteBlank]);
+
+    // Handle seamless wrapping after 240 slides (resets once every 14 hours of continuous viewing)
+    useEffect(() => {
+        if (activeInspirationIndex >= 240) {
+            setTransitionEnabled(false);
+            setActiveInspirationIndex(8);
+            
+            const timer = setTimeout(() => {
+                setTransitionEnabled(true);
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [activeInspirationIndex]);
     const activeNoteCollabList = activeNote?.collaborators || [];
     const isActiveCollab = !!(selectedNoteId && (
         collaborators.length > 0 || 
@@ -4552,9 +4612,6 @@ export default function CreatePage() {
         try {
             await setDoc(doc(db, 'connect_posts', postId), newPost);
             setShareStatus('shared');
-            setTimeout(() => {
-                window.location.href = '/platform/connect';
-            }, 1800);
         } catch (err) {
             console.error("Error sharing post to Firestore:", err);
             // Fallback storage
@@ -4565,14 +4622,170 @@ export default function CreatePage() {
             }
             localStorage.setItem('mep-connect-posts-v4', JSON.stringify([newPost, ...currentPosts]));
             setShareStatus('shared');
-            setTimeout(() => {
-                window.location.href = '/platform/connect';
-            }, 1800);
         }
+    };
+    const pushToUndoHistory = (
+        content: string, 
+        phrases: Phrase[], 
+        verses: VerseGroup[], 
+        audioNotes: AudioNote[],
+        updates: Partial<SongNote>
+    ) => {
+        if (!selectedNoteId) return;
+
+        const lastState = lastHistoryStateRef.current;
+        if (!lastState) return;
+
+        // Check if there is any actual difference
+        const nextContent = updates.content !== undefined ? updates.content : content;
+        const nextPhrases = updates.phrases !== undefined ? updates.phrases : phrases;
+        const nextVerses = updates.verses !== undefined ? updates.verses : verses;
+        const nextAudio = updates.audioNotes !== undefined ? updates.audioNotes : audioNotes;
+
+        if (lastState.content === nextContent && 
+            JSON.stringify(lastState.phrases) === JSON.stringify(nextPhrases) && 
+            JSON.stringify(lastState.verses) === JSON.stringify(nextVerses) && 
+            JSON.stringify(lastState.audioNotes) === JSON.stringify(nextAudio)) {
+            return;
+        }
+
+        // 1. Line count change check (Enter key or deletion of a line)
+        const currentLines = content.split('\n').length;
+        const newLines = nextContent.split('\n').length;
+        const lineCountChanged = currentLines !== newLines;
+
+        // 2. Phrases structure change check
+        let phrasesChanged = false;
+        if (updates.phrases !== undefined) {
+            if (phrases.length !== nextPhrases.length) {
+                phrasesChanged = true;
+            } else {
+                for (let i = 0; i < phrases.length; i++) {
+                    if (phrases[i].id !== nextPhrases[i].id || 
+                        phrases[i].groupId !== nextPhrases[i].groupId) {
+                        phrasesChanged = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3. Verses structure change check
+        const versesChanged = updates.verses !== undefined && 
+            JSON.stringify(verses) !== JSON.stringify(nextVerses);
+
+        // 4. Audio notes change check (voice note card added/deleted)
+        const audioChanged = updates.audioNotes !== undefined && 
+            audioNotes.length !== nextAudio.length;
+
+        const isForcePush = updates.forceHistoryPush === true;
+        const isStructuralOrLine = lineCountChanged || phrasesChanged || versesChanged || audioChanged || isForcePush;
+
+        // If it's the first edit on this note, always push the initial state first so we can undo it
+        const isFirstEdit = undoStack.length === 0;
+
+        if (isStructuralOrLine || isFirstEdit) {
+            setUndoStack(prev => {
+                const newStack = [...prev, lastState];
+                if (newStack.length > 50) newStack.shift();
+                return newStack;
+            });
+            setRedoStack([]);
+        }
+
+        // Always keep the last history state reference updated with latest values
+        lastHistoryStateRef.current = {
+            content: nextContent,
+            phrases: JSON.parse(JSON.stringify(nextPhrases)),
+            verses: JSON.parse(JSON.stringify(nextVerses)),
+            audioNotes: JSON.parse(JSON.stringify(nextAudio))
+        };
+    };
+
+    const handleUndo = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const active = notes.find(n => n.id === selectedNoteId);
+        if (!selectedNoteId || !active || undoStack.length === 0) return;
+
+        const previousState = undoStack[undoStack.length - 1];
+        const newUndoStack = undoStack.slice(0, -1);
+
+        const currentState = {
+            content: active.content || '',
+            phrases: JSON.parse(JSON.stringify(active.phrases || [])),
+            verses: JSON.parse(JSON.stringify(active.verses || [])),
+            audioNotes: JSON.parse(JSON.stringify(active.audioNotes || []))
+        };
+
+        setUndoStack(newUndoStack);
+        setRedoStack(prev => [...prev, currentState]);
+
+        lastHistoryStateRef.current = previousState;
+
+        setNotes(prev => prev.map(n => {
+            if (n.id === selectedNoteId) {
+                return {
+                    ...n,
+                    content: previousState.content,
+                    phrases: previousState.phrases,
+                    verses: previousState.verses,
+                    audioNotes: previousState.audioNotes,
+                    updatedAt: new Date().toLocaleString()
+                };
+            }
+            return n;
+        }));
+    };
+
+    const handleRedo = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const active = notes.find(n => n.id === selectedNoteId);
+        if (!selectedNoteId || !active || redoStack.length === 0) return;
+
+        const nextState = redoStack[redoStack.length - 1];
+        const newRedoStack = redoStack.slice(0, -1);
+
+        const currentState = {
+            content: active.content || '',
+            phrases: JSON.parse(JSON.stringify(active.phrases || [])),
+            verses: JSON.parse(JSON.stringify(active.verses || [])),
+            audioNotes: JSON.parse(JSON.stringify(active.audioNotes || []))
+        };
+
+        setRedoStack(newRedoStack);
+        setUndoStack(prev => [...prev, currentState]);
+
+        lastHistoryStateRef.current = nextState;
+
+        setNotes(prev => prev.map(n => {
+            if (n.id === selectedNoteId) {
+                return {
+                    ...n,
+                    content: nextState.content,
+                    phrases: nextState.phrases,
+                    verses: nextState.verses,
+                    audioNotes: nextState.audioNotes,
+                    updatedAt: new Date().toLocaleString()
+                };
+            }
+            return n;
+        }));
     };
 
     const handleUpdateNote = (id: string, updates: Partial<SongNote>) => {
         if (isCanvasPreview) return;
+        
+        const currentNote = notes.find(n => n.id === id);
+        if (currentNote) {
+            pushToUndoHistory(
+                currentNote.content || '',
+                currentNote.phrases || [],
+                currentNote.verses || [],
+                currentNote.audioNotes || [],
+                updates
+            );
+        }
+
         setNotes(prev => prev.map(n => {
             if (n.id === id) {
                 let finalTitle = updates.title !== undefined ? updates.title : n.title;
@@ -5726,6 +5939,8 @@ export default function CreatePage() {
             }
             
             setLastSavedContent(activeNote.content);
+            setUndoStack([]);
+            setRedoStack([]);
             window.dispatchEvent(new CustomEvent('songwriting-progress-updated', {
                 detail: { triggerType: 'major-task' }
             }));
@@ -6178,6 +6393,97 @@ export default function CreatePage() {
         const orig = clickedWord.toLowerCase().trim();
         const canvasText = context.toLowerCase();
         
+        // If w === orig, we are analyzing the clicked word itself inside the written context
+        if (w === orig) {
+            let contextScore = 65; // Base context score
+            
+            // Get all other lines in the context
+            const lines = canvasText.split('\n').map(l => l.trim()).filter(Boolean);
+            if (lines.length > 1) {
+                // 1. Rhyme matching with other lines' end words
+                const otherEndWords = lines.map(line => {
+                    const parts = line.split(/\s+/);
+                    return parts[parts.length - 1]?.replace(/[^a-z]/g, '') || '';
+                }).filter(ew => ew && ew !== w);
+                
+                let hasRhyme = false;
+                for (const ew of otherEndWords) {
+                    if (ew.length < 3 || w.length < 3) continue;
+                    if (w.endsWith(ew.slice(-3)) || ew.endsWith(w.slice(-3))) {
+                        contextScore += 18;
+                        hasRhyme = true;
+                        break;
+                    } else if (w.endsWith(ew.slice(-2)) || ew.endsWith(w.slice(-2))) {
+                        contextScore += 10;
+                        hasRhyme = true;
+                        break;
+                    }
+                }
+                
+                // 2. Rhythmic/Syllable balance compared to other lines
+                const countSyllables = (str: string) => (str.match(/[aeiouy]{1,2}/g) || []).length || 1;
+                const otherLinesSyllables = lines.map(line => {
+                    if (line.includes(word)) return 0;
+                    return countSyllables(line);
+                }).filter(Boolean);
+                
+                if (otherLinesSyllables.length > 0) {
+                    const avgOtherSyllables = otherLinesSyllables.reduce((a, b) => a + b, 0) / otherLinesSyllables.length;
+                    const thisLineText = lines.find(l => l.includes(word)) || '';
+                    const thisLineSylCount = countSyllables(thisLineText);
+                    const sylDiff = Math.abs(thisLineSylCount - avgOtherSyllables);
+                    
+                    if (sylDiff <= 1.5) contextScore += 12; // Perfect rhythmic balance!
+                    else if (sylDiff <= 3) contextScore += 6;
+                    else contextScore -= 8; // Rhythm feels off!
+                }
+                
+                // 3. Mood/Thematic harmony with the active inspiration category
+                const currentInspiration = carouselCards[activeInspirationIndex % 8];
+                const activeCategory = currentInspiration?.category?.toLowerCase() || '';
+                const titleText = currentInspiration?.title?.toLowerCase() || '';
+                
+                const calmKeywords = ['peace', 'still', 'quiet', 'rest', 'breath', 'slow', 'ease', 'soft', 'dream', 'sleep', 'night', 'sky', 'wind', 'light', 'achieved', 'stillness', 'calm', 'nature'];
+                const melancholyKeywords = ['sad', 'rain', 'lost', 'tears', 'dark', 'cold', 'empty', 'cry', 'alone', 'blue', 'fall', 'gone', 'grief', 'regret', 'shadow', 'fear', 'melancholy'];
+                const energyKeywords = ['fire', 'run', 'loud', 'gold', 'dance', 'burn', 'wild', 'free', 'rise', 'high', 'strong', 'light', 'sun', 'bright', 'power', 'beat', 'energy'];
+                
+                let matchesCategory = false;
+                if (activeCategory.includes('calm') || titleText.includes('stillness')) {
+                    matchesCategory = calmKeywords.some(kw => w.includes(kw) || kw.includes(w));
+                } else if (activeCategory.includes('melancholy') || activeCategory.includes('release') || titleText.includes('regret')) {
+                    matchesCategory = melancholyKeywords.some(kw => w.includes(kw) || kw.includes(w));
+                } else if (activeCategory.includes('energy') || activeCategory.includes('bold')) {
+                    matchesCategory = energyKeywords.some(kw => w.includes(kw) || kw.includes(w));
+                }
+                
+                if (matchesCategory) {
+                    contextScore += 10;
+                } else {
+                    if (activeCategory.includes('energy') && melancholyKeywords.some(kw => w.includes(kw))) {
+                        contextScore -= 10;
+                    } else if (activeCategory.includes('calm') && energyKeywords.some(kw => w.includes(kw))) {
+                        contextScore -= 8;
+                    }
+                }
+            } else {
+                const currentInspiration = carouselCards[activeInspirationIndex % 8];
+                const activeCategory = currentInspiration?.category?.toLowerCase() || '';
+                const calmKeywords = ['peace', 'still', 'quiet', 'rest', 'breath', 'slow', 'ease', 'soft', 'dream', 'sleep', 'night', 'sky', 'wind', 'light', 'achieved', 'stillness', 'calm'];
+                const melancholyKeywords = ['sad', 'rain', 'lost', 'tears', 'dark', 'cold', 'empty', 'cry', 'alone', 'blue', 'fall', 'gone', 'grief', 'regret', 'shadow', 'fear'];
+                const energyKeywords = ['fire', 'run', 'loud', 'gold', 'dance', 'burn', 'wild', 'free', 'rise', 'high', 'strong', 'light', 'sun', 'bright', 'power', 'beat', 'energy'];
+                
+                let matchesCategory = false;
+                if (activeCategory.includes('calm')) matchesCategory = calmKeywords.some(kw => w.includes(kw));
+                else if (activeCategory.includes('melancholy')) matchesCategory = melancholyKeywords.some(kw => w.includes(kw));
+                else if (activeCategory.includes('energy')) matchesCategory = energyKeywords.some(kw => w.includes(kw));
+                
+                if (matchesCategory) contextScore += 15;
+                else contextScore += 5;
+            }
+            
+            return Math.max(40, Math.min(99, contextScore));
+        }
+        
         let score = 55; // Base score
         
         // 1. Length/Rhythm proximity
@@ -6295,7 +6601,8 @@ export default function CreatePage() {
             handleUpdateNote(selectedNoteId, {
                 phrases: updatedPhrases,
                 content: newContent,
-                title: activeNote.title || 'Untitled Note'
+                title: activeNote.title || 'Untitled Note',
+                forceHistoryPush: true
             });
         }
         setClickedWord(null);
@@ -6994,10 +7301,11 @@ export default function CreatePage() {
         const nextCard = cards[(currentCardIndex + 1) % cards.length];
         const noteKey = selectedNoteId || 'global';
         const expandedCard = expandedCardId ? cards.find(c => c.id === expandedCardId) : null;
+
         const activeCardForAnswers = expandedCard || activeCard;
         const cardAnswers = (inspirationAnswers[noteKey] || {})[activeCardForAnswers.id] || ['', '', '', '', ''];
 
-        const cardTransition = { type: 'spring', stiffness: 300, damping: 28 };
+        const cardTransition = { type: 'tween', ease: [0.16, 1, 0.3, 1], duration: 0.3 };
 
         const handlePrevCard = () => {
             inspirationSwiperRef.current?.slidePrev();
@@ -7043,16 +7351,18 @@ export default function CreatePage() {
 
         return (
             <div className="relative w-full max-w-[856px] min-h-[280px] sm:min-h-[340px] md:min-h-[400px] flex items-center justify-center overflow-visible">
-                <AnimatePresence mode="wait">
-                    {!expandedCardId ? (
-                        <motion.div
-                            key="swiper-view"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.25 }}
-                            className="flex justify-center items-center w-full select-none py-4 sm:py-8"
-                        >
+                <motion.div
+                    key="swiper-view"
+                    animate={{ 
+                        opacity: expandedCardId ? 0 : 1, 
+                        scale: expandedCardId ? 0.95 : 1,
+                    }}
+                    style={{
+                        pointerEvents: expandedCardId ? 'none' : 'auto'
+                    }}
+                    transition={cardTransition}
+                    className="flex justify-center items-center w-full select-none py-4 sm:py-8"
+                >
                             <div className="w-[90vw] sm:w-[460px] md:w-[580px] h-[280px] sm:h-[320px] md:h-[400px] flex items-center justify-center overflow-visible">
                                 <Swiper
                                     initialSlide={currentCardIndex}
@@ -7074,8 +7384,6 @@ export default function CreatePage() {
                                     {cards.map((card, idx) => (
                                         <SwiperSlide key={card.id} className="rounded-[24px] sm:rounded-[32px] md:rounded-[38px]" style={{ overflow: 'visible' }}>
                                             <motion.div
-                                                layoutId={`inspiration-card-container-${card.id}`}
-                                                transition={cardTransition}
                                                 animate={idx === currentCardIndex ? swiperWiggleControls : undefined}
                                                 className={`relative w-full h-full bg-stone-900 cursor-pointer select-none rounded-[24px] sm:rounded-[32px] md:rounded-[38px] overflow-hidden border border-white/10 transition-shadow duration-300 ${
                                                     idx === currentCardIndex 
@@ -7083,14 +7391,13 @@ export default function CreatePage() {
                                                         : 'shadow-[0_4px_12px_rgba(0,0,0,0.12)]'
                                                 }`}
                                                 onClick={() => {
+                                                    setCurrentCardIndex(idx);
                                                     setExpandedCardId(card.id);
                                                     setInspirationQuestionIndex(0);
                                                 }}
                                             >
-                                                {/* Background Image - rendered as layout element to prevent distortion */}
-                                                <motion.div
-                                                    layoutId={`inspiration-card-bg-${card.id}`}
-                                                    transition={cardTransition}
+                                                {/* Background Image */}
+                                                <div
                                                     className="absolute inset-0 bg-cover bg-center"
                                                     style={{
                                                         backgroundImage: `url(${card.bgImage})`,
@@ -7106,32 +7413,26 @@ export default function CreatePage() {
                                                             }}
                                                         />
                                                     </div>
-                                                </motion.div>
+                                                </div>
 
                                                 {/* Soft gradient overlay on top of background image to make sure glass overlay stands out */}
                                                 <div className="absolute inset-0 bg-gradient-to-t from-stone-955/25 via-transparent to-transparent pointer-events-none" />
 
                                                 {/* Floating Glassy Overlay Container */}
-                                                <motion.div 
-                                                    layoutId={`inspiration-card-glass-${card.id}`}
-                                                    transition={cardTransition}
+                                                <div 
                                                     className="absolute bottom-3 sm:bottom-5 left-3 sm:left-5 right-3 sm:right-5 bg-white/20 backdrop-blur-[50px] rounded-[18px] sm:rounded-[24px] md:rounded-[30px] pt-3 pb-4 md:pt-4 md:pb-6 pl-6 pr-16 sm:pl-8 sm:pr-20 md:pl-10 md:pr-24 flex flex-col justify-center text-left font-sans select-none min-w-0 shadow-lg hover:bg-white/25 transition-all z-[10]"
                                                 >
                                                     <div className="flex flex-col gap-1 md:gap-2">
-                                                        <motion.h4 
-                                                            layoutId={`inspiration-card-title-${card.id}`}
-                                                            transition={cardTransition}
+                                                        <h4 
                                                             className="text-[17px] sm:text-[21px] md:text-[26px] font-medium text-[#F8F8F4] tracking-[-0.01em] leading-tight line-clamp-1"
                                                         >
                                                             {card.title}
-                                                        </motion.h4>
-                                                        <motion.span 
-                                                            layoutId={`inspiration-card-category-${card.id}`}
-                                                            transition={cardTransition}
+                                                        </h4>
+                                                        <span 
                                                             className="text-[11px] sm:text-[13px] md:text-[15px] font-normal text-[#F8F8F4]/80 tracking-[-0.01em] leading-tight"
                                                         >
                                                             {card.category}
-                                                        </motion.span>
+                                                        </span>
                                                     </div>
                                                     
                                                     {/* Expand arrow */}
@@ -7143,25 +7444,26 @@ export default function CreatePage() {
                                                             <path d="M3 21l7-7"/>
                                                         </svg>
                                                     </div>
-                                                </motion.div>
+                                                </div>
                                             </motion.div>
                                         </SwiperSlide>
                                     ))}
                                 </Swiper>
                             </div>
-                        </motion.div>
-                    ) : (
-                        expandedCard && (
-                            <motion.div
-                                key={`expanded-${expandedCard.id}`}
-                                layoutId={`inspiration-card-container-${expandedCard.id}`}
-                                transition={cardTransition}
-                                className="w-[92vw] sm:w-[680px] md:w-[800px] h-[480px] sm:h-[520px] md:h-[560px] rounded-[24px] sm:rounded-[32px] md:rounded-[38px] bg-stone-900 overflow-hidden shadow-2xl relative border border-white/10 select-none animate-in fade-in duration-200"
-                            >
-                                {/* Background Image - rendered as layout element to prevent distortion */}
-                                <motion.div
-                                    layoutId={`inspiration-card-bg-${expandedCard.id}`}
-                                    transition={cardTransition}
+                </motion.div>
+
+                <AnimatePresence>
+                    {expandedCard && (
+                        <motion.div
+                            key={`expanded-${expandedCard.id}`}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={cardTransition}
+                            className="absolute top-[-30px] sm:top-[-45px] md:top-[-60px] bottom-[30px] sm:bottom-[45px] md:bottom-[60px] left-0 right-0 m-auto z-40 w-[92vw] sm:w-[680px] md:w-[800px] h-[480px] sm:h-[520px] md:h-[560px] rounded-[24px] sm:rounded-[32px] md:rounded-[38px] bg-stone-900 overflow-hidden shadow-2xl border border-white/10 select-none"
+                        >
+                                {/* Background Image */}
+                                <div
                                     className="absolute inset-0 bg-cover bg-center"
                                     style={{
                                         backgroundImage: `url(${expandedCard.bgImage})`,
@@ -7177,11 +7479,9 @@ export default function CreatePage() {
                                             }}
                                         />
                                     </div>
-                                </motion.div>
+                                </div>
 
-                                <motion.div
-                                    layoutId={`inspiration-card-glass-${expandedCard.id}`}
-                                    transition={cardTransition}
+                                <div
                                     className="absolute inset-3 sm:inset-5 md:inset-6 bg-black/40 backdrop-blur-[50px] rounded-[18px] sm:rounded-[24px] md:rounded-[30px] p-6 sm:p-10 flex flex-col justify-between border border-white/5 z-[10]"
                                 >
                                     {inspirationQuestionIndex === 5 ? (
@@ -7190,20 +7490,16 @@ export default function CreatePage() {
                                             {/* Header */}
                                             <div className="flex items-center justify-between pb-4 border-b border-white/10">
                                                 <div>
-                                                    <motion.h4 
-                                                        layoutId={`inspiration-card-title-${expandedCard.id}`}
-                                                        transition={cardTransition}
+                                                    <h4 
                                                         className="text-[16px] sm:text-[20px] md:text-[22px] font-medium text-white tracking-tight leading-tight"
                                                     >
                                                         {expandedCard.title}
-                                                    </motion.h4>
-                                                    <motion.span 
-                                                        layoutId={`inspiration-card-category-${expandedCard.id}`}
-                                                        transition={cardTransition}
+                                                    </h4>
+                                                    <span 
                                                         className="text-[11px] sm:text-[13px] md:text-[14px] text-white/40 font-normal uppercase tracking-wider block mt-0.5"
                                                     >
                                                         {expandedCard.category}
-                                                    </motion.span>
+                                                    </span>
                                                 </div>
                                                 <button
                                                     onClick={() => {
@@ -7276,20 +7572,16 @@ export default function CreatePage() {
                                             {/* Header */}
                                             <div className="flex items-start justify-between select-none">
                                                 <div className="flex flex-col gap-0.5 text-left">
-                                                    <motion.h4 
-                                                        layoutId={`inspiration-card-title-${expandedCard.id}`}
-                                                        transition={cardTransition}
+                                                    <h4 
                                                         className="text-[16px] sm:text-[20px] md:text-[22px] font-medium text-white tracking-tight leading-tight"
                                                     >
                                                         {expandedCard.title}
-                                                    </motion.h4>
-                                                    <motion.span 
-                                                        layoutId={`inspiration-card-category-${expandedCard.id}`}
-                                                        transition={cardTransition}
+                                                    </h4>
+                                                    <span 
                                                         className="text-[11px] sm:text-[13px] md:text-[14px] text-white/40 font-normal uppercase tracking-wider block mt-0.5"
                                                     >
                                                         {expandedCard.category}
-                                                    </motion.span>
+                                                    </span>
                                                 </div>
                                                 <button
                                                     onClick={() => {
@@ -7371,10 +7663,10 @@ export default function CreatePage() {
                                             </div>
                                         </div>
                                     )}
-                                </motion.div>
+                                </div>
                             </motion.div>
                         )
-                    )}
+                    }
                 </AnimatePresence>
             </div>
         );
@@ -7705,7 +7997,7 @@ export default function CreatePage() {
                                     setLocalTitleText(e.target.value);
                                 }
                             }}
-                            className="bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-500 placeholder:text-stone-300 focus:text-stone-855 transition-colors cursor-text select-text w-full min-w-0"
+                            className="bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-400 placeholder:text-stone-300 focus:text-stone-855 transition-colors cursor-text select-text w-full min-w-0"
                             style={{
                                 maxWidth: isEditingTitle ? 'calc(100% - 150px)' : 'calc(100% - 80px)'
                             }}
@@ -7904,7 +8196,7 @@ export default function CreatePage() {
                             )
                         )}
 
-                        {/* Share to Community button */}
+                        {/* Publish to Community button */}
                         {!isCanvasPreview && selectedNoteId && activeNote && (
                             <button 
                                 onClick={(e) => {
@@ -7913,29 +8205,29 @@ export default function CreatePage() {
                                 }}
                                 disabled={shareStatus === 'sharing'}
                                 className={`relative flex items-center gap-2 px-5 py-1.5 border rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in
-                                    ${shareStatus === 'shared'
-                                        ? 'bg-green-650 border-green-650 text-white hover:bg-green-700 hover:border-green-700'
-                                        : 'bg-stone-900 border-stone-900 text-[#FAF9F5] hover:bg-stone-850'
+                                    ${shareStatus === 'idle'
+                                        ? 'bg-stone-100/65 border-stone-200/40 text-stone-700 hover:bg-stone-200/50 hover:text-stone-900'
+                                        : 'bg-emerald-600 border-emerald-600 text-stone-900 hover:bg-emerald-700 hover:border-emerald-700'
                                     }
                                 `}
-                                title={shareStatus === 'shared' ? 'Go to community Connect feed' : 'Share this song to Connect community feed'}
+                                title={shareStatus === 'shared' ? 'Go to community Connect feed' : 'Publish this song to Connect community feed'}
                             >
                                 {shareStatus === 'idle' && (
                                     <>
-                                        <Share2 size={18} className="stroke-[1.6]" />
-                                        <span>Share</span>
+                                        <Upload size={18} className="stroke-[1.6]" />
+                                        <span>Publish</span>
                                     </>
                                 )}
                                 {shareStatus === 'sharing' && (
                                     <>
                                         <Loader2 size={18} className="animate-spin stroke-[1.6]" />
-                                        <span>Sharing...</span>
+                                        <span>Publishing</span>
                                     </>
                                 )}
                                 {shareStatus === 'shared' && (
                                     <>
-                                        <Check size={18} className="stroke-[2.5]" />
-                                        <span>Shared Successfully! Check Now</span>
+                                        <span>Check in Connect</span>
+                                        <ArrowRight size={18} className="stroke-[1.6]" />
                                     </>
                                 )}
                             </button>
@@ -8605,7 +8897,7 @@ export default function CreatePage() {
                                             e.stopPropagation();
                                             handleAddVerseGroup('Chorus');
                                         }}
-                                        className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
+                                        className="px-5 py-1.5 rounded-full border border-dotted border-stone-300 bg-white hover:bg-stone-50 text-stone-400 hover:text-stone-600 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
                                     >
                                         Chorus
                                     </button>
@@ -8614,7 +8906,7 @@ export default function CreatePage() {
                                             e.stopPropagation();
                                             handleAddVerseGroup('Verse');
                                         }}
-                                        className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
+                                        className="px-5 py-1.5 rounded-full border border-dotted border-stone-300 bg-white hover:bg-stone-50 text-stone-400 hover:text-stone-600 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
                                     >
                                         Verse
                                     </button>
@@ -8623,35 +8915,124 @@ export default function CreatePage() {
                                             e.stopPropagation();
                                             handleAddVerseGroup('Bridge');
                                         }}
-                                        className="px-5 py-1.5 rounded-full border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
+                                        className="px-5 py-1.5 rounded-full border border-dotted border-stone-300 bg-white hover:bg-stone-50 text-stone-400 hover:text-stone-600 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
                                     >
                                         Bridge
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            <div className="absolute inset-0 px-[10%] flex flex-col items-center justify-center pointer-events-none z-10">
-                                <textarea
-                                    ref={textareaRef}
-                                    value={contentVal}
-                                    onChange={handleTextareaChange}
-                                    onScroll={handleTextareaScroll}
-                                    onFocus={() => {
-                                        setIsFocused(true);
-                                        setTimeout(updateScrollbarInfo, 50);
-                                    }}
-                                    onBlur={() => {
-                                        setIsFocused(false);
-                                        setTimeout(updateScrollbarInfo, 50);
-                                    }}
-                                    className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-sans text-[26px] md:text-[42px] font-light text-stone-855 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[220px] md:max-h-[320px] xl:max-h-[460px] 2xl:max-h-[580px] leading-[1.4] no-scrollbar pointer-events-auto relative placeholder:text-stone-300/80 placeholder:font-light py-0"
-                                    placeholder="Just start writing"
-                                    style={{ 
-                                        height: 'auto',
-                                        minHeight: '1.4em'
-                                    }}
-                                />
+                            <div className="absolute inset-x-0 top-0 px-[10%] flex flex-col items-center justify-start pointer-events-none z-10 mt-6 sm:mt-8 md:mt-10">
+                                <style>{`
+                                    @keyframes caret-blink {
+                                        0%, 100% { opacity: 1; }
+                                        50% { opacity: 0; }
+                                    }
+                                    .animate-caret-blink {
+                                        animation: caret-blink 1s ease-in-out infinite;
+                                    }
+                                `}</style>
 
+                                <div className="relative w-full flex items-center justify-center">
+                                    <textarea
+                                        ref={textareaRef}
+                                        value={contentVal}
+                                        onChange={handleTextareaChange}
+                                        onScroll={handleTextareaScroll}
+                                        onFocus={() => {
+                                            setIsFocused(true);
+                                            setTimeout(updateScrollbarInfo, 50);
+                                        }}
+                                        onBlur={() => {
+                                            setIsFocused(false);
+                                            setTimeout(updateScrollbarInfo, 50);
+                                        }}
+                                        className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-sans text-[26px] md:text-[42px] font-light text-stone-855 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[140px] md:max-h-[200px] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
+                                        placeholder=""
+                                        style={{ 
+                                            height: 'auto',
+                                            minHeight: '1.4em',
+                                            caretColor: contentVal === '' ? 'transparent' : 'black'
+                                        }}
+                                    />
+                                    {contentVal === '' && (
+                                        <div className="absolute inset-x-0 top-0 px-4 md:px-8 xl:px-16 flex items-center justify-center pointer-events-none select-none py-0">
+                                            <span className="relative text-[26px] md:text-[42px] font-light text-stone-300/80 tracking-[-0.035em] leading-[1.4] text-center flex items-center justify-center">
+                                                <span className="inline-block w-[2.5px] h-[32px] md:h-[44px] bg-black mr-2 animate-caret-blink shrink-0" />
+                                                Type your lyrics...
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className="w-full h-[1.5px] bg-stone-200/40 mt-1 mb-14 pointer-events-none select-none" />
+                                
+                                <div className="flex flex-col items-center pointer-events-auto w-full">
+                                    <span className="font-sans text-[15px] sm:text-[17px] text-stone-400 font-normal tracking-normal pointer-events-none select-none mb-1">
+                                        or just start with an inspiration
+                                    </span>
+                                    
+                                    {/* Category name changes dynamically above the sliding cards */}
+                                    <span className="font-sans italic text-[22px] sm:text-[24px] text-stone-550 lowercase mb-6 select-none animate-in fade-in duration-300" key={activeInspirationIndex}>
+                                        {carouselCards[activeInspirationIndex % 8].title.toLowerCase()}
+                                    </span>
+                                    
+                                    {/* Slider Viewport Container */}
+                                    <div className="w-full max-w-[620px] overflow-hidden py-1 relative flex items-center justify-start">
+                                        {/* Left gradient fade overlay */}
+                                        <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none z-20" />
+                                        {/* Right gradient fade overlay */}
+                                        <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none z-20" />
+
+                                        <div 
+                                            className="flex gap-4 relative"
+                                            style={{ 
+                                                left: '50%',
+                                                transform: `translateX(-${activeInspirationIndex * 236 + 110}px)`,
+                                                                                transition: transitionEnabled ? 'transform 700ms cubic-bezier(0.25, 1, 0.5, 1)' : 'none'
+                                            }}
+                                        >
+                                            {Array.from({ length: 240 }).map((_, idx) => {
+                                                const card = carouselCards[idx % 8];
+                                                const isActive = idx === activeInspirationIndex;
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        onClick={() => {
+                                                            setActiveInspirationIndex(idx);
+                                                            const activeCardsList = inspirationCards.length > 0 ? inspirationCards : INSPIRATION_CARDS;
+                                                            const cardIdx = activeCardsList.findIndex(c => c.id === card.id);
+                                                            if (cardIdx !== -1) {
+                                                                setCurrentCardIndex(cardIdx);
+                                                                if (inspirationSwiperRef.current) {
+                                                                    inspirationSwiperRef.current.slideTo(cardIdx, 0);
+                                                                }
+                                                            }
+                                                            setExpandedCardId(card.id);
+                                                            setInspirationQuestionIndex(0);
+                                                            setActiveToolTab('inspiration');
+                                                            setShowToolsPanel(true);
+                                                        }}
+                                                        className={`relative w-[220px] h-[125px] shrink-0 rounded-[20px] overflow-hidden border border-stone-200/40 shadow-[0_4px_12px_rgba(0,0,0,0.03)] cursor-pointer transition-all duration-500 hover:scale-105 active:scale-95 group/card bg-stone-100
+                                                            ${isActive 
+                                                                ? 'opacity-100 scale-100 shadow-md' 
+                                                                : 'opacity-35 scale-95 hover:opacity-50'
+                                                            }
+                                                        `}
+                                                    >
+                                                        {/* Background Image using eager loading WebP to prevent flicker */}
+                                                        <img 
+                                                            src={card.bgImage.replace('.png', '.webp')} 
+                                                            alt={card.title}
+                                                            loading="eager"
+                                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105"
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -8674,10 +9055,10 @@ export default function CreatePage() {
                             <div className="flex flex-col gap-2.5">
                                 <div className="flex items-center justify-between">
                                     <span className="text-[11.5px] text-stone-400 font-bold uppercase tracking-wider select-none">Current Word</span>
-                                    <span className="text-[13px] text-stone-500 font-extrabold">{getCompatibilityScore(clickedWord, contentVal)}% Compatible</span>
+                                    <span className="text-[13px] text-stone-500 font-semibold">{getCompatibilityScore(clickedWord, contentVal)}% Compatible</span>
                                 </div>
                                 <div className="flex items-center gap-3.5">
-                                    <span className="text-2xl font-extrabold text-stone-900">"{clickedWord}"</span>
+                                    <span className="text-2xl font-semibold text-stone-900">"{clickedWord}"</span>
                                     <div className="flex-grow h-2.5 bg-stone-100 rounded-full overflow-hidden">
                                         <div className="h-full bg-black rounded-full transition-all duration-500" style={{ width: `${getCompatibilityScore(clickedWord, contentVal)}%` }} />
                                     </div>
@@ -8766,14 +9147,11 @@ export default function CreatePage() {
                                                                             handleSelectSuggestion(item.word);
                                                                         }}
                                                                         className="group flex items-center gap-2 px-5 py-2.5 bg-stone-50/50 hover:bg-stone-900 border border-stone-200/50 hover:border-stone-900 rounded-[14px] transition-all cursor-pointer shadow-2xs"
-                                                                        title={`Click to select - Compatibility: ${score}%`}
+                                                                        title={`Click to select ${item.word}`}
                                                                         type="button"
                                                                     >
-                                                                        <span className="text-[14px] font-bold text-stone-850 group-hover:text-white transition-colors">
+                                                                        <span className="text-[14px] font-medium text-stone-700 group-hover:text-white transition-colors">
                                                                             {item.word}
-                                                                        </span>
-                                                                        <span className="text-[10.5px] font-bold text-stone-400 group-hover:text-white/60 transition-colors">
-                                                                            {score}%
                                                                         </span>
                                                                     </button>
                                                                 );
@@ -8818,15 +9196,34 @@ export default function CreatePage() {
                 >
                     {/* Right Side: Button Row (✓ SAVE, REC, Tools, Inspiration) */}
                     <div className="flex items-center gap-4">
-                        {/* Revert adjustments button (placed outside the capsule for clean alignment) */}
-                        {activeNote && activeNote.content !== lastSavedContent && !isActiveCollab && (
-                            <button
-                                onClick={handleRevertChanges}
-                                className="text-stone-404 hover:text-stone-700 hover:bg-stone-100 p-3 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center"
-                                title="Revert to last saved state"
-                            >
-                                <RotateCcw size={20} className="stroke-[2.5]" />
-                            </button>
+                        {/* Undo / Redo action buttons (shown only when there are unsaved steps in history) */}
+                        {(undoStack.length > 0 || redoStack.length > 0) && (
+                            <div className="flex items-center gap-1 bg-white border border-stone-200/50 p-1.5 rounded-full shadow-2xs pointer-events-auto">
+                                <button
+                                    onClick={handleUndo}
+                                    disabled={undoStack.length === 0}
+                                    className={`p-2 rounded-full transition-all duration-150 flex items-center justify-center select-none ${
+                                        undoStack.length === 0
+                                            ? 'text-stone-300 opacity-40 pointer-events-none'
+                                            : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100 cursor-pointer active:scale-90'
+                                    }`}
+                                    title="Undo last change"
+                                >
+                                    <Undo2 size={18} className="stroke-[2.5]" />
+                                </button>
+                                <button
+                                    onClick={handleRedo}
+                                    disabled={redoStack.length === 0}
+                                    className={`p-2 rounded-full transition-all duration-150 flex items-center justify-center select-none ${
+                                        redoStack.length === 0
+                                            ? 'text-stone-300 opacity-40 pointer-events-none'
+                                            : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100 cursor-pointer active:scale-90'
+                                    }`}
+                                    title="Redo next change"
+                                >
+                                    <Redo2 size={18} className="stroke-[2.5]" />
+                                </button>
+                            </div>
                         )}
 
                         {/* Primary actions capsule */}
@@ -8838,10 +9235,10 @@ export default function CreatePage() {
                                     disabled={savedFlash}
                                     className={`h-14 px-7 flex items-center gap-3 rounded-full border font-sans font-extrabold text-[15.5px] uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 shadow-3xs select-none ${
                                         savedFlash
-                                            ? 'border-emerald-300 bg-emerald-50 text-emerald-600 scale-95'
+                                            ? 'border-emerald-500 bg-emerald-500 text-stone-900 scale-95'
                                             : isActiveCollab && activeNote.content === lastSavedContent
-                                                ? 'border-stone-200/50 bg-white text-stone-400 hover:text-emerald-600 hover:bg-stone-50'
-                                                : 'border-stone-200/50 bg-white text-[#86BE7F] hover:bg-stone-50'
+                                                ? 'border-stone-200/50 bg-white text-stone-400 hover:bg-stone-50'
+                                                : 'border-emerald-500 bg-emerald-500 text-stone-900 hover:bg-emerald-600 hover:border-emerald-600'
                                     }`}
                                     title={isActiveCollab ? 'Save to Collab Projects' : 'Save'}
                                 >
