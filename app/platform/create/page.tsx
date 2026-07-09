@@ -529,7 +529,8 @@ function PhraseRow({
     handlePlaceAudioAsLineAt,
     draggedAudioId,
     draggedAudioIdRef,
-    activeRemoteUsers
+    activeRemoteUsers,
+    clickedTokenIndex
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
@@ -571,6 +572,7 @@ function PhraseRow({
     draggedAudioId?: string | null;
     draggedAudioIdRef?: React.RefObject<string | null>;
     activeRemoteUsers?: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null }};
+    clickedTokenIndex?: number | null;
 }) {
     const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isTouchDraggingRef = useRef(false);
@@ -1088,6 +1090,7 @@ function PhraseRow({
                                 
                                 const isWordDragged = draggedWord?.phraseId === phrase.id && draggedWord?.wordIndex === idx;
                                 const isWordDragOver = dragOverWordIndex?.phraseId === phrase.id && dragOverWordIndex?.wordIndex === idx;
+                                const isWordClicked = clickedTokenIndex === tokenOffset + idx;
 
                                 return (
                                     <span key={idx} className={`inline-block ${draggedPhraseId !== null ? 'pointer-events-none' : ''}`} onClick={(e) => e.stopPropagation()}>
@@ -1133,6 +1136,7 @@ function PhraseRow({
                                                 word-token hover:bg-stone-200/90 text-stone-855 hover:text-stone-955 rounded-[8px] px-1.5 py-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 inline-block select-none relative
                                                 ${isWordDragged ? 'opacity-30' : ''}
                                                 ${isWordDragOver ? 'bg-amber-100/80 scale-105' : ''}
+                                                ${isWordClicked ? 'bg-stone-200/90 text-stone-955 font-bold shadow-xs scale-102 z-10' : ''}
                                             `}
                                         >
                                             {/* Left drop indicator line */}
@@ -2043,6 +2047,26 @@ export default function CreatePage() {
         };
     }, [isEditingTitle, localTitleText, selectedNoteId]);
 
+    // Close suggestions popover when clicking anywhere outside the popover or the word tokens
+    useEffect(() => {
+        if (!clickedWord) return;
+        
+        const handleOutsideClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (target && (target.closest('.word-token') || target.closest('.suggestions-popover'))) {
+                return;
+            }
+            setClickedWord(null);
+            setClickedTokenIndex(null);
+            setPopoverPosition(null);
+        };
+        
+        document.addEventListener('click', handleOutsideClick);
+        return () => {
+            document.removeEventListener('click', handleOutsideClick);
+        };
+    }, [clickedWord]);
+
     const [cursorSelectionOffset, setCursorSelectionOffset] = useState<{ phraseId: string; offset: number } | null>(null);
     const [draggedWord, setDraggedWord] = useState<{ word: string; phraseId: string; wordIndex: number } | null>(null);
     const [dragOverWordIndex, setDragOverWordIndex] = useState<{ phraseId: string; wordIndex: number; position: 'left' | 'right' } | null>(null);
@@ -2243,7 +2267,7 @@ export default function CreatePage() {
             handleUpdateNote(selectedNoteId, {
                 content: finalContent,
                 phrases: updatedPhrases,
-                title: getTitleFromContent(finalContent) || activeNote.title || 'Untitled Note',
+                title: activeNote.title || 'Untitled Note',
                 isAudioOnly: false
             });
             setIsEditing(true);
@@ -3203,7 +3227,6 @@ export default function CreatePage() {
             const initialPhrases = syncPhrasesWithContent(currentVal, []);
             const newNote: SongNote = {
                 id: `n-${Date.now()}`,
-                title: getTitleFromContent(currentVal) || 'Untitled Note',
                 content: currentVal,
                 folderId: activeFolderIdFilter,
                 updatedAt: new Date().toLocaleString(),
@@ -3218,8 +3241,7 @@ export default function CreatePage() {
             setIsEditing(true);
         } else {
             handleUpdateNote(selectedNoteId, { 
-                content: currentVal,
-                title: getTitleFromContent(currentVal) || 'Untitled Note'
+                content: currentVal
             });
         }
     };
@@ -4027,8 +4049,7 @@ export default function CreatePage() {
                             const currentNoteId = selectedNoteIdRef.current;
                             if (liveText && currentNoteId) {
                                 handleUpdateNote(currentNoteId, {
-                                    content: liveText,
-                                    title: getTitleFromContent(liveText) || 'Untitled Note'
+                                    content: liveText
                                 });
                             } else if (liveText && !currentNoteId) {
                                 const title = recordingTitle.trim() || `Transcription ${new Date().toLocaleDateString()}`;
@@ -4443,11 +4464,15 @@ export default function CreatePage() {
     const handleCreateNote = (folderId: string | null = null) => {
         const newNoteId = `n-${Date.now()}`;
         const newPhraseId = `p-${Math.random().toString(36).substring(2, 9)}`;
-        const timestamp = new Date().toLocaleString();
+        const now = new Date();
+        const timestamp = now.toLocaleString();
+        const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const defaultTitle = `Project - ${dateStr} ${timeStr}`;
         
         const newNote: SongNote = {
             id: newNoteId,
-            title: '',
+            title: defaultTitle,
             content: '',
             folderId: user ? null : (folderId || activeFolderIdFilter),
             updatedAt: timestamp,
@@ -4953,7 +4978,7 @@ export default function CreatePage() {
             handleUpdateNote(selectedNoteId, {
                 phrases: updatedPhrases,
                 content: newContent,
-                title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+                title: activeNote.title || 'Untitled Note'
             });
             
             setEditingPhraseId(nextPhraseId);
@@ -4965,7 +4990,7 @@ export default function CreatePage() {
                     await updateDoc(doc(db, "projects", selectedNoteId), {
                         phrases: updatedPhrases,
                         content: newContent,
-                        title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note',
+                        title: activeNote.title || 'Untitled Note',
                         updatedAt: new Date().toISOString()
                     });
                 } catch (err) {
@@ -5017,7 +5042,7 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: sanitizedPhrases,
             content: newContent,
-            title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+            title: activeNote.title || 'Untitled Note'
         });
         
         setEditingPhraseId(previousPhrase.id);
@@ -5121,7 +5146,7 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: sanitizedPhrases,
             content: newContent,
-            title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+            title: activeNote.title || 'Untitled Note'
         });
     };
 
@@ -5186,7 +5211,7 @@ export default function CreatePage() {
             handleUpdateNote(selectedNoteId, {
                 phrases: sanitizedPhrases,
                 content: newContent,
-                title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+                title: activeNote.title || 'Untitled Note'
             });
             return;
         }
@@ -5223,7 +5248,7 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: sanitizedPhrases,
             content: newContent,
-            title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+            title: activeNote.title || 'Untitled Note'
         });
     };
 
@@ -5277,7 +5302,7 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: sanitizedPhrases,
             content: newContent,
-            title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+            title: activeNote.title || 'Untitled Note'
         });
     };
 
@@ -5300,7 +5325,7 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: updatedPhrases,
             content: newContent,
-            title: getTitleFromContent(newContent) || activeNote.title || 'Untitled Note'
+            title: activeNote.title || 'Untitled Note'
         });
     };
 
@@ -5547,12 +5572,16 @@ export default function CreatePage() {
         if (!selectedNoteId) {
             // Auto create note on first character typed
             const initialPhrases = syncPhrasesWithContent(val, []);
+            const _now = new Date();
+            const _dateStr = _now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const _timeStr = _now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            const _defaultTitle = `Project - ${_dateStr} ${_timeStr}`;
             const newNote: SongNote = {
                 id: `n-${Date.now()}`,
-                title: getTitleFromContent(val) || 'Untitled Note',
+                title: _defaultTitle,
                 content: val,
                 folderId: activeFolderIdFilter,
-                updatedAt: new Date().toLocaleString(),
+                updatedAt: _now.toLocaleString(),
                 phrases: initialPhrases,
                 verses: []
             };
@@ -5570,7 +5599,6 @@ export default function CreatePage() {
                 const initialPhrases = syncPhrasesWithContent(val, []);
                 handleUpdateNote(selectedNoteId, { 
                     content: val, 
-                    title: getTitleFromContent(val) || 'Untitled Note',
                     phrases: initialPhrases
                 });
                 if (initialPhrases[0]) {
@@ -5580,8 +5608,7 @@ export default function CreatePage() {
             } else {
                 // Update active note normally
                 handleUpdateNote(selectedNoteId, { 
-                    content: val, 
-                    title: getTitleFromContent(val) || 'Untitled Note'
+                    content: val
                 });
             }
         }
@@ -5771,8 +5798,7 @@ export default function CreatePage() {
         const newContent = finalPhrases.map(p => p.text).join('\n');
         handleUpdateNote(selectedNoteId, {
             phrases: finalPhrases,
-            content: newContent,
-            title: getTitleFromContent(newContent) || 'Untitled Note'
+            content: newContent
         });
     };
 
@@ -5814,8 +5840,7 @@ export default function CreatePage() {
         const newContent = finalPhrases.map(p => p.text).join('\n');
         handleUpdateNote(selectedNoteId, {
             phrases: finalPhrases,
-            content: newContent,
-            title: getTitleFromContent(newContent) || 'Untitled Note'
+            content: newContent
         });
     };
 
@@ -5858,8 +5883,7 @@ export default function CreatePage() {
         const newContent = finalPhrases.map(p => p.text).join('\n');
         handleUpdateNote(selectedNoteId, {
             phrases: finalPhrases,
-            content: newContent,
-            title: getTitleFromContent(newContent) || 'Untitled Note'
+            content: newContent
         });
     };
 
@@ -5942,8 +5966,7 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: finalPhrases,
             content: newContent,
-            verses: updatedVerses,
-            title: getTitleFromContent(newContent) || 'Untitled Note'
+            verses: updatedVerses
         });
     };
 
@@ -6004,8 +6027,7 @@ export default function CreatePage() {
         const newContent = finalPhrases.map(p => p.text).join('\n');
         handleUpdateNote(selectedNoteId, {
             phrases: finalPhrases,
-            content: newContent,
-            title: getTitleFromContent(newContent) || 'Untitled Note'
+            content: newContent
         });
     };
 
@@ -6249,13 +6271,36 @@ export default function CreatePage() {
 
             const newContent = wordsList.join('');
             
+            const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
+                ? activeNote.phrases
+                : syncPhrasesWithContent(activeNote.content);
+
+            let tempIndex = 0;
+            const updatedPhrases = currentPhrases.map(phrase => {
+                while (tempIndex < wordsList.length && /^\s+$/.test(wordsList[tempIndex])) {
+                    tempIndex++;
+                }
+                const phraseTokens = phrase.text.split(/(\s+)/);
+                const startIdx = tempIndex;
+                const endIdx = tempIndex + phraseTokens.length;
+                tempIndex += phraseTokens.length;
+
+                if (clickedTokenIndex >= startIdx && clickedTokenIndex < endIdx) {
+                    const newPhraseText = wordsList.slice(startIdx, endIdx).join('');
+                    return { ...phrase, text: newPhraseText };
+                }
+                return phrase;
+            });
+
             handleUpdateNote(selectedNoteId, {
+                phrases: updatedPhrases,
                 content: newContent,
-                title: getTitleFromContent(newContent) || 'Untitled Note'
+                title: activeNote.title || 'Untitled Note'
             });
         }
         setClickedWord(null);
         setClickedTokenIndex(null);
+        setPopoverPosition(null);
     };
 
     const handleEditorCardClick = () => {
@@ -8259,6 +8304,7 @@ export default function CreatePage() {
                                                                                 <div key={phrase.id} className="flex flex-col items-center w-full gap-2">
                                                                                     <PhraseRow 
                                                                                         phrase={phrase}
+                                                                                        clickedTokenIndex={clickedTokenIndex}
                                                                                         draggedPhraseId={draggedPhraseId}
                                                                                         draggedPhraseIdRef={draggedPhraseIdRef}
                                                                                         setDraggedPhraseId={setDraggedPhraseId}
@@ -8487,6 +8533,7 @@ export default function CreatePage() {
                                                                 ))}
                                                                 <PhraseRow 
                                                                     phrase={phrase}
+                                                                    clickedTokenIndex={clickedTokenIndex}
                                                                     draggedPhraseId={draggedPhraseId}
                                                                     draggedPhraseIdRef={draggedPhraseIdRef}
                                                                     setDraggedPhraseId={setDraggedPhraseId}
@@ -8612,14 +8659,9 @@ export default function CreatePage() {
                 {/* Floating Suggestions Popover Overlay */}
                 {clickedWord && popoverPosition && (
                     <>
-                        <div className="fixed inset-0 z-30" onClick={() => {
-                            setClickedWord(null);
-                            setClickedTokenIndex(null);
-                            setPopoverPosition(null);
-                        }} />
                         <div 
                             className={`
-                                bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[28px] p-8.5 shadow-[0_20px_60px_rgba(0,0,0,0.12)] z-40 flex flex-col gap-7 w-[450px] max-w-[95%] sm:w-[500px] md:w-[560px] animate-in fade-in zoom-in-95 duration-200
+                                suggestions-popover bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[28px] p-10 shadow-[0_20px_60px_rgba(0,0,0,0.12)] z-40 flex flex-col gap-7 w-[540px] max-w-[95%] sm:w-[600px] md:w-[680px] animate-in fade-in zoom-in-95 duration-200
                                 ${isMobile ? 'absolute bottom-4 left-4 right-4 shadow-2xl mx-auto' : 'absolute'}
                             `}
                             style={isMobile ? undefined : { 
@@ -8648,7 +8690,7 @@ export default function CreatePage() {
                             <div className="flex bg-stone-100/70 p-1 rounded-[14px] w-full select-none">
                                 <button 
                                     onClick={() => setLexiconMode('rhyme')}
-                                    className={`flex-1 text-[13px] font-bold py-2 rounded-[11px] transition-all cursor-pointer ${
+                                    className={`flex-1 text-[13px] font-bold py-2.5 rounded-[11px] transition-all cursor-pointer ${
                                         lexiconMode === 'rhyme' 
                                             ? 'bg-white text-stone-850 shadow-xs' 
                                             : 'text-stone-400 hover:text-stone-600'
@@ -8659,7 +8701,7 @@ export default function CreatePage() {
                                 </button>
                                 <button 
                                     onClick={() => setLexiconMode('synonym')}
-                                    className={`flex-1 text-[13px] font-bold py-2 rounded-[11px] transition-all cursor-pointer ${
+                                    className={`flex-1 text-[13px] font-bold py-2.5 rounded-[11px] transition-all cursor-pointer ${
                                         lexiconMode === 'synonym' 
                                             ? 'bg-white text-stone-850 shadow-xs' 
                                             : 'text-stone-400 hover:text-stone-600'
@@ -8696,7 +8738,7 @@ export default function CreatePage() {
                                         No suggestions found.
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col gap-4 max-h-[260px] overflow-y-auto pr-1 no-scrollbar">
+                                    <div className="flex flex-col gap-4 max-h-[180px] overflow-y-auto pr-1 no-scrollbar">
                                         {(() => {
                                             const groupedBySyllables: Record<number, typeof lexiconResults> = {};
                                             lexiconResults.forEach(item => {
@@ -8723,7 +8765,7 @@ export default function CreatePage() {
                                                                             e.stopPropagation();
                                                                             handleSelectSuggestion(item.word);
                                                                         }}
-                                                                        className="group flex items-center gap-2 px-4 py-2 bg-stone-50/50 hover:bg-stone-900 border border-stone-200/50 hover:border-stone-900 rounded-[14px] transition-all cursor-pointer shadow-2xs"
+                                                                        className="group flex items-center gap-2 px-5 py-2.5 bg-stone-50/50 hover:bg-stone-900 border border-stone-200/50 hover:border-stone-900 rounded-[14px] transition-all cursor-pointer shadow-2xs"
                                                                         title={`Click to select - Compatibility: ${score}%`}
                                                                         type="button"
                                                                     >
