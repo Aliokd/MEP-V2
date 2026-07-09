@@ -636,7 +636,7 @@ export default function PlatformLayout({
                     <div className="relative w-full max-w-full md:w-[80%] md:max-w-[80%] aspect-video bg-white rounded-none md:rounded-[32px] shadow-[0_24px_60px_rgba(0,0,0,0.12)] overflow-hidden flex items-center justify-center border-none md:border md:border-white/40">
                         <video
                             ref={videoRef}
-                            src="/videos/Welcome%20-%20onboarding/Welcome_V3.mov"
+                            src="/videos/Welcome%20-%20onboarding/Welcome_V3.mp4"
                             className="w-full h-full block object-cover bg-white"
                             onClick={togglePlay}
                             onPlay={() => setIsPlaying(true)}

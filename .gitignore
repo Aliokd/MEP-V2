@@ -47,7 +47,6 @@ test-results/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 
-# Large Video Assets
-/public/videos/Welcome - onboarding/
+
 
 

@@ -404,52 +404,6 @@ interface SongNote {
     audioNotes?: AudioNote[];
 }
 
-const songwritingSuggestions: Record<string, string[]> = {
-    "people": ["crowds", "souls", "minds", "nations", "humans", "wanderers"],
-    "love": ["passion", "devotion", "warmth", "fire", "yearning", "grace"],
-    "typing": ["writing", "carving", "tracing", "scribbling", "drafting"],
-    "song": ["melody", "anthem", "hymn", "ballad", "refrain", "verse"],
-    "ocean": ["abyss", "deep", "tide", "blue", "currents", "waves"],
-    "breeze": ["gale", "whisper", "sigh", "wind", "breath", "draft"],
-    "sand": ["shore", "dust", "earth", "grain", "coast", "beach"],
-    "beach": ["shore", "coast", "tide", "coastline", "sands"],
-    "night": ["darkness", "shadow", "gloom", "twilight", "oblivion", "veil"],
-    "light": ["gleam", "glow", "halo", "beam", "radiance"],
-    "heart": ["soul", "core", "breath", "pulse", "spirit"],
-    "music": ["harmony", "sound", "cadence", "chords", "echoes"],
-    "time": ["hours", "seasons", "moments", "infinity", "epochs"],
-    "dream": ["vision", "illusion", "phantom", "fantasy", "shadow"],
-    "eyes": ["gaze", "stare", "sight", "vision", "mirrors"],
-    "sky": ["heaven", "abyss", "vault", "azure", "canopy"],
-    "wind": ["gale", "breeze", "breath", "tempest", "whisper"],
-    "fire": ["flame", "blaze", "ember", "glow", "spark"],
-    "rain": ["shower", "torrent", "tears", "drizzle", "pour"],
-    "dark": ["shadow", "gloom", "night", "obscure", "dim"],
-    "cold": ["chill", "frost", "ice", "bleak", "freezing"],
-    "warm": ["cosy", "mild", "balmy", "tender", "heated"]
-};
-
-const getSuggestions = (word: string): string[] => {
-    const clean = word.toLowerCase().replace(/[^a-z]/g, '');
-    if (songwritingSuggestions[clean]) {
-        return songwritingSuggestions[clean];
-    }
-    if (clean.endsWith('ing')) {
-        return ["flowing", "chasing", "calling", "fading", "glowing"];
-    }
-    if (clean.endsWith('y')) {
-        return ["silent", "empty", "shadowy", "solemn", "glassy"];
-    }
-    if (clean.endsWith('s')) {
-        return ["whispers", "shadows", "echoes", "embers", "tides"];
-    }
-    return [
-        `golden ${clean}`,
-        `faded ${clean}`,
-        `echo of ${clean}`,
-        `whisper of ${clean}`
-    ];
-};
 
 // Visual SVG Folder Illustration Component
 function FolderIllustration({ folderId }: { folderId: string }) {
@@ -1971,9 +1925,6 @@ export default function CreatePage() {
     const [isEditing, setIsEditing] = useState(true);
     const [clickedWord, setClickedWord] = useState<string | null>(null);
     const [clickedTokenIndex, setClickedTokenIndex] = useState<number | null>(null);
-    const [wordMode, setWordMode] = useState<'lexicon' | 'synonyms'>('lexicon');
-    const [wordSynonyms, setWordSynonyms] = useState<string[]>([]);
-    const [isSynonymsLoading, setIsSynonymsLoading] = useState(false);
     const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
     const [draggedPhraseId, setDraggedPhraseId] = useState<string | null>(null);
     const [showCanvasMenu, setShowCanvasMenu] = useState(false);
@@ -2073,33 +2024,7 @@ export default function CreatePage() {
         }
     }, [selectedNoteId, notes, isRecording, recordingTitle, isEditingTitle]);
 
-    // Fetch synonyms for the clickedWord from Datamuse API
-    useEffect(() => {
-        if (!clickedWord) {
-            setWordSynonyms([]);
-            setWordMode('lexicon'); // Reset mode to default
-            return;
-        }
-        let cancelled = false;
-        setIsSynonymsLoading(true);
-        const clean = clickedWord.toLowerCase().replace(/[^a-z]/g, '');
-        (async () => {
-            try {
-                const response = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(clean)}&max=8`);
-                const data = await response.json();
-                if (!cancelled) {
-                    const list = data.map((item: any) => item.word);
-                    setWordSynonyms(list);
-                }
-            } catch (err) {
-                console.error("Synonyms API error:", err);
-                if (!cancelled) setWordSynonyms([]);
-            } finally {
-                if (!cancelled) setIsSynonymsLoading(false);
-            }
-        })();
-        return () => { cancelled = true; };
-    }, [clickedWord]);
+
 
     // Auto-save project title when clicking anywhere outside the canvas header
     useEffect(() => {
@@ -2125,7 +2050,7 @@ export default function CreatePage() {
 
         // Creative Tools Suite State Variables
     const [showToolsPanel, setShowToolsPanel] = useState(false);
-    const [activeToolTab, setActiveToolTab] = useState<'tuner' | 'tempo' | 'lexicon' | 'inspiration' | 'studio'>('tuner');
+    const [activeToolTab, setActiveToolTab] = useState<'tuner' | 'tempo' | 'inspiration' | 'studio'>('tuner');
 
     // Tuner States
     const [tunerActive, setTunerActive] = useState(false);
@@ -3661,10 +3586,21 @@ export default function CreatePage() {
     };
 
     useEffect(() => {
+        if (clickedWord) {
+            const clean = clickedWord.toLowerCase().replace(/[^a-z]/g, '');
+            setLexiconWord(clean);
+            searchRhymeLexicon(clean, lexiconMode);
+        } else {
+            setLexiconWord('');
+            setLexiconResults([]);
+        }
+    }, [clickedWord]);
+
+    useEffect(() => {
         if (lexiconWord.trim()) {
             const delayDebounce = setTimeout(() => {
                 searchRhymeLexicon(lexiconWord, lexiconMode);
-            }, 600);
+            }, 300);
             return () => clearTimeout(delayDebounce);
         } else {
             setLexiconResults([]);
@@ -7425,7 +7361,6 @@ export default function CreatePage() {
                 <div className="w-full">
                     {activeToolTab === 'tuner' && renderGuitarTuner()}
                     {activeToolTab === 'tempo' && renderTapTempo()}
-                    {activeToolTab === 'lexicon' && renderRhymeLexicon()}
                     {activeToolTab === 'studio' && (
                         <div className="flex flex-col items-center justify-center py-12 md:py-16 text-center select-none animate-in fade-in zoom-in-95 duration-200">
                             <span className="text-[20px] sm:text-[24px] font-bold text-stone-700 tracking-tight">Demo Studio</span>
@@ -7457,17 +7392,6 @@ export default function CreatePage() {
                         type="button"
                     >
                         Tap tempo
-                    </button>
-                    <button
-                        onClick={() => setActiveToolTab('lexicon')}
-                        className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
-                            activeToolTab === 'lexicon'
-                                ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
-                                : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
-                        }`}
-                        type="button"
-                    >
-                        Rhyme lexicon
                     </button>
                     <button
                         onClick={() => setActiveToolTab('studio')}
@@ -8695,8 +8619,8 @@ export default function CreatePage() {
                         }} />
                         <div 
                             className={`
-                                bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[24px] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.08)] z-40 flex flex-col gap-5 min-w-[280px] max-w-sm animate-in fade-in zoom-in-95 duration-200
-                                ${isMobile ? 'absolute bottom-4 left-4 right-4 shadow-xl mx-auto' : 'absolute'}
+                                bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[28px] p-8.5 shadow-[0_20px_60px_rgba(0,0,0,0.12)] z-40 flex flex-col gap-7 w-[450px] max-w-[95%] sm:w-[500px] md:w-[560px] animate-in fade-in zoom-in-95 duration-200
+                                ${isMobile ? 'absolute bottom-4 left-4 right-4 shadow-2xl mx-auto' : 'absolute'}
                             `}
                             style={isMobile ? undefined : { 
                                 top: `${popoverPosition.top}px`, 
@@ -8705,87 +8629,118 @@ export default function CreatePage() {
                             }}
                         >
                             {/* Header: Hovered word + compatibility */}
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2.5">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none">Current Word</span>
-                                    <span className="text-[11px] text-stone-500 font-bold">{getCompatibilityScore(clickedWord, contentVal)}% Compatible</span>
+                                    <span className="text-[11.5px] text-stone-400 font-bold uppercase tracking-wider select-none">Current Word</span>
+                                    <span className="text-[13px] text-stone-500 font-extrabold">{getCompatibilityScore(clickedWord, contentVal)}% Compatible</span>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xl font-bold text-stone-850">"{clickedWord}"</span>
-                                    <div className="flex-grow h-2 bg-stone-100 rounded-full overflow-hidden">
+                                <div className="flex items-center gap-3.5">
+                                    <span className="text-2xl font-extrabold text-stone-900">"{clickedWord}"</span>
+                                    <div className="flex-grow h-2.5 bg-stone-100 rounded-full overflow-hidden">
                                         <div className="h-full bg-black rounded-full transition-all duration-500" style={{ width: `${getCompatibilityScore(clickedWord, contentVal)}%` }} />
                                     </div>
                                 </div>
                             </div>
                             
-                            <div className="border-t border-stone-100/80 my-0.5" />
+                            <div className="border-t border-stone-100/80 my-1" />
                             
-                            {/* Segment selector for Lexicon vs Synonyms */}
-                            <div className="flex bg-stone-100/70 p-0.5 rounded-[12px] w-full select-none">
+                            {/* 2-way segment selector for Rhyme Lexicon vs Synonyms */}
+                            <div className="flex bg-stone-100/70 p-1 rounded-[14px] w-full select-none">
                                 <button 
-                                    onClick={() => setWordMode('lexicon')}
-                                    className={`flex-1 text-[11px] font-bold py-1.5 rounded-[10px] transition-all cursor-pointer ${
-                                        wordMode === 'lexicon' 
+                                    onClick={() => setLexiconMode('rhyme')}
+                                    className={`flex-1 text-[13px] font-bold py-2 rounded-[11px] transition-all cursor-pointer ${
+                                        lexiconMode === 'rhyme' 
                                             ? 'bg-white text-stone-850 shadow-xs' 
                                             : 'text-stone-400 hover:text-stone-600'
                                     }`}
+                                    type="button"
                                 >
-                                    Lexicon
+                                    Rhyme Lexicon
                                 </button>
                                 <button 
-                                    onClick={() => setWordMode('synonyms')}
-                                    className={`flex-1 text-[11px] font-bold py-1.5 rounded-[10px] transition-all cursor-pointer ${
-                                        wordMode === 'synonyms' 
+                                    onClick={() => setLexiconMode('synonym')}
+                                    className={`flex-1 text-[13px] font-bold py-2 rounded-[11px] transition-all cursor-pointer ${
+                                        lexiconMode === 'synonym' 
                                             ? 'bg-white text-stone-850 shadow-xs' 
                                             : 'text-stone-400 hover:text-stone-600'
                                     }`}
+                                    type="button"
                                 >
                                     Synonyms
                                 </button>
                             </div>
 
+                            {/* Search input inside the popover to refine query */}
+                            <div className="relative mt-2">
+                                <input
+                                    type="text"
+                                    placeholder="Search word..."
+                                    value={lexiconWord}
+                                    onChange={(e) => setLexiconWord(e.target.value)}
+                                    className="w-full px-5 py-3 bg-stone-50 border border-stone-200 rounded-[16px] text-[15px] font-sans placeholder:text-stone-400 font-semibold focus:outline-none focus:border-stone-400"
+                                />
+                                {lexiconLoading && (
+                                    <div className="absolute right-4 top-3.5 w-5 h-5 border-2 border-stone-400 border-t-transparent rounded-full animate-spin" />
+                                )}
+                            </div>
+
                             {/* Suggestions Alternatives */}
-                            <div className="flex flex-col gap-2.5">
-                                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none">
-                                    {wordMode === 'lexicon' ? 'Elegant Alternatives' : 'Synonyms'}
-                                </span>
-                                
-                                {wordMode === 'synonyms' && isSynonymsLoading ? (
-                                    <div className="flex flex-col items-center justify-center py-6 text-stone-400 gap-2">
-                                        <Loader2 className="w-5 h-5 animate-spin text-stone-400" />
-                                        <span className="text-xs font-medium">Fetching synonyms...</span>
+                            <div className="flex flex-col gap-2 mt-2">
+                                {lexiconLoading && lexiconResults.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-8 text-stone-400 gap-2">
+                                        <Loader2 className="w-6 h-6 animate-spin text-stone-455" />
+                                        <span className="text-xs font-medium">Searching lexicon...</span>
                                     </div>
-                                ) : wordMode === 'synonyms' && wordSynonyms.length === 0 ? (
-                                    <div className="text-center py-6 text-xs font-medium text-stone-400 select-none">
-                                        No synonyms found.
+                                ) : lexiconResults.length === 0 ? (
+                                    <div className="text-center py-8 text-sm font-medium text-stone-400 select-none">
+                                        No suggestions found.
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-1 gap-2 max-h-[190px] overflow-y-auto pr-1">
-                                        {(wordMode === 'lexicon' ? getSuggestions(clickedWord) : wordSynonyms).map((suggestion, idx) => {
-                                            const score = getCompatibilityScore(suggestion, contentVal);
-                                            return (
-                                                <button
-                                                    key={idx}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleSelectSuggestion(suggestion);
-                                                    }}
-                                                    className="group flex items-center justify-between p-3.5 bg-stone-50/50 hover:bg-stone-900 border border-stone-200/50 hover:border-stone-900 rounded-[16px] transition-all cursor-pointer shadow-2xs hover:shadow-sm"
-                                                >
-                                                    <span className="text-[13px] font-bold text-stone-800 group-hover:text-white transition-colors">
-                                                        {suggestion}
-                                                    </span>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-12 h-1 bg-stone-200/70 group-hover:bg-white/20 rounded-full overflow-hidden">
-                                                            <div className="h-full bg-stone-700 group-hover:bg-white rounded-full transition-all duration-300" style={{ width: `${score}%` }} />
-                                                        </div>
-                                                        <span className="text-[10px] font-bold text-stone-500 group-hover:text-white/80 transition-colors w-7 text-right">
-                                                            {score}%
+                                    <div className="flex flex-col gap-4 max-h-[260px] overflow-y-auto pr-1 no-scrollbar">
+                                        {(() => {
+                                            const groupedBySyllables: Record<number, typeof lexiconResults> = {};
+                                            lexiconResults.forEach(item => {
+                                                const syl = item.syllables || 1;
+                                                if (!groupedBySyllables[syl]) groupedBySyllables[syl] = [];
+                                                groupedBySyllables[syl].push(item);
+                                            });
+
+                                            return Object.keys(groupedBySyllables).map(sylKey => {
+                                                const syl = parseInt(sylKey);
+                                                const words = groupedBySyllables[syl];
+                                                return (
+                                                    <div key={syl} className="flex flex-col gap-2">
+                                                        <span className="text-[11px] text-stone-455 font-bold uppercase tracking-wider select-none">
+                                                            {syl} {syl === 1 ? 'Syllable' : 'Syllables'}
                                                         </span>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {words.map((item, idx) => {
+                                                                const score = getCompatibilityScore(item.word, contentVal);
+                                                                return (
+                                                                    <button
+                                                                        key={idx}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleSelectSuggestion(item.word);
+                                                                        }}
+                                                                        className="group flex items-center gap-2 px-4 py-2 bg-stone-50/50 hover:bg-stone-900 border border-stone-200/50 hover:border-stone-900 rounded-[14px] transition-all cursor-pointer shadow-2xs"
+                                                                        title={`Click to select - Compatibility: ${score}%`}
+                                                                        type="button"
+                                                                    >
+                                                                        <span className="text-[14px] font-bold text-stone-850 group-hover:text-white transition-colors">
+                                                                            {item.word}
+                                                                        </span>
+                                                                        <span className="text-[10.5px] font-bold text-stone-400 group-hover:text-white/60 transition-colors">
+                                                                            {score}%
+                                                                        </span>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
                                                     </div>
-                                                </button>
-                                            );
-                                        })}
+                                                );
+                                            });
+                                        })()}
                                     </div>
                                 )}
                             </div>
