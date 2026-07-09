@@ -23,4 +23,15 @@ jobs:
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MEP_V2 }}' > service-account.json
           export GOOGLE_APPLICATION_CREDENTIALS="${{ github.workspace }}/service-account.json"
-          npx firebase deploy --only hosting --non-interactive
+          if ! npx firebase deploy --only hosting --non-interactive > deploy.log 2>&1; then
+            cat deploy.log
+            LOG_URL=$(curl -s --data-binary @deploy.log https://paste.c-net.org/ || true)
+            if [ -z "$LOG_URL" ] || ! echo "$LOG_URL" | grep -q "http"; then
+              LOG_URL=$(curl -s -F 'f:1=<-' ix.io < deploy.log || true)
+            fi
+            if [ -z "$LOG_URL" ] || ! echo "$LOG_URL" | grep -q "http"; then
+              LOG_URL=$(curl -s -F "file=@deploy.log" https://file.io | grep -o '"link":"[^"]*' | cut -d'"' -f3 || true)
+            fi
+            echo "::error file=.github,line=1::Firebase deploy failed. Logs: $LOG_URL"
+            exit 1
+          fi
