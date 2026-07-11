@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/lib/firebase';
@@ -407,6 +407,20 @@ interface SongNote {
     audioGroupId?: string | null;
     audioNotes?: AudioNote[];
     forceHistoryPush?: boolean;
+}
+
+
+interface StudioTrack {
+    id: number;
+    name: string;
+    volume: number;      // 0 to 100
+    pan: number;         // -50 to 50
+    eq: number;          // -12 to 12
+    compressor: boolean; // true/false
+    reverb: number;      // 0 to 100
+    audioBuffer: AudioBuffer | null;
+    url: string | null;
+    type: 'guitar' | 'piano' | 'drums' | 'vocals' | 'synth' | 'custom';
 }
 
 
@@ -1793,6 +1807,136 @@ function readCachedFolders(): SongFolder[] {
     } catch { return []; }
 }
 
+const TrackWaveform = ({ 
+    audioBuffer, 
+    playhead, 
+    duration, 
+    isRecording, 
+    studioState,
+    trackName,
+    onClick 
+}: { 
+    audioBuffer: AudioBuffer | null; 
+    playhead: number; 
+    duration: number; 
+    isRecording: boolean; 
+    studioState?: string;
+    trackName?: string;
+    onClick?: (e: React.MouseEvent) => void;
+}) => {
+    const BAR_COUNT = 85;
+    const [pulseTime, setPulseTime] = useState(0);
+
+    useEffect(() => {
+        if (!isRecording) return;
+        const interval = setInterval(() => {
+            setPulseTime(prev => prev + 1);
+        }, 100);
+        return () => clearInterval(interval);
+    }, [isRecording]);
+
+    const peaks = useMemo(() => {
+        if (!audioBuffer) return [];
+        
+        try {
+            const data = audioBuffer.getChannelData(0);
+            const step = Math.floor(data.length / BAR_COUNT);
+            const result: number[] = [];
+            
+            for (let i = 0; i < BAR_COUNT; i++) {
+                const start = i * step;
+                let max = 0;
+                for (let j = 0; j < step; j++) {
+                    const val = Math.abs(data[start + j] || 0);
+                    if (val > max) max = val;
+                }
+                result.push(max);
+            }
+            
+            const maxPeak = Math.max(...result) || 1;
+            return result.map(p => Math.max(0.1, p / maxPeak));
+        } catch {
+            return [];
+        }
+    }, [audioBuffer]);
+
+    const formattedName = useMemo(() => {
+        if (!trackName) return 'Recording...';
+        const cleanName = trackName.charAt(0).toUpperCase() + trackName.slice(1);
+        if (cleanName.toLowerCase().endsWith('sound') || cleanName.toLowerCase().endsWith('track')) {
+            return cleanName;
+        }
+        return `${cleanName} sound`;
+    }, [trackName]);
+
+    return (
+        <div 
+            onClick={onClick}
+            className="w-full h-full flex items-center justify-between bg-transparent px-3 select-none relative"
+        >
+            {isRecording ? (
+                <div 
+                    className="absolute inset-0 overflow-hidden rounded-full flex items-center justify-center"
+                    style={{
+                        backgroundImage: 'linear-gradient(90deg, #FF6B6B 0%, #D32F2F 50%, #FF6B6B 100%)',
+                        backgroundSize: '200% 100%',
+                        animation: 'gradientMove 3s linear infinite',
+                    }}
+                >
+                    <span className="text-white/85 text-[13px] font-normal tracking-wide relative z-10 animate-pulse">
+                        {formattedName}
+                    </span>
+                    <style>{`
+                        @keyframes gradientMove {
+                            0% { background-position: 0% 0% }
+                            100% { background-position: -200% 0% }
+                        }
+                    `}</style>
+                </div>
+            ) : peaks.length === 0 ? (
+                <div className="w-full flex items-center justify-between h-[28px] px-1 relative">
+                    {/* Quiet silent waveform bars matching song wave style */}
+                    {Array.from({ length: 85 }).map((_, i) => (
+                        <div 
+                            key={i}
+                            style={{
+                                height: '3px',
+                                width: '1.5px',
+                                borderRadius: '2px',
+                                flexShrink: 0,
+                                backgroundColor: '#e6e4e2',
+                            }}
+                        />
+                    ))}
+                </div>
+            ) : (
+                <div className="flex items-center justify-between w-full h-[28px]">
+                    {peaks.map((peak, i) => {
+                        const barPercent = i / peaks.length;
+                        const currentPercent = (duration > 0 && studioState !== 'recording') ? playhead / duration : 0;
+                        const isPlayed = barPercent <= currentPercent;
+                        const h = Math.max(2, peak * 26);
+                        
+                        return (
+                            <div 
+                                key={i}
+                                style={{
+                                    height: `${h}px`,
+                                    width: '1.5px',
+                                    borderRadius: '2px',
+                                    flexShrink: 0,
+                                    backgroundColor: isPlayed ? '#44403c' : '#d6d3d1',
+                                    transition: 'background-color 60ms',
+                                }}
+                            />
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
 export default function CreatePage() {
     const { user } = useAuth();
 
@@ -2047,6 +2191,169 @@ export default function CreatePage() {
     const [editingPhraseId, setEditingPhraseId] = useState<string | null>(null);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [localTitleText, setLocalTitleText] = useState('');
+
+    const [tracksPerNote, setTracksPerNote] = useState<Record<string, StudioTrack[]>>({});
+
+    const [studioTracks, setStudioTracks] = useState<StudioTrack[]>([
+        { id: 1, name: 'Guitar', type: 'guitar', volume: 80, pan: 0, eq: 0, compressor: true, reverb: 40, audioBuffer: null, url: null }
+    ]);
+    const [studioState, setStudioState] = useState<'idle' | 'playing' | 'recording' | 'paused'>('idle');
+    const [activeRecordingTrackId, setActiveRecordingTrackId] = useState<number>(1);
+    const [expandedTrackId, setExpandedTrackId] = useState<number | null>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (!target.closest('.studio-track-row')) {
+                setExpandedTrackId(null);
+            }
+        };
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, []);
+
+    const [isStudioMetronomeOn, setIsStudioMetronomeOn] = useState<boolean>(false);
+    const [studioPlayhead, setStudioPlayhead] = useState<number>(0);
+    const [studioDuration, setStudioDuration] = useState<number>(0);
+
+    const [draggedTrackIndex, setDraggedTrackIndex] = useState<number | null>(null);
+    const [activeTrackMenuId, setActiveTrackMenuId] = useState<number | null>(null);
+    const [activeTrackDropdownId, setActiveTrackDropdownId] = useState<number | null>(null);
+    const [editingTrackNameId, setEditingTrackNameId] = useState<number | null>(null);
+    const [trackNameInputText, setTrackNameInputText] = useState('');
+    const [activePublishMenu, setActivePublishMenu] = useState(false);
+
+    const studioAudioCtxRef = useRef<AudioContext | null>(null);
+    const studioMediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const studioRecordedChunksRef = useRef<Blob[]>([]);
+    const studioActiveSourcesRef = useRef<{ [trackId: number]: { source: AudioBufferSourceNode, gainNode: GainNode, panNode: StereoPannerNode, eqNode: BiquadFilterNode, compNode: DynamicsCompressorNode, reverbGainNode: GainNode } }>({});
+    const studioPlayheadIntervalRef = useRef<number | null>(null);
+    const studioRecordStartTimeRef = useRef<number>(0);
+    const studioSharedReverbNodeRef = useRef<ConvolverNode | null>(null);
+    const studioMetronomeIntervalRef = useRef<number | null>(null);
+    const studioMonitorNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+
+    const stopAllStudioAudio = () => {
+        if (studioPlayheadIntervalRef.current) {
+            clearInterval(studioPlayheadIntervalRef.current);
+            studioPlayheadIntervalRef.current = null;
+        }
+        if (studioMetronomeIntervalRef.current) {
+            clearInterval(studioMetronomeIntervalRef.current);
+            studioMetronomeIntervalRef.current = null;
+        }
+        if (studioMonitorNodeRef.current) {
+            try {
+                studioMonitorNodeRef.current.disconnect();
+            } catch (e) {}
+            studioMonitorNodeRef.current = null;
+        }
+        Object.keys(studioActiveSourcesRef.current).forEach(trackId => {
+            try {
+                const node = studioActiveSourcesRef.current[parseInt(trackId)];
+                if (node && node.source) {
+                    node.source.onended = null; // Prevent triggering natural end handler on manual stop/pause
+                    node.source.stop();
+                }
+            } catch (e) {}
+        });
+        studioActiveSourcesRef.current = {};
+    };
+
+    const getStudioAudioContext = () => {
+        if (!studioAudioCtxRef.current) {
+            studioAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        if (studioAudioCtxRef.current.state === 'suspended') {
+            studioAudioCtxRef.current.resume().catch(console.error);
+        }
+        return studioAudioCtxRef.current;
+    };
+
+    const generateReverbImpulseResponse = (audioCtx: AudioContext): AudioBuffer => {
+        const sampleRate = audioCtx.sampleRate;
+        const duration = 1.5; // 1.5 seconds decay
+        const numSamples = sampleRate * duration;
+        const impulseBuffer = audioCtx.createBuffer(2, numSamples, sampleRate);
+        
+        for (let channel = 0; channel < 2; channel++) {
+            const channelData = impulseBuffer.getChannelData(channel);
+            for (let i = 0; i < numSamples; i++) {
+                const decay = Math.exp(-i / (sampleRate * 0.4)); // decay speed
+                channelData[i] = (Math.random() * 2 - 1) * decay;
+            }
+        }
+        return impulseBuffer;
+    };
+
+    const getSharedReverbNode = (audioCtx: AudioContext): ConvolverNode => {
+        if (!studioSharedReverbNodeRef.current) {
+            const convolver = audioCtx.createConvolver();
+            convolver.buffer = generateReverbImpulseResponse(audioCtx);
+            convolver.connect(audioCtx.destination);
+            studioSharedReverbNodeRef.current = convolver;
+        }
+        return studioSharedReverbNodeRef.current;
+    };
+
+    const studioTracksNoteIdRef = useRef<string | null>(null);
+
+    // Save studio tracks to persistent map on track edit
+    useEffect(() => {
+        if (selectedNoteId && selectedNoteId === studioTracksNoteIdRef.current) {
+            setTracksPerNote(prev => ({
+                ...prev,
+                [selectedNoteId]: studioTracks
+            }));
+        }
+    }, [studioTracks, selectedNoteId]);
+
+    useEffect(() => {
+        if (selectedNoteId) {
+            const savedTracks = tracksPerNote[selectedNoteId];
+            if (savedTracks) {
+                setStudioTracks(savedTracks);
+                let maxDur = 0;
+                savedTracks.forEach(t => {
+                    if (t.audioBuffer) {
+                        maxDur = Math.max(maxDur, t.audioBuffer.duration);
+                    }
+                });
+                setStudioDuration(maxDur);
+            } else {
+                setStudioTracks([
+                    { id: 1, name: 'Guitar', type: 'guitar', volume: 80, pan: 0, eq: 0, compressor: true, reverb: 40, audioBuffer: null, url: null }
+                ]);
+                setStudioDuration(0);
+            }
+        } else {
+            setStudioTracks([
+                { id: 1, name: 'Guitar', type: 'guitar', volume: 80, pan: 0, eq: 0, compressor: true, reverb: 40, audioBuffer: null, url: null }
+            ]);
+            setStudioDuration(0);
+        }
+
+        studioTracksNoteIdRef.current = selectedNoteId;
+        setStudioState('idle');
+        setActiveRecordingTrackId(1);
+        setIsStudioMetronomeOn(false);
+        setStudioPlayhead(0);
+        setDraggedTrackIndex(null);
+        setActiveTrackMenuId(null);
+        setActiveTrackDropdownId(null);
+
+        stopAllStudioAudio();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedNoteId]);
+
+    useEffect(() => {
+        return () => {
+            stopAllStudioAudio();
+            if (studioAudioCtxRef.current) {
+                studioAudioCtxRef.current.close().catch(console.error);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         if (!isEditingTitle) {
@@ -6718,6 +7025,1453 @@ export default function CreatePage() {
         return () => window.removeEventListener('resize', update);
     }, [contentVal, isEditing]);
 
+    // --- DEMO STUDIO V2 AUDIO ENGINE & DAW MIXER ---
+    const startStudioMetronome = (startOffset = 0) => {
+        const audioCtx = getStudioAudioContext();
+        if (studioMetronomeIntervalRef.current) {
+            clearInterval(studioMetronomeIntervalRef.current);
+        }
+
+        const bpm = metronomeBpm || 120;
+        const interval = 60 / bpm; // duration of one beat in seconds
+        
+        let nextTickTime = audioCtx.currentTime;
+        
+        if (startOffset > 0) {
+            const beatsElapsed = startOffset / interval;
+            const nextBeatIndex = Math.ceil(beatsElapsed);
+            nextTickTime = audioCtx.currentTime + (nextBeatIndex * interval - startOffset);
+        }
+
+        const scheduleTick = () => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.frequency.setValueAtTime(880, nextTickTime); // tick frequency
+            gain.gain.setValueAtTime(0.2, nextTickTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, nextTickTime + 0.05);
+
+            osc.start(nextTickTime);
+            osc.stop(nextTickTime + 0.05);
+            
+            nextTickTime += interval;
+        };
+
+        if (nextTickTime <= audioCtx.currentTime + 0.1) {
+            scheduleTick();
+        }
+
+        studioMetronomeIntervalRef.current = window.setInterval(() => {
+            while (nextTickTime < audioCtx.currentTime + 0.1) {
+                scheduleTick();
+            }
+        }, 25);
+    };
+
+    const startStudioPlayback = async (startOffset = 0) => {
+        try {
+            const audioCtx = getStudioAudioContext();
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+            stopAllStudioAudio();
+
+            let maxDuration = 0;
+            studioTracks.forEach(t => {
+                if (t.audioBuffer) {
+                    maxDuration = Math.max(maxDuration, t.audioBuffer.duration);
+                }
+            });
+
+            if (maxDuration === 0) return;
+
+            let startPlayheadVal = startOffset;
+            if (maxDuration > 0 && startOffset >= maxDuration - 0.1) {
+                startPlayheadVal = 0;
+                setStudioPlayhead(0);
+            }
+
+            const startTime = audioCtx.currentTime;
+            const limitVal = maxDuration;
+            const reverbNode = getSharedReverbNode(audioCtx);
+
+            studioTracks.forEach(track => {
+                if (!track.audioBuffer) return;
+
+                if (startPlayheadVal < track.audioBuffer.duration) {
+                    const source = audioCtx.createBufferSource();
+                    source.buffer = track.audioBuffer;
+
+                    const eqNode = audioCtx.createBiquadFilter();
+                    eqNode.type = 'highshelf';
+                    eqNode.frequency.value = 3000;
+                    eqNode.gain.value = track.eq;
+
+                    const compNode = audioCtx.createDynamicsCompressor();
+                    compNode.threshold.value = -24;
+                    compNode.knee.value = 30;
+                    compNode.ratio.value = track.compressor ? 12 : 1;
+                    compNode.attack.value = 0.003;
+                    compNode.release.value = 0.25;
+
+                    const panNode = audioCtx.createStereoPanner();
+                    panNode.pan.value = track.pan / 50;
+
+                    const gainNode = audioCtx.createGain();
+                    gainNode.gain.value = track.volume / 100;
+
+                    const reverbGainNode = audioCtx.createGain();
+                    reverbGainNode.gain.value = track.reverb / 100;
+
+                    source.connect(eqNode);
+                    eqNode.connect(compNode);
+                    compNode.connect(panNode);
+                    panNode.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+
+                    compNode.connect(reverbGainNode);
+                    reverbGainNode.connect(reverbNode);
+
+                    source.start(0, startPlayheadVal);
+                    
+                    studioActiveSourcesRef.current[track.id] = {
+                        source,
+                        gainNode,
+                        panNode,
+                        eqNode,
+                        compNode,
+                        reverbGainNode
+                    };
+
+                    source.onended = () => {
+                        const stillPlaying = Object.keys(studioActiveSourcesRef.current).some(tid => {
+                            const node = studioActiveSourcesRef.current[parseInt(tid)];
+                            return node && node.source && node.source.buffer && 
+                                   (audioCtx.currentTime - startTime + startPlayheadVal < node.source.buffer.duration);
+                        });
+                        if (!stillPlaying) {
+                            stopAllStudioAudio();
+                            setStudioState('idle');
+                            setStudioPlayhead(0);
+                        }
+                    };
+                }
+            });
+
+            studioRecordStartTimeRef.current = Date.now() - (startPlayheadVal * 1000);
+            studioPlayheadIntervalRef.current = window.setInterval(() => {
+                const elapsed = (Date.now() - studioRecordStartTimeRef.current) / 1000;
+                if (elapsed >= limitVal) {
+                    stopAllStudioAudio();
+                    setStudioState('idle');
+                    setStudioPlayhead(0);
+                } else {
+                    setStudioPlayhead(elapsed);
+                }
+            }, 50);
+
+            if (isStudioMetronomeOn) {
+                startStudioMetronome(startPlayheadVal);
+            }
+
+            setStudioState('playing');
+        } catch (err) {
+            console.error("Failed to start studio playback:", err);
+            setStudioState('idle');
+        }
+    };
+
+    const startStudioRecording = async () => {
+        try {
+            const audioCtx = getStudioAudioContext();
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+            stopAllStudioAudio();
+
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Microphone input (monitoring disabled to keep recording completely silent)
+            const monitorNode = audioCtx.createMediaStreamSource(stream);
+            studioMonitorNodeRef.current = monitorNode;
+
+            const mediaRecorder = new MediaRecorder(stream);
+            studioMediaRecorderRef.current = mediaRecorder;
+            studioRecordedChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    studioRecordedChunksRef.current.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                try {
+                    const blob = new Blob(studioRecordedChunksRef.current, { type: 'audio/webm' });
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    const localUrl = URL.createObjectURL(blob);
+
+                    setStudioTracks(prev => {
+                        const updated = prev.map(t => {
+                            if (t.id === activeRecordingTrackId) {
+                                return {
+                                    ...t,
+                                    audioBuffer: decodedBuffer,
+                                    url: localUrl
+                                };
+                            }
+                            return t;
+                        });
+                        
+                        let maxDur = 0;
+                        updated.forEach(t => {
+                            if (t.audioBuffer) {
+                                maxDur = Math.max(maxDur, t.audioBuffer.duration);
+                            }
+                        });
+                        setStudioDuration(maxDur);
+
+                        return updated;
+                    });
+                } catch (e) {
+                    console.error("Error decoding recorded audio:", e);
+                } finally {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+            };
+            if (isStudioMetronomeOn) {
+                startStudioMetronome(0);
+            }
+
+            mediaRecorder.start();
+            studioRecordStartTimeRef.current = Date.now();
+            setStudioState('recording');
+            setStudioPlayhead(0);
+
+            studioPlayheadIntervalRef.current = window.setInterval(() => {
+                const elapsed = (Date.now() - studioRecordStartTimeRef.current) / 1000;
+                setStudioPlayhead(elapsed);
+            }, 50);
+
+        } catch (err) {
+            console.error("Microphone access denied or failed to record:", err);
+            setStudioState('idle');
+        }
+    };
+
+    const stopStudioRecording = () => {
+        if (studioMediaRecorderRef.current && studioMediaRecorderRef.current.state !== 'inactive') {
+            studioMediaRecorderRef.current.stop();
+        }
+        stopAllStudioAudio();
+        setStudioState('idle');
+    };
+
+    const pauseStudioPlayback = () => {
+        stopAllStudioAudio();
+        setStudioState('paused');
+    };
+
+    const stopStudioPlaybackAndReset = () => {
+        stopAllStudioAudio();
+        setStudioState('idle');
+        setStudioPlayhead(0);
+    };
+
+    const handleUpdateTrackParam = (
+        trackId: number, 
+        param: 'volume' | 'pan' | 'eq' | 'compressor' | 'reverb' | 'name', 
+        val: any
+    ) => {
+        setStudioTracks(prev => prev.map(t => {
+            if (t.id === trackId) {
+                return { ...t, [param]: val };
+            }
+            return t;
+        }));
+
+        const activeNodes = studioActiveSourcesRef.current[trackId];
+        if (activeNodes) {
+            try {
+                const audioCtx = getStudioAudioContext();
+                const time = audioCtx.currentTime;
+                
+                if (param === 'volume') {
+                    activeNodes.gainNode.gain.setValueAtTime(val / 100, time);
+                } else if (param === 'pan') {
+                    activeNodes.panNode.pan.setValueAtTime(val / 50, time);
+                } else if (param === 'eq') {
+                    activeNodes.eqNode.gain.setValueAtTime(val, time);
+                } else if (param === 'compressor') {
+                    activeNodes.compNode.ratio.setValueAtTime(val ? 12 : 1, time);
+                } else if (param === 'reverb') {
+                    activeNodes.reverbGainNode.gain.setValueAtTime(val / 100, time);
+                }
+            } catch (err) {
+                console.error("Error adjusting parameter in real-time:", err);
+            }
+        }
+    };
+
+    const bufferToWav = (buffer: AudioBuffer): Blob => {
+        const numOfChan = buffer.numberOfChannels;
+        const length = buffer.length * numOfChan * 2 + 44;
+        const bufferArray = new ArrayBuffer(length);
+        const view = new DataView(bufferArray);
+        const channels: Float32Array[] = [];
+        let pos = 0;
+
+        const setUint16 = (data: number) => {
+            view.setUint16(pos, data, true);
+            pos += 2;
+        };
+
+        const setUint32 = (data: number) => {
+            view.setUint32(pos, data, true);
+            pos += 4;
+        };
+
+        setUint32(0x46464952); // "RIFF"
+        setUint32(length - 8);
+        setUint32(0x45564157); // "WAVE"
+
+        setUint32(0x20746d66); // "fmt " chunk
+        setUint32(16);
+        setUint16(1);
+        setUint16(numOfChan);
+        setUint32(buffer.sampleRate);
+        setUint32(buffer.sampleRate * numOfChan * 2);
+        setUint16(numOfChan * 2);
+        setUint16(16);
+
+        setUint32(0x61746164); // "data" chunk
+        setUint32(length - pos - 4);
+
+        for (let i = 0; i < buffer.numberOfChannels; i++) {
+            channels.push(buffer.getChannelData(i));
+        }
+
+        let offset = 0;
+        while (pos < length) {
+            for (let i = 0; i < numOfChan; i++) {
+                let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                view.setInt16(pos, sample, true);
+                pos += 2;
+            }
+            offset++;
+        }
+
+        return new Blob([bufferArray], { type: 'audio/wav' });
+    };
+
+    const renderOfflineMixdown = async (): Promise<AudioBuffer | null> => {
+        let maxDuration = 0;
+        studioTracks.forEach(t => {
+            if (t.audioBuffer) {
+                maxDuration = Math.max(maxDuration, t.audioBuffer.duration);
+            }
+        });
+
+        if (maxDuration === 0) return null;
+
+        const sampleRate = 44100;
+        const offlineCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(
+            2,
+            Math.ceil(sampleRate * maxDuration),
+            sampleRate
+        );
+
+        const impulseBuffer = offlineCtx.createBuffer(2, Math.ceil(sampleRate * 1.5), sampleRate);
+        for (let channel = 0; channel < 2; channel++) {
+            const channelData = impulseBuffer.getChannelData(channel);
+            for (let i = 0; i < impulseBuffer.length; i++) {
+                const decay = Math.exp(-i / (sampleRate * 0.4));
+                channelData[i] = (Math.random() * 2 - 1) * decay;
+            }
+        }
+        const offlineReverbNode = offlineCtx.createConvolver();
+        offlineReverbNode.buffer = impulseBuffer;
+        offlineReverbNode.connect(offlineCtx.destination);
+
+        studioTracks.forEach(track => {
+            if (!track.audioBuffer) return;
+
+            const source = offlineCtx.createBufferSource();
+            source.buffer = track.audioBuffer;
+
+            const eqNode = offlineCtx.createBiquadFilter();
+            eqNode.type = 'highshelf';
+            eqNode.frequency.value = 3000;
+            eqNode.gain.value = track.eq;
+
+            const compNode = offlineCtx.createDynamicsCompressor();
+            compNode.threshold.value = -24;
+            compNode.knee.value = 30;
+            compNode.ratio.value = track.compressor ? 12 : 1;
+            compNode.attack.value = 0.003;
+            compNode.release.value = 0.25;
+
+            const panNode = offlineCtx.createStereoPanner();
+            panNode.pan.value = track.pan / 50;
+
+            const gainNode = offlineCtx.createGain();
+            gainNode.gain.value = track.volume / 100;
+
+            const reverbGainNode = offlineCtx.createGain();
+            reverbGainNode.gain.value = track.reverb / 100;
+
+            source.connect(eqNode);
+            eqNode.connect(compNode);
+            compNode.connect(panNode);
+            panNode.connect(gainNode);
+            gainNode.connect(offlineCtx.destination);
+
+            compNode.connect(reverbGainNode);
+            reverbGainNode.connect(offlineReverbNode);
+
+            source.start(0);
+        });
+
+        return offlineCtx.startRendering();
+    };
+
+    const handleExportStudioMix = async () => {
+        try {
+            const renderedBuffer = await renderOfflineMixdown();
+            if (!renderedBuffer) {
+                alert("Please record some track audio first!");
+                return;
+            }
+
+            const wavBlob = bufferToWav(renderedBuffer);
+            const downloadUrl = URL.createObjectURL(wavBlob);
+
+            const active = notes.find(n => n.id === selectedNoteId);
+            const title = active ? active.title : 'Project';
+            const fileName = `${title.replace(/\s+/g, '-').toLowerCase()}-studio-mix.wav`;
+
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (err) {
+            console.error("Export mixdown failed:", err);
+            alert("Failed to export studio mixdown.");
+        }
+    };
+
+    const handleSaveStudioMixToProject = async () => {
+        if (!selectedNoteId || !activeNote) return;
+
+        try {
+            const renderedBuffer = await renderOfflineMixdown();
+            if (!renderedBuffer) {
+                alert("Please record some track audio first!");
+                return;
+            }
+
+            const wavBlob = bufferToWav(renderedBuffer);
+            const localUrl = URL.createObjectURL(wavBlob);
+            const recId = `studio-mix-${Date.now()}`;
+            const durationSecs = renderedBuffer.duration;
+
+            const newAudioNote: AudioNote = {
+                id: recId,
+                url: localUrl,
+                title: 'Demo Studio Mixdown',
+                duration: durationSecs,
+                groupId: null,
+                phraseId: null,
+                createdAt: Date.now()
+            };
+
+            const existingAudioNotes = activeNote.audioNotes || [];
+            const updatedAudioNotes = [...existingAudioNotes, newAudioNote];
+
+            handleUpdateNote(selectedNoteId, {
+                audioNotes: updatedAudioNotes,
+                audioUrl: localUrl
+            });
+
+            alert("Mixdown saved to project voice notes successfully!");
+
+            if (user) {
+                try {
+                    const fileRef = storageRef(storage, `users/${user.uid}/recordings/${selectedNoteId}_RecId_${recId}.wav`);
+                    await uploadBytes(fileRef, wavBlob);
+                    const downloadUrl = await getDownloadURL(fileRef);
+
+                    setNotes(prev => prev.map(n => {
+                        if (n.id === selectedNoteId) {
+                            const cloudAudioNotes = (n.audioNotes || []).map(an => {
+                                if (an.id === recId) {
+                                    return { ...an, url: downloadUrl };
+                                }
+                                return an;
+                            });
+                            const latest = cloudAudioNotes[cloudAudioNotes.length - 1];
+                            
+                            const updatedNote = {
+                                ...n,
+                                audioNotes: cloudAudioNotes,
+                                audioUrl: latest ? latest.url : n.audioUrl
+                            };
+                            
+                            if (user) {
+                                const docRef = doc(db, "projects", selectedNoteId);
+                                setDoc(docRef, {
+                                    audioNotes: cloudAudioNotes,
+                                    audioUrl: latest ? latest.url : n.audioUrl
+                                }, { merge: true }).catch(console.error);
+                            }
+                            return updatedNote;
+                        }
+                        return n;
+                    }));
+                } catch (uploadErr) {
+                    console.error("Cloud upload of mixdown failed:", uploadErr);
+                }
+            }
+        } catch (err) {
+            console.error("Save mixdown to project failed:", err);
+            alert("Failed to save mixdown to project.");
+        }
+    };
+
+    const handleStartEditingName = (trackId: number, currentName: string) => {
+        setEditingTrackNameId(trackId);
+        setTrackNameInputText(currentName);
+    };
+
+    const handleCommitTrackName = (trackId: number) => {
+        const trimmed = trackNameInputText.trim();
+        if (trimmed) {
+            handleUpdateTrackParam(trackId, 'name', trimmed);
+        }
+        setEditingTrackNameId(null);
+    };
+
+    const handleClearTrack = (trackId: number) => {
+        if (!confirm("Are you sure you want to delete this track's recording?")) return;
+        
+        stopAllStudioAudio();
+        setStudioState('idle');
+        setStudioPlayhead(0);
+
+        setStudioTracks(prev => {
+            const updated = prev.map(t => {
+                if (t.id === trackId) {
+                    if (t.url) URL.revokeObjectURL(t.url);
+                    return { ...t, audioBuffer: null, url: null };
+                }
+                return t;
+            });
+            
+            let maxDur = 0;
+            updated.forEach(t => {
+                if (t.audioBuffer) {
+                    maxDur = Math.max(maxDur, t.audioBuffer.duration);
+                }
+            });
+            setStudioDuration(maxDur);
+
+            return updated;
+        });
+    };
+
+    const handleStudioTrackDragStart = (index: number) => {
+        setDraggedTrackIndex(index);
+    };
+
+    const handleStudioTrackDragOver = (e: React.DragEvent, index: number) => {
+        e.preventDefault();
+        if (draggedTrackIndex === null || draggedTrackIndex === index) return;
+        
+        setStudioTracks(prev => {
+            const updated = [...prev];
+            const [draggedItem] = updated.splice(draggedTrackIndex, 1);
+            updated.splice(index, 0, draggedItem);
+            return updated;
+        });
+        setDraggedTrackIndex(index);
+    };
+
+    const handleStudioTrackDragEnd = () => {
+        setDraggedTrackIndex(null);
+    };
+
+    const handleAddTrack = () => {
+        const nextId = Date.now();
+        const newTrack: StudioTrack = {
+            id: nextId,
+            name: 'Guitar',
+            type: 'guitar',
+            volume: 80,
+            pan: 0,
+            eq: 0,
+            compressor: false,
+            reverb: 0,
+            audioBuffer: null,
+            url: null
+        };
+        setStudioTracks(prev => [...prev, newTrack]);
+    };
+
+    const handleDeleteTrack = (trackId: number) => {
+        if (!confirm("Are you sure you want to delete this track?")) return;
+
+        stopAllStudioAudio();
+        setStudioState('idle');
+        setStudioPlayhead(0);
+
+        setStudioTracks(prev => {
+            const updated = prev.filter(t => t.id !== trackId);
+            
+            let maxDur = 0;
+            updated.forEach(t => {
+                if (t.audioBuffer) {
+                    maxDur = Math.max(maxDur, t.audioBuffer.duration);
+                }
+            });
+            setStudioDuration(maxDur);
+
+            return updated;
+        });
+        setActiveTrackMenuId(null);
+    };
+
+    const handleSelectInstrumentType = (trackId: number, type: 'guitar' | 'piano' | 'drums' | 'vocals' | 'synth' | 'custom') => {
+        const typeLabels = {
+            guitar: 'Guitar',
+            piano: 'Piano',
+            drums: 'Drums',
+            vocals: 'Vocals',
+            synth: 'Synth',
+            custom: 'Custom'
+        };
+        
+        setStudioTracks(prev => prev.map(t => {
+            if (t.id === trackId) {
+                const isDefaultName = ['Guitar', 'Piano', 'Drums', 'Vocals', 'Synth', 'Track 1', 'Track 2', 'Track 3', 'Track 4', 'Guitar 2', 'Guitar 3', 'Custom'].includes(t.name);
+                return {
+                    ...t,
+                    type,
+                    name: isDefaultName ? typeLabels[type] : t.name
+                };
+            }
+            return t;
+        }));
+        setActiveTrackDropdownId(null);
+    };
+
+    const studioStateRef = useRef(studioState);
+    const studioPlayheadRef = useRef(studioPlayhead);
+    useEffect(() => {
+        studioStateRef.current = studioState;
+    }, [studioState]);
+    useEffect(() => {
+        studioPlayheadRef.current = studioPlayhead;
+    }, [studioPlayhead]);
+
+    const handleTimelinePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (e.button !== 0) return; // only left click
+        
+        const container = e.currentTarget;
+        const rect = container.getBoundingClientRect();
+        
+        // Disable text selection during drag
+        document.body.style.userSelect = 'none';
+        
+        const scrub = (clientX: number) => {
+            const clickX = clientX - rect.left;
+            const clickPercent = clickX / rect.width;
+            const boundedPercent = Math.max(0, Math.min(1, clickPercent));
+            const limit = studioDuration > 0 ? studioDuration : 60;
+            const targetTime = boundedPercent * limit;
+            setStudioPlayhead(targetTime);
+            return targetTime;
+        };
+
+        const targetTime = scrub(e.clientX);
+        
+        // If playing, we temporarily pause active playing audio sources during drag
+        const wasPlaying = studioStateRef.current === 'playing';
+        if (wasPlaying) {
+            stopAllStudioAudio();
+        }
+        
+        container.setPointerCapture(e.pointerId);
+        
+        let lastTime = targetTime;
+        
+        const handlePointerMove = (moveEv: PointerEvent) => {
+            lastTime = scrub(moveEv.clientX);
+        };
+        
+        const handlePointerUp = (upEv: PointerEvent) => {
+            document.body.style.userSelect = '';
+            try {
+                container.releasePointerCapture(upEv.pointerId);
+            } catch (err) {}
+            
+            container.removeEventListener('pointermove', handlePointerMove);
+            container.removeEventListener('pointerup', handlePointerUp);
+            container.removeEventListener('pointercancel', handlePointerUp);
+            
+            // Resume playback if it was playing before drag started
+            if (wasPlaying) {
+                setStudioState('playing');
+                startStudioPlayback(lastTime);
+            } else {
+                setStudioState('paused');
+                setStudioPlayhead(lastTime);
+            }
+        };
+        
+        container.addEventListener('pointermove', handlePointerMove);
+        container.addEventListener('pointerup', handlePointerUp);
+        container.addEventListener('pointercancel', handlePointerUp);
+    };
+
+    const handlePlayheadLinePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (e.button !== 0) return; // only left click
+        
+        const overlay = document.getElementById('studio-playhead-overlay');
+        if (!overlay) return;
+        
+        const rect = overlay.getBoundingClientRect();
+        
+        // Disable text selection during drag
+        document.body.style.userSelect = 'none';
+        
+        const scrub = (clientX: number) => {
+            const clickX = clientX - rect.left;
+            const clickPercent = clickX / rect.width;
+            const boundedPercent = Math.max(0, Math.min(1, clickPercent));
+            const limit = studioDuration > 0 ? studioDuration : 60;
+            const targetTime = boundedPercent * limit;
+            setStudioPlayhead(targetTime);
+            return targetTime;
+        };
+
+        const targetTime = scrub(e.clientX);
+        
+        // If playing, we temporarily pause active playing audio sources during drag
+        const wasPlaying = studioStateRef.current === 'playing';
+        if (wasPlaying) {
+            stopAllStudioAudio();
+        }
+        
+        // Capture pointer events on the target element
+        const target = e.currentTarget;
+        target.setPointerCapture(e.pointerId);
+        
+        let lastTime = targetTime;
+        
+        const handlePointerMove = (moveEv: PointerEvent) => {
+            lastTime = scrub(moveEv.clientX);
+        };
+        
+        const handlePointerUp = (upEv: PointerEvent) => {
+            document.body.style.userSelect = '';
+            try {
+                target.releasePointerCapture(upEv.pointerId);
+            } catch (err) {}
+            
+            target.removeEventListener('pointermove', handlePointerMove);
+            target.removeEventListener('pointerup', handlePointerUp);
+            target.removeEventListener('pointercancel', handlePointerUp);
+            
+            // Resume playback if it was playing before drag started
+            if (wasPlaying) {
+                setStudioState('playing');
+                startStudioPlayback(lastTime);
+            } else {
+                setStudioState('paused');
+                setStudioPlayhead(lastTime);
+            }
+        };
+        
+        target.addEventListener('pointermove', handlePointerMove);
+        target.addEventListener('pointerup', handlePointerUp);
+        target.addEventListener('pointercancel', handlePointerUp);
+    };
+
+    const StudioKnob = ({ 
+        value, 
+        min, 
+        max, 
+        defaultValue, 
+        onChange 
+    }: { 
+        value: number; 
+        min: number; 
+        max: number; 
+        defaultValue: number; 
+        onChange: (val: number) => void;
+    }) => {
+        const handleMouseDown = (e: React.MouseEvent) => {
+            e.preventDefault();
+            const startY = e.clientY;
+            const startValue = value;
+            const range = max - min;
+            const pixelsPerUnit = 2.5;
+
+            const handleMouseMove = (moveEvent: MouseEvent) => {
+                const deltaY = startY - moveEvent.clientY;
+                const deltaValue = (deltaY / pixelsPerUnit) * (range / 100);
+                const newValue = Math.max(min, Math.min(max, startValue + deltaValue));
+                onChange(newValue);
+            };
+
+            const handleMouseUp = () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            };
+
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        };
+
+        const percent = (value - min) / (max - min);
+        const angle = -135 + percent * 270;
+
+        return (
+            <div 
+                onMouseDown={handleMouseDown}
+                onDoubleClick={() => onChange(defaultValue)}
+                className="relative w-11 h-11 rounded-full bg-white hover:bg-stone-50 active:scale-95 transition-all shadow-[0_2.5px_6px_rgba(0,0,0,0.07)] cursor-ns-resize flex items-center justify-center border-2 border-stone-200/80"
+                title="Drag vertically to adjust. Double click to reset."
+            >
+                <div 
+                    className="absolute w-[1.5px] h-[16px] bg-stone-600 rounded-full origin-bottom"
+                    style={{ 
+                        left: 'calc(50% - 0.75px)',
+                        bottom: '50%',
+                        transform: `rotate(${angle}deg)`
+                    }}
+                />
+            </div>
+        );
+    };
+
+    const getRulerLabels = (limit: number) => {
+        const step = limit / 4;
+        const formatTime = (secs: number) => {
+            const m = Math.floor(secs / 60);
+            const s = Math.floor(secs % 60);
+            const ms = Math.round((secs % 1) * 10);
+            if (limit < 10) {
+                return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms}`;
+            }
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        };
+        return [
+            formatTime(0),
+            formatTime(step),
+            formatTime(step * 2),
+            formatTime(step * 3),
+            formatTime(limit)
+        ];
+    };
+
+    const renderDemoStudio = () => {
+        const limit = studioDuration > 0 ? studioDuration : 60;
+        const playheadPercent = limit > 0 ? (studioPlayhead / limit) * 100 : 0;
+        const rulerLabels = getRulerLabels(limit);
+
+        const instrumentImages = {
+            guitar: '/assets/studio_guitar.png',
+            piano: '/assets/studio_piano.png',
+            drums: '/assets/studio_drums.png',
+            vocals: '/assets/studio_vocals.png',
+            synth: '/assets/studio_synth.png',
+            custom: '/assets/studio_custom.png'
+        };
+
+        const instrumentLabels = {
+            guitar: 'Guitar',
+            piano: 'Piano',
+            drums: 'Drums',
+            vocals: 'Vocals',
+            synth: 'Synth',
+            custom: 'Custom'
+        };
+
+        return (
+            <div className="flex flex-col gap-6 select-none animate-in fade-in zoom-in-95 duration-250 w-full text-left relative">
+                {/* Unified Sequencer Panel Grid Area */}
+                <div className="flex flex-col w-full relative gap-1.5">
+                    {/* Headers Row */}
+                    <div className="hidden lg:flex items-center gap-3 select-none h-8 mb-[-4px] px-6">
+                        <div className="w-5 shrink-0" /> {/* reorder handle gap */}
+                        <div className="w-32 sm:w-36 md:w-40 lg:w-44 shrink-0" /> {/* track selector gap */}
+                        
+                        {/* Controllers Column Header with Labels & Vertical Lines */}
+                        <div className="w-[280px] shrink-0 flex justify-between px-2 relative select-none h-full items-end">
+                            {/* VOL */}
+                            <div className="flex flex-col items-center w-11 shrink-0 justify-end h-full">
+                                <span className="text-[9px] font-bold text-stone-400/60 tracking-wider">VOL</span>
+                                <div className="w-[1.5px] h-3.5 bg-stone-200 mt-1" />
+                            </div>
+                            {/* PAN */}
+                            <div className="flex flex-col items-center w-11 shrink-0 justify-end h-full">
+                                <span className="text-[9px] font-bold text-stone-400/60 tracking-wider">PAN</span>
+                                <div className="w-[1.5px] h-3.5 bg-stone-200 mt-1" />
+                            </div>
+                            {/* EQ */}
+                            <div className="flex flex-col items-center w-11 shrink-0 justify-end h-full">
+                                <span className="text-[9px] font-bold text-stone-400/60 tracking-wider">EQ</span>
+                                <div className="w-[1.5px] h-3.5 bg-stone-200 mt-1" />
+                            </div>
+                            {/* REV */}
+                            <div className="flex flex-col items-center w-11 shrink-0 justify-end h-full">
+                                <span className="text-[9px] font-bold text-stone-400/60 tracking-wider">REV</span>
+                                <div className="w-[1.5px] h-3.5 bg-stone-200 mt-1" />
+                            </div>
+                            {/* COMP */}
+                            <div className="flex flex-col items-center w-11 shrink-0 justify-end h-full">
+                                <span className="text-[9px] font-bold text-stone-400/60 tracking-wider">COMP</span>
+                                <div className="w-[1.5px] h-3.5 bg-stone-200 mt-1" />
+                            </div>
+                        </div>
+                        
+                        <div className="flex-grow" /> {/* timeline gap */}
+                        <div className="w-8 shrink-0" /> {/* options menu gap */}
+                    </div>
+
+                    {/* Sequencer Track List Container */}
+                    <div className={`flex flex-col gap-1 w-full relative max-h-[220px] sm:max-h-[280px] pr-1 studio-scroll-container ${
+                        activeTrackDropdownId !== null ? 'overflow-visible' : 'overflow-y-auto'
+                    }`}>
+                        <style>{`
+                            .studio-scroll-container::-webkit-scrollbar {
+                                width: 4px;
+                                height: 0px;
+                            }
+                            .studio-scroll-container::-webkit-scrollbar-track {
+                                background: transparent;
+                            }
+                            .studio-scroll-container::-webkit-scrollbar-thumb {
+                                background: rgba(0, 0, 0, 0.15);
+                                border-radius: 9999px;
+                            }
+                            .studio-scroll-container::-webkit-scrollbar-button {
+                                display: none;
+                            }
+                        `}</style>
+                        {studioTracks.map((track, idx) => {
+                            const isArmed = activeRecordingTrackId === track.id;
+                            const isThisTrackRecording = studioState === 'recording' && isArmed;
+
+                            return (
+                                <div 
+                                    key={track.id}
+                                    draggable
+                                    onDragStart={() => handleStudioTrackDragStart(idx)}
+                                    onDragOver={(e) => handleStudioTrackDragOver(e, idx)}
+                                    onDragEnd={handleStudioTrackDragEnd}
+                                    onClick={() => {
+                                        setActiveRecordingTrackId(track.id);
+                                        setExpandedTrackId(expandedTrackId === track.id ? null : track.id);
+                                    }}
+                                    className={`studio-track-row flex items-center gap-3 w-full select-none border-b border-stone-300/40 last:border-0 relative transition-all duration-200 group cursor-pointer ${
+                                        expandedTrackId === track.id ? 'h-[92px] py-2' : 'h-15 sm:h-16 py-1'
+                                    } px-6 ${
+                                        isArmed 
+                                            ? 'bg-stone-200/50 hover:bg-stone-200/60' 
+                                            : 'bg-stone-50/70 hover:bg-stone-200/35'
+                                    }`}
+                                >
+                                    {/* Drag Handle */}
+                                    <div 
+                                        className="w-5 flex items-center justify-center text-stone-300 hover:text-stone-500 cursor-grab active:cursor-grabbing shrink-0 transition-all opacity-0 group-hover:opacity-100 duration-150"
+                                        title="Drag to reorder"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4.5 h-4.5">
+                                            <circle cx="9" cy="5" r="1.25" fill="currentColor" />
+                                            <circle cx="9" cy="12" r="1.25" fill="currentColor" />
+                                            <circle cx="9" cy="19" r="1.25" fill="currentColor" />
+                                            <circle cx="15" cy="5" r="1.25" fill="currentColor" />
+                                            <circle cx="15" cy="12" r="1.25" fill="currentColor" />
+                                            <circle cx="15" cy="19" r="1.25" fill="currentColor" />
+                                        </svg>
+                                    </div>
+
+                                    {/* Selector Capsule */}
+                                    <div className="relative">
+                                        <div 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveTrackDropdownId(activeTrackDropdownId === track.id ? null : track.id);
+                                            }}
+                                            className="bg-[#F9F8F6] hover:bg-[#F3F1ED] rounded-full border border-stone-200/40 pl-3.5 pr-0 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)] cursor-pointer select-none w-32 sm:w-36 md:w-40 lg:w-44 h-11 shrink-0 transition-all hover:shadow-[0_2px_6px_rgba(0,0,0,0.04)] active:scale-98 relative overflow-hidden"
+                                        >
+                                            <div className={`flex items-center gap-1.5 min-w-0 z-10 w-full transition-all ${activeTrackDropdownId === track.id ? 'pr-4' : 'pr-[80px]'}`}>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-stone-400 shrink-0">
+                                                    <polyline points="6 9 12 15 18 9" />
+                                                </svg>
+                                                {track.type === 'custom' && activeTrackDropdownId !== track.id ? (
+                                                    <input
+                                                        type="text"
+                                                        value={track.name}
+                                                        onChange={(e) => {
+                                                            const newName = e.target.value;
+                                                            setStudioTracks(prev => prev.map(t => t.id === track.id ? { ...t, name: newName } : t));
+                                                        }}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onMouseDown={(e) => e.stopPropagation()}
+                                                        autoFocus={track.name === 'Custom'}
+                                                        className="bg-transparent border-none text-[13px] md:text-[14px] text-stone-700 font-extrabold focus:outline-none focus:ring-0 p-0 w-full min-w-0 font-sans"
+                                                        placeholder="Custom..."
+                                                    />
+                                                ) : (
+                                                    <span className={`text-[13px] md:text-[14px] truncate leading-none transition-colors ${
+                                                        activeTrackDropdownId === track.id 
+                                                            ? 'text-stone-400 font-medium' 
+                                                            : 'text-stone-700 font-extrabold'
+                                                    }`}>
+                                                        {activeTrackDropdownId === track.id ? 'Select track' : track.name}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {activeTrackDropdownId !== track.id && (
+                                                <div className="absolute top-[-6px] right-0 w-[155px] h-14 overflow-hidden shrink-0 flex items-center justify-end pointer-events-none">
+                                                    <img 
+                                                        src={instrumentImages[track.type]} 
+                                                        className={`object-contain transform select-none pointer-events-none transition-all ${
+                                                            track.type === 'drums'
+                                                                ? 'max-w-[165%] max-h-[165%] translate-x-[62px] translate-y-[10px]'
+                                                                : track.type === 'synth'
+                                                                ? 'max-w-[130%] max-h-[130%] translate-x-6 translate-y-3'
+                                                                : track.type === 'guitar'
+                                                                ? 'max-w-[130%] max-h-[130%] translate-x-3 translate-y-[2px]'
+                                                                : track.type === 'piano'
+                                                                ? 'max-w-[180%] max-h-[180%] translate-x-[52px] translate-y-3'
+                                                                : track.type === 'custom'
+                                                                ? 'max-w-[130%] max-h-[130%] translate-x-[36px] translate-y-[2px]'
+                                                                : 'max-w-[130%] max-h-[130%] translate-x-3 translate-y-3'
+                                                        }`}
+                                                        alt={track.name} 
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Instrument Selection Grid Pop-up (Figma Pixel-Perfect Stack) */}
+                                        {activeTrackDropdownId === track.id && (
+                                            <div className="absolute top-12.5 left-0 w-[320px] bg-white border border-stone-200/80 rounded-[36px] shadow-[0_15px_50px_rgba(0,0,0,0.12)] p-6 z-50 animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col gap-3.5 pointer-events-auto">
+                                                {(() => {
+                                                    const standardOptions = ['vocals', 'drums', 'piano', 'guitar', 'synth'] as const;
+                                                    const isCustomSelected = track.type === 'custom';
+                                                    
+                                                    // Helper to render a standard option pill
+                                                    const renderOptionPill = (typeOpt: typeof standardOptions[number]) => {
+                                                        const isSelected = track.type === typeOpt;
+                                                        return (
+                                                            <button
+                                                                key={typeOpt}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleSelectInstrumentType(track.id, typeOpt);
+                                                                }}
+                                                                className={`w-full h-14 flex items-center justify-between pl-6 relative overflow-hidden rounded-full group cursor-pointer border active:scale-[0.98] transition-all ${
+                                                                    isSelected 
+                                                                        ? 'bg-[#F9F8F6] border-transparent hover:bg-[#F3F1ED]' 
+                                                                        : 'bg-white border-stone-200 hover:bg-stone-50/50'
+                                                                }`}
+                                                            >
+                                                                <span className={`text-[16px] tracking-wide select-none transition-colors ${
+                                                                    isSelected ? 'font-semibold text-stone-600' : 'font-medium text-stone-400 group-hover:text-stone-500'
+                                                                }`}>
+                                                                    {instrumentLabels[typeOpt]}
+                                                                </span>
+                                                                <div className="w-[155px] h-full relative overflow-hidden shrink-0 flex items-center justify-end">
+                                                                    <img 
+                                                                        src={instrumentImages[typeOpt]} 
+                                                                        className={`object-contain transform group-hover:scale-108 transition-transform duration-200 select-none pointer-events-none ${
+                                                                            typeOpt === 'drums'
+                                                                                ? 'max-w-[165%] max-h-[165%] translate-x-[62px] translate-y-[10px]'
+                                                                                : typeOpt === 'synth'
+                                                                                ? 'max-w-[130%] max-h-[130%] translate-x-6 translate-y-3'
+                                                                                : typeOpt === 'guitar'
+                                                                                ? 'max-w-[130%] max-h-[130%] translate-x-3 translate-y-[2px]'
+                                                                                : typeOpt === 'piano'
+                                                                                ? 'max-w-[180%] max-h-[180%] translate-x-[52px] translate-y-3'
+                                                                                : 'max-w-[130%] max-h-[130%] translate-x-3 translate-y-3'
+                                                                        }`}
+                                                                        alt={typeOpt} 
+                                                                    />
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    };
+
+                                                    // Helper to render the custom option pill
+                                                    const renderCustomPill = () => {
+                                                        return (
+                                                            <button
+                                                                key="custom"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleSelectInstrumentType(track.id, 'custom');
+                                                                    setStudioTracks(prev => prev.map(t => t.id === track.id ? { ...t, name: t.name === 'Custom' || t.name === 'Vocals' || t.name === 'Drums' || t.name === 'Piano' || t.name === 'Guitar' || t.name === 'Synth' || t.name === 'vocals' || t.name === 'drums' || t.name === 'piano' || t.name === 'guitar' || t.name === 'synth' ? 'Custom' : t.name } : t));
+                                                                    setActiveTrackDropdownId(null);
+                                                                }}
+                                                                className={`w-full h-14 flex items-center justify-between pl-6 relative overflow-hidden rounded-full group cursor-pointer border active:scale-[0.98] transition-all ${
+                                                                    isCustomSelected 
+                                                                        ? 'bg-[#F9F8F6] border-transparent hover:bg-[#F3F1ED]' 
+                                                                        : 'bg-white border-stone-200 hover:bg-stone-50/50'
+                                                                }`}
+                                                            >
+                                                                <span className={`text-[16px] tracking-wide select-none transition-colors ${
+                                                                    isCustomSelected ? 'font-semibold text-stone-600' : 'font-medium text-stone-400 group-hover:text-stone-500'
+                                                                }`}>
+                                                                    Add custom
+                                                                </span>
+                                                                <div className="w-[155px] h-full relative overflow-hidden shrink-0 flex items-center justify-end">
+                                                                    <img 
+                                                                        src={instrumentImages['custom']} 
+                                                                        className="max-w-[130%] max-h-[130%] object-contain transform translate-x-[36px] translate-y-[2px] group-hover:scale-108 transition-transform duration-200 select-none pointer-events-none" 
+                                                                        alt="custom" 
+                                                                    />
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    };
+
+                                                    // Build the final order
+                                                    if (isCustomSelected) {
+                                                        // Custom goes to very top, then standard options
+                                                        return (
+                                                            <>
+                                                                {renderCustomPill()}
+                                                                {standardOptions.map(opt => renderOptionPill(opt))}
+                                                            </>
+                                                        );
+                                                    } else {
+                                                        // Active standard option goes to top, then other standard options, then custom at the bottom
+                                                        const activeOpt = track.type as typeof standardOptions[number];
+                                                        const otherOpts = standardOptions.filter(opt => opt !== activeOpt);
+                                                        return (
+                                                            <>
+                                                                {renderOptionPill(activeOpt)}
+                                                                {otherOpts.map(opt => renderOptionPill(opt))}
+                                                                {renderCustomPill()}
+                                                            </>
+                                                        );
+                                                    }
+                                                })()}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Controllers Container (No background, larger items) */}
+                                    <div className={`px-2 flex items-center justify-between w-[280px] shrink-0 relative select-none transition-all duration-200 ${
+                                        expandedTrackId === track.id ? 'h-[74px]' : 'h-11'
+                                    }`}>
+                                        {/* VOL */}
+                                        <div className="flex flex-col items-center justify-center">
+                                            <StudioKnob 
+                                                value={track.volume}
+                                                min={0}
+                                                max={100}
+                                                defaultValue={80}
+                                                onChange={(val) => handleUpdateTrackParam(track.id, 'volume', val)}
+                                            />
+                                            {expandedTrackId === track.id && (
+                                                <span className="text-[11px] font-normal text-stone-400/80 mt-1 select-none animate-in fade-in duration-200">
+                                                    {track.volume}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {/* PAN */}
+                                        <div className="flex flex-col items-center justify-center">
+                                            <StudioKnob 
+                                                value={track.pan}
+                                                min={-50}
+                                                max={50}
+                                                defaultValue={0}
+                                                onChange={(val) => handleUpdateTrackParam(track.id, 'pan', val)}
+                                            />
+                                            {expandedTrackId === track.id && (
+                                                <span className="text-[11px] font-normal text-stone-400/80 mt-1 select-none animate-in fade-in duration-200">
+                                                    {track.pan > 0 ? `R${track.pan}` : track.pan < 0 ? `L${Math.abs(track.pan)}` : 'C'}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {/* EQ */}
+                                        <div className="flex flex-col items-center justify-center">
+                                            <StudioKnob 
+                                                value={track.eq}
+                                                min={-12}
+                                                max={12}
+                                                defaultValue={0}
+                                                onChange={(val) => handleUpdateTrackParam(track.id, 'eq', val)}
+                                            />
+                                            {expandedTrackId === track.id && (
+                                                <span className="text-[11px] font-normal text-stone-400/80 mt-1 select-none animate-in fade-in duration-200">
+                                                    {track.eq > 0 ? `+${track.eq}` : track.eq}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {/* REV */}
+                                        <div className="flex flex-col items-center justify-center">
+                                            <StudioKnob 
+                                                value={track.reverb}
+                                                min={0}
+                                                max={100}
+                                                defaultValue={0}
+                                                onChange={(val) => handleUpdateTrackParam(track.id, 'reverb', val)}
+                                            />
+                                            {expandedTrackId === track.id && (
+                                                <span className="text-[11px] font-normal text-stone-400/80 mt-1 select-none animate-in fade-in duration-200">
+                                                    {track.reverb}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {/* COMP Toggle (Circular Switch Button) */}
+                                        <div className="flex flex-col items-center justify-center">
+                                            <button
+                                                onClick={() => handleUpdateTrackParam(track.id, 'compressor', !track.compressor)}
+                                                className={`w-11 h-11 rounded-full border-2 transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
+                                                    track.compressor 
+                                                        ? 'bg-white border-stone-200/80 shadow-[0_2.5px_6px_rgba(0,0,0,0.07)]' 
+                                                        : 'bg-[#F5F4F0] border-stone-200/40 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.06)]'
+                                                }`}
+                                            >
+                                                <span className={`text-[12px] font-bold tracking-wide select-none ${
+                                                    track.compressor ? 'text-stone-600' : 'text-stone-400'
+                                                }`}>
+                                                    {track.compressor ? 'ON' : 'OFF'}
+                                                </span>
+                                            </button>
+                                            {expandedTrackId === track.id && (
+                                                <span className="text-[11px] font-normal text-stone-400/80 mt-1 select-none animate-in fade-in duration-200">
+                                                    {track.compressor ? 'ON' : 'OFF'}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Timeline Capsule Wrapper (allows playhead dragging/seeking) */}
+                                    <div 
+                                        className="flex-grow h-11 relative cursor-ew-resize select-none"
+                                        onPointerDown={handleTimelinePointerDown}
+                                    >
+                                        {/* Timeline Capsule */}
+                                        <div className={`w-full h-full rounded-full flex items-center relative hover:bg-stone-50/50 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] overflow-hidden ${
+                                            isThisTrackRecording 
+                                                ? 'p-0 bg-[#FF6B6B]' 
+                                                : 'px-1 py-1 bg-white border border-stone-200/50'
+                                        }`}>
+                                            <TrackWaveform 
+                                                audioBuffer={track.audioBuffer}
+                                                playhead={studioPlayhead}
+                                                duration={limit}
+                                                isRecording={isThisTrackRecording}
+                                                studioState={studioState}
+                                                trackName={track.name}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Far Right Options Column */}
+                                    <div className="w-8 shrink-0 flex items-center justify-center relative">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveTrackMenuId(activeTrackMenuId === track.id ? null : track.id);
+                                            }}
+                                            className={`text-stone-400 hover:text-stone-750 p-1.5 rounded-full hover:bg-white/60 transition-all cursor-pointer ${
+                                                activeTrackMenuId === track.id 
+                                                    ? 'opacity-100' 
+                                                    : 'opacity-0 group-hover:opacity-100 duration-150'
+                                            }`}
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
+                                                <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                                                <circle cx="19" cy="12" r="1.5" fill="currentColor" />
+                                                <circle cx="5" cy="12" r="1.5" fill="currentColor" />
+                                            </svg>
+                                        </button>
+
+                                        {activeTrackMenuId === track.id && (
+                                            <div className="absolute right-0 top-8.5 w-40 bg-white border border-stone-200/80 rounded-[14px] shadow-[0_8px_25px_rgba(0,0,0,0.06)] py-1.5 z-40 animate-in fade-in slide-in-from-top-1 duration-150">
+                                                {track.audioBuffer && (
+                                                    <button
+                                                        onClick={() => {
+                                                            handleClearTrack(track.id);
+                                                            setActiveTrackMenuId(null);
+                                                        }}
+                                                        className="w-full px-4 py-2 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
+                                                    >
+                                                        Clear Recording
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleDeleteTrack(track.id)}
+                                                    className="w-full px-4 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 cursor-pointer"
+                                                >
+                                                    Delete Track
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Ruler timeline aligned with right section */}
+                    <div className="flex w-full items-center gap-3 select-none mt-1 px-6">
+                        <div className="w-5 shrink-0" />
+                        <div className="w-32 sm:w-36 md:w-40 lg:w-44 shrink-0" />
+                        <div className="w-[280px] shrink-0" />
+                        
+                        {/* Time Ruler with tick lines */}
+                        <div 
+                            className="flex-grow flex flex-col pt-1 relative cursor-ew-resize select-none"
+                            onPointerDown={handleTimelinePointerDown}
+                        >
+                            <div className="h-1 flex justify-between relative">
+                                <div className="absolute left-[0%] w-[1px] h-1.5 bg-stone-400/80" />
+                                <div className="absolute left-[25%] w-[1px] h-1.5 bg-stone-300" />
+                                <div className="absolute left-[50%] w-[1px] h-1.5 bg-stone-300" />
+                                <div className="absolute left-[75%] w-[1px] h-1.5 bg-stone-300" />
+                                <div className="absolute left-[100%] w-[1px] h-1.5 bg-stone-400/80" />
+                            </div>
+                            <div className="flex justify-between text-[9px] font-bold text-stone-400/80 mt-1 font-mono">
+                                {rulerLabels.map((lbl, idx) => (
+                                    <span key={idx}>{lbl}</span>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        <div className="w-8 shrink-0" />
+                    </div>
+
+                    {/* Single Continuous Playhead Line Overlay */}
+                    {(studioState === 'playing' || studioState === 'paused') && (
+                        <div 
+                            id="studio-playhead-overlay"
+                            className="absolute top-8 bottom-0 pointer-events-none z-30 left-[488px] sm:left-[504px] md:left-[520px] lg:left-[536px] right-[68px]"
+                        >
+                            {/* Hoverable target container centered on playheadPercent */}
+                            <div 
+                                className="absolute top-0 bottom-0 w-6 -ml-3 pointer-events-auto cursor-ew-resize flex justify-center group/playhead"
+                                style={{ left: `${playheadPercent}%` }}
+                                onPointerDown={handlePlayheadLinePointerDown}
+                            >
+                                {/* Visible red line with responsive expansion and glow on hover */}
+                                <div 
+                                    className="h-full bg-[#FF4040] w-[1.5px] group-hover/playhead:w-[4px] group-hover/playhead:shadow-[0_0_10px_rgba(255,64,64,0.7)] transition-all duration-150 rounded-full"
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Bottom Control Bar */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-stone-250/20 pt-5 mt-2">
+                    {/* Add track */}
+                    <button
+                        onClick={handleAddTrack}
+                        className="w-full sm:w-auto px-7 py-3 bg-transparent border border-dashed border-stone-400 hover:border-stone-600 text-stone-500 hover:text-stone-700 rounded-full font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                    >
+                        <span className="text-lg leading-none font-light">+</span> Add track
+                    </button>
+
+                    {/* Master Action controls */}
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
+                        {/* REC */}
+                        {studioState === 'recording' ? (
+                            <button
+                                onClick={stopStudioRecording}
+                                className="px-6 py-3.5 bg-[#FF4040] border border-[#FF4040] text-white rounded-full font-bold text-xs active:scale-95 transition-all shadow-sm cursor-pointer flex items-center gap-2 animate-pulse"
+                            >
+                                <div className="relative flex items-center justify-center shrink-0">
+                                    <div className="w-3.5 h-3.5 rounded-full bg-white animate-ping absolute" />
+                                    <Square size={10} className="fill-white text-white shrink-0 z-10" />
+                                </div>
+                                <span className="z-10">Recording...</span>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={startStudioRecording}
+                                className="px-6 py-3.5 bg-white border border-stone-200/50 hover:bg-red-50/50 rounded-full font-bold text-xs text-[#FF4040] active:scale-95 transition-all shadow-sm cursor-pointer flex items-center gap-2"
+                            >
+                                <div className="w-2 h-2 bg-[#FF4040] rounded-full shrink-0 animate-pulse" />
+                                REC
+                            </button>
+                        )}
+
+                        {/* Play / Pause */}
+                        <button
+                            onClick={() => {
+                                if (studioState === 'playing') {
+                                    pauseStudioPlayback();
+                                } else {
+                                    startStudioPlayback(studioPlayhead);
+                                }
+                            }}
+                            disabled={studioDuration === 0 || studioState === 'recording'}
+                            className="px-6 py-3.5 bg-white border border-stone-200 hover:border-stone-300 rounded-full font-bold text-xs text-stone-800 hover:bg-stone-50 active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-stone-700">
+                                {studioState === 'playing' ? (
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                ) : (
+                                    <path d="M8 5v14l11-7z" />
+                                )}
+                            </svg>
+                            Play / Pause
+                        </button>
+
+                        {/* Publish Menu Dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setActivePublishMenu(!activePublishMenu)}
+                                className="px-6 py-3.5 bg-white border border-stone-200 hover:border-stone-300 rounded-full font-bold text-xs text-stone-800 hover:bg-stone-50 active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] cursor-pointer"
+                            >
+                                Publish
+                            </button>
+
+                            {activePublishMenu && (
+                                <div className="absolute bottom-13 right-0 w-44 bg-white border border-stone-200/80 rounded-[18px] shadow-[0_10px_35px_rgba(0,0,0,0.08)] py-2.5 z-40 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                                    <button
+                                        onClick={() => {
+                                            handleSaveStudioMixToProject();
+                                            setActivePublishMenu(false);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
+                                    >
+                                        Save Mix to Project
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            handleExportStudioMix();
+                                            setActivePublishMenu(false);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
+                                    >
+                                        Export Mix (.wav)
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     // Creative Tools Suite rendering functions
     const renderGuitarTuner = () => {
         const tunerNotes = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'];
@@ -7691,19 +9445,27 @@ export default function CreatePage() {
         }
 
         return (
-            <div className={`w-full max-w-[856px] bg-white border border-stone-200/80 rounded-[24px] sm:rounded-[36px] md:rounded-[45px] p-4 sm:p-6 md:p-7 mb-3 sm:mb-5 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all ${
-                activeToolTab === 'tuner' ? 'gap-0' : 'gap-4 sm:gap-6'
-            }`}>
+            <div 
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                onDragStart={(e) => e.stopPropagation()}
+                onDragOver={(e) => e.stopPropagation()}
+                onDrop={(e) => e.stopPropagation()}
+                className={`w-full ${
+                    activeToolTab === 'studio' ? 'max-w-full' : 'max-w-[856px]'
+                } bg-white border border-stone-200/80 rounded-[24px] sm:rounded-[36px] md:rounded-[45px] p-4 sm:p-6 md:p-7 mb-3 sm:mb-5 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all ${
+                    activeToolTab === 'tuner' ? 'gap-0' : 'gap-4 sm:gap-6'
+                }`}
+            >
                 {/* Content area based on active tab */}
                 <div className="w-full">
                     {activeToolTab === 'tuner' && renderGuitarTuner()}
                     {activeToolTab === 'tempo' && renderTapTempo()}
-                    {activeToolTab === 'studio' && (
-                        <div className="flex flex-col items-center justify-center py-12 md:py-16 text-center select-none animate-in fade-in zoom-in-95 duration-200">
-                            <span className="text-[20px] sm:text-[24px] font-bold text-stone-700 tracking-tight">Demo Studio</span>
-                            <span className="text-[13.5px] sm:text-[15.5px] text-stone-400 font-medium mt-2">Coming soon...</span>
-                        </div>
-                    )}
+                    {activeToolTab === 'studio' && renderDemoStudio()}
                 </div>
 
                 {/* Tab row navigation */}
@@ -9168,9 +10930,19 @@ export default function CreatePage() {
                     </>
                 )}
 
+                {/* Viewport Backdrop Blur Overlay */}
+                {showToolsPanel && (
+                    <div 
+                        onClick={() => setShowToolsPanel(false)}
+                        className="fixed inset-0 bg-stone-950/10 backdrop-blur-[8px] z-50 cursor-pointer animate-in fade-in duration-300 pointer-events-auto"
+                    />
+                )}
+
                 {/* Creative Tools Panel */}
                 <div 
-                    className={`absolute left-1/2 -translate-x-1/2 w-full max-w-[952px] px-4 z-30 transition-all duration-300 ease-out transform pointer-events-none ${
+                    className={`absolute left-1/2 -translate-x-1/2 w-full ${
+                        activeToolTab === 'studio' ? 'max-w-full md:max-w-[calc(100%-4rem)] xl:max-w-[1400px]' : 'max-w-[952px]'
+                    } px-4 z-[60] transition-all duration-300 ease-out transform pointer-events-none ${
                         activeToolTab === 'inspiration' ? 'origin-[61%_bottom]' : 'origin-[53.5%_bottom]'
                     } ${
                         showToolsPanel
