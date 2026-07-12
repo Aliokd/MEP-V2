@@ -7961,11 +7961,7 @@ export default function CreatePage() {
             for (let i = 0; i < totalSlots; i++) {
                 if (i % 4 === 0) {
                     const sec = i / 4;
-                    let val = `${sec}s`;
-                    if (sec === 0) val = "0";
-                    else if (sec === 1) val = "1 second";
-                    else val = `${sec} seconds`;
-                    items.push({ type: 'label', value: val });
+                    items.push({ type: 'label', value: `${sec}` });
                 } else {
                     items.push({ type: 'tick' });
                 }
@@ -7976,11 +7972,7 @@ export default function CreatePage() {
             for (let i = 0; i < totalSlots; i++) {
                 if (i % 2 === 0) {
                     const sec = i / 2;
-                    let val = `${sec}s`;
-                    if (sec === 0) val = "0";
-                    else if (sec === 1) val = "1 second";
-                    else val = `${sec} seconds`;
-                    items.push({ type: 'label', value: val });
+                    items.push({ type: 'label', value: `${sec}` });
                 } else {
                     items.push({ type: 'tick' });
                 }
