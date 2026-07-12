@@ -8350,11 +8350,9 @@ export default function CreatePage() {
                                                 e.stopPropagation();
                                                 setActiveTrackMenuId(activeTrackMenuId === track.id ? null : track.id);
                                             }}
-                                            className={`text-stone-400 hover:text-stone-750 p-1.5 rounded-full hover:bg-white/60 transition-all cursor-pointer ${
-                                                activeTrackMenuId === track.id 
-                                                    ? 'opacity-100' 
-                                                    : 'opacity-0 group-hover:opacity-100 duration-150'
-                                            }`}
+                                            className="w-8 h-8 rounded-full bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750 flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 z-20 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+                                            type="button"
+                                            title="Track Options"
                                         >
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
                                                 <circle cx="12" cy="12" r="1.5" fill="currentColor" />
@@ -8364,21 +8362,14 @@ export default function CreatePage() {
                                         </button>
 
                                         {activeTrackMenuId === track.id && (
-                                            <div className="absolute right-0 top-8.5 w-40 bg-white border border-stone-200/80 rounded-[14px] shadow-[0_8px_25px_rgba(0,0,0,0.06)] py-1.5 z-40 animate-in fade-in slide-in-from-top-1 duration-150">
-                                                {track.audioBuffer && (
-                                                    <button
-                                                        onClick={() => {
-                                                            handleClearTrack(track.id);
-                                                            setActiveTrackMenuId(null);
-                                                        }}
-                                                        className="w-full px-4 py-2 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
-                                                    >
-                                                        Clear Recording
-                                                    </button>
-                                                )}
+                                            <div className="absolute right-0 top-9 w-32 bg-white border border-stone-200/80 rounded-[14px] shadow-[0_8px_25px_rgba(0,0,0,0.06)] p-1 z-40 animate-in fade-in slide-in-from-top-1 duration-150 pointer-events-auto">
                                                 <button
-                                                    onClick={() => handleDeleteTrack(track.id)}
-                                                    className="w-full px-4 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 cursor-pointer"
+                                                    onClick={() => {
+                                                        handleDeleteTrack(track.id);
+                                                        setActiveTrackMenuId(null);
+                                                    }}
+                                                    className="w-full px-3 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-650 rounded-[10px] cursor-pointer active:scale-[0.98] transition-all"
+                                                    type="button"
                                                 >
                                                     Delete Track
                                                 </button>
