@@ -8418,26 +8418,27 @@ export default function CreatePage() {
                         )}
                     </div>
 
-                    {/* Single Continuous Playhead Line Overlay */}
-                    {(studioState === 'playing' || studioState === 'paused') && (
-                        <div 
-                            id="studio-playhead-overlay"
-                            className="absolute top-8 bottom-0 pointer-events-none z-30 left-[488px] sm:left-[504px] md:left-[520px] lg:left-[536px] right-[68px]"
-                        >
-                            {/* Hoverable target container centered on playheadPercent */}
-                            <div 
-                                className="absolute top-0 bottom-0 w-6 -ml-3 pointer-events-auto cursor-ew-resize flex justify-center group/playhead"
-                                style={{ left: `${playheadPercent}%` }}
-                                onPointerDown={handlePlayheadLinePointerDown}
-                            >
-                                {/* Visible red line with responsive expansion and glow on hover */}
-                                <div 
-                                    className="h-full bg-[#FF4040] w-[1.5px] group-hover/playhead:w-[4px] group-hover/playhead:shadow-[0_0_10px_rgba(255,64,64,0.7)] transition-all duration-150 rounded-full"
-                                />
-                            </div>
-                        </div>
-                    )}
                 </div>
+
+                {/* Single Continuous Playhead Line Overlay */}
+                {studioState !== 'recording' && (
+                    <div 
+                        id="studio-playhead-overlay"
+                        className="absolute top-8 bottom-[76px] pointer-events-none z-30 left-[488px] sm:left-[504px] md:left-[520px] lg:left-[536px] right-[68px]"
+                    >
+                        {/* Hoverable target container centered on playheadPercent */}
+                        <div 
+                            className="absolute top-0 bottom-0 w-6 -ml-3 pointer-events-auto cursor-ew-resize flex justify-center group/playhead"
+                            style={{ left: `${playheadPercent}%` }}
+                            onPointerDown={handlePlayheadLinePointerDown}
+                        >
+                            {/* Visible red line with responsive expansion and glow on hover */}
+                            <div 
+                                className="h-full bg-[#FF4040] w-[1.5px] group-hover/playhead:w-[4px] group-hover/playhead:shadow-[0_0_10px_rgba(255,64,64,0.7)] transition-all duration-150 rounded-full"
+                            />
+                        </div>
+                    </div>
+                )}
 
                 {/* Bottom Control Bar */}
                 <div className="flex flex-col gap-3 border-t border-stone-250/20 pt-4 mt-2 w-full">
@@ -8509,24 +8510,24 @@ export default function CreatePage() {
                         </div>
 
                         {/* Right side: Timeline Seeker Capsule containing the actual time ruler */}
-                        <div className="flex-grow flex items-center relative h-8.5 rounded-full bg-stone-100/60 border border-white shadow-[inset_0_1.5px_3.5px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.05)] overflow-hidden">
+                        <div className="flex-grow flex items-center relative h-8.5 rounded-full bg-stone-100/70 border border-stone-250/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
                             {/* Time Ruler with tick lines inside capsule */}
                             <div 
                                 className="w-full h-full flex flex-col justify-center relative cursor-ew-resize select-none"
                                 onPointerDown={handleTimelinePointerDown}
                             >
                                 {/* Ticks overlay */}
-                                <div className="absolute inset-x-6 inset-y-0 flex justify-between items-center pointer-events-none opacity-20">
+                                <div className="absolute inset-x-6 inset-y-0 flex justify-between items-center pointer-events-none opacity-40">
                                     {Array.from({ length: limit <= 5 ? Math.floor(limit) * 4 + 1 : (limit <= 10 ? Math.floor(limit) * 2 + 1 : 17) }).map((_, i) => (
                                         <div 
                                             key={i} 
-                                            className={`w-[1px] bg-stone-500 ${i % 4 === 0 ? 'h-3.5' : 'h-2'}`} 
+                                            className={`w-[1px] bg-stone-400 ${i % 4 === 0 ? 'h-3.5' : 'h-2'}`} 
                                         />
                                     ))}
                                 </div>
 
                                 {/* Time Labels */}
-                                <div className="absolute inset-x-6 flex justify-between text-[9px] font-bold text-stone-400/85 font-mono select-none pointer-events-none">
+                                <div className="absolute inset-x-6 flex justify-between text-[10px] font-sans font-extrabold text-stone-500 select-none pointer-events-none">
                                     {rulerLabels.map((lbl, idx) => (
                                         <span key={idx}>{lbl}</span>
                                     ))}
