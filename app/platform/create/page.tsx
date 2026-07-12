@@ -10127,7 +10127,9 @@ export default function CreatePage() {
                                         return (
                                             <div 
                                                 key={blockId || `block-${bIdx}`}
-                                                className="block-wrapper w-full relative"
+                                                className={`block-wrapper w-full relative ${
+                                                    block.type === 'group' ? 'my-8' : 'my-2.5'
+                                                }`}
                                                 data-block-id={blockId}
                                                 onDragOver={(e) => {
                                                     const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
@@ -10338,7 +10340,7 @@ export default function CreatePage() {
                                                                     e.stopPropagation();
                                                                     handleAddNewPhrase(block.groupId);
                                                                 }}
-                                                                className={`verse-group-container border border-dashed rounded-[20px] p-8 pt-10 relative flex flex-col gap-2 min-h-[100px] transition-all duration-300 cursor-grab active:cursor-grabbing group/verse-group mb-6 last:mb-0 ${
+                                                                className={`verse-group-container border border-dashed rounded-[20px] p-8 pt-12 pb-8 relative flex flex-col gap-3.5 min-h-[110px] transition-all duration-300 cursor-grab active:cursor-grabbing group/verse-group ${
                                                                     isDragOverThisGroup 
                                                                         ? 'border-black bg-stone-100/50 shadow-[0_4px_20px_rgba(0,0,0,0.03)] scale-[1.005]' 
                                                                         : 'border-stone-300/85 bg-stone-50/20 hover:border-stone-400'
