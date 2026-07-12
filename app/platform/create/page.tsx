@@ -8219,27 +8219,14 @@ export default function CreatePage() {
                                                         );
                                                     };
 
-                                                    // Build the final order
-                                                    if (isCustomSelected) {
-                                                        // Custom goes to very top, then standard options
-                                                        return (
-                                                            <>
-                                                                {renderCustomPill()}
-                                                                {standardOptions.map(opt => renderOptionPill(opt))}
-                                                            </>
-                                                        );
-                                                    } else {
-                                                        // Active standard option goes to top, then other standard options, then custom at the bottom
-                                                        const activeOpt = track.type as typeof standardOptions[number];
-                                                        const otherOpts = standardOptions.filter(opt => opt !== activeOpt);
-                                                        return (
-                                                            <>
-                                                                {renderOptionPill(activeOpt)}
-                                                                {otherOpts.map(opt => renderOptionPill(opt))}
-                                                                {renderCustomPill()}
-                                                            </>
-                                                        );
-                                                    }
+                                                    // Build the final order: guitar, piano, vocals, then custom
+                                                    const orderedOptions = ['guitar', 'piano', 'vocals'] as const;
+                                                    return (
+                                                        <>
+                                                            {orderedOptions.map(opt => renderOptionPill(opt))}
+                                                            {renderCustomPill()}
+                                                        </>
+                                                    );
                                                 })()}
                                             </div>
                                         )}
