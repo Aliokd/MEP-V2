@@ -8445,100 +8445,195 @@ export default function CreatePage() {
                 </div>
 
                 {/* Bottom Control Bar */}
-                <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-end gap-4 border-t border-stone-250/20 pt-5 mt-2">
-                    {/* Master Action controls */}
-                    <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
-                        {/* Metronome Control Dial */}
-                        <div className="flex flex-col items-center relative pb-5 shrink-0">
-                            <button
+                <div className="flex flex-col gap-4 border-t border-stone-250/20 pt-5 mt-2 w-full">
+                    {/* Level 1: Metronome, Guitar Tuner, and Mini Timeline */}
+                    <div className="flex flex-col lg:flex-row items-center gap-4 w-full justify-between">
+                        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                            {/* Metronome Status Capsule */}
+                            <div className="h-11 bg-stone-100/70 border border-stone-200/60 rounded-full px-4 flex items-center justify-between gap-4 select-none shrink-0 w-full sm:w-[240px]">
+                                <div className="flex items-center gap-2.5">
+                                    {/* Clock / Pendulum visual metronome icon */}
+                                    <div className="w-6.5 h-6.5 rounded-full bg-stone-200/50 flex items-center justify-center text-stone-500 shrink-0">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`w-4 h-4 ${isStudioMetronomeOn ? 'animate-bounce' : ''}`}>
+                                            <path d="M12 2v20M17 5H7" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex flex-col text-left">
+                                        <span className="text-[9px] font-sans font-bold text-stone-400 uppercase tracking-wider leading-none mb-0.5">Metronome</span>
+                                        <span className="text-[12px] font-sans font-black text-stone-700 leading-none">{metronomeBpm} BPM</span>
+                                    </div>
+                                </div>
+                                
+                                {/* Toggle switch */}
+                                <button
+                                    onClick={() => {
+                                        const newVal = !isStudioMetronomeOn;
+                                        setIsStudioMetronomeOn(newVal);
+                                        if (newVal) {
+                                            if (studioState === 'playing') {
+                                                startStudioMetronome(studioPlayhead);
+                                            } else if (studioState === 'recording') {
+                                                startStudioMetronome(0);
+                                            }
+                                        } else {
+                                            if (studioMetronomeIntervalRef.current) {
+                                                clearInterval(studioMetronomeIntervalRef.current);
+                                                studioMetronomeIntervalRef.current = null;
+                                            }
+                                        }
+                                    }}
+                                    className={`w-9 h-5 rounded-full p-0.5 transition-all duration-200 cursor-pointer flex items-center shrink-0 ${
+                                        isStudioMetronomeOn ? 'bg-emerald-500 justify-end' : 'bg-stone-250 justify-start'
+                                    }`}
+                                    type="button"
+                                >
+                                    <div className="w-4 h-4 rounded-full bg-white shadow-sm transition-all" />
+                                </button>
+                            </div>
+
+                            {/* Guitar Tuner Status Capsule */}
+                            <div 
                                 onClick={() => {
-                                    const newVal = !isStudioMetronomeOn;
-                                    setIsStudioMetronomeOn(newVal);
-                                    if (newVal) {
-                                        if (studioState === 'playing') {
-                                            startStudioMetronome(studioPlayhead);
-                                        } else if (studioState === 'recording') {
-                                            startStudioMetronome(0);
-                                        }
+                                    if (tunerActive) {
+                                        stopTunerMic();
                                     } else {
-                                        if (studioMetronomeIntervalRef.current) {
-                                            clearInterval(studioMetronomeIntervalRef.current);
-                                            studioMetronomeIntervalRef.current = null;
-                                        }
+                                        startTunerMic();
                                     }
                                 }}
-                                className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-300 relative shadow-[0_1px_3px_rgba(0,0,0,0.03)] cursor-pointer ${
-                                    isStudioMetronomeOn 
-                                        ? "bg-emerald-50 border-emerald-300 text-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.2)]" 
-                                        : "bg-stone-50 border-stone-200/80 text-stone-400 hover:border-stone-300 hover:text-stone-600"
-                                }`}
-                                type="button"
+                                className="h-11 bg-stone-100/70 border border-stone-200/60 rounded-full px-4 flex items-center justify-between gap-4 select-none shrink-0 w-full sm:w-[210px] cursor-pointer hover:bg-stone-200/30 transition-all duration-200"
                             >
-                                {/* Double border inset style */}
-                                <div className={`w-[34px] h-[34px] rounded-full flex items-center justify-center border transition-all duration-300 ${
-                                    isStudioMetronomeOn
-                                        ? "border-emerald-200/60 bg-white"
-                                        : "border-stone-150 bg-white/50"
-                                }`}>
-                                    <span className="text-[9px] font-sans font-black tracking-wider uppercase">
-                                        {isStudioMetronomeOn ? "ON" : "OFF"}
-                                    </span>
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-6.5 h-6.5 rounded-full bg-stone-200/50 flex items-center justify-center text-stone-500 shrink-0">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`w-4 h-4 ${tunerActive ? 'animate-pulse text-emerald-500' : ''}`}>
+                                            <path d="M12 2v10M12 12a4 4 0 100 8 4 4 0 000-8z" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex flex-col text-left">
+                                        <span className="text-[9px] font-sans font-bold text-stone-400 uppercase tracking-wider leading-none mb-0.5">Guitar tuner</span>
+                                        <span className="text-[12px] font-sans font-black text-stone-700 leading-none">
+                                            {tunerActive ? tunerNote : (savedTuning ? savedTuning.note : '--')}
+                                        </span>
+                                    </div>
                                 </div>
-                            </button>
-                            <span className="absolute top-[48px] text-[10px] font-sans font-semibold text-stone-500/80 select-none whitespace-nowrap">
-                                Metronome
-                            </span>
+
+                                {/* Active status light indicator */}
+                                <div className="flex items-center gap-1.5 relative">
+                                    {tunerActive ? (
+                                        <>
+                                            <span className="text-[9px] font-sans font-bold text-emerald-600 uppercase tracking-wider leading-none animate-pulse">Live</span>
+                                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping absolute right-0 opacity-70" />
+                                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 relative right-0" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-[9px] font-sans font-bold text-stone-400 uppercase tracking-wider leading-none">Off</span>
+                                            <div className="w-2.5 h-2.5 rounded-full bg-stone-300 shrink-0" />
+                                        </>
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
-                        {/* REC */}
-                        {studioState === 'recording' ? (
-                            <button
-                                onClick={stopStudioRecording}
-                                className="px-6 py-3.5 bg-[#FF4040] border border-[#FF4040] text-white rounded-full font-bold text-xs active:scale-95 transition-all shadow-sm cursor-pointer flex items-center gap-2 animate-pulse"
-                            >
-                                <div className="relative flex items-center justify-center shrink-0">
-                                    <div className="w-3.5 h-3.5 rounded-full bg-white animate-ping absolute" />
-                                    <Square size={10} className="fill-white text-white shrink-0 z-10" />
-                                </div>
-                                <span className="z-10">Recording...</span>
-                            </button>
-                        ) : (
-                            <button
-                                onClick={startStudioRecording}
-                                className="px-6 py-3.5 bg-white border border-stone-200/50 hover:bg-red-50/50 rounded-full font-bold text-xs text-[#FF4040] active:scale-95 transition-all shadow-sm cursor-pointer flex items-center gap-2"
-                            >
-                                <div className="w-2 h-2 bg-[#FF4040] rounded-full shrink-0 animate-pulse" />
-                                REC
-                            </button>
-                        )}
-
-                        {/* Play / Pause */}
-                        <button
-                            onClick={() => {
-                                if (studioState === 'playing') {
-                                    pauseStudioPlayback();
-                                } else {
-                                    startStudioPlayback(studioPlayhead);
-                                }
+                        {/* Interactive Seeker Mini-Timeline Capsule */}
+                        <div 
+                            onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const clickX = e.clientX - rect.left;
+                                const newPercent = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+                                const newPlayhead = (newPercent / 100) * limit;
+                                setStudioPlayhead(newPlayhead);
                             }}
-                            disabled={studioDuration === 0 || studioState === 'recording'}
-                            className="px-6 py-3.5 bg-white border border-stone-200 hover:border-stone-300 rounded-full font-bold text-xs text-stone-800 hover:bg-stone-50 active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                            className="h-11 bg-stone-100/60 border border-white rounded-full flex-grow flex items-center px-4 relative overflow-hidden cursor-pointer shadow-[inset_0_1.5px_3.5px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.05)] w-full lg:w-auto"
+                            title="Click to Seek Timeline"
                         >
-                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-stone-700">
-                                {studioState === 'playing' ? (
-                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                                ) : (
-                                    <path d="M8 5v14l11-7z" />
-                                )}
-                            </svg>
-                            Play / Pause
-                        </button>
+                            {/* Decorative mini waveform bars representing combined mix */}
+                            <div className="absolute inset-x-6 inset-y-2.5 flex items-center justify-between pointer-events-none opacity-80 select-none">
+                                {[35, 60, 45, 75, 40, 55, 80, 50, 65, 30, 45, 70, 55, 90, 60, 40, 75, 50, 65, 35, 55, 80, 45, 70, 50, 60, 30, 55, 75, 40, 65, 50, 85, 55, 45, 70, 60, 35, 50, 65].map((val, idx) => {
+                                    const percentPosition = (idx / 40) * 100;
+                                    const isPassed = (studioPlayhead / limit) * 100 > percentPosition;
+                                    return (
+                                        <div 
+                                            key={idx}
+                                            className={`w-[3px] rounded-full transition-all duration-150 ${
+                                                isPassed ? 'bg-stone-600 h-[100%]' : 'bg-stone-300/60'
+                                            }`}
+                                            style={{ 
+                                                height: `${val}%`,
+                                                minHeight: '4px'
+                                            }}
+                                        />
+                                    );
+                                })}
+                            </div>
 
-                        {/* Publish Menu Dropdown */}
-                        <div className="relative">
+                            {/* Seeker playhead indicator line */}
+                            <div 
+                                className="absolute top-0 bottom-0 w-[2px] bg-[#FF4040] shadow-[0_0_6px_rgba(255,64,64,0.6)] pointer-events-none transition-all duration-75" 
+                                style={{ left: `${(studioPlayhead / limit) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Level 2 Divider Line */}
+                    <div className="w-full h-[1px] bg-stone-200/60 my-1" />
+
+                    {/* Level 2: Principal Actions */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
+                        {/* Left Spacer to align centered buttons */}
+                        <div className="hidden sm:block w-32" />
+
+                        {/* Centered actions */}
+                        <div className="flex items-center gap-3 justify-center sm:justify-start w-full sm:w-auto">
+                            {/* REC */}
+                            {studioState === 'recording' ? (
+                                <button
+                                    onClick={stopStudioRecording}
+                                    className="px-6 py-3.5 bg-[#FF4040] border border-[#FF4040] text-white rounded-full font-bold text-xs active:scale-95 transition-all shadow-sm cursor-pointer flex items-center gap-2 animate-pulse"
+                                >
+                                    <div className="relative flex items-center justify-center shrink-0">
+                                        <div className="w-3.5 h-3.5 rounded-full bg-white animate-ping absolute" />
+                                        <Square size={10} className="fill-white text-white shrink-0 z-10" />
+                                    </div>
+                                    <span className="z-10">Recording...</span>
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={startStudioRecording}
+                                    className="px-6 py-3.5 bg-white border border-stone-200/50 hover:bg-red-50/50 rounded-full font-bold text-xs text-[#FF4040] active:scale-95 transition-all shadow-sm cursor-pointer flex items-center gap-2"
+                                >
+                                    <div className="w-2 h-2 bg-[#FF4040] rounded-full shrink-0 animate-pulse" />
+                                    REC
+                                </button>
+                            )}
+
+                            {/* Play / Pause */}
+                            <button
+                                onClick={() => {
+                                    if (studioState === 'playing') {
+                                        pauseStudioPlayback();
+                                    } else {
+                                        startStudioPlayback(studioPlayhead);
+                                    }
+                                }}
+                                disabled={studioDuration === 0 || studioState === 'recording'}
+                                className="px-6 py-3.5 bg-white border border-stone-200 hover:border-stone-300 rounded-full font-bold text-xs text-stone-800 hover:bg-stone-50 active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                            >
+                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-stone-700">
+                                    {studioState === 'playing' ? (
+                                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                    ) : (
+                                        <path d="M8 5v14l11-7z" />
+                                    )}
+                                </svg>
+                                Play / Pause
+                            </button>
+                        </div>
+
+                        {/* Right-aligned Publish dropdown */}
+                        <div className="relative w-full sm:w-auto flex justify-end">
                             <button
                                 onClick={() => setActivePublishMenu(!activePublishMenu)}
-                                className="px-6 py-3.5 bg-white border border-stone-200 hover:border-stone-300 rounded-full font-bold text-xs text-stone-800 hover:bg-stone-50 active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] cursor-pointer"
+                                className="px-6 py-3.5 bg-white border border-stone-200 hover:border-stone-300 rounded-full font-bold text-xs text-stone-800 hover:bg-stone-50 active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] cursor-pointer w-full sm:w-auto"
                             >
                                 Publish
                             </button>
