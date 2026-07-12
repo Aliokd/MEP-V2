@@ -655,6 +655,8 @@ function PhraseRow({
                         }
                         setDragOverPhraseId(null);
                         setDropPosition(null);
+                        if (setDragOverBlockId) setDragOverBlockId(null);
+                        if (setBlockDropPosition) setBlockDropPosition(null);
                         return;
                     }
                     
@@ -666,6 +668,8 @@ function PhraseRow({
                     }
                     setDragOverPhraseId(null);
                     setDropPosition(null);
+                    if (setDragOverBlockId) setDragOverBlockId(null);
+                    if (setBlockDropPosition) setBlockDropPosition(null);
                 }}
                 className="phrase-row-container h-1 w-full relative"
                 data-phrase-id={phrase.id}
@@ -846,6 +850,8 @@ function PhraseRow({
                     setDropPosition(null);
                     if (setDragOverWordIndex) setDragOverWordIndex(null);
                     if (setDraggedWord) setDraggedWord(null);
+                    if (setDragOverBlockId) setDragOverBlockId(null);
+                    if (setBlockDropPosition) setBlockDropPosition(null);
                     return;
                 }
 
@@ -864,6 +870,8 @@ function PhraseRow({
                     }
                     setDragOverPhraseId(null);
                     setDropPosition(null);
+                    if (setDragOverBlockId) setDragOverBlockId(null);
+                    if (setBlockDropPosition) setBlockDropPosition(null);
                     return;
                 }
 
@@ -889,6 +897,12 @@ function PhraseRow({
                 setDropPosition(null);
                 if (setDragOverGroupId) {
                     setDragOverGroupId(null);
+                }
+                if (setDragOverBlockId) {
+                    setDragOverBlockId(null);
+                }
+                if (setBlockDropPosition) {
+                    setBlockDropPosition(null);
                 }
             }}
             onTouchStart={(e) => {
@@ -1015,6 +1029,7 @@ function PhraseRow({
                     setDropPosition(null);
                     if (setDragOverGroupId) setDragOverGroupId(null);
                     if (setDragOverBlockId) setDragOverBlockId(null);
+                    if (setBlockDropPosition) setBlockDropPosition(null);
                 } else {
                     // Double-tap gesture handling for mobile
                     const now = Date.now();
@@ -2093,9 +2108,6 @@ export default function CreatePage() {
             const touch = e.touches[0];
             setTouchGhostPos({ x: touch.clientX, y: touch.clientY });
         };
-        const handleTouchEnd = () => {
-            setTouchGhostPos(null);
-        };
         
         const handleDragEndGlobal = () => {
             setDragOverBlockId(null);
@@ -2106,18 +2118,24 @@ export default function CreatePage() {
             setDraggedPhraseId(null);
             setDraggedGroupId(null);
             setDraggedAudioId(null);
+            if (setDragOverWordIndex) setDragOverWordIndex(null);
+        };
+
+        const handleTouchEndGlobal = () => {
+            setTouchGhostPos(null);
+            handleDragEndGlobal();
         };
 
         window.addEventListener('touchmove', handleTouchMove, { passive: true });
-        window.addEventListener('touchend', handleTouchEnd);
-        window.addEventListener('touchcancel', handleTouchEnd);
+        window.addEventListener('touchend', handleTouchEndGlobal);
+        window.addEventListener('touchcancel', handleTouchEndGlobal);
         window.addEventListener('dragend', handleDragEndGlobal);
         window.addEventListener('mouseup', handleDragEndGlobal);
 
         return () => {
             window.removeEventListener('touchmove', handleTouchMove);
-            window.removeEventListener('touchend', handleTouchEnd);
-            window.removeEventListener('touchcancel', handleTouchEnd);
+            window.removeEventListener('touchend', handleTouchEndGlobal);
+            window.removeEventListener('touchcancel', handleTouchEndGlobal);
             window.removeEventListener('dragend', handleDragEndGlobal);
             window.removeEventListener('mouseup', handleDragEndGlobal);
         };
