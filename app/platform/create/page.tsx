@@ -8417,6 +8417,18 @@ export default function CreatePage() {
                                 </div>
                             );
                         })}
+                        
+                        {/* Add track button following track card */}
+                        <div className="px-6 py-2 w-full shrink-0">
+                            <button
+                                onClick={handleAddTrack}
+                                className="w-full h-11 border border-dashed border-stone-200 hover:border-stone-300 bg-stone-50/20 hover:bg-stone-50/50 text-stone-400 hover:text-stone-605 rounded-full font-bold text-xs transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.99]"
+                                type="button"
+                            >
+                                <Plus size={14} className="stroke-[2.5]" />
+                                <span>Add track</span>
+                            </button>
+                        </div>
                     </div>
 
                     {/* Ruler timeline aligned with right section */}
@@ -8469,15 +8481,7 @@ export default function CreatePage() {
                 </div>
 
                 {/* Bottom Control Bar */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-stone-250/20 pt-5 mt-2">
-                    {/* Add track */}
-                    <button
-                        onClick={handleAddTrack}
-                        className="w-full sm:w-auto px-7 py-3 bg-transparent border border-dashed border-stone-400 hover:border-stone-600 text-stone-500 hover:text-stone-700 rounded-full font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95"
-                    >
-                        <span className="text-lg leading-none font-light">+</span> Add track
-                    </button>
-
+                <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-end gap-4 border-t border-stone-250/20 pt-5 mt-2">
                     {/* Master Action controls */}
                     <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
                         {/* Metronome Control Dial */}
