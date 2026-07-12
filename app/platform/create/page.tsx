@@ -8513,21 +8513,21 @@ export default function CreatePage() {
                         <div className="flex-grow flex items-center relative h-8.5 rounded-full bg-stone-100/70 border border-stone-250/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
                             {/* Time Ruler with tick lines inside capsule */}
                             <div 
-                                className="w-full h-full flex flex-col justify-center relative cursor-ew-resize select-none"
+                                className="w-full h-full relative cursor-ew-resize select-none"
                                 onPointerDown={handleTimelinePointerDown}
                             >
-                                {/* Ticks overlay */}
-                                <div className="absolute inset-x-6 inset-y-0 flex justify-between items-center pointer-events-none opacity-40">
+                                {/* Ticks overlay (upper half) */}
+                                <div className="absolute inset-x-6 top-1.5 h-3 flex justify-between items-end pointer-events-none opacity-50">
                                     {Array.from({ length: limit <= 5 ? Math.floor(limit) * 4 + 1 : (limit <= 10 ? Math.floor(limit) * 2 + 1 : 17) }).map((_, i) => (
                                         <div 
                                             key={i} 
-                                            className={`w-[1px] bg-stone-400 ${i % 4 === 0 ? 'h-3.5' : 'h-2'}`} 
+                                            className={`w-[1px] bg-stone-500 ${i % 4 === 0 ? 'h-3' : 'h-1.5'}`} 
                                         />
                                     ))}
                                 </div>
 
-                                {/* Time Labels */}
-                                <div className="absolute inset-x-6 flex justify-between text-[10px] font-sans font-extrabold text-stone-500 select-none pointer-events-none">
+                                {/* Time Labels (lower half) */}
+                                <div className="absolute inset-x-6 bottom-1 flex justify-between text-[9px] font-sans font-extrabold text-stone-600 select-none pointer-events-none leading-none">
                                     {rulerLabels.map((lbl, idx) => (
                                         <span key={idx}>{lbl}</span>
                                     ))}
