@@ -8014,10 +8014,10 @@ export default function CreatePage() {
 
         if (limit <= 5) {
             const intLimit = Math.floor(limit);
-            const totalSlots = intLimit * 8 + 1;
+            const totalSlots = intLimit * 4 + 1;
             for (let i = 0; i < totalSlots; i++) {
-                if (i % 8 === 0) {
-                    const sec = i / 8;
+                if (i % 4 === 0) {
+                    const sec = i / 4;
                     items.push({ type: 'label', value: formatTime(sec) });
                 } else {
                     items.push({ type: 'tick' });
@@ -8025,10 +8025,10 @@ export default function CreatePage() {
             }
         } else if (limit <= 10) {
             const intLimit = Math.floor(limit);
-            const totalSlots = intLimit * 4 + 1;
+            const totalSlots = intLimit * 2 + 1;
             for (let i = 0; i < totalSlots; i++) {
-                if (i % 4 === 0) {
-                    const sec = i / 4;
+                if (i % 2 === 0) {
+                    const sec = i / 2;
                     items.push({ type: 'label', value: formatTime(sec) });
                 } else {
                     items.push({ type: 'tick' });
@@ -8039,9 +8039,9 @@ export default function CreatePage() {
             for (let i = 0; i < 5; i++) {
                 items.push({ type: 'label', value: formatTime(step * i) });
                 if (i < 4) {
-                    for (let j = 0; j < 7; j++) {
-                        items.push({ type: 'tick' });
-                    }
+                    items.push({ type: 'tick' });
+                    items.push({ type: 'tick' });
+                    items.push({ type: 'tick' });
                 }
             }
         }
@@ -8574,7 +8574,7 @@ export default function CreatePage() {
                                     item.type === 'label' ? (
                                         <span 
                                             key={idx} 
-                                            className="text-[9.5px] font-sans font-bold text-stone-500/80 select-none shrink-0"
+                                            className="text-[9px] font-sans font-bold text-stone-500/80 select-none shrink-0"
                                         >
                                             {item.value}
                                         </span>
