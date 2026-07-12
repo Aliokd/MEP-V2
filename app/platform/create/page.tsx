@@ -6587,6 +6587,7 @@ export default function CreatePage() {
     };
 
     const handleAddVerseGroup = (type: 'Verse' | 'Chorus' | 'Bridge') => {
+        setIsAddMenuSticky(false);
         if (!selectedNoteId || !activeNote) return;
         const currentVerses = activeNote.verses || [];
         const count = currentVerses.filter(v => v.name.startsWith(type)).length;
@@ -10792,8 +10793,8 @@ export default function CreatePage() {
                                         );
                                     })
                                 )}
-                                    </div>
-                                </div>
+                            </div>
+                        </div>
 
                                 {isRecordingSaving && (
                                     <div className="flex justify-center w-full py-1.5 select-none z-20">
@@ -10803,52 +10804,58 @@ export default function CreatePage() {
 
                                 {/* Centered Add Section Trigger with Hover Inline Expand */}
                                 <div className="flex items-center justify-center mt-8 pb-2 w-full select-none z-30">
-                                     <div className={`group/add-menu flex items-center bg-white border rounded-full h-9 shadow-3xs transition-all duration-300 ease-in-out overflow-hidden w-fit pointer-events-auto ${isAddMenuSticky ? "border-stone-300" : "border-stone-200 hover:border-stone-300 group-hover/add-menu:border-stone-300"}`}>
-                                         {/* Trigger Button: "+ Add" */}
-                                         <div 
-                                             onClick={(e) => {
-                                                 e.stopPropagation();
-                                                 setIsAddMenuSticky(!isAddMenuSticky);
-                                             }}
-                                             className={`h-full px-5 flex items-center justify-center gap-1.5 font-sans font-bold text-[13px] cursor-pointer transition-colors duration-300 ease-in-out shrink-0 whitespace-nowrap ${isAddMenuSticky ? "text-stone-700" : "text-stone-400/80 group-hover/add-menu:text-stone-700"}`}
-                                         >
-                                             <Plus size={15} className="stroke-[2.5]" />
-                                             <span>Add</span>
-                                         </div>
+                                     <div className="group/add-menu py-3 px-6 pointer-events-auto flex items-center justify-center">
+                                         <div className={`flex items-center bg-white border rounded-full h-9 shadow-3xs transition-all duration-300 ease-in-out overflow-hidden w-fit ${
+                                             isAddMenuSticky 
+                                                 ? "border-stone-300 delay-0" 
+                                                 : "border-stone-200 hover:border-stone-300 delay-150 group-hover/add-menu:border-stone-300 group-hover/add-menu:delay-0"
+                                         }`}>
+                                             {/* Trigger Button: "+ Add" */}
+                                             <div 
+                                                 onClick={(e) => {
+                                                     e.stopPropagation();
+                                                     setIsAddMenuSticky(!isAddMenuSticky);
+                                                 }}
+                                                 className={`h-full px-5 flex items-center justify-center gap-1.5 font-sans font-bold text-[13px] cursor-pointer transition-colors duration-300 ease-in-out shrink-0 whitespace-nowrap ${isAddMenuSticky ? "text-stone-700" : "text-stone-400/80 group-hover/add-menu:text-stone-700"}`}
+                                             >
+                                                 <Plus size={15} className="stroke-[2.5]" />
+                                                 <span>Add</span>
+                                             </div>
 
-                                         {/* Divider line (appears on hover or when sticky) */}
-                                         <div className={`h-4.5 bg-stone-200 transition-all duration-300 ease-in-out ${isAddMenuSticky ? "w-[1px]" : "w-0 group-hover/add-menu:w-[1px]"}`} />
+                                             {/* Divider line (appears on hover or when sticky) */}
+                                             <div className={`h-4.5 bg-stone-200 transition-all duration-300 ease-in-out ${isAddMenuSticky ? "w-[1px] delay-0" : "w-0 delay-150 group-hover/add-menu:w-[1px] group-hover/add-menu:delay-0"}`} />
 
-                                         {/* Inline Options (expands horizontally on hover or when sticky as a sliding mask) */}
-                                         <div className={`flex items-center overflow-hidden transition-all duration-300 ease-in-out ${isAddMenuSticky ? "max-w-[226px] opacity-100 px-3" : "max-w-0 opacity-0 group-hover/add-menu:max-w-[226px] group-hover/add-menu:opacity-100 group-hover/add-menu:px-3"}`}>
-                                             <div className="flex items-center gap-1 shrink-0 w-[202px] h-full pointer-events-auto">
-                                                 <button
-                                                     onClick={(e) => {
-                                                         e.stopPropagation();
-                                                         handleAddVerseGroup("Chorus");
-                                                     }}
-                                                     className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
-                                                 >
-                                                     Chorus
-                                                 </button>
-                                                 <button
-                                                     onClick={(e) => {
-                                                         e.stopPropagation();
-                                                         handleAddVerseGroup("Verse");
-                                                     }}
-                                                     className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
-                                                 >
-                                                     Verse
-                                                 </button>
-                                                 <button
-                                                     onClick={(e) => {
-                                                         e.stopPropagation();
-                                                         handleAddVerseGroup("Bridge");
-                                                     }}
-                                                     className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
-                                                 >
-                                                     Bridge
-                                                 </button>
+                                             {/* Inline Options (expands horizontally on hover or when sticky as a sliding mask) */}
+                                             <div className={`flex items-center overflow-hidden transition-all duration-300 ease-in-out ${isAddMenuSticky ? "max-w-[226px] opacity-100 px-3 delay-0" : "max-w-0 opacity-0 delay-150 group-hover/add-menu:max-w-[226px] group-hover/add-menu:opacity-100 group-hover/add-menu:px-3 group-hover/add-menu:delay-0"}`}>
+                                                 <div className="flex items-center gap-1 shrink-0 w-[202px] h-full pointer-events-auto">
+                                                     <button
+                                                         onClick={(e) => {
+                                                             e.stopPropagation();
+                                                             handleAddVerseGroup("Chorus");
+                                                         }}
+                                                         className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
+                                                     >
+                                                         Chorus
+                                                     </button>
+                                                     <button
+                                                         onClick={(e) => {
+                                                             e.stopPropagation();
+                                                             handleAddVerseGroup("Verse");
+                                                         }}
+                                                         className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
+                                                     >
+                                                         Verse
+                                                     </button>
+                                                     <button
+                                                         onClick={(e) => {
+                                                             e.stopPropagation();
+                                                             handleAddVerseGroup("Bridge");
+                                                         }}
+                                                         className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
+                                                     >
+                                                         Bridge
+                                                     </button>
+                                                 </div>
                                              </div>
                                          </div>
                                      </div>
