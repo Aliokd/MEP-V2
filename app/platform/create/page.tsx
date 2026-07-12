@@ -7697,6 +7697,7 @@ export default function CreatePage() {
     };
 
     const handleAddTrack = () => {
+        if (studioTracks.length >= 4) return;
         const nextId = Date.now();
         const newTrack: StudioTrack = {
             id: nextId,
@@ -8037,25 +8038,7 @@ export default function CreatePage() {
                     </div>
 
                     {/* Sequencer Track List Container */}
-                    <div className={`flex flex-col gap-1 w-full relative max-h-[220px] sm:max-h-[280px] pr-1 studio-scroll-container ${
-                        activeTrackDropdownId !== null ? 'overflow-visible' : 'overflow-y-auto'
-                    }`}>
-                        <style>{`
-                            .studio-scroll-container::-webkit-scrollbar {
-                                width: 4px;
-                                height: 0px;
-                            }
-                            .studio-scroll-container::-webkit-scrollbar-track {
-                                background: transparent;
-                            }
-                            .studio-scroll-container::-webkit-scrollbar-thumb {
-                                background: rgba(0, 0, 0, 0.15);
-                                border-radius: 9999px;
-                            }
-                            .studio-scroll-container::-webkit-scrollbar-button {
-                                display: none;
-                            }
-                        `}</style>
+                    <div className="flex flex-col gap-1 w-full relative">
                         {studioTracks.map((track, idx) => {
                             const isArmed = activeRecordingTrackId === track.id;
                             const isThisTrackRecording = studioState === 'recording' && isArmed;
@@ -8419,16 +8402,18 @@ export default function CreatePage() {
                         })}
                         
                         {/* Add track button following track card */}
-                        <div className="px-6 py-2 w-full shrink-0">
-                            <button
-                                onClick={handleAddTrack}
-                                className="w-full h-11 border border-dashed border-stone-200 hover:border-stone-300 bg-stone-50/20 hover:bg-stone-50/50 text-stone-400 hover:text-stone-605 rounded-full font-bold text-xs transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.99]"
-                                type="button"
-                            >
-                                <Plus size={14} className="stroke-[2.5]" />
-                                <span>Add track</span>
-                            </button>
-                        </div>
+                        {studioTracks.length < 4 && (
+                            <div className="px-6 py-2 w-full shrink-0">
+                                <button
+                                    onClick={handleAddTrack}
+                                    className="w-full h-11 border border-dashed border-stone-200 hover:border-stone-300 bg-stone-50/20 hover:bg-stone-50/50 text-stone-400 hover:text-stone-605 rounded-full font-bold text-xs transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.99]"
+                                    type="button"
+                                >
+                                    <Plus size={14} className="stroke-[2.5]" />
+                                    <span>Add track</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Ruler timeline aligned with right section */}
