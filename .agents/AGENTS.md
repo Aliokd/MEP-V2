@@ -36,3 +36,9 @@ This project-scoped rules document defines guidelines for the MEP V2 DAW sequenc
 - **Horizontal Padding**: Track rows, column headers row, and time ruler row all utilize a consistent `px-6` padding to ensure pixel-perfect vertical grid alignment across sections.
 - **Icon Visibility**: The reorder drag handle icon (far left) and the three-dots options button (far right) are hidden by default (`opacity-0`) and fade into view (`opacity-100 duration-150`) only when the mouse hovers over that specific track row. The options button remains visible if its context dropdown menu is active.
 - **Widescreen Responsive Width**: When the active tab is `studio`, the Creative Tools Panel is configured to stretch and fill the space horizontally. It utilizes `max-w-full md:max-w-[calc(100%-4rem)] xl:max-w-[1400px]` for the outer wrapper, and `max-w-full` for the inner card. This ensures that the left and right edges of the sequencer panel align pixel-for-pixel with the typing canvas content boundaries on all screen widths up to 1400px.
+
+## 5. Songwriting Canvas UI State-Saving & Version-Control Rule
+- **Automated Local Versioning**: To prevent any loss of completed changes, always commit successful changes to Git immediately after implementing and verifying a feature request.
+- **Diagnostics & Health Checks**: Proactively run local Next.js builds (`npm.cmd run build`) and page-load health checks (`curl http://localhost:3000/platform/create`) to verify compilation and prevent runtime exceptions (e.g. from missing function handlers) that block Fast Refresh.
+- **Deploy Readiness**: Keep the codebase in a production-ready, clean compiling state at all times. Do not push changes that have not been tested or that break the local builds.
+
