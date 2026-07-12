@@ -7954,14 +7954,25 @@ export default function CreatePage() {
     };
 
     const getRulerLabels = (limit: number) => {
+        if (limit <= 10) {
+            const labels = [];
+            const intLimit = Math.floor(limit);
+            for (let i = 0; i <= intLimit; i++) {
+                if (i === 0) {
+                    labels.push("0");
+                } else if (i === 1) {
+                    labels.push("1 second");
+                } else {
+                    labels.push(`${i} seconds`);
+                }
+            }
+            return labels;
+        }
+
         const step = limit / 4;
         const formatTime = (secs: number) => {
             const m = Math.floor(secs / 60);
             const s = Math.floor(secs % 60);
-            const ms = Math.round((secs % 1) * 10);
-            if (limit < 10) {
-                return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms}`;
-            }
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         };
         return [
@@ -8494,7 +8505,7 @@ export default function CreatePage() {
                             >
                                 {/* Ticks overlay */}
                                 <div className="absolute inset-x-6 inset-y-0 flex justify-between items-center pointer-events-none opacity-20">
-                                    {Array.from({ length: 17 }).map((_, i) => (
+                                    {Array.from({ length: limit <= 10 ? Math.floor(limit) * 4 + 1 : 17 }).map((_, i) => (
                                         <div 
                                             key={i} 
                                             className={`w-[1px] bg-stone-500 ${i % 4 === 0 ? 'h-3.5' : 'h-2'}`} 
