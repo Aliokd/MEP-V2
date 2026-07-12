@@ -732,6 +732,12 @@ function PhraseRow({
                     if (setDragOverGroupId) {
                         setDragOverGroupId(null);
                     }
+                    if (setDragOverBlockId) {
+                        setDragOverBlockId(null);
+                    }
+                    if (setBlockDropPosition) {
+                        setBlockDropPosition(null);
+                    }
                 }, 50);
             }}
             onDragOver={(e) => {
@@ -2079,7 +2085,7 @@ export default function CreatePage() {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    // Global touch tracking for drag ghost overlay
+    // Global touch and drag tracking for cleanup and ghost overlay
     useEffect(() => {
         const handleTouchMove = (e: TouchEvent) => {
             const isAnyDrag = draggedPhraseIdRef.current || draggedAudioIdRef.current || draggedGroupIdRef.current;
@@ -2090,13 +2096,30 @@ export default function CreatePage() {
         const handleTouchEnd = () => {
             setTouchGhostPos(null);
         };
+        
+        const handleDragEndGlobal = () => {
+            setDragOverBlockId(null);
+            setBlockDropPosition(null);
+            setDragOverPhraseId(null);
+            setDropPosition(null);
+            setDragOverGroupId(null);
+            setDraggedPhraseId(null);
+            setDraggedGroupId(null);
+            setDraggedAudioId(null);
+        };
+
         window.addEventListener('touchmove', handleTouchMove, { passive: true });
         window.addEventListener('touchend', handleTouchEnd);
         window.addEventListener('touchcancel', handleTouchEnd);
+        window.addEventListener('dragend', handleDragEndGlobal);
+        window.addEventListener('mouseup', handleDragEndGlobal);
+
         return () => {
             window.removeEventListener('touchmove', handleTouchMove);
             window.removeEventListener('touchend', handleTouchEnd);
             window.removeEventListener('touchcancel', handleTouchEnd);
+            window.removeEventListener('dragend', handleDragEndGlobal);
+            window.removeEventListener('mouseup', handleDragEndGlobal);
         };
     }, []);
     
