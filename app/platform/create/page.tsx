@@ -1152,7 +1152,7 @@ function PhraseRow({
                                             }}
                                             onClick={(e) => handleWordClick(e, word, tokenOffset + idx)}
                                             className={`
-                                                word-token hover:bg-stone-200/90 text-stone-855 hover:text-stone-955 rounded-[8px] px-1.5 py-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 inline-block select-none relative
+                                                word-token hover:bg-stone-200/90 text-stone-855 hover:text-stone-955 hover:font-medium rounded-[8px] px-1.5 py-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 inline-block select-none relative
                                                 ${isWordDragged ? 'opacity-30' : ''}
                                                 ${isWordDragOver ? 'bg-amber-100/80 scale-105' : ''}
                                                 ${isWordClicked ? 'bg-stone-200/90 text-stone-955 font-semibold shadow-xs scale-102 z-10' : ''}
@@ -1948,6 +1948,9 @@ export default function CreatePage() {
     const [notes, setNotes] = useState<SongNote[]>(() => readCachedNotes());
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
     const [shareStatus, setShareStatus] = useState<'idle' | 'sharing' | 'shared'>('idle');
+    const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+    const [renameGroupName, setRenameGroupName] = useState<string>('');
+    const [isAddMenuSticky, setIsAddMenuSticky] = useState<boolean>(false);
 
     const selectedNoteIdRef = useRef<string | null>(null);
     useEffect(() => {
@@ -2029,6 +2032,7 @@ export default function CreatePage() {
     const [lastAwardedContent, setLastAwardedContent] = useState<string>('');
     const [lastSavedContent, setLastSavedContent] = useState<string>('');
     const [savedFlash, setSavedFlash] = useState(false); // Brief "Saved ✓" animation on SAVE button
+    const [isSavingNote, setIsSavingNote] = useState(false);
 
     // Real-Time Collaboration States
     const [isCollaborative, setIsCollaborative] = useState(false);
@@ -2530,7 +2534,13 @@ export default function CreatePage() {
 
     const handleCheckmarkSaveClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        handleSaveNote(e);
+        if (isSavingNote) return;
+        
+        setIsSavingNote(true);
+        setTimeout(() => {
+            handleSaveNote(e);
+            setIsSavingNote(false);
+        }, 800);
     };
 
     const handlePillPlay = () => {
@@ -6601,6 +6611,20 @@ export default function CreatePage() {
         });
     };
 
+    const handleRenameVerseGroup = (groupId: string, newName: string) => {
+        if (!selectedNoteId || !activeNote) return;
+        const currentVerses = activeNote.verses || [];
+        const updatedVerses = currentVerses.map(v => {
+            if (v.id === groupId) {
+                return { ...v, name: newName };
+            }
+            return v;
+        });
+        handleUpdateNote(selectedNoteId, {
+            verses: updatedVerses
+        });
+    };
+
     const cleanupAndEnsurePlaceholders = (phrases: Phrase[], groups: VerseGroup[]): Phrase[] => {
         let updated = [...phrases];
         
@@ -6640,6 +6664,30 @@ export default function CreatePage() {
     const getActiveVerses = (note: SongNote | null): VerseGroup[] => {
         if (!note) return [];
         return note.verses || [];
+    };
+
+    const formatGroupName = (name?: string) => {
+        if (!name) return '';
+        const numWords: Record<string, string> = {
+            '1': 'one',
+            '2': 'two',
+            '3': 'three',
+            '4': 'four',
+            '5': 'five',
+            '6': 'six',
+            '7': 'seven',
+            '8': 'eight',
+            '9': 'nine',
+        };
+        const parts = name.split(' ');
+        if (parts.length > 1) {
+            const lastPart = parts[parts.length - 1];
+            if (numWords[lastPart]) {
+                parts[parts.length - 1] = numWords[lastPart];
+            }
+        }
+        const formatted = parts.join(' ').toLowerCase();
+        return formatted.charAt(0).toUpperCase() + formatted.slice(1);
     };
 
     interface RenderBlock {
@@ -10290,7 +10338,7 @@ export default function CreatePage() {
                                                                     e.stopPropagation();
                                                                     handleAddNewPhrase(block.groupId);
                                                                 }}
-                                                                className={`verse-group-container border border-dashed rounded-[20px] p-8 pt-10 relative flex flex-col gap-2 min-h-[100px] transition-all duration-300 cursor-grab active:cursor-grabbing ${
+                                                                className={`verse-group-container border border-dashed rounded-[20px] p-8 pt-10 relative flex flex-col gap-2 min-h-[100px] transition-all duration-300 cursor-grab active:cursor-grabbing group/verse-group mb-6 last:mb-0 ${
                                                                     isDragOverThisGroup 
                                                                         ? 'border-black bg-stone-100/50 shadow-[0_4px_20px_rgba(0,0,0,0.03)] scale-[1.005]' 
                                                                         : 'border-stone-300/85 bg-stone-50/20 hover:border-stone-400'
@@ -10301,19 +10349,95 @@ export default function CreatePage() {
                                                             >
                                                                 {/* Group Badge and Docked Audio Capsules absolute positioned at top */}
                                                                 <div className="absolute -top-3.5 left-6 flex flex-wrap items-center gap-2 z-20">
-                                                                    <div className="bg-black text-white px-2.5 py-0.5 text-[10px] font-bold tracking-wider rounded-[4px] uppercase select-none flex items-center gap-1.5 shadow-sm h-[22px]">
-                                                                        <span>{block.groupName}</span>
-                                                                        <button 
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                handleDeleteVerseGroup(block.groupId!);
-                                                                            }}
-                                                                            className="hover:text-red-400 text-stone-400 font-bold ml-1 transition-colors cursor-pointer text-xs leading-none"
-                                                                            title="Delete Group"
-                                                                        >
-                                                                            ×
-                                                                        </button>
-                                                                    </div>
+                                                                    {editingGroupId === block.groupId ? (
+                                                                        <div className="bg-white border border-stone-200/80 text-stone-700 px-3.5 py-0.5 text-[11.5px] font-semibold rounded-full flex items-center shadow-[0_2px_8px_rgba(0,0,0,0.06)] h-[25px] w-fit pointer-events-auto cursor-default z-30">
+                                                                            <div className="relative inline-flex items-center min-w-[20px] h-full">
+                                                                                {/* Invisible shadow span that mirrors input value for exact layout sizing */}
+                                                                                <span className="invisible font-semibold text-[11.5px] text-stone-700 whitespace-pre p-0 select-none block h-fit leading-none">
+                                                                                    {renameGroupName || 'Rename...'}
+                                                                                </span>
+                                                                                <input 
+                                                                                    type="text"
+                                                                                    autoFocus
+                                                                                    value={renameGroupName}
+                                                                                    onChange={(e) => setRenameGroupName(e.target.value)}
+                                                                                    onBlur={() => {
+                                                                                        const val = renameGroupName.trim();
+                                                                                        if (val !== '') {
+                                                                                            handleRenameVerseGroup(block.groupId!, val);
+                                                                                        }
+                                                                                        setEditingGroupId(null);
+                                                                                    }}
+                                                                                    onKeyDown={(e) => {
+                                                                                        if (e.key === 'Enter') {
+                                                                                            const val = renameGroupName.trim();
+                                                                                            if (val !== '') {
+                                                                                                handleRenameVerseGroup(block.groupId!, val);
+                                                                                            }
+                                                                                            setEditingGroupId(null);
+                                                                                        } else if (e.key === 'Escape') {
+                                                                                            setEditingGroupId(null);
+                                                                                        }
+                                                                                    }}
+                                                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                                                    onDragStart={(e) => e.stopPropagation()}
+                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                    className="absolute inset-0 bg-transparent border-none outline-none font-semibold text-[11.5px] text-stone-700 p-0 focus:ring-0 select-text cursor-text w-full h-full leading-none"
+                                                                                    placeholder="Rename..."
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="group/badge bg-white border border-stone-200/60 text-stone-700 px-3.5 py-0.5 text-[11.5px] font-semibold rounded-full select-none flex items-center shadow-[0_2px_8px_rgba(0,0,0,0.05)] h-[25px] w-fit transition-all duration-300 hover:shadow-[0_2px_12px_rgba(0,0,0,0.08)] pointer-events-auto cursor-default z-30 gap-0 hover:gap-2">
+                                                                            {/* Current group name text */}
+                                                                            <span 
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setEditingGroupId(block.groupId);
+                                                                                    setRenameGroupName(block.groupName || '');
+                                                                                }}
+                                                                                className="cursor-pointer hover:text-stone-900 transition-colors shrink-0"
+                                                                                title="Click to rename"
+                                                                            >
+                                                                                {formatGroupName(block.groupName)}
+                                                                            </span>
+
+                                                                            {/* Divider visible only when hovered */}
+                                                                            <div className="w-0 overflow-hidden opacity-0 group-hover/badge:w-[1px] group-hover/badge:opacity-100 group-hover/badge:mx-1.5 transition-all duration-300 shrink-0">
+                                                                                <div className="w-[1px] h-3 bg-stone-200" />
+                                                                            </div>
+
+                                                                            {/* Rename Button (Pencil Icon) */}
+                                                                            <button 
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setEditingGroupId(block.groupId);
+                                                                                    setRenameGroupName(block.groupName || '');
+                                                                                }}
+                                                                                className="w-0 overflow-hidden opacity-0 group-hover/badge:w-4 group-hover/badge:opacity-100 transition-all duration-300 hover:text-stone-850 text-stone-400 hover:scale-110 active:scale-95 cursor-pointer flex items-center justify-center shrink-0 pointer-events-auto p-0 bg-transparent border-none outline-none"
+                                                                                title="Rename Region"
+                                                                            >
+                                                                                <Pencil size={11} className="stroke-[2.5]" />
+                                                                            </button>
+
+                                                                            {/* Divider before delete */}
+                                                                            <div className="w-0 overflow-hidden opacity-0 group-hover/badge:w-[1px] group-hover/badge:opacity-100 group-hover/badge:mx-1.5 transition-all duration-300 shrink-0">
+                                                                                <div className="w-[1px] h-3 bg-stone-200" />
+                                                                            </div>
+
+                                                                            {/* Delete button */}
+                                                                            <button 
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleDeleteVerseGroup(block.groupId!);
+                                                                                }}
+                                                                                className="w-0 overflow-hidden opacity-0 group-hover/badge:w-4 group-hover/badge:opacity-100 transition-all duration-300 hover:text-red-500 text-stone-400 hover:scale-110 active:scale-95 font-bold cursor-pointer text-[13px] leading-none shrink-0 flex items-center justify-center h-3.5 pointer-events-auto p-0 bg-transparent border-none outline-none"
+                                                                                title="Delete Region"
+                                                                            >
+                                                                                ×
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
 
                                                                     {sortAudioNotesChronologically(activeAudioNotes.filter(an => an.groupId === block.groupId)).map(audioNote => (
                                                                         <AudioCapsulePlayer 
@@ -10344,8 +10468,8 @@ export default function CreatePage() {
                                                                     isGroupTranscribing ? (
                                                                         <LyricLinesSkeleton />
                                                                     ) : (
-                                                                        <div className="text-center text-xs text-stone-400 py-4 italic select-none pointer-events-none">
-                                                                            Drag lines here to add to {block.groupName}
+                                                                        <div className="text-center text-[15.5px] text-stone-300/75 py-4 italic select-none pointer-events-none">
+                                                                            Drop your lyrics here
                                                                         </div>
                                                                     )
                                                                 ) : (
@@ -10652,36 +10776,58 @@ export default function CreatePage() {
                                     </div>
                                 )}
 
-                                {/* Centered Chorus, Verse, and Bridge Buttons */}
-                                <div className="flex items-center justify-center gap-2.5 mt-8 pb-2 w-full select-none z-20">
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleAddVerseGroup('Chorus');
-                                        }}
-                                        className="px-5 py-1.5 rounded-full border border-dotted border-stone-300 bg-white hover:bg-stone-50 text-stone-400 hover:text-stone-600 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
-                                    >
-                                        Chorus
-                                    </button>
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleAddVerseGroup('Verse');
-                                        }}
-                                        className="px-5 py-1.5 rounded-full border border-dotted border-stone-300 bg-white hover:bg-stone-50 text-stone-400 hover:text-stone-600 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
-                                    >
-                                        Verse
-                                    </button>
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleAddVerseGroup('Bridge');
-                                        }}
-                                        className="px-5 py-1.5 rounded-full border border-dotted border-stone-300 bg-white hover:bg-stone-50 text-stone-400 hover:text-stone-600 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer font-sans"
-                                    >
-                                        Bridge
-                                    </button>
-                                </div>
+                                {/* Centered Add Section Trigger with Hover Inline Expand */}
+                                <div className="flex items-center justify-center mt-8 pb-2 w-full select-none z-30">
+                                     <div className={`group/add-menu flex items-center bg-white border rounded-full h-9 shadow-3xs transition-all duration-300 ease-in-out overflow-hidden w-fit pointer-events-auto ${isAddMenuSticky ? "border-stone-300" : "border-stone-200 hover:border-stone-300 group-hover/add-menu:border-stone-300"}`}>
+                                         {/* Trigger Button: "+ Add" */}
+                                         <div 
+                                             onClick={(e) => {
+                                                 e.stopPropagation();
+                                                 setIsAddMenuSticky(!isAddMenuSticky);
+                                             }}
+                                             className={`h-full px-5 flex items-center justify-center gap-1.5 font-sans font-bold text-[13px] cursor-pointer transition-colors duration-300 ease-in-out shrink-0 whitespace-nowrap ${isAddMenuSticky ? "text-stone-700" : "text-stone-400/80 group-hover/add-menu:text-stone-700"}`}
+                                         >
+                                             <Plus size={15} className="stroke-[2.5]" />
+                                             <span>Add</span>
+                                         </div>
+
+                                         {/* Divider line (appears on hover or when sticky) */}
+                                         <div className={`h-4.5 bg-stone-200 transition-all duration-300 ease-in-out ${isAddMenuSticky ? "w-[1px]" : "w-0 group-hover/add-menu:w-[1px]"}`} />
+
+                                         {/* Inline Options (expands horizontally on hover or when sticky as a sliding mask) */}
+                                         <div className={`flex items-center overflow-hidden transition-all duration-300 ease-in-out ${isAddMenuSticky ? "max-w-[226px] opacity-100 px-3" : "max-w-0 opacity-0 group-hover/add-menu:max-w-[226px] group-hover/add-menu:opacity-100 group-hover/add-menu:px-3"}`}>
+                                             <div className="flex items-center gap-1 shrink-0 w-[202px] h-full pointer-events-auto">
+                                                 <button
+                                                     onClick={(e) => {
+                                                         e.stopPropagation();
+                                                         handleAddVerseGroup("Chorus");
+                                                     }}
+                                                     className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
+                                                 >
+                                                     Chorus
+                                                 </button>
+                                                 <button
+                                                     onClick={(e) => {
+                                                         e.stopPropagation();
+                                                         handleAddVerseGroup("Verse");
+                                                     }}
+                                                     className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
+                                                 >
+                                                     Verse
+                                                 </button>
+                                                 <button
+                                                     onClick={(e) => {
+                                                         e.stopPropagation();
+                                                         handleAddVerseGroup("Bridge");
+                                                     }}
+                                                     className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
+                                                 >
+                                                     Bridge
+                                                 </button>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
                             </div>
                         ) : (
                             <div className="absolute inset-x-0 top-0 px-[10%] flex flex-col items-center justify-start pointer-events-none z-10 mt-6 sm:mt-8 md:mt-10">
@@ -11001,21 +11147,29 @@ export default function CreatePage() {
                         {/* Primary actions capsule */}
                         <div className="flex items-center gap-3.5 bg-white border border-stone-200/60 p-3 rounded-full shadow-[0_16px_48px_rgba(0,0,0,0.08)] w-fit pointer-events-auto">
                             {/* ✓ SAVE button — always visible during active collab, otherwise only when content differs */}
-                            {activeNote && (activeNote.content !== lastSavedContent || isActiveCollab) && (
+                            {activeNote && (activeNote.content !== lastSavedContent || isActiveCollab || isSavingNote) && (
                                 <button
                                     onClick={handleCheckmarkSaveClick}
-                                    disabled={savedFlash}
-                                    className={`h-14 px-7 flex items-center gap-3 rounded-full border font-sans font-extrabold text-[15.5px] uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 shadow-3xs select-none ${
-                                        savedFlash
+                                    disabled={isSavingNote}
+                                    className={`h-14 px-7 flex items-center gap-3 rounded-full border font-sans font-extrabold text-[15.5px] tracking-wider transition-all duration-200 cursor-pointer active:scale-95 shadow-3xs select-none ${
+                                        isSavingNote
                                             ? 'border-emerald-500 bg-emerald-500 text-stone-900 scale-95'
                                             : isActiveCollab && activeNote.content === lastSavedContent
                                                 ? 'border-stone-200/50 bg-white text-stone-400 hover:bg-stone-50'
-                                                : 'border-emerald-500 bg-emerald-500 text-stone-900 hover:bg-emerald-600 hover:border-emerald-600'
+                                                : 'border-emerald-500/30 bg-[#F5FBF7] text-emerald-600 hover:bg-[#EBF7F0] hover:border-emerald-500/50'
                                     }`}
                                     title={isActiveCollab ? 'Save to Collab Projects' : 'Save'}
                                 >
-                                    <Check size={20} className="stroke-[3]" />
-                                    <span>{savedFlash ? 'Saved ✓' : isActiveCollab ? 'SAVE' : 'SAVE'}</span>
+                                    {isSavingNote ? (
+                                        <Loader2 size={20} className="stroke-[3] animate-spin text-stone-900" />
+                                    ) : (
+                                        <Check size={20} className={`stroke-[3] ${
+                                            isActiveCollab && activeNote.content === lastSavedContent
+                                                ? 'text-stone-400' 
+                                                : 'text-emerald-600'
+                                        }`} />
+                                    )}
+                                    <span>{isSavingNote ? 'Saving' : 'Save'}</span>
                                 </button>
                             )}
 
