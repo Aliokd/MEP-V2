@@ -7955,13 +7955,19 @@ export default function CreatePage() {
 
     const getRulerItems = (limit: number) => {
         const items: { type: 'label' | 'tick'; value?: string }[] = [];
+        const formatTime = (secs: number) => {
+            const m = Math.floor(secs / 60);
+            const s = Math.floor(secs % 60);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        };
+
         if (limit <= 5) {
             const intLimit = Math.floor(limit);
             const totalSlots = intLimit * 4 + 1;
             for (let i = 0; i < totalSlots; i++) {
                 if (i % 4 === 0) {
                     const sec = i / 4;
-                    items.push({ type: 'label', value: `${sec}` });
+                    items.push({ type: 'label', value: formatTime(sec) });
                 } else {
                     items.push({ type: 'tick' });
                 }
@@ -7972,18 +7978,13 @@ export default function CreatePage() {
             for (let i = 0; i < totalSlots; i++) {
                 if (i % 2 === 0) {
                     const sec = i / 2;
-                    items.push({ type: 'label', value: `${sec}` });
+                    items.push({ type: 'label', value: formatTime(sec) });
                 } else {
                     items.push({ type: 'tick' });
                 }
             }
         } else {
             const step = limit / 4;
-            const formatTime = (secs: number) => {
-                const m = Math.floor(secs / 60);
-                const s = Math.floor(secs % 60);
-                return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-            };
             for (let i = 0; i < 5; i++) {
                 items.push({ type: 'label', value: formatTime(step * i) });
                 if (i < 4) {
