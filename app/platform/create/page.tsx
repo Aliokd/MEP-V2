@@ -7333,6 +7333,57 @@ export default function CreatePage() {
                     stream.getTracks().forEach(track => track.stop());
                 }
             };
+            // Start playback for all other tracks starting from zero
+            studioTracks.forEach(track => {
+                if (!track.audioBuffer || track.id === activeRecordingTrackId) return;
+
+                const source = audioCtx.createBufferSource();
+                source.buffer = track.audioBuffer;
+
+                const eqNode = audioCtx.createBiquadFilter();
+                eqNode.type = 'highshelf';
+                eqNode.frequency.value = 3000;
+                eqNode.gain.value = track.eq;
+
+                const compNode = audioCtx.createDynamicsCompressor();
+                compNode.threshold.value = -24;
+                compNode.knee.value = 30;
+                compNode.ratio.value = track.compressor ? 12 : 1;
+                compNode.attack.value = 0.003;
+                compNode.release.value = 0.25;
+
+                const panNode = audioCtx.createStereoPanner();
+                panNode.pan.value = track.pan / 50;
+
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.value = track.volume / 100;
+
+                const reverbGainNode = audioCtx.createGain();
+                reverbGainNode.gain.value = track.reverb / 100;
+
+                const reverbNode = getSharedReverbNode(audioCtx);
+
+                source.connect(eqNode);
+                eqNode.connect(compNode);
+                compNode.connect(panNode);
+                panNode.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                compNode.connect(reverbGainNode);
+                reverbGainNode.connect(reverbNode);
+
+                source.start(0, 0);
+                
+                studioActiveSourcesRef.current[track.id] = {
+                    source,
+                    gainNode,
+                    panNode,
+                    eqNode,
+                    compNode,
+                    reverbGainNode
+                };
+            });
+
             if (isStudioMetronomeOn) {
                 startStudioMetronome(0);
             }
@@ -7998,7 +8049,9 @@ export default function CreatePage() {
     };
 
     const renderDemoStudio = () => {
-        const limit = studioDuration > 0 ? studioDuration : 3;
+        const limit = studioState === 'recording'
+            ? Math.max(studioDuration > 0 ? studioDuration : 3, studioPlayhead)
+            : (studioDuration > 0 ? studioDuration : 3);
         const playheadPercent = limit > 0 ? (studioPlayhead / limit) * 100 : 0;
         const rulerItems = getRulerItems(limit);
 
