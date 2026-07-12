@@ -2252,6 +2252,7 @@ export default function CreatePage() {
             if (!target.closest('.studio-track-row')) {
                 setExpandedTrackId(null);
             }
+            setActiveTrackMenuId(null);
         };
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
