@@ -8480,6 +8480,48 @@ export default function CreatePage() {
 
                     {/* Master Action controls */}
                     <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
+                        {/* Metronome Control Dial */}
+                        <div className="flex flex-col items-center relative pb-5 shrink-0">
+                            <button
+                                onClick={() => {
+                                    const newVal = !isStudioMetronomeOn;
+                                    setIsStudioMetronomeOn(newVal);
+                                    if (newVal) {
+                                        if (studioState === 'playing') {
+                                            startStudioMetronome(studioPlayhead);
+                                        } else if (studioState === 'recording') {
+                                            startStudioMetronome(0);
+                                        }
+                                    } else {
+                                        if (studioMetronomeIntervalRef.current) {
+                                            clearInterval(studioMetronomeIntervalRef.current);
+                                            studioMetronomeIntervalRef.current = null;
+                                        }
+                                    }
+                                }}
+                                className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-300 relative shadow-[0_1px_3px_rgba(0,0,0,0.03)] cursor-pointer ${
+                                    isStudioMetronomeOn 
+                                        ? "bg-emerald-50 border-emerald-300 text-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.2)]" 
+                                        : "bg-stone-50 border-stone-200/80 text-stone-400 hover:border-stone-300 hover:text-stone-600"
+                                }`}
+                                type="button"
+                            >
+                                {/* Double border inset style */}
+                                <div className={`w-[34px] h-[34px] rounded-full flex items-center justify-center border transition-all duration-300 ${
+                                    isStudioMetronomeOn
+                                        ? "border-emerald-200/60 bg-white"
+                                        : "border-stone-150 bg-white/50"
+                                }`}>
+                                    <span className="text-[9px] font-sans font-black tracking-wider uppercase">
+                                        {isStudioMetronomeOn ? "ON" : "OFF"}
+                                    </span>
+                                </div>
+                            </button>
+                            <span className="absolute top-[48px] text-[10px] font-sans font-semibold text-stone-500/80 select-none whitespace-nowrap">
+                                Metronome
+                            </span>
+                        </div>
+
                         {/* REC */}
                         {studioState === 'recording' ? (
                             <button
