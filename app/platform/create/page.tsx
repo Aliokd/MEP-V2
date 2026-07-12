@@ -7953,53 +7953,61 @@ export default function CreatePage() {
         );
     };
 
-    const getRulerLabels = (limit: number) => {
-        if (limit <= 60) {
-            const labels = [];
+    const getRulerItems = (limit: number) => {
+        const items: { type: 'label' | 'tick'; value?: string }[] = [];
+        if (limit <= 5) {
             const intLimit = Math.floor(limit);
-            
-            let interval = 1;
-            if (limit <= 5) {
-                interval = 1;
-            } else if (limit <= 10) {
-                interval = 2;
-            } else if (limit <= 25) {
-                interval = 5;
-            } else {
-                interval = 15;
-            }
-
-            for (let i = 0; i <= intLimit; i += interval) {
-                if (i === 0) {
-                    labels.push("0");
-                } else if (i === 1) {
-                    labels.push("1 second");
+            const totalSlots = intLimit * 4 + 1;
+            for (let i = 0; i < totalSlots; i++) {
+                if (i % 4 === 0) {
+                    const sec = i / 4;
+                    let val = `${sec}s`;
+                    if (sec === 0) val = "0";
+                    else if (sec === 1) val = "1 second";
+                    else val = `${sec} seconds`;
+                    items.push({ type: 'label', value: val });
                 } else {
-                    labels.push(`${i} seconds`);
+                    items.push({ type: 'tick' });
                 }
             }
-            return labels;
+        } else if (limit <= 10) {
+            const intLimit = Math.floor(limit);
+            const totalSlots = intLimit * 2 + 1;
+            for (let i = 0; i < totalSlots; i++) {
+                if (i % 2 === 0) {
+                    const sec = i / 2;
+                    let val = `${sec}s`;
+                    if (sec === 0) val = "0";
+                    else if (sec === 1) val = "1 second";
+                    else val = `${sec} seconds`;
+                    items.push({ type: 'label', value: val });
+                } else {
+                    items.push({ type: 'tick' });
+                }
+            }
+        } else {
+            const step = limit / 4;
+            const formatTime = (secs: number) => {
+                const m = Math.floor(secs / 60);
+                const s = Math.floor(secs % 60);
+                return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            };
+            for (let i = 0; i < 5; i++) {
+                items.push({ type: 'label', value: formatTime(step * i) });
+                if (i < 4) {
+                    items.push({ type: 'tick' });
+                    items.push({ type: 'tick' });
+                    items.push({ type: 'tick' });
+                }
+            }
         }
-
-        const step = limit / 4;
-        const formatTime = (secs: number) => {
-            const m = Math.floor(secs / 60);
-            const s = Math.floor(secs % 60);
-            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        };
-        return [
-            formatTime(0),
-            formatTime(step),
-            formatTime(step * 2),
-            formatTime(step * 3),
-            formatTime(limit)
-        ];
+        return items;
     };
 
     const renderDemoStudio = () => {
         const limit = studioDuration > 0 ? studioDuration : 3;
         const playheadPercent = limit > 0 ? (studioPlayhead / limit) * 100 : 0;
-        const rulerLabels = getRulerLabels(limit);
+        const rulerItems = getRulerItems(limit);
 
         const instrumentImages = {
             guitar: '/assets/studio_guitar.png',
@@ -8511,27 +8519,26 @@ export default function CreatePage() {
 
                         {/* Right side: Timeline Seeker Capsule containing the actual time ruler */}
                         <div className="flex-grow flex items-center relative h-8.5 rounded-full bg-stone-100/70 border border-stone-250/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-                            {/* Time Ruler with tick lines inside capsule */}
+                            {/* Time Ruler with tick lines inside capsule (inline flex layout) */}
                             <div 
-                                className="w-full h-full relative cursor-ew-resize select-none"
+                                className="w-full h-full flex justify-between items-center px-6 relative cursor-ew-resize select-none"
                                 onPointerDown={handleTimelinePointerDown}
                             >
-                                {/* Ticks overlay (upper half) */}
-                                <div className="absolute inset-x-6 top-1.5 h-3 flex justify-between items-end pointer-events-none opacity-50">
-                                    {Array.from({ length: limit <= 5 ? Math.floor(limit) * 4 + 1 : (limit <= 10 ? Math.floor(limit) * 2 + 1 : 17) }).map((_, i) => (
+                                {rulerItems.map((item, idx) => (
+                                    item.type === 'label' ? (
+                                        <span 
+                                            key={idx} 
+                                            className="text-[11px] font-sans font-extrabold text-stone-750 select-none shrink-0"
+                                        >
+                                            {item.value}
+                                        </span>
+                                    ) : (
                                         <div 
-                                            key={i} 
-                                            className={`w-[1px] bg-stone-500 ${i % 4 === 0 ? 'h-3' : 'h-1.5'}`} 
+                                            key={idx} 
+                                            className="w-[1.5px] h-2.5 bg-stone-300 rounded-full shrink-0"
                                         />
-                                    ))}
-                                </div>
-
-                                {/* Time Labels (lower half) */}
-                                <div className="absolute inset-x-6 bottom-1 flex justify-between text-[9px] font-sans font-extrabold text-stone-600 select-none pointer-events-none leading-none">
-                                    {rulerLabels.map((lbl, idx) => (
-                                        <span key={idx}>{lbl}</span>
-                                    ))}
-                                </div>
+                                    )
+                                ))}
                             </div>
                         </div>
 
