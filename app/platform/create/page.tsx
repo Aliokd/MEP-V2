@@ -7784,7 +7784,7 @@ export default function CreatePage() {
             const clickX = clientX - rect.left;
             const clickPercent = clickX / rect.width;
             const boundedPercent = Math.max(0, Math.min(1, clickPercent));
-            const limit = studioDuration > 0 ? studioDuration : 60;
+            const limit = studioDuration > 0 ? studioDuration : 3;
             const targetTime = boundedPercent * limit;
             setStudioPlayhead(targetTime);
             return targetTime;
@@ -7846,7 +7846,7 @@ export default function CreatePage() {
             const clickX = clientX - rect.left;
             const clickPercent = clickX / rect.width;
             const boundedPercent = Math.max(0, Math.min(1, clickPercent));
-            const limit = studioDuration > 0 ? studioDuration : 60;
+            const limit = studioDuration > 0 ? studioDuration : 3;
             const targetTime = boundedPercent * limit;
             setStudioPlayhead(targetTime);
             return targetTime;
@@ -7954,10 +7954,22 @@ export default function CreatePage() {
     };
 
     const getRulerLabels = (limit: number) => {
-        if (limit <= 10) {
+        if (limit <= 60) {
             const labels = [];
             const intLimit = Math.floor(limit);
-            for (let i = 0; i <= intLimit; i++) {
+            
+            let interval = 1;
+            if (limit <= 5) {
+                interval = 1;
+            } else if (limit <= 10) {
+                interval = 2;
+            } else if (limit <= 25) {
+                interval = 5;
+            } else {
+                interval = 15;
+            }
+
+            for (let i = 0; i <= intLimit; i += interval) {
                 if (i === 0) {
                     labels.push("0");
                 } else if (i === 1) {
@@ -7985,7 +7997,7 @@ export default function CreatePage() {
     };
 
     const renderDemoStudio = () => {
-        const limit = studioDuration > 0 ? studioDuration : 60;
+        const limit = studioDuration > 0 ? studioDuration : 3;
         const playheadPercent = limit > 0 ? (studioPlayhead / limit) * 100 : 0;
         const rulerLabels = getRulerLabels(limit);
 
@@ -8505,7 +8517,7 @@ export default function CreatePage() {
                             >
                                 {/* Ticks overlay */}
                                 <div className="absolute inset-x-6 inset-y-0 flex justify-between items-center pointer-events-none opacity-20">
-                                    {Array.from({ length: limit <= 10 ? Math.floor(limit) * 4 + 1 : 17 }).map((_, i) => (
+                                    {Array.from({ length: limit <= 5 ? Math.floor(limit) * 4 + 1 : (limit <= 10 ? Math.floor(limit) * 2 + 1 : 17) }).map((_, i) => (
                                         <div 
                                             key={i} 
                                             className={`w-[1px] bg-stone-500 ${i % 4 === 0 ? 'h-3.5' : 'h-2'}`} 
