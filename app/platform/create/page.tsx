@@ -8622,7 +8622,7 @@ export default function CreatePage() {
                 {studioState !== 'recording' && (
                     <div 
                         id="studio-playhead-overlay"
-                        className="absolute top-8 bottom-[76px] pointer-events-none z-30 left-[480px] sm:left-[496px] md:left-[512px] lg:left-[528px] right-[60px]"
+                        className="absolute top-8 bottom-[76px] pointer-events-none z-30 left-[480px] sm:left-[496px] md:left-[512px] lg:left-[528px] right-[98px]"
                     >
                         {/* Hoverable target container centered on playheadPercent */}
                         <div 
@@ -8796,7 +8796,7 @@ export default function CreatePage() {
                         </div>
 
                         {/* Options gap */}
-                        <div className="w-8 shrink-0" />
+                        <div className="w-[70px] shrink-0" />
                     </div>
 
                     {/* Level 2 Divider Line */}
