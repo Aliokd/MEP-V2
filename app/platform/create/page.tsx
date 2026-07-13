@@ -8564,10 +8564,10 @@ export default function CreatePage() {
                             <div className="h-15 sm:h-16 w-full shrink-0 flex items-center justify-center">
                                 <button
                                     onClick={handleAddTrack}
-                                    className="w-[220px] h-11 sm:h-12 border border-dashed border-stone-300 hover:border-stone-400 bg-stone-100/40 hover:bg-stone-100/70 text-stone-500 hover:text-stone-700 rounded-full font-semibold text-[14px] transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-sm"
+                                    className="w-[260px] h-13 sm:h-14 border border-dashed border-stone-300 hover:border-stone-400 bg-stone-100/40 hover:bg-stone-100/70 text-stone-500 hover:text-stone-700 rounded-full font-medium text-[16px] transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-sm"
                                     type="button"
                                 >
-                                    <Plus size={17} className="stroke-[2.2] text-stone-500" />
+                                    <Plus size={20} className="stroke-[2.2] text-stone-500" />
                                     <span>Add track</span>
                                 </button>
                             </div>
