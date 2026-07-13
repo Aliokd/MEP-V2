@@ -12001,7 +12001,7 @@ export default function CreatePage() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h3 className="text-3xl font-sans font-light text-stone-700 tracking-[-0.025em] leading-[1.3]">
-                            Are you sure you want to overwrite the existing recording for this track "{confirmOverwriteStudioRecord.trackName}"?
+                            Overwrite "{confirmOverwriteStudioRecord.trackName}"?
                         </h3>
                         <div className="flex flex-col gap-3 mt-2 w-full">
                             <button
@@ -12012,7 +12012,7 @@ export default function CreatePage() {
                                 }}
                                 className="w-full py-3 bg-red-500 hover:bg-red-650 text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95 text-center"
                             >
-                                Confirm
+                                Recording Again
                             </button>
                             <button
                                 onClick={() => setConfirmOverwriteStudioRecord({ isOpen: false, trackName: '', onConfirm: null })}
