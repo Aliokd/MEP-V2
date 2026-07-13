@@ -8537,22 +8537,22 @@ export default function CreatePage() {
                 {/* Bottom Control Bar */}
                 <div className="flex flex-col gap-3 border-t border-stone-250/20 pt-4 mt-2 w-full">
                     {/* Level 1: Metronome, Guitar Tuner, and Timeline Seeker Capsule */}
-                    <div className="flex w-full items-center gap-3 px-6 h-8.5 select-none">
+                    <div className="flex w-full items-center gap-3 px-6 h-10 select-none">
                         {/* Left side: Instrument and Utility pills aligned with tracks left column */}
                         <div className="w-[452px] sm:w-[468px] md:w-[484px] lg:w-[500px] shrink-0 flex items-center gap-2.5">
                             {/* Metronome Pill */}
                             <div 
                                 onMouseEnter={() => setIsMetronomeHovered(true)}
                                 onMouseLeave={() => setIsMetronomeHovered(false)}
-                                className={`h-8.5 bg-stone-100/70 border border-stone-250/20 rounded-full flex items-center gap-2 select-none shrink-0 transition-all duration-300 ease-in-out ${
-                                    isMetronomeHovered ? 'w-[230px] pl-1 pr-2.5 justify-between' : 'w-[125px] pl-3.5 pr-2.5 justify-between'
+                                className={`h-10 bg-stone-100/70 border border-stone-250/20 rounded-full flex items-center gap-2 select-none shrink-0 transition-all duration-300 ease-in-out ${
+                                    isMetronomeHovered ? 'w-[245px] pl-1 pr-2.5 justify-between' : 'w-[130px] pl-3.5 pr-2.5 justify-between'
                                 }`}
                             >
                                 <div className="flex items-center gap-2 min-w-0">
                                     {isMetronomeHovered && (
                                         <button 
                                             onClick={handleTapTempo}
-                                            className="h-6.5 bg-white border border-stone-250/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-3 rounded-full flex items-center gap-1 transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+                                            className="h-8 bg-white border border-stone-250/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-3 rounded-full flex items-center gap-1 transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
                                             type="button"
                                         >
                                             Tap tempo &rarr;
@@ -8606,8 +8606,8 @@ export default function CreatePage() {
                             <div 
                                 onMouseEnter={() => setIsTunerHovered(true)}
                                 onMouseLeave={() => setIsTunerHovered(false)}
-                                className={`h-8.5 bg-stone-100/70 border border-stone-250/20 rounded-full flex items-center select-none shrink-0 transition-all duration-300 ease-in-out ${
-                                    isTunerHovered ? 'w-[195px] pl-1 pr-3.5 justify-between' : 'w-[80px] pl-3.5 pr-3.5 justify-center gap-1.5'
+                                className={`h-10 bg-stone-100/70 border border-stone-250/20 rounded-full flex items-center select-none shrink-0 transition-all duration-300 ease-in-out ${
+                                    isTunerHovered ? 'w-[180px] pl-1 pr-2.5 justify-between' : 'w-[72px] pl-2.5 pr-2.5 justify-center gap-1.5'
                                 }`}
                             >
                                 {isTunerHovered && (
@@ -8617,7 +8617,7 @@ export default function CreatePage() {
                                             setActiveToolTab('tuner');
                                             setShowToolsPanel(true);
                                         }}
-                                        className="h-6.5 bg-white border border-stone-250/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-3 rounded-full flex items-center gap-1 transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+                                        className="h-8 bg-white border border-stone-250/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-3 rounded-full flex items-center gap-1 transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
                                         type="button"
                                     >
                                         Guitar tuning &rarr;
@@ -8642,7 +8642,7 @@ export default function CreatePage() {
                         </div>
 
                         {/* Right side: Timeline Seeker Capsule containing the actual time ruler */}
-                        <div className="flex-grow flex items-center relative h-8.5 rounded-full bg-stone-100/70 border border-stone-250/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                        <div className="flex-grow flex items-center relative h-10 rounded-full bg-stone-100/70 border border-stone-250/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
                             {/* Time Ruler with tick lines inside capsule (inline flex layout) */}
                             <div 
                                 className="w-full h-full flex justify-between items-center px-6 relative cursor-ew-resize select-none"
