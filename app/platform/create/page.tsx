@@ -8215,11 +8215,7 @@ export default function CreatePage() {
                                                     />
                                                 </div>
                                             )}
-                                        </div>
-
-                                        {/* Instrument Selection Grid Pop-up (Figma Pixel-Perfect Stack) */}
-                                        {activeTrackDropdownId === track.id && (
-                                            <div className="absolute top-12.5 left-0 w-[320px] bg-white border border-stone-200/80 rounded-[36px] shadow-[0_15px_50px_rgba(0,0,0,0.12)] p-6 z-50 animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col gap-3.5 pointer-events-auto">
+                                                                                  <div className="absolute top-12.5 left-0 w-[320px] bg-white border border-stone-200/80 rounded-[36px] shadow-[0_15px_50px_rgba(0,0,0,0.12)] p-6 z-50 animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col gap-3.5 pointer-events-auto">
                                                 {(() => {
                                                     const standardOptions = ['vocals', 'drums', 'piano', 'guitar', 'synth'] as const;
                                                     const isCustomSelected = track.type === 'custom';
@@ -8237,10 +8233,10 @@ export default function CreatePage() {
                                                                 className={`w-full h-14 flex items-center justify-between pl-6 relative overflow-hidden rounded-full group cursor-pointer border active:scale-[0.98] transition-all ${
                                                                     isSelected 
                                                                         ? 'bg-[#F9F8F6] border-transparent hover:bg-[#F3F1ED]' 
-                                                                        : 'bg-white border-stone-200 hover:bg-stone-50/50'
+                                                                        : 'bg-white border-stone-250 hover:bg-stone-50/50'
                                                                 }`}
                                                             >
-                                                                <span className={`text-[16px] tracking-wide select-none transition-colors ${
+                                                                <span className={`text-[16px] tracking-wide select-none transition-colors whitespace-nowrap ${
                                                                     isSelected ? 'font-semibold text-stone-600' : 'font-medium text-stone-400 group-hover:text-stone-500'
                                                                 }`}>
                                                                     {instrumentLabels[typeOpt]}
@@ -8265,7 +8261,7 @@ export default function CreatePage() {
                                                             </button>
                                                         );
                                                     };
-
+  
                                                     // Helper to render the custom option pill
                                                     const renderCustomPill = () => {
                                                         return (
@@ -8280,10 +8276,10 @@ export default function CreatePage() {
                                                                 className={`w-full h-14 flex items-center justify-between pl-6 relative overflow-hidden rounded-full group cursor-pointer border active:scale-[0.98] transition-all ${
                                                                     isCustomSelected 
                                                                         ? 'bg-[#F9F8F6] border-transparent hover:bg-[#F3F1ED]' 
-                                                                        : 'bg-white border-stone-200 hover:bg-stone-50/50'
+                                                                        : 'bg-white border-stone-250 hover:bg-stone-50/50'
                                                                 }`}
                                                             >
-                                                                <span className={`text-[16px] tracking-wide select-none transition-colors ${
+                                                                <span className={`text-[16px] tracking-wide select-none transition-colors whitespace-nowrap ${
                                                                     isCustomSelected ? 'font-semibold text-stone-600' : 'font-medium text-stone-400 group-hover:text-stone-500'
                                                                 }`}>
                                                                     Add custom
@@ -8298,7 +8294,7 @@ export default function CreatePage() {
                                                             </button>
                                                         );
                                                     };
-
+  
                                                     // Build the final order: guitar, piano, vocals, then custom
                                                     const orderedOptions = ['guitar', 'piano', 'vocals'] as const;
                                                     return (
