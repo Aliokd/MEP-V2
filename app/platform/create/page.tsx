@@ -8479,13 +8479,18 @@ export default function CreatePage() {
                                     {/* Timeline Capsule Wrapper (allows playhead dragging/seeking) */}
                                     <div 
                                         className="flex-grow h-11 relative cursor-ew-resize select-none"
-                                        onPointerDown={handleTimelinePointerDown}
+                                        onPointerDown={(e) => {
+                                            setActiveRecordingTrackId(track.id);
+                                            handleTimelinePointerDown(e);
+                                        }}
                                     >
                                         {/* Timeline Capsule */}
                                         <div className={`w-full h-full rounded-full flex items-center relative hover:bg-stone-50/50 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] overflow-hidden ${
                                             isThisTrackRecording 
                                                 ? 'p-0 bg-[#FF6B6B]' 
-                                                : 'px-1 py-1 bg-white border border-stone-200/50'
+                                                : isArmed
+                                                    ? 'px-1 py-1 bg-red-50/15 border border-red-400 shadow-[0_0_8px_rgba(239,68,68,0.1)]'
+                                                    : 'px-1 py-1 bg-white border border-stone-200/50'
                                         }`}>
                                             <TrackWaveform 
                                                 audioBuffer={track.audioBuffer}
