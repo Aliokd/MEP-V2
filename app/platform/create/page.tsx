@@ -2240,7 +2240,7 @@ export default function CreatePage() {
     const [tracksPerNote, setTracksPerNote] = useState<Record<string, StudioTrack[]>>({});
 
     const [studioTracks, setStudioTracks] = useState<StudioTrack[]>([
-        { id: 1, name: 'Guitar', type: 'guitar', volume: 80, pan: 0, eq: 0, compressor: true, reverb: 40, audioBuffer: null, url: null }
+        { id: 1, name: 'Guitar', type: 'guitar', volume: 70, pan: -15, eq: 0, compressor: true, reverb: 25, audioBuffer: null, url: null }
     ]);
     const [studioState, setStudioState] = useState<'idle' | 'playing' | 'recording' | 'paused'>('idle');
     const [activeRecordingTrackId, setActiveRecordingTrackId] = useState<number>(1);
@@ -7757,11 +7757,11 @@ export default function CreatePage() {
             id: nextId,
             name: 'Guitar',
             type: 'guitar',
-            volume: 80,
-            pan: 0,
+            volume: 70,
+            pan: -15,
             eq: 0,
-            compressor: false,
-            reverb: 0,
+            compressor: true,
+            reverb: 25,
             audioBuffer: null,
             url: null
         };
@@ -7801,17 +7801,50 @@ export default function CreatePage() {
             custom: 'Custom'
         };
         
+        const instrumentDefaults = {
+            guitar: { volume: 70, pan: -15, eq: 0, reverb: 25, compressor: true },
+            piano: { volume: 65, pan: 15, eq: 0, reverb: 35, compressor: false },
+            vocals: { volume: 85, pan: 0, eq: 0, reverb: 30, compressor: true },
+            drums: { volume: 80, pan: 0, eq: 0, reverb: 15, compressor: true },
+            synth: { volume: 60, pan: 0, eq: 0, reverb: 40, compressor: false },
+            custom: { volume: 80, pan: 0, eq: 0, reverb: 40, compressor: true }
+        };
+        
+        const defaults = instrumentDefaults[type];
+        
         setStudioTracks(prev => prev.map(t => {
             if (t.id === trackId) {
                 const isDefaultName = ['Guitar', 'Piano', 'Drums', 'Vocals', 'Synth', 'Track 1', 'Track 2', 'Track 3', 'Track 4', 'Guitar 2', 'Guitar 3', 'Custom'].includes(t.name);
                 return {
                     ...t,
                     type,
-                    name: isDefaultName ? typeLabels[type] : t.name
+                    name: isDefaultName ? typeLabels[type] : t.name,
+                    volume: defaults.volume,
+                    pan: defaults.pan,
+                    eq: defaults.eq,
+                    reverb: defaults.reverb,
+                    compressor: defaults.compressor
                 };
             }
             return t;
         }));
+
+        // Update active audio nodes parameters in real-time
+        const activeNodes = studioActiveSourcesRef.current[trackId];
+        if (activeNodes) {
+            try {
+                const audioCtx = getStudioAudioContext();
+                const time = audioCtx.currentTime;
+                activeNodes.gainNode.gain.setValueAtTime(defaults.volume / 100, time);
+                activeNodes.panNode.pan.setValueAtTime(defaults.pan / 50, time);
+                activeNodes.eqNode.gain.setValueAtTime(defaults.eq, time);
+                activeNodes.compNode.ratio.setValueAtTime(defaults.compressor ? 12 : 1, time);
+                activeNodes.reverbGainNode.gain.setValueAtTime(defaults.reverb / 100, time);
+            } catch (err) {
+                console.error("Error adjusting parameters on instrument change:", err);
+            }
+        }
+        
         setActiveTrackDropdownId(null);
     };
 
