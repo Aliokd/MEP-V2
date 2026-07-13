@@ -8604,30 +8604,34 @@ export default function CreatePage() {
                         <div className="w-[452px] sm:w-[468px] md:w-[484px] lg:w-[500px] shrink-0 flex items-center gap-2.5">
                             {/* Metronome Pill */}
                             <div 
-                                onMouseEnter={() => setIsMetronomeHovered(true)}
+                                onMouseEnter={() => {
+                                    if (!isStudioMetronomeOn) {
+                                        setIsMetronomeHovered(true);
+                                    }
+                                }}
                                 onMouseLeave={() => setIsMetronomeHovered(false)}
                                 onClick={handleToggleStudioMetronome}
                                 className={`h-10 border rounded-full flex items-center select-none shrink-0 transition-all duration-300 ease-in-out cursor-pointer ${
-                                    isMetronomeHovered 
-                                        ? 'w-[305px] pl-1 pr-2.5 justify-between bg-stone-100/70 border-stone-250/20 text-stone-700'
+                                    (isMetronomeHovered && !isStudioMetronomeOn)
+                                        ? 'w-[245px] pl-1 pr-2.5 justify-start gap-1.5 bg-stone-100/70 border-stone-250/20 text-stone-700'
                                         : isStudioMetronomeOn
                                             ? 'w-[155px] px-4 justify-center gap-2 bg-stone-900 border-stone-900 text-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] active:scale-98'
                                             : 'w-[110px] pl-3.5 pr-3.5 justify-center gap-1.5 bg-stone-100/70 border-stone-250/20 text-stone-700/80 active:scale-98'
                                 }`}
                             >
-                                {isMetronomeHovered ? (
+                                {(isMetronomeHovered && !isStudioMetronomeOn) ? (
                                     <>
                                         <div className="flex items-center gap-1.5 shrink-0">
-                                            {/* Black Play/Stop Button on the left */}
+                                            {/* Black Play Button on the left */}
                                             <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handleToggleStudioMetronome();
                                                 }}
-                                                className="h-8 bg-stone-900 hover:bg-stone-850 text-white text-[11px] font-bold px-3.5 rounded-full flex items-center justify-center gap-1 transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+                                                className="h-8 bg-stone-900 hover:bg-stone-850 text-white text-[11px] font-bold px-3 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
                                                 type="button"
                                             >
-                                                {isStudioMetronomeOn ? 'Stop' : 'Play'}
+                                                Play
                                             </button>
 
                                             {/* White Tap Tempo Button next to it */}
@@ -8636,7 +8640,7 @@ export default function CreatePage() {
                                                     e.stopPropagation();
                                                     handleTapTempo(e);
                                                 }}
-                                                className="h-8 bg-white border border-stone-250/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-3 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+                                                className="h-8 bg-white border border-stone-250/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-2.5 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
                                                 type="button"
                                             >
                                                 Tap tempo &rarr;
@@ -8649,11 +8653,11 @@ export default function CreatePage() {
                                                 viewBox="0 0 32 32" 
                                                 fill="none" 
                                                 xmlns="http://www.w3.org/2000/svg" 
-                                                className={`w-4 h-4 text-stone-500 shrink-0 ${isStudioMetronomeOn ? 'animate-pulse' : ''}`}
+                                                className="w-4 h-4 text-stone-500 shrink-0"
                                             >
                                                 <path d="M26.6651 25.4688L23.1088 14.2925L26.5526 10.5C26.6651 10.3502 26.7174 10.1637 26.6993 9.97727C26.6812 9.79081 26.594 9.61788 26.4548 9.49249C26.3156 9.3671 26.1346 9.29834 25.9472 9.29973C25.7599 9.30112 25.5799 9.37257 25.4426 9.50001L22.5838 12.6463L20.3013 5.46876C20.1897 5.11437 19.9676 4.80496 19.6676 4.5857C19.3676 4.36644 19.0054 4.24882 18.6338 4.25001H13.3638C12.9923 4.24882 12.63 4.36644 12.3301 4.5857C12.0301 4.80496 11.808 5.11437 11.6963 5.46876L5.33258 25.4688C5.24903 25.731 5.22851 26.0092 5.27269 26.2809C5.31686 26.5526 5.42449 26.81 5.58682 27.0322C5.74916 27.2545 5.96163 27.4353 6.20697 27.56C6.45231 27.6847 6.72361 27.7498 6.99884 27.75H24.9988C25.2742 27.75 25.5456 27.6851 25.7911 27.5604C26.0366 27.4358 26.2492 27.255 26.4117 27.0327C26.5742 26.8104 26.6819 26.553 26.7262 26.2812C26.7704 26.0095 26.7499 25.731 26.6663 25.4688H26.6651ZM23.4301 20.25H17.6938L21.9438 15.5763L23.4301 20.25ZM13.1238 5.92376C13.1401 5.873 13.1721 5.82876 13.2153 5.7975C13.2585 5.76624 13.3105 5.7496 13.3638 5.75001H18.6338C18.6871 5.7496 18.7392 5.76624 18.7823 5.7975C18.8255 5.82876 18.8576 5.873 18.8738 5.92376L21.4188 13.9238L15.6688 20.25H8.56759L13.1238 5.92376ZM25.1988 26.1475C25.1762 26.1795 25.1463 26.2055 25.1114 26.2233C25.0766 26.2412 25.038 26.2503 24.9988 26.25H6.99884C6.95952 26.2499 6.92078 26.2406 6.88577 26.2227C6.85075 26.2048 6.82044 26.1789 6.79731 26.1471C6.77417 26.1154 6.75885 26.0786 6.7526 26.0398C6.74635 26.0009 6.74934 25.9612 6.76133 25.9238L8.09009 21.75H23.9076L25.2351 25.9238C25.2477 25.9612 25.251 26.0011 25.2447 26.0401C25.2384 26.0791 25.2226 26.116 25.1988 26.1475Z" fill="currentColor" />
                                             </svg>
-                                            <span className="text-[12px] font-sans font-extrabold">
+                                            <span className="text-[12px] font-sans font-extrabold text-stone-700/80">
                                                 {metronomeBpm} BPM
                                             </span>
                                         </div>
@@ -8662,7 +8666,7 @@ export default function CreatePage() {
                                     <>
                                         <div className="w-2 h-2 rounded-full bg-[#82C39B] shrink-0 animate-pulse" />
                                         <span className="text-[12px] font-sans font-extrabold whitespace-nowrap tracking-tight">
-                                            Stop Metronome
+                                            Stop • {metronomeBpm} BPM
                                         </span>
                                     </>
                                 ) : (
