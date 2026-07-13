@@ -8537,27 +8537,25 @@ export default function CreatePage() {
 
                                     {/* Far Right Action Buttons (Silence/Volume & Options) */}
                                     <div className="flex items-center gap-1.5 shrink-0 z-20 relative">
-                                        {studioState !== 'idle' && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleToggleTrackMute(track.id);
-                                                }}
-                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] ${
-                                                    track.muted 
-                                                        ? 'bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600' 
-                                                        : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750'
-                                                }`}
-                                                type="button"
-                                                title={track.muted ? "Unsilence Track" : "Silence Track"}
-                                            >
-                                                {track.muted ? (
-                                                    <VolumeX size={15} className="stroke-[2.5]" />
-                                                ) : (
-                                                    <Volume2 size={15} className="stroke-[2.5]" />
-                                                )}
-                                            </button>
-                                        )}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleToggleTrackMute(track.id);
+                                            }}
+                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] ${
+                                                track.muted 
+                                                    ? 'bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600' 
+                                                    : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750'
+                                            }`}
+                                            type="button"
+                                            title={track.muted ? "Unsilence Track" : "Silence Track"}
+                                        >
+                                            {track.muted ? (
+                                                <VolumeX size={15} className="stroke-[2.5]" />
+                                            ) : (
+                                                <Volume2 size={15} className="stroke-[2.5]" />
+                                            )}
+                                        </button>
 
                                         <div className="relative">
                                             <button
