@@ -2259,6 +2259,8 @@ export default function CreatePage() {
     }, []);
 
     const [isStudioMetronomeOn, setIsStudioMetronomeOn] = useState<boolean>(false);
+    const [isMetronomeHovered, setIsMetronomeHovered] = useState<boolean>(false);
+    const [isTunerHovered, setIsTunerHovered] = useState<boolean>(false);
     const [studioPlayhead, setStudioPlayhead] = useState<number>(0);
     const [studioDuration, setStudioDuration] = useState<number>(0);
 
@@ -8498,19 +8500,61 @@ export default function CreatePage() {
                 <div className="flex flex-col gap-3 border-t border-stone-250/20 pt-4 mt-2 w-full">
                     {/* Level 1: Metronome, Guitar Tuner, and Timeline Seeker Capsule */}
                     <div className="flex w-full items-center gap-3 px-6 h-8.5 select-none">
-                        {/* Left side: Instrument and Utility pills aligned with tracks left column */}
-                        <div className="w-[452px] sm:w-[468px] md:w-[484px] lg:w-[500px] shrink-0 flex items-center gap-2.5">
-                            {/* Metronome Pill */}
-                            <div className="h-8.5 bg-stone-100/70 border border-stone-250/20 rounded-full pl-3.5 pr-2.5 flex items-center justify-between gap-2.5 select-none shrink-0 w-[220px]">
-                                <div className="flex items-center gap-1">
-                                    {/* Metronome Line Icon */}
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={`w-4 h-4 text-stone-500 shrink-0 ${isStudioMetronomeOn ? 'animate-bounce' : ''}`}>
-                                        <path d="M12 2L2 22h20L12 2z" />
-                                        <path d="M12 18a3 3 0 100-6 3 3 0 000 6z" />
-                                        <path d="M12 12l3-6" />
+                        {/*                             {/* Metronome Pill */}
+                            <div 
+                                onMouseEnter={() => setIsMetronomeHovered(true)}
+                                onMouseLeave={() => setIsMetronomeHovered(false)}
+                                className={`h-8.5 bg-stone-100/70 border border-stone-250/20 rounded-full pl-3.5 pr-2.5 flex items-center justify-between gap-2.5 select-none shrink-0 transition-all duration-300 ease-in-out ${
+                                    isMetronomeHovered ? 'w-[245px]' : 'w-[140px]'
+                                }`}
+                            >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    {/* Metronome User Icon */}
+                                    <svg 
+                                        viewBox="0 0 32 32" 
+                                        fill="none" 
+                                        xmlns="http://www.w3.org/2000/svg" 
+                                        className={`w-4 h-4 text-stone-500 shrink-0 ${isStudioMetronomeOn ? 'animate-pulse' : ''}`}
+                                    >
+                                        <path d="M26.6651 25.4688L23.1088 14.2925L26.5526 10.5C26.6651 10.3502 26.7174 10.1637 26.6993 9.97727C26.6812 9.79081 26.594 9.61788 26.4548 9.49249C26.3156 9.3671 26.1346 9.29834 25.9472 9.29973C25.7599 9.30112 25.5799 9.37257 25.4426 9.50001L22.5838 12.6463L20.3013 5.46876C20.1897 5.11437 19.9676 4.80496 19.6676 4.5857C19.3676 4.36644 19.0054 4.24882 18.6338 4.25001H13.3638C12.9923 4.24882 12.63 4.36644 12.3301 4.5857C12.0301 4.80496 11.808 5.11437 11.6963 5.46876L5.33258 25.4688C5.24903 25.731 5.22851 26.0092 5.27269 26.2809C5.31686 26.5526 5.42449 26.81 5.58682 27.0322C5.74916 27.2545 5.96163 27.4353 6.20697 27.56C6.45231 27.6847 6.72361 27.7498 6.99884 27.75H24.9988C25.2742 27.75 25.5456 27.6851 25.7911 27.5604C26.0366 27.4358 26.2492 27.255 26.4117 27.0327C26.5742 26.8104 26.6819 26.553 26.7262 26.2812C26.7704 26.0095 26.7499 25.7311 26.6663 25.4688H26.6651ZM23.4301 20.25H17.6938L21.9438 15.5763L23.4301 20.25ZM13.1238 5.92376C13.1401 5.873 13.1721 5.82876 13.2153 5.7975C13.2585 5.76624 13.3105 5.7496 13.3638 5.75001H18.6338C18.6871 5.7496 18.7392 5.76624 18.7823 5.7975C18.8255 5.82876 18.8576 5.873 18.8738 5.92376L21.4188 13.9238L15.6688 20.25H8.56759L13.1238 5.92376ZM25.1988 26.1475C25.1762 26.1795 25.1463 26.2055 25.1114 26.2233C25.0766 26.2412 25.038 26.2503 24.9988 26.25H6.99884C6.95952 26.2499 6.92078 26.2406 6.88577 26.2227C6.85075 26.2048 6.82044 26.1789 6.79731 26.1471C6.77417 26.1154 6.75885 26.0786 6.7526 26.0398C6.74635 26.0009 6.74934 25.9612 6.76133 25.9238L8.09009 21.75H23.9076L25.2351 25.9238C25.2477 25.9612 25.251 26.0011 25.2447 26.0401C25.2384 26.0791 25.2226 26.116 25.1988 26.1475Z" fill="currentColor"/>
                                     </svg>
-                                    <span className="text-[12px] font-sans font-medium text-stone-400">Metronome</span>
-                                    <span className="text-[12px] font-sans font-extrabold text-stone-700/80 ml-1.5">{metronomeBpm} BPM</span>
+                                    
+                                    {isMetronomeHovered && (
+                                        <span className="text-[12px] font-sans font-medium text-stone-400 shrink-0">
+                                            Metronome
+                                        </span>
+                                    )}
+
+                                    {isMetronomeHovered ? (
+                                        <div className="flex items-center gap-1 shrink-0 ml-1">
+                                            <input 
+                                                type="number" 
+                                                value={metronomeBpm} 
+                                                onChange={(e) => {
+                                                    const val = Math.max(40, Math.min(240, parseInt(e.target.value) || 120));
+                                                    setMetronomeBpm(val);
+                                                    if (isStudioMetronomeOn) {
+                                                        if (studioState === 'playing') {
+                                                            startStudioMetronome(studioPlayhead);
+                                                        } else if (studioState === 'recording') {
+                                                            startStudioMetronome(0);
+                                                        }
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => e.stopPropagation()}
+                                                onPointerDown={(e) => e.stopPropagation()}
+                                                className="w-11 bg-white border border-stone-250/50 rounded px-1 py-0.5 text-center text-[11px] font-extrabold text-stone-700 focus:outline-none focus:border-stone-400 focus:ring-1 focus:ring-stone-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                min={40}
+                                                max={240}
+                                            />
+                                            <span className="text-[11px] font-sans font-extrabold text-stone-500 uppercase">BPM</span>
+                                            <Pencil size={10} className="text-stone-400 shrink-0 ml-0.5" />
+                                        </div>
+                                    ) : (
+                                        <span className="text-[12px] font-sans font-extrabold text-stone-700/80 ml-1 shrink-0">
+                                            {metronomeBpm} BPM
+                                        </span>
+                                    )}
                                 </div>
                                 
                                 {/* Toggle switch */}
@@ -8542,24 +8586,48 @@ export default function CreatePage() {
 
                             {/* Guitar Tuner Pill */}
                             <div 
-                                onClick={() => {
-                                    if (tunerActive) {
-                                        stopTunerMic();
-                                    } else {
-                                        startTunerMic();
-                                    }
-                                }}
-                                className="h-8.5 bg-stone-100/70 border border-stone-250/20 rounded-full pl-3.5 pr-4 flex items-center gap-1.5 select-none shrink-0 w-[165px] cursor-pointer hover:bg-stone-200/30 transition-all duration-200"
+                                onMouseEnter={() => setIsTunerHovered(true)}
+                                onMouseLeave={() => setIsTunerHovered(false)}
+                                className={`h-8.5 bg-stone-100/70 border border-stone-250/20 rounded-full pl-3.5 pr-3.5 flex items-center select-none shrink-0 transition-all duration-300 ease-in-out ${
+                                    isTunerHovered ? 'w-[200px] justify-between' : 'w-[80px] justify-center gap-1.5'
+                                }`}
                             >
-                                {/* Guitar Line Icon */}
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={`w-4 h-4 text-stone-500 shrink-0 ${tunerActive ? 'animate-pulse text-emerald-500' : ''}`}>
-                                    <path d="M9 18a3 3 0 100-6 3 3 0 000 6z" />
-                                    <path d="M11.5 15.5l7-7M16 6l3 3M19 3l2 2-3 3-2-2 3-3z" />
-                                </svg>
-                                <span className="text-[12px] font-sans font-medium text-stone-400">Guitar tuner</span>
-                                <span className="text-[12px] font-sans font-extrabold text-stone-700/80 ml-auto">
-                                    {tunerActive ? tunerNote : (savedTuning ? savedTuning.note : '--')}
-                                </span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    {/* Guitar User Icon */}
+                                    <svg 
+                                        viewBox="0 0 32 32" 
+                                        fill="none" 
+                                        xmlns="http://www.w3.org/2000/svg" 
+                                        className={`w-4 h-4 text-stone-500 shrink-0 ${tunerActive ? 'animate-pulse text-emerald-500' : ''}`}
+                                    >
+                                        <path d="M31.0306 5.96985L26.0306 0.969847C25.8885 0.837367 25.7004 0.765243 25.5061 0.768672C25.3118 0.7721 25.1264 0.850812 24.989 0.988225C24.8516 1.12564 24.7729 1.31102 24.7695 1.50532C24.766 1.69963 24.8382 1.88767 24.9706 2.02985L25.4406 2.49985L17.6131 10.3273C14.8181 8.80235 11.6619 8.87485 9.7719 10.7698C9.28268 11.2564 8.89962 11.8391 8.6469 12.4811C8.54812 12.7079 8.38575 12.9011 8.17945 13.0376C7.97314 13.174 7.73172 13.2477 7.4844 13.2498C5.7269 13.3098 4.20065 13.9373 3.0719 15.0661C1.62565 16.5223 1.00065 18.6248 1.34065 20.9736C1.66565 23.2498 2.84815 25.4998 4.6719 27.3286C6.49565 29.1573 8.75065 30.3348 11.0269 30.6598C11.4359 30.719 11.8486 30.7491 12.2619 30.7498C14.1106 30.7498 15.7381 30.1248 16.9306 28.9286C18.0556 27.8036 18.6869 26.2748 18.7469 24.5161C18.7481 24.2673 18.8219 24.0242 18.9591 23.8167C19.0963 23.6091 19.291 23.446 19.5194 23.3473C20.1609 23.0965 20.7435 22.7156 21.2306 22.2286C23.1206 20.3386 23.1981 17.1823 21.6731 14.3873L29.5006 6.55985L29.9706 7.02985C30.1128 7.16233 30.3009 7.23445 30.4952 7.23102C30.6895 7.22759 30.8749 7.14888 31.0123 7.01147C31.1497 6.87406 31.2284 6.68867 31.2318 6.49437C31.2352 6.30007 31.1631 6.11202 31.0306 5.96985ZM20.1706 21.1686C19.8278 21.5101 19.4179 21.7769 18.9669 21.9523C18.4674 22.1587 18.039 22.5064 17.7341 22.9527C17.4293 23.399 17.2612 23.9245 17.2506 24.4648C17.2044 25.8398 16.7281 27.0136 15.8756 27.8673C14.7644 28.9786 13.1256 29.4436 11.2506 29.1748C9.2944 28.8961 7.3394 27.8636 5.74315 26.2686C4.1469 24.6736 3.11815 22.7173 2.8369 20.7611C2.56815 18.8861 3.03315 17.2411 4.1444 16.1298C4.99815 15.2748 6.17565 14.7986 7.5469 14.7548C8.08772 14.7441 8.61362 14.5756 9.05998 14.27C9.50633 13.9644 9.8537 13.5351 10.0594 13.0348C10.2352 12.5844 10.502 12.175 10.8431 11.8323C11.5656 11.0961 12.5719 10.7498 13.6806 10.7498C14.66 10.7663 15.6233 11.0007 16.5006 11.4361L13.6756 14.2648C12.9642 14.3265 12.2853 14.5901 11.7185 15.0245C11.1517 15.4588 10.7208 16.046 10.4763 16.7169C10.2318 17.3878 10.184 18.1146 10.3384 18.8118C10.4928 19.509 10.8431 20.1475 11.348 20.6525C11.8529 21.1574 12.4915 21.5077 13.1887 21.6621C13.8859 21.8165 14.6127 21.7687 15.2836 21.5242C15.9545 21.2797 16.5417 20.8488 16.976 20.282C17.4104 19.7152 17.6739 19.0362 17.7356 18.3248L20.5656 15.4998C21.5794 17.6023 21.5006 19.8348 20.1706 21.1686ZM18.8756 13.1248C19.2002 13.4493 19.4998 13.7978 19.7719 14.1673L17.4381 16.4998C17.058 15.634 16.3665 14.9425 15.5006 14.5623L17.8281 12.2348C18.1994 12.5044 18.5496 12.802 18.8756 13.1248ZM14.0006 15.7498C14.5974 15.7498 15.1697 15.9869 15.5916 16.4089C16.0136 16.8308 16.2506 17.4031 16.2506 17.9998C16.2506 17.9998 16.2506 17.9998 16.2506 17.9998ZM19.9306 12.0698C19.6059 11.7461 19.2602 11.4442 18.8956 11.1661L22.0006 8.05985L23.9406 9.99985L20.8356 13.1036C20.5572 12.7393 20.2553 12.3936 19.9319 12.0686L19.9306 12.0698ZM24.9994 8.94485L23.0619 6.99985L26.5006 3.55985L28.4406 5.49985L24.9994 8.94485ZM11.5319 24.4686C11.6056 24.5373 11.6647 24.6201 11.7057 24.7121C11.7467 24.8041 11.7687 24.9034 11.7705 25.0041C11.7723 25.1048 11.7537 25.2048 11.716 25.2982C11.6783 25.3916 11.6222 25.4764 11.5509 25.5476C11.4797 25.6189 11.3949 25.675 11.3015 25.7127C11.2081 25.7504 11.1081 25.769 11.0074 25.7672C10.9067 25.7654 10.8074 25.7434 10.7154 25.7024C10.6234 25.6614 10.5406 25.6023 10.4719 25.5286L6.4719 21.5286C6.33942 21.3864 6.26729 21.1984 6.27072 21.0041C6.27415 20.8098 6.35286 20.6244 6.49027 20.487C6.62769 20.3496 6.81307 20.2708 7.00737 20.2674C7.20167 20.264 7.38972 20.3361 7.5319 20.4686L11.5319 24.4686Z" fill="currentColor"/>
+                                    </svg>
+
+                                    {isTunerHovered && (
+                                        <span className="text-[12px] font-sans font-medium text-stone-400 shrink-0">
+                                            Guitar tuner
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <span className="text-[12px] font-sans font-extrabold text-stone-700/80 shrink-0">
+                                        {tunerActive ? tunerNote : (savedTuning ? savedTuning.note : '--')}
+                                    </span>
+                                    {isTunerHovered && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveToolTab('tuner');
+                                                setShowToolsPanel(true);
+                                            }}
+                                            className="p-1 rounded bg-stone-200/50 text-stone-600 hover:bg-stone-250 hover:text-stone-750 transition-colors duration-150 flex items-center justify-center shrink-0 cursor-pointer"
+                                            title="Open tuner panel"
+                                            type="button"
+                                        >
+                                            <Pencil size={11} className="stroke-[2.5px]" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
