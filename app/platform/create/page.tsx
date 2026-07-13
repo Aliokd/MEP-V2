@@ -7807,7 +7807,7 @@ export default function CreatePage() {
             vocals: { volume: 85, pan: 0, eq: 0, reverb: 30, compressor: true },
             drums: { volume: 80, pan: 0, eq: 0, reverb: 15, compressor: true },
             synth: { volume: 60, pan: 0, eq: 0, reverb: 40, compressor: false },
-            custom: { volume: 80, pan: 0, eq: 0, reverb: 40, compressor: true }
+            custom: { volume: 80, pan: 0, eq: 0, reverb: 0, compressor: false }
         };
         
         const defaults = instrumentDefaults[type];
