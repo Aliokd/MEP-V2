@@ -8621,7 +8621,7 @@ export default function CreatePage() {
                                 onClick={handleToggleStudioMetronome}
                                 className={`h-10 border rounded-full flex items-center select-none shrink-0 transition-all duration-300 ease-in-out cursor-pointer ${
                                     (isMetronomeHovered && !isStudioMetronomeOn)
-                                        ? 'w-[310px] pl-1 pr-2.5 justify-start gap-1.5 bg-stone-100/70 border-stone-250/20 text-stone-700'
+                                        ? 'w-[310px] pl-1 pr-2.5 justify-start gap-1.5 bg-white border-stone-200 text-stone-700 shadow-[0_4px_12px_rgba(0,0,0,0.08)]'
                                         : isStudioMetronomeOn
                                             ? 'w-[155px] px-4 justify-center gap-2 bg-white border-stone-200 text-stone-700 shadow-[0_4px_12px_rgba(0,0,0,0.08)] active:scale-98'
                                             : 'w-[110px] pl-3.5 pr-3.5 justify-center gap-1.5 bg-stone-100/70 border-stone-250/20 text-stone-700/80 active:scale-98'
