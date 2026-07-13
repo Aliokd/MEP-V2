@@ -7284,6 +7284,12 @@ export default function CreatePage() {
     };
 
     const startStudioRecording = async () => {
+        const armedTrack = studioTracks.find(t => t.id === activeRecordingTrackId);
+        if (armedTrack && (armedTrack.audioBuffer || armedTrack.url)) {
+            const confirmed = window.confirm(`Are you sure you want to overwrite the existing recording for this track "${armedTrack.name}"?`);
+            if (!confirmed) return;
+        }
+
         try {
             const audioCtx = getStudioAudioContext();
             if (audioCtx.state === 'suspended') {
