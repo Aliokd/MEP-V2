@@ -8499,13 +8499,13 @@ export default function CreatePage() {
                         
                         {/* Add track button following track card */}
                         {studioTracks.length < 4 && (
-                            <div className="px-6 py-2 w-full shrink-0">
+                            <div className="py-3 w-full shrink-0 flex justify-center">
                                 <button
                                     onClick={handleAddTrack}
-                                    className="w-full h-11 border border-dashed border-stone-200 hover:border-stone-300 bg-stone-50/20 hover:bg-stone-50/50 text-stone-400 hover:text-stone-605 rounded-full font-bold text-xs transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.99]"
+                                    className="w-[210px] h-9 border border-dashed border-stone-300 hover:border-stone-400 bg-stone-100/40 hover:bg-stone-100/70 text-stone-500 hover:text-stone-700 rounded-full font-bold text-xs transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-sm"
                                     type="button"
                                 >
-                                    <Plus size={14} className="stroke-[2.5]" />
+                                    <Plus size={13} className="stroke-[2.5] text-stone-500" />
                                     <span>Add track</span>
                                 </button>
                             </div>
