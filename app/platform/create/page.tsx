@@ -8510,22 +8510,29 @@ export default function CreatePage() {
                                         }}
                                     >
                                         {/* Timeline Capsule */}
-                                        <div className={`w-full h-full rounded-full flex items-center relative hover:bg-stone-50/50 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] overflow-hidden ${
-                                            isThisTrackRecording 
-                                                ? 'p-0 bg-[#FF6B6B]' 
-                                                : isArmed
-                                                    ? 'px-1 py-1 bg-red-50/15 border border-red-400 shadow-[0_0_8px_rgba(239,68,68,0.1)]'
-                                                    : 'px-1 py-1 bg-white border border-stone-200/50'
-                                        }`}>
-                                            <TrackWaveform 
-                                                audioBuffer={track.audioBuffer}
-                                                playhead={studioPlayhead}
-                                                duration={limit}
-                                                isRecording={isThisTrackRecording}
-                                                studioState={studioState}
-                                                trackName={track.name}
-                                            />
-                                        </div>
+                                        {(() => {
+                                            const hasRecordedAudio = !!(track.audioBuffer || track.url);
+                                            return (
+                                                <div className={`w-full h-full rounded-full flex items-center relative hover:bg-stone-50/50 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] overflow-hidden ${
+                                                    isThisTrackRecording 
+                                                        ? 'p-0 bg-[#FF6B6B]' 
+                                                        : hasRecordedAudio
+                                                            ? 'px-1 py-1 bg-white border border-stone-200/40 shadow-[0_3px_10px_rgba(0,0,0,0.06)]'
+                                                            : isArmed
+                                                                ? 'px-1 py-1 bg-red-50/15 border border-red-400 shadow-[0_0_8px_rgba(239,68,68,0.1)]'
+                                                                : 'px-1 py-1 bg-white border border-stone-200/50'
+                                                }`}>
+                                                    <TrackWaveform 
+                                                        audioBuffer={track.audioBuffer}
+                                                        playhead={studioPlayhead}
+                                                        duration={limit}
+                                                        isRecording={isThisTrackRecording}
+                                                        studioState={studioState}
+                                                        trackName={track.name}
+                                                    />
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* Far Right Action Buttons (Silence/Volume & Options) */}
