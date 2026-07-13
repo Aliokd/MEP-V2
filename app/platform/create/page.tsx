@@ -8215,7 +8215,10 @@ export default function CreatePage() {
                                                     />
                                                 </div>
                                             )}
-                                                                                  <div className="absolute top-12.5 left-0 w-[320px] bg-white border border-stone-200/80 rounded-[36px] shadow-[0_15px_50px_rgba(0,0,0,0.12)] p-6 z-50 animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col gap-3.5 pointer-events-auto">
+                                        </div>
+                                        {/* Instrument Selection Grid Pop-up (Figma Pixel-Perfect Stack) */}
+                                        {activeTrackDropdownId === track.id && (
+                                            <div className="absolute top-12.5 left-0 w-[320px] bg-white border border-stone-200/80 rounded-[36px] shadow-[0_15px_50px_rgba(0,0,0,0.12)] p-6 z-50 animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col gap-3.5 pointer-events-auto">
                                                 {(() => {
                                                     const standardOptions = ['vocals', 'drums', 'piano', 'guitar', 'synth'] as const;
                                                     const isCustomSelected = track.type === 'custom';
