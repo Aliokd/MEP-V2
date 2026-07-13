@@ -7773,6 +7773,7 @@ export default function CreatePage() {
             url: null
         };
         setStudioTracks(prev => [...prev, newTrack]);
+        setActiveRecordingTrackId(nextId);
     };
 
     const handleToggleTrackMute = (trackId: number) => {
