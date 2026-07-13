@@ -11992,7 +11992,7 @@ export default function CreatePage() {
             {/* Confirmation dialog to overwrite studio recording */}
             {confirmOverwriteStudioRecord.isOpen && (
                 <div 
-                    className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" 
+                    className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" 
                     onClick={() => setConfirmOverwriteStudioRecord({ isOpen: false, trackName: '', onConfirm: null })}
                 >
                     <div 
