@@ -8157,7 +8157,7 @@ export default function CreatePage() {
                 {/* Unified Sequencer Panel Grid Area */}
                 <div className="flex flex-col w-full relative gap-1.5">
                     {/* Headers Row */}
-                    <div className="hidden lg:flex items-center gap-3 select-none h-8 mb-[-4px] px-6">
+                    <div className="hidden lg:flex items-center gap-3 select-none h-8 mb-[-4px] px-4">
                         <div className="w-5 shrink-0" /> {/* reorder handle gap */}
                         <div className="w-32 sm:w-36 md:w-40 lg:w-44 shrink-0" /> {/* track selector gap */}
                         
@@ -8213,7 +8213,7 @@ export default function CreatePage() {
                                     }}
                                     className={`studio-track-row flex items-center gap-3 w-full select-none border-b border-stone-300/40 last:border-0 relative transition-all duration-200 group cursor-pointer ${
                                         expandedTrackId === track.id ? 'h-[92px] py-2' : 'h-15 sm:h-16 py-1'
-                                    } px-6 ${
+                                    } px-4 ${
                                         isArmed 
                                             ? 'bg-stone-200/50 hover:bg-stone-200/60' 
                                             : 'bg-stone-50/70 hover:bg-stone-200/35'
@@ -8580,7 +8580,7 @@ export default function CreatePage() {
                 {studioState !== 'recording' && (
                     <div 
                         id="studio-playhead-overlay"
-                        className="absolute top-8 bottom-[76px] pointer-events-none z-30 left-[488px] sm:left-[504px] md:left-[520px] lg:left-[536px] right-[68px]"
+                        className="absolute top-8 bottom-[76px] pointer-events-none z-30 left-[480px] sm:left-[496px] md:left-[512px] lg:left-[528px] right-[60px]"
                     >
                         {/* Hoverable target container centered on playheadPercent */}
                         <div 
@@ -8588,10 +8588,12 @@ export default function CreatePage() {
                             style={{ left: `${playheadPercent}%` }}
                             onPointerDown={handlePlayheadLinePointerDown}
                         >
-                            {/* Visible red line with responsive expansion and glow on hover */}
+                            {/* Visible red line with responsive expansion, no roundness, no blur, and a white vertical handler in center on hover */}
                             <div 
-                                className="h-full bg-[#FF4040] w-[1.5px] group-hover/playhead:w-[4px] group-hover/playhead:shadow-[0_0_10px_rgba(255,64,64,0.7)] transition-all duration-150 rounded-full"
-                            />
+                                className="h-full bg-[#FF4040] w-[2px] group-hover/playhead:w-[10px] transition-all duration-150 flex items-center justify-center relative"
+                            >
+                                <div className="w-[1.5px] h-10 bg-white opacity-0 group-hover/playhead:opacity-100 transition-opacity duration-150" />
+                            </div>
                         </div>
                     </div>
                 )}
@@ -8599,7 +8601,7 @@ export default function CreatePage() {
                 {/* Bottom Control Bar */}
                 <div className="flex flex-col gap-3 pt-4 mt-2 w-full">
                     {/* Level 1: Metronome, Guitar Tuner, and Timeline Seeker Capsule */}
-                    <div className="flex w-full items-center gap-3 px-6 h-10 select-none">
+                    <div className="flex w-full items-center gap-3 px-4 h-10 select-none">
                         {/* Left side: Instrument and Utility pills aligned with tracks left column */}
                         <div className="w-[452px] sm:w-[468px] md:w-[484px] lg:w-[500px] shrink-0 flex items-center gap-2.5">
                             {/* Metronome Pill */}
@@ -8730,7 +8732,7 @@ export default function CreatePage() {
                         <div className="flex-grow flex items-center relative h-10 rounded-full bg-stone-100/70 border border-stone-250/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
                             {/* Time Ruler with tick lines inside capsule (inline flex layout) */}
                             <div 
-                                className="w-full h-full flex justify-between items-center px-6 relative cursor-ew-resize select-none"
+                                className="w-full h-full flex justify-between items-center px-4 relative cursor-ew-resize select-none"
                                 onPointerDown={handleTimelinePointerDown}
                             >
                                 {rulerItems.map((item, idx) => (
