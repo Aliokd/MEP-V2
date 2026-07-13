@@ -28,6 +28,7 @@ import {
     Pencil,
     CircleDot,
     Volume2,
+    VolumeX,
     Wand2,
     Activity,
     RotateCcw,
@@ -7219,10 +7220,10 @@ export default function CreatePage() {
                     panNode.pan.value = track.pan / 50;
 
                     const gainNode = audioCtx.createGain();
-                    gainNode.gain.value = track.volume / 100;
+                    gainNode.gain.value = track.muted ? 0 : track.volume / 100;
 
                     const reverbGainNode = audioCtx.createGain();
-                    reverbGainNode.gain.value = track.reverb / 100;
+                    reverbGainNode.gain.value = track.muted ? 0 : track.reverb / 100;
 
                     source.connect(eqNode);
                     eqNode.connect(compNode);
@@ -7364,10 +7365,10 @@ export default function CreatePage() {
                 panNode.pan.value = track.pan / 50;
 
                 const gainNode = audioCtx.createGain();
-                gainNode.gain.value = track.volume / 100;
+                gainNode.gain.value = track.muted ? 0 : track.volume / 100;
 
                 const reverbGainNode = audioCtx.createGain();
-                reverbGainNode.gain.value = track.reverb / 100;
+                reverbGainNode.gain.value = track.muted ? 0 : track.reverb / 100;
 
                 const reverbNode = getSharedReverbNode(audioCtx);
 
@@ -7569,10 +7570,10 @@ export default function CreatePage() {
             panNode.pan.value = track.pan / 50;
 
             const gainNode = offlineCtx.createGain();
-            gainNode.gain.value = track.volume / 100;
+            gainNode.gain.value = track.muted ? 0 : track.volume / 100;
 
             const reverbGainNode = offlineCtx.createGain();
-            reverbGainNode.gain.value = track.reverb / 100;
+            reverbGainNode.gain.value = track.muted ? 0 : track.reverb / 100;
 
             source.connect(eqNode);
             eqNode.connect(compNode);
@@ -7772,6 +7773,27 @@ export default function CreatePage() {
             url: null
         };
         setStudioTracks(prev => [...prev, newTrack]);
+    };
+
+    const handleToggleTrackMute = (trackId: number) => {
+        setStudioTracks(prev => prev.map(t => {
+            if (t.id === trackId) {
+                const newMuted = !t.muted;
+                const activeNodes = studioActiveSourcesRef.current[trackId];
+                if (activeNodes) {
+                    try {
+                        const audioCtx = getStudioAudioContext();
+                        const time = audioCtx.currentTime;
+                        activeNodes.gainNode.gain.setValueAtTime(newMuted ? 0 : t.volume / 100, time);
+                        activeNodes.reverbGainNode.gain.setValueAtTime(newMuted ? 0 : t.reverb / 100, time);
+                    } catch (err) {
+                        console.error("Error toggling mute:", err);
+                    }
+                }
+                return { ...t, muted: newMuted };
+            }
+            return t;
+        }));
     };
 
     const handleDeleteTrack = (trackId: number) => {
@@ -8460,38 +8482,62 @@ export default function CreatePage() {
                                         </div>
                                     </div>
 
-                                    {/* Far Right Options Column */}
-                                    <div className="w-8 shrink-0 flex items-center justify-center relative">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setActiveTrackMenuId(activeTrackMenuId === track.id ? null : track.id);
-                                            }}
-                                            className="w-8 h-8 rounded-full bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750 flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 z-20 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
-                                            type="button"
-                                            title="Track Options"
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
-                                                <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-                                                <circle cx="19" cy="12" r="1.5" fill="currentColor" />
-                                                <circle cx="5" cy="12" r="1.5" fill="currentColor" />
-                                            </svg>
-                                        </button>
-
-                                        {activeTrackMenuId === track.id && (
-                                            <div className="absolute right-0 top-9 w-32 bg-white border border-stone-200/80 rounded-[14px] shadow-[0_8px_25px_rgba(0,0,0,0.06)] p-1 z-40 animate-in fade-in slide-in-from-top-1 duration-150 pointer-events-auto">
-                                                <button
-                                                    onClick={() => {
-                                                        handleDeleteTrack(track.id);
-                                                        setActiveTrackMenuId(null);
-                                                    }}
-                                                    className="w-full px-3 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-650 rounded-[10px] cursor-pointer active:scale-[0.98] transition-all"
-                                                    type="button"
-                                                >
-                                                    Delete Track
-                                                </button>
-                                            </div>
+                                    {/* Far Right Action Buttons (Silence/Volume & Options) */}
+                                    <div className="flex items-center gap-1.5 shrink-0 z-20 relative">
+                                        {studioState !== 'idle' && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleToggleTrackMute(track.id);
+                                                }}
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] ${
+                                                    track.muted 
+                                                        ? 'bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600' 
+                                                        : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750'
+                                                }`}
+                                                type="button"
+                                                title={track.muted ? "Unsilence Track" : "Silence Track"}
+                                            >
+                                                {track.muted ? (
+                                                    <VolumeX size={15} className="stroke-[2.5]" />
+                                                ) : (
+                                                    <Volume2 size={15} className="stroke-[2.5]" />
+                                                )}
+                                            </button>
                                         )}
+
+                                        <div className="relative">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActiveTrackMenuId(activeTrackMenuId === track.id ? null : track.id);
+                                                }}
+                                                className="w-8 h-8 rounded-full bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750 flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+                                                type="button"
+                                                title="Track Options"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
+                                                    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                                                    <circle cx="19" cy="12" r="1.5" fill="currentColor" />
+                                                    <circle cx="5" cy="12" r="1.5" fill="currentColor" />
+                                                </svg>
+                                            </button>
+
+                                            {activeTrackMenuId === track.id && (
+                                                <div className="absolute right-0 top-9 w-32 bg-white border border-stone-200/80 rounded-[14px] shadow-[0_8px_25px_rgba(0,0,0,0.06)] p-1 z-40 animate-in fade-in slide-in-from-top-1 duration-150 pointer-events-auto">
+                                                    <button
+                                                        onClick={() => {
+                                                            handleDeleteTrack(track.id);
+                                                            setActiveTrackMenuId(null);
+                                                        }}
+                                                        className="w-full px-3 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-650 rounded-[10px] cursor-pointer active:scale-[0.98] transition-all"
+                                                        type="button"
+                                                    >
+                                                        Delete Track
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             );
