@@ -8623,7 +8623,7 @@ export default function CreatePage() {
                                     (isMetronomeHovered && !isStudioMetronomeOn)
                                         ? 'w-[310px] pl-1 pr-2.5 justify-start gap-1.5 bg-stone-100/70 border-stone-250/20 text-stone-700'
                                         : isStudioMetronomeOn
-                                            ? 'w-[155px] px-4 justify-center gap-2 bg-stone-900 border-stone-900 text-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] active:scale-98'
+                                            ? 'w-[155px] px-4 justify-center gap-2 bg-white border-stone-200 text-stone-700 shadow-[0_4px_12px_rgba(0,0,0,0.08)] active:scale-98'
                                             : 'w-[110px] pl-3.5 pr-3.5 justify-center gap-1.5 bg-stone-100/70 border-stone-250/20 text-stone-700/80 active:scale-98'
                                 }`}
                             >
