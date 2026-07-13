@@ -2477,6 +2477,28 @@ export default function CreatePage() {
     const [savedTuning, setSavedTuning] = useState<{ note: string; freq: number; cents: number; timestamp: string } | null>(null);
     const [tunerSavingState, setTunerSavingState] = useState<'saving' | 'saved' | null>(null);
 
+    // Refs to track latest tuner state for auto-saving on tab switch/panel close
+    const tunerActiveRef = useRef(false);
+    const tunerFreqRef = useRef<number | null>(null);
+    const tunerNoteRef = useRef('--');
+    const tunerCentsRef = useRef(0);
+
+    useEffect(() => {
+        tunerActiveRef.current = tunerActive;
+    }, [tunerActive]);
+
+    useEffect(() => {
+        tunerFreqRef.current = tunerFreq;
+    }, [tunerFreq]);
+
+    useEffect(() => {
+        tunerNoteRef.current = tunerNote;
+    }, [tunerNote]);
+
+    useEffect(() => {
+        tunerCentsRef.current = tunerCents;
+    }, [tunerCents]);
+
     // Tap Tempo States
     const [tapTimes, setTapTimes] = useState<number[]>([]);
     const [tapTempoBgColor, setTapTempoBgColor] = useState('#FBFFED');
@@ -3897,36 +3919,25 @@ export default function CreatePage() {
         }
     };
 
-    const handleTunerButtonClick = () => {
-        if (tunerSavingState) return;
+    const autoSaveTuning = () => {
+        if (tunerActiveRef.current && tunerFreqRef.current && tunerFreqRef.current > 0 && tunerNoteRef.current !== '--') {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            setSavedTuning({
+                note: tunerNoteRef.current,
+                freq: tunerFreqRef.current,
+                cents: tunerCentsRef.current,
+                timestamp: timeStr
+            });
+        }
+    };
 
+    const handleTunerButtonClick = () => {
         if (!tunerActive) {
             startTunerMic();
         } else {
-            if (!tunerFreq || tunerFreq === 0) {
-                stopTunerMic();
-                return;
-            }
-
-            setTunerSavingState('saving');
+            autoSaveTuning();
             stopTunerMic();
-
-            setTimeout(() => {
-                const now = new Date();
-                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                setSavedTuning({
-                    note: tunerNote,
-                    freq: tunerFreq,
-                    cents: tunerCents,
-                    timestamp: timeStr
-                });
-                
-                setTunerSavingState('saved');
-
-                setTimeout(() => {
-                    setTunerSavingState(null);
-                }, 1500);
-            }, 1000);
         }
     };
 
@@ -3935,18 +3946,21 @@ export default function CreatePage() {
         stopReferenceTone();
     };
 
+    // Auto-save and auto-start tuner mic depending on tools panel visibility and tab state
     useEffect(() => {
-        if (!showToolsPanel) {
+        if (showToolsPanel && activeToolTab === 'tuner') {
+            if (!tunerActiveRef.current) {
+                startTunerMic();
+            }
+        } else {
+            autoSaveTuning();
             cleanupTunerAudio();
         }
-    }, [showToolsPanel]);
-
-    useEffect(() => {
-        cleanupTunerAudio();
-    }, [activeToolTab]);
+    }, [showToolsPanel, activeToolTab]);
 
     useEffect(() => {
         return () => {
+            autoSaveTuning();
             cleanupTunerAudio();
         };
     }, []);
@@ -9134,7 +9148,7 @@ export default function CreatePage() {
                             strokeWidth="1"
                         />
 
-                        {/* Center Circle Hub Button (Interactive 4-state button with 10px gap) */}
+                        {/* Center Circle Hub Button (Interactive Start/Stop button with 10px gap) */}
                         <g 
                             onClick={handleTunerButtonClick} 
                             className="cursor-pointer group"
@@ -9145,72 +9159,21 @@ export default function CreatePage() {
                                 cy={tunerCenterY}
                                 r="90"
                                 fill={
-                                    tunerSavingState === 'saved'
-                                        ? '#10B981' // emerald-500
-                                        : (tunerActive || tunerSavingState === 'saving')
-                                            ? '#1C1917' // dark stone / black
-                                            : '#FFFFFF' // white
+                                    tunerActive
+                                        ? '#1C1917' // dark stone / black when active
+                                        : '#FFFFFF' // white when idle
                                 }
                                 stroke={
-                                    tunerSavingState === 'saved'
-                                        ? '#059669'
-                                        : (tunerActive || tunerSavingState === 'saving')
-                                            ? '#1C1917'
-                                            : '#EAEAEA'
+                                    tunerActive
+                                        ? '#1C1917'
+                                        : '#EAEAEA'
                                 }
                                 strokeWidth="1"
                                 className="drop-shadow-[0_4px_12px_rgba(0,0,0,0.08)] group-hover:drop-shadow-[0_6px_16px_rgba(0,0,0,0.12)] transition-all duration-300"
                             />
 
                             {/* Render Content Based on State */}
-                            {tunerSavingState === 'saving' ? (
-                                // State 3: Saving (perfectly aligned text)
-                                <g className="pointer-events-none select-none animate-in fade-in duration-200">
-                                    {/* Spinner - slightly larger */}
-                                    <circle
-                                        cx="250"
-                                        cy={tunerContentY}
-                                        r="8.5"
-                                        fill="none"
-                                        stroke="#FFFFFF"
-                                        strokeWidth="2.2"
-                                        strokeDasharray="26"
-                                        className="animate-spin"
-                                        style={{ transformOrigin: `250px ${tunerContentY}px` }}
-                                    />
-                                    <text
-                                        x="270"
-                                        y={tunerContentY + 1.5}
-                                        dominantBaseline="middle"
-                                        textAnchor="start"
-                                        className="text-[20px] sm:text-[22px] font-normal fill-white font-sans tracking-tight"
-                                    >
-                                        Saving...
-                                    </text>
-                                </g>
-                            ) : tunerSavingState === 'saved' ? (
-                                // State 4: Saved (perfectly aligned text)
-                                <g className="pointer-events-none select-none animate-in zoom-in-95 duration-200">
-                                    {/* Sharp Regular-weight Checkmark - slightly larger */}
-                                    <path
-                                        d={`M 256 ${tunerContentY - 4} L 263 ${tunerContentY + 4} L 275 ${tunerContentY - 11}`}
-                                        fill="none"
-                                        stroke="#FFFFFF"
-                                        strokeWidth="2"
-                                        strokeLinecap="butt"
-                                        strokeLinejoin="miter"
-                                    />
-                                    <text
-                                        x="282"
-                                        y={tunerContentY + 1.5}
-                                        dominantBaseline="middle"
-                                        textAnchor="start"
-                                        className="text-[20px] sm:text-[22px] font-normal fill-white font-sans tracking-tight"
-                                    >
-                                        Saved
-                                    </text>
-                                </g>
-                            ) : tunerActive ? (
+                            {tunerActive ? (
                                 // State 2: Active / Tuning - Centered Note or 'Tuning...' message in regular white font
                                 <g className="pointer-events-none select-none">
                                     {!tunerNote || tunerNote === '--' || tunerNote === '' ? (
