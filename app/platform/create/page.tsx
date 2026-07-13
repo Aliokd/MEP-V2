@@ -8535,7 +8535,7 @@ export default function CreatePage() {
                 )}
 
                 {/* Bottom Control Bar */}
-                <div className="flex flex-col gap-3 border-t border-stone-250/20 pt-4 mt-2 w-full">
+                <div className="flex flex-col gap-3 pt-4 mt-2 w-full">
                     {/* Level 1: Metronome, Guitar Tuner, and Timeline Seeker Capsule */}
                     <div className="flex w-full items-center gap-3 px-6 h-10 select-none">
                         {/* Left side: Instrument and Utility pills aligned with tracks left column */}
