@@ -8557,7 +8557,9 @@ export default function CreatePage() {
                                     </div>
 
                                     {/* Far Right Action Buttons (Silence/Volume & Options) */}
-                                    <div className="flex items-center justify-end gap-1.5 w-[70px] shrink-0 z-20 relative">
+                                    <div className={`flex items-center justify-end gap-1.5 shrink-0 z-20 relative transition-all duration-300 ${
+                                        (studioState === 'playing' || studioState === 'recording') ? 'w-[70px]' : 'w-8'
+                                    }`}>
                                         {(studioState === 'playing' || studioState === 'recording') && (
                                             <button
                                                 onClick={(e) => {
@@ -8638,7 +8640,9 @@ export default function CreatePage() {
                 {studioState !== 'recording' && (
                     <div 
                         id="studio-playhead-overlay"
-                        className="absolute top-8 bottom-[76px] pointer-events-none z-30 left-[480px] sm:left-[496px] md:left-[512px] lg:left-[528px] right-[98px]"
+                        className={`absolute top-8 bottom-[76px] pointer-events-none z-30 left-[480px] sm:left-[496px] md:left-[512px] lg:left-[528px] transition-all duration-300 ${
+                            (studioState === 'playing' || studioState === 'recording') ? 'right-[98px]' : 'right-[60px]'
+                        }`}
                     >
                         {/* Hoverable target container centered on playheadPercent */}
                         <div 
@@ -8818,7 +8822,9 @@ export default function CreatePage() {
                         </div>
 
                         {/* Options gap */}
-                        <div className="w-[70px] shrink-0" />
+                        <div className={`shrink-0 transition-all duration-300 ${
+                            (studioState === 'playing' || studioState === 'recording') ? 'w-[70px]' : 'w-8'
+                        }`} />
                     </div>
 
                     {/* Level 2 Divider Line */}
