@@ -8543,26 +8543,28 @@ export default function CreatePage() {
                                     </div>
 
                                     {/* Far Right Action Buttons (Silence/Volume & Options) */}
-                                    <div className="flex items-center gap-1.5 shrink-0 z-20 relative">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleToggleTrackMute(track.id);
-                                            }}
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] ${
-                                                track.muted 
-                                                    ? 'bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600' 
-                                                    : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750'
-                                            }`}
-                                            type="button"
-                                            title={track.muted ? "Unsilence Track" : "Silence Track"}
-                                        >
-                                            {track.muted ? (
-                                                <VolumeX size={15} className="stroke-[2.5]" />
-                                            ) : (
-                                                <Volume2 size={15} className="stroke-[2.5]" />
-                                            )}
-                                        </button>
+                                    <div className="flex items-center justify-end gap-1.5 w-[70px] shrink-0 z-20 relative">
+                                        {(studioState === 'playing' || studioState === 'recording') && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleToggleTrackMute(track.id);
+                                                }}
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] ${
+                                                    track.muted 
+                                                        ? 'bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600' 
+                                                        : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750'
+                                                }`}
+                                                type="button"
+                                                title={track.muted ? "Unsilence Track" : "Silence Track"}
+                                            >
+                                                {track.muted ? (
+                                                    <VolumeX size={15} className="stroke-[2.5]" />
+                                                ) : (
+                                                    <Volume2 size={15} className="stroke-[2.5]" />
+                                                )}
+                                            </button>
+                                        )}
 
                                         <div className="relative">
                                             <button
@@ -8682,6 +8684,8 @@ export default function CreatePage() {
                                             <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
+                                                    setActiveToolTab('tempo');
+                                                    setShowToolsPanel(true);
                                                     handleTapTempo(e);
                                                 }}
                                                 className="h-8 bg-white border border-stone-250/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-2.5 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
@@ -8735,7 +8739,11 @@ export default function CreatePage() {
                             <div 
                                 onMouseEnter={() => setIsTunerHovered(true)}
                                 onMouseLeave={() => setIsTunerHovered(false)}
-                                className={`h-10 bg-stone-100/70 border border-stone-250/20 rounded-full flex items-center select-none shrink-0 transition-all duration-300 ease-in-out ${
+                                onClick={() => {
+                                    setActiveToolTab('tuner');
+                                    setShowToolsPanel(true);
+                                }}
+                                className={`h-10 bg-stone-100/70 border border-stone-250/20 rounded-full flex items-center select-none shrink-0 transition-all duration-300 ease-in-out cursor-pointer active:scale-[0.98] ${
                                     isTunerHovered ? 'w-[180px] pl-1 pr-2.5 justify-between' : 'w-[72px] pl-2.5 pr-2.5 justify-center gap-1.5'
                                 }`}
                             >
