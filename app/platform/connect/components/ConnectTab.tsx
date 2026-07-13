@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, Plus, Check, ArrowUpRight, LayoutGrid, ThumbsUp, Repeat, Send, Loader2 } from 'lucide-react';
+import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, Plus, Check, ArrowUpRight, LayoutGrid, ThumbsUp, Repeat, Send, Loader2, Play, Pause } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ==========================================
@@ -192,6 +192,7 @@ function ConnectPostCard({
   const isUserScrollingRef = useRef(false);
   const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProgrammaticScrollingRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   // Custom drag and direction tracking refs for autoplay
   const isDraggingRef = useRef(false);
@@ -211,6 +212,19 @@ function ConnectPostCard({
     isUserScrollingRef.current = false;
     scrollDirectionRef.current = 'down';
     frameCountRef.current = 0;
+  }, [isPlaying]);
+
+  // Manage audio play/pause in sync with isPlaying state
+  useEffect(() => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.play().catch(err => {
+        console.warn("Failed to play attachment audio:", err);
+      });
+    } else {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
   }, [isPlaying]);
 
   // Scroll to index helper (aligns target line near the upper-middle focus zone)
@@ -393,7 +407,16 @@ function ConnectPostCard({
         onDeactive(post.id);
       }}
       onClick={handleCardClick}
-    >      {/* Slide Page Sleeve (peeks out behind CD and card, moves slightly left) */}
+    >
+      {post.attachment?.url && (
+        <audio 
+          ref={audioRef}
+          src={post.attachment.url}
+          preload="auto"
+          loop
+        />
+      )}
+      {/* Slide Page Sleeve (peeks out behind CD and card, moves slightly left) */}
       <div 
         className={`
           absolute top-0 h-[240px] w-[230px] bg-[#EBEBE3] rounded-l-[24px] z-0 transition-all duration-[950ms] ease-[cubic-bezier(0.25,1,0.5,1)] pointer-events-none border-y border-l border-stone-300/30
@@ -490,6 +513,23 @@ function ConnectPostCard({
           </div>
 
           <div className="flex items-center gap-2">
+            {post.attachment && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPauseToggle();
+                }}
+                className="w-7 h-7 rounded-full bg-stone-900 hover:bg-stone-800 text-white flex items-center justify-center shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer z-20"
+                title={isPlaying ? "Pause melody" : "Play melody"}
+                type="button"
+              >
+                {isPlaying ? (
+                  <Pause className="w-3.5 h-3.5 fill-white stroke-white" />
+                ) : (
+                  <Play className="w-3.5 h-3.5 fill-white stroke-white ml-0.5" />
+                )}
+              </button>
+            )}
             <span className="bg-[#F6F6F0] text-stone-500 px-3 py-1 rounded-full text-[13px] font-normal font-sans select-none leading-none">
               {post.attachment ? "Lyrics + melody" : "Lyrics only"}
             </span>

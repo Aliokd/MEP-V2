@@ -56,7 +56,8 @@ import {
     Upload,
     ArrowRight,
     Undo2,
-    Redo2
+    Redo2,
+    X
 } from 'lucide-react';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -423,6 +424,7 @@ interface StudioTrack {
     audioBuffer: AudioBuffer | null;
     url: string | null;
     type: 'guitar' | 'piano' | 'drums' | 'vocals' | 'synth' | 'custom';
+    muted?: boolean;
 }
 
 
@@ -1387,6 +1389,7 @@ function AudioCapsulePlayer({
     const [playbackTime, setPlaybackTime] = useState(0);
     const [playbackDuration, setPlaybackDuration] = useState(audioNote.duration || 0);
     const playbackAudioRef = useRef<HTMLAudioElement | null>(null);
+    const isStudioMix = audioNote.id.startsWith('studio-mix-') || audioNote.title?.toLowerCase().includes('studio');
 
     const BAR_COUNT_SMALL = 28;
     const BAR_COUNT_LARGE = 55;
@@ -1645,13 +1648,21 @@ function AudioCapsulePlayer({
             >
                 {renderAudioEl()}
 
-                {/* Title */}
-                <input
-                    type="text" value={audioNote.title || ''} placeholder="Name"
-                    disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
-                    className="bg-transparent border-none outline-none font-bold text-[9px] text-stone-700 placeholder:text-stone-400 w-16 hover:bg-stone-50 focus:bg-stone-50 rounded px-1 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50"
-                    title="Rename recording"
-                />
+                {/* Title & Badge */}
+                <div className="flex items-center gap-1 shrink-0">
+                    {isStudioMix && (
+                        <span className="px-1.5 py-0.2 text-[7px] font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-600 border border-indigo-100/50 rounded-full select-none shrink-0">
+                            Studio
+                        </span>
+                    )}
+                    <input
+                        type="text" value={audioNote.title || ''} placeholder="Name"
+                        disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
+                        style={{ width: `${Math.max(5, (audioNote.title || '').length)}ch` }}
+                        className="bg-transparent border-none outline-none font-bold text-[9px] text-stone-700 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[40px] max-w-[100px] truncate"
+                        title="Rename recording"
+                    />
+                </div>
 
                 <div className="h-2.5 w-px bg-stone-200 shrink-0" />
 
@@ -1716,13 +1727,21 @@ function AudioCapsulePlayer({
         >
             {renderAudioEl()}
 
-            {/* Title */}
-            <input
-                type="text" value={audioNote.title || ''} placeholder="Name"
-                disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
-                className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 w-16 sm:w-20 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50"
-                title="Rename recording"
-            />
+            {/* Title & Badge */}
+            <div className="flex items-center gap-1.5 shrink-0">
+                {isStudioMix && (
+                    <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-600 border border-indigo-100/80 rounded-full select-none shrink-0 shadow-sm animate-in fade-in duration-300">
+                        Studio
+                    </span>
+                )}
+                <input
+                    type="text" value={audioNote.title || ''} placeholder="Name"
+                    disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
+                    style={{ width: `${Math.max(6, (audioNote.title || '').length)}ch` }}
+                    className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[50px] max-w-[150px] md:max-w-[200px] truncate"
+                    title="Rename recording"
+                />
+            </div>
 
             <div className="h-4 w-px bg-stone-200 shrink-0" />
 
@@ -2045,7 +2064,7 @@ export default function CreatePage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isMyProjectsOpen, setIsMyProjectsOpen] = useState(false);
     const [isCollabProjectsOpen, setIsCollabProjectsOpen] = useState(false);
-    const [projectViewStyle, setProjectViewStyle] = useState<'grid' | 'list'>('grid');
+    const [projectViewStyle, setProjectViewStyle] = useState<'grid' | 'list'>('list');
     const [showNewItemMenu, setShowNewItemMenu] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -2261,6 +2280,7 @@ export default function CreatePage() {
                 setExpandedTrackId(null);
             }
             setActiveTrackMenuId(null);
+            setTrackMenuPos(null);
         };
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
@@ -2274,6 +2294,9 @@ export default function CreatePage() {
 
     const [draggedTrackIndex, setDraggedTrackIndex] = useState<number | null>(null);
     const [activeTrackMenuId, setActiveTrackMenuId] = useState<number | null>(null);
+    const [trackMenuPos, setTrackMenuPos] = useState<{ x: number, y: number } | null>(null);
+    const [showStudioLyrics, setShowStudioLyrics] = useState<boolean>(false);
+    const [isSendingToCanvas, setIsSendingToCanvas] = useState<boolean>(false);
     const [activeTrackDropdownId, setActiveTrackDropdownId] = useState<number | null>(null);
     const [editingTrackNameId, setEditingTrackNameId] = useState<number | null>(null);
     const [trackNameInputText, setTrackNameInputText] = useState('');
@@ -5281,6 +5304,7 @@ export default function CreatePage() {
             setIsEditing(true);
         }
         setIsEditingTitle(false);
+        document.getElementById('project-title-input')?.blur();
     };
 
     const handleRenameAudioNote = (noteId: string, audioNoteId: string, newTitle: string) => {
@@ -7590,29 +7614,36 @@ export default function CreatePage() {
         studioTracks.forEach(track => {
             if (!track.audioBuffer) return;
 
+            const trackVolume = typeof track.volume === 'number' ? track.volume : 70;
+            const trackPan = typeof track.pan === 'number' ? track.pan : 0;
+            const trackEq = typeof track.eq === 'number' ? track.eq : 0;
+            const trackReverb = typeof track.reverb === 'number' ? track.reverb : 0;
+            const trackCompressor = typeof track.compressor === 'boolean' ? track.compressor : false;
+            const isMuted = !!track.muted;
+
             const source = offlineCtx.createBufferSource();
             source.buffer = track.audioBuffer;
 
             const eqNode = offlineCtx.createBiquadFilter();
             eqNode.type = 'highshelf';
             eqNode.frequency.value = 3000;
-            eqNode.gain.value = track.eq;
+            eqNode.gain.value = trackEq;
 
             const compNode = offlineCtx.createDynamicsCompressor();
             compNode.threshold.value = -24;
             compNode.knee.value = 30;
-            compNode.ratio.value = track.compressor ? 12 : 1;
+            compNode.ratio.value = trackCompressor ? 12 : 1;
             compNode.attack.value = 0.003;
             compNode.release.value = 0.25;
 
             const panNode = offlineCtx.createStereoPanner();
-            panNode.pan.value = track.pan / 50;
+            panNode.pan.value = trackPan / 50;
 
             const gainNode = offlineCtx.createGain();
-            gainNode.gain.value = track.muted ? 0 : track.volume / 100;
+            gainNode.gain.value = isMuted ? 0 : trackVolume / 100;
 
             const reverbGainNode = offlineCtx.createGain();
-            reverbGainNode.gain.value = track.muted ? 0 : track.reverb / 100;
+            reverbGainNode.gain.value = isMuted ? 0 : trackReverb / 100;
 
             source.connect(eqNode);
             eqNode.connect(compNode);
@@ -7629,7 +7660,7 @@ export default function CreatePage() {
         return offlineCtx.startRendering();
     };
 
-    const handleExportStudioMix = async () => {
+    const handleExportStudioMix = async (format: 'wav' | 'mp3' = 'wav') => {
         try {
             const renderedBuffer = await renderOfflineMixdown();
             if (!renderedBuffer) {
@@ -7642,7 +7673,8 @@ export default function CreatePage() {
 
             const active = notes.find(n => n.id === selectedNoteId);
             const title = active ? active.title : 'Project';
-            const fileName = `${title.replace(/\s+/g, '-').toLowerCase()}-studio-mix.wav`;
+            const ext = format === 'mp3' ? 'mp3' : 'wav';
+            const fileName = `${title.replace(/\s+/g, '-').toLowerCase()}-studio-mix.${ext}`;
 
             const link = document.createElement('a');
             link.href = downloadUrl;
@@ -7657,12 +7689,13 @@ export default function CreatePage() {
     };
 
     const handleSaveStudioMixToProject = async () => {
-        if (!selectedNoteId || !activeNote) return;
+        setIsSendingToCanvas(true);
 
         try {
             const renderedBuffer = await renderOfflineMixdown();
             if (!renderedBuffer) {
                 alert("Please record some track audio first!");
+                setIsSendingToCanvas(false);
                 return;
             }
 
@@ -7681,56 +7714,122 @@ export default function CreatePage() {
                 createdAt: Date.now()
             };
 
-            const existingAudioNotes = activeNote.audioNotes || [];
-            const updatedAudioNotes = [...existingAudioNotes, newAudioNote];
+            const initialTargetNoteId = selectedNoteId;
+            const initialTargetNote = activeNote;
+            const finalNoteId = initialTargetNoteId || `n-${Date.now()}`;
 
-            handleUpdateNote(selectedNoteId, {
-                audioNotes: updatedAudioNotes,
-                audioUrl: localUrl
-            });
-
-            alert("Mixdown saved to project voice notes successfully!");
-
+            // 1. Kick off Firebase storage upload immediately in the background
             if (user) {
-                try {
-                    const fileRef = storageRef(storage, `users/${user.uid}/recordings/${selectedNoteId}_RecId_${recId}.wav`);
-                    await uploadBytes(fileRef, wavBlob);
-                    const downloadUrl = await getDownloadURL(fileRef);
+                (async () => {
+                    try {
+                        const fileRef = storageRef(storage, `users/${user.uid}/recordings/${finalNoteId}_RecId_${recId}.wav`);
+                        await uploadBytes(fileRef, wavBlob);
+                        const downloadUrl = await getDownloadURL(fileRef);
 
-                    setNotes(prev => prev.map(n => {
-                        if (n.id === selectedNoteId) {
-                            const cloudAudioNotes = (n.audioNotes || []).map(an => {
-                                if (an.id === recId) {
-                                    return { ...an, url: downloadUrl };
-                                }
-                                return an;
-                            });
-                            const latest = cloudAudioNotes[cloudAudioNotes.length - 1];
-                            
-                            const updatedNote = {
-                                ...n,
-                                audioNotes: cloudAudioNotes,
-                                audioUrl: latest ? latest.url : n.audioUrl
-                            };
-                            
-                            if (user) {
-                                const docRef = doc(db, "projects", selectedNoteId);
-                                setDoc(docRef, {
+                        setNotes(prev => prev.map(n => {
+                            if (n.id === finalNoteId) {
+                                const cloudAudioNotes = (n.audioNotes || []).map(an => {
+                                    if (an.id === recId) {
+                                        return { ...an, url: downloadUrl };
+                                    }
+                                    return an;
+                                });
+                                const latest = cloudAudioNotes[cloudAudioNotes.length - 1];
+                                
+                                const updatedNote = {
+                                    ...n,
                                     audioNotes: cloudAudioNotes,
-                                    audioUrl: latest ? latest.url : n.audioUrl
-                                }, { merge: true }).catch(console.error);
+                                    audioUrl: (latest ? latest.url : n.audioUrl) || undefined
+                                };
+                                
+                                if (user) {
+                                    const docRef = doc(db, "projects", finalNoteId);
+                                    setDoc(docRef, {
+                                        audioNotes: cloudAudioNotes,
+                                        audioUrl: (latest ? latest.url : n.audioUrl) || null
+                                    }, { merge: true }).catch(console.error);
+                                }
+                                return updatedNote;
                             }
-                            return updatedNote;
-                        }
-                        return n;
-                    }));
-                } catch (uploadErr) {
-                    console.error("Cloud upload of mixdown failed:", uploadErr);
-                }
+                            return n;
+                        }));
+                    } catch (uploadErr) {
+                        console.error("Cloud upload of mixdown failed:", uploadErr);
+                    }
+                })();
             }
-        } catch (err) {
+
+            // 2. Wrap state changes and panel closing in a setTimeout of 2500ms
+            setTimeout(() => {
+                if (!initialTargetNoteId || !initialTargetNote) {
+                    // Auto-create a new note since none is selected
+                    const newNote: SongNote = {
+                        id: finalNoteId,
+                        title: 'Studio Mix',
+                        content: '',
+                        folderId: null,
+                        updatedAt: new Date().toLocaleString(),
+                        phrases: [],
+                        verses: [],
+                        audioNotes: [newAudioNote],
+                        audioUrl: localUrl
+                    };
+
+                    setNotes(prev => [...prev, newNote]);
+                    setSelectedNoteId(finalNoteId);
+
+                    if (user) {
+                        const docRef = doc(db, "projects", finalNoteId);
+                        setDoc(docRef, {
+                            id: finalNoteId,
+                            title: 'Studio Mix',
+                            content: '',
+                            folderId: null,
+                            verses: [],
+                            phrases: [],
+                            audioNotes: [
+                                {
+                                    id: newAudioNote.id,
+                                    url: newAudioNote.url,
+                                    title: newAudioNote.title,
+                                    duration: newAudioNote.duration,
+                                    groupId: null,
+                                    phraseId: null,
+                                    createdAt: newAudioNote.createdAt,
+                                    authorId: user.uid
+                                }
+                            ],
+                            audioUrl: localUrl,
+                            contributions: {
+                                [user.uid]: {
+                                    charactersTyped: 0,
+                                    linesCreated: 0,
+                                    recordingsAdded: 1,
+                                    lastActive: new Date().toISOString()
+                                }
+                            },
+                            updatedAt: new Date().toISOString()
+                        }).catch(err => console.error("Error creating project note in Firestore:", err));
+                    }
+                } else {
+                    // Update existing note
+                    const existingAudioNotes = initialTargetNote.audioNotes || [];
+                    const updatedAudioNotes = [...existingAudioNotes, newAudioNote];
+
+                    handleUpdateNote(initialTargetNoteId, {
+                        audioNotes: updatedAudioNotes,
+                        audioUrl: localUrl
+                    });
+                }
+
+                setShowToolsPanel(false);
+                setIsSendingToCanvas(false);
+            }, 2500);
+
+        } catch (err: any) {
             console.error("Save mixdown to project failed:", err);
-            alert("Failed to save mixdown to project.");
+            alert("Failed to save mixdown to project: " + err.message);
+            setIsSendingToCanvas(false);
         }
     };
 
@@ -7879,6 +7978,22 @@ export default function CreatePage() {
             return updated;
         });
         setActiveTrackMenuId(null);
+        setTrackMenuPos(null);
+    };
+
+    const handleTrackMenuClick = (e: React.MouseEvent<HTMLButtonElement>, trackId: number) => {
+        e.stopPropagation();
+        if (activeTrackMenuId === trackId) {
+            setActiveTrackMenuId(null);
+            setTrackMenuPos(null);
+        } else {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setTrackMenuPos({
+                x: rect.right - 128,
+                y: rect.bottom + 6
+            });
+            setActiveTrackMenuId(trackId);
+        }
     };
 
     const handleSelectInstrumentType = (trackId: number, type: 'guitar' | 'piano' | 'drums' | 'vocals' | 'synth' | 'custom') => {
@@ -8199,9 +8314,11 @@ export default function CreatePage() {
         };
 
         return (
-            <div className="flex flex-col gap-6 select-none animate-in fade-in zoom-in-95 duration-250 w-full text-left relative">
-                {/* Unified Sequencer Panel Grid Area */}
-                <div className="flex flex-col w-full relative gap-1.5">
+            <div className="w-full text-left relative pointer-events-auto">
+                {/* Main Studio Sequencer Area */}
+                <div className="w-full flex flex-col gap-6 select-none animate-in fade-in zoom-in-95 duration-250 relative">
+                    {/* Unified Sequencer Panel Grid Area */}
+                    <div className="flex flex-col w-full relative gap-1.5">
                     {/* Headers Row */}
                     <div className="hidden lg:flex items-center gap-3 select-none h-8 mb-[-4px] px-4">
                         <div className="w-5 shrink-0" /> {/* reorder handle gap */}
@@ -8584,10 +8701,7 @@ export default function CreatePage() {
 
                                         <div className="relative">
                                             <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setActiveTrackMenuId(activeTrackMenuId === track.id ? null : track.id);
-                                                }}
+                                                onClick={(e) => handleTrackMenuClick(e, track.id)}
                                                 className="w-8 h-8 rounded-full bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750 flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
                                                 type="button"
                                                 title="Track Options"
@@ -8598,21 +8712,6 @@ export default function CreatePage() {
                                                     <circle cx="5" cy="12" r="1.5" fill="currentColor" />
                                                 </svg>
                                             </button>
-
-                                            {activeTrackMenuId === track.id && (
-                                                <div className="absolute right-0 top-9 w-32 bg-white border border-stone-200/80 rounded-[14px] shadow-[0_8px_25px_rgba(0,0,0,0.06)] p-1 z-40 animate-in fade-in slide-in-from-top-1 duration-150 pointer-events-auto">
-                                                    <button
-                                                        onClick={() => {
-                                                            handleDeleteTrack(track.id);
-                                                            setActiveTrackMenuId(null);
-                                                        }}
-                                                        className="w-full px-3 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-650 rounded-[10px] cursor-pointer active:scale-[0.98] transition-all"
-                                                        type="button"
-                                                    >
-                                                        Delete Track
-                                                    </button>
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -8636,29 +8735,7 @@ export default function CreatePage() {
 
                 </div>
 
-                {/* Single Continuous Playhead Line Overlay */}
-                {studioState !== 'recording' && (
-                    <div 
-                        id="studio-playhead-overlay"
-                        className={`absolute top-8 bottom-[76px] pointer-events-none z-30 left-[480px] sm:left-[496px] md:left-[512px] lg:left-[528px] transition-all duration-300 ${
-                            (studioState === 'playing' || studioState === 'recording') ? 'right-[98px]' : 'right-[60px]'
-                        }`}
-                    >
-                        {/* Hoverable target container centered on playheadPercent */}
-                        <div 
-                            className="absolute top-0 bottom-0 w-6 -ml-3 pointer-events-auto cursor-ew-resize flex justify-center group/playhead"
-                            style={{ left: `${playheadPercent}%` }}
-                            onPointerDown={handlePlayheadLinePointerDown}
-                        >
-                            {/* Visible red line with responsive expansion, no roundness, no blur, and a white vertical handler in center on hover */}
-                            <div 
-                                className="h-full bg-[#FF4040] w-[2px] group-hover/playhead:w-[10px] transition-all duration-150 flex items-center justify-center relative"
-                            >
-                                <div className="w-[1.5px] h-10 bg-white opacity-0 group-hover/playhead:opacity-100 transition-opacity duration-150" />
-                            </div>
-                        </div>
-                    </div>
-                )}
+
 
                 {/* Bottom Control Bar */}
                 <div className="flex flex-col gap-3 pt-4 mt-2 w-full">
@@ -8831,88 +8908,149 @@ export default function CreatePage() {
                     <div className="w-full h-[1px] bg-stone-200/50 my-1" />
 
                     {/* Level 2: Center-aligned Principal Action Buttons */}
-                    <div className="flex items-center justify-center gap-3 w-full pb-1">
-                        {/* REC Button */}
-                        {studioState === 'recording' ? (
+                    <div className="flex items-center justify-between w-full px-4 pb-1 relative">
+                        {/* Far Left: Show Lyrics button */}
+                        <div className="flex items-center gap-2 sm:self-start z-10">
                             <button
-                                onClick={stopStudioRecording}
-                                className="px-6 py-2.5 bg-white border border-stone-200 text-[#FF4040] rounded-full font-bold text-[13px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2"
+                                onClick={() => setShowStudioLyrics(!showStudioLyrics)}
+                                className={`px-8 py-3.5 border rounded-full font-bold text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center justify-center ${
+                                    showStudioLyrics
+                                        ? 'bg-[#E5E4DE] border-[#D2D1C9] text-stone-700 hover:bg-[#DAD9D2]'
+                                        : 'bg-white border-stone-200 hover:bg-stone-50/50 text-stone-700'
+                                }`}
+                                type="button"
                             >
-                                <div className="relative flex items-center justify-center shrink-0">
-                                    <div className="w-3.5 h-3.5 rounded-full bg-[#FF4040] animate-ping absolute" />
-                                    <Square size={10} className="fill-[#FF4040] text-[#FF4040] shrink-0 z-10" />
-                                </div>
-                                <span className="z-10 text-[#FF4040]">Recording...</span>
+                                {showStudioLyrics ? 'Hide Lyrics' : 'Show Lyrics'}
                             </button>
-                        ) : (
-                            <button
-                                onClick={startStudioRecording}
-                                className="px-6 py-2.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-[#FF4040] rounded-full font-bold text-[13px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2"
-                            >
-                                <div className="w-2.5 h-2.5 bg-[#FF4040] rounded-full shrink-0" />
-                                REC
-                            </button>
-                        )}
+                        </div>
 
-                        {/* Play / Pause Button */}
-                        <button
-                            onClick={() => {
-                                if (studioState === 'playing') {
-                                    pauseStudioPlayback();
-                                } else {
-                                    startStudioPlayback(studioPlayhead);
-                                }
-                            }}
-                            disabled={studioDuration === 0 || studioState === 'recording'}
-                            className="px-6 py-2.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold text-[13px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
-                        >
-                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-stone-650 shrink-0">
-                                {studioState === 'playing' ? (
-                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                                ) : (
-                                    <path d="M8 5v14l11-7z" />
-                                )}
-                            </svg>
-                            Play / Pause
-                        </button>
-
-                        {/* Publish Button */}
-                        <div className="relative">
-                            <button
-                                onClick={() => setActivePublishMenu(!activePublishMenu)}
-                                className="px-6 py-2.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold text-[13px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer"
-                            >
-                                Publish
-                            </button>
-
-                            {activePublishMenu && (
-                                <div className="absolute bottom-11 left-1/2 -translate-x-1/2 w-44 bg-white border border-stone-200/80 rounded-[18px] shadow-[0_10px_35px_rgba(0,0,0,0.08)] py-2.5 z-40 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                                    <button
-                                        onClick={() => {
-                                            handleSaveStudioMixToProject();
-                                            setActivePublishMenu(false);
-                                        }}
-                                        className="w-full px-4 py-2 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
-                                    >
-                                        Save Mix to Project
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            handleExportStudioMix();
-                                            setActivePublishMenu(false);
-                                        }}
-                                        className="w-full px-4 py-2 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
-                                    >
-                                        Export Mix (.wav)
-                                    </button>
-                                </div>
+                        {/* Center: Play/Pause and REC buttons */}
+                        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+                            {studioState === 'recording' ? (
+                                <button
+                                    onClick={stopStudioRecording}
+                                    className="px-8 py-3.5 bg-white border border-stone-200 text-[#FF4040] rounded-full font-bold text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2"
+                                >
+                                    <div className="relative flex items-center justify-center shrink-0">
+                                        <div className="w-4 h-4 rounded-full bg-[#FF4040] animate-ping absolute" />
+                                        <Square size={12} className="fill-[#FF4040] text-[#FF4040] shrink-0 z-10" />
+                                    </div>
+                                    <span className="z-10 text-[#FF4040]">Recording...</span>
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={startStudioRecording}
+                                    className="px-8 py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-[#FF4040] rounded-full font-bold text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2"
+                                >
+                                    <div className="w-3 h-3 bg-[#FF4040] rounded-full shrink-0" />
+                                    REC
+                                </button>
                             )}
+
+                            {/* Play / Pause Button */}
+                            <button
+                                onClick={() => {
+                                    if (studioState === 'playing') {
+                                        pauseStudioPlayback();
+                                    } else {
+                                        startStudioPlayback(studioPlayhead);
+                                    }
+                                }}
+                                disabled={studioDuration === 0 || studioState === 'recording'}
+                                className="px-8 py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                            >
+                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-stone-650 shrink-0">
+                                    {studioState === 'playing' ? (
+                                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                    ) : (
+                                        <path d="M8 5v14l11-7z" />
+                                    )}
+                                </svg>
+                                Play / Pause
+                            </button>
+                        </div>
+
+                        {/* Far Right: Send to canvas Button & Three Dots Export */}
+                        <div className="flex items-center gap-2 sm:self-end z-10">
+                            <div className="relative flex items-center gap-2">
+                                <button
+                                    onClick={handleSaveStudioMixToProject}
+                                    disabled={isSendingToCanvas}
+                                    className="px-8 py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-75 disabled:pointer-events-none"
+                                >
+                                    {isSendingToCanvas ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin text-stone-500" />
+                                            <span>Sending...</span>
+                                        </>
+                                    ) : (
+                                        <span>Send to canvas</span>
+                                    )}
+                                </button>
+
+                                <button
+                                    onClick={() => setActivePublishMenu(!activePublishMenu)}
+                                    className="w-12 h-12 flex items-center justify-center bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer"
+                                    type="button"
+                                    title="Export Options"
+                                >
+                                    <MoreVertical size={20} className="text-stone-600" />
+                                </button>
+
+                                {activePublishMenu && (
+                                    <div className="absolute bottom-14 right-0 w-48 bg-white border border-stone-200/80 rounded-[18px] shadow-[0_10px_35px_rgba(0,0,0,0.08)] py-2.5 z-40 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                                        <button
+                                            onClick={() => {
+                                                handleExportStudioMix('wav');
+                                                setActivePublishMenu(false);
+                                            }}
+                                            className="w-full px-4 py-2.5 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
+                                        >
+                                            Export Mix (.wav)
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                handleExportStudioMix('mp3');
+                                                setActivePublishMenu(false);
+                                            }}
+                                            className="w-full px-4 py-2.5 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
+                                        >
+                                            Export Mix (.mp3)
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                {/* Single Continuous Playhead Line Overlay */}
+                {studioState !== 'recording' && (
+                    <div 
+                        id="studio-playhead-overlay"
+                        className={`absolute top-8 bottom-[76px] pointer-events-none z-30 left-[480px] sm:left-[496px] md:left-[512px] lg:left-[528px] transition-all duration-300 ${
+                            (studioState === 'playing' || studioState === 'recording') ? 'right-[98px]' : 'right-[60px]'
+                        }`}
+                    >
+                        {/* Hoverable target container centered on playheadPercent */}
+                        <div 
+                            className="absolute top-0 bottom-0 w-6 -ml-3 pointer-events-auto cursor-ew-resize flex justify-center group/playhead"
+                            style={{ left: `${playheadPercent}%` }}
+                            onPointerDown={handlePlayheadLinePointerDown}
+                        >
+                            {/* Visible red line with responsive expansion, no roundness, no blur, and a white vertical handler in center on hover */}
+                            <div 
+                                className="h-full bg-[#FF4040] w-[2px] group-hover/playhead:w-[10px] transition-all duration-150 flex items-center justify-center relative"
+                            >
+                                <div className="w-[1.5px] h-10 bg-white opacity-0 group-hover/playhead:opacity-100 transition-opacity duration-150" />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
-        );
-    };
+        </div>
+    );
+};
 
     // Creative Tools Suite rendering functions
     const renderGuitarTuner = () => {
@@ -9835,7 +9973,143 @@ export default function CreatePage() {
             );
         }
 
-        return (
+        const getCanvasLyrics = (): { text: string; sectionName?: string }[] => {
+            if (!activeNote) return [];
+            
+            // If we have phrases, use them:
+            if (activeNote.phrases && activeNote.phrases.length > 0) {
+                return activeNote.phrases.map(p => {
+                    const group = activeNote.verses?.find(v => v.id === p.groupId);
+                    return {
+                        text: p.text,
+                        sectionName: group?.name || undefined
+                    };
+                }).filter(item => item.text.trim().length > 0);
+            }
+            
+            // Fallback to splitting activeNote.content by newlines:
+            if (activeNote.content && activeNote.content.trim().length > 0) {
+                return activeNote.content.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0)
+                    .map(line => ({ text: line }));
+            }
+            
+            return [];
+        };
+
+        const canvasLyrics = getCanvasLyrics();
+
+        if (activeToolTab === 'studio') {
+            return (
+                <div className="flex w-full text-left items-stretch mb-3 sm:mb-5 pointer-events-auto select-none relative">
+                    {/* Left Gray Lyrics Panel with smooth width transition */}
+                    <div 
+                        className={`bg-[#E5E4DE] flex flex-col overflow-hidden transition-all duration-300 ease-out relative z-10 ${
+                            showStudioLyrics 
+                                ? 'w-[300px] opacity-100 p-8 md:p-10 pr-6 border-t border-b border-l border-stone-200/80 border-r border-[#D2D1C9] rounded-l-[24px] sm:rounded-l-[36px] md:rounded-l-[45px]' 
+                                : 'w-0 opacity-0 p-0 border-t-transparent border-b-transparent border-l-transparent border-r-transparent pointer-events-none'
+                        }`}
+                    >
+                        {/* Fixed-width wrapper so content doesn't squeeze during animation */}
+                        <div className="w-[240px] sm:w-[260px] flex flex-col h-full shrink-0">
+                            <h3 className="font-sans font-medium text-stone-500 text-[26px] tracking-tight mb-8">Lyrics</h3>
+                            
+                            <div className="flex-1 overflow-y-auto pr-2 no-scrollbar flex flex-col gap-6 font-sans">
+                                {canvasLyrics.length === 0 ? (
+                                    <div className="text-stone-400/80 text-[15px] font-medium italic mt-4">
+                                        No lyrics on the canvas yet. Start typing on the canvas to see them here!
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-6 text-[17px] font-sans tracking-tight font-medium text-stone-700 leading-relaxed">
+                                        {(() => {
+                                            let lastSection = '';
+                                            return canvasLyrics.map((lyric, idx) => {
+                                                const showSectionHeader = lyric.sectionName && lyric.sectionName !== lastSection;
+                                                if (lyric.sectionName) {
+                                                    lastSection = lyric.sectionName;
+                                                }
+                                                return (
+                                                    <div key={idx} className="flex flex-col gap-1">
+                                                        {showSectionHeader && (
+                                                            <span className="text-[10px] font-bold text-stone-400/60 tracking-wider uppercase mb-1">
+                                                                {lyric.sectionName}
+                                                            </span>
+                                                        )}
+                                                        <p className="text-stone-700 font-sans tracking-tight font-medium">{lyric.text}</p>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    {/* Main White Studio Card */}
+                    <div 
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => e.stopPropagation()}
+                        onDragStart={(e) => e.stopPropagation()}
+                        onDragOver={(e) => e.stopPropagation()}
+                        onDrop={(e) => e.stopPropagation()}
+                        className={`flex-grow min-w-0 bg-white border border-stone-200/80 p-4 sm:p-6 md:p-7 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all duration-300 ease-out relative z-20 ${
+                            showStudioLyrics 
+                                ? 'rounded-r-[24px] sm:rounded-r-[36px] md:rounded-r-[45px] rounded-l-none border-l-0' 
+                                : 'rounded-[24px] sm:rounded-[36px] md:rounded-[45px]'
+                        } gap-4 sm:gap-6`}
+                    >
+                        {/* Content area */}
+                        <div className="w-full">
+                            {renderDemoStudio()}
+                        </div>
+
+                        {/* Tab row navigation */}
+                        <div className="w-full bg-[#F9F9F9] rounded-[20px] md:rounded-[34px] p-2 shadow-[inset_0_0_14px_rgba(0,0,0,0.05)] flex items-center justify-between select-none relative z-10">
+                            <button
+                                onClick={() => setActiveToolTab('tuner')}
+                                className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
+                                    (activeToolTab as string) === 'tuner'
+                                        ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
+                                        : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
+                                }`}
+                                type="button"
+                            >
+                                Guitar tuner
+                            </button>
+                            <button
+                                onClick={() => setActiveToolTab('tempo')}
+                                className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
+                                    (activeToolTab as string) === 'tempo'
+                                        ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
+                                        : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
+                                }`}
+                                type="button"
+                            >
+                                Tap tempo
+                            </button>
+                            <button
+                                onClick={() => setActiveToolTab('studio')}
+                                className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
+                                    (activeToolTab as string) === 'studio'
+                                        ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
+                                        : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
+                                }`}
+                                type="button"
+                            >
+                                Demo studio
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const mainCard = (
             <div 
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -9847,16 +10121,18 @@ export default function CreatePage() {
                 onDragOver={(e) => e.stopPropagation()}
                 onDrop={(e) => e.stopPropagation()}
                 className={`w-full ${
-                    activeToolTab === 'studio' ? 'max-w-full' : 'max-w-[856px]'
+                    (activeToolTab as string) === 'studio' ? 'flex-grow min-w-0' : 'max-w-[856px]'
                 } bg-white border border-stone-200/80 rounded-[24px] sm:rounded-[36px] md:rounded-[45px] p-4 sm:p-6 md:p-7 mb-3 sm:mb-5 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all ${
-                    activeToolTab === 'tuner' ? 'gap-0' : 'gap-4 sm:gap-6'
+                    (activeToolTab as string) === 'studio' && showStudioLyrics ? 'rounded-l-none border-l-0 mb-0 sm:mb-0' : ''
+                } ${
+                    (activeToolTab as string) === 'tuner' ? 'gap-0' : 'gap-4 sm:gap-6'
                 }`}
             >
                 {/* Content area based on active tab */}
                 <div className="w-full">
-                    {activeToolTab === 'tuner' && renderGuitarTuner()}
-                    {activeToolTab === 'tempo' && renderTapTempo()}
-                    {activeToolTab === 'studio' && renderDemoStudio()}
+                    {(activeToolTab as string) === 'tuner' && renderGuitarTuner()}
+                    {(activeToolTab as string) === 'tempo' && renderTapTempo()}
+                    {(activeToolTab as string) === 'studio' && renderDemoStudio()}
                 </div>
 
                 {/* Tab row navigation */}
@@ -9864,7 +10140,7 @@ export default function CreatePage() {
                     <button
                         onClick={() => setActiveToolTab('tuner')}
                         className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
-                            activeToolTab === 'tuner'
+                            (activeToolTab as string) === 'tuner'
                                 ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
                                 : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
                         }`}
@@ -9875,7 +10151,7 @@ export default function CreatePage() {
                     <button
                         onClick={() => setActiveToolTab('tempo')}
                         className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
-                            activeToolTab === 'tempo'
+                            (activeToolTab as string) === 'tempo'
                                 ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
                                 : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
                         }`}
@@ -9886,7 +10162,7 @@ export default function CreatePage() {
                     <button
                         onClick={() => setActiveToolTab('studio')}
                         className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
-                            activeToolTab === 'studio'
+                            (activeToolTab as string) === 'studio'
                                 ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
                                 : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
                         }`}
@@ -9897,6 +10173,8 @@ export default function CreatePage() {
                 </div>
             </div>
         );
+
+        return mainCard;
     };
 
     const handleToolsToggle = (e: React.MouseEvent) => {
@@ -10150,7 +10428,7 @@ export default function CreatePage() {
                                     setLocalTitleText(e.target.value);
                                 }
                             }}
-                            className="bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-400 placeholder:text-stone-300 focus:text-stone-855 transition-colors cursor-text select-text w-full min-w-0"
+                            className="bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-400 placeholder:text-stone-300 focus:text-stone-900 transition-colors cursor-text select-text w-full min-w-0"
                             style={{
                                 maxWidth: isEditingTitle ? 'calc(100% - 150px)' : 'calc(100% - 80px)'
                             }}
@@ -11438,7 +11716,9 @@ export default function CreatePage() {
                 {/* Creative Tools Panel */}
                 <div 
                     className={`absolute left-1/2 -translate-x-1/2 w-full ${
-                        activeToolTab === 'studio' ? 'max-w-full md:max-w-[calc(100%-4rem)] xl:max-w-[1400px]' : 'max-w-[952px]'
+                        activeToolTab === 'studio' 
+                            ? (showStudioLyrics ? 'max-w-full md:max-w-[calc(100%-2rem)] xl:max-w-[1760px]' : 'max-w-full md:max-w-[calc(100%-4rem)] xl:max-w-[1400px]')
+                            : 'max-w-[952px]'
                     } px-4 z-[60] transition-all duration-300 ease-out transform pointer-events-none ${
                         activeToolTab === 'inspiration' ? 'origin-[61%_bottom]' : 'origin-[53.5%_bottom]'
                     } ${
@@ -11729,51 +12009,7 @@ export default function CreatePage() {
                     </div>
                 </div>
                 <div className="flex flex-col gap-6">
-                    {/* Category 1: Collaboration Projects */}
-                    <div className={`transition-all duration-300 rounded-[24px] ${
-                        isCollabProjectsOpen 
-                            ? 'bg-stone-200/20 border border-stone-250/20 py-3 px-5 md:py-4 md:px-6 min-h-[300px] flex flex-col' 
-                            : 'bg-transparent'
-                    }`}>
-                        <button 
-                            type="button"
-                            onClick={() => setIsCollabProjectsOpen(!isCollabProjectsOpen)}
-                            className={`w-full flex items-center justify-between px-6 py-6 md:py-8 rounded-[24px] transition-all duration-300 group cursor-pointer outline-none select-none text-stone-855 ${
-                                isCollabProjectsOpen 
-                                    ? 'bg-transparent border border-transparent' 
-                                    : 'bg-transparent border border-stone-250/20 hover:bg-stone-200/30'
-                            }`}
-                        >
-                            <span className="font-sans font-light text-xl md:text-[22px] tracking-tight">Collab Projects</span>
-                            <span className={`transform transition-transform duration-300 ease-in-out ${isCollabProjectsOpen ? 'rotate-180' : 'rotate-0'} flex items-center justify-center text-stone-400 group-hover:text-stone-600`}>
-                                <ChevronDown size={20} />
-                            </span>
-                        </button>
-                        
-                        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
-                            isCollabProjectsOpen 
-                                ? 'max-h-[1000px] opacity-100 mt-4 px-4 pb-4 md:pb-6 flex-1 flex flex-col' 
-                                : 'max-h-0 opacity-0 pointer-events-none'
-                        }`}>
-                            {collabProjects.length === 0 ? (
-                                <div className="text-center py-16 border border-stone-200/50 border-dashed rounded-[24px] bg-white/10 select-none flex-1 flex flex-col items-center justify-center min-h-[180px]">
-                                    <p className="text-xs text-stone-400 italic">No collab projects found.</p>
-                                </div>
-                            ) : (
-                                projectViewStyle === 'grid' ? (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 p-1">
-                                        {collabProjects.map(renderProjectCard)}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-2.5 w-full">
-                                        {collabProjects.map(renderProjectListCard)}
-                                    </div>
-                                )
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Category 2: My Projects */}
+                    {/* Category 1: My Projects */}
                     <div className={`transition-all duration-300 rounded-[24px] ${
                         isMyProjectsOpen 
                             ? 'bg-stone-200/20 border border-stone-250/20 py-3 px-5 md:py-4 md:px-6 min-h-[300px] flex flex-col' 
@@ -11788,7 +12024,9 @@ export default function CreatePage() {
                                     : 'bg-transparent border border-stone-250/20 hover:bg-stone-200/30'
                             }`}
                         >
-                            <span className="font-sans font-light text-xl md:text-[22px] tracking-tight">My Projects</span>
+                            <span className="font-sans font-light text-xl md:text-[22px] tracking-tight">
+                                My Projects <span className="text-[15px] md:text-[17px] text-stone-400/80 font-normal ml-1.5">({myProjects.length})</span>
+                            </span>
                             <span className={`transform transition-transform duration-300 ease-in-out ${isMyProjectsOpen ? 'rotate-180' : 'rotate-0'} flex items-center justify-center text-stone-400 group-hover:text-stone-600`}>
                                 <ChevronDown size={20} />
                             </span>
@@ -11811,6 +12049,52 @@ export default function CreatePage() {
                                 ) : (
                                     <div className="flex flex-col gap-2.5 w-full">
                                         {myProjects.map(renderProjectListCard)}
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Category 2: Collaboration Projects */}
+                    <div className={`transition-all duration-300 rounded-[24px] ${
+                        isCollabProjectsOpen 
+                            ? 'bg-stone-200/20 border border-stone-250/20 py-3 px-5 md:py-4 md:px-6 min-h-[300px] flex flex-col' 
+                            : 'bg-transparent'
+                    }`}>
+                        <button 
+                            type="button"
+                            onClick={() => setIsCollabProjectsOpen(!isCollabProjectsOpen)}
+                            className={`w-full flex items-center justify-between px-6 py-6 md:py-8 rounded-[24px] transition-all duration-300 group cursor-pointer outline-none select-none text-stone-855 ${
+                                isCollabProjectsOpen 
+                                    ? 'bg-transparent border border-transparent' 
+                                    : 'bg-transparent border border-stone-250/20 hover:bg-stone-200/30'
+                            }`}
+                        >
+                            <span className="font-sans font-light text-xl md:text-[22px] tracking-tight">
+                                Collab Projects <span className="text-[15px] md:text-[17px] text-stone-400/80 font-normal ml-1.5">({collabProjects.length})</span>
+                            </span>
+                            <span className={`transform transition-transform duration-300 ease-in-out ${isCollabProjectsOpen ? 'rotate-180' : 'rotate-0'} flex items-center justify-center text-stone-400 group-hover:text-stone-600`}>
+                                <ChevronDown size={20} />
+                            </span>
+                        </button>
+                        
+                        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
+                            isCollabProjectsOpen 
+                                ? 'max-h-[1000px] opacity-100 mt-4 px-4 pb-4 md:pb-6 flex-1 flex flex-col' 
+                                : 'max-h-0 opacity-0 pointer-events-none'
+                        }`}>
+                            {collabProjects.length === 0 ? (
+                                <div className="text-center py-16 border border-stone-200/50 border-dashed rounded-[24px] bg-white/10 select-none flex-1 flex flex-col items-center justify-center min-h-[180px]">
+                                    <p className="text-xs text-stone-400 italic">No collab projects found.</p>
+                                </div>
+                            ) : (
+                                projectViewStyle === 'grid' ? (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 p-1">
+                                        {collabProjects.map(renderProjectCard)}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-2.5 w-full">
+                                        {collabProjects.map(renderProjectListCard)}
                                     </div>
                                 )
                             )}
