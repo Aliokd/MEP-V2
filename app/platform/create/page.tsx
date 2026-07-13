@@ -8698,7 +8698,7 @@ export default function CreatePage() {
                                     <>
                                         <div className="w-2 h-2 rounded-full bg-[#82C39B] shrink-0 animate-pulse" />
                                         <span className="text-[12px] font-sans font-extrabold whitespace-nowrap tracking-tight">
-                                            Stop • {metronomeBpm} BPM
+                                            On • {metronomeBpm} BPM
                                         </span>
                                     </>
                                 ) : (
