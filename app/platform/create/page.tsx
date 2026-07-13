@@ -2368,9 +2368,10 @@ export default function CreatePage() {
         if (selectedNoteId) {
             const savedTracks = tracksPerNote[selectedNoteId];
             if (savedTracks) {
-                setStudioTracks(savedTracks);
+                const validTracks = savedTracks.filter(Boolean);
+                setStudioTracks(validTracks);
                 let maxDur = 0;
-                savedTracks.forEach(t => {
+                validTracks.forEach(t => {
                     if (t.audioBuffer) {
                         maxDur = Math.max(maxDur, t.audioBuffer.duration);
                     }
@@ -7769,8 +7770,13 @@ export default function CreatePage() {
         if (draggedTrackIndex === null || draggedTrackIndex === index) return;
         
         setStudioTracks(prev => {
-            const updated = [...prev];
+            const cleanPrev = prev.filter(Boolean);
+            if (draggedTrackIndex < 0 || draggedTrackIndex >= cleanPrev.length || index < 0 || index >= cleanPrev.length) {
+                return cleanPrev;
+            }
+            const updated = [...cleanPrev];
             const [draggedItem] = updated.splice(draggedTrackIndex, 1);
+            if (!draggedItem) return cleanPrev;
             updated.splice(index, 0, draggedItem);
             return updated;
         });
@@ -7801,7 +7807,7 @@ export default function CreatePage() {
     };
 
     const handleToggleTrackMute = (trackId: number) => {
-        setStudioTracks(prev => prev.map(t => {
+        setStudioTracks(prev => prev.filter(Boolean).map(t => {
             if (t.id === trackId) {
                 const newMuted = !t.muted;
                 const activeNodes = studioActiveSourcesRef.current[trackId];
@@ -7817,6 +7823,7 @@ export default function CreatePage() {
                 }
                 return { ...t, muted: newMuted };
             }
+            return t;
         }));
     };
 
@@ -8221,7 +8228,7 @@ export default function CreatePage() {
 
                     {/* Sequencer Track List Container */}
                     <div className="flex flex-col gap-1 w-full relative">
-                        {studioTracks.map((track, idx) => {
+                        {studioTracks.filter(Boolean).map((track, idx) => {
                             const isArmed = activeRecordingTrackId === track.id;
                             const isThisTrackRecording = studioState === 'recording' && isArmed;
 
