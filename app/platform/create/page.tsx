@@ -764,7 +764,7 @@ function PhraseRow({
                     
                     const wordIndices: number[] = [];
                     wordsList.forEach((token, idx) => {
-                        if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/)) {
+                        if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/)) {
                             wordIndices.push(idx);
                         }
                     });
@@ -838,7 +838,7 @@ function PhraseRow({
                     } else {
                         const wordIndices: number[] = [];
                         wordsList.forEach((token, idx) => {
-                            if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/)) {
+                            if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/)) {
                                 wordIndices.push(idx);
                             }
                         });
@@ -1079,7 +1079,7 @@ function PhraseRow({
             )}
             
             {isCurrentlyEditing ? (
-                <div className="text-[26px] md:text-[42px] font-light text-stone-855 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4">
+                <div className="text-[30px] md:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4">
                     <textarea
                         ref={textareaRef}
                         autoFocus
@@ -1102,7 +1102,7 @@ function PhraseRow({
                                 }
                             }
                         }}
-                        className="w-full bg-transparent border-none outline-none resize-none font-sans text-[26px] md:text-[42px] font-light text-stone-855 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none leading-[1.4] py-0 no-scrollbar"
+                        className="w-full bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none leading-[1.4] py-0 no-scrollbar"
                         style={{ height: 'auto', minHeight: '1.4em' }}
                         inputMode="text"
                     />
@@ -1110,7 +1110,7 @@ function PhraseRow({
             ) : (
                 <div 
                     className={`
-                        phrase-row-text text-[26px] md:text-[42px] font-light text-stone-855 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-1.5 px-4 rounded-[16px] transition-all duration-200 w-full border border-transparent
+                        phrase-row-text text-[30px] md:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-[2px] px-4 rounded-[12px] transition-all duration-200 w-full border border-transparent
                         ${isLockedByRemote ? `cursor-not-allowed border-dashed opacity-70 ${lockerClass}` : 'cursor-grab active:cursor-grabbing hover:border-stone-200/50 hover:bg-stone-50/30 group/line'}
                         ${draggedPhraseId === phrase.id ? 'opacity-30' : ''}
                     `}
@@ -1126,7 +1126,7 @@ function PhraseRow({
                             }
                             
                             // Parse alphabetical word to isolate punctuation
-                            const match = token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/);
+                            const match = token.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/);
                             if (match) {
                                 const prePunc = match[1];
                                 const word = match[2];
@@ -1177,10 +1177,10 @@ function PhraseRow({
                                             }}
                                             onClick={(e) => handleWordClick(e, word, tokenOffset + idx)}
                                             className={`
-                                                word-token hover:bg-stone-200/90 text-stone-855 hover:text-stone-955 hover:font-medium rounded-[8px] px-1.5 py-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 inline-block select-none relative
+                                                word-token text-stone-700 hover:text-stone-900 hover:font-medium rounded-[4px] px-[3px] py-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 inline-block select-none relative
+                                                ${isWordClicked ? 'bg-[#EDFF8E] text-stone-950 shadow-xs scale-102 z-10' : 'hover:bg-stone-200/90'}
                                                 ${isWordDragged ? 'opacity-30' : ''}
                                                 ${isWordDragOver ? 'bg-amber-100/80 scale-105' : ''}
-                                                ${isWordClicked ? 'bg-stone-200/90 text-stone-955 font-semibold shadow-xs scale-102 z-10' : ''}
                                             `}
                                         >
                                             {/* Left drop indicator line */}
@@ -1979,6 +1979,115 @@ const TrackWaveform = ({
     );
 };
 
+const StudioKnob = ({ 
+    value, 
+    min, 
+    max, 
+    defaultValue, 
+    onChange 
+}: { 
+    value: number; 
+    min: number; 
+    max: number; 
+    defaultValue: number; 
+    onChange: (val: number) => void;
+}) => {
+    const [isDragging, setIsDragging] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+        const startY = e.clientY;
+        const startValue = value;
+        const range = max - min;
+        const pixelsPerUnit = 2.5;
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            const deltaY = startY - moveEvent.clientY;
+            const deltaValue = (deltaY / pixelsPerUnit) * (range / 100);
+            const newValue = Math.max(min, Math.min(max, startValue + deltaValue));
+            onChange(newValue);
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const percent = (value - min) / (max - min);
+    const angle = -135 + percent * 270;
+
+    return (
+        <div 
+            onMouseDown={handleMouseDown}
+            onDoubleClick={() => onChange(defaultValue)}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className="relative w-11 h-11 rounded-full bg-white hover:bg-stone-50 active:scale-95 transition-all shadow-[0_2.5px_6px_rgba(0,0,0,0.07)] cursor-ns-resize flex items-center justify-center border-2 border-stone-200/80"
+            title="Drag vertically to adjust. Double click to reset."
+        >
+            <div 
+                className="absolute w-[1.5px] h-[16px] bg-stone-600 rounded-full origin-bottom"
+                style={{ 
+                    left: 'calc(50% - 0.75px)',
+                    bottom: '50%',
+                    transform: `rotate(${angle}deg)`
+                }}
+            />
+            
+            {/* Floating Tooltip Value on top */}
+            {(isHovered || isDragging) && (
+                <div className="absolute bottom-full mb-1 text-[11px] font-bold text-stone-400 select-none pointer-events-none animate-in fade-in duration-150 z-50 whitespace-nowrap">
+                    {Math.round(value)}
+                </div>
+            )}
+        </div>
+    );
+};
+
+function parseFlexibleDate(dateStr: any): number {
+    if (!dateStr) return 0;
+    
+    // Try standard parsing first
+    let parsed = Date.parse(dateStr);
+    if (!isNaN(parsed)) return parsed;
+    
+    // If standard parsing fails (likely due to DD/MM/YYYY format), parse manually
+    // e.g. "14/07/2026, 09:55:00"
+    try {
+        const parts = String(dateStr).split(',');
+        const datePart = parts[0].trim();
+        const timePart = parts[1] ? parts[1].trim() : '00:00:00';
+        
+        const dateSubparts = datePart.split('/');
+        if (dateSubparts.length === 3) {
+            const day = parseInt(dateSubparts[0], 10);
+            const month = parseInt(dateSubparts[1], 10) - 1;
+            const year = parseInt(dateSubparts[2], 10);
+            
+            const timeSubparts = timePart.split(':');
+            const hours = parseInt(timeSubparts[0] || '0', 10);
+            const minutes = parseInt(timeSubparts[1] || '0', 10);
+            const seconds = parseInt(timeSubparts[2] || '0', 10);
+            
+            const d = new Date(year, month, day, hours, minutes, seconds);
+            if (!isNaN(d.getTime())) {
+                return d.getTime();
+            }
+        }
+    } catch (e) {
+        console.error("Error parsing date in parseFlexibleDate:", e);
+    }
+    
+    return 0;
+}
+
 export default function CreatePage() {
     const { user } = useAuth();
 
@@ -1989,6 +2098,7 @@ export default function CreatePage() {
     const [folders, setFolders] = useState<SongFolder[]>(() => readCachedFolders());
     const [notes, setNotes] = useState<SongNote[]>(() => readCachedNotes());
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+    const [isSelectionInitialized, setIsSelectionInitialized] = useState(false);
     const [shareStatus, setShareStatus] = useState<'idle' | 'sharing' | 'shared'>('idle');
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
     const [renameGroupName, setRenameGroupName] = useState<string>('');
@@ -1998,6 +2108,16 @@ export default function CreatePage() {
     useEffect(() => {
         selectedNoteIdRef.current = selectedNoteId;
     }, [selectedNoteId]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem('veinote-selected-note-id');
+            if (stored) {
+                setSelectedNoteId(stored);
+            }
+        }
+        setIsSelectionInitialized(true);
+    }, []);
 
     const [undoStack, setUndoStack] = useState<{ content: string; phrases: Phrase[]; verses: VerseGroup[]; audioNotes: AudioNote[] }[]>([]);
     const [redoStack, setRedoStack] = useState<{ content: string; phrases: Phrase[]; verses: VerseGroup[]; audioNotes: AudioNote[] }[]>([]);
@@ -2288,6 +2408,11 @@ export default function CreatePage() {
 
     const [isStudioMetronomeOn, setIsStudioMetronomeOn] = useState<boolean>(true);
     const [isMetronomeHovered, setIsMetronomeHovered] = useState<boolean>(false);
+    const [metronomeVolume, setMetronomeVolume] = useState<number>(80);
+    const metronomeVolumeRef = useRef<number>(80);
+    useEffect(() => {
+        metronomeVolumeRef.current = metronomeVolume;
+    }, [metronomeVolume]);
     const [isTunerHovered, setIsTunerHovered] = useState<boolean>(false);
     const [studioPlayhead, setStudioPlayhead] = useState<number>(0);
     const [studioDuration, setStudioDuration] = useState<number>(0);
@@ -2835,13 +2960,49 @@ export default function CreatePage() {
                         }
 
                         initialLoadComplete = true;
-                        setNotes(merged);
+
+                        // Merge Firestore notes with local cache notes to preserve latest unsaved edits on page reload
+                        const cachedNotes = readCachedNotes();
+                        const finalNotes = merged.map(remoteNote => {
+                            const cachedNote = cachedNotes.find(cn => cn.id === remoteNote.id);
+                            if (cachedNote) {
+                                const remoteTime = parseFlexibleDate(remoteNote.updatedAt);
+                                const cachedTime = parseFlexibleDate(cachedNote.updatedAt);
+                                
+                                if (cachedTime > remoteTime) {
+                                    // Local cached note is newer than Firestore version.
+                                    // Sync this back to Firestore in the background to ensure consistency.
+                                    const docRef = doc(db, "projects", remoteNote.id);
+                                    setDoc(docRef, {
+                                        title: cachedNote.title || 'Untitled Note',
+                                        content: cachedNote.content || '',
+                                        phrases: cachedNote.phrases || [],
+                                        audioNotes: cachedNote.audioNotes || [],
+                                        verses: cachedNote.verses || [],
+                                        updatedAt: new Date().toISOString()
+                                    }, { merge: true }).catch(console.error);
+
+                                    return cachedNote;
+                                }
+                            }
+                            return remoteNote;
+                        });
+
+                        // Append any local notes that are not in Firestore yet (e.g. created offline)
+                        cachedNotes.forEach(cn => {
+                            if (!finalNotes.some(fn => fn.id === cn.id)) {
+                                finalNotes.push(cn);
+                            }
+                        });
+
+                        setNotes(finalNotes);
                         setIsDataLoaded(true);
 
-                        if (merged.length > 0) {
+                        if (finalNotes.length > 0) {
                             setSelectedNoteId(prev => {
-                                if (prev && merged.some(n => n.id === prev)) {
-                                    return prev;
+                                const storedId = prev || localStorage.getItem('veinote-selected-note-id');
+                                if (storedId && finalNotes.some(n => n.id === storedId)) {
+                                    return storedId;
                                 }
                                 return null;
                             });
@@ -2925,8 +3086,9 @@ export default function CreatePage() {
 
                 if (initialNotes.length > 0) {
                     setSelectedNoteId(prev => {
-                        if (prev && initialNotes.some(n => n.id === prev)) {
-                            return prev;
+                        const storedId = prev || localStorage.getItem('veinote-selected-note-id');
+                        if (storedId && initialNotes.some(n => n.id === storedId)) {
+                            return storedId;
                         }
                         return null;
                     });
@@ -2959,6 +3121,16 @@ export default function CreatePage() {
             localStorage.setItem('veinote-create-notes', JSON.stringify(notes));
         }
     }, [notes, isDataLoaded]);
+
+    useEffect(() => {
+        if (isDataLoaded && isSelectionInitialized) {
+            if (selectedNoteId) {
+                localStorage.setItem('veinote-selected-note-id', selectedNoteId);
+            } else {
+                localStorage.removeItem('veinote-selected-note-id');
+            }
+        }
+    }, [selectedNoteId, isDataLoaded, isSelectionInitialized]);
 
     // Auto-open project if query parameter noteId is present
     useEffect(() => {
@@ -3618,7 +3790,7 @@ export default function CreatePage() {
             gainNode.connect(audioCtx.destination);
             
             osc.frequency.setValueAtTime(880, audioCtx.currentTime); // high tick (A5)
-            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime((metronomeVolumeRef.current / 100) * 0.3, audioCtx.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05); // decay
             
             osc.start(audioCtx.currentTime);
@@ -4021,7 +4193,7 @@ export default function CreatePage() {
             }
             const avgIntervalMs = sumIntervals / (newTaps.length - 1);
             const calculatedBpmValue = Math.round(60000 / avgIntervalMs);
-            const finalBpm = Math.max(40, Math.min(240, calculatedBpmValue));
+            const finalBpm = Math.max(40, calculatedBpmValue);
             setMetronomeBpm(finalBpm);
             if (isStudioMetronomeOn) {
                 if (studioState === 'playing') {
@@ -7019,7 +7191,7 @@ export default function CreatePage() {
             const originalToken = wordsList[clickedTokenIndex];
             
             // Swap out alphabetical portion, keeping surrounding punctuation
-            const match = originalToken.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/);
+            const match = originalToken.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/);
             if (match) {
                 const pre = match[1];
                 const post = match[3];
@@ -7104,9 +7276,7 @@ export default function CreatePage() {
     };
 
     const getNoteTime = (note: SongNote) => {
-        if (!note.updatedAt) return 0;
-        const parsed = Date.parse(note.updatedAt);
-        return isNaN(parsed) ? 0 : parsed;
+        return parseFlexibleDate(note.updatedAt);
     };
 
     const notesFilteredByMode = [...notes].sort((a, b) => getNoteTime(b) - getNoteTime(a));
@@ -7196,7 +7366,7 @@ export default function CreatePage() {
             gain.connect(audioCtx.destination);
 
             osc.frequency.setValueAtTime(880, nextTickTime); // tick frequency
-            gain.gain.setValueAtTime(0.2, nextTickTime);
+            gain.gain.setValueAtTime((metronomeVolumeRef.current / 100) * 0.2, nextTickTime);
             gain.gain.exponentialRampToValueAtTime(0.001, nextTickTime + 0.05);
 
             osc.start(nextTickTime);
@@ -8186,63 +8356,7 @@ export default function CreatePage() {
         target.addEventListener('pointercancel', handlePointerUp);
     };
 
-    const StudioKnob = ({ 
-        value, 
-        min, 
-        max, 
-        defaultValue, 
-        onChange 
-    }: { 
-        value: number; 
-        min: number; 
-        max: number; 
-        defaultValue: number; 
-        onChange: (val: number) => void;
-    }) => {
-        const handleMouseDown = (e: React.MouseEvent) => {
-            e.preventDefault();
-            const startY = e.clientY;
-            const startValue = value;
-            const range = max - min;
-            const pixelsPerUnit = 2.5;
 
-            const handleMouseMove = (moveEvent: MouseEvent) => {
-                const deltaY = startY - moveEvent.clientY;
-                const deltaValue = (deltaY / pixelsPerUnit) * (range / 100);
-                const newValue = Math.max(min, Math.min(max, startValue + deltaValue));
-                onChange(newValue);
-            };
-
-            const handleMouseUp = () => {
-                document.removeEventListener('mousemove', handleMouseMove);
-                document.removeEventListener('mouseup', handleMouseUp);
-            };
-
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-        };
-
-        const percent = (value - min) / (max - min);
-        const angle = -135 + percent * 270;
-
-        return (
-            <div 
-                onMouseDown={handleMouseDown}
-                onDoubleClick={() => onChange(defaultValue)}
-                className="relative w-11 h-11 rounded-full bg-white hover:bg-stone-50 active:scale-95 transition-all shadow-[0_2.5px_6px_rgba(0,0,0,0.07)] cursor-ns-resize flex items-center justify-center border-2 border-stone-200/80"
-                title="Drag vertically to adjust. Double click to reset."
-            >
-                <div 
-                    className="absolute w-[1.5px] h-[16px] bg-stone-600 rounded-full origin-bottom"
-                    style={{ 
-                        left: 'calc(50% - 0.75px)',
-                        bottom: '50%',
-                        transform: `rotate(${angle}deg)`
-                    }}
-                />
-            </div>
-        );
-    };
 
     const getRulerItems = (limit: number) => {
         const items: { type: 'label' | 'tick'; value?: string }[] = [];
@@ -8325,7 +8439,7 @@ export default function CreatePage() {
                         <div className="w-32 sm:w-36 md:w-40 lg:w-44 shrink-0" /> {/* track selector gap */}
                         
                         {/* Controllers Column Header with Labels & Vertical Lines */}
-                        <div className="w-[280px] shrink-0 flex justify-between px-2 relative select-none h-full items-end">
+                        <div className="w-[240px] xl:w-[280px] shrink-0 flex justify-between px-2 relative select-none h-full items-end">
                             {/* VOL */}
                             <div className="flex flex-col items-center w-11 shrink-0 justify-end h-full">
                                 <span className="text-[9px] font-bold text-stone-400/60 tracking-wider">VOL</span>
@@ -8552,7 +8666,7 @@ export default function CreatePage() {
                                     </div>
 
                                     {/* Controllers Container (No background, larger items) */}
-                                    <div className={`px-2 flex items-center justify-between w-[280px] shrink-0 relative select-none transition-all duration-200 ${
+                                    <div className={`px-2 flex items-center justify-between w-[240px] xl:w-[280px] shrink-0 relative select-none transition-all duration-200 ${
                                         expandedTrackId === track.id ? 'h-[74px]' : 'h-11'
                                     }`}>
                                         {/* VOL */}
@@ -8712,6 +8826,22 @@ export default function CreatePage() {
                                                     <circle cx="5" cy="12" r="1.5" fill="currentColor" />
                                                 </svg>
                                             </button>
+                                        
+                                            {activeTrackMenuId === track.id && (
+                                                <div className="absolute right-0 top-9 w-32 bg-white border border-stone-200/80 rounded-[14px] shadow-[0_8px_25px_rgba(0,0,0,0.06)] p-1 z-40 animate-in fade-in slide-in-from-top-1 duration-150 pointer-events-auto">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteTrack(track.id);
+                                                            setActiveTrackMenuId(null);
+                                                        }}
+                                                        className="w-full px-3 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-650 rounded-[10px] cursor-pointer active:scale-[0.98] transition-all"
+                                                        type="button"
+                                                    >
+                                                        Delete Track
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -8742,7 +8872,25 @@ export default function CreatePage() {
                     {/* Level 1: Metronome, Guitar Tuner, and Timeline Seeker Capsule */}
                     <div className="flex w-full items-center gap-3 px-4 h-10 select-none">
                         {/* Left side: Instrument and Utility pills aligned with tracks left column */}
-                        <div className="w-[452px] sm:w-[468px] md:w-[484px] lg:w-[500px] shrink-0 flex items-center gap-2.5">
+                        <div className="w-[412px] sm:w-[428px] md:w-[444px] lg:w-[460px] xl:w-[500px] shrink-0 flex items-center gap-2.5">
+                            {/* Metronome Volume Control */}
+                            {isStudioMetronomeOn && (
+                                <div 
+                                    className="flex items-center animate-in fade-in zoom-in duration-200 shrink-0 select-none" 
+                                    onMouseDown={(e) => e.stopPropagation()} 
+                                    onClick={(e) => e.stopPropagation()}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                >
+                                    <StudioKnob 
+                                        value={metronomeVolume}
+                                        min={0}
+                                        max={100}
+                                        defaultValue={80}
+                                        onChange={(val) => setMetronomeVolume(val)}
+                                    />
+                                </div>
+                            )}
+
                             {/* Metronome Pill */}
                             <div 
                                 onMouseEnter={() => {
@@ -8830,6 +8978,8 @@ export default function CreatePage() {
                                 )}
                             </div>
 
+
+
                             {/* Guitar Tuner Pill */}
                             <div 
                                 onMouseEnter={() => setIsTunerHovered(true)}
@@ -8908,12 +9058,12 @@ export default function CreatePage() {
                     <div className="w-full h-[1px] bg-stone-200/50 my-1" />
 
                     {/* Level 2: Center-aligned Principal Action Buttons */}
-                    <div className="flex items-center justify-between w-full px-4 pb-1 relative">
+                    <div className="flex flex-col lg:flex-row items-center justify-between w-full px-4 pb-1 gap-4 lg:gap-2 relative">
                         {/* Far Left: Show Lyrics button */}
-                        <div className="flex items-center gap-2 sm:self-start z-10">
+                        <div className="w-full lg:w-1/3 flex justify-center lg:justify-start z-10">
                             <button
                                 onClick={() => setShowStudioLyrics(!showStudioLyrics)}
-                                className={`px-8 py-3.5 border rounded-full font-bold text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center justify-center ${
+                                className={`px-5 py-2.5 sm:px-8 sm:py-3.5 border rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center justify-center ${
                                     showStudioLyrics
                                         ? 'bg-[#E5E4DE] border-[#D2D1C9] text-stone-700 hover:bg-[#DAD9D2]'
                                         : 'bg-white border-stone-200 hover:bg-stone-50/50 text-stone-700'
@@ -8925,11 +9075,11 @@ export default function CreatePage() {
                         </div>
 
                         {/* Center: Play/Pause and REC buttons */}
-                        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+                        <div className="w-full lg:w-auto flex items-center justify-center gap-2.5 lg:gap-3 z-10 lg:absolute lg:left-1/2 lg:-translate-x-1/2">
                             {studioState === 'recording' ? (
                                 <button
                                     onClick={stopStudioRecording}
-                                    className="px-8 py-3.5 bg-white border border-stone-200 text-[#FF4040] rounded-full font-bold text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2"
+                                    className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white border border-stone-200 text-[#FF4040] rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2"
                                 >
                                     <div className="relative flex items-center justify-center shrink-0">
                                         <div className="w-4 h-4 rounded-full bg-[#FF4040] animate-ping absolute" />
@@ -8940,7 +9090,7 @@ export default function CreatePage() {
                             ) : (
                                 <button
                                     onClick={startStudioRecording}
-                                    className="px-8 py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-[#FF4040] rounded-full font-bold text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2"
+                                    className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-[#FF4040] rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2"
                                 >
                                     <div className="w-3 h-3 bg-[#FF4040] rounded-full shrink-0" />
                                     REC
@@ -8957,7 +9107,7 @@ export default function CreatePage() {
                                     }
                                 }}
                                 disabled={studioDuration === 0 || studioState === 'recording'}
-                                className="px-8 py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                                className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
                             >
                                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-stone-650 shrink-0">
                                     {studioState === 'playing' ? (
@@ -8971,12 +9121,12 @@ export default function CreatePage() {
                         </div>
 
                         {/* Far Right: Send to canvas Button & Three Dots Export */}
-                        <div className="flex items-center gap-2 sm:self-end z-10">
+                        <div className="w-full lg:w-1/3 flex justify-center lg:justify-end items-center gap-2 z-10">
                             <div className="relative flex items-center gap-2">
                                 <button
                                     onClick={handleSaveStudioMixToProject}
                                     disabled={isSendingToCanvas}
-                                    className="px-8 py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-75 disabled:pointer-events-none"
+                                    className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-75 disabled:pointer-events-none"
                                 >
                                     {isSendingToCanvas ? (
                                         <>
@@ -8990,7 +9140,7 @@ export default function CreatePage() {
 
                                 <button
                                     onClick={() => setActivePublishMenu(!activePublishMenu)}
-                                    className="w-12 h-12 flex items-center justify-center bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer"
+                                    className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer"
                                     type="button"
                                     title="Export Options"
                                 >
@@ -9028,23 +9178,32 @@ export default function CreatePage() {
                 {studioState !== 'recording' && (
                     <div 
                         id="studio-playhead-overlay"
-                        className={`absolute top-8 bottom-[76px] pointer-events-none z-30 left-[480px] sm:left-[496px] md:left-[512px] lg:left-[528px] transition-all duration-300 ${
-                            (studioState === 'playing' || studioState === 'recording') ? 'right-[98px]' : 'right-[60px]'
-                        }`}
+                        className="absolute top-8 bottom-[76px] left-0 right-0 pointer-events-none z-30 flex gap-3 px-4"
                     >
+                        {/* Left space match: drag handle (20px) + track selector + controllers + gaps */}
+                        <div className="w-[412px] sm:w-[428px] md:w-[444px] lg:w-[460px] xl:w-[500px] shrink-0" />
+                        
+                        {/* Timeline part */}
+                        <div className="flex-grow relative h-full">
                         {/* Hoverable target container centered on playheadPercent */}
                         <div 
                             className="absolute top-0 bottom-0 w-6 -ml-3 pointer-events-auto cursor-ew-resize flex justify-center group/playhead"
                             style={{ left: `${playheadPercent}%` }}
                             onPointerDown={handlePlayheadLinePointerDown}
                         >
-                            {/* Visible red line with responsive expansion, no roundness, no blur, and a white vertical handler in center on hover */}
+                            {/* Visible red line */}
                             <div 
                                 className="h-full bg-[#FF4040] w-[2px] group-hover/playhead:w-[10px] transition-all duration-150 flex items-center justify-center relative"
                             >
                                 <div className="w-[1.5px] h-10 bg-white opacity-0 group-hover/playhead:opacity-100 transition-opacity duration-150" />
                             </div>
                         </div>
+                        </div>
+                        
+                        {/* Right options menu gap: w-8 or w-[70px] */}
+                        <div className={`shrink-0 transition-all duration-300 ${
+                            (studioState === 'playing' || studioState === 'recording') ? 'w-[70px]' : 'w-8'
+                        }`} />
                     </div>
                 )}
             </div>
@@ -10749,7 +10908,7 @@ export default function CreatePage() {
                                             <div 
                                                 key={blockId || `block-${bIdx}`}
                                                 className={`block-wrapper w-full relative ${
-                                                    block.type === 'group' ? 'my-8' : 'my-2.5'
+                                                    block.type === 'group' ? 'my-10' : 'my-1'
                                                 }`}
                                                 data-block-id={blockId}
                                                 onDragOver={(e) => {
@@ -10961,7 +11120,7 @@ export default function CreatePage() {
                                                                     e.stopPropagation();
                                                                     handleAddNewPhrase(block.groupId);
                                                                 }}
-                                                                className={`verse-group-container border border-dashed rounded-[20px] p-8 pt-12 pb-8 relative flex flex-col gap-3.5 min-h-[110px] transition-all duration-300 cursor-grab active:cursor-grabbing group/verse-group ${
+                                                                className={`verse-group-container border border-dashed rounded-[20px] p-5 pt-8 pb-5 relative flex flex-col gap-1.5 min-h-[90px] transition-all duration-300 cursor-grab active:cursor-grabbing group/verse-group ${
                                                                     isDragOverThisGroup 
                                                                         ? 'border-black bg-stone-100/50 shadow-[0_4px_20px_rgba(0,0,0,0.03)] scale-[1.005]' 
                                                                         : 'border-stone-300/85 bg-stone-50/20 hover:border-stone-400'
@@ -11175,7 +11334,7 @@ export default function CreatePage() {
                                                                                         const wordIndices: number[] = [];
                                                                                         const tokens = phrase.text.split(/(\s+)/);
                                                                                         tokens.forEach((token, idx) => {
-                                                                                            if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/)) {
+                                                                                            if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/)) {
                                                                                                 wordIndices.push(idx);
                                                                                             }
                                                                                         });
@@ -11246,7 +11405,7 @@ export default function CreatePage() {
                                                                                     const tokens = phrase.text.split(/(\s+)/);
                                                                                     const wordIndices: number[] = [];
                                                                                     tokens.forEach((token, idx) => {
-                                                                                        if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+)([^a-zA-Z]*)$/)) {
+                                                                                        if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/)) {
                                                                                             wordIndices.push(idx);
                                                                                         }
                                                                                     });
@@ -11484,7 +11643,7 @@ export default function CreatePage() {
                                             setIsFocused(false);
                                             setTimeout(updateScrollbarInfo, 50);
                                         }}
-                                        className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-sans text-[26px] md:text-[42px] font-light text-stone-855 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[140px] md:max-h-[200px] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
+                                        className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[140px] md:max-h-[200px] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
                                         placeholder=""
                                         style={{ 
                                             height: 'auto',
@@ -11494,7 +11653,7 @@ export default function CreatePage() {
                                     />
                                     {contentVal === '' && (
                                         <div className="absolute inset-x-0 top-0 px-4 md:px-8 xl:px-16 flex items-center justify-center pointer-events-none select-none py-0">
-                                            <span className="relative text-[26px] md:text-[42px] font-light text-stone-300/80 tracking-[-0.035em] leading-[1.4] text-center flex items-center justify-center">
+                                            <span className="relative text-[30px] md:text-[42px] font-normal text-stone-300/80 tracking-[-0.035em] leading-[1.4] text-center flex items-center justify-center">
                                                 <span className="inline-block w-[2.5px] h-[32px] md:h-[44px] bg-black mr-2 animate-caret-blink shrink-0" />
                                                 Type your lyrics...
                                             </span>
@@ -11592,12 +11751,12 @@ export default function CreatePage() {
                             <div className="flex flex-col gap-2.5">
                                 <div className="flex items-center justify-between">
                                     <span className="text-[11.5px] text-stone-400 font-bold uppercase tracking-wider select-none">Current Word</span>
-                                    <span className="text-[13px] text-stone-500 font-semibold">{getCompatibilityScore(clickedWord, contentVal)}% Compatible</span>
+                                    <span className="text-[13px] text-emerald-600 font-semibold">{getCompatibilityScore(clickedWord, contentVal)}% Compatible</span>
                                 </div>
                                 <div className="flex items-center gap-3.5">
                                     <span className="text-2xl font-semibold text-stone-900">"{clickedWord}"</span>
                                     <div className="flex-grow h-2.5 bg-stone-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-black rounded-full transition-all duration-500" style={{ width: `${getCompatibilityScore(clickedWord, contentVal)}%` }} />
+                                        <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${getCompatibilityScore(clickedWord, contentVal)}%` }} />
                                     </div>
                                 </div>
                             </div>
@@ -11610,7 +11769,7 @@ export default function CreatePage() {
                                     onClick={() => setLexiconMode('rhyme')}
                                     className={`flex-1 text-[13px] font-bold py-2.5 rounded-[11px] transition-all cursor-pointer ${
                                         lexiconMode === 'rhyme' 
-                                            ? 'bg-white text-stone-850 shadow-xs' 
+                                            ? 'bg-white text-stone-800 shadow-xs' 
                                             : 'text-stone-400 hover:text-stone-600'
                                     }`}
                                     type="button"
@@ -11621,7 +11780,7 @@ export default function CreatePage() {
                                     onClick={() => setLexiconMode('synonym')}
                                     className={`flex-1 text-[13px] font-bold py-2.5 rounded-[11px] transition-all cursor-pointer ${
                                         lexiconMode === 'synonym' 
-                                            ? 'bg-white text-stone-850 shadow-xs' 
+                                            ? 'bg-white text-stone-800 shadow-xs' 
                                             : 'text-stone-400 hover:text-stone-600'
                                     }`}
                                     type="button"
@@ -11637,7 +11796,7 @@ export default function CreatePage() {
                                     placeholder="Search word..."
                                     value={lexiconWord}
                                     onChange={(e) => setLexiconWord(e.target.value)}
-                                    className="w-full px-5 py-3 bg-stone-50 border border-stone-200 rounded-[16px] text-[15px] font-sans placeholder:text-stone-400 font-semibold focus:outline-none focus:border-stone-400"
+                                    className="w-full px-5 py-3 bg-stone-50 border border-stone-200/85 rounded-[16px] text-[15px] font-sans placeholder:text-stone-400 font-medium focus:outline-none focus:border-emerald-500/50"
                                 />
                                 {lexiconLoading && (
                                     <div className="absolute right-4 top-3.5 w-5 h-5 border-2 border-stone-400 border-t-transparent rounded-full animate-spin" />
@@ -11683,11 +11842,11 @@ export default function CreatePage() {
                                                                             e.stopPropagation();
                                                                             handleSelectSuggestion(item.word);
                                                                         }}
-                                                                        className="group flex items-center gap-2 px-5 py-2.5 bg-stone-50/50 hover:bg-stone-900 border border-stone-200/50 hover:border-stone-900 rounded-[14px] transition-all cursor-pointer shadow-2xs"
+                                                                        className="group flex items-center gap-2 px-5 py-2.5 bg-white/90 hover:bg-emerald-600 border border-stone-300/40 hover:border-emerald-600 rounded-[14px] transition-all cursor-pointer shadow-2xs"
                                                                         title={`Click to select ${item.word}`}
                                                                         type="button"
                                                                     >
-                                                                        <span className="text-[14px] font-medium text-stone-700 group-hover:text-white transition-colors">
+                                                                        <span className="text-[14px] font-medium text-stone-800 group-hover:text-white transition-colors">
                                                                             {item.word}
                                                                         </span>
                                                                     </button>
@@ -12018,7 +12177,7 @@ export default function CreatePage() {
                         <button 
                             type="button"
                             onClick={() => setIsMyProjectsOpen(!isMyProjectsOpen)}
-                            className={`w-full flex items-center justify-between px-6 py-6 md:py-8 rounded-[24px] transition-all duration-300 group cursor-pointer outline-none select-none text-stone-855 ${
+                            className={`w-full flex items-center justify-between px-6 py-6 md:py-8 rounded-[24px] transition-all duration-300 group cursor-pointer outline-none select-none text-stone-700 ${
                                 isMyProjectsOpen 
                                     ? 'bg-transparent border border-transparent' 
                                     : 'bg-transparent border border-stone-250/20 hover:bg-stone-200/30'
@@ -12064,7 +12223,7 @@ export default function CreatePage() {
                         <button 
                             type="button"
                             onClick={() => setIsCollabProjectsOpen(!isCollabProjectsOpen)}
-                            className={`w-full flex items-center justify-between px-6 py-6 md:py-8 rounded-[24px] transition-all duration-300 group cursor-pointer outline-none select-none text-stone-855 ${
+                            className={`w-full flex items-center justify-between px-6 py-6 md:py-8 rounded-[24px] transition-all duration-300 group cursor-pointer outline-none select-none text-stone-700 ${
                                 isCollabProjectsOpen 
                                     ? 'bg-transparent border border-transparent' 
                                     : 'bg-transparent border border-stone-250/20 hover:bg-stone-200/30'
