@@ -39,6 +39,37 @@ This project-scoped rules document defines guidelines for the MEP V2 DAW sequenc
 
 ## 5. Songwriting Canvas UI State-Saving & Version-Control Rule
 - **Automated Local Versioning**: To prevent any loss of completed changes, always commit successful changes to Git immediately after implementing and verifying a feature request.
-- **Diagnostics & Health Checks**: Proactively run local Next.js builds (`npm.cmd run build`) and page-load health checks (`curl http://localhost:3000/platform/create`) to verify compilation and prevent runtime exceptions (e.g. from missing function handlers) that block Fast Refresh.
+- **Diagnostics & Health Checks**: Proactively run local Next.js builds (`npm run build` / `npm.cmd run build`) and page-load health checks (e.g., `curl http://localhost:3000/platform/create`) to verify compilation and prevent runtime exceptions (e.g. from missing function handlers) that block Fast Refresh.
 - **Deploy Readiness**: Keep the codebase in a production-ready, clean compiling state at all times. Do not push changes that have not been tested or that break the local builds.
+
+## 6. Regression Prevention & Code Preservation
+- **No Unintended Overrides**: Under no circumstances should unrelated, previously implemented features or configurations be changed, reverted, or overridden.
+- **Git History Checking**: Before making changes, check the git diff or log to understand the context of existing custom features (e.g., custom tempo limits, font sizes, text colors, background highlight colors like `#EDFF8E`).
+- **Feature Preservation Checklist**:
+  - Keep the Tap Tempo limit-free (do not revert to the default 240 BPM limit).
+  - Preserve the regular weight font for lyrics input (`text-stone-700` color, `text-[30px]` desktop font size).
+  - Retain the green compatibility score styling and `#EDFF8E` background highlights when lyric words are selected.
+  - Maintain the dotted boundaries for chorus, verse, and bridge track elements.
+
+## 7. State Persistence & Resilience
+- **Persistent State**: Interactive content, such as lyrics written on the canvas, must persist using `localStorage` or session-safe caching. 
+- **Refresh Resilience**: When the page is refreshed or the browser restarts, the user's workspace progress (text inputs, lyrics, tempo settings, selected items) must load back immediately. Do not clear the state on refresh unless explicitly requested.
+
+## 8. Mobile & Responsive Layout Guardrails
+- **Device Responsiveness**: All elements and buttons must scale down beautifully and remain fully functional on smaller desktop screens, tablets, and mobile devices.
+- **Mobile Viewports**: Use dynamic viewport height (`dvh`) and width (`dvw`) values where appropriate to account for mobile browser search/address bars and toolbar states.
+- **Touch-Friendly Controls**: Maintain custom touch interaction overrides (such as tap-to-edit in less than 250ms, double-tap to create phrases on canvas, 15px touch cancel threshold for scrolling, and touchdrag ghosts) to prevent default desktop browser mouse-click/drag behaviors from breaking mobile usage.
+- **iOS and Safari Guard**: Ensure audio recording constraints and media device handlers support iOS/Safari behaviors (e.g., echoCancellation, noiseSuppression, sampleRate 44100, mono).
+
+## 9. Safe Testing & Deploy Pipeline
+- **Run Tests Before Deploy**: Prior to deploying, verify the platform stability by running Playwright E2E tests:
+  ```bash
+  npx playwright test
+  ```
+- **Automated Deployment**: Always deploy to production (Firebase) using the master pipeline script:
+  ```powershell
+  powershell ./scripts/test-and-deploy.ps1
+  ```
+- **Zero-Downtime Assurance**: Ensure all cross-functional flows (`Create` canvas, `Learn` curriculum, `Practice` metrics, and `Connect` feed) are operational. Inspect logs if the build or tests fail, fix the underlying issues, and verify again before final push.
+
 
