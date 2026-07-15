@@ -68,7 +68,7 @@ export async function GET(request: Request) {
 
     const prompt = `Analyze the ${languageName} word: "${cleanWord}". ${instructions}`;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${apiKey}`;
 
     const aiResponse = await fetch(geminiUrl, {
       method: 'POST',
@@ -95,10 +95,7 @@ Ensure results are real, correctly spelled, sorted by score in descending order,
         generationConfig: {
           responseMimeType: 'application/json',
           temperature: 0.15,
-          maxOutputTokens: 2000,
-          thinkingConfig: {
-            thinkingBudget: 0
-          }
+          maxOutputTokens: 2000
         }
       })
     });
