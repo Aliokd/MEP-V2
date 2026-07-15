@@ -1,0 +1,50 @@
+{
+  "common": {
+    "save": "Save",
+    "saving": "Saving",
+    "cancel": "Cancel",
+    "close": "Close"
+  },
+  "navigation": {
+    "create": "Create",
+    "learn": "Learn",
+    "practice": "Practice",
+    "connect": "Connect",
+    "settings": "Settings",
+    "feedback": "Feedback",
+    "support": "Support",
+    "logout": "Log out",
+    "my_profile": "My profile"
+  },
+  "lexicon": {
+    "title": "Rhyme Lexicon & Synonyms",
+    "placeholder": "Type or click a word...",
+    "perfect_rhyme": "Perfect Rhyme",
+    "near_rhyme": "Near Rhyme",
+    "synonym": "Synonyms",
+    "no_results": "Type a word to search for rhymes or synonyms.",
+    "no_results_found": "No matches found.",
+    "syllable": "syllable",
+    "syllables": "syllables",
+    "loading": "Searching dictionary..."
+  },
+  "studio": {
+    "open_lyrics": "Open Lyrics",
+    "close_lyrics": "Close Lyrics",
+    "lyrics_sidebar": "Lyrics Sidebar",
+    "empty_lyrics": "Your canvas lyrics will show up here as you write them."
+  },
+  "canvas": {
+    "tuner": "Tuner",
+    "tap_tempo": "Tap Tempo",
+    "inspiration": "Inspiration",
+    "rhyme_lexicon": "Rhyme Lexicon",
+    "demo_studio": "Demo Studio"
+  },
+  "inspiration": {
+    "no_response": "No answer response written",
+    "back": "Back",
+    "add_to_canvas": "Add to Canvas",
+    "next": "Next"
+  }
+}

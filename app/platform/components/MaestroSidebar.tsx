@@ -9,6 +9,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface MaestroSidebarProps {
     isMobileOpen?: boolean;
@@ -16,6 +17,7 @@ interface MaestroSidebarProps {
 }
 
 export default function MaestroSidebar({ isMobileOpen = false, onClose }: MaestroSidebarProps) {
+    const { t } = useLanguage();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -52,17 +54,17 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
     };
 
     const menuItems = [
-        { label: 'Create', href: '/platform/create', icon: PenTool },
-        { label: 'Learn', href: '/platform', icon: BookOpen },
-        { label: 'Practice', href: '/platform/practice', icon: Music },
-        { label: 'Connect', href: '/platform/connect', icon: Users },
+        { label: t('navigation.create'), href: '/platform/create', icon: PenTool },
+        { label: t('navigation.learn'), href: '/platform', icon: BookOpen },
+        { label: t('navigation.practice'), href: '/platform/practice', icon: Music },
+        { label: t('navigation.connect'), href: '/platform/connect', icon: Users },
     ];
 
     const bottomItems = [
-        { label: 'Settings', href: '#' },
-        { label: 'Feedback', href: '#' },
-        { label: 'Support', href: '#' },
-        { label: 'Log out', onClick: handleSignOut, isBold: true },
+        { label: t('navigation.settings'), href: '#' },
+        { label: t('navigation.feedback'), href: '#' },
+        { label: t('navigation.support'), href: '#' },
+        { label: t('navigation.logout'), onClick: handleSignOut, isBold: true },
     ];
 
     if (!mounted) return null;

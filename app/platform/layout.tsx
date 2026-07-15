@@ -2,18 +2,20 @@
 
 import MaestroSidebar from './components/MaestroSidebar';
 import { useAuth } from '@/context/AuthContext';
+import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { TreePine, Menu, User, Play, Pause, X } from 'lucide-react';
 import Logo from '@/components/Logo';
 
-export default function PlatformLayout({
+function PlatformLayoutInner({
     children,
 }: {
     children: React.ReactNode;
 }) {
     const { user, loading } = useAuth();
+    const { t } = useLanguage();
     const router = useRouter();
     const pathname = usePathname();
     
@@ -401,12 +403,15 @@ export default function PlatformLayout({
                         </Link>
                     </div>
 
-                    <Link 
-                        href="/platform/profile" 
-                        className="p-2 -mr-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955 flex items-center justify-center"
-                    >
-                        <User size={22} className="stroke-[2.2]" />
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        <LanguageSwitcher />
+                        <Link 
+                            href="/platform/profile" 
+                            className="p-2 -mr-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955 flex items-center justify-center"
+                        >
+                            <User size={22} className="stroke-[2.2]" />
+                        </Link>
+                    </div>
                 </header>
 
                 {/* Mobile Progress Bar Bar */}
@@ -595,9 +600,10 @@ export default function PlatformLayout({
                             )}
                         </div>
 
+                        <LanguageSwitcher />
                         {/* My profile link */}
                         <Link href="/platform/profile" className="hover:text-stone-955 transition-colors font-medium uppercase tracking-[0.1em] ml-2">
-                            My profile
+                            {t('navigation.my_profile')}
                         </Link>
                     </div>
                 </header>
@@ -684,5 +690,73 @@ export default function PlatformLayout({
                 </div>
             )}
         </div>
+    );
+}
+
+const LanguageSwitcher = () => {
+    const { language, setLanguage } = useLanguage();
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const languages = [
+        { code: 'en', label: 'EN', flag: '🇺🇸' },
+        { code: 'sv', label: 'SV', flag: '🇸🇪' },
+        { code: 'no', label: 'NO', flag: '🇳🇴' }
+    ];
+
+    const currentLang = languages.find(l => l.code === language) || languages[0];
+
+    return (
+        <div className="relative font-sans text-xs tracking-wider" ref={dropdownRef}>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-stone-50 border border-stone-200/80 text-stone-600 hover:text-stone-900 transition-all font-semibold uppercase select-none cursor-pointer active:scale-95"
+            >
+                <span>{currentLang.flag}</span>
+                <span>{currentLang.label}</span>
+            </button>
+            
+            {isOpen && (
+                <div className="absolute right-0 top-9 w-28 bg-white border border-stone-200/85 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.06)] py-1.5 z-[999] flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                    {languages.map((lang) => (
+                        <button
+                            key={lang.code}
+                            onClick={() => {
+                                setLanguage(lang.code as any);
+                                setIsOpen(false);
+                            }}
+                            className={`flex items-center gap-2 px-3 py-2 w-full text-left hover:bg-stone-50 transition-colors cursor-pointer text-stone-650 hover:text-stone-900 ${
+                                language === lang.code ? 'font-bold bg-stone-50/50 text-stone-900' : 'font-medium'
+                            }`}
+                        >
+                            <span>{lang.flag}</span>
+                            <span>{lang.label}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default function PlatformLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <LanguageProvider>
+            <PlatformLayoutInner>{children}</PlatformLayoutInner>
+        </LanguageProvider>
     );
 }

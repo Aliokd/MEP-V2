@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useLanguage } from '@/context/LanguageContext';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/lib/firebase';
@@ -2114,6 +2115,7 @@ function parseFlexibleDate(dateStr: any): number {
 
 export default function CreatePage() {
     const { user } = useAuth();
+    const { language, t } = useLanguage();
 
     // Pre-populate from cache so the workspace renders instantly on first paint.
     // Firestore listeners will silently merge fresher data in the background.
@@ -4362,22 +4364,18 @@ export default function CreatePage() {
         }
         setLexiconLoading(true);
         try {
-            let relParam = 'rel_rhy';
-            if (mode === 'near') relParam = 'rel_nry';
-            if (mode === 'synonym') relParam = 'ml';
-            
-            const response = await fetch(`https://api.datamuse.com/words?${relParam}=${encodeURIComponent(word.trim())}&max=40`);
+            const response = await fetch(`/api/lexicon?word=${encodeURIComponent(word.trim())}&mode=${mode}&lang=${language}`);
             const data = await response.json();
             
             const formatted = data.map((item: any) => ({
                 word: item.word,
-                score: item.score,
-                syllables: item.numSyllables || 1
+                score: item.score || 100,
+                syllables: item.syllables || item.numSyllables || 1
             }));
             
             setLexiconResults(formatted);
         } catch (err) {
-            console.error("Datamuse API error:", err);
+            console.error("Lexicon API error:", err);
             setLexiconResults([]);
         } finally {
             setLexiconLoading(false);
@@ -4391,14 +4389,14 @@ export default function CreatePage() {
 
     useEffect(() => {
         if (clickedWord) {
-            const clean = clickedWord.toLowerCase().replace(/[^a-z]/g, '');
+            const clean = clickedWord.toLowerCase().replace(/[^a-zåäöæø]/g, '');
             setLexiconWord(clean);
             searchRhymeLexicon(clean, lexiconMode);
         } else {
             setLexiconWord('');
             setLexiconResults([]);
         }
-    }, [clickedWord]);
+    }, [clickedWord, language]);
 
     useEffect(() => {
         if (lexiconWord.trim()) {
@@ -4409,7 +4407,7 @@ export default function CreatePage() {
         } else {
             setLexiconResults([]);
         }
-    }, [lexiconWord, lexiconMode]);
+    }, [lexiconWord, lexiconMode, language]);
 
     const lyricStartersList = [
         "Under the weight of a neon sky...",
@@ -9941,7 +9939,7 @@ export default function CreatePage() {
                     <div className="relative flex-grow">
                         <input
                             type="text"
-                            placeholder="Type a word to search (e.g. sky, love, time)..."
+                            placeholder={t('lexicon.placeholder')}
                             value={lexiconWord}
                             onChange={(e) => setLexiconWord(e.target.value)}
                             className="w-full px-6 py-3.5 bg-stone-50 border border-stone-200 rounded-2xl text-[16.5px] font-sans placeholder:text-stone-400 font-semibold focus:outline-none focus:border-stone-400"
@@ -9955,15 +9953,15 @@ export default function CreatePage() {
                         onChange={(e: any) => setLexiconMode(e.target.value)}
                         className="px-5 py-3.5 bg-stone-50 border border-stone-200 rounded-2xl text-[16.5px] font-bold text-stone-700 focus:outline-none focus:border-stone-400 cursor-pointer"
                     >
-                        <option value="rhyme">Perfect Rhyme</option>
-                        <option value="near">Near Rhyme</option>
-                        <option value="synonym">Synonyms</option>
+                        <option value="rhyme">{t('lexicon.perfect_rhyme')}</option>
+                        <option value="near">{t('lexicon.near_rhyme')}</option>
+                        <option value="synonym">{t('lexicon.synonym')}</option>
                     </select>
                 </form>
 
                 {lexiconResults.length === 0 ? (
                     <div className="bg-stone-50 border border-stone-150 rounded-2xl p-8.5 text-center select-none">
-                        <p className="text-[16.5px] text-stone-400 font-medium">Type a word to search for rhymes or synonyms.</p>
+                        <p className="text-[16.5px] text-stone-400 font-medium">{t('lexicon.no_results')}</p>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-5 max-h-[268px] overflow-y-auto mt-1.5 pr-1 no-scrollbar">
@@ -9972,8 +9970,8 @@ export default function CreatePage() {
                             const words = groupedBySyllables[syl];
                             return (
                                 <div key={syl} className="flex flex-col gap-2">
-                                    <span className="text-[12.5px] text-stone-450 font-bold uppercase tracking-wider select-none">
-                                        {syl} {syl === 1 ? 'Syllable' : 'Syllables'}
+                                    <span className="text-[12.5px] text-stone-455 font-bold uppercase tracking-wider select-none">
+                                        {syl} {syl === 1 ? t('lexicon.syllable') : t('lexicon.syllables')}
                                     </span>
                                     <div className="flex flex-wrap gap-2">
                                         {words.map((item, idx) => (
@@ -10247,7 +10245,7 @@ export default function CreatePage() {
                                                                 {q}
                                                             </span>
                                                             <p className="text-[18px] sm:text-[22px] md:text-[24px] font-medium text-[#8FFFA0] leading-relaxed break-words">
-                                                                {ans.trim() !== '' ? ans : '[No answer response written]'}
+                                                                {ans.trim() !== '' ? ans : t('inspiration.no_response')}
                                                             </p>
                                                         </div>
                                                     );
@@ -10261,14 +10259,14 @@ export default function CreatePage() {
                                                     className="text-white/60 hover:text-white transition-colors cursor-pointer text-[15px] sm:text-[17px] font-medium bg-transparent border-none p-0 outline-none"
                                                     type="button"
                                                 >
-                                                    Back
+                                                    {t('inspiration.back')}
                                                 </button>
                                                 <button
                                                     onClick={handleCopySummaryToCanvas}
                                                     className="text-[#8FFFA0] hover:text-[#7ce48d] transition-colors cursor-pointer text-[15px] sm:text-[17px] font-semibold bg-transparent border-none p-0 outline-none"
                                                     type="button"
                                                 >
-                                                    Add to Canvas
+                                                    {t('inspiration.add_to_canvas')}
                                                 </button>
                                             </div>
                                         </div>
@@ -10351,7 +10349,7 @@ export default function CreatePage() {
                                                         disabled={inspirationQuestionIndex === 0}
                                                         type="button"
                                                     >
-                                                        Back
+                                                        {t('inspiration.back')}
                                                     </button>
                                                 </div>
                                                 <span className="font-sans font-light text-[13px] sm:text-[16px] text-white/40 tracking-[0.12em] select-none text-center w-16">
@@ -10363,7 +10361,7 @@ export default function CreatePage() {
                                                         className="font-sans font-medium text-[16px] sm:text-[20px] text-white hover:text-[#8FFFA0] transition-colors cursor-pointer"
                                                         type="button"
                                                     >
-                                                        Next
+                                                        {t('inspiration.next')}
                                                     </button>
                                                 </div>
                                             </div>
@@ -10436,12 +10434,12 @@ export default function CreatePage() {
                     >
                         {/* Fixed-width wrapper so content doesn't squeeze during animation */}
                         <div className="w-[240px] sm:w-[260px] flex flex-col h-full shrink-0">
-                            <h3 className="font-sans font-medium text-stone-500 text-[26px] tracking-tight mb-8">Lyrics</h3>
+                            <h3 className="font-sans font-medium text-stone-500 text-[26px] tracking-tight mb-8">{t('studio.lyrics_sidebar')}</h3>
                             
                             <div className="flex-1 overflow-y-auto pr-2 no-scrollbar flex flex-col gap-6 font-sans">
                                 {canvasLyrics.length === 0 ? (
                                     <div className="text-stone-400/80 text-[15px] font-medium italic mt-4">
-                                        No lyrics on the canvas yet. Start typing on the canvas to see them here!
+                                        {t('studio.empty_lyrics')}
                                     </div>
                                 ) : (
                                     <div className="flex flex-col gap-6 text-[17px] font-sans tracking-tight font-medium text-stone-700 leading-relaxed">
@@ -10502,7 +10500,7 @@ export default function CreatePage() {
                                 }`}
                                 type="button"
                             >
-                                Guitar tuner
+                                {t('canvas.tuner')}
                             </button>
                             <button
                                 onClick={() => setActiveToolTab('tempo')}
@@ -10513,7 +10511,7 @@ export default function CreatePage() {
                                 }`}
                                 type="button"
                             >
-                                Tap tempo
+                                {t('canvas.tap_tempo')}
                             </button>
                             <button
                                 onClick={() => setActiveToolTab('studio')}
@@ -10524,7 +10522,7 @@ export default function CreatePage() {
                                 }`}
                                 type="button"
                             >
-                                Demo studio
+                                {t('canvas.demo_studio')}
                             </button>
                         </div>
                     </div>
@@ -10569,7 +10567,7 @@ export default function CreatePage() {
                         }`}
                         type="button"
                     >
-                        Guitar tuner
+                        {t('canvas.tuner')}
                     </button>
                     <button
                         onClick={() => setActiveToolTab('tempo')}
@@ -10580,7 +10578,7 @@ export default function CreatePage() {
                         }`}
                         type="button"
                     >
-                        Tap tempo
+                        {t('canvas.tap_tempo')}
                     </button>
                     <button
                         onClick={() => setActiveToolTab('studio')}
@@ -12133,7 +12131,7 @@ export default function CreatePage() {
                                     }`}
                                     type="button"
                                 >
-                                    Rhyme Lexicon
+                                    {t('canvas.rhyme_lexicon')}
                                 </button>
                                 <button 
                                     onClick={() => setLexiconMode('synonym')}
@@ -12144,7 +12142,7 @@ export default function CreatePage() {
                                     }`}
                                     type="button"
                                 >
-                                    Synonyms
+                                    {t('lexicon.synonym')}
                                 </button>
                             </div>
 
@@ -12152,7 +12150,7 @@ export default function CreatePage() {
                             <div className="relative mt-2">
                                 <input
                                     type="text"
-                                    placeholder="Search word..."
+                                    placeholder={t('lexicon.placeholder')}
                                     value={lexiconWord}
                                     onChange={(e) => setLexiconWord(e.target.value)}
                                     className="w-full px-5 py-3 bg-stone-50 border border-stone-200/85 rounded-[16px] text-[15px] font-sans placeholder:text-stone-400 font-medium focus:outline-none focus:border-emerald-500/50"
@@ -12167,11 +12165,11 @@ export default function CreatePage() {
                                 {lexiconLoading && lexiconResults.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-8 text-stone-400 gap-2">
                                         <Loader2 className="w-6 h-6 animate-spin text-stone-455" />
-                                        <span className="text-xs font-medium">Searching lexicon...</span>
+                                        <span className="text-xs font-medium">{t('lexicon.loading')}</span>
                                     </div>
                                 ) : lexiconResults.length === 0 ? (
                                     <div className="text-center py-8 text-sm font-medium text-stone-400 select-none">
-                                        No suggestions found.
+                                        {t('lexicon.no_results_found')}
                                     </div>
                                 ) : (
                                     <div className="flex flex-col gap-4 max-h-[180px] overflow-y-auto pr-1 no-scrollbar">
@@ -12189,7 +12187,7 @@ export default function CreatePage() {
                                                 return (
                                                     <div key={syl} className="flex flex-col gap-2">
                                                         <span className="text-[11px] text-stone-455 font-bold uppercase tracking-wider select-none">
-                                                            {syl} {syl === 1 ? 'Syllable' : 'Syllables'}
+                                                            {syl} {syl === 1 ? t('lexicon.syllable') : t('lexicon.syllables')}
                                                         </span>
                                                         <div className="flex flex-wrap gap-2">
                                                             {words.map((item, idx) => {
@@ -12318,7 +12316,7 @@ export default function CreatePage() {
                                                 : 'text-emerald-600'
                                         }`} />
                                     )}
-                                    <span>{isSavingNote ? 'Saving' : 'Save'}</span>
+                                    <span>{isSavingNote ? t('common.saving') : t('common.save')}</span>
                                 </button>
                             )}
 

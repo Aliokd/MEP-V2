@@ -1,0 +1,50 @@
+{
+  "common": {
+    "save": "Spara",
+    "saving": "Sparar",
+    "cancel": "Avbryt",
+    "close": "Stäng"
+  },
+  "navigation": {
+    "create": "Skapa",
+    "learn": "Lär",
+    "practice": "Öva",
+    "connect": "Anslut",
+    "settings": "Inställningar",
+    "feedback": "Feedback",
+    "support": "Support",
+    "logout": "Logga ut",
+    "my_profile": "Min profil"
+  },
+  "lexicon": {
+    "title": "Rimlexikon & Synonymer",
+    "placeholder": "Skriv eller klicka på ett ord...",
+    "perfect_rhyme": "Perfekt rim",
+    "near_rhyme": "Nära rim",
+    "synonym": "Synonymer",
+    "no_results": "Skriv ett ord för att söka efter rim eller synonymer.",
+    "no_results_found": "Inga matchningar hittades.",
+    "syllable": "stavelse",
+    "syllables": "stavelser",
+    "loading": "Söker i ordboken..."
+  },
+  "studio": {
+    "open_lyrics": "Öppna text",
+    "close_lyrics": "Stäng text",
+    "lyrics_sidebar": "Textpanel",
+    "empty_lyrics": "Dina låttexter kommer att visas här allt eftersom du skriver."
+  },
+  "canvas": {
+    "tuner": "Stämapparat",
+    "tap_tempo": "Tappa tempo",
+    "inspiration": "Inspiration",
+    "rhyme_lexicon": "Rimlexikon",
+    "demo_studio": "Demo studio"
+  },
+  "inspiration": {
+    "no_response": "Inget svar har skrivits",
+    "back": "Tillbake",
+    "add_to_canvas": "Lägg till på canvas",
+    "next": "Nästa"
+  }
+}
