@@ -5306,6 +5306,14 @@ export default function CreatePage() {
         const activeNote = notes.find(n => n.id === selectedNoteId) || null;
         if (!activeNote) return;
 
+        // Guard: Prevent publishing while audio files are still uploading in the background (starts with blob:)
+        const hasBlobUrls = (activeNote.audioUrl && activeNote.audioUrl.startsWith('blob:')) || 
+                            (activeNote.audioNotes && activeNote.audioNotes.some(an => an.url.startsWith('blob:')));
+        if (hasBlobUrls) {
+            alert("Audio files are still uploading in the background. Please wait a few seconds for the upload to complete, then try publishing.");
+            return;
+        }
+
         const title = activeNote.title?.trim() || 'Untitled Song';
         const lyricsLines = activeNote.phrases && activeNote.phrases.length > 0
             ? activeNote.phrases.map(p => p.text).filter(t => t.trim().length > 0)
@@ -5335,11 +5343,22 @@ export default function CreatePage() {
             projectName: title,
             body: 'Shared from Create section.',
             lyrics: lyricsLines,
-            attachment: activeNote.audioUrl ? {
-                name: 'audio_take.mp3',
+            attachment: (activeNote.audioUrl || (activeNote.audioNotes && activeNote.audioNotes.length > 0)) ? {
+                name: activeNote.audioNotes && activeNote.audioNotes.length > 0 
+                    ? activeNote.audioNotes[activeNote.audioNotes.length - 1].title 
+                    : 'audio_take.mp3',
                 type: 'audio/mp3',
-                url: activeNote.audioUrl
+                url: activeNote.audioUrl || (activeNote.audioNotes && activeNote.audioNotes.length > 0 ? activeNote.audioNotes[activeNote.audioNotes.length - 1].url : '')
             } : null,
+            audioNotes: (activeNote.audioNotes || []).map(an => ({
+                id: an.id,
+                url: an.url,
+                title: an.title,
+                duration: an.duration,
+                groupId: an.groupId || null,
+                phraseId: an.phraseId || null,
+                createdAt: typeof an.createdAt === 'number' ? an.createdAt : (an.createdAt ? Date.parse(an.createdAt as any) : 0)
+            })),
             kudos: 0,
             likedBy: [],
             comments: [],

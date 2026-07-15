@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
@@ -33,6 +33,7 @@ interface Post {
   body: string;
   lyrics: string[];
   attachment: Attachment | null;
+  audioNotes?: any[];
   kudos: number;
   liked: boolean;
   likedBy?: string[];
@@ -205,6 +206,55 @@ function ConnectPostCard({
   const [isHovered, setIsHovered] = useState(false);
   const isPlaying = isActive && !isPaused;
 
+  // Playlist states for multi-track audio playback support
+  const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
+
+  // Helper to parse timestamp for sorting chronologically
+  const getAudioNoteTimestamp = (an: any): number => {
+    if (!an) return 0;
+    if (an.createdAt) {
+      if (typeof an.createdAt === 'number') {
+        return an.createdAt;
+      }
+      if (typeof an.createdAt === 'object' && an.createdAt !== null && 'seconds' in an.createdAt) {
+        return (an.createdAt as any).seconds * 1000;
+      }
+      const parsed = Date.parse(an.createdAt as any);
+      if (!isNaN(parsed)) {
+        return parsed;
+      }
+    }
+    if (an.id && typeof an.id === 'string') {
+      if (an.id.startsWith('rec-')) {
+        const parsedId = parseInt(an.id.replace('rec-', ''));
+        if (!isNaN(parsedId)) return parsedId;
+      }
+      if (an.id.startsWith('audio-')) {
+        const parsedId = parseInt(an.id.replace('audio-', ''));
+        if (!isNaN(parsedId)) return parsedId;
+      }
+      if (an.id.startsWith('studio-mix-')) {
+        const parsedId = parseInt(an.id.replace('studio-mix-', ''));
+        if (!isNaN(parsedId)) return parsedId;
+      }
+    }
+    return 0;
+  };
+
+  const playlist = useMemo(() => {
+    if (post.audioNotes && post.audioNotes.length > 0) {
+      // Sort oldest to newest (first play first, last play last)
+      const sorted = [...post.audioNotes].sort((a, b) => getAudioNoteTimestamp(a) - getAudioNoteTimestamp(b));
+      return sorted.map(an => an.url).filter(Boolean);
+    }
+    if (post.attachment?.url) {
+      return [post.attachment.url];
+    }
+    return [];
+  }, [post.audioNotes, post.attachment]);
+
+  const currentAudioSrc = playlist[currentAudioIndex] || '';
+
   // Reset scroll to top line and flags when play state changes (entering or leaving play)
   useEffect(() => {
     scrollToIndex(0, 'smooth');
@@ -214,18 +264,40 @@ function ConnectPostCard({
     frameCountRef.current = 0;
   }, [isPlaying]);
 
-  // Manage audio play/pause in sync with isPlaying state
+  // Manage audio play/pause in sync with isPlaying state, playlist and current index
   useEffect(() => {
     if (!audioRef.current) return;
-    if (isPlaying) {
+    if (isPlaying && currentAudioSrc) {
+      audioRef.current.load();
       audioRef.current.play().catch(err => {
         console.warn("Failed to play attachment audio:", err);
       });
     } else {
       audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+      if (!isPlaying) {
+        audioRef.current.currentTime = 0;
+        setCurrentAudioIndex(0);
+      }
     }
-  }, [isPlaying]);
+  }, [isPlaying, currentAudioIndex, currentAudioSrc]);
+
+  const handleAudioEnded = () => {
+    if (currentAudioIndex < playlist.length - 1) {
+      // Transition to next track in the playlist sequence
+      setCurrentAudioIndex(prev => prev + 1);
+    } else {
+      if (currentAudioIndex === 0) {
+        // Single track loop fallback
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(err => console.warn(err));
+        }
+      } else {
+        // Multi-track loop back to the first track
+        setCurrentAudioIndex(0);
+      }
+    }
+  };
 
   // Scroll to index helper (aligns target line near the upper-middle focus zone)
   const scrollToIndex = (index: number, behavior: ScrollBehavior = 'smooth') => {
@@ -408,12 +480,12 @@ function ConnectPostCard({
       }}
       onClick={handleCardClick}
     >
-      {post.attachment?.url && (
+      {currentAudioSrc && (
         <audio 
           ref={audioRef}
-          src={post.attachment.url}
+          src={currentAudioSrc}
           preload="auto"
-          loop
+          onEnded={handleAudioEnded}
         />
       )}
       {/* Slide Page Sleeve (peeks out behind CD and card, moves slightly left) */}
@@ -520,7 +592,7 @@ function ConnectPostCard({
                   onPauseToggle();
                 }}
                 className="w-7 h-7 rounded-full bg-stone-900 hover:bg-stone-800 text-white flex items-center justify-center shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer z-20"
-                title={isPlaying ? "Pause melody" : "Play melody"}
+                title={isPlaying ? "Pause melody" : (playlist.length > 1 ? `Play playlist (Track ${currentAudioIndex + 1}/${playlist.length})` : "Play melody")}
                 type="button"
               >
                 {isPlaying ? (
@@ -531,7 +603,9 @@ function ConnectPostCard({
               </button>
             )}
             <span className="bg-[#F6F6F0] text-stone-500 px-3 py-1 rounded-full text-[13px] font-normal font-sans select-none leading-none">
-              {post.attachment ? "Lyrics + melody" : "Lyrics only"}
+              {post.audioNotes && post.audioNotes.length > 1 
+                ? `Lyrics + ${post.audioNotes.length} Tracks`
+                : (post.attachment ? "Lyrics + melody" : "Lyrics only")}
             </span>
           </div>
         </div>
@@ -962,6 +1036,8 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
       updatedAt: new Date().toLocaleString(),
       ownerId: user?.uid || 'anonymous',
       collaborators: [],
+      audioNotes: post.audioNotes || [],
+      audioUrl: post.attachment?.url || null,
       phrases: post.lyrics.map((line, idx) => ({
         id: `phrase-${idx}-${Date.now()}`,
         text: line,
