@@ -3,7 +3,10 @@
     "save": "Lagre",
     "saving": "Lagrer",
     "cancel": "Avbryt",
-    "close": "Lukk"
+    "close": "Lukk",
+    "confirm": "Bekreft",
+    "back": "Tilbake",
+    "next": "Neste"
   },
   "navigation": {
     "create": "Skap",
@@ -32,7 +35,9 @@
     "open_lyrics": "Åpne tekst",
     "close_lyrics": "Lukk tekst",
     "lyrics_sidebar": "Tekstpanel",
-    "empty_lyrics": "Sangteksten din vil vises her etter hvert som du skriver."
+    "empty_lyrics": "Sangteksten din vil vises her etter hvert som du skriver.",
+    "overwrite_title": "Overskriv",
+    "record_again": "Spill inn på nytt"
   },
   "canvas": {
     "tuner": "Stemmeprogram",
@@ -46,5 +51,52 @@
     "back": "Tilbake",
     "add_to_canvas": "Legg til på lerret",
     "next": "Neste"
+  },
+  "collab": {
+    "invite_title": "Inviter noen til å samarbeide med deg på dette prosjektet",
+    "pending_invites": "Ventende invitasjoner",
+    "invited_you": "inviterte deg",
+    "to_collaborate_on": "til å samarbeide på",
+    "accept": "Godta",
+    "decline": "Avslå",
+    "email_placeholder": "Skriv inn e-postadresse til samarbeidspartner",
+    "inviting": "Inviterer...",
+    "invite": "Inviter",
+    "whos_in": "Hvem er med?",
+    "me": "Meg",
+    "owner": "Eier",
+    "confirm_close_title": "Er du sikker på at du vil avslutte samarbeidet?",
+    "decline_desc": "Dette vil avslå invitasjonen og fjerne prosjektet fra lerretet ditt.",
+    "close_desc": "Dette vil koble fra prosjektets sanntidssamarbeid. Hvis du er en samarbeidspartner, vil du forlate dette prosjektet.",
+    "collab": "Samarbeid",
+    "collab_title": "Samarbeid på dette prosjektet",
+    "publish": "Publiser",
+    "publishing": "Publiserer",
+    "check_in_connect": "Sjekk i Connect"
+  },
+  "workspace": {
+    "my_projects": "Mine prosjekter",
+    "collab_projects": "Samarbeidsprosjekter",
+    "no_personal_projects": "Ingen personlige prosjekter funnet.",
+    "no_collab_projects": "Ingen samarbeidsprosjekter funnet.",
+    "no_projects_found": "Ingen prosjekter funnet. Klikk på +-knappen for å opprette et nytt prosjekt!",
+    "search_placeholder": "Søk i arbeidsområde...",
+    "title": "Arbeidsområde",
+    "create_project": "Opprett nytt prosjekt",
+    "untitled_note": "Uten tittel",
+    "delete_note": "Slett sang"
+  },
+  "learn": {
+    "access_restricted": "Begrenset tilgang",
+    "access_restricted_desc": "Vennligst logg inn for å få tilgang til dine bevegelser og fortsette din mestringsreise.",
+    "signin": "Logg inn",
+    "completed": "Fullført",
+    "in_progress": "I gang",
+    "movement_lessons": "Bevegelsesleksjoner",
+    "select_lesson": "Velg en leksjon for å se innhold",
+    "back": "Tilbake",
+    "next": "Neste",
+    "check": "Sjekk",
+    "complete_next_chapter": "Fullfør og gå til neste kapittel"
   }
 }

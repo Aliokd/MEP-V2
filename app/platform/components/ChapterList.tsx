@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import LessonContent from './LessonContent';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface Chapter {
     id: string;
@@ -38,6 +39,7 @@ export default function ChapterList({
     onComplete,
     onNextChapter,
 }: ChapterListProps) {
+    const { t } = useLanguage();
     const [videoProgress, setVideoProgress] = React.useState<Record<string, number>>({});
 
     const handleProgressUpdate = (lessonId: string, progress: number) => {
@@ -126,7 +128,7 @@ export default function ChapterList({
                                             {chapter.title}
                                         </h3>
                                         <span className="text-[11px] text-stone-500 font-sans tracking-wide">
-                                            {completedCount === totalCount ? "Completed" : "In Progress"}
+                                            {completedCount === totalCount ? t('learn.completed') : t('learn.in_progress')}
                                         </span>
                                     </div>
                                 </div>
@@ -157,7 +159,7 @@ export default function ChapterList({
                                             {/* Left Column: Lessons list stacked on top of each other (30% width) */}
                                             <div className="w-full md:w-[30%] flex flex-col gap-3 shrink-0">
                                                 <span className="text-[10px] text-stone-500/80 uppercase tracking-widest font-sans font-bold">
-                                                    Movement Lessons
+                                                    {t('learn.movement_lessons')}
                                                 </span>
                                                 <div className="flex flex-col gap-2 w-full select-none">
                                                     {chapter.lessons.map((lesson, idx) => {
@@ -245,7 +247,7 @@ export default function ChapterList({
                                                     />
                                                 ) : (
                                                     <div className="aspect-video w-full flex items-center justify-center border border-stone-200 rounded-[20px] bg-white/40">
-                                                        <p className="text-stone-700 font-sans text-sm font-medium">Select a lesson to view content</p>
+                                                        <p className="text-stone-700 font-sans text-sm font-medium">{t('learn.select_lesson')}</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -260,7 +262,7 @@ export default function ChapterList({
                                                         disabled={currentLessonIndex === 0}
                                                         className="text-[10px] uppercase tracking-widest text-stone-500 hover:text-stone-900 transition-colors disabled:opacity-20 font-semibold cursor-pointer active:scale-95"
                                                     >
-                                                        Back
+                                                        {t('learn.back')}
                                                     </button>
                                                     <span className="text-[10px] text-stone-400 font-sans tracking-widest font-medium">
                                                         {currentLessonIndex + 1}/{chapter.lessons.length}
@@ -270,7 +272,7 @@ export default function ChapterList({
                                                         disabled={currentLessonIndex === chapter.lessons.length - 1}
                                                         className="flex items-center gap-2 group text-[10px] uppercase tracking-widest text-stone-500 hover:text-stone-900 transition-colors disabled:opacity-20 font-semibold cursor-pointer active:scale-95"
                                                     >
-                                                        Next
+                                                        {t('learn.next')}
                                                         <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                                                         </svg>
@@ -282,7 +284,7 @@ export default function ChapterList({
                                                         onClick={handleCompleteClick}
                                                         className="px-4 py-2 bg-[#86BE7F] hover:bg-[#86BE7F]/90 text-stone-955 font-bold rounded-full flex items-center gap-1.5 transition-all shadow-sm text-[10px] uppercase tracking-wider cursor-pointer active:scale-95"
                                                     >
-                                                        Check
+                                                        {t('learn.check')}
                                                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 12l4 4l8-8" />
                                                         </svg>
@@ -298,7 +300,7 @@ export default function ChapterList({
                                                             }}
                                                             className="px-5 py-2 bg-[#86BE7F] hover:bg-[#86BE7F]/90 text-stone-955 font-bold rounded-full flex items-center gap-1.5 transition-all shadow-md text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 animate-pulse"
                                                         >
-                                                            Complete & Go to Next Chapter
+                                                            {t('learn.complete_next_chapter')}
                                                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                                                             </svg>

@@ -3,7 +3,10 @@
     "save": "Save",
     "saving": "Saving",
     "cancel": "Cancel",
-    "close": "Close"
+    "close": "Close",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next"
   },
   "navigation": {
     "create": "Create",
@@ -32,7 +35,9 @@
     "open_lyrics": "Open Lyrics",
     "close_lyrics": "Close Lyrics",
     "lyrics_sidebar": "Lyrics Sidebar",
-    "empty_lyrics": "Your canvas lyrics will show up here as you write them."
+    "empty_lyrics": "Your canvas lyrics will show up here as you write them.",
+    "overwrite_title": "Overwrite",
+    "record_again": "Recording Again"
   },
   "canvas": {
     "tuner": "Tuner",
@@ -46,5 +51,52 @@
     "back": "Back",
     "add_to_canvas": "Add to Canvas",
     "next": "Next"
+  },
+  "collab": {
+    "invite_title": "Invite someone to collaborate with you in this project",
+    "pending_invites": "Pending invites",
+    "invited_you": "invited you",
+    "to_collaborate_on": "to collaborate on",
+    "accept": "Accept",
+    "decline": "Decline",
+    "email_placeholder": "Enter collaborator email",
+    "inviting": "Inviting...",
+    "invite": "Invite",
+    "whos_in": "Who's in?",
+    "me": "Me",
+    "owner": "Owner",
+    "confirm_close_title": "Are you sure you want to close the collaboration?",
+    "decline_desc": "This will decline the invitation and clean the project from your canvas.",
+    "close_desc": "This will disconnect the project's real-time collaboration. If you are a collaborator, you will leave this project.",
+    "collab": "Collab",
+    "collab_title": "Collaborate on this project",
+    "publish": "Publish",
+    "publishing": "Publishing",
+    "check_in_connect": "Check in Connect"
+  },
+  "workspace": {
+    "my_projects": "My Projects",
+    "collab_projects": "Collab Projects",
+    "no_personal_projects": "No personal projects found.",
+    "no_collab_projects": "No collab projects found.",
+    "no_projects_found": "No projects found. Click the + button to create a new project!",
+    "search_placeholder": "Search workspace...",
+    "title": "Workspace",
+    "create_project": "Create new project",
+    "untitled_note": "Untitled Song",
+    "delete_note": "Delete Note"
+  },
+  "learn": {
+    "access_restricted": "Access restricted",
+    "access_restricted_desc": "Please sign in to access your movements and continue your mastery journey.",
+    "signin": "Sign in",
+    "completed": "Completed",
+    "in_progress": "In Progress",
+    "movement_lessons": "Movement Lessons",
+    "select_lesson": "Select a lesson to view content",
+    "back": "Back",
+    "next": "Next",
+    "check": "Check",
+    "complete_next_chapter": "Complete & Go to Next Chapter"
   }
 }

@@ -2,8 +2,11 @@
   "common": {
     "save": "Spara",
     "saving": "Sparar",
-    "cancel": "Avbryt",
-    "close": "Stäng"
+    "cancel": "Avbyt",
+    "close": "Stäng",
+    "confirm": "Bekräfta",
+    "back": "Tillbaka",
+    "next": "Nästa"
   },
   "navigation": {
     "create": "Skapa",
@@ -32,7 +35,9 @@
     "open_lyrics": "Öppna text",
     "close_lyrics": "Stäng text",
     "lyrics_sidebar": "Textpanel",
-    "empty_lyrics": "Dina låttexter kommer att visas här allt eftersom du skriver."
+    "empty_lyrics": "Dina låttexter kommer att visas här allt eftersom du skriver.",
+    "overwrite_title": "Skriv över",
+    "record_again": "Spela in igen"
   },
   "canvas": {
     "tuner": "Stämapparat",
@@ -46,5 +51,52 @@
     "back": "Tillbake",
     "add_to_canvas": "Lägg till på canvas",
     "next": "Nästa"
+  },
+  "collab": {
+    "invite_title": "Bjud in någon att samarbeta med dig i det här projektet",
+    "pending_invites": "Väntande inbjudningar",
+    "invited_you": "bjöd in dig",
+    "to_collaborate_on": "att samarbeta på",
+    "accept": "Acceptera",
+    "decline": "Avböj",
+    "email_placeholder": "Ange samarbetspartners e-post",
+    "inviting": "Bjuder in...",
+    "invite": "Bjud in",
+    "whos_in": "Vilka är med?",
+    "me": "Mig",
+    "owner": "Ägare",
+    "confirm_close_title": "Är du säker på att du vill avsluta samarbetet?",
+    "decline_desc": "Detta kommer att avböja inbjudan och ta bort projektet från din canvas.",
+    "close_desc": "Detta kommer att koppla bort projektets realtidssamarbete. Om du är en samarbetspartner kommer du att lämna detta projekt.",
+    "collab": "Samarbeta",
+    "collab_title": "Samarbeta i detta projekt",
+    "publish": "Publicera",
+    "publishing": "Publicerar",
+    "check_in_connect": "Kolla i Connect"
+  },
+  "workspace": {
+    "my_projects": "Mina projekt",
+    "collab_projects": "Samarbetsprojekt",
+    "no_personal_projects": "Inga personliga projekt hittades.",
+    "no_collab_projects": "Inga samarbetsprojekt hittades.",
+    "no_projects_found": "Inga projekt hittades. Klicka på +-knappen för att skapa ett nytt projekt!",
+    "search_placeholder": "Sök i arbetsyta...",
+    "title": "Arbetsyta",
+    "create_project": "Skapa nytt projekt",
+    "untitled_note": "Namnlös låt",
+    "delete_note": "Ta bort låt"
+  },
+  "learn": {
+    "access_restricted": "Begränsad åtkomst",
+    "access_restricted_desc": "Vänligen logga in för att få tillgång till dina rörelser och fortsätta din mästarresa.",
+    "signin": "Logga in",
+    "completed": "Slutförd",
+    "in_progress": "Pågår",
+    "movement_lessons": "Rörelselektioner",
+    "select_lesson": "Välj en lektion för att se innehåll",
+    "back": "Tillbaka",
+    "next": "Nästa",
+    "check": "Kolla",
+    "complete_next_chapter": "Slutför och gå till nästa kapitel"
   }
 }

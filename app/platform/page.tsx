@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getUserConstellation, ConstellationData } from '@/app/actions/lesson-actions';
+import { useLanguage } from '@/context/LanguageContext';
 import ChapterList from './components/ChapterList';
 import Logo from '@/components/Logo';
 import Link from 'next/link';
 
 export default function PlatformPage() {
     const { user, loading: authLoading } = useAuth();
+    const { t } = useLanguage();
     const router = useRouter();
     const [data, setData] = useState<ConstellationData | null>(null);
     const [currentChapterId, setCurrentChapterId] = useState<string | null>(null);
@@ -142,9 +144,9 @@ export default function PlatformPage() {
 
     if (!user) return (
         <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center text-stone-900 gap-6 p-8 bg-transparent">
-            <h2 className="text-3xl font-sans font-light tracking-tight">Access restricted</h2>
-            <p className="text-stone-700/80 max-w-md text-center font-medium">Please sign in to access your movements and continue your mastery journey.</p>
-            <a href="/signin" className="px-10 py-5 bg-stone-900 text-[#FAF9F5] rounded-full font-sans text-base font-bold hover:opacity-90 transition-opacity">Sign in</a>
+            <h2 className="text-3xl font-sans font-light tracking-tight">{t('learn.access_restricted')}</h2>
+            <p className="text-stone-700/80 max-w-md text-center font-medium">{t('learn.access_restricted_desc')}</p>
+            <a href="/signin" className="px-10 py-5 bg-stone-900 text-[#FAF9F5] rounded-full font-sans text-base font-bold hover:opacity-90 transition-opacity">{t('learn.signin')}</a>
         </div>
     );
 

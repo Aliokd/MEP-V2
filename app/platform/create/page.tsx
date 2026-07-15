@@ -1253,29 +1253,29 @@ function downmixToMono(audioBuffer: AudioBuffer, audioCtx: AudioContext | Offlin
 
 async function getWavBlob(audioBlob: Blob): Promise<Blob> {
     const arrayBuffer = await audioBlob.arrayBuffer();
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    const audioCtx = new AudioContextClass();
+    const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+    const offlineCtx = new OfflineContextClass(1, 1, 44100);
     
-    // Decode audio data
-    const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-    const monoDecodedBuffer = downmixToMono(decodedBuffer, audioCtx);
+    // Decode audio data using OfflineAudioContext to prevent suspended state hangs on mobile
+    const decodedBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+    const monoDecodedBuffer = downmixToMono(decodedBuffer, offlineCtx);
     
     // Resample to 16000Hz mono using OfflineAudioContext
     const targetSampleRate = 16000;
-    const offlineCtx = new OfflineAudioContext(
+    const offlineCtxResample = new OfflineContextClass(
         1, // 1 channel (mono)
         Math.floor(monoDecodedBuffer.duration * targetSampleRate),
         targetSampleRate
     );
     
     // Create source node in the offline context
-    const source = offlineCtx.createBufferSource();
+    const source = offlineCtxResample.createBufferSource();
     source.buffer = monoDecodedBuffer;
-    source.connect(offlineCtx.destination);
+    source.connect(offlineCtxResample.destination);
     source.start();
     
     // Render the resampled audio
-    const resampledBuffer = await offlineCtx.startRendering();
+    const resampledBuffer = await offlineCtxResample.startRendering();
     
     // Convert resampled buffer to 16-bit PCM WAV
     const wavBuffer = audioBufferToWav(resampledBuffer);
@@ -2948,11 +2948,31 @@ export default function CreatePage() {
                 setTranscribingAudioNoteId(audioNoteId);
                 setIsTranscribing(true);
                 try {
-                    const audioBlob = await fetch(activeNote.audioUrl).then(r => r.blob());
-                    const wavBlob = await getWavBlob(audioBlob);
+                    let body: any = null;
+                    const headers: any = {};
+                    let fetchedBlob: Blob | null = null;
+                    
+                    try {
+                        const res = await fetch(activeNote.audioUrl);
+                        if (res.ok) {
+                            fetchedBlob = await res.blob();
+                        }
+                    } catch (fetchErr) {
+                        console.warn("Client-side audio fetch failed in handlePillTranscribe:", fetchErr);
+                    }
+
+                    if (fetchedBlob) {
+                        body = await getWavBlob(fetchedBlob);
+                        headers['Content-Type'] = 'application/octet-stream';
+                    } else {
+                        body = JSON.stringify({ audioUrl: activeNote.audioUrl });
+                        headers['Content-Type'] = 'application/json';
+                    }
+
                     const response = await fetch('/api/transcribe', {
                         method: 'POST',
-                        body: wavBlob,
+                        headers: headers,
+                        body: body,
                     });
                     if (response.ok) {
                         const data = await response.json();
@@ -4520,7 +4540,13 @@ export default function CreatePage() {
                         channelCount: 1
                     }
                 };
-                const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
+                let stream: MediaStream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
+                } catch (constrErr) {
+                    console.warn("Failed to getUserMedia with custom audio constraints, falling back to simple constraints:", constrErr);
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                }
                 streamRef.current = stream;
                 
                 // Web Audio analyser setup
@@ -4543,6 +4569,8 @@ export default function CreatePage() {
                 if (typeof MediaRecorder !== 'undefined') {
                     if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
                         recorderOptions.mimeType = 'audio/webm;codecs=opus';
+                    } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                        recorderOptions.mimeType = 'audio/mp4';
                     } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
                         recorderOptions.mimeType = 'audio/ogg;codecs=opus';
                     } else if (MediaRecorder.isTypeSupported('audio/aac')) {
@@ -6346,10 +6374,20 @@ export default function CreatePage() {
         try {
             let body: any = null;
             const headers: any = {};
+            let fetchedBlob: Blob | null = null;
             
-            if (audioUrl.startsWith('blob:')) {
-                const audioBlob = await fetch(audioUrl).then(r => r.blob());
-                body = await getWavBlob(audioBlob);
+            try {
+                // Try fetching on the client side to convert to WAV (highly reliable client-side transcoding)
+                const res = await fetch(audioUrl);
+                if (res.ok) {
+                    fetchedBlob = await res.blob();
+                }
+            } catch (fetchErr) {
+                console.warn("Client-side audio fetch failed, falling back to server fetch:", fetchErr);
+            }
+
+            if (fetchedBlob) {
+                body = await getWavBlob(fetchedBlob);
                 headers['Content-Type'] = 'application/octet-stream';
             } else {
                 body = JSON.stringify({ audioUrl });
@@ -7714,7 +7752,13 @@ export default function CreatePage() {
                     latency: { ideal: 0.005 }
                 }
             };
-            const stream = await navigator.mediaDevices.getUserMedia(premiumAudioConstraints);
+            let stream: MediaStream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(premiumAudioConstraints);
+            } catch (constrErr) {
+                console.warn("Failed to getUserMedia with premium audio constraints, falling back to simple constraints:", constrErr);
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
             studioMicrophoneStreamRef.current = stream;
             
             // Microphone input
@@ -7782,6 +7826,8 @@ export default function CreatePage() {
             if (typeof MediaRecorder !== 'undefined') {
                 if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
                     recorderOptions.mimeType = 'audio/webm;codecs=opus';
+                } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                    recorderOptions.mimeType = 'audio/mp4';
                 } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
                     recorderOptions.mimeType = 'audio/ogg;codecs=opus';
                 } else if (MediaRecorder.isTypeSupported('audio/aac')) {
@@ -7805,12 +7851,14 @@ export default function CreatePage() {
 
             mediaRecorder.onstop = async () => {
                 try {
-                    const blob = new Blob(studioRecordedChunksRef.current, { type: 'audio/webm' });
+                    const blob = new Blob(studioRecordedChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
                     const arrayBuffer = await blob.arrayBuffer();
-                    const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+                    const offlineCtx = new OfflineContextClass(1, 1, 44100);
+                    const decodedBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
                     
                     // Enforce mono setting for track buffer
-                    const finalMonoBuffer = downmixToMono(decodedBuffer, audioCtx);
+                    const finalMonoBuffer = downmixToMono(decodedBuffer, offlineCtx);
                     
                     const localUrl = URL.createObjectURL(blob);
 
@@ -10691,7 +10739,7 @@ export default function CreatePage() {
                 
                 <div className="flex flex-col gap-0.5 text-center mt-1">
                     <span className="font-bold text-[14px] text-stone-800 group-hover:text-stone-955 truncate transition-colors">
-                        {note.title || 'Untitled Note'}
+                        {note.title || t('workspace.untitled_note')}
                     </span>
                 </div>
                 
@@ -10699,7 +10747,7 @@ export default function CreatePage() {
                 <button 
                     onClick={(e) => handleDeleteNote(note.id, e)}
                     className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 z-10 cursor-pointer"
-                    title="Delete Note"
+                    title={t('workspace.delete_note')}
                 >
                     <Trash2 size={12} />
                 </button>
@@ -10721,14 +10769,14 @@ export default function CreatePage() {
                 `}
             >
                 <span className={`font-sans text-[14px] transition-colors truncate ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-850'}`}>
-                    {note.title || 'Untitled Note'}
+                    {note.title || t('workspace.untitled_note')}
                 </span>
                 
                 <div className="flex items-center gap-2 shrink-0">
                     <button
                         onClick={(e) => handleDeleteNote(note.id, e)}
                         className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
-                        title="Delete Note"
+                        title={t('workspace.delete_note')}
                     >
                         <Trash2 size={13} />
                     </button>
@@ -11067,10 +11115,10 @@ export default function CreatePage() {
                                         setShowShareModal(true);
                                     }}
                                     className="relative flex items-center gap-2 px-5 py-1.5 bg-stone-100/65 hover:bg-stone-200/50 text-stone-700 hover:text-stone-900 border border-stone-200/40 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in"
-                                    title="Collaborate on this project"
+                                    title={t('collab.collab_title')}
                                 >
                                     <Users size={18} className="stroke-[1.6]" />
-                                    <span>Collab</span>
+                                    <span>{t('collab.collab')}</span>
                                 </button>
                             )
                         )}
@@ -11094,18 +11142,18 @@ export default function CreatePage() {
                                 {shareStatus === 'idle' && (
                                     <>
                                         <Upload size={18} className="stroke-[1.6]" />
-                                        <span>Publish</span>
+                                        <span>{t('collab.publish')}</span>
                                     </>
                                 )}
                                 {shareStatus === 'sharing' && (
                                     <>
                                         <Loader2 size={18} className="animate-spin stroke-[1.6]" />
-                                        <span>Publishing</span>
+                                        <span>{t('collab.publishing')}</span>
                                     </>
                                 )}
                                 {shareStatus === 'shared' && (
                                     <>
-                                        <span>Check in Connect</span>
+                                        <span>{t('collab.check_in_connect')}</span>
                                         <ArrowRight size={18} className="stroke-[1.6]" />
                                     </>
                                 )}
@@ -11173,12 +11221,13 @@ export default function CreatePage() {
                                                                     continue;
                                                                 }
                                                                 try {
-                                                                    const audioCtx = getStudioAudioContext();
                                                                     const reader = new FileReader();
                                                                     reader.onload = async (re) => {
                                                                         try {
                                                                             const arrayBuffer = re.target?.result as ArrayBuffer;
-                                                                            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                                                                            const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+                                                                            const offlineCtx = new OfflineContextClass(1, 1, 44100);
+                                                                            const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
                                                                             
                                                                             const nextId = Date.now();
                                                                             const newTrack: StudioTrack = {
@@ -12484,11 +12533,11 @@ export default function CreatePage() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3 relative">
                         <div className="flex items-center gap-2.5">
-                            <h2 className="text-[15px] font-bold text-stone-550 uppercase tracking-wider">Workspace</h2>
+                            <h2 className="text-[15px] font-bold text-stone-550 uppercase tracking-wider">{t('workspace.title')}</h2>
                             <button 
                                 onClick={() => handleCreateNote()}
                                 className="w-6 h-6 rounded-full bg-stone-300/40 hover:bg-stone-300/60 text-stone-600 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
-                                title="Create new project"
+                                title={t('workspace.create_project')}
                             >
                                 <Plus size={12} />
                             </button>
@@ -12542,7 +12591,7 @@ export default function CreatePage() {
                             <Search size={12} className="text-stone-400" />
                             <input 
                                 type="text" 
-                                placeholder="Search workspace..." 
+                                placeholder={t('workspace.search_placeholder')} 
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={handleSearchKeyDown}
@@ -12568,7 +12617,7 @@ export default function CreatePage() {
                             }`}
                         >
                             <span className="font-sans font-light text-xl md:text-[22px] tracking-tight">
-                                My Projects <span className="text-[15px] md:text-[17px] text-stone-400/80 font-normal ml-1.5">({myProjects.length})</span>
+                                {t('workspace.my_projects')} <span className="text-[15px] md:text-[17px] text-stone-400/80 font-normal ml-1.5">({myProjects.length})</span>
                             </span>
                             <span className={`transform transition-transform duration-300 ease-in-out ${isMyProjectsOpen ? 'rotate-180' : 'rotate-0'} flex items-center justify-center text-stone-400 group-hover:text-stone-600`}>
                                 <ChevronDown size={20} />
@@ -12582,7 +12631,7 @@ export default function CreatePage() {
                         }`}>
                             {myProjects.length === 0 ? (
                                 <div className="text-center py-16 border border-stone-200/50 border-dashed rounded-[24px] bg-white/10 select-none flex-1 flex flex-col items-center justify-center min-h-[180px]">
-                                    <p className="text-xs text-stone-400 italic">No personal projects found.</p>
+                                    <p className="text-xs text-stone-400 italic">{t('workspace.no_personal_projects')}</p>
                                 </div>
                             ) : (
                                 projectViewStyle === 'grid' ? (
@@ -12614,7 +12663,7 @@ export default function CreatePage() {
                             }`}
                         >
                             <span className="font-sans font-light text-xl md:text-[22px] tracking-tight">
-                                Collab Projects <span className="text-[15px] md:text-[17px] text-stone-400/80 font-normal ml-1.5">({collabProjects.length})</span>
+                                {t('workspace.collab_projects')} <span className="text-[15px] md:text-[17px] text-stone-400/80 font-normal ml-1.5">({collabProjects.length})</span>
                             </span>
                             <span className={`transform transition-transform duration-300 ease-in-out ${isCollabProjectsOpen ? 'rotate-180' : 'rotate-0'} flex items-center justify-center text-stone-400 group-hover:text-stone-600`}>
                                 <ChevronDown size={20} />
@@ -12628,7 +12677,7 @@ export default function CreatePage() {
                         }`}>
                             {collabProjects.length === 0 ? (
                                 <div className="text-center py-16 border border-stone-200/50 border-dashed rounded-[24px] bg-white/10 select-none flex-1 flex flex-col items-center justify-center min-h-[180px]">
-                                    <p className="text-xs text-stone-400 italic">No collab projects found.</p>
+                                    <p className="text-xs text-stone-400 italic">{t('workspace.no_collab_projects')}</p>
                                 </div>
                             ) : (
                                 projectViewStyle === 'grid' ? (
@@ -12648,7 +12697,7 @@ export default function CreatePage() {
                 {/* Combined Empty State when both lists are empty */}
                 {myProjects.length === 0 && collabProjects.length === 0 && (
                     <div className="text-center py-16 border border-stone-200 border-dashed rounded-[28px] bg-white/20 select-none">
-                        <p className="text-sm text-stone-400 italic">No projects found. Click the + button to create a new project!</p>
+                        <p className="text-sm text-stone-400 italic">{t('workspace.no_projects_found')}</p>
                     </div>
                 )}
             {/* Real-Time Collaboration Share Modal Overlay */}
@@ -12660,19 +12709,19 @@ export default function CreatePage() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h3 className="text-3xl md:text-[38px] leading-[1.25] font-sans font-light text-stone-600 tracking-[-0.035em]">
-                            Invite someone to collaborate with you in this project
+                            {t('collab.invite_title')}
                         </h3>
 
                         {/* Pending Invites List */}
                         {pendingInvites.length > 0 && (
                             <div className="flex flex-col gap-3 pb-6 border-b border-stone-100">
-                                <h4 className="text-[14px] font-sans font-medium text-stone-400">Pending invites</h4>
+                                <h4 className="text-[14px] font-sans font-medium text-stone-400">{t('collab.pending_invites')}</h4>
                                 <div className="flex flex-col gap-2.5">
                                     {pendingInvites.map(invite => (
                                         <div key={invite.id} className="flex items-center justify-between bg-stone-50 p-4 rounded-xl border border-stone-150/40">
                                             <div className="flex flex-col">
-                                                <span className="text-sm text-stone-700 font-medium">{invite.senderName} invited you</span>
-                                                <span className="text-[10px] text-stone-400">to collaborate on {invite.projectTitle || "Project"}</span>
+                                                <span className="text-sm text-stone-700 font-medium">{invite.senderName} {t('collab.invited_you')}</span>
+                                                <span className="text-[10px] text-stone-400">{t('collab.to_collaborate_on')} {invite.projectTitle || "Project"}</span>
                                             </div>
                                             <div className="flex gap-2">
                                                 <button
@@ -12680,14 +12729,14 @@ export default function CreatePage() {
                                                     onClick={() => handleAcceptInvite(invite)}
                                                     className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-full transition-colors cursor-pointer"
                                                 >
-                                                    Accept
+                                                    {t('collab.accept')}
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => handleDeclineInvite(invite)}
                                                     className="px-4 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-700 text-xs font-semibold rounded-full transition-colors cursor-pointer"
                                                 >
-                                                    Decline
+                                                    {t('collab.decline')}
                                                 </button>
                                             </div>
                                         </div>
@@ -12700,7 +12749,7 @@ export default function CreatePage() {
                             <input 
                                 type="email" 
                                 required
-                                placeholder="Enter collaborator email"
+                                placeholder={t('collab.email_placeholder')}
                                 value={inviteEmail}
                                 onChange={(e) => setInviteEmail(e.target.value)}
                                 className="w-full bg-stone-50 border border-stone-200 rounded-full px-6 py-4 text-[17px] font-sans font-medium outline-none focus:bg-white focus:border-stone-400 transition-all placeholder:text-stone-300"
@@ -12715,14 +12764,14 @@ export default function CreatePage() {
                                     }}
                                     className="px-8 py-3 bg-stone-100/75 hover:bg-stone-200/50 text-stone-600 rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer"
                                 >
-                                    Close
+                                    {t('common.close')}
                                 </button>
                                 <button 
                                     type="submit"
                                     disabled={isInviting}
                                     className="px-8 py-3 bg-stone-900 hover:bg-stone-850 text-white rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer disabled:opacity-50"
                                 >
-                                    {isInviting ? "Inviting..." : "Invite"}
+                                    {isInviting ? t('collab.inviting') : t('collab.invite')}
                                 </button>
                             </div>
                         </div>
@@ -12739,14 +12788,14 @@ export default function CreatePage() {
                         {/* Access/Collaborators List */}
                         {selectedNoteId && (
                             <div className="flex flex-col gap-3 pt-6 border-t border-stone-100">
-                                <h4 className="text-[14px] font-sans font-medium text-stone-400">Who's in?</h4>
+                                <h4 className="text-[14px] font-sans font-medium text-stone-400">{t('collab.whos_in')}</h4>
                                 <div className="flex flex-wrap items-center gap-2 mt-1 max-h-36 overflow-y-auto no-scrollbar">
                                     {/* Owner Tag */}
                                     <div className="flex items-center gap-1.5 py-1.5 pr-3">
                                         <span className="text-sm font-sans font-medium text-stone-700">
-                                            {activeNote?.ownerId === user?.uid ? "Me" : (collaboratorProfiles[activeNote?.ownerId || '']?.name || "Owner")}
+                                            {activeNote?.ownerId === user?.uid ? t('collab.me') : (collaboratorProfiles[activeNote?.ownerId || '']?.name || t('collab.owner'))}
                                         </span>
-                                        <span className="text-[10px] text-stone-400 font-sans bg-stone-100/80 px-1.5 py-0.5 rounded-md font-medium">Owner</span>
+                                        <span className="text-[10px] text-stone-400 font-sans bg-stone-100/80 px-1.5 py-0.5 rounded-md font-medium">{t('collab.owner')}</span>
                                     </div>
 
                                     {/* Collaborators Tags */}
@@ -12773,12 +12822,12 @@ export default function CreatePage() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h3 className="text-2xl font-sans font-light text-stone-700 tracking-[-0.025em] leading-[1.3]">
-                            Are you sure you want to close the collaboration?
+                            {t('collab.confirm_close_title')}
                         </h3>
                         <p className="text-sm text-stone-500 leading-relaxed font-sans font-medium">
                             {confirmCloseCollab.type === 'decline_invite'
-                                ? "This will decline the invitation and clean the project from your canvas."
-                                : "This will disconnect the project's real-time collaboration. If you are a collaborator, you will leave this project."
+                                ? t('collab.decline_desc')
+                                : t('collab.close_desc')
                             }
                         </p>
                         <div className="flex items-center justify-center gap-4 mt-2">
@@ -12786,7 +12835,7 @@ export default function CreatePage() {
                                 onClick={() => setConfirmCloseCollab({ isOpen: false, type: null })}
                                 className="px-6 py-2.5 bg-stone-100 hover:bg-stone-200/70 text-stone-600 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
                             >
-                                Cancel
+                                {t('common.cancel')}
                             </button>
                             <button
                                 onClick={async () => {
@@ -12799,7 +12848,7 @@ export default function CreatePage() {
                                 }}
                                 className="px-6 py-2.5 bg-red-550 hover:bg-red-650 text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
                             >
-                                Confirm
+                                {t('common.confirm')}
                             </button>
                         </div>
                     </div>
@@ -12817,7 +12866,7 @@ export default function CreatePage() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h3 className="text-3xl font-sans font-light text-stone-700 tracking-[-0.025em] leading-[1.3]">
-                            Overwrite "{confirmOverwriteStudioRecord.trackName}"?
+                            {t('studio.overwrite_title')} "{confirmOverwriteStudioRecord.trackName}"?
                         </h3>
                         <div className="flex flex-col gap-3 mt-2 w-full">
                             <button
@@ -12826,15 +12875,15 @@ export default function CreatePage() {
                                         confirmOverwriteStudioRecord.onConfirm();
                                     }
                                 }}
-                                className="w-full py-3 bg-red-500 hover:bg-red-650 text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95 text-center"
+                                className="w-full py-3 bg-red-500 hover:bg-red-655 text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95 text-center"
                             >
-                                Recording Again
+                                {t('studio.record_again')}
                             </button>
                             <button
                                 onClick={() => setConfirmOverwriteStudioRecord({ isOpen: false, trackName: '', onConfirm: null })}
                                 className="w-full py-3 bg-stone-100 hover:bg-stone-200/70 text-stone-600 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95 text-center"
                             >
-                                Cancel
+                                {t('common.cancel')}
                             </button>
                         </div>
                     </div>
