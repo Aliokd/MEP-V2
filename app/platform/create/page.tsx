@@ -12239,9 +12239,30 @@ export default function CreatePage() {
                             {/* Suggestions Alternatives */}
                             <div className="flex flex-col gap-2 mt-2">
                                 {lexiconLoading && lexiconResults.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-8 text-stone-400 gap-2">
-                                        <Loader2 className="w-6 h-6 animate-spin text-stone-455" />
-                                        <span className="text-xs font-medium">{t('lexicon.loading')}</span>
+                                    <div className="flex flex-col gap-4 py-2 select-none">
+                                        {/* Syllable Group 1 Skeleton */}
+                                        <div className="flex flex-col gap-2">
+                                            {/* Syllable Header Skeleton */}
+                                            <div className="w-16 h-3.5 bg-stone-200/80 rounded-md animate-pulse" />
+                                            {/* Words Row Skeleton */}
+                                            <div className="flex flex-wrap gap-2">
+                                                <div className="w-20 h-[38px] bg-gradient-to-r from-stone-100 via-stone-200/40 to-stone-100 rounded-[14px] animate-pulse" />
+                                                <div className="w-24 h-[38px] bg-gradient-to-r from-stone-100 via-stone-200/40 to-stone-100 rounded-[14px] animate-pulse" />
+                                                <div className="w-16 h-[38px] bg-gradient-to-r from-stone-100 via-stone-200/40 to-stone-100 rounded-[14px] animate-pulse" />
+                                                <div className="w-28 h-[38px] bg-gradient-to-r from-stone-100 via-stone-200/40 to-stone-100 rounded-[14px] animate-pulse" />
+                                            </div>
+                                        </div>
+                                        {/* Syllable Group 2 Skeleton */}
+                                        <div className="flex flex-col gap-2 mt-1">
+                                            {/* Syllable Header Skeleton */}
+                                            <div className="w-20 h-3.5 bg-stone-200/80 rounded-md animate-pulse" />
+                                            {/* Words Row Skeleton */}
+                                            <div className="flex flex-wrap gap-2">
+                                                <div className="w-24 h-[38px] bg-gradient-to-r from-stone-100 via-stone-200/40 to-stone-100 rounded-[14px] animate-pulse" />
+                                                <div className="w-16 h-[38px] bg-gradient-to-r from-stone-100 via-stone-200/40 to-stone-100 rounded-[14px] animate-pulse" />
+                                                <div className="w-20 h-[38px] bg-gradient-to-r from-stone-100 via-stone-200/40 to-stone-100 rounded-[14px] animate-pulse" />
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : lexiconResults.length === 0 ? (
                                     <div className="text-center py-8 text-sm font-medium text-stone-400 select-none">
