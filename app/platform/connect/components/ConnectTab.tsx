@@ -245,7 +245,16 @@ function ConnectPostCard({
     if (post.audioNotes && post.audioNotes.length > 0) {
       // Sort oldest to newest (first play first, last play last)
       const sorted = [...post.audioNotes].sort((a, b) => getAudioNoteTimestamp(a) - getAudioNoteTimestamp(b));
-      return sorted.map(an => an.url).filter(Boolean);
+      
+      // Filter for studio versions if at least one exists
+      const studioNotes = sorted.filter(an => 
+        an.id?.startsWith('studio-mix-') || 
+        an.title?.toLowerCase().includes('studio') || 
+        an.title?.toLowerCase().includes('mixdown')
+      );
+      
+      const targetNotes = studioNotes.length > 0 ? studioNotes : sorted;
+      return targetNotes.map(an => an.url).filter(Boolean);
     }
     if (post.attachment?.url) {
       return [post.attachment.url];
@@ -603,9 +612,9 @@ function ConnectPostCard({
               </button>
             )}
             <span className="bg-[#F6F6F0] text-stone-500 px-3 py-1 rounded-full text-[13px] font-normal font-sans select-none leading-none">
-              {post.audioNotes && post.audioNotes.length > 1 
-                ? `Lyrics + ${post.audioNotes.length} Tracks`
-                : (post.attachment ? "Lyrics + melody" : "Lyrics only")}
+              {playlist.length > 1 
+                ? `Lyrics + ${playlist.length} Tracks`
+                : (playlist.length === 1 ? "Lyrics + melody" : "Lyrics only")}
             </span>
           </div>
         </div>

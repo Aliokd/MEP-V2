@@ -5334,6 +5334,15 @@ export default function CreatePage() {
             .slice(0, 2)
             .toUpperCase();
 
+        const studioNote = activeNote.audioNotes?.find(an => 
+            an.id?.startsWith('studio-mix-') || 
+            an.title?.toLowerCase().includes('studio') || 
+            an.title?.toLowerCase().includes('mixdown')
+        );
+        const primaryAudioNote = studioNote || (activeNote.audioNotes && activeNote.audioNotes.length > 0 
+            ? activeNote.audioNotes[activeNote.audioNotes.length - 1] 
+            : null);
+
         const postId = 'post-shared-' + Date.now();
         const newPost = {
             id: postId,
@@ -5343,12 +5352,10 @@ export default function CreatePage() {
             projectName: title,
             body: 'Shared from Create section.',
             lyrics: lyricsLines,
-            attachment: (activeNote.audioUrl || (activeNote.audioNotes && activeNote.audioNotes.length > 0)) ? {
-                name: activeNote.audioNotes && activeNote.audioNotes.length > 0 
-                    ? activeNote.audioNotes[activeNote.audioNotes.length - 1].title 
-                    : 'audio_take.mp3',
+            attachment: (primaryAudioNote || activeNote.audioUrl) ? {
+                name: primaryAudioNote ? primaryAudioNote.title : 'audio_take.mp3',
                 type: 'audio/mp3',
-                url: activeNote.audioUrl || (activeNote.audioNotes && activeNote.audioNotes.length > 0 ? activeNote.audioNotes[activeNote.audioNotes.length - 1].url : '')
+                url: primaryAudioNote ? primaryAudioNote.url : (activeNote.audioUrl || '')
             } : null,
             audioNotes: (activeNote.audioNotes || []).map(an => ({
                 id: an.id,
