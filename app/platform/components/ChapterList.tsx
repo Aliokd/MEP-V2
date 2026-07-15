@@ -296,7 +296,7 @@ export default function ChapterList({
                                                                 window.dispatchEvent(new CustomEvent('songwriting-progress-updated', {
                                                                     detail: { triggerType: 'major-task' }
                                                                 }));
-                                                                onNextChapter();
+                                                                onNextChapter?.();
                                                             }}
                                                             className="px-5 py-2 bg-[#86BE7F] hover:bg-[#86BE7F]/90 text-stone-955 font-bold rounded-full flex items-center gap-1.5 transition-all shadow-md text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 animate-pulse"
                                                         >

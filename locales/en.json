@@ -97,6 +97,35 @@
     "back": "Back",
     "next": "Next",
     "check": "Check",
-    "complete_next_chapter": "Complete & Go to Next Chapter"
+    "complete_next_chapter": "Complete & Go to Next Chapter",
+    "chapter": "Chapter",
+    "video_not_supported": "Your browser does not support the video tag."
+  },
+  "connect": {
+    "create_your_song": "Create your song",
+    "connect_with_songwriters": "Connect with Songwriters",
+    "hrs_active": "hrs active",
+    "projects": "projects",
+    "recent_creations": "Recent creations",
+    "no_posts_found": "No posts found in this category. Be the first to share!",
+    "edit_post": "Edit Post",
+    "delete_post": "Delete Post",
+    "share_link": "Share Link",
+    "report_post": "Report Post",
+    "see_full_project": "See full project",
+    "full_view": "Full view",
+    "comment_placeholder": "Comment...",
+    "post_comment": "Post",
+    "duplicate": "Duplicate",
+    "duplicating": "Duplicating...",
+    "duplicated_success": "Duplicated Successfully! Check Now",
+    "close_canvas": "Close Canvas",
+    "delete_post_confirm": "Are you sure you want to delete this post?",
+    "delete_comment_confirm": "Are you sure you want to delete this comment?",
+    "shared_new_lyric": "Shared a new lyric constellation from workspace.",
+    "project_canvas": "Project Canvas",
+    "cowriting_badge": "Co-writing with Info",
+    "just_now": "Just now",
+    "untitled_song": "Untitled Song"
   }
 }

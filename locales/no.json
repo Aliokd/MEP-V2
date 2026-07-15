@@ -97,6 +97,35 @@
     "back": "Tilbake",
     "next": "Neste",
     "check": "Sjekk",
-    "complete_next_chapter": "Fullfør og gå til neste kapittel"
+    "complete_next_chapter": "Fullfør og gå til neste kapittel",
+    "chapter": "Kapittel",
+    "video_not_supported": "Nettleseren din støtter ikke videotaggen."
+  },
+  "connect": {
+    "create_your_song": "Skap sangen din",
+    "connect_with_songwriters": "Koble til låtskrivere",
+    "hrs_active": "timer aktiv",
+    "projects": "prosjekter",
+    "recent_creations": "Nylige kreasjoner",
+    "no_posts_found": "Ingen innlegg funnet i denne kategorien. Bli den første til å dele!",
+    "edit_post": "Rediger innlegg",
+    "delete_post": "Slett innlegg",
+    "share_link": "Del lenke",
+    "report_post": "Rapporter innlegg",
+    "see_full_project": "Se hele prosjektet",
+    "full_view": "Full visning",
+    "comment_placeholder": "Kommenter...",
+    "post_comment": "Send",
+    "duplicate": "Dupliser",
+    "duplicating": "Dupliserer...",
+    "duplicated_success": "Duplisert vellykket! Sjekk nå",
+    "close_canvas": "Lukk lerret",
+    "delete_post_confirm": "Er du sikker på at du vil slette dette innlegget?",
+    "delete_comment_confirm": "Er du sikker på at du vil slette denne kommentaren?",
+    "shared_new_lyric": "Delte en ny tekstkonstellasjon fra arbeidsområdet.",
+    "project_canvas": "Prosjektlerret",
+    "cowriting_badge": "Samskriving med Info",
+    "just_now": "Akkurat nå",
+    "untitled_song": "Uten tittel"
   }
 }

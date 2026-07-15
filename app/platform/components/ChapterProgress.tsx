@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface ChapterProgressProps {
     chapters: { id: string; title: string }[];
@@ -15,6 +16,7 @@ export default function ChapterProgress({
     overallProgress,
     onChapterSelect,
 }: ChapterProgressProps) {
+    const { t } = useLanguage();
     return (
         <div className="w-full flex flex-col items-center pt-8 pb-4">
             {/* Overall Course Progress Bar */}
@@ -29,7 +31,7 @@ export default function ChapterProgress({
             <div className="flex flex-col items-center">
                 <div className="relative mb-2">
                     <span className="text-[10px] uppercase tracking-[0.3em] text-[#363636]/70 font-sans opacity-80">
-                        Chapter
+                        {t('learn.chapter')}
                     </span>
                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-[1px] bg-stone-400/40" />
                 </div>

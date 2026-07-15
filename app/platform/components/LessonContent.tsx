@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface LessonContentProps {
     lesson: {
@@ -19,6 +20,7 @@ export default function LessonContent({
     onProgressUpdate,
     onVideoEnd,
 }: LessonContentProps) {
+    const { t } = useLanguage();
     const [isPlaying, setIsPlaying] = React.useState(false);
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const isInitialMount = React.useRef(true);
@@ -79,7 +81,7 @@ export default function LessonContent({
                     onPause={() => setIsPlaying(false)}
                     onEnded={onVideoEnd}
                 >
-                    Your browser does not support the video tag.
+                    {t('learn.video_not_supported')}
                 </video>
             ) : (
                 <div className="w-16 h-16 rounded-full border border-stone-300 flex items-center justify-center group-hover/video:scale-110 group-hover/video:border-stone-500 transition-all duration-300">

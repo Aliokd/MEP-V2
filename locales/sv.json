@@ -97,6 +97,35 @@
     "back": "Tillbaka",
     "next": "Nästa",
     "check": "Kolla",
-    "complete_next_chapter": "Slutför och gå till nästa kapitel"
+    "complete_next_chapter": "Slutför och gå till nästa kapitel",
+    "chapter": "Kapitel",
+    "video_not_supported": "Din webbläsare stöder inte videotaggen."
+  },
+  "connect": {
+    "create_your_song": "Skapa din låt",
+    "connect_with_songwriters": "Anslut med låtskrivare",
+    "hrs_active": "timmar aktiv",
+    "projects": "projekt",
+    "recent_creations": "Senaste skapelser",
+    "no_posts_found": "Inga inlägg hittades i denna kategori. Bli den första att dela!",
+    "edit_post": "Redigera inlägg",
+    "delete_post": "Ta bort inlägg",
+    "share_link": "Dela länk",
+    "report_post": "Rapportera inlägg",
+    "see_full_project": "Se hela projektet",
+    "full_view": "Full vy",
+    "comment_placeholder": "Kommentera...",
+    "post_comment": "Posta",
+    "duplicate": "Duplicera",
+    "duplicating": "Duplicerar...",
+    "duplicated_success": "Duplicerad framgångsrikt! Kolla nu",
+    "close_canvas": "Stäng canvas",
+    "delete_post_confirm": "Är du säker på att du vill ta bort detta inlägg?",
+    "delete_comment_confirm": "Är du säker på att du vill ta bort denna kommentar?",
+    "shared_new_lyric": "Delade en ny textkonstellation från arbetsytan.",
+    "project_canvas": "Projektcanvas",
+    "cowriting_badge": "Samarbetsskrivande med Info",
+    "just_now": "Just nu",
+    "untitled_song": "Namnlös låt"
   }
 }

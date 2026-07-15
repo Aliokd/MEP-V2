@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
+import { useLanguage } from '@/context/LanguageContext';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, Plus, Check, ArrowUpRight, LayoutGrid, ThumbsUp, Repeat, Send, Loader2, Play, Pause } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -48,6 +49,7 @@ interface Post {
 // SUBCOMPONENT: INLINE PROJECT CANVAS
 // ==========================================
 function ProjectCanvasInline({ post }: { post: Post }) {
+  const { t } = useLanguage();
   const getLyricBlocks = () => {
     const total = post.lyrics.length;
     if (total <= 4) {
@@ -74,11 +76,11 @@ function ProjectCanvasInline({ post }: { post: Post }) {
   return (
     <div className="mt-4 mb-4 pt-4 border-t border-stone-150/50 flex flex-col gap-5 bg-[#FAF9F5]/60 rounded-2xl p-5 border border-stone-200/40 select-none">
       <div className="flex justify-between items-center px-1">
-        <span className="font-sans text-[13px] font-semibold text-stone-500">Project Canvas</span>
+        <span className="font-sans text-[13px] font-semibold text-stone-500">{t('connect.project_canvas')}</span>
         {/* Co-writing Badge */}
         <div className="flex items-center gap-1 bg-[#eaf5ec] border border-[#d2ebda] rounded-full px-2.5 py-0.5 text-[9px] font-semibold text-[#2f6f40] shadow-3xs select-none">
           <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-          <span>Co-writing with Info</span>
+          <span>{t('connect.cowriting_badge')}</span>
         </div>
       </div>
       
@@ -185,6 +187,7 @@ function ConnectPostCard({
   onRepost,
   dropdownRef
 }: PostCardProps) {
+  const { t } = useLanguage();
   const [activeLineIndex, setActiveLineIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -830,14 +833,14 @@ function ConnectPostCard({
                           className="w-full text-left px-4 py-2 text-xs font-medium text-stone-755 hover:bg-stone-50 flex items-center gap-2"
                         >
                           <Edit className="w-3 h-3 text-stone-500" />
-                          Edit Post
+                          {t('connect.edit_post')}
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); onDeletePost(post.id); }}
                           className="w-full text-left px-4 py-2 text-xs font-medium text-red-650 hover:bg-red-50/50 flex items-center gap-2"
                         >
                           <Trash2 className="w-3 h-3 text-red-500" />
-                          Delete Post
+                          {t('connect.delete_post')}
                         </button>
                       </>
                     ) : (
@@ -846,13 +849,13 @@ function ConnectPostCard({
                           onClick={(e) => { e.stopPropagation(); alert("Post shared!"); onMenuToggle(null); }}
                           className="w-full text-left px-4 py-2 text-xs font-medium text-stone-755 hover:bg-stone-50 flex items-center gap-2"
                         >
-                          Share Link
+                          {t('connect.share_link')}
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); alert("Post reported."); onMenuToggle(null); }}
                           className="w-full text-left px-4 py-2 text-xs font-medium text-red-650 hover:bg-stone-50 flex items-center gap-2"
                         >
-                          Report Post
+                          {t('connect.report_post')}
                         </button>
                       </>
                     )}
@@ -873,7 +876,7 @@ function ConnectPostCard({
               }}
               className="border border-stone-200 hover:border-stone-400 text-stone-600 hover:text-stone-900 text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-stone-50 transition-all active:scale-95 select-none"
             >
-              {isExpanded ? "See full project" : "Full view"}
+              {isExpanded ? t('connect.see_full_project') : t('connect.full_view')}
             </button>
           </div>
         </div>
@@ -955,7 +958,7 @@ function ConnectPostCard({
                       onCommentSubmit(e, post.id);
                     }
                   }}
-                  placeholder="Comment..."
+                  placeholder={t('connect.comment_placeholder')}
                   rows={2}
                   className="w-full bg-transparent border-none outline-none resize-none text-[16px] text-stone-800 placeholder-stone-400 font-sans leading-relaxed"
                   required
@@ -967,7 +970,7 @@ function ConnectPostCard({
                       type="submit"
                       className="px-4 py-1.5 bg-stone-900 text-white rounded-full text-xs font-semibold hover:bg-stone-800 transition-colors select-none active:scale-95 animate-fade-in"
                     >
-                      Post
+                      {t('connect.post_comment')}
                     </button>
                   </div>
                 )}
@@ -1000,6 +1003,7 @@ interface Particle {
 
 function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   // Split lyrics into structured Verse/Chorus blocks to replicate the canvas layout
   const getLyricBlocks = () => {
     const total = post.lyrics.length;
@@ -1115,19 +1119,19 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
             >
               {dupStatus === 'idle' && (
                 <>
-                  <span>Duplicate</span>
+                  <span>{t('connect.duplicate')}</span>
                 </>
               )}
               {dupStatus === 'duplicating' && (
                 <>
                   <Loader2 size={12} className="animate-spin" />
-                  <span>Duplicating...</span>
+                  <span>{t('connect.duplicating')}</span>
                 </>
               )}
               {dupStatus === 'duplicated' && (
                 <>
                   <Check size={12} className="stroke-[2.5]" />
-                  <span>Duplicated Successfully! Check Now</span>
+                  <span>{t('connect.duplicated_success')}</span>
                 </>
               )}
             </button>
@@ -1136,7 +1140,7 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
             <button 
               onClick={onClose}
               className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200/60 flex items-center justify-center transition-colors text-stone-700 active:scale-95 border border-stone-200/40"
-              aria-label="Close Canvas"
+              aria-label={t('connect.close_canvas')}
             >
               <X className="w-4 h-4" />
             </button>
@@ -1211,6 +1215,7 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
 // ==========================================
 export default function ConnectTab() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -1608,11 +1613,11 @@ export default function ConnectTab() {
 
     const newPost = {
       id: postId,
-      author: displayName,
-      avatarFallback: initials || 'ME',
-      time: 'Just now',
-      projectName: 'My Lyric Draft',
-      body: 'Shared a new lyric constellation from workspace.',
+      author: user?.displayName || user?.email?.split('@')[0] || 'Anonymous',
+      avatarFallback: user?.displayName?.slice(0, 2).toUpperCase() || user?.email?.slice(0, 2).toUpperCase() || 'AN',
+      time: t('connect.just_now'),
+      projectName: viewingProjectPost?.projectName || t('connect.untitled_song'),
+      body: t('connect.shared_new_lyric'),
       lyrics: lines.length > 0 ? lines : [postText],
       attachment: attachedFile,
       kudos: 0,
@@ -1669,7 +1674,7 @@ export default function ConnectTab() {
 
   // Delete Post
   const handleDeletePost = async (postId: string) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this post?");
+    const confirmDelete = window.confirm(t('connect.delete_post_confirm'));
     if (confirmDelete) {
       try {
         await deleteDoc(doc(db, 'connect_posts', postId));
@@ -1750,7 +1755,7 @@ export default function ConnectTab() {
       id: 'comment-' + Date.now(),
       author: displayName,
       avatarFallback: initials || 'ME',
-      time: 'Just now',
+      time: t('connect.just_now'),
       body: text
     };
 
@@ -1772,7 +1777,7 @@ export default function ConnectTab() {
 
   // Delete Comment
   const handleDeleteComment = async (postId: string, commentId: string) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this comment?");
+    const confirmDelete = window.confirm(t('connect.delete_comment_confirm'));
     if (confirmDelete) {
       const postToUpdate = posts.find(p => p.id === postId);
       if (!postToUpdate) return;
@@ -1808,7 +1813,7 @@ export default function ConnectTab() {
       >
         <div className="flex items-center justify-between">
           <span className="text-[20px] font-sans font-medium tracking-tight text-stone-850">
-            Create your song
+            {t('connect.create_your_song')}
           </span>
           <ArrowUpRight className="w-5.5 h-5.5 text-stone-550 group-hover:text-stone-900 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300" />
         </div>
@@ -1817,7 +1822,7 @@ export default function ConnectTab() {
       {/* 2. Connect with Songwriters Box */}
       <div className="bg-[#F6F6F0] border border-stone-200/50 rounded-[24px] py-6 px-0 mb-8 select-none">
         <h3 className="text-[20px] font-sans font-medium tracking-tight text-stone-850 mb-5 px-6">
-          Connect with Songwriters
+          {t('connect.connect_with_songwriters')}
         </h3>
         <div 
           ref={songwritersScrollRef}
@@ -1845,10 +1850,10 @@ export default function ConnectTab() {
                 {/* Stats block fading in gently on hover: uniform light grey, larger details, lowercase */}
                 <div className="opacity-0 group-hover:opacity-100 mt-2 transition-opacity duration-350 pointer-events-none flex flex-col gap-0.5 text-sm text-stone-400 font-sans">
                   <div className="leading-snug">
-                    {sw.hoursSpent} hrs active
+                    {sw.hoursSpent} {t('connect.hrs_active')}
                   </div>
                   <div className="leading-snug">
-                    {sw.projectsCount} projects
+                    {sw.projectsCount} {t('connect.projects')}
                   </div>
                 </div>
               </div>
@@ -1871,7 +1876,7 @@ export default function ConnectTab() {
 
       {/* 3. Recent Creations Title */}
       <h3 className="text-[20px] font-sans font-medium tracking-tight text-stone-850 mb-6">
-        Recent creations
+        {t('connect.recent_creations')}
       </h3>
 
       {/* Community Feed - List Layout with space for peeking CD */}
@@ -1884,7 +1889,7 @@ export default function ConnectTab() {
               exit={{ opacity: 0 }}
               className="bg-white border border-stone-200/60 rounded-[20px] p-10 text-center text-stone-500 text-[14px] col-span-full"
             >
-              No posts found in this category. Be the first to share!
+              {t('connect.no_posts_found')}
             </motion.div>
           ) : (
             filteredPosts.map(post => (
