@@ -10862,7 +10862,7 @@ export default function CreatePage() {
                                                 className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                             >
                                                 <Plus size={16} className="text-stone-500" />
-                                                Create New Project
+                                                New Project
                                             </button>
 
                                             <button 
