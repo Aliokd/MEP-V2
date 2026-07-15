@@ -4383,6 +4383,7 @@ export default function CreatePage() {
             return;
         }
         setLexiconLoading(true);
+        const startTime = Date.now();
         try {
             const response = await fetch(`/api/lexicon?word=${encodeURIComponent(word.trim())}&mode=${mode}&lang=${language}`);
             const data = await response.json();
@@ -4398,6 +4399,10 @@ export default function CreatePage() {
             console.error("Lexicon API error:", err);
             setLexiconResults([]);
         } finally {
+            const elapsed = Date.now() - startTime;
+            if (elapsed < 350) {
+                await new Promise(resolve => setTimeout(resolve, 350 - elapsed));
+            }
             setLexiconLoading(false);
         }
     };
