@@ -12235,7 +12235,7 @@ export default function CreatePage() {
 
                             {/* Suggestions Alternatives */}
                             <div className="flex flex-col gap-2 mt-2">
-                                {lexiconLoading && lexiconResults.length === 0 ? (
+                                {lexiconLoading ? (
                                     <div className="flex flex-col gap-4 py-2 select-none">
                                         {/* Syllable Group 1 Skeleton */}
                                         <div className="flex flex-col gap-2">
