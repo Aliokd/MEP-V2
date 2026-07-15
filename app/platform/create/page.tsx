@@ -57,6 +57,8 @@ import {
     ArrowRight,
     Undo2,
     Redo2,
+    Guitar,
+    Headphones,
     X
 } from 'lucide-react';
 
@@ -1227,6 +1229,27 @@ function PhraseRow({
     );
 }
 
+function downmixToMono(audioBuffer: AudioBuffer, audioCtx: AudioContext | OfflineAudioContext): AudioBuffer {
+    if (audioBuffer.numberOfChannels <= 1) {
+        return audioBuffer;
+    }
+    const monoBuffer = audioCtx.createBuffer(1, audioBuffer.length, audioBuffer.sampleRate);
+    const outputData = monoBuffer.getChannelData(0);
+    const numChannels = audioBuffer.numberOfChannels;
+    const channelBuffers: Float32Array[] = [];
+    for (let ch = 0; ch < numChannels; ch++) {
+        channelBuffers.push(audioBuffer.getChannelData(ch));
+    }
+    for (let i = 0; i < audioBuffer.length; i++) {
+        let sum = 0;
+        for (let ch = 0; ch < numChannels; ch++) {
+            sum += channelBuffers[ch][i];
+        }
+        outputData[i] = sum / numChannels;
+    }
+    return monoBuffer;
+}
+
 async function getWavBlob(audioBlob: Blob): Promise<Blob> {
     const arrayBuffer = await audioBlob.arrayBuffer();
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -1234,18 +1257,19 @@ async function getWavBlob(audioBlob: Blob): Promise<Blob> {
     
     // Decode audio data
     const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    const monoDecodedBuffer = downmixToMono(decodedBuffer, audioCtx);
     
     // Resample to 16000Hz mono using OfflineAudioContext
     const targetSampleRate = 16000;
     const offlineCtx = new OfflineAudioContext(
         1, // 1 channel (mono)
-        Math.floor(decodedBuffer.duration * targetSampleRate),
+        Math.floor(monoDecodedBuffer.duration * targetSampleRate),
         targetSampleRate
     );
     
     // Create source node in the offline context
     const source = offlineCtx.createBufferSource();
-    source.buffer = decodedBuffer;
+    source.buffer = monoDecodedBuffer;
     source.connect(offlineCtx.destination);
     source.start();
     
@@ -2399,8 +2423,10 @@ export default function CreatePage() {
             if (!target.closest('.studio-track-row')) {
                 setExpandedTrackId(null);
             }
-            setActiveTrackMenuId(null);
-            setTrackMenuPos(null);
+            if (!target.closest('.track-menu-container')) {
+                setActiveTrackMenuId(null);
+                setTrackMenuPos(null);
+            }
         };
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
@@ -2418,6 +2444,7 @@ export default function CreatePage() {
     const [studioDuration, setStudioDuration] = useState<number>(0);
 
     const [draggedTrackIndex, setDraggedTrackIndex] = useState<number | null>(null);
+    const [draggableTrackId, setDraggableTrackId] = useState<number | null>(null);
     const [activeTrackMenuId, setActiveTrackMenuId] = useState<number | null>(null);
     const [trackMenuPos, setTrackMenuPos] = useState<{ x: number, y: number } | null>(null);
     const [showStudioLyrics, setShowStudioLyrics] = useState<boolean>(false);
@@ -2436,6 +2463,17 @@ export default function CreatePage() {
     const studioSharedReverbNodeRef = useRef<ConvolverNode | null>(null);
     const studioMetronomeIntervalRef = useRef<number | null>(null);
     const studioMonitorNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+    const studioMicrophoneStreamRef = useRef<MediaStream | null>(null);
+    const [isDirectMonitorEnabled, setIsDirectMonitorEnabled] = useState<boolean>(true);
+    const studioActiveMonitorChainRef = useRef<{
+        monitorNode: MediaStreamAudioSourceNode;
+        lowCutNode: BiquadFilterNode;
+        gainNode: GainNode;
+        reverbGainNode: GainNode;
+        eqNode: BiquadFilterNode;
+        compNode: DynamicsCompressorNode;
+        panNode: StereoPannerNode;
+    } | null>(null);
 
     const stopAllStudioAudio = () => {
         if (studioPlayheadIntervalRef.current) {
@@ -2452,6 +2490,24 @@ export default function CreatePage() {
             } catch (e) {}
             studioMonitorNodeRef.current = null;
         }
+        if (studioActiveMonitorChainRef.current) {
+            try {
+                studioActiveMonitorChainRef.current.monitorNode.disconnect();
+                studioActiveMonitorChainRef.current.lowCutNode.disconnect();
+                studioActiveMonitorChainRef.current.gainNode.disconnect();
+                studioActiveMonitorChainRef.current.reverbGainNode.disconnect();
+                studioActiveMonitorChainRef.current.eqNode.disconnect();
+                studioActiveMonitorChainRef.current.compNode.disconnect();
+                studioActiveMonitorChainRef.current.panNode.disconnect();
+            } catch (e) {}
+            studioActiveMonitorChainRef.current = null;
+        }
+        if (studioMicrophoneStreamRef.current) {
+            try {
+                studioMicrophoneStreamRef.current.getTracks().forEach(track => track.stop());
+            } catch (e) {}
+            studioMicrophoneStreamRef.current = null;
+        }
         Object.keys(studioActiveSourcesRef.current).forEach(trackId => {
             try {
                 const node = studioActiveSourcesRef.current[parseInt(trackId)];
@@ -2466,7 +2522,9 @@ export default function CreatePage() {
 
     const getStudioAudioContext = () => {
         if (!studioAudioCtxRef.current) {
-            studioAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+            studioAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
+                latencyHint: 'interactive'
+            });
         }
         if (studioAudioCtxRef.current.state === 'suspended') {
             studioAudioCtxRef.current.resume().catch(console.error);
@@ -2499,6 +2557,85 @@ export default function CreatePage() {
         }
         return studioSharedReverbNodeRef.current;
     };
+
+    useEffect(() => {
+        if (studioState === 'recording' && studioMicrophoneStreamRef.current) {
+            const audioCtx = getStudioAudioContext();
+            const recordingTrack = studioTracks.find(t => t.id === activeRecordingTrackId);
+            
+            if (isDirectMonitorEnabled) {
+                // Set up the direct monitor routing chain if not already done
+                if (studioMonitorNodeRef.current && !studioActiveMonitorChainRef.current) {
+                    try {
+                        const monitorNode = studioMonitorNodeRef.current;
+                        
+                        const lowCutNode = audioCtx.createBiquadFilter();
+                        lowCutNode.type = 'highpass';
+                        lowCutNode.frequency.value = 80;
+
+                        const eqNode = audioCtx.createBiquadFilter();
+                        eqNode.type = 'highshelf';
+                        eqNode.frequency.value = 3000;
+                        eqNode.gain.value = recordingTrack ? recordingTrack.eq : 0;
+
+                        const compNode = audioCtx.createDynamicsCompressor();
+                        compNode.threshold.value = -24;
+                        compNode.knee.value = 30;
+                        compNode.ratio.value = (recordingTrack && recordingTrack.compressor) ? 12 : 1;
+                        compNode.attack.value = 0.003;
+                        compNode.release.value = 0.25;
+
+                        const panNode = audioCtx.createStereoPanner();
+                        panNode.pan.value = recordingTrack ? recordingTrack.pan / 50 : 0;
+
+                        const gainNode = audioCtx.createGain();
+                        gainNode.gain.value = (recordingTrack && recordingTrack.muted) ? 0 : (recordingTrack ? recordingTrack.volume / 100 : 0.8);
+
+                        const reverbGainNode = audioCtx.createGain();
+                        reverbGainNode.gain.value = (recordingTrack && recordingTrack.muted) ? 0 : (recordingTrack ? recordingTrack.reverb / 100 : 0);
+
+                        const reverbNode = getSharedReverbNode(audioCtx);
+
+                        monitorNode.connect(lowCutNode);
+                        lowCutNode.connect(eqNode);
+                        eqNode.connect(compNode);
+                        compNode.connect(panNode);
+                        panNode.connect(gainNode);
+                        gainNode.connect(audioCtx.destination);
+
+                        compNode.connect(reverbGainNode);
+                        reverbGainNode.connect(reverbNode);
+
+                        studioActiveMonitorChainRef.current = {
+                            monitorNode,
+                            lowCutNode,
+                            gainNode,
+                            reverbGainNode,
+                            eqNode,
+                            compNode,
+                            panNode
+                        };
+                    } catch (err) {
+                        console.error("Error dynamically setting up direct monitor chain:", err);
+                    }
+                }
+            } else {
+                // Tear down the direct monitor routing chain if it exists
+                if (studioActiveMonitorChainRef.current) {
+                    try {
+                        studioActiveMonitorChainRef.current.monitorNode.disconnect();
+                        studioActiveMonitorChainRef.current.lowCutNode.disconnect();
+                        studioActiveMonitorChainRef.current.gainNode.disconnect();
+                        studioActiveMonitorChainRef.current.reverbGainNode.disconnect();
+                        studioActiveMonitorChainRef.current.eqNode.disconnect();
+                        studioActiveMonitorChainRef.current.compNode.disconnect();
+                        studioActiveMonitorChainRef.current.panNode.disconnect();
+                    } catch (e) {}
+                    studioActiveMonitorChainRef.current = null;
+                }
+            }
+        }
+    }, [isDirectMonitorEnabled, studioState, activeRecordingTrackId]);
 
     const studioTracksNoteIdRef = useRef<string | null>(null);
 
@@ -4375,12 +4512,13 @@ export default function CreatePage() {
                     alert('Recording requires a secure (HTTPS) connection and browser microphone permission.');
                     return;
                 }
-                // iOS-compatible audio constraints
+                // iOS-compatible high-fidelity audio constraints
                 const audioConstraints: MediaStreamConstraints = {
                     audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        sampleRate: 44100,
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                        sampleRate: 48000,
                         channelCount: 1
                     }
                 };
@@ -4388,7 +4526,9 @@ export default function CreatePage() {
                 streamRef.current = stream;
                 
                 // Web Audio analyser setup
-                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+                    latencyHint: 'interactive'
+                });
                 const analyser = audioContext.createAnalyser();
                 analyser.fftSize = 128; // small size for visualizer frequency counts
                 const source = audioContext.createMediaStreamSource(stream);
@@ -4399,8 +4539,24 @@ export default function CreatePage() {
                 dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
                 sourceRef.current = source;
                 
-                // MediaRecorder setup
-                const mediaRecorder = new MediaRecorder(stream);
+                // MediaRecorder setup with premium high-bitrate settings
+                let mediaRecorder: MediaRecorder;
+                const recorderOptions: MediaRecorderOptions = { audioBitsPerSecond: 256000 };
+                if (typeof MediaRecorder !== 'undefined') {
+                    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                        recorderOptions.mimeType = 'audio/webm;codecs=opus';
+                    } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                        recorderOptions.mimeType = 'audio/ogg;codecs=opus';
+                    } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+                        recorderOptions.mimeType = 'audio/aac';
+                    }
+                }
+                try {
+                    mediaRecorder = new MediaRecorder(stream, recorderOptions);
+                } catch (recErr) {
+                    console.warn("Failed to initialize MediaRecorder with premium options, falling back to default:", recErr);
+                    mediaRecorder = new MediaRecorder(stream);
+                }
                 mediaRecorderRef.current = mediaRecorder;
                 audioChunksRef.current = [];
                 
@@ -7524,13 +7680,96 @@ export default function CreatePage() {
             }
             stopAllStudioAudio();
 
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const premiumAudioConstraints: MediaStreamConstraints = {
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                    sampleRate: 48000,
+                    channelCount: 1,
+                    latency: { ideal: 0.005 }
+                }
+            };
+            const stream = await navigator.mediaDevices.getUserMedia(premiumAudioConstraints);
+            studioMicrophoneStreamRef.current = stream;
             
-            // Microphone input (monitoring disabled to keep recording completely silent)
+            // Microphone input
             const monitorNode = audioCtx.createMediaStreamSource(stream);
             studioMonitorNodeRef.current = monitorNode;
 
-            const mediaRecorder = new MediaRecorder(stream);
+            if (isDirectMonitorEnabled) {
+                try {
+                    const recordingTrack = studioTracks.find(t => t.id === activeRecordingTrackId);
+                    
+                    const lowCutNode = audioCtx.createBiquadFilter();
+                    lowCutNode.type = 'highpass';
+                    lowCutNode.frequency.value = 80;
+
+                    const eqNode = audioCtx.createBiquadFilter();
+                    eqNode.type = 'highshelf';
+                    eqNode.frequency.value = 3000;
+                    eqNode.gain.value = recordingTrack ? recordingTrack.eq : 0;
+
+                    const compNode = audioCtx.createDynamicsCompressor();
+                    compNode.threshold.value = -24;
+                    compNode.knee.value = 30;
+                    compNode.ratio.value = (recordingTrack && recordingTrack.compressor) ? 12 : 1;
+                    compNode.attack.value = 0.003;
+                    compNode.release.value = 0.25;
+
+                    const panNode = audioCtx.createStereoPanner();
+                    panNode.pan.value = recordingTrack ? recordingTrack.pan / 50 : 0;
+
+                    const gainNode = audioCtx.createGain();
+                    gainNode.gain.value = (recordingTrack && recordingTrack.muted) ? 0 : (recordingTrack ? recordingTrack.volume / 100 : 0.8);
+
+                    const reverbGainNode = audioCtx.createGain();
+                    reverbGainNode.gain.value = (recordingTrack && recordingTrack.muted) ? 0 : (recordingTrack ? recordingTrack.reverb / 100 : 0);
+
+                    const reverbNode = getSharedReverbNode(audioCtx);
+
+                    monitorNode.connect(lowCutNode);
+                    lowCutNode.connect(eqNode);
+                    eqNode.connect(compNode);
+                    compNode.connect(panNode);
+                    panNode.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+
+                    compNode.connect(reverbGainNode);
+                    reverbGainNode.connect(reverbNode);
+
+                    studioActiveMonitorChainRef.current = {
+                        monitorNode,
+                        lowCutNode,
+                        gainNode,
+                        reverbGainNode,
+                        eqNode,
+                        compNode,
+                        panNode
+                    };
+                } catch (err) {
+                    console.error("Error setting up direct monitor chain:", err);
+                }
+            }
+
+            // MediaRecorder setup with premium high-bitrate settings
+            let mediaRecorder: MediaRecorder;
+            const recorderOptions: MediaRecorderOptions = { audioBitsPerSecond: 256000 };
+            if (typeof MediaRecorder !== 'undefined') {
+                if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                    recorderOptions.mimeType = 'audio/webm;codecs=opus';
+                } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                    recorderOptions.mimeType = 'audio/ogg;codecs=opus';
+                } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+                    recorderOptions.mimeType = 'audio/aac';
+                }
+            }
+            try {
+                mediaRecorder = new MediaRecorder(stream, recorderOptions);
+            } catch (recErr) {
+                console.warn("Failed to initialize MediaRecorder with premium options, falling back to default:", recErr);
+                mediaRecorder = new MediaRecorder(stream);
+            }
             studioMediaRecorderRef.current = mediaRecorder;
             studioRecordedChunksRef.current = [];
 
@@ -7545,6 +7784,10 @@ export default function CreatePage() {
                     const blob = new Blob(studioRecordedChunksRef.current, { type: 'audio/webm' });
                     const arrayBuffer = await blob.arrayBuffer();
                     const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    
+                    // Enforce mono setting for track buffer
+                    const finalMonoBuffer = downmixToMono(decodedBuffer, audioCtx);
+                    
                     const localUrl = URL.createObjectURL(blob);
 
                     setStudioTracks(prev => {
@@ -7552,7 +7795,7 @@ export default function CreatePage() {
                             if (t.id === activeRecordingTrackId) {
                                 return {
                                     ...t,
-                                    audioBuffer: decodedBuffer,
+                                    audioBuffer: finalMonoBuffer,
                                     url: localUrl
                                 };
                             }
@@ -8295,10 +8538,10 @@ export default function CreatePage() {
     const handlePlayheadLinePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
         if (e.button !== 0) return; // only left click
         
-        const overlay = document.getElementById('studio-playhead-overlay');
-        if (!overlay) return;
+        const timelineArea = document.getElementById('studio-playhead-timeline-area');
+        if (!timelineArea) return;
         
-        const rect = overlay.getBoundingClientRect();
+        const rect = timelineArea.getBoundingClientRect();
         
         // Disable text selection during drag
         document.body.style.userSelect = 'none';
@@ -8480,7 +8723,7 @@ export default function CreatePage() {
                             return (
                                 <div 
                                     key={track.id}
-                                    draggable
+                                    draggable={draggableTrackId === track.id}
                                     onDragStart={() => handleStudioTrackDragStart(idx)}
                                     onDragOver={(e) => handleStudioTrackDragOver(e, idx)}
                                     onDragEnd={handleStudioTrackDragEnd}
@@ -8494,10 +8737,18 @@ export default function CreatePage() {
                                         isArmed 
                                             ? 'bg-stone-200/50 hover:bg-stone-200/60' 
                                             : 'bg-stone-50/70 hover:bg-stone-200/35'
+                                    } ${
+                                        (activeTrackMenuId === track.id || activeTrackDropdownId === track.id)
+                                            ? 'z-40'
+                                            : 'z-10'
                                     }`}
                                 >
                                     {/* Drag Handle */}
                                     <div 
+                                        onMouseEnter={() => setDraggableTrackId(track.id)}
+                                        onMouseLeave={() => setDraggableTrackId(null)}
+                                        onTouchStart={() => setDraggableTrackId(track.id)}
+                                        onTouchEnd={() => setDraggableTrackId(null)}
                                         className="w-5 flex items-center justify-center text-stone-300 hover:text-stone-500 cursor-grab active:cursor-grabbing shrink-0 transition-all opacity-0 group-hover:opacity-100 duration-150"
                                         title="Drag to reorder"
                                     >
@@ -8813,10 +9064,14 @@ export default function CreatePage() {
                                             </button>
                                         )}
 
-                                        <div className="relative">
+                                        <div className="relative track-menu-container">
                                             <button
                                                 onClick={(e) => handleTrackMenuClick(e, track.id)}
-                                                className="w-8 h-8 rounded-full bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750 flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] focus:outline-none outline-none ${
+                                                    activeTrackMenuId === track.id
+                                                        ? 'bg-stone-200 text-stone-750'
+                                                        : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750'
+                                                }`}
                                                 type="button"
                                                 title="Track Options"
                                             >
@@ -8978,8 +9233,6 @@ export default function CreatePage() {
                                 )}
                             </div>
 
-
-
                             {/* Guitar Tuner Pill */}
                             <div 
                                 onMouseEnter={() => setIsTunerHovered(true)}
@@ -8988,8 +9241,12 @@ export default function CreatePage() {
                                     setActiveToolTab('tuner');
                                     setShowToolsPanel(true);
                                 }}
-                                className={`h-10 bg-stone-100/70 border border-stone-250/20 rounded-full flex items-center select-none shrink-0 transition-all duration-300 ease-in-out cursor-pointer active:scale-[0.98] ${
+                                className={`h-10 border rounded-full flex items-center select-none shrink-0 transition-all duration-300 ease-in-out cursor-pointer active:scale-[0.98] ${
                                     isTunerHovered ? 'w-[180px] pl-1 pr-2.5 justify-between' : 'w-[72px] pl-2.5 pr-2.5 justify-center gap-1.5'
+                                } ${
+                                    (tunerActive ? (tunerNote && tunerNote !== '--') : (savedTuning && savedTuning.note && savedTuning.note !== '--'))
+                                        ? 'bg-white border-stone-200 text-stone-700 shadow-[0_4px_12px_rgba(0,0,0,0.08)]' 
+                                        : 'bg-stone-100/70 border-stone-250/20 text-stone-700/80'
                                 }`}
                             >
                                 {isTunerHovered && (
@@ -9006,20 +9263,28 @@ export default function CreatePage() {
                                     </button>
                                 )}
                                 <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-                                    {/* Guitar User Icon */}
-                                    <svg 
-                                        viewBox="0 0 32 32" 
-                                        fill="none" 
-                                        xmlns="http://www.w3.org/2000/svg" 
-                                        className={`w-5 h-5 text-stone-500 shrink-0 ${tunerActive ? 'animate-pulse text-emerald-500' : ''}`}
-                                    >
-                                        <path d="M31.0306 5.96985L26.0306 0.969847C25.8885 0.837367 25.7004 0.765243 25.5061 0.768672C25.3118 0.7721 25.1264 0.850812 24.989 0.988225C24.8516 1.12564 24.7729 1.31102 24.7695 1.50532C24.766 1.69963 24.8382 1.88767 24.9706 2.02985L25.4406 2.49985L17.6131 10.3273C14.8181 8.80235 11.6619 8.87485 9.7719 10.7698C9.28268 11.2564 8.89962 11.8391 8.6469 12.4811C8.54812 12.7079 8.38575 12.9011 8.17945 13.0376C7.97314 13.174 7.73172 13.2477 7.4844 13.2498C5.7269 13.3098 4.20065 13.9373 3.0719 15.0661C1.62565 16.5223 1.00065 18.6248 1.34065 20.9736C1.66565 23.2498 2.84815 25.4998 4.6719 27.3286C6.49565 29.1573 8.75065 30.3348 11.0269 30.6598C11.4359 30.719 11.8486 30.7491 12.2619 30.7498C14.1106 30.7498 15.7381 30.1248 16.9306 28.9286C18.0556 27.8036 18.6869 26.2748 18.7469 24.5161C18.7481 24.2673 18.8219 24.0242 18.9591 23.8167C19.0963 23.6091 19.291 23.446 19.5194 23.3473C20.1609 23.0965 20.7435 22.7156 21.2306 22.2286C23.1206 20.3386 23.1981 17.1823 21.6731 14.3873L29.5006 6.55985L29.9706 7.02985C30.1128 7.16233 30.3009 7.23445 30.4952 7.23102C30.6895 7.22759 30.8749 7.14888 31.0123 7.01147C31.1497 6.87406 31.2284 6.68867 31.2318 6.49437C31.2352 6.30007 31.1631 6.11202 31.0306 5.96985ZM20.1706 21.1686C19.8278 21.5101 19.4179 21.7769 18.9669 21.9523C18.4674 22.1587 18.039 22.5064 17.7341 22.9527C17.4293 23.399 17.2612 23.9245 17.2506 24.4648C17.2044 25.8398 16.7281 27.0136 15.8756 27.8673C14.7644 28.9786 13.1256 29.4436 11.2506 29.1748C9.2944 28.8961 7.3394 27.8636 5.74315 26.2686C4.1469 24.6736 3.11815 22.7173 2.8369 20.7611C2.56815 18.8861 3.03315 17.2411 4.1444 16.1298C4.99815 15.2748 6.17565 14.7986 7.5469 14.7548C8.08772 14.7441 8.61362 14.5756 9.05998 14.27C9.50633 13.9644 9.8537 13.5351 10.0594 13.0348C10.2352 12.5844 10.502 12.175 10.8431 11.8323C11.5656 11.0961 12.5719 10.7498 13.6806 10.7498C14.66 10.7663 15.6233 11.0007 16.5006 11.4361L13.6756 14.2648C12.9642 14.3265 12.2853 14.5901 11.7185 15.0245C11.1517 15.4588 10.7208 16.046 10.4763 16.7169C10.2318 17.3878 10.184 18.1146 10.3384 18.8118C10.4928 19.509 10.8431 20.1475 11.348 20.6525C11.8529 21.1574 12.4915 21.5077 13.1887 21.6621C13.8859 21.8165 14.6127 21.7687 15.2836 21.5242C15.9545 21.2797 16.5417 20.8488 16.976 20.282C17.4104 19.7152 17.6739 19.0362 17.7356 18.3248L20.5656 15.4998C21.5794 17.6023 21.5006 19.8348 20.1706 21.1686ZM18.8756 13.1248C19.2002 13.4493 19.4998 13.7978 19.7719 14.1673L17.4381 16.4998C17.058 15.634 16.3665 14.9425 15.5006 14.5623L17.8281 12.2348C18.1994 12.5044 18.5496 12.802 18.8756 13.1248ZM14.0006 15.7498C14.5974 15.7498 15.1697 15.9869 15.5916 16.4089C16.0136 16.8308 16.2506 17.4031 16.2506 17.9998C16.2506 17.9998 16.2506 17.9998 16.2506 17.9998ZM19.9306 12.0698C19.6059 11.7461 19.2602 11.4442 18.8956 11.1661L22.0006 8.05985L23.9406 9.99985L20.8356 13.1036C20.5572 12.7393 20.2553 12.3936 19.9319 12.0686L19.9306 12.0698ZM24.9994 8.94485L23.0619 6.99985L26.5006 3.55985L28.4406 5.49985L24.9994 8.94485ZM11.5319 24.4686C11.6056 24.5373 11.6647 24.6201 11.7057 24.7121C11.7467 24.8041 11.7687 24.9034 11.7705 25.0041C11.7723 25.1048 11.7537 25.2048 11.716 25.2982C11.6783 25.3916 11.6222 25.4764 11.5509 25.5476C11.4797 25.6189 11.3949 25.675 11.3015 25.7127C11.2081 25.7504 11.1081 25.769 11.0074 25.7672C10.9067 25.7654 10.8074 25.7434 10.7154 25.7024C10.6234 25.6614 10.5406 25.6023 10.4719 25.5286L6.4719 21.5286C6.33942 21.3864 6.26729 21.1984 6.27072 21.0041C6.27415 20.8098 6.35286 20.6244 6.49027 20.487C6.62769 20.3496 6.81307 20.2708 7.00737 20.2674C7.20167 20.264 7.38972 20.3361 7.5319 20.4686L11.5319 24.4686Z" fill="currentColor"/>
-                                    </svg>
-                                    
+                                    <Guitar 
+                                        size={18} 
+                                        className={`shrink-0 ${tunerActive ? 'animate-pulse text-emerald-500' : 'text-stone-500'}`} 
+                                    />
                                     <span className="text-[12px] font-sans font-extrabold text-stone-700/80 shrink-0">
                                         {tunerActive ? tunerNote : (savedTuning ? savedTuning.note : '--')}
                                     </span>
                                 </div>
+                            </div>
+
+                            {/* Direct Monitor Pill (Icon only, circular) */}
+                            <div 
+                                onClick={() => setIsDirectMonitorEnabled(prev => !prev)}
+                                className={`w-10 h-10 border rounded-full flex items-center justify-center select-none shrink-0 transition-all duration-300 ease-in-out cursor-pointer active:scale-[0.98]
+                                    ${isDirectMonitorEnabled 
+                                        ? 'bg-white border-stone-200 text-emerald-500 shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:bg-stone-50' 
+                                        : 'bg-stone-100/70 border-stone-250/20 text-stone-500 hover:bg-stone-100'
+                                    }
+                                `}
+                                title={isDirectMonitorEnabled ? "Direct Monitoring: ON" : "Direct Monitoring: OFF"}
+                            >
+                                <Headphones size={16} className={isDirectMonitorEnabled ? 'text-emerald-500 animate-pulse' : 'text-stone-500'} />
                             </div>
                         </div>
 
@@ -9096,8 +9361,7 @@ export default function CreatePage() {
                                     REC
                                 </button>
                             )}
-
-                            {/* Play / Pause Button */}
+                             {/* Play / Pause Button */}
                             <button
                                 onClick={() => {
                                     if (studioState === 'playing') {
@@ -9184,7 +9448,7 @@ export default function CreatePage() {
                         <div className="w-[412px] sm:w-[428px] md:w-[444px] lg:w-[460px] xl:w-[500px] shrink-0" />
                         
                         {/* Timeline part */}
-                        <div className="flex-grow relative h-full">
+                        <div id="studio-playhead-timeline-area" className="flex-grow relative h-full">
                         {/* Hoverable target container centered on playheadPercent */}
                         <div 
                             className="absolute top-0 bottom-0 w-6 -ml-3 pointer-events-auto cursor-ew-resize flex justify-center group/playhead"
