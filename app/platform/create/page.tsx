@@ -12231,9 +12231,6 @@ export default function CreatePage() {
                                     onChange={(e) => setLexiconWord(e.target.value)}
                                     className="w-full px-5 py-3 bg-stone-50 border border-stone-200/85 rounded-[16px] text-[15px] font-sans placeholder:text-stone-400 font-medium focus:outline-none focus:border-emerald-500/50"
                                 />
-                                {lexiconLoading && (
-                                    <div className="absolute right-4 top-3.5 w-5 h-5 border-2 border-stone-400 border-t-transparent rounded-full animate-spin" />
-                                )}
                             </div>
 
                             {/* Suggestions Alternatives */}
