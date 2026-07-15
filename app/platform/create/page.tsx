@@ -10960,7 +10960,7 @@ export default function CreatePage() {
                                                         handleDeleteNote(selectedNoteId);
                                                         setShowCanvasMenu(false);
                                                     }}
-                                                    className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-red-650 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                    className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                                 >
                                                     <Trash2 size={16} className="text-red-500" />
                                                     Delete Project
