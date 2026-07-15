@@ -1504,14 +1504,12 @@ function AudioCapsulePlayer({
         if (!playbackAudioRef.current) return;
         if (isPlaying) {
             playbackAudioRef.current.pause();
-            setIsPlaying(false);
         } else {
             // Pause all other audio elements
             document.querySelectorAll('audio').forEach(el => {
                 if (el !== playbackAudioRef.current) el.pause();
             });
             playbackAudioRef.current.play().catch(err => console.error("Playback failed:", err));
-            setIsPlaying(true);
         }
     };
 
@@ -1600,6 +1598,8 @@ function AudioCapsulePlayer({
             src={audioNote.url}
             onTimeUpdate={() => { if (playbackAudioRef.current) setPlaybackTime(playbackAudioRef.current.currentTime); }}
             onLoadedMetadata={() => { if (playbackAudioRef.current) setPlaybackDuration(playbackAudioRef.current.duration); }}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
             className="hidden"
         />
@@ -8189,69 +8189,70 @@ export default function CreatePage() {
                 })();
             }
 
-            // 2. Wrap state changes and panel closing in a setTimeout of 2500ms
-            setTimeout(() => {
-                if (!initialTargetNoteId || !initialTargetNote) {
-                    // Auto-create a new note since none is selected
-                    const newNote: SongNote = {
+            // 2. Perform state changes immediately to avoid race conditions with background upload
+            if (!initialTargetNoteId || !initialTargetNote) {
+                // Auto-create a new note since none is selected
+                const newNote: SongNote = {
+                    id: finalNoteId,
+                    title: 'Studio Mix',
+                    content: '',
+                    folderId: null,
+                    updatedAt: new Date().toLocaleString(),
+                    phrases: [],
+                    verses: [],
+                    audioNotes: [newAudioNote],
+                    audioUrl: localUrl
+                };
+
+                setNotes(prev => [...prev, newNote]);
+                setSelectedNoteId(finalNoteId);
+
+                if (user) {
+                    const docRef = doc(db, "projects", finalNoteId);
+                    setDoc(docRef, {
                         id: finalNoteId,
                         title: 'Studio Mix',
                         content: '',
                         folderId: null,
-                        updatedAt: new Date().toLocaleString(),
-                        phrases: [],
                         verses: [],
-                        audioNotes: [newAudioNote],
-                        audioUrl: localUrl
-                    };
-
-                    setNotes(prev => [...prev, newNote]);
-                    setSelectedNoteId(finalNoteId);
-
-                    if (user) {
-                        const docRef = doc(db, "projects", finalNoteId);
-                        setDoc(docRef, {
-                            id: finalNoteId,
-                            title: 'Studio Mix',
-                            content: '',
-                            folderId: null,
-                            verses: [],
-                            phrases: [],
-                            audioNotes: [
-                                {
-                                    id: newAudioNote.id,
-                                    url: newAudioNote.url,
-                                    title: newAudioNote.title,
-                                    duration: newAudioNote.duration,
-                                    groupId: null,
-                                    phraseId: null,
-                                    createdAt: newAudioNote.createdAt,
-                                    authorId: user.uid
-                                }
-                            ],
-                            audioUrl: localUrl,
-                            contributions: {
-                                [user.uid]: {
-                                    charactersTyped: 0,
-                                    linesCreated: 0,
-                                    recordingsAdded: 1,
-                                    lastActive: new Date().toISOString()
-                                }
-                            },
-                            updatedAt: new Date().toISOString()
-                        }).catch(err => console.error("Error creating project note in Firestore:", err));
-                    }
-                } else {
-                    // Update existing note
-                    const existingAudioNotes = initialTargetNote.audioNotes || [];
-                    const updatedAudioNotes = [...existingAudioNotes, newAudioNote];
-
-                    handleUpdateNote(initialTargetNoteId, {
-                        audioNotes: updatedAudioNotes,
-                        audioUrl: localUrl
-                    });
+                        phrases: [],
+                        audioNotes: [
+                            {
+                                id: newAudioNote.id,
+                                url: newAudioNote.url,
+                                title: newAudioNote.title,
+                                duration: newAudioNote.duration,
+                                groupId: null,
+                                phraseId: null,
+                                createdAt: newAudioNote.createdAt,
+                                authorId: user.uid
+                            }
+                        ],
+                        audioUrl: localUrl,
+                        contributions: {
+                            [user.uid]: {
+                                charactersTyped: 0,
+                                linesCreated: 0,
+                                recordingsAdded: 1,
+                                lastActive: new Date().toISOString()
+                            }
+                        },
+                        updatedAt: new Date().toISOString()
+                    }).catch(err => console.error("Error creating project note in Firestore:", err));
                 }
+            } else {
+                // Update existing note
+                const existingAudioNotes = initialTargetNote.audioNotes || [];
+                const updatedAudioNotes = [...existingAudioNotes, newAudioNote];
 
+                handleUpdateNote(initialTargetNoteId, {
+                    audioNotes: updatedAudioNotes,
+                    audioUrl: localUrl
+                });
+            }
+
+            // 3. Wrap panel closing and spinner reset in a setTimeout of 2500ms for visual transition smoothness
+            setTimeout(() => {
                 setShowToolsPanel(false);
                 setIsSendingToCanvas(false);
             }, 2500);
