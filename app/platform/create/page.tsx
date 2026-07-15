@@ -10839,7 +10839,11 @@ export default function CreatePage() {
                                         e.stopPropagation();
                                         setShowCanvasMenu(!showCanvasMenu);
                                     }}
-                                    className="w-8 h-8 rounded-full hover:bg-stone-100/80 text-stone-500 hover:text-stone-800 flex items-center justify-center transition-all cursor-pointer active:scale-95"
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                                        showCanvasMenu 
+                                            ? 'bg-stone-200 text-stone-800' 
+                                            : 'hover:bg-stone-100/80 text-stone-500 hover:text-stone-800'
+                                    }`}
                                     title="Options"
                                 >
                                     <MoreVertical size={18} />
@@ -10852,13 +10856,103 @@ export default function CreatePage() {
                                             <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleNewNoteClick();
+                                                    handleCreateNote(activeFolderIdFilter);
                                                     setShowCanvasMenu(false);
                                                 }}
-                                                className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                             >
-                                                New Note
+                                                <Plus size={16} className="text-stone-500" />
+                                                Create New Project
                                             </button>
+
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShowCanvasMenu(false);
+                                                    
+                                                    const input = document.createElement('input');
+                                                    input.type = 'file';
+                                                    input.multiple = true;
+                                                    input.accept = '.mp3,.wav,.m4a,.ogg,.txt,.md';
+                                                    input.onchange = async (changeEvent) => {
+                                                        const files = Array.from(input.files || []);
+                                                        for (const file of files) {
+                                                            const fileName = file.name.toLowerCase();
+                                                            if (file.type.startsWith('audio/') || fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.m4a') || fileName.endsWith('.ogg')) {
+                                                                if (studioTracks.length >= 4) {
+                                                                    alert('Studio tracks limit reached (maximum 4 tracks).');
+                                                                    continue;
+                                                                }
+                                                                try {
+                                                                    const audioCtx = getStudioAudioContext();
+                                                                    const reader = new FileReader();
+                                                                    reader.onload = async (re) => {
+                                                                        try {
+                                                                            const arrayBuffer = re.target?.result as ArrayBuffer;
+                                                                            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                                                                            
+                                                                            const nextId = Date.now();
+                                                                            const newTrack: StudioTrack = {
+                                                                                id: nextId,
+                                                                                name: file.name.substring(0, 18) || 'Uploaded Track',
+                                                                                type: 'guitar', // default type
+                                                                                volume: 80,
+                                                                                pan: 0,
+                                                                                eq: 0,
+                                                                                compressor: true,
+                                                                                reverb: 40,
+                                                                                audioBuffer: audioBuffer,
+                                                                                url: URL.createObjectURL(file)
+                                                                            };
+                                                                            setStudioTracks(prev => [...prev, newTrack]);
+                                                                            setActiveRecordingTrackId(nextId);
+                                                                            alert(`Successfully imported audio track: ${file.name}`);
+                                                                        } catch (decodeErr) {
+                                                                            console.error("Audio decoding error:", decodeErr);
+                                                                            alert('Failed to decode audio file. Please ensure it is a valid, uncorrupted audio file.');
+                                                                        }
+                                                                    };
+                                                                    reader.readAsArrayBuffer(file);
+                                                                } catch (err) {
+                                                                    console.error("File reading error:", err);
+                                                                    alert('Error reading the audio file.');
+                                                                }
+                                                            } else if (file.type.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
+                                                                const reader = new FileReader();
+                                                                reader.onload = (re) => {
+                                                                    const text = re.target?.result as string;
+                                                                    if (selectedNoteId) {
+                                                                        const currentNote = notes.find(n => n.id === selectedNoteId);
+                                                                        const syncedPhrases = syncPhrasesWithContent(text, currentNote?.phrases || []);
+                                                                        
+                                                                        handleUpdateNote(selectedNoteId, {
+                                                                            content: text,
+                                                                            phrases: syncedPhrases
+                                                                        });
+                                                                        
+                                                                        if (textareaRef.current) {
+                                                                            textareaRef.current.value = text;
+                                                                            textareaRef.current.style.height = 'auto';
+                                                                            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+                                                                        }
+                                                                        
+                                                                        alert(`Successfully imported lyrics from: ${file.name}`);
+                                                                    }
+                                                                };
+                                                                reader.readAsText(file);
+                                                            } else {
+                                                                alert('Unsupported file type. Please select an audio file (MP3/WAV/M4A/OGG) or a text document (TXT/MD).');
+                                                            }
+                                                        }
+                                                    };
+                                                    input.click();
+                                                }}
+                                                className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                            >
+                                                <Upload size={16} className="text-stone-500" />
+                                                Upload Files
+                                            </button>
+
                                             {selectedNoteId && (
                                                 <button 
                                                     onClick={(e) => {
@@ -10866,9 +10960,10 @@ export default function CreatePage() {
                                                         handleDeleteNote(selectedNoteId);
                                                         setShowCanvasMenu(false);
                                                     }}
-                                                    className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-red-650 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                    className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-red-650 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                                 >
-                                                    Delete Note
+                                                    <Trash2 size={16} className="text-red-500" />
+                                                    Delete Project
                                                 </button>
                                             )}
                                         </div>
