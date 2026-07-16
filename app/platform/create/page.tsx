@@ -3852,7 +3852,31 @@ export default function CreatePage() {
     };
 
     const activeNote = notes.find(n => n.id === selectedNoteId) || null;
-    const carouselCards = INSPIRATION_CARDS.slice(0, 8);
+    const getTranslatedCard = (card: InspirationCard) => {
+        if (!card) return card;
+        const cleanKey = card.id.replace('therapy-', '').replace(/-/g, '_');
+        const titleKey = `inspiration.cards.${cleanKey}.title`;
+        const categoryKey = `inspiration.cards.${cleanKey}.category`;
+        const translatedTitle = t(titleKey);
+        const translatedCategory = t(categoryKey);
+        const translatedQuestions = card.questions.map((q, idx) => {
+            const qKey = `inspiration.cards.${cleanKey}.q${idx}`;
+            const transQ = t(qKey);
+            return transQ === qKey ? q : transQ;
+        });
+        return {
+            ...card,
+            title: translatedTitle === titleKey ? card.title : translatedTitle,
+            category: translatedCategory === categoryKey ? card.category : translatedCategory,
+            questions: translatedQuestions
+        };
+    };
+
+    const localizedInspirationCards = useMemo(() => {
+        return INSPIRATION_CARDS.map(getTranslatedCard);
+    }, [t]);
+
+    const carouselCards = localizedInspirationCards.slice(0, 8);
     const isNoteBlank = !isCanvasPreview && (
         !selectedNoteId ||
         !activeNote ||
@@ -5302,7 +5326,7 @@ export default function CreatePage() {
         const timestamp = now.toLocaleString();
         const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-        const defaultTitle = `Project - ${dateStr} ${timeStr}`;
+        const defaultTitle = `${t('creative.project')} - ${dateStr} ${timeStr}`;
         
         const newNote: SongNote = {
             id: newNoteId,
@@ -6599,7 +6623,7 @@ export default function CreatePage() {
             const _now = new Date();
             const _dateStr = _now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const _timeStr = _now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-            const _defaultTitle = `Project - ${_dateStr} ${_timeStr}`;
+            const _defaultTitle = `${t('creative.project')} - ${_dateStr} ${_timeStr}`;
             const newNote: SongNote = {
                 id: `n-${Date.now()}`,
                 title: _defaultTitle,
@@ -8681,12 +8705,12 @@ export default function CreatePage() {
         };
 
         const instrumentLabels = {
-            guitar: 'Guitar',
-            piano: 'Piano',
-            drums: 'Drums',
-            vocals: 'Vocals',
-            synth: 'Synth',
-            custom: 'Custom'
+            guitar: t('instruments.guitar'),
+            piano: t('instruments.piano'),
+            drums: t('instruments.drums'),
+            vocals: t('instruments.vocals'),
+            synth: t('instruments.synth'),
+            custom: t('instruments.custom')
         };
 
         return (
@@ -8814,7 +8838,7 @@ export default function CreatePage() {
                                                             ? 'text-stone-400 font-medium' 
                                                             : 'text-stone-700 font-extrabold'
                                                     }`}>
-                                                        {activeTrackDropdownId === track.id ? 'Select track' : track.name}
+                                                        {activeTrackDropdownId === track.id ? t('creative.select_track') : (track.name === 'Guitar' ? t('instruments.guitar') : track.name === 'Piano' ? t('instruments.piano') : track.name === 'Drums' ? t('instruments.drums') : track.name === 'Vocals' ? t('instruments.vocals') : track.name === 'Synth' ? t('instruments.synth') : track.name === 'Custom' ? t('instruments.custom') : track.name)}
                                                     </span>
                                                 )}
                                             </div>
@@ -8909,7 +8933,7 @@ export default function CreatePage() {
                                                                 <span className={`text-[16px] tracking-wide select-none transition-colors whitespace-nowrap ${
                                                                     isCustomSelected ? 'font-semibold text-stone-600' : 'font-medium text-stone-400 group-hover:text-stone-500'
                                                                 }`}>
-                                                                    Add custom
+                                                                    {t('instruments.add_custom')}
                                                                 </span>
                                                                 <div className="w-[155px] h-full relative overflow-hidden shrink-0 flex items-center justify-end">
                                                                     <img 
@@ -9112,7 +9136,7 @@ export default function CreatePage() {
                                                         className="w-full px-3 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-650 rounded-[10px] cursor-pointer active:scale-[0.98] transition-all"
                                                         type="button"
                                                     >
-                                                        Delete Track
+                                                        {t('creative.delete_track')}
                                                     </button>
                                                 </div>
                                             )}
@@ -9131,7 +9155,7 @@ export default function CreatePage() {
                                     type="button"
                                 >
                                     <Plus size={20} className="stroke-[2.2] text-stone-500" />
-                                    <span>Add track</span>
+                                    <span>{t('creative.add_track')}</span>
                                 </button>
                             </div>
                         )}
@@ -9278,7 +9302,7 @@ export default function CreatePage() {
                                         className="h-8 bg-white border border-stone-250/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-3 rounded-full flex items-center gap-1 transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
                                         type="button"
                                     >
-                                        Guitar tuning &rarr;
+                                        {t('creative.guitar_tuning')} &rarr;
                                     </button>
                                 )}
                                 <div className="flex items-center gap-1.5 min-w-0 shrink-0">
@@ -9355,7 +9379,7 @@ export default function CreatePage() {
                                         <div className="w-4 h-4 rounded-full bg-[#FF4040] animate-ping absolute" />
                                         <Square size={12} className="fill-[#FF4040] text-[#FF4040] shrink-0 z-10" />
                                     </div>
-                                    <span className="z-10 text-[#FF4040]">Recording...</span>
+                                    <span className="z-10 text-[#FF4040]">{t('creative.recording_status')}</span>
                                 </button>
                             ) : (
                                 <button
@@ -9400,10 +9424,10 @@ export default function CreatePage() {
                                     {isSendingToCanvas ? (
                                         <>
                                             <Loader2 size={16} className="animate-spin text-stone-500" />
-                                            <span>Sending...</span>
+                                            <span>{t('creative.sending_status')}</span>
                                         </>
                                     ) : (
-                                        <span>Send to canvas</span>
+                                        <span>{t('creative.send_to_canvas')}</span>
                                     )}
                                 </button>
 
@@ -9411,7 +9435,7 @@ export default function CreatePage() {
                                     onClick={() => setActivePublishMenu(!activePublishMenu)}
                                     className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer"
                                     type="button"
-                                    title="Export Options"
+                                    title={t('creative.export_options')}
                                 >
                                     <MoreVertical size={20} className="text-stone-600" />
                                 </button>
@@ -9425,7 +9449,7 @@ export default function CreatePage() {
                                             }}
                                             className="w-full px-4 py-2.5 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
                                         >
-                                            Export Mix (.wav)
+                                            {t('creative.export_wav')}
                                         </button>
                                         <button
                                             onClick={() => {
@@ -9434,7 +9458,7 @@ export default function CreatePage() {
                                             }}
                                             className="w-full px-4 py-2.5 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
                                         >
-                                            Export Mix (.mp3)
+                                            {t('creative.export_mp3')}
                                         </button>
                                     </div>
                                 )}
@@ -9746,7 +9770,7 @@ export default function CreatePage() {
 
                             {/* Render Content Based on State */}
                             {tunerActive ? (
-                                // State 2: Active / Tuning - Centered Note or 'Tuning...' message in regular white font
+                                // State 2: Active / Tuning - Centered Note or '{t('creative.tuning_status')}' message in regular white font
                                 <g className="pointer-events-none select-none">
                                     {!tunerNote || tunerNote === '--' || tunerNote === '' ? (
                                         <text
@@ -9756,7 +9780,7 @@ export default function CreatePage() {
                                             dominantBaseline="middle"
                                             className="text-[20px] sm:text-[22px] font-normal fill-stone-300 font-sans tracking-tight animate-pulse"
                                         >
-                                            Tuning...
+                                            {t('creative.tuning_status')}
                                         </text>
                                     ) : (
                                         <>
@@ -9918,12 +9942,12 @@ export default function CreatePage() {
                         {isMetronomePlaying ? (
                             <>
                                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                                <span>Stop Metronome</span>
+                                <span>{t('creative.stop_metronome')}</span>
                             </>
                         ) : (
                             <>
                                 <span className="w-2.5 h-2.5 rounded-full bg-stone-300 shrink-0" />
-                                <span>Start Metronome</span>
+                                <span>{t('creative.start_metronome')}</span>
                             </>
                         )}
                     </button>
@@ -10006,7 +10030,7 @@ export default function CreatePage() {
     };
 
     const renderInspirationTools = () => {
-        const cards = inspirationCards.length > 0 ? inspirationCards : INSPIRATION_CARDS;
+        const cards = inspirationCards.length > 0 ? inspirationCards.map(getTranslatedCard) : localizedInspirationCards;
         const activeCard = cards[currentCardIndex % cards.length];
         const prevCard = cards[(currentCardIndex - 1 + cards.length) % cards.length];
         const nextCard = cards[(currentCardIndex + 1) % cards.length];
@@ -12008,7 +12032,7 @@ export default function CreatePage() {
                                             setIsFocused(false);
                                             setTimeout(updateScrollbarInfo, 50);
                                         }}
-                                        className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[140px] md:max-h-[200px] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
+                                        className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[60vh] md:max-h-[70vh] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
                                         placeholder=""
                                         style={{ 
                                             height: 'auto',
@@ -12066,7 +12090,7 @@ export default function CreatePage() {
                                                             key={idx}
                                                             onClick={() => {
                                                                 setActiveInspirationIndex(idx);
-                                                                const activeCardsList = inspirationCards.length > 0 ? inspirationCards : INSPIRATION_CARDS;
+                                                                const activeCardsList = inspirationCards.length > 0 ? inspirationCards.map(getTranslatedCard) : localizedInspirationCards;
                                                                 const cardIdx = activeCardsList.findIndex(c => c.id === card.id);
                                                                 if (cardIdx !== -1) {
                                                                     setCurrentCardIndex(cardIdx);
