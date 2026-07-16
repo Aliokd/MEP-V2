@@ -412,6 +412,8 @@ interface SongNote {
     audioGroupId?: string | null;
     audioNotes?: AudioNote[];
     forceHistoryPush?: boolean;
+    ownerId?: string;
+    collaborators?: string[];
 }
 
 
@@ -2082,27 +2084,63 @@ function parseFlexibleDate(dateStr: any): number {
     let parsed = Date.parse(dateStr);
     if (!isNaN(parsed)) return parsed;
     
-    // If standard parsing fails (likely due to DD/MM/YYYY format), parse manually
-    // e.g. "14/07/2026, 09:55:00"
     try {
-        const parts = String(dateStr).split(',');
-        const datePart = parts[0].trim();
-        const timePart = parts[1] ? parts[1].trim() : '00:00:00';
+        // Replace commas with space, and replace multiple spaces/T with single space
+        let normalized = String(dateStr).replace(/,/g, ' ').replace(/T/g, ' ').replace(/\s+/g, ' ').trim();
+        const parts = normalized.split(' ');
         
-        const dateSubparts = datePart.split('/');
-        if (dateSubparts.length === 3) {
-            const day = parseInt(dateSubparts[0], 10);
-            const month = parseInt(dateSubparts[1], 10) - 1;
-            const year = parseInt(dateSubparts[2], 10);
-            
-            const timeSubparts = timePart.split(':');
-            const hours = parseInt(timeSubparts[0] || '0', 10);
-            const minutes = parseInt(timeSubparts[1] || '0', 10);
-            const seconds = parseInt(timeSubparts[2] || '0', 10);
-            
-            const d = new Date(year, month, day, hours, minutes, seconds);
-            if (!isNaN(d.getTime())) {
-                return d.getTime();
+        let datePart = '';
+        let timePart = '00:00:00';
+        
+        for (const part of parts) {
+            if (part.includes('/') || part.includes('-') || part.includes('.')) {
+                datePart = part;
+            } else if (part.includes(':')) {
+                timePart = part;
+            }
+        }
+        
+        if (!datePart && parts[0]) {
+            datePart = parts[0];
+        }
+        if (parts[1] && timePart === '00:00:00') {
+            timePart = parts[1];
+        }
+        
+        if (datePart) {
+            const separator = datePart.includes('/') ? '/' : (datePart.includes('-') ? '-' : '.');
+            const dateSubparts = datePart.split(separator);
+            if (dateSubparts.length === 3) {
+                let day = 0, month = 0, year = 0;
+                if (dateSubparts[0].length === 4) {
+                    year = parseInt(dateSubparts[0], 10);
+                    month = parseInt(dateSubparts[1], 10) - 1;
+                    day = parseInt(dateSubparts[2], 10);
+                } else {
+                    let p0 = parseInt(dateSubparts[0], 10);
+                    let p1 = parseInt(dateSubparts[1], 10);
+                    let p2 = parseInt(dateSubparts[2], 10);
+                    if (p1 > 12) {
+                        // MM/DD/YYYY or MM.DD.YYYY
+                        month = p0 - 1;
+                        day = p1;
+                    } else {
+                        // DD/MM/YYYY or DD.MM.YYYY
+                        day = p0;
+                        month = p1 - 1;
+                    }
+                    year = p2;
+                }
+                
+                const timeSubparts = timePart.split(':');
+                const hours = parseInt(timeSubparts[0] || '0', 10);
+                const minutes = parseInt(timeSubparts[1] || '0', 10);
+                const seconds = parseInt(timeSubparts[2] || '0', 10);
+                
+                const d = new Date(year, month, day, hours, minutes, seconds);
+                if (!isNaN(d.getTime())) {
+                    return d.getTime();
+                }
             }
         }
     } catch (e) {
@@ -3132,7 +3170,11 @@ export default function CreatePage() {
                                         updatedAt: new Date().toISOString()
                                     }, { merge: true }).catch(console.error);
 
-                                    return cachedNote;
+                                    return {
+                                        ...cachedNote,
+                                        ownerId: remoteNote.ownerId,
+                                        collaborators: remoteNote.collaborators || []
+                                    };
                                 }
                             }
                             return remoteNote;
@@ -3870,6 +3912,15 @@ export default function CreatePage() {
             category: translatedCategory === categoryKey ? card.category : translatedCategory,
             questions: translatedQuestions
         };
+    };
+
+    const getTranslatedTitle = (title: string): string => {
+        if (!title) return '';
+        const match = title.match(/^\s*(Project|Projekt|Prosjekt)\s*-\s*(.*)$/i);
+        if (match) {
+            return `${t('creative.project')} - ${match[2]}`;
+        }
+        return title;
     };
 
     const localizedInspirationCards = useMemo(() => {
@@ -9364,7 +9415,7 @@ export default function CreatePage() {
                                 }`}
                                 type="button"
                             >
-                                {showStudioLyrics ? 'Hide Lyrics' : 'Show Lyrics'}
+                                {showStudioLyrics ? t('creative.hide_lyrics') : t('creative.show_lyrics')}
                             </button>
                         </div>
 
@@ -10695,7 +10746,7 @@ export default function CreatePage() {
                 
                 <div className="flex flex-col gap-0.5 text-center mt-1">
                     <span className="font-bold text-[14px] text-stone-800 group-hover:text-stone-955 truncate transition-colors">
-                        {note.title || t('workspace.untitled_note')}
+                        {getTranslatedTitle(note.title) || t('workspace.untitled_note')}
                     </span>
                 </div>
                 
@@ -10725,7 +10776,7 @@ export default function CreatePage() {
                 `}
             >
                 <span className={`font-sans text-[14px] transition-colors truncate ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-850'}`}>
-                    {note.title || t('workspace.untitled_note')}
+                    {getTranslatedTitle(note.title) || t('workspace.untitled_note')}
                 </span>
                 
                 <div className="flex items-center gap-2 shrink-0">
@@ -10855,8 +10906,8 @@ export default function CreatePage() {
                             key="project-title-input"
                             id="project-title-input"
                             type="text"
-                            value={isRecording ? recordingTitle : (isEditingTitle ? localTitleText : (activeNote ? activeNote.title : ''))}
-                            placeholder="Project name"
+                            value={isRecording ? recordingTitle : (isEditingTitle ? localTitleText : (activeNote ? getTranslatedTitle(activeNote.title) : ''))}
+                            placeholder={t('creative.project_name')}
                             readOnly={isCanvasPreview}
                             onFocus={() => {
                                 setIsEditingTitle(true);
@@ -12044,7 +12095,7 @@ export default function CreatePage() {
                                         <div className="absolute inset-x-0 top-0 px-4 md:px-8 xl:px-16 flex items-center justify-center pointer-events-none select-none py-0">
                                             <span className="relative text-[30px] md:text-[42px] font-normal text-stone-300/80 tracking-[-0.035em] leading-[1.4] text-center flex items-center justify-center">
                                                 <span className="inline-block w-[2.5px] h-[32px] md:h-[44px] bg-black mr-2 animate-caret-blink shrink-0" />
-                                                Type your lyrics...
+                                                {t('creative.type_lyrics_placeholder')}
                                             </span>
                                         </div>
                                     )}
@@ -12059,7 +12110,7 @@ export default function CreatePage() {
                                     
                                     <div className="flex flex-col items-center pointer-events-auto w-full">
                                         <span className="font-sans text-[15px] sm:text-[17px] text-stone-400 font-normal tracking-normal pointer-events-none select-none mb-1">
-                                            or just start with an inspiration
+                                            {t('creative.or_start_inspiration')}
                                         </span>
                                         
                                         {/* Category name changes dynamically above the sliding cards */}

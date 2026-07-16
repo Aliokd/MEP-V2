@@ -21,8 +21,8 @@ export interface CollaborativeProject {
     content: string;
     folderId: string | null;
     updatedAt: string;
-    ownerId: string;
-    collaborators: string[];
+    ownerId?: string;
+    collaborators?: string[];
     verses?: any[];
     phrases?: any[];
     audioNotes?: any[];
@@ -202,19 +202,42 @@ export async function removeCollaboratorFromProject(projectId: string, userId: s
  */
 export async function getCollaboratorProfiles(userIds: string[]): Promise<{[uid: string]: { name: string; email: string }}> {
     const profiles: {[uid: string]: { name: string; email: string }} = {};
+    if (!userIds || userIds.length === 0) return profiles;
     try {
-        for (const uid of userIds) {
-            const userDoc = await getDoc(doc(db, "users", uid));
-            if (userDoc.exists()) {
-                const data = userDoc.data();
-                profiles[uid] = {
+        // Firestore 'in' query has a limit of 30 items. If we have more, we can chunk them.
+        const chunk = <T>(arr: T[], size: number): T[][] =>
+            Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
+                arr.slice(i * size, i * size + size)
+            );
+        const chunks = chunk(userIds, 30);
+        for (const chunkIds of chunks) {
+            const q = query(collection(db, "users"), where("__name__", "in", chunkIds));
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                profiles[docSnap.id] = {
                     name: data.displayName || data.name || "Collaborator",
                     email: data.email || ""
                 };
-            }
+            });
         }
     } catch (err) {
         console.error("Error fetching collaborator profiles:", err);
+        // Fallback to individual fetches in case of errors
+        for (const uid of userIds) {
+            try {
+                const userDoc = await getDoc(doc(db, "users", uid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    profiles[uid] = {
+                        name: data.displayName || data.name || "Collaborator",
+                        email: data.email || ""
+                    };
+                }
+            } catch (innerErr) {
+                console.error("Error in fallback fetch for", uid, innerErr);
+            }
+        }
     }
     return profiles;
 }
