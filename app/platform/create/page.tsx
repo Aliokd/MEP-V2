@@ -517,6 +517,41 @@ const getElementUnderTouch = (clientX: number, clientY: number, selector: string
     return null;
 };
 
+// Helper to merge local phrases with remote snapshot phrases, preserving local edits and new additions
+function mergeLocalAndRemotePhrases(localPhrases: Phrase[], remotePhrases: Phrase[], localLockedPhraseId: string | null): Phrase[] {
+    const merged = [...remotePhrases];
+    const remoteIdSet = new Set(remotePhrases.map(p => p.id));
+    
+    // 1. Update existing remote phrases with local locked phrase text
+    if (localLockedPhraseId) {
+        const localLockedP = localPhrases.find(p => p.id === localLockedPhraseId);
+        if (localLockedP) {
+            const remoteIdx = merged.findIndex(p => p.id === localLockedPhraseId);
+            if (remoteIdx !== -1) {
+                merged[remoteIdx] = { ...merged[remoteIdx], text: localLockedP.text };
+            }
+        }
+    }
+    
+    // 2. Insert any newly created local phrases that do not exist in the remote database yet
+    localPhrases.forEach((localP, idx) => {
+        if (!remoteIdSet.has(localP.id)) {
+            // Keep new local phrases that are active or locked (ignore empty placeholders that aren't locked)
+            if (localP.id === localLockedPhraseId || (localP.text.trim() !== '' && !localP.id.startsWith('placeholder-'))) {
+                // Insert at the same relative position if possible
+                if (idx < merged.length) {
+                    merged.splice(idx, 0, localP);
+                } else {
+                    merged.push(localP);
+                }
+                remoteIdSet.add(localP.id);
+            }
+        }
+    });
+    
+    return merged;
+}
+
 // Draggable Phrase row rendering individual words for songwriting suggestions
 // Draggable Phrase row rendering individual words for songwriting suggestions
 function PhraseRow({ 
@@ -613,11 +648,17 @@ function PhraseRow({
     
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+    // Auto-adjust height when text changes
     useEffect(() => {
         if (isCurrentlyEditing && textareaRef.current) {
             textareaRef.current.style.height = 'auto';
             textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-            
+        }
+    }, [isCurrentlyEditing, phrase.text]);
+
+    // Handle focus and selection range when starting edit mode or when selectionOffset changes
+    useEffect(() => {
+        if (isCurrentlyEditing && textareaRef.current) {
             textareaRef.current.focus();
 
             if (typeof selectionOffset === 'number') {
@@ -627,7 +668,7 @@ function PhraseRow({
                 textareaRef.current.setSelectionRange(valLength, valLength);
             }
         }
-    }, [isCurrentlyEditing, selectionOffset, phrase.text]);
+    }, [isCurrentlyEditing, selectionOffset]);
     
     if (phrase.text.trim() === '' && hasAudioNote && !isCurrentlyEditing) {
         return (
@@ -2454,6 +2495,16 @@ export default function CreatePage() {
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [localTitleText, setLocalTitleText] = useState('');
 
+    const isEditingRef = useRef(isEditing);
+    useEffect(() => {
+        isEditingRef.current = isEditing;
+    }, [isEditing]);
+
+    const editingPhraseIdRef = useRef(editingPhraseId);
+    useEffect(() => {
+        editingPhraseIdRef.current = editingPhraseId;
+    }, [editingPhraseId]);
+
     const [tracksPerNote, setTracksPerNote] = useState<Record<string, StudioTrack[]>>({});
 
     const [studioTracks, setStudioTracks] = useState<StudioTrack[]>([
@@ -2594,7 +2645,7 @@ export default function CreatePage() {
 
         if (!studioAudioCtxRef.current) {
             studioAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
-                latencyHint: resolvedLowLatency ? 0.005 : 'interactive'
+                latencyHint: 0.005
             });
             currentContextIsLowLatencyRef.current = resolvedLowLatency;
         }
@@ -3151,21 +3202,21 @@ export default function CreatePage() {
                                         title: 'Ocean Breeze Lyrics', 
                                         content: 'Ocean Breeze Lyrics\n\nVerse 1:\nWalking down the sandy beach\nFeel the warmth within my reach\n\nChorus:\nOcean breeze, carry me away\nTo the place where we used to play...', 
                                         folderId: 'f-1', 
-                                        updatedAt: new Date().toLocaleString() 
+                                        updatedAt: new Date().toISOString() 
                                     },
                                     { 
                                         id: 'n-2', 
                                         title: 'A minor progression', 
                                         content: 'A minor progression\n\nChords:\nAm - F - C - G\n\nTempo: 120bpm\nFeel: Ethereal and flowing.\nTry adding a violin counter-melody in the chorus.', 
                                         folderId: 'f-2', 
-                                        updatedAt: new Date().toLocaleString() 
+                                        updatedAt: new Date().toISOString() 
                                     },
                                     { 
                                         id: 'n-3', 
                                         title: 'Songwriting Prompts', 
                                         content: 'Songwriting Prompts\n\n- Write about nostalgia for a city you only visited once.\n- Use the word "spectral" in the bridge.\n- Start the song on a subdominant major chord.', 
                                         folderId: null, 
-                                        updatedAt: new Date().toLocaleString() 
+                                        updatedAt: new Date().toISOString() 
                                     }
                                 ];
                                 localStorage.setItem('veinote-create-notes', JSON.stringify(fallbackNotes));
@@ -3345,21 +3396,21 @@ export default function CreatePage() {
                             title: 'Ocean Breeze Lyrics', 
                             content: 'Ocean Breeze Lyrics\n\nVerse 1:\nWalking down the sandy beach\nFeel the warmth within my reach\n\nChorus:\nOcean breeze, carry me away\nTo the place where we used to play...', 
                             folderId: 'f-1', 
-                            updatedAt: new Date().toLocaleString() 
+                            updatedAt: new Date().toISOString() 
                         },
                         { 
                             id: 'n-2', 
                             title: 'A minor progression', 
                             content: 'A minor progression\n\nChords:\nAm - F - C - G\n\nTempo: 120bpm\nFeel: Ethereal and flowing.\nTry adding a violin counter-melody in the chorus.', 
                             folderId: 'f-2', 
-                            updatedAt: new Date().toLocaleString() 
+                            updatedAt: new Date().toISOString() 
                         },
                         { 
                             id: 'n-3', 
                             title: 'Songwriting Prompts', 
                             content: 'Songwriting Prompts\n\n- Write about nostalgia for a city you only visited once.\n- Use the word "spectral" in the bridge.\n- Start the song on a subdominant major chord.', 
                             folderId: null, 
-                            updatedAt: new Date().toLocaleString() 
+                            updatedAt: new Date().toISOString() 
                         }
                     ];
                     localStorage.setItem('veinote-create-notes', JSON.stringify(initialNotes));
@@ -4216,7 +4267,7 @@ export default function CreatePage() {
                 title: defaultTitle,
                 content: currentVal,
                 folderId: activeFolderIdFilter,
-                updatedAt: new Date().toLocaleString(),
+                updatedAt: new Date().toISOString(),
                 phrases: initialPhrases,
                 verses: []
             };
@@ -4766,7 +4817,7 @@ export default function CreatePage() {
                 
                 // Web Audio analyser setup
                 const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-                    latencyHint: 'interactive'
+                    latencyHint: 0.005
                 });
                 const analyser = audioContext.createAnalyser();
                 analyser.fftSize = 128; // small size for visualizer frequency counts
@@ -4813,7 +4864,7 @@ export default function CreatePage() {
                     const url = URL.createObjectURL(audioBlob);
                     setAudioUrl(url);
                     
-                    const timestamp = new Date().toLocaleString();
+                    const timestamp = new Date().toISOString();
                     const durationSeconds = (Date.now() - startTime) / 1000;
                     const newRecId = `rec-${Date.now()}`;
                     
@@ -5102,7 +5153,7 @@ export default function CreatePage() {
                                     title: title,
                                     content: liveText,
                                     folderId: activeFolderIdFilter,
-                                    updatedAt: new Date().toLocaleString(),
+                                    updatedAt: new Date().toISOString(),
                                     phrases: [],
                                     verses: [],
                                     isAudioOnly: false
@@ -5281,7 +5332,7 @@ export default function CreatePage() {
                 setIsTranscribing(true);
                 setTimeout(() => {
                     const finalTranscript = speechTranscriptRef.current.trim();
-                    const timestamp = new Date().toLocaleString();
+                    const timestamp = new Date().toISOString();
                     
                     const currentNoteId = selectedNoteIdRef.current;
                     if (currentNoteId) {
@@ -5507,7 +5558,7 @@ export default function CreatePage() {
         const newNoteId = `n-${Date.now()}`;
         const newPhraseId = `p-${Math.random().toString(36).substring(2, 9)}`;
         const now = new Date();
-        const timestamp = now.toLocaleString();
+        const timestamp = now.toISOString();
         const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
         const defaultTitle = `${t('creative.project')} - ${dateStr} ${timeStr}`;
@@ -5738,7 +5789,7 @@ export default function CreatePage() {
                     phrases: previousState.phrases,
                     verses: previousState.verses,
                     audioNotes: previousState.audioNotes,
-                    updatedAt: new Date().toLocaleString()
+                    updatedAt: new Date().toISOString()
                 };
             }
             return n;
@@ -5773,7 +5824,7 @@ export default function CreatePage() {
                     phrases: nextState.phrases,
                     verses: nextState.verses,
                     audioNotes: nextState.audioNotes,
-                    updatedAt: new Date().toLocaleString()
+                    updatedAt: new Date().toISOString()
                 };
             }
             return n;
@@ -5804,7 +5855,7 @@ export default function CreatePage() {
                     ...n,
                     ...updates,
                     title: finalTitle,
-                    updatedAt: new Date().toLocaleString(),
+                    updatedAt: new Date().toISOString(),
                     folderId: user ? null : (updates.folderId !== undefined ? updates.folderId : n.folderId)
                 };
 
@@ -5890,7 +5941,7 @@ export default function CreatePage() {
                 title: localTitleText,
                 content: '',
                 folderId: null,
-                updatedAt: new Date().toLocaleString(),
+                updatedAt: new Date().toISOString(),
                 ownerId: user ? user.uid : undefined,
                 isTitleLocked: true
             };
@@ -6813,7 +6864,7 @@ export default function CreatePage() {
                 title: _defaultTitle,
                 content: val,
                 folderId: activeFolderIdFilter,
-                updatedAt: _now.toLocaleString(),
+                updatedAt: _now.toISOString(),
                 phrases: initialPhrases,
                 verses: []
             };
@@ -8461,7 +8512,7 @@ export default function CreatePage() {
                     title: 'Studio Mix',
                     content: '',
                     folderId: null,
-                    updatedAt: new Date().toLocaleString(),
+                    updatedAt: new Date().toISOString(),
                     phrases: [],
                     verses: [],
                     audioNotes: [newAudioNote],
@@ -9764,64 +9815,55 @@ export default function CreatePage() {
                         onClick={() => setShowWiredHeadphonesBanner(false)}
                     >
                         <div 
-                            className="bg-[#DCDDD4] rounded-[32px] border border-stone-300/20 shadow-[0_25px_60px_rgba(0,0,0,0.18)] max-w-[1000px] w-full p-5 sm:p-6 md:p-8 lg:p-10 flex flex-col gap-4 md:gap-6 animate-in zoom-in-95 duration-200 relative max-h-[88vh] overflow-visible text-left text-stone-850 select-text mt-6 sm:mt-10 md:mt-14 lg:mt-16"
+                            className="bg-[#DCDDD4] rounded-[32px] border border-stone-300/20 shadow-[0_25px_60px_rgba(0,0,0,0.18)] max-w-[1080px] w-full pt-2 pb-3 px-6 sm:pt-2.5 sm:pb-4 sm:px-8 md:pt-3 md:pb-4 md:px-10 flex flex-col gap-1.5 md:gap-2 animate-in zoom-in-95 duration-200 relative max-h-[98vh] overflow-visible text-left text-stone-850 select-text"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            {/* Close button X */}
-                            <button
-                                onClick={() => setShowWiredHeadphonesBanner(false)}
-                                className="absolute top-6 right-6 text-stone-600 hover:text-stone-900 p-2 rounded-full hover:bg-stone-50/20 transition-all cursor-pointer z-30"
-                                type="button"
-                            >
-                                <X size={20} className="stroke-[2.5]" />
-                            </button>
-
-                            {/* Top Section */}
-                            <div className="flex flex-col items-center justify-center gap-4 border-b border-stone-300/30 pb-5 flex-shrink-0 relative w-full">
-                                {/* Visual Image */}
-                                <div className="w-full flex justify-center relative">
+                            {/* Top Section: Side-by-Side Layout */}
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 items-center border-b border-stone-300/20 pb-1.5 flex-shrink-0 relative w-full">
+                                {/* Left: Checkmark & Headline */}
+                                <div className="md:col-span-5 flex items-start gap-3 sm:gap-3.5">
+                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 shadow-sm mt-0.5 sm:mt-1">
+                                        <Check size={14} className="stroke-[3.5]" />
+                                    </div>
+                                    <h2 className="text-[17px] sm:text-[20px] lg:text-[22px] font-sans font-normal text-stone-800 leading-[1.25] tracking-[-0.025em]">
+                                        {t('studio_banner.warning_text')}
+                                    </h2>
+                                </div>
+                                {/* Right: Visual Image (20% larger, max-width 570px with negative bottom margin to offset transparent canvas space) */}
+                                <div className="md:col-span-7 flex justify-end relative">
                                     <img 
                                         src="/assets/studio_wired_headphones.png" 
                                         alt="Studio Wired Headphones" 
-                                        className="w-full max-w-[700px] sm:max-w-[780px] lg:max-w-[840px] h-auto object-contain animate-in fade-in duration-300 -mt-10 sm:-mt-14 md:-mt-18 lg:-mt-22 select-none pointer-events-none relative z-20"
+                                        className="w-full max-w-[570px] h-auto object-contain animate-in fade-in duration-300 select-none pointer-events-none relative z-20 -mb-8 md:-mb-10"
                                     />
-                                </div>
-                                {/* Warning Alert Banner */}
-                                <div className="w-full max-w-[700px] flex items-center justify-center gap-3 bg-white/40 backdrop-blur-sm px-6 py-4 rounded-[20px] border border-white/20 shadow-sm mt-2">
-                                    <div className="w-6 h-6 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 shadow-sm">
-                                        <Check size={14} className="stroke-[3]" />
-                                    </div>
-                                    <p className="text-[16px] sm:text-[17px] font-sans font-medium text-stone-800 leading-relaxed text-center">
-                                        {t('studio_banner.warning_text')}
-                                    </p>
                                 </div>
                             </div>
 
-                            {/* Middle Section: Columns */}
-                            <div className="flex-grow overflow-y-auto no-scrollbar pr-2 max-h-[32vh] sm:max-h-[38vh] lg:max-h-[44vh] pb-4">
+                            {/* Middle Section: Columns (Smaller text font sizes with larger vertical height, pulled up to eliminate whitespace gap) */}
+                            <div className="flex-grow overflow-y-auto no-scrollbar pr-2 max-h-[52vh] sm:max-h-[62vh] lg:max-h-[68vh] pb-1.5 -mt-4 sm:-mt-5 md:-mt-6">
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 text-left">
                                     {/* Left Column: Before You Record */}
                                     <div className="flex flex-col gap-6">
-                                        <div className="flex flex-col gap-2">
-                                            <h4 className="text-[18px] font-sans font-bold text-stone-850">
+                                        <div className="flex flex-col gap-1.5">
+                                            <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-850 tracking-tight">
                                                 {t('studio_banner.before_you_record')}
                                             </h4>
-                                            <p className="text-[14px] text-stone-600 font-normal leading-relaxed">
+                                            <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed">
                                                 {t('studio_banner.before_you_record_sub')}
                                             </p>
                                         </div>
                                         
-                                        <ul className="flex flex-col gap-5">
+                                        <ul className="flex flex-col gap-4">
                                             {/* Item 1 */}
                                             <li className="flex items-start gap-3">
-                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={11} className="stroke-[3]" />
+                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={9} className="stroke-[3.5]" />
                                                 </div>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
                                                         {t('studio_banner.tip_headphones_title')}
                                                     </span>
-                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
                                                         {t('studio_banner.tip_headphones_desc')}
                                                     </span>
                                                 </div>
@@ -9829,14 +9871,14 @@ export default function CreatePage() {
                                             
                                             {/* Item 2 */}
                                             <li className="flex items-start gap-3">
-                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={11} className="stroke-[3]" />
+                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={9} className="stroke-[3.5]" />
                                                 </div>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
                                                         {t('studio_banner.tip_wired_title')}
                                                     </span>
-                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
                                                         {t('studio_banner.tip_wired_desc')}
                                                     </span>
                                                 </div>
@@ -9844,14 +9886,14 @@ export default function CreatePage() {
 
                                             {/* Item 3 */}
                                             <li className="flex items-start gap-3">
-                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={11} className="stroke-[3]" />
+                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={9} className="stroke-[3.5]" />
                                                 </div>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
                                                         {t('studio_banner.tip_mic_title')}
                                                     </span>
-                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
                                                         {t('studio_banner.tip_mic_desc')}
                                                     </span>
                                                 </div>
@@ -9859,14 +9901,14 @@ export default function CreatePage() {
 
                                             {/* Item 4 */}
                                             <li className="flex items-start gap-3">
-                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={11} className="stroke-[3]" />
+                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={9} className="stroke-[3.5]" />
                                                 </div>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
                                                         {t('studio_banner.tip_quiet_title')}
                                                     </span>
-                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
                                                         {t('studio_banner.tip_quiet_desc')}
                                                     </span>
                                                 </div>
@@ -9874,14 +9916,14 @@ export default function CreatePage() {
 
                                             {/* Item 5 */}
                                             <li className="flex items-start gap-3">
-                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={11} className="stroke-[3]" />
+                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={9} className="stroke-[3.5]" />
                                                 </div>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
                                                         {t('studio_banner.tip_pos_title')}
                                                     </span>
-                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
                                                         {t('studio_banner.tip_pos_desc')}
                                                     </span>
                                                 </div>
@@ -9889,14 +9931,14 @@ export default function CreatePage() {
 
                                             {/* Item 6 */}
                                             <li className="flex items-start gap-3">
-                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={11} className="stroke-[3]" />
+                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={9} className="stroke-[3.5]" />
                                                 </div>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
                                                         {t('studio_banner.tip_apps_title')}
                                                     </span>
-                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
                                                         {t('studio_banner.tip_apps_desc')}
                                                     </span>
                                                 </div>
@@ -9905,52 +9947,53 @@ export default function CreatePage() {
                                     </div>
 
                                     {/* Right Column: Recommended Setup & About Bluetooth */}
-                                    <div className="flex flex-col gap-8 lg:border-l lg:border-stone-300/30 lg:pl-10">
+                                    {/* Right Column: Recommended Setup & About Bluetooth (Pushed down to align below enlarged visual) */}
+                                    <div className="flex flex-col gap-6 lg:border-l lg:border-stone-300/30 lg:pl-10 lg:pt-16">
                                         {/* Recommended Setup */}
-                                        <div className="flex flex-col gap-4">
-                                            <div className="flex flex-col gap-2">
-                                                <h4 className="text-[18px] font-sans font-bold text-stone-850">
+                                        <div className="flex flex-col gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-850 tracking-tight">
                                                     {t('studio_banner.recommended_setup')}
                                                 </h4>
-                                                <p className="text-[14px] text-stone-600 font-normal leading-relaxed">
+                                                <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed">
                                                     {t('studio_banner.recommended_setup_sub')}
                                                 </p>
                                             </div>
 
-                                            <ul className="pl-1 text-[14px] text-stone-700 font-normal leading-relaxed flex flex-col gap-2">
+                                            <ul className="pl-1 text-[13px] text-stone-700 font-normal leading-relaxed flex flex-col gap-1.5">
                                                 <li className="flex items-center gap-2">
-                                                    <span className="text-stone-400 text-[12px]">●</span>
-                                                    <span>{t('studio_banner.rec_item_device')}</span>
+                                                    <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
+                                                    <span className="font-medium text-stone-700">{t('studio_banner.rec_item_device')}</span>
                                                 </li>
                                                 <li className="flex items-center gap-2">
-                                                    <span className="text-stone-400 text-[12px]">●</span>
-                                                    <span>{t('studio_banner.rec_item_headphones')}</span>
+                                                    <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
+                                                    <span className="font-medium text-stone-700">{t('studio_banner.rec_item_headphones')}</span>
                                                 </li>
                                                 <li className="flex items-center gap-2">
-                                                    <span className="text-stone-400 text-[12px]">●</span>
-                                                    <span>{t('studio_banner.rec_item_mic')}</span>
+                                                    <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
+                                                    <span className="font-medium text-stone-700">{t('studio_banner.rec_item_mic')}</span>
                                                 </li>
                                                 <li className="flex items-center gap-2">
-                                                    <span className="text-stone-400 text-[12px]">●</span>
-                                                    <span>{t('studio_banner.rec_item_room')}</span>
+                                                    <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
+                                                    <span className="font-medium text-stone-700">{t('studio_banner.rec_item_room')}</span>
                                                 </li>
                                                 <li className="flex items-center gap-2">
-                                                    <span className="text-stone-400 text-[12px]">●</span>
-                                                    <span>{t('studio_banner.rec_item_internet')}</span>
+                                                    <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
+                                                    <span className="font-medium text-stone-700">{t('studio_banner.rec_item_internet')}</span>
                                                 </li>
                                             </ul>
 
-                                            <p className="text-[14px] text-stone-600 font-normal leading-relaxed">
+                                            <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed mt-2">
                                                 {t('studio_banner.higher_quality_note')}
                                             </p>
                                         </div>
 
                                         {/* About Bluetooth */}
-                                        <div className="flex flex-col gap-2.5">
-                                            <h4 className="text-[18px] font-sans font-bold text-stone-850">
+                                        <div className="flex flex-col gap-1.5 mt-2">
+                                            <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-850 tracking-tight">
                                                 {t('studio_banner.about_bluetooth')}
                                             </h4>
-                                            <p className="text-[14px] text-stone-600 font-normal leading-relaxed">
+                                            <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed">
                                                 {t('studio_banner.about_bluetooth_desc')}
                                             </p>
                                         </div>
@@ -9959,10 +10002,10 @@ export default function CreatePage() {
                             </div>
 
                             {/* Button Row */}
-                            <div className="w-full flex justify-end mt-4 pt-4 border-t border-stone-300/30 flex-shrink-0 shadow-[0_-12px_24px_-10px_rgba(0,0,0,0.08)]">
+                            <div className="w-full flex justify-end mt-1 pt-3 border-t border-stone-300/30 flex-shrink-0">
                                 <button
                                     onClick={() => setShowWiredHeadphonesBanner(false)}
-                                    className="bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-sans font-semibold text-[15px] px-10 py-3 rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-md hover:shadow-lg shadow-[#87b884]/20"
+                                    className="bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-sans font-semibold text-[15px] px-10 py-2.5 rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-md hover:shadow-lg shadow-[#87b884]/20"
                                     type="button"
                                 >
                                     {t('studio_banner.got_it')}
@@ -11512,7 +11555,7 @@ export default function CreatePage() {
                                         if (!selectedNoteId) {
                                             const newNoteId = `n-${Date.now()}`;
                                             const newPhraseId = `p-${Math.random().toString(36).substring(2, 9)}`;
-                                            const timestamp = new Date().toLocaleString();
+                                            const timestamp = new Date().toISOString();
                                             
                                             const newNote: SongNote = {
                                                 id: newNoteId,
@@ -13180,8 +13223,8 @@ export default function CreatePage() {
                     </div>
                 )}
             {/* Real-Time Collaboration Share Modal Overlay */}
-            {showShareModal && (
-                <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            {showShareModal && createPortal(
+                <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <form 
                         onSubmit={handleInviteCollaborator}
                         className="bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-8 animate-in zoom-in-95 duration-200 relative max-h-[90vh] overflow-y-auto no-scrollbar"
@@ -13290,12 +13333,13 @@ export default function CreatePage() {
                             </div>
                         )}
                     </form>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Confirmation dialog to close/end collaboration or decline invites */}
-            {confirmCloseCollab.isOpen && (
-                <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setConfirmCloseCollab({ isOpen: false, type: null })}>
+            {confirmCloseCollab.isOpen && createPortal(
+                <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setConfirmCloseCollab({ isOpen: false, type: null })}>
                     <div 
                         className="bg-white rounded-[24px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 text-center"
                         onClick={(e) => e.stopPropagation()}
@@ -13331,7 +13375,8 @@ export default function CreatePage() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Confirmation dialog to overwrite studio recording */}

@@ -79,6 +79,9 @@ export async function POST(request: Request) {
             encoding: encoding,
             languageCode: 'en-US',
         };
+        if (encoding === 'WEBM_OPUS') {
+            speechConfig.audioChannelCount = 2;
+        }
         if (sampleRateHertz !== undefined) {
             speechConfig.sampleRateHertz = sampleRateHertz;
         }

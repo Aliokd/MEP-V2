@@ -136,6 +136,7 @@ interface PostCardProps {
   isPaused: boolean;
   onActive: () => void;
   onDeactive: (id: string) => void;
+  onClickActive: () => void;
   onPauseToggle: () => void;
   currentUserDisplayName: string;
   editingPostId: string | null;
@@ -165,6 +166,7 @@ function ConnectPostCard({
   isPaused,
   onActive,
   onDeactive,
+  onClickActive,
   onPauseToggle,
   currentUserDisplayName,
   editingPostId,
@@ -469,12 +471,7 @@ function ConnectPostCard({
     ) {
       return;
     }
-    if (!isActive) {
-      onActive();
-    } else if (isPaused) {
-      onPauseToggle();
-    }
-    setIsExpanded(!isExpanded);
+    onClickActive();
   };
 
   return (
@@ -1343,6 +1340,7 @@ export default function ConnectTab() {
 
   // Active / Autoplay spotlight states
   const [activePostId, setActivePostId] = useState<string | null>(null);
+  const [clickedActivePostId, setClickedActivePostId] = useState<string | null>(null);
   const [manuallyPausedPosts, setManuallyPausedPosts] = useState<{ [id: string]: boolean }>({});
 
   const handlePauseToggle = (postId: string) => {
@@ -1353,6 +1351,7 @@ export default function ConnectTab() {
   };
 
   const handleDeactive = (postId: string) => {
+    if (clickedActivePostId === postId) return;
     setActivePostId(prev => (prev === postId ? null : prev));
   };
 
@@ -1896,10 +1895,24 @@ export default function ConnectTab() {
               <ConnectPostCard
                 key={post.id}
                 post={post}
-                isActive={activePostId === post.id}
+                isActive={activePostId === post.id || clickedActivePostId === post.id}
                 isPaused={!!manuallyPausedPosts[post.id]}
-                onActive={() => setActivePostId(post.id)}
+                onActive={() => {
+                  setActivePostId(post.id);
+                  if (clickedActivePostId !== post.id) {
+                    setClickedActivePostId(null);
+                  }
+                }}
                 onDeactive={handleDeactive}
+                onClickActive={() => {
+                  if (clickedActivePostId === post.id) {
+                    setClickedActivePostId(null);
+                    setActivePostId(null);
+                  } else {
+                    setClickedActivePostId(post.id);
+                    setActivePostId(post.id);
+                  }
+                }}
                 onPauseToggle={() => handlePauseToggle(post.id)}
                 currentUserDisplayName={currentUserDisplayName}
                 editingPostId={editingPostId}
