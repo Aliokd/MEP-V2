@@ -60,6 +60,7 @@ import {
     Redo2,
     Guitar,
     Headphones,
+    Zap,
     X
 } from 'lucide-react';
 
@@ -2467,14 +2468,15 @@ export default function CreatePage() {
     const studioMonitorNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
     const studioMicrophoneStreamRef = useRef<MediaStream | null>(null);
     const [isDirectMonitorEnabled, setIsDirectMonitorEnabled] = useState<boolean>(true);
+    const currentContextIsLowLatencyRef = useRef<boolean>(false);
     const studioActiveMonitorChainRef = useRef<{
         monitorNode: MediaStreamAudioSourceNode;
-        lowCutNode: BiquadFilterNode;
+        lowCutNode?: BiquadFilterNode;
         gainNode: GainNode;
-        reverbGainNode: GainNode;
-        eqNode: BiquadFilterNode;
-        compNode: DynamicsCompressorNode;
-        panNode: StereoPannerNode;
+        reverbGainNode?: GainNode;
+        eqNode?: BiquadFilterNode;
+        compNode?: DynamicsCompressorNode;
+        panNode?: StereoPannerNode;
     } | null>(null);
 
     const stopAllStudioAudio = () => {
@@ -2495,12 +2497,12 @@ export default function CreatePage() {
         if (studioActiveMonitorChainRef.current) {
             try {
                 studioActiveMonitorChainRef.current.monitorNode.disconnect();
-                studioActiveMonitorChainRef.current.lowCutNode.disconnect();
-                studioActiveMonitorChainRef.current.gainNode.disconnect();
-                studioActiveMonitorChainRef.current.reverbGainNode.disconnect();
-                studioActiveMonitorChainRef.current.eqNode.disconnect();
-                studioActiveMonitorChainRef.current.compNode.disconnect();
-                studioActiveMonitorChainRef.current.panNode.disconnect();
+                if (studioActiveMonitorChainRef.current.lowCutNode) studioActiveMonitorChainRef.current.lowCutNode.disconnect();
+                if (studioActiveMonitorChainRef.current.gainNode) studioActiveMonitorChainRef.current.gainNode.disconnect();
+                if (studioActiveMonitorChainRef.current.reverbGainNode) studioActiveMonitorChainRef.current.reverbGainNode.disconnect();
+                if (studioActiveMonitorChainRef.current.eqNode) studioActiveMonitorChainRef.current.eqNode.disconnect();
+                if (studioActiveMonitorChainRef.current.compNode) studioActiveMonitorChainRef.current.compNode.disconnect();
+                if (studioActiveMonitorChainRef.current.panNode) studioActiveMonitorChainRef.current.panNode.disconnect();
             } catch (e) {}
             studioActiveMonitorChainRef.current = null;
         }
@@ -2522,16 +2524,64 @@ export default function CreatePage() {
         studioActiveSourcesRef.current = {};
     };
 
-    const getStudioAudioContext = () => {
+    const getStudioAudioContext = (preferLowLatency?: boolean) => {
+        const resolvedLowLatency = preferLowLatency !== undefined ? preferLowLatency : currentContextIsLowLatencyRef.current;
+
+        if (studioAudioCtxRef.current && currentContextIsLowLatencyRef.current !== resolvedLowLatency) {
+            try {
+                studioAudioCtxRef.current.close();
+            } catch (e) {}
+            studioAudioCtxRef.current = null;
+            studioSharedReverbNodeRef.current = null;
+        }
+
         if (!studioAudioCtxRef.current) {
             studioAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
-                latencyHint: 'interactive'
+                latencyHint: resolvedLowLatency ? 0.005 : 'interactive'
             });
+            currentContextIsLowLatencyRef.current = resolvedLowLatency;
         }
+
         if (studioAudioCtxRef.current.state === 'suspended') {
             studioAudioCtxRef.current.resume().catch(console.error);
         }
         return studioAudioCtxRef.current;
+    };
+
+    const setupDirectMonitorChain = (audioCtx: AudioContext, monitorNode: MediaStreamAudioSourceNode) => {
+        // First clean up any existing chain
+        if (studioActiveMonitorChainRef.current) {
+            try {
+                studioActiveMonitorChainRef.current.monitorNode.disconnect();
+                if (studioActiveMonitorChainRef.current.lowCutNode) studioActiveMonitorChainRef.current.lowCutNode.disconnect();
+                if (studioActiveMonitorChainRef.current.gainNode) studioActiveMonitorChainRef.current.gainNode.disconnect();
+                if (studioActiveMonitorChainRef.current.reverbGainNode) studioActiveMonitorChainRef.current.reverbGainNode.disconnect();
+                if (studioActiveMonitorChainRef.current.eqNode) studioActiveMonitorChainRef.current.eqNode.disconnect();
+                if (studioActiveMonitorChainRef.current.compNode) studioActiveMonitorChainRef.current.compNode.disconnect();
+                if (studioActiveMonitorChainRef.current.panNode) studioActiveMonitorChainRef.current.panNode.disconnect();
+            } catch (e) {}
+            studioActiveMonitorChainRef.current = null;
+        }
+
+        if (!isDirectMonitorEnabled) return;
+
+        const recordingTrack = studioTracks.find(t => t.id === activeRecordingTrackId);
+
+        try {
+            // Direct routing with volume/mute control only (no effects for raw, low-latency monitor)
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = (recordingTrack && recordingTrack.muted) ? 0 : (recordingTrack ? recordingTrack.volume / 100 : 0.8);
+            
+            monitorNode.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            studioActiveMonitorChainRef.current = {
+                monitorNode,
+                gainNode
+            };
+        } catch (err) {
+            console.error("Error setting up direct monitor chain:", err);
+        }
     };
 
     const generateReverbImpulseResponse = (audioCtx: AudioContext): AudioBuffer => {
@@ -2562,76 +2612,19 @@ export default function CreatePage() {
 
     useEffect(() => {
         if (studioState === 'recording' && studioMicrophoneStreamRef.current) {
-            const audioCtx = getStudioAudioContext();
-            const recordingTrack = studioTracks.find(t => t.id === activeRecordingTrackId);
-            
-            if (isDirectMonitorEnabled) {
-                // Set up the direct monitor routing chain if not already done
-                if (studioMonitorNodeRef.current && !studioActiveMonitorChainRef.current) {
-                    try {
-                        const monitorNode = studioMonitorNodeRef.current;
-                        
-                        const lowCutNode = audioCtx.createBiquadFilter();
-                        lowCutNode.type = 'highpass';
-                        lowCutNode.frequency.value = 80;
-
-                        const eqNode = audioCtx.createBiquadFilter();
-                        eqNode.type = 'highshelf';
-                        eqNode.frequency.value = 3000;
-                        eqNode.gain.value = recordingTrack ? recordingTrack.eq : 0;
-
-                        const compNode = audioCtx.createDynamicsCompressor();
-                        compNode.threshold.value = -24;
-                        compNode.knee.value = 30;
-                        compNode.ratio.value = (recordingTrack && recordingTrack.compressor) ? 12 : 1;
-                        compNode.attack.value = 0.003;
-                        compNode.release.value = 0.25;
-
-                        const panNode = audioCtx.createStereoPanner();
-                        panNode.pan.value = recordingTrack ? recordingTrack.pan / 50 : 0;
-
-                        const gainNode = audioCtx.createGain();
-                        gainNode.gain.value = (recordingTrack && recordingTrack.muted) ? 0 : (recordingTrack ? recordingTrack.volume / 100 : 0.8);
-
-                        const reverbGainNode = audioCtx.createGain();
-                        reverbGainNode.gain.value = (recordingTrack && recordingTrack.muted) ? 0 : (recordingTrack ? recordingTrack.reverb / 100 : 0);
-
-                        const reverbNode = getSharedReverbNode(audioCtx);
-
-                        monitorNode.connect(lowCutNode);
-                        lowCutNode.connect(eqNode);
-                        eqNode.connect(compNode);
-                        compNode.connect(panNode);
-                        panNode.connect(gainNode);
-                        gainNode.connect(audioCtx.destination);
-
-                        compNode.connect(reverbGainNode);
-                        reverbGainNode.connect(reverbNode);
-
-                        studioActiveMonitorChainRef.current = {
-                            monitorNode,
-                            lowCutNode,
-                            gainNode,
-                            reverbGainNode,
-                            eqNode,
-                            compNode,
-                            panNode
-                        };
-                    } catch (err) {
-                        console.error("Error dynamically setting up direct monitor chain:", err);
-                    }
-                }
+            const audioCtx = getStudioAudioContext(true);
+            if (isDirectMonitorEnabled && studioMonitorNodeRef.current) {
+                setupDirectMonitorChain(audioCtx, studioMonitorNodeRef.current);
             } else {
-                // Tear down the direct monitor routing chain if it exists
                 if (studioActiveMonitorChainRef.current) {
                     try {
                         studioActiveMonitorChainRef.current.monitorNode.disconnect();
-                        studioActiveMonitorChainRef.current.lowCutNode.disconnect();
-                        studioActiveMonitorChainRef.current.gainNode.disconnect();
-                        studioActiveMonitorChainRef.current.reverbGainNode.disconnect();
-                        studioActiveMonitorChainRef.current.eqNode.disconnect();
-                        studioActiveMonitorChainRef.current.compNode.disconnect();
-                        studioActiveMonitorChainRef.current.panNode.disconnect();
+                        if (studioActiveMonitorChainRef.current.lowCutNode) studioActiveMonitorChainRef.current.lowCutNode.disconnect();
+                        if (studioActiveMonitorChainRef.current.gainNode) studioActiveMonitorChainRef.current.gainNode.disconnect();
+                        if (studioActiveMonitorChainRef.current.reverbGainNode) studioActiveMonitorChainRef.current.reverbGainNode.disconnect();
+                        if (studioActiveMonitorChainRef.current.eqNode) studioActiveMonitorChainRef.current.eqNode.disconnect();
+                        if (studioActiveMonitorChainRef.current.compNode) studioActiveMonitorChainRef.current.compNode.disconnect();
+                        if (studioActiveMonitorChainRef.current.panNode) studioActiveMonitorChainRef.current.panNode.disconnect();
                     } catch (e) {}
                     studioActiveMonitorChainRef.current = null;
                 }
@@ -7611,7 +7604,7 @@ export default function CreatePage() {
 
     const startStudioPlayback = async (startOffset = 0) => {
         try {
-            const audioCtx = getStudioAudioContext();
+            const audioCtx = getStudioAudioContext(false);
             if (audioCtx.state === 'suspended') {
                 await audioCtx.resume();
             }
@@ -7741,7 +7734,7 @@ export default function CreatePage() {
 
     const proceedWithStudioRecording = async () => {
         try {
-            const audioCtx = getStudioAudioContext();
+            const audioCtx = getStudioAudioContext(true);
             if (audioCtx.state === 'suspended') {
                 await audioCtx.resume();
             }
@@ -7771,58 +7764,7 @@ export default function CreatePage() {
             studioMonitorNodeRef.current = monitorNode;
 
             if (isDirectMonitorEnabled) {
-                try {
-                    const recordingTrack = studioTracks.find(t => t.id === activeRecordingTrackId);
-                    
-                    const lowCutNode = audioCtx.createBiquadFilter();
-                    lowCutNode.type = 'highpass';
-                    lowCutNode.frequency.value = 80;
-
-                    const eqNode = audioCtx.createBiquadFilter();
-                    eqNode.type = 'highshelf';
-                    eqNode.frequency.value = 3000;
-                    eqNode.gain.value = recordingTrack ? recordingTrack.eq : 0;
-
-                    const compNode = audioCtx.createDynamicsCompressor();
-                    compNode.threshold.value = -24;
-                    compNode.knee.value = 30;
-                    compNode.ratio.value = (recordingTrack && recordingTrack.compressor) ? 12 : 1;
-                    compNode.attack.value = 0.003;
-                    compNode.release.value = 0.25;
-
-                    const panNode = audioCtx.createStereoPanner();
-                    panNode.pan.value = recordingTrack ? recordingTrack.pan / 50 : 0;
-
-                    const gainNode = audioCtx.createGain();
-                    gainNode.gain.value = (recordingTrack && recordingTrack.muted) ? 0 : (recordingTrack ? recordingTrack.volume / 100 : 0.8);
-
-                    const reverbGainNode = audioCtx.createGain();
-                    reverbGainNode.gain.value = (recordingTrack && recordingTrack.muted) ? 0 : (recordingTrack ? recordingTrack.reverb / 100 : 0);
-
-                    const reverbNode = getSharedReverbNode(audioCtx);
-
-                    monitorNode.connect(lowCutNode);
-                    lowCutNode.connect(eqNode);
-                    eqNode.connect(compNode);
-                    compNode.connect(panNode);
-                    panNode.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-
-                    compNode.connect(reverbGainNode);
-                    reverbGainNode.connect(reverbNode);
-
-                    studioActiveMonitorChainRef.current = {
-                        monitorNode,
-                        lowCutNode,
-                        gainNode,
-                        reverbGainNode,
-                        eqNode,
-                        compNode,
-                        panNode
-                    };
-                } catch (err) {
-                    console.error("Error setting up direct monitor chain:", err);
-                }
+                setupDirectMonitorChain(audioCtx, monitorNode);
             }
 
             // MediaRecorder setup with premium high-bitrate settings
