@@ -3880,7 +3880,7 @@ export default function CreatePage() {
     const isNoteBlank = !isCanvasPreview && (
         !selectedNoteId ||
         !activeNote ||
-        ((!activeNote.verses || activeNote.verses.length === 0) &&
+        (activeNote.content.trim() === '' &&
             (!activeNote.audioNotes || activeNote.audioNotes.length === 0)
         )
     );
