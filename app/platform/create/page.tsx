@@ -59,8 +59,6 @@ import {
     Undo2,
     Redo2,
     Guitar,
-    Headphones,
-    Zap,
     X
 } from 'lucide-react';
 
@@ -9291,20 +9289,6 @@ export default function CreatePage() {
                                         {tunerActive ? tunerNote : (savedTuning ? savedTuning.note : '--')}
                                     </span>
                                 </div>
-                            </div>
-
-                            {/* Direct Monitor Pill (Icon only, circular) */}
-                            <div 
-                                onClick={() => setIsDirectMonitorEnabled(prev => !prev)}
-                                className={`w-10 h-10 border rounded-full flex items-center justify-center select-none shrink-0 transition-all duration-300 ease-in-out cursor-pointer active:scale-[0.98]
-                                    ${isDirectMonitorEnabled 
-                                        ? 'bg-white border-stone-200 text-emerald-500 shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:bg-stone-50' 
-                                        : 'bg-stone-100/70 border-stone-250/20 text-stone-500 hover:bg-stone-100'
-                                    }
-                                `}
-                                title={isDirectMonitorEnabled ? "Direct Monitoring: ON" : "Direct Monitoring: OFF"}
-                            >
-                                <Headphones size={16} className={isDirectMonitorEnabled ? 'text-emerald-500 animate-pulse' : 'text-stone-500'} />
                             </div>
                         </div>
 
