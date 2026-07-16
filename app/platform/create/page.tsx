@@ -12014,71 +12014,77 @@ export default function CreatePage() {
                                     )}
                                 </div>
                                 
-                                <div className="w-full h-[1.5px] bg-stone-200/40 mt-1 mb-14 pointer-events-none select-none" />
-                                
-                                <div className="flex flex-col items-center pointer-events-auto w-full">
-                                    <span className="font-sans text-[15px] sm:text-[17px] text-stone-400 font-normal tracking-normal pointer-events-none select-none mb-1">
-                                        or just start with an inspiration
-                                    </span>
+                                <div className={`w-full flex flex-col items-center transition-all duration-500 ease-in-out ${
+                                    contentVal !== '' 
+                                        ? 'opacity-0 max-h-0 pointer-events-none overflow-hidden mt-0' 
+                                        : 'opacity-100 max-h-[500px] mt-0'
+                                }`}>
+                                    <div className="w-full h-[1.5px] bg-stone-200/40 mt-1 mb-14 pointer-events-none select-none" />
                                     
-                                    {/* Category name changes dynamically above the sliding cards */}
-                                    <span className="font-sans italic text-[22px] sm:text-[24px] text-stone-550 lowercase mb-6 select-none animate-in fade-in duration-300" key={activeInspirationIndex}>
-                                        {carouselCards[activeInspirationIndex % 8].title.toLowerCase()}
-                                    </span>
-                                    
-                                    {/* Slider Viewport Container */}
-                                    <div className="w-full max-w-[620px] overflow-hidden py-1 relative flex items-center justify-start">
-                                        {/* Left gradient fade overlay */}
-                                        <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none z-20" />
-                                        {/* Right gradient fade overlay */}
-                                        <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none z-20" />
+                                    <div className="flex flex-col items-center pointer-events-auto w-full">
+                                        <span className="font-sans text-[15px] sm:text-[17px] text-stone-400 font-normal tracking-normal pointer-events-none select-none mb-1">
+                                            or just start with an inspiration
+                                        </span>
+                                        
+                                        {/* Category name changes dynamically above the sliding cards */}
+                                        <span className="font-sans italic text-[22px] sm:text-[24px] text-stone-550 lowercase mb-6 select-none animate-in fade-in duration-300" key={activeInspirationIndex}>
+                                            {carouselCards[activeInspirationIndex % 8].title.toLowerCase()}
+                                        </span>
+                                        
+                                        {/* Slider Viewport Container */}
+                                        <div className="w-full max-w-[620px] overflow-hidden py-1 relative flex items-center justify-start">
+                                            {/* Left gradient fade overlay */}
+                                            <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none z-20" />
+                                            {/* Right gradient fade overlay */}
+                                            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none z-20" />
 
-                                        <div 
-                                            className="flex gap-4 relative"
-                                            style={{ 
-                                                left: '50%',
-                                                transform: `translateX(-${activeInspirationIndex * 236 + 110}px)`,
-                                                                                transition: transitionEnabled ? 'transform 700ms cubic-bezier(0.25, 1, 0.5, 1)' : 'none'
-                                            }}
-                                        >
-                                            {Array.from({ length: 240 }).map((_, idx) => {
-                                                const card = carouselCards[idx % 8];
-                                                const isActive = idx === activeInspirationIndex;
-                                                return (
-                                                    <div
-                                                        key={idx}
-                                                        onClick={() => {
-                                                            setActiveInspirationIndex(idx);
-                                                            const activeCardsList = inspirationCards.length > 0 ? inspirationCards : INSPIRATION_CARDS;
-                                                            const cardIdx = activeCardsList.findIndex(c => c.id === card.id);
-                                                            if (cardIdx !== -1) {
-                                                                setCurrentCardIndex(cardIdx);
-                                                                if (inspirationSwiperRef.current) {
-                                                                    inspirationSwiperRef.current.slideTo(cardIdx, 0);
+                                            <div 
+                                                className="flex gap-4 relative"
+                                                style={{ 
+                                                    left: '50%',
+                                                    transform: `translateX(-${activeInspirationIndex * 236 + 110}px)`,
+                                                    transition: transitionEnabled ? 'transform 700ms cubic-bezier(0.25, 1, 0.5, 1)' : 'none'
+                                                }}
+                                            >
+                                                {Array.from({ length: 240 }).map((_, idx) => {
+                                                    const card = carouselCards[idx % 8];
+                                                    const isActive = idx === activeInspirationIndex;
+                                                    return (
+                                                        <div
+                                                            key={idx}
+                                                            onClick={() => {
+                                                                setActiveInspirationIndex(idx);
+                                                                const activeCardsList = inspirationCards.length > 0 ? inspirationCards : INSPIRATION_CARDS;
+                                                                const cardIdx = activeCardsList.findIndex(c => c.id === card.id);
+                                                                if (cardIdx !== -1) {
+                                                                    setCurrentCardIndex(cardIdx);
+                                                                    if (inspirationSwiperRef.current) {
+                                                                        inspirationSwiperRef.current.slideTo(cardIdx, 0);
+                                                                    }
                                                                 }
-                                                            }
-                                                            setExpandedCardId(card.id);
-                                                            setInspirationQuestionIndex(0);
-                                                            setActiveToolTab('inspiration');
-                                                            setShowToolsPanel(true);
-                                                        }}
-                                                        className={`relative w-[220px] h-[125px] shrink-0 rounded-[20px] overflow-hidden border border-stone-200/40 shadow-[0_4px_12px_rgba(0,0,0,0.03)] cursor-pointer transition-all duration-500 hover:scale-105 active:scale-95 group/card bg-stone-100
-                                                            ${isActive 
-                                                                ? 'opacity-100 scale-100 shadow-md' 
-                                                                : 'opacity-35 scale-95 hover:opacity-50'
-                                                            }
-                                                        `}
-                                                    >
-                                                        {/* Background Image using eager loading WebP to prevent flicker */}
-                                                        <img 
-                                                            src={card.bgImage.replace('.png', '.webp')} 
-                                                            alt={card.title}
-                                                            loading="eager"
-                                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105"
-                                                        />
-                                                    </div>
-                                                );
-                                            })}
+                                                                setExpandedCardId(card.id);
+                                                                setInspirationQuestionIndex(0);
+                                                                setActiveToolTab('inspiration');
+                                                                setShowToolsPanel(true);
+                                                            }}
+                                                            className={`relative w-[220px] h-[125px] shrink-0 rounded-[20px] overflow-hidden border border-stone-200/40 shadow-[0_4px_12px_rgba(0,0,0,0.03)] cursor-pointer transition-all duration-500 hover:scale-105 active:scale-95 group/card bg-stone-100
+                                                                ${isActive 
+                                                                    ? 'opacity-100 scale-100 shadow-md' 
+                                                                    : 'opacity-35 scale-95 hover:opacity-50'
+                                                                }
+                                                            `}
+                                                        >
+                                                            {/* Background Image using eager loading WebP to prevent flicker */}
+                                                            <img 
+                                                                src={card.bgImage.replace('.png', '.webp')} 
+                                                                alt={card.title}
+                                                                loading="eager"
+                                                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105"
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
