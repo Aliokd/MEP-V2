@@ -3856,8 +3856,7 @@ export default function CreatePage() {
     const isNoteBlank = !isCanvasPreview && (
         !selectedNoteId ||
         !activeNote ||
-        (activeNote.content.trim() === '' &&
-            (!activeNote.phrases || activeNote.phrases.length === 0) &&
+        ((!activeNote.verses || activeNote.verses.length === 0) &&
             (!activeNote.audioNotes || activeNote.audioNotes.length === 0)
         )
     );
@@ -6606,24 +6605,14 @@ export default function CreatePage() {
             setIsEditing(true);
         } else {
             const active = notes.find(n => n.id === selectedNoteId);
-            const wasBlank = !active || (active.content.trim() === '');
+            const activePhrases = active?.phrases || [];
+            const updatedPhrases = syncPhrasesWithContent(val, activePhrases);
             
-            if (wasBlank && val.trim() !== '') {
-                const initialPhrases = syncPhrasesWithContent(val, []);
-                handleUpdateNote(selectedNoteId, { 
-                    content: val, 
-                    phrases: initialPhrases
-                });
-                if (initialPhrases[0]) {
-                    setEditingPhraseId(initialPhrases[0].id);
-                }
-                setIsEditing(true);
-            } else {
-                // Update active note normally
-                handleUpdateNote(selectedNoteId, { 
-                    content: val
-                });
-            }
+            handleUpdateNote(selectedNoteId, { 
+                content: val, 
+                phrases: updatedPhrases
+            });
+            setIsEditing(true);
         }
     };
 
@@ -11130,7 +11119,7 @@ export default function CreatePage() {
                                                 className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                             >
                                                 <Plus size={16} className="text-stone-500" />
-                                                New Project
+                                                {t('creative.new_project')}
                                             </button>
 
                                             <button 
@@ -11219,7 +11208,7 @@ export default function CreatePage() {
                                                 className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                             >
                                                 <Upload size={16} className="text-stone-500" />
-                                                Upload Files
+                                                {t('creative.upload_files')}
                                             </button>
 
                                             {selectedNoteId && (
@@ -11232,7 +11221,7 @@ export default function CreatePage() {
                                                     className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                                 >
                                                     <Trash2 size={16} className="text-red-500" />
-                                                    Delete Project
+                                                    {t('creative.delete_project')}
                                                 </button>
                                             )}
                                         </div>
@@ -11939,7 +11928,7 @@ export default function CreatePage() {
                                                  className={`h-full px-5 flex items-center justify-center gap-1.5 font-sans font-bold text-[13px] cursor-pointer transition-colors duration-300 ease-in-out shrink-0 whitespace-nowrap ${isAddMenuSticky ? "text-stone-700" : "text-stone-400/80 group-hover/add-menu:text-stone-700"}`}
                                              >
                                                  <Plus size={15} className="stroke-[2.5]" />
-                                                 <span>Add</span>
+                                                 <span>{t('creative.add')}</span>
                                              </div>
 
                                              {/* Divider line (appears on hover or when sticky) */}
@@ -11955,7 +11944,7 @@ export default function CreatePage() {
                                                          }}
                                                          className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
                                                      >
-                                                         Chorus
+                                                         {t('creative.chorus')}
                                                      </button>
                                                      <button
                                                          onClick={(e) => {
@@ -11964,7 +11953,7 @@ export default function CreatePage() {
                                                          }}
                                                          className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
                                                      >
-                                                         Verse
+                                                         {t('creative.verse')}
                                                      </button>
                                                      <button
                                                          onClick={(e) => {
@@ -11973,7 +11962,7 @@ export default function CreatePage() {
                                                          }}
                                                          className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
                                                      >
-                                                         Bridge
+                                                         {t('creative.bridge')}
                                                      </button>
                                                  </div>
                                              </div>
