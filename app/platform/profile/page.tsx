@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { User, Mail, CreditCard } from 'lucide-react';
 
 export default function ProfilePage() {
     const { user } = useAuth();
+    const { t } = useLanguage();
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -93,16 +95,16 @@ export default function ProfilePage() {
             }, 2000);
         } catch (error) {
             console.error("Error updating email:", error);
-            showNotification('Failed to update email. Please try logging in again.');
+            showNotification(t('profile.error_update_email'));
         }
     };
 
     return (
         <div className="space-y-12 text-stone-900 font-sans">
             <header className="space-y-4">
-                <h1 className="text-4xl font-sans font-light tracking-tight text-stone-900">Profile & settings</h1>
+                <h1 className="text-4xl font-sans font-light tracking-tight text-stone-900">{t('profile.title')}</h1>
                 <p className="text-stone-700 font-sans max-w-2xl text-sm font-medium">
-                    Manage your account details and preferences.
+                    {t('profile.subtitle')}
                 </p>
             </header>
 
@@ -116,7 +118,7 @@ export default function ProfilePage() {
                             </div>
                             <div>
                                 <h2 className="text-2xl font-sans font-bold text-stone-900">{name || 'Maestro'}</h2>
-                                <p className="text-stone-700 text-xs font-bold mt-1">Virtuoso tier</p>
+                                <p className="text-stone-700 text-xs font-bold mt-1">{t('profile.tier')}</p>
                                 <p className="text-stone-700 text-sm font-medium mt-2">{email}</p>
                             </div>
                         </div>
@@ -125,20 +127,20 @@ export default function ProfilePage() {
                             <form onSubmit={handleSave} className="space-y-6">
                                 <div className="grid md:grid-cols-2 gap-6 pt-6 border-t border-stone-250">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] uppercase tracking-widest text-stone-700 font-bold">Display Name</label>
+                                        <label className="text-[10px] uppercase tracking-widest text-stone-700 font-bold">{t('profile.display_name')}</label>
                                         <div className="flex items-center gap-3 bg-white/80 p-4 border border-stone-200 rounded-[12px] text-stone-900 focus-within:border-stone-400 transition-colors">
                                             <User size={16} className="text-stone-900" />
                                             <input
                                                 type="text"
                                                 value={name}
                                                 onChange={(e) => setName(e.target.value)}
-                                                placeholder="Set a display name"
+                                                placeholder={t('profile.placeholder_name')}
                                                 className="bg-transparent border-none outline-none w-full font-medium p-0 focus:ring-0"
                                             />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] uppercase tracking-widest text-stone-700 font-bold">Email Address</label>
+                                        <label className="text-[10px] uppercase tracking-widest text-stone-700 font-bold">{t('profile.email')}</label>
                                         <div className="flex items-center gap-3 bg-white/80 p-4 border border-stone-200 rounded-[12px] text-stone-900 focus-within:border-stone-400 transition-colors">
                                             <Mail size={16} className="text-stone-900" />
                                             <input
@@ -156,7 +158,7 @@ export default function ProfilePage() {
                                             type="submit"
                                             className="px-5 py-2.5 bg-stone-900 text-[#DCDDD4] hover:bg-stone-800 text-xs font-semibold rounded-lg transition-all cursor-pointer"
                                         >
-                                            Save details
+                                            {t('profile.save_details')}
                                         </button>
                                     </div>
                                 )}
@@ -168,9 +170,9 @@ export default function ProfilePage() {
 
                         {verificationState === 'pending' && (
                             <div className="space-y-4 py-2 border-l-2 border-stone-400 pl-4 animate-in fade-in duration-200 pt-6 border-t border-stone-250">
-                                <p className="text-sm font-semibold text-stone-800">Verify your new email address</p>
+                                <p className="text-sm font-semibold text-stone-800">{t('profile.verify_title')}</p>
                                 <p className="text-xs text-stone-500 leading-relaxed font-medium">
-                                    We've sent a verification link to <span className="font-semibold text-stone-700">{pendingEmail}</span>. Please authorize the change in your email client to verify it.
+                                    {t('profile.verify_sent')} <span className="font-semibold text-stone-700">{pendingEmail}</span>{t('profile.verify_sent_end')}
                                 </p>
                                 <div className="flex flex-wrap gap-3 pt-2">
                                     <a
@@ -179,13 +181,13 @@ export default function ProfilePage() {
                                         rel="noopener noreferrer"
                                         className="px-4 py-2 border border-stone-200 hover:border-stone-300 hover:bg-stone-50/50 text-stone-700 text-xs font-semibold rounded-lg transition-all"
                                     >
-                                        Open Gmail
+                                        {t('profile.open_gmail')}
                                     </a>
                                     <button
                                         onClick={handleCompleteVerification}
                                         className="px-4 py-2 bg-stone-100 hover:bg-stone-200/60 border border-stone-200 text-stone-850 text-xs font-semibold rounded-lg transition-all cursor-pointer"
                                     >
-                                        Simulate verification link click
+                                        {t('profile.simulate_click')}
                                     </button>
                                     <button
                                         onClick={() => {
@@ -194,7 +196,7 @@ export default function ProfilePage() {
                                         }}
                                         className="px-4 py-2 text-stone-500 hover:text-stone-700 text-xs font-semibold transition-all cursor-pointer"
                                     >
-                                        Cancel
+                                        {t('profile.cancel')}
                                     </button>
                                 </div>
                             </div>
@@ -202,19 +204,19 @@ export default function ProfilePage() {
 
                         {verificationState === 'success' && (
                             <div className="py-2 border-l-2 border-emerald-500 pl-4 animate-in fade-in duration-200 pt-6 border-t border-stone-250">
-                                <p className="text-sm font-semibold text-emerald-700">✓ Verification complete</p>
-                                <p className="text-xs text-emerald-600 font-medium mt-1">Your email address has been updated to {email}. Returning to platform...</p>
+                                <p className="text-sm font-semibold text-emerald-700">✓ {t('profile.success_title')}</p>
+                                <p className="text-xs text-emerald-600 font-medium mt-1">{t('profile.success_desc')} {email}{t('profile.returning_platform')}</p>
                             </div>
                         )}
                     </section>
 
                     <section className="bg-white/60 border border-stone-200/80 p-8 rounded-[16px] space-y-6 shadow-xs">
-                        <h3 className="text-xl font-sans font-bold border-b border-stone-200 pb-4">Preferences</h3>
+                        <h3 className="text-xl font-sans font-bold border-b border-stone-200 pb-4">{t('profile.preferences')}</h3>
                         <div className="space-y-4">
                             <div className="flex items-center justify-between p-4 hover:bg-stone-200/30 rounded-[12px] transition-colors cursor-pointer group">
                                 <div className="space-y-1">
-                                    <p className="font-sans text-sm font-bold text-stone-900 group-hover:text-stone-950 transition-colors">Email Notifications</p>
-                                    <p className="text-xs text-stone-700 font-medium">Receive updates on new modules and masterclass events.</p>
+                                    <p className="font-sans text-sm font-bold text-stone-900 group-hover:text-stone-950 transition-colors">{t('profile.notifications_title')}</p>
+                                    <p className="text-xs text-stone-700 font-medium">{t('profile.notifications_desc')}</p>
                                 </div>
                                 <div className="w-10 h-6 bg-stone-900/10 rounded-full relative">
                                     <div className="absolute right-1 top-1 w-4 h-4 bg-stone-900 rounded-full shadow-lg" />
@@ -222,8 +224,8 @@ export default function ProfilePage() {
                             </div>
                             <div className="flex items-center justify-between p-4 hover:bg-stone-200/30 rounded-[12px] transition-colors cursor-pointer group">
                                 <div className="space-y-1">
-                                    <p className="font-sans text-sm font-bold text-stone-900 group-hover:text-stone-950 transition-colors">Public Profile</p>
-                                    <p className="text-xs text-stone-700 font-medium">Allow other students to see your constellation progress.</p>
+                                    <p className="font-sans text-sm font-bold text-stone-900 group-hover:text-stone-950 transition-colors">{t('profile.public_profile_title')}</p>
+                                    <p className="text-xs text-stone-700 font-medium">{t('profile.public_profile_desc')}</p>
                                 </div>
                                 <div className="w-10 h-6 bg-stone-200 rounded-full relative">
                                     <div className="absolute left-1 top-1 w-4 h-4 bg-stone-400 rounded-full shadow-lg" />
@@ -240,18 +242,18 @@ export default function ProfilePage() {
                             <CreditCard size={28} />
                         </div>
                         <div>
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold mb-2">Current plan</p>
-                            <h3 className="text-2xl font-sans font-bold text-stone-900">Virtuoso membership</h3>
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold mb-2">{t('profile.current_plan')}</p>
+                            <h3 className="text-2xl font-sans font-bold text-stone-900">{t('profile.virtuoso_membership')}</h3>
                             <p className="text-stone-700 text-xs font-semibold mt-2">$29.99 / month</p>
                         </div>
                         <button className="w-full py-5 bg-stone-900 text-[#DCDDD4] text-base font-bold hover:bg-stone-800 transition-colors rounded-full">
-                            Manage subscription
+                            {t('profile.manage_subscription')}
                         </button>
                     </div>
 
                     <div className="bg-white/60 p-6 rounded-[16px] text-center border border-stone-200/80 shadow-xs">
-                        <p className="text-xs text-stone-700 font-semibold mb-4">Need assistance?</p>
-                        <button className="text-stone-900 text-sm font-bold hover:underline">Contact concierge</button>
+                        <p className="text-xs text-stone-700 font-semibold mb-4">{t('profile.need_assistance')}</p>
+                        <button className="text-stone-900 text-sm font-bold hover:underline">{t('profile.contact_concierge')}</button>
                     </div>
                 </div>
             </div>

@@ -61,7 +61,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
     ];
 
     const bottomItems = [
-        { label: t('navigation.settings'), href: '#' },
+        { label: t('navigation.settings'), href: '/platform/profile' },
         { label: t('navigation.feedback'), href: '#' },
         { label: t('navigation.support'), href: '#' },
         { label: t('navigation.logout'), onClick: handleSignOut, isBold: true },

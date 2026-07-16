@@ -6,7 +6,7 @@ import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { TreePine, Menu, User, Play, Pause, X } from 'lucide-react';
+import { TreePine, Menu, User, Play, Pause, X, Globe } from 'lucide-react';
 import Logo from '@/components/Logo';
 
 function PlatformLayoutInner({
@@ -89,8 +89,8 @@ function PlatformLayoutInner({
         if (storedQuote) {
             setActiveQuote(storedQuote);
         } else {
-            localStorage.setItem('songwriting-progress-quote', 'Remember, small actions makes progress');
-            setActiveQuote('Remember, small actions makes progress');
+            localStorage.setItem('songwriting-progress-quote', 'progress.proverbs.0');
+            setActiveQuote('progress.proverbs.0');
         }
     }, []);
 
@@ -424,7 +424,7 @@ function PlatformLayoutInner({
                             onClick={() => setShowTooltip(!showTooltip)}
                             className="flex items-center justify-between w-full bg-white border border-stone-200/40 px-6 py-3.5 rounded-[20px] select-none cursor-pointer transition-all active:scale-[0.99] shadow-2xs font-sans text-xs text-stone-500 font-medium normal-case"
                         >
-                            <span className="font-bold text-stone-700">Level {progressLevel}</span>
+                            <span className="font-bold text-stone-700">{t('progress.level_label')} {progressLevel}</span>
                             <div className="flex-1 ml-6 h-2.5 bg-stone-200/70 rounded-full overflow-hidden relative">
                                 <div 
                                     className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out" 
@@ -442,10 +442,10 @@ function PlatformLayoutInner({
                                 
                                 {/* Level header */}
                                 <div className="flex flex-col gap-0.5 text-center">
-                                    <span className="text-[10px] text-stone-400 font-sans uppercase tracking-widest font-bold">Your progress</span>
-                                    <span className="text-3xl font-serif italic text-stone-900 font-light">Level {progressLevel}</span>
+                                    <span className="text-[10px] text-stone-400 font-sans uppercase tracking-widest font-bold">{t('progress.title')}</span>
+                                    <span className="text-3xl font-serif italic text-stone-900 font-light">{t('progress.level_label')} {progressLevel}</span>
                                     {progressLevel === 1 && (
-                                        <span className="text-[10px] text-stone-400 font-sans mt-0.5">Complete all 3 goals to reach Level 2</span>
+                                        <span className="text-[10px] text-stone-400 font-sans mt-0.5">{t('progress.subtitle')}</span>
                                     )}
                                 </div>
 
@@ -457,49 +457,49 @@ function PlatformLayoutInner({
                                     {/* Create */}
                                     <div className="flex flex-col gap-1.5">
                                         <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
-                                            <span>Create</span>
+                                            <span>{t('progress.create')}</span>
                                             <span className={`normal-case font-medium text-[10px] ${wordsTyped >= L1_WORDS ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
-                                                {wordsTyped >= L1_WORDS ? '✓' : ''} {wordsTyped} words · {recordingMinutes} min rec
+                                                {wordsTyped >= L1_WORDS ? '✓' : ''} {wordsTyped} {t('progress.words')} · {recordingMinutes} {t('progress.min_rec')}
                                             </span>
                                         </div>
                                         <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
                                             <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((wordsTyped / L1_WORDS) * 100))}%` }} />
                                         </div>
-                                        <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_WORDS} words written</div>
+                                        <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">{t('progress.goal_prefix')} {L1_WORDS} {t('progress.words_written')}</div>
                                     </div>
 
                                     {/* Learn */}
                                     <div className="flex flex-col gap-1.5">
                                         <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
-                                            <span>Learn</span>
+                                            <span>{t('progress.learn')}</span>
                                             <span className={`normal-case font-medium text-[10px] ${completedLessonsCount >= L1_LESSONS ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
-                                                {completedLessonsCount >= L1_LESSONS ? '✓' : ''} {completedLessonsCount} chapters checked
+                                                {completedLessonsCount >= L1_LESSONS ? '✓' : ''} {completedLessonsCount} {t('progress.chapters_checked')}
                                             </span>
                                         </div>
                                         <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
                                             <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((completedLessonsCount / L1_LESSONS) * 100))}%` }} />
                                         </div>
-                                        <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_LESSONS} chapters learned</div>
+                                        <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">{t('progress.goal_prefix')} {L1_LESSONS} {t('progress.chapters_learned')}</div>
                                     </div>
 
                                     {/* Practice */}
                                     <div className="flex flex-col gap-1.5">
                                         <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
-                                            <span>Practice</span>
+                                            <span>{t('progress.practice')}</span>
                                             <span className={`normal-case font-medium text-[10px] ${practiceMinutes >= L1_PRACTICE ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
-                                                {practiceMinutes >= L1_PRACTICE ? '✓' : ''} {practiceMinutes} min practiced
+                                                {practiceMinutes >= L1_PRACTICE ? '✓' : ''} {practiceMinutes} {t('progress.min_practiced')}
                                             </span>
                                         </div>
                                         <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
                                             <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((practiceMinutes / L1_PRACTICE) * 100))}%` }} />
                                         </div>
-                                        <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_PRACTICE} min of practice</div>
+                                        <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">{t('progress.goal_prefix')} {L1_PRACTICE} {t('progress.min_of_practice')}</div>
                                     </div>
                                 </div>
 
                                 {/* Tagline */}
                                 <div className="text-[10px] text-stone-400 font-sans italic text-center pt-2.5 border-t border-stone-100 leading-normal">
-                                    &ldquo;{activeQuote}&rdquo;
+                                    &ldquo;{activeQuote.startsWith('progress.') ? t(activeQuote) : activeQuote}&rdquo;
                                 </div>
                             </div>
                         )}
@@ -519,7 +519,7 @@ function PlatformLayoutInner({
                                 onClick={() => setShowTooltip(!showTooltip)}
                                 className="flex items-center gap-3 bg-white hover:bg-stone-50 border border-stone-200/80 px-6 py-2.5 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-[11px] text-stone-650 font-bold uppercase tracking-wider"
                             >
-                                <span>Level {progressLevel}</span>
+                                <span>{t('progress.level_label')} {progressLevel}</span>
                                 <div className="w-24 h-3 bg-stone-200/70 rounded-full overflow-hidden relative">
                                     <div 
                                         className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out" 
@@ -537,10 +537,10 @@ function PlatformLayoutInner({
                                     
                                     {/* Level header */}
                                     <div className="flex flex-col gap-0.5 text-center">
-                                        <span className="text-[10px] text-stone-400 font-sans uppercase tracking-widest font-bold">Your progress</span>
-                                        <span className="text-3xl font-serif italic text-stone-900 font-light">Level {progressLevel}</span>
+                                        <span className="text-[10px] text-stone-400 font-sans uppercase tracking-widest font-bold">{t('progress.title')}</span>
+                                        <span className="text-3xl font-serif italic text-stone-900 font-light">{t('progress.level_label')} {progressLevel}</span>
                                         {progressLevel === 1 && (
-                                            <span className="text-[10px] text-stone-400 font-sans mt-0.5">Complete all 3 goals to reach Level 2</span>
+                                            <span className="text-[10px] text-stone-400 font-sans mt-0.5">{t('progress.subtitle')}</span>
                                         )}
                                     </div>
 
@@ -552,49 +552,49 @@ function PlatformLayoutInner({
                                         {/* Create */}
                                         <div className="flex flex-col gap-1.5">
                                             <div className="flex justify-between items-center text-[10px] font-sans text-[#787870] font-bold uppercase tracking-wider">
-                                                <span>Create</span>
+                                                <span>{t('progress.create')}</span>
                                                 <span className={`normal-case font-medium text-[10px] ${wordsTyped >= L1_WORDS ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
-                                                    {wordsTyped >= L1_WORDS ? '✓' : ''} {wordsTyped} words · {recordingMinutes} min rec
+                                                    {wordsTyped >= L1_WORDS ? '✓' : ''} {wordsTyped} {t('progress.words')} · {recordingMinutes} {t('progress.min_rec')}
                                                 </span>
                                             </div>
                                             <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
                                                 <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((wordsTyped / L1_WORDS) * 100))}%` }} />
                                             </div>
-                                            <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_WORDS} words written</div>
+                                            <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">{t('progress.goal_prefix')} {L1_WORDS} {t('progress.words_written')}</div>
                                         </div>
 
                                         {/* Learn */}
                                         <div className="flex flex-col gap-1.5">
                                             <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
-                                                <span>Learn</span>
+                                                <span>{t('progress.learn')}</span>
                                                 <span className={`normal-case font-medium text-[10px] ${completedLessonsCount >= L1_LESSONS ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
-                                                    {completedLessonsCount >= L1_LESSONS ? '✓' : ''} {completedLessonsCount} chapters checked
+                                                    {completedLessonsCount >= L1_LESSONS ? '✓' : ''} {completedLessonsCount} {t('progress.chapters_checked')}
                                                 </span>
                                             </div>
                                             <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
                                                 <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((completedLessonsCount / L1_LESSONS) * 100))}%` }} />
                                             </div>
-                                            <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_LESSONS} chapters learned</div>
+                                            <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">{t('progress.goal_prefix')} {L1_LESSONS} {t('progress.chapters_learned')}</div>
                                         </div>
 
                                         {/* Practice */}
                                         <div className="flex flex-col gap-1.5">
                                             <div className="flex justify-between items-center text-[10px] font-sans text-stone-650 font-bold uppercase tracking-wider">
-                                                <span>Practice</span>
+                                                <span>{t('progress.practice')}</span>
                                                 <span className={`normal-case font-medium text-[10px] ${practiceMinutes >= L1_PRACTICE ? 'text-[#86BE7F]' : 'text-stone-400'}`}>
-                                                    {practiceMinutes >= L1_PRACTICE ? '✓' : ''} {practiceMinutes} min practiced
+                                                    {practiceMinutes >= L1_PRACTICE ? '✓' : ''} {practiceMinutes} {t('progress.min_practiced')}
                                                 </span>
                                             </div>
                                             <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
                                                 <div className="h-full bg-[#86BE7F] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((practiceMinutes / L1_PRACTICE) * 100))}%` }} />
                                             </div>
-                                            <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">Goal: {L1_PRACTICE} min of practice</div>
+                                            <div className="text-[9px] text-stone-400 font-sans pl-1 font-medium">{t('progress.goal_prefix')} {L1_PRACTICE} {t('progress.min_of_practice')}</div>
                                         </div>
                                     </div>
 
                                     {/* Tagline */}
                                     <div className="text-[10px] text-stone-400 font-sans italic text-center pt-2.5 border-t border-stone-100 leading-normal">
-                                        &ldquo;{activeQuote}&rdquo;
+                                        &ldquo;{activeQuote.startsWith('progress.') ? t(activeQuote) : activeQuote}&rdquo;
                                     </div>
                                 </div>
                             )}
@@ -709,20 +709,47 @@ const LanguageSwitcher = () => {
     }, []);
 
     const languages = [
-        { code: 'en', label: 'EN', flag: '🇺🇸' },
-        { code: 'sv', label: 'SV', flag: '🇸🇪' },
-        { code: 'no', label: 'NO', flag: '🇳🇴' }
+        { code: 'en', label: 'EN' },
+        { code: 'no', label: 'NO' },
+        { code: 'sv', label: 'SV' }
     ];
 
     const currentLang = languages.find(l => l.code === language) || languages[0];
+
+    const renderFlagIcon = (code: string, isSelected: boolean) => {
+        if (code === 'en') {
+            return <Globe className={`w-4 h-4 shrink-0 transition-colors ${isSelected ? 'text-stone-900' : 'text-stone-400'}`} />;
+        }
+        if (code === 'sv') {
+            return (
+                <svg viewBox="0 0 24 24" className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-stone-200/20 shadow-xs">
+                    <rect width="24" height="24" fill="#006aa7" />
+                    <rect x="7.5" width="4" height="24" fill="#fecc00" />
+                    <rect y="10" width="24" height="4" fill="#fecc00" />
+                </svg>
+            );
+        }
+        if (code === 'no') {
+            return (
+                <svg viewBox="0 0 24 24" className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-stone-200/20 shadow-xs">
+                    <rect width="24" height="24" fill="#ba0c2f" />
+                    <rect x="7" width="5" height="24" fill="#ffffff" />
+                    <rect y="10" width="24" height="5" fill="#ffffff" />
+                    <rect x="8.5" width="2" height="24" fill="#00205b" />
+                    <rect y="11.5" width="24" height="2" fill="#00205b" />
+                </svg>
+            );
+        }
+        return null;
+    };
 
     return (
         <div className="relative font-sans text-xs tracking-wider" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-stone-50 border border-stone-200/80 text-stone-600 hover:text-stone-900 transition-all font-semibold uppercase select-none cursor-pointer active:scale-95"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white hover:bg-stone-50 border border-stone-200/80 text-stone-600 hover:text-stone-900 transition-all font-semibold uppercase select-none cursor-pointer active:scale-95 shadow-2xs"
             >
-                <span>{currentLang.flag}</span>
+                {renderFlagIcon(currentLang.code, true)}
                 <span>{currentLang.label}</span>
             </button>
             
@@ -735,11 +762,11 @@ const LanguageSwitcher = () => {
                                 setLanguage(lang.code as any);
                                 setIsOpen(false);
                             }}
-                            className={`flex items-center gap-2 px-3 py-2 w-full text-left hover:bg-stone-50 transition-colors cursor-pointer text-stone-650 hover:text-stone-900 ${
-                                language === lang.code ? 'font-bold bg-stone-50/50 text-stone-900' : 'font-medium'
+                            className={`flex items-center gap-2.5 px-3.5 py-2.5 w-full text-left hover:bg-stone-50 transition-colors cursor-pointer text-stone-650 hover:text-stone-900 ${
+                                language === lang.code ? 'font-bold bg-stone-100 text-stone-900' : 'font-medium'
                             }`}
                         >
-                            <span>{lang.flag}</span>
+                            {renderFlagIcon(lang.code, language === lang.code)}
                             <span>{lang.label}</span>
                         </button>
                     ))}

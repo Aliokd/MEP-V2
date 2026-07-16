@@ -56,10 +56,13 @@ import {
     RefreshCw,
     Upload,
     ArrowRight,
+    ArrowDown,
     Undo2,
     Redo2,
     Guitar,
-    X
+    X,
+    Info,
+    Headphones
 } from 'lucide-react';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -615,6 +618,8 @@ function PhraseRow({
             textareaRef.current.style.height = 'auto';
             textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
             
+            textareaRef.current.focus();
+
             if (typeof selectionOffset === 'number') {
                 textareaRef.current.setSelectionRange(selectionOffset, selectionOffset);
             } else {
@@ -2265,8 +2270,10 @@ export default function CreatePage() {
     const [collaboratorProfiles, setCollaboratorProfiles] = useState<{[uid: string]: { name: string; email: string }}>({});
     const [activeRemoteUsers, setActiveRemoteUsers] = useState<{[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null }}>({});
     const [showShareModal, setShowShareModal] = useState(false);
+    const [pendingInvites, setPendingInvites] = useState<any[]>([]);
     const [previewInviteId, setPreviewInviteId] = useState<string | null>(null);
-    const isCanvasPreview = previewInviteId !== null;
+    const currentPendingInvite = pendingInvites.find(inv => inv.projectId === selectedNoteId);
+    const isCanvasPreview = previewInviteId !== null || currentPendingInvite !== undefined;
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteStatus, setInviteStatus] = useState<{ type: 'success' | 'error' | ''; message: string }>({ type: '', message: '' });
     const [isInviting, setIsInviting] = useState(false);
@@ -2455,6 +2462,20 @@ export default function CreatePage() {
     const [studioState, setStudioState] = useState<'idle' | 'playing' | 'recording' | 'paused'>('idle');
     const [activeRecordingTrackId, setActiveRecordingTrackId] = useState<number>(1);
     const [expandedTrackId, setExpandedTrackId] = useState<number | null>(null);
+    const [isStudioInfoOpen, setIsStudioInfoOpen] = useState(false);
+    const [isStudioInfoExpanded, setIsStudioInfoExpanded] = useState(false);
+    const [showWiredHeadphonesBanner, setShowWiredHeadphonesBanner] = useState(false);
+    const [activeGuideTab, setActiveGuideTab] = useState<'overview' | 'controls' | 'workflow'>('overview');
+
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isStudioInfoOpen) {
+                setIsStudioInfoOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [isStudioInfoOpen]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -2783,6 +2804,19 @@ export default function CreatePage() {
     const [showToolsPanel, setShowToolsPanel] = useState(false);
     const [activeToolTab, setActiveToolTab] = useState<'tuner' | 'tempo' | 'inspiration' | 'studio'>('tuner');
 
+    useEffect(() => {
+        if (typeof window !== 'undefined' && activeToolTab === 'studio') {
+            const hasShown = localStorage.getItem('mep_studio_info_banner_shown');
+            if (!hasShown) {
+                const timer = setTimeout(() => {
+                    setShowWiredHeadphonesBanner(true);
+                    localStorage.setItem('mep_studio_info_banner_shown', 'true');
+                }, 5000);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [activeToolTab]);
+
     // Tuner States
     const [tunerActive, setTunerActive] = useState(false);
     const [tunerFreq, setTunerFreq] = useState<number | null>(null);
@@ -2824,6 +2858,10 @@ export default function CreatePage() {
     const [lexiconMode, setLexiconMode] = useState<'rhyme' | 'near' | 'synonym'>('rhyme');
     const [lexiconResults, setLexiconResults] = useState<any[]>([]);
     const [lexiconLoading, setLexiconLoading] = useState(false);
+
+    // Spellcheck States
+    const [spellCheckResult, setSpellCheckResult] = useState<{ correct: boolean; suggestions: string[] } | null>(null);
+    const [spellChecking, setSpellChecking] = useState(false);
 
     // Inspiration States
     const [currentStarter, setCurrentStarter] = useState('');
@@ -3048,6 +3086,8 @@ export default function CreatePage() {
     useEffect(() => {
         let unsubOwn: (() => void) | null = null;
         let unsubCollab: (() => void) | null = null;
+        let unsubInvites: (() => void) | null = null;
+        const activeInviteProjectListeners = new Map<string, () => void>();
 
         const init = async () => {
             if (user) {
@@ -3087,12 +3127,14 @@ export default function CreatePage() {
 
                     let ownNotes: SongNote[] = [];
                     let collabNotes: SongNote[] = [];
+                    let pendingInviteNotes: SongNote[] = [];
                     let initialLoadComplete = false;
 
                     const updateNotesState = async (forceFallback = false) => {
                         const mergedMap = new Map<string, SongNote>();
                         ownNotes.forEach(n => mergedMap.set(n.id, n));
                         collabNotes.forEach(n => mergedMap.set(n.id, n));
+                        pendingInviteNotes.forEach(n => mergedMap.set(n.id, n));
                         let merged = Array.from(mergedMap.values());
 
                         if (merged.length === 0 && forceFallback && !initialLoadComplete) {
@@ -3217,6 +3259,57 @@ export default function CreatePage() {
                         updateNotesState(true);
                     }, (err) => console.error("Error listening to collab projects:", err));
 
+                    const invitesQuery = query(
+                        collection(db, "invitations"),
+                        where("inviteeId", "==", user.uid),
+                        where("status", "==", "pending")
+                    );
+
+                    unsubInvites = onSnapshot(invitesQuery, (snap) => {
+                        const currentProjectIds = new Set<string>();
+                        snap.forEach(docSnap => {
+                            const data = docSnap.data();
+                            if (data.projectId) {
+                                currentProjectIds.add(data.projectId);
+                            }
+                        });
+
+                        // Clean up listeners for projects that are no longer in pending invites
+                        for (const [projId, unsubProj] of activeInviteProjectListeners.entries()) {
+                            if (!currentProjectIds.has(projId)) {
+                                unsubProj();
+                                activeInviteProjectListeners.delete(projId);
+                                pendingInviteNotes = pendingInviteNotes.filter(n => n.id !== projId);
+                            }
+                        }
+
+                        // Set up listeners for new project IDs
+                        currentProjectIds.forEach(projId => {
+                            if (!activeInviteProjectListeners.has(projId)) {
+                                const projRef = doc(db, "projects", projId);
+                                const unsubProj = onSnapshot(projRef, (projSnap) => {
+                                    if (projSnap.exists()) {
+                                        const noteObj = { id: projSnap.id, ...projSnap.data() } as SongNote;
+                                        const idx = pendingInviteNotes.findIndex(n => n.id === projId);
+                                        if (idx > -1) {
+                                            pendingInviteNotes[idx] = noteObj;
+                                        } else {
+                                            pendingInviteNotes.push(noteObj);
+                                        }
+                                    } else {
+                                        pendingInviteNotes = pendingInviteNotes.filter(n => n.id !== projId);
+                                    }
+                                    updateNotesState(true);
+                                }, (err) => {
+                                    console.error("Error listening to invite project:", projId, err);
+                                });
+                                activeInviteProjectListeners.set(projId, unsubProj);
+                            }
+                        });
+
+                        updateNotesState(true);
+                    }, (err) => console.error("Error listening to invitations in init:", err));
+
                 } catch (err) {
                     console.error("Error loading data from Firestore:", err);
                 }
@@ -3224,8 +3317,8 @@ export default function CreatePage() {
                 // Fallback to localStorage if not found/loaded from Firestore
                 const savedFolders = localStorage.getItem('veinote-create-folders');
                 const savedNotes = localStorage.getItem('veinote-create-notes');
-                let initialFolders = [];
-                let initialNotes = [];
+                let initialFolders: any[] = [];
+                let initialNotes: any[] = [];
 
                 if (savedFolders) {
                     initialFolders = JSON.parse(savedFolders);
@@ -3293,6 +3386,11 @@ export default function CreatePage() {
         return () => {
             if (unsubOwn) unsubOwn();
             if (unsubCollab) unsubCollab();
+            if (unsubInvites) unsubInvites();
+            for (const unsubProj of activeInviteProjectListeners.values()) {
+                unsubProj();
+            }
+            activeInviteProjectListeners.clear();
         };
     }, [user]);
 
@@ -3419,7 +3517,7 @@ export default function CreatePage() {
                                     hasContentChanges = true;
                                 }
                             }
-                            if (lp.lockedBy !== remotePhrases[i].lockedBy) {
+                            if ((lp as any).lockedBy !== remotePhrases[i].lockedBy) {
                                 hasLockChanges = true;
                             }
                         }
@@ -3526,7 +3624,7 @@ export default function CreatePage() {
         }, { merge: true }).catch(err => console.error("Error clearing presence:", err));
     };
 
-    const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+
 
     const [acceptedNotifications, setAcceptedNotifications] = useState<any[]>([]);
 
@@ -3596,10 +3694,11 @@ export default function CreatePage() {
     // Hook to claim pending email invitations on login/signup
     useEffect(() => {
         if (!user || !user.email) return;
+        const email = user.email;
 
         const claimInvites = async () => {
             try {
-                const userEmail = user.email.toLowerCase().trim();
+                const userEmail = email.toLowerCase().trim();
                 const q = query(
                     collection(db, "invitations"),
                     where("inviteeEmail", "==", userEmail),
@@ -4108,8 +4207,13 @@ export default function CreatePage() {
 
         if (!selectedNoteId) {
             const initialPhrases = syncPhrasesWithContent(currentVal, []);
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            const defaultTitle = `${t('creative.project')} - ${dateStr} ${timeStr}`;
             const newNote: SongNote = {
                 id: `n-${Date.now()}`,
+                title: defaultTitle,
                 content: currentVal,
                 folderId: activeFolderIdFilter,
                 updatedAt: new Date().toLocaleString(),
@@ -4123,8 +4227,13 @@ export default function CreatePage() {
             }
             setIsEditing(true);
         } else {
+            const active = notes.find(n => n.id === selectedNoteId);
+            const activePhrases = active?.phrases || [];
+            const updatedPhrases = syncPhrasesWithContent(currentVal, activePhrases);
+            
             handleUpdateNote(selectedNoteId, { 
-                content: currentVal
+                content: currentVal,
+                phrases: updatedPhrases
             });
         }
     };
@@ -4489,14 +4598,38 @@ export default function CreatePage() {
         searchRhymeLexicon(lexiconWord, lexiconMode);
     };
 
+    const runSpellCheck = async (word: string) => {
+        if (!word.trim()) {
+            setSpellCheckResult(null);
+            return;
+        }
+        setSpellChecking(true);
+        try {
+            const response = await fetch(`/api/spellcheck?word=${encodeURIComponent(word.trim())}&lang=${language}`);
+            if (response.ok) {
+                const data = await response.json();
+                setSpellCheckResult(data);
+            } else {
+                setSpellCheckResult(null);
+            }
+        } catch (err) {
+            console.error("Spellcheck API error:", err);
+            setSpellCheckResult(null);
+        } finally {
+            setSpellChecking(false);
+        }
+    };
+
     useEffect(() => {
         if (clickedWord) {
             const clean = clickedWord.toLowerCase().replace(/[^a-zåäöæø]/g, '');
             setLexiconWord(clean);
             searchRhymeLexicon(clean, lexiconMode);
+            runSpellCheck(clean);
         } else {
             setLexiconWord('');
             setLexiconResults([]);
+            setSpellCheckResult(null);
         }
     }, [clickedWord, language]);
 
@@ -6692,6 +6825,7 @@ export default function CreatePage() {
             setIsEditing(true);
         } else {
             const active = notes.find(n => n.id === selectedNoteId);
+            const wasBlank = !active || active.content.trim() === '';
             const activePhrases = active?.phrases || [];
             const updatedPhrases = syncPhrasesWithContent(val, activePhrases);
             
@@ -6700,6 +6834,10 @@ export default function CreatePage() {
                 phrases: updatedPhrases
             });
             setIsEditing(true);
+
+            if (wasBlank && updatedPhrases[0]) {
+                setEditingPhraseId(updatedPhrases[0].id);
+            }
         }
     };
 
@@ -7525,6 +7663,56 @@ export default function CreatePage() {
         setPopoverPosition(null);
     };
 
+    const handleSelectCorrection = (suggestion: string) => {
+        if (selectedNoteId && clickedTokenIndex !== null && activeNote) {
+            const wordsList = activeNote.content.split(/(\s+)/);
+            const originalToken = wordsList[clickedTokenIndex];
+            
+            // Swap out alphabetical portion, keeping surrounding punctuation
+            const match = originalToken.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/);
+            if (match) {
+                const pre = match[1];
+                const post = match[3];
+                wordsList[clickedTokenIndex] = pre + suggestion + post;
+            } else {
+                wordsList[clickedTokenIndex] = suggestion;
+            }
+
+            const newContent = wordsList.join('');
+            
+            const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
+                ? activeNote.phrases
+                : syncPhrasesWithContent(activeNote.content);
+
+            let tempIndex = 0;
+            const updatedPhrases = currentPhrases.map(phrase => {
+                while (tempIndex < wordsList.length && /^\s+$/.test(wordsList[tempIndex])) {
+                    tempIndex++;
+                }
+                const phraseTokens = phrase.text.split(/(\s+)/);
+                const startIdx = tempIndex;
+                const endIdx = tempIndex + phraseTokens.length;
+                tempIndex += phraseTokens.length;
+
+                if (clickedTokenIndex >= startIdx && clickedTokenIndex < endIdx) {
+                    const newPhraseText = wordsList.slice(startIdx, endIdx).join('');
+                    return { ...phrase, text: newPhraseText };
+                }
+                return phrase;
+            });
+
+            handleUpdateNote(selectedNoteId, {
+                phrases: updatedPhrases,
+                content: newContent,
+                title: activeNote.title || 'Untitled Note',
+                forceHistoryPush: true
+            });
+            
+            // Stay open, set active query to corrected word
+            setClickedWord(suggestion);
+        }
+    };
+
     const handleEditorCardClick = () => {
         if (!selectedNoteId) {
             handleCreateNote(activeFolderIdFilter);
@@ -7822,7 +8010,7 @@ export default function CreatePage() {
                     sampleRate: 48000,
                     channelCount: 1,
                     latency: { ideal: 0.005 }
-                }
+                } as any
             };
             let stream: MediaStream;
             try {
@@ -8766,8 +8954,25 @@ export default function CreatePage() {
 
         return (
             <div className="w-full text-left relative pointer-events-auto">
-                {/* Main Studio Sequencer Area */}
-                <div className="w-full flex flex-col gap-6 select-none animate-in fade-in zoom-in-95 duration-250 relative">
+                {/* Studio Header containing Title & Info Button */}
+                <div className="flex items-center justify-between w-full mb-6 sm:mb-8 px-1">
+                    <h3 className="font-sans font-medium text-stone-500 text-[22px] sm:text-[26px] tracking-tight">
+                        {t('canvas.create_song') || 'Create song'}
+                    </h3>
+                    
+                    <button
+                        onClick={() => setShowWiredHeadphonesBanner(true)}
+                        className="w-9 h-9 rounded-full bg-stone-50 hover:bg-stone-100 border border-stone-200/80 shadow-xs flex items-center justify-center text-stone-400 hover:text-stone-600 transition-all active:scale-95 cursor-pointer"
+                        title={t('studio_guide.title') || 'Studio Guide'}
+                        type="button"
+                    >
+                        <Info size={18} className="stroke-[2.2]" />
+                    </button>
+                </div>
+
+                <div className="contents">
+                    {/* Main Studio Sequencer Area */}
+                        <div className="w-full flex flex-col gap-6 select-none animate-in fade-in zoom-in-95 duration-250 relative">
                     {/* Unified Sequencer Panel Grid Area */}
                     <div className="flex flex-col w-full relative gap-1.5">
                     {/* Headers Row */}
@@ -9405,7 +9610,7 @@ export default function CreatePage() {
                     {/* Level 2: Center-aligned Principal Action Buttons */}
                     <div className="flex flex-col lg:flex-row items-center justify-between w-full px-4 pb-1 gap-4 lg:gap-2 relative">
                         {/* Far Left: Show Lyrics button */}
-                        <div className="w-full lg:w-1/3 flex justify-center lg:justify-start z-10">
+                        <div className="w-full lg:w-1/3 flex justify-center lg:justify-start items-center gap-2.5 z-10">
                             <button
                                 onClick={() => setShowStudioLyrics(!showStudioLyrics)}
                                 className={`px-5 py-2.5 sm:px-8 sm:py-3.5 border rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center justify-center ${
@@ -9546,11 +9751,227 @@ export default function CreatePage() {
                         
                         {/* Right options menu gap: w-8 or w-[70px] */}
                         <div className={`shrink-0 transition-all duration-300 ${
-                            (studioState === 'playing' || studioState === 'recording') ? 'w-[70px]' : 'w-8'
+                            (studioState === 'playing' || (studioState as string) === 'recording') ? 'w-[70px]' : 'w-8'
                         }`} />
                     </div>
                 )}
-            </div>
+                    </div>
+                </div>
+
+                {showWiredHeadphonesBanner && createPortal(
+                    <div 
+                        className="fixed inset-0 bg-stone-900/40 backdrop-blur-md z-[100] flex items-start md:items-center justify-center p-4 sm:p-6 md:p-10 animate-in fade-in duration-200 overflow-y-auto no-scrollbar pt-24 pb-12 md:py-10"
+                        onClick={() => setShowWiredHeadphonesBanner(false)}
+                    >
+                        <div 
+                            className="bg-[#DCDDD4] rounded-[32px] border border-stone-300/20 shadow-[0_25px_60px_rgba(0,0,0,0.18)] max-w-[1000px] w-full p-5 sm:p-6 md:p-8 lg:p-10 flex flex-col gap-4 md:gap-6 animate-in zoom-in-95 duration-200 relative max-h-[88vh] overflow-visible text-left text-stone-850 select-text mt-6 sm:mt-10 md:mt-14 lg:mt-16"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Close button X */}
+                            <button
+                                onClick={() => setShowWiredHeadphonesBanner(false)}
+                                className="absolute top-6 right-6 text-stone-600 hover:text-stone-900 p-2 rounded-full hover:bg-stone-50/20 transition-all cursor-pointer z-30"
+                                type="button"
+                            >
+                                <X size={20} className="stroke-[2.5]" />
+                            </button>
+
+                            {/* Top Section */}
+                            <div className="flex flex-col items-center justify-center gap-4 border-b border-stone-300/30 pb-5 flex-shrink-0 relative w-full">
+                                {/* Visual Image */}
+                                <div className="w-full flex justify-center relative">
+                                    <img 
+                                        src="/assets/studio_wired_headphones.png" 
+                                        alt="Studio Wired Headphones" 
+                                        className="w-full max-w-[700px] sm:max-w-[780px] lg:max-w-[840px] h-auto object-contain animate-in fade-in duration-300 -mt-10 sm:-mt-14 md:-mt-18 lg:-mt-22 select-none pointer-events-none relative z-20"
+                                    />
+                                </div>
+                                {/* Warning Alert Banner */}
+                                <div className="w-full max-w-[700px] flex items-center justify-center gap-3 bg-white/40 backdrop-blur-sm px-6 py-4 rounded-[20px] border border-white/20 shadow-sm mt-2">
+                                    <div className="w-6 h-6 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 shadow-sm">
+                                        <Check size={14} className="stroke-[3]" />
+                                    </div>
+                                    <p className="text-[16px] sm:text-[17px] font-sans font-medium text-stone-800 leading-relaxed text-center">
+                                        {t('studio_banner.warning_text')}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Middle Section: Columns */}
+                            <div className="flex-grow overflow-y-auto no-scrollbar pr-2 max-h-[32vh] sm:max-h-[38vh] lg:max-h-[44vh] pb-4">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 text-left">
+                                    {/* Left Column: Before You Record */}
+                                    <div className="flex flex-col gap-6">
+                                        <div className="flex flex-col gap-2">
+                                            <h4 className="text-[18px] font-sans font-bold text-stone-850">
+                                                {t('studio_banner.before_you_record')}
+                                            </h4>
+                                            <p className="text-[14px] text-stone-600 font-normal leading-relaxed">
+                                                {t('studio_banner.before_you_record_sub')}
+                                            </p>
+                                        </div>
+                                        
+                                        <ul className="flex flex-col gap-5">
+                                            {/* Item 1 */}
+                                            <li className="flex items-start gap-3">
+                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={11} className="stroke-[3]" />
+                                                </div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                        {t('studio_banner.tip_headphones_title')}
+                                                    </span>
+                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                        {t('studio_banner.tip_headphones_desc')}
+                                                    </span>
+                                                </div>
+                                            </li>
+                                            
+                                            {/* Item 2 */}
+                                            <li className="flex items-start gap-3">
+                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={11} className="stroke-[3]" />
+                                                </div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                        {t('studio_banner.tip_wired_title')}
+                                                    </span>
+                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                        {t('studio_banner.tip_wired_desc')}
+                                                    </span>
+                                                </div>
+                                            </li>
+
+                                            {/* Item 3 */}
+                                            <li className="flex items-start gap-3">
+                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={11} className="stroke-[3]" />
+                                                </div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                        {t('studio_banner.tip_mic_title')}
+                                                    </span>
+                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                        {t('studio_banner.tip_mic_desc')}
+                                                    </span>
+                                                </div>
+                                            </li>
+
+                                            {/* Item 4 */}
+                                            <li className="flex items-start gap-3">
+                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={11} className="stroke-[3]" />
+                                                </div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                        {t('studio_banner.tip_quiet_title')}
+                                                    </span>
+                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                        {t('studio_banner.tip_quiet_desc')}
+                                                    </span>
+                                                </div>
+                                            </li>
+
+                                            {/* Item 5 */}
+                                            <li className="flex items-start gap-3">
+                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={11} className="stroke-[3]" />
+                                                </div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                        {t('studio_banner.tip_pos_title')}
+                                                    </span>
+                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                        {t('studio_banner.tip_pos_desc')}
+                                                    </span>
+                                                </div>
+                                            </li>
+
+                                            {/* Item 6 */}
+                                            <li className="flex items-start gap-3">
+                                                <div className="w-5 h-5 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                    <Check size={11} className="stroke-[3]" />
+                                                </div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-[14px] font-sans font-bold text-stone-850">
+                                                        {t('studio_banner.tip_apps_title')}
+                                                    </span>
+                                                    <span className="text-[13.5px] text-stone-600 font-normal leading-relaxed">
+                                                        {t('studio_banner.tip_apps_desc')}
+                                                    </span>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    {/* Right Column: Recommended Setup & About Bluetooth */}
+                                    <div className="flex flex-col gap-8 lg:border-l lg:border-stone-300/30 lg:pl-10">
+                                        {/* Recommended Setup */}
+                                        <div className="flex flex-col gap-4">
+                                            <div className="flex flex-col gap-2">
+                                                <h4 className="text-[18px] font-sans font-bold text-stone-850">
+                                                    {t('studio_banner.recommended_setup')}
+                                                </h4>
+                                                <p className="text-[14px] text-stone-600 font-normal leading-relaxed">
+                                                    {t('studio_banner.recommended_setup_sub')}
+                                                </p>
+                                            </div>
+
+                                            <ul className="pl-1 text-[14px] text-stone-700 font-normal leading-relaxed flex flex-col gap-2">
+                                                <li className="flex items-center gap-2">
+                                                    <span className="text-stone-400 text-[12px]">●</span>
+                                                    <span>{t('studio_banner.rec_item_device')}</span>
+                                                </li>
+                                                <li className="flex items-center gap-2">
+                                                    <span className="text-stone-400 text-[12px]">●</span>
+                                                    <span>{t('studio_banner.rec_item_headphones')}</span>
+                                                </li>
+                                                <li className="flex items-center gap-2">
+                                                    <span className="text-stone-400 text-[12px]">●</span>
+                                                    <span>{t('studio_banner.rec_item_mic')}</span>
+                                                </li>
+                                                <li className="flex items-center gap-2">
+                                                    <span className="text-stone-400 text-[12px]">●</span>
+                                                    <span>{t('studio_banner.rec_item_room')}</span>
+                                                </li>
+                                                <li className="flex items-center gap-2">
+                                                    <span className="text-stone-400 text-[12px]">●</span>
+                                                    <span>{t('studio_banner.rec_item_internet')}</span>
+                                                </li>
+                                            </ul>
+
+                                            <p className="text-[14px] text-stone-600 font-normal leading-relaxed">
+                                                {t('studio_banner.higher_quality_note')}
+                                            </p>
+                                        </div>
+
+                                        {/* About Bluetooth */}
+                                        <div className="flex flex-col gap-2.5">
+                                            <h4 className="text-[18px] font-sans font-bold text-stone-850">
+                                                {t('studio_banner.about_bluetooth')}
+                                            </h4>
+                                            <p className="text-[14px] text-stone-600 font-normal leading-relaxed">
+                                                {t('studio_banner.about_bluetooth_desc')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Button Row */}
+                            <div className="w-full flex justify-end mt-4 pt-4 border-t border-stone-300/30 flex-shrink-0 shadow-[0_-12px_24px_-10px_rgba(0,0,0,0.08)]">
+                                <button
+                                    onClick={() => setShowWiredHeadphonesBanner(false)}
+                                    className="bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-sans font-semibold text-[15px] px-10 py-3 rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-md hover:shadow-lg shadow-[#87b884]/20"
+                                    type="button"
+                                >
+                                    {t('studio_banner.got_it')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 };
@@ -10091,7 +10512,7 @@ export default function CreatePage() {
         const activeCardForAnswers = expandedCard || activeCard;
         const cardAnswers = (inspirationAnswers[noteKey] || {})[activeCardForAnswers.id] || ['', '', '', '', ''];
 
-        const cardTransition = { type: 'tween', ease: [0.16, 1, 0.3, 1], duration: 0.3 };
+        const cardTransition: any = { type: 'tween', ease: [0.16, 1, 0.3, 1], duration: 0.3 };
 
         const handlePrevCard = () => {
             inspirationSwiperRef.current?.slidePrev();
@@ -12207,6 +12628,33 @@ export default function CreatePage() {
                                 </div>
                             </div>
                             
+                            {/* Do you mean / Spell check suggestion banner */}
+                            {spellChecking ? (
+                                <div className="flex items-center gap-2 py-1 select-none animate-pulse">
+                                    <div className="w-4 h-4 rounded-full border-2 border-stone-300 border-t-stone-600 animate-spin" />
+                                    <span className="text-[12.5px] text-stone-400 font-medium">Checking spelling...</span>
+                                </div>
+                            ) : spellCheckResult && !spellCheckResult.correct && spellCheckResult.suggestions.length > 0 && (
+                                <div className="bg-stone-100/80 rounded-[20px] p-5 flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-4 duration-200">
+                                    <span className="text-[13px] font-medium text-stone-500 select-none">Do you mean...</span>
+                                    <div className="flex flex-wrap gap-2">
+                                        {spellCheckResult.suggestions.map((suggestion, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleSelectCorrection(suggestion);
+                                                }}
+                                                className="px-5 py-2 bg-white hover:bg-emerald-600 text-stone-700 hover:text-white border border-stone-200/50 rounded-[14px] text-[14px] font-medium transition-all cursor-pointer shadow-xs active:scale-95 animate-in zoom-in-95 duration-150"
+                                                type="button"
+                                            >
+                                                {suggestion}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="border-t border-stone-100/80 my-1" />
                             
                             {/* 2-way segment selector for Rhyme Lexicon vs Synonyms */}
@@ -12915,6 +13363,106 @@ export default function CreatePage() {
                                 className="w-full py-3 bg-stone-100 hover:bg-stone-200/70 text-stone-600 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95 text-center"
                             >
                                 {t('common.cancel')}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Studio Guide Info Modal */}
+            {isStudioInfoOpen && createPortal(
+                <div 
+                    className="fixed inset-0 bg-stone-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" 
+                    onClick={() => setIsStudioInfoOpen(false)}
+                >
+                    <div 
+                        className="bg-white rounded-[28px] border border-stone-200/80 shadow-[0_25px_60px_rgba(0,0,0,0.15)] max-w-[480px] w-full p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative max-h-[90vh] overflow-y-auto no-scrollbar text-left"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Close button X */}
+                        <button
+                            onClick={() => setIsStudioInfoOpen(false)}
+                            className="absolute top-6 right-6 text-stone-400 hover:text-stone-600 p-1.5 rounded-full hover:bg-stone-50 transition-all cursor-pointer"
+                            type="button"
+                        >
+                            <X size={18} className="stroke-[2.5]" />
+                        </button>
+
+                        <div className="flex items-center gap-3 border-b border-stone-100 pb-4 pr-8">
+                            <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 shrink-0">
+                                <Info size={18} className="stroke-[2.2]" />
+                            </div>
+                            <h3 className="text-[22px] font-sans font-medium text-stone-850 tracking-tight">
+                                {t('studio_guide.title') || 'Studio Guide'}
+                            </h3>
+                        </div>
+
+                        {/* Modal Scrollable Content */}
+                        <div className="flex flex-col gap-6">
+                            {/* Environment Section */}
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-center gap-2 text-stone-800 font-bold text-[13px] tracking-wider uppercase">
+                                    <Compass size={16} className="text-stone-500 stroke-[2.2]" />
+                                    <span>{t('studio_guide.environment_title') || 'ENVIRONMENT'}</span>
+                                </div>
+                                <ul className="pl-1 text-[14px] text-stone-600 font-normal leading-relaxed flex flex-col gap-2">
+                                    <li className="flex items-start gap-2.5">
+                                        <span className="text-stone-400 mt-2 text-[5px] shrink-0">●</span>
+                                        <span>{t('studio_guide.env_tip_1')}</span>
+                                    </li>
+                                    <li className="flex items-start gap-2.5">
+                                        <span className="text-stone-400 mt-2 text-[5px] shrink-0">●</span>
+                                        <span>{t('studio_guide.env_tip_2')}</span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* Technique Section */}
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-center gap-2 text-stone-800 font-bold text-[13px] tracking-wider uppercase">
+                                    <Mic size={16} className="text-stone-500 stroke-[2.2]" />
+                                    <span>{t('studio_guide.technique_title') || 'TECHNIQUE'}</span>
+                                </div>
+                                <ul className="pl-1 text-[14px] text-stone-600 font-normal leading-relaxed flex flex-col gap-2">
+                                    <li className="flex items-start gap-2.5">
+                                        <span className="text-stone-400 mt-2 text-[5px] shrink-0">●</span>
+                                        <span>{t('studio_guide.tech_tip_1')}</span>
+                                    </li>
+                                    <li className="flex items-start gap-2.5">
+                                        <span className="text-stone-400 mt-2 text-[5px] shrink-0">●</span>
+                                        <span>{t('studio_guide.tech_tip_2')}</span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* Equipment Section */}
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-center gap-2 text-stone-800 font-bold text-[13px] tracking-wider uppercase">
+                                    <Sparkles size={16} className="text-stone-500 stroke-[2.2]" />
+                                    <span>{t('studio_guide.equipment_title') || 'EQUIPMENT'}</span>
+                                </div>
+                                <ul className="pl-1 text-[14px] text-stone-600 font-normal leading-relaxed flex flex-col gap-2">
+                                    <li className="flex items-start gap-2.5">
+                                        <span className="text-stone-400 mt-2 text-[5px] shrink-0">●</span>
+                                        <span>{t('studio_guide.equip_tip_1')}</span>
+                                    </li>
+                                    <li className="flex items-start gap-2.5">
+                                        <span className="text-stone-400 mt-2 text-[5px] shrink-0">●</span>
+                                        <span>{t('studio_guide.equip_tip_2')}</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        {/* Close Button */}
+                        <div className="mt-2">
+                            <button
+                                onClick={() => setIsStudioInfoOpen(false)}
+                                className="w-full py-3.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white rounded-full text-[15px] font-sans font-semibold transition-all cursor-pointer outline-none active:scale-[0.98] text-center shadow-xs"
+                                type="button"
+                            >
+                                {t('studio_guide.close') || 'Close'}
                             </button>
                         </div>
                     </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Check, ArrowLeft } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
 import { Song, Word, LyricSection } from '../data/songs';
 import SongCard from './SongCard';
 
@@ -14,6 +15,7 @@ interface LyricsPlayerProps {
 }
 
 export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay, onBack }: LyricsPlayerProps) {
+    const { t } = useLanguage();
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -268,8 +270,8 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
     if (loadError) {
         return (
             <div className="w-full h-[250px] flex flex-col items-center justify-center border border-red-100 rounded-[24px] bg-red-50/10 px-6">
-                <p className="text-red-700 font-sans font-semibold text-lg mb-2">Audio stream unavailable</p>
-                <p className="text-stone-500 text-xs mb-6 text-center">Make sure the audio stream is running on localhost.</p>
+                <p className="text-red-700 font-sans font-semibold text-lg mb-2">{t('practice.audio_unavailable')}</p>
+                <p className="text-stone-500 text-xs mb-6 text-center">{t('practice.localhost_warning')}</p>
                 <button
                     onClick={() => window.location.reload()}
                     className="px-6 py-2.5 bg-stone-900 text-[#FAF9F5] hover:opacity-90 rounded-full text-xs uppercase tracking-widest transition-colors font-semibold shadow-sm"
@@ -284,7 +286,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
         return (
             <div className="w-full h-[250px] flex flex-col items-center justify-center border border-stone-200/50 rounded-[24px] bg-white/30">
                 <div className="w-8 h-8 border-t-2 border-stone-900 rounded-full animate-spin mb-3" />
-                <p className="text-stone-500 font-sans text-xs tracking-wider uppercase font-medium">Tuning the frequency...</p>
+                <p className="text-stone-500 font-sans text-xs tracking-wider uppercase font-medium">{t('practice.tuning')}</p>
             </div>
         );
     }
@@ -414,7 +416,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
 
                             {isIncorrect && (
                                 <div className="absolute -top-3.5 left-6 bg-white border border-[#F59E0B] rounded-[4px] px-3.5 py-0.5 text-xs text-[#D97706] font-serif italic shadow-2xs flex items-center gap-1.5 font-bold">
-                                    {label} <span className="text-[9px] font-sans font-bold uppercase tracking-wider ml-1">Try again</span>
+                                    {label} <span className="text-[9px] font-sans font-bold uppercase tracking-wider ml-1">{t('practice.try_again')}</span>
                                 </div>
                             )}
 

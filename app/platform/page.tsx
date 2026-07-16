@@ -68,18 +68,37 @@ export default function PlatformPage() {
         }
     }, [data]);
 
+    const translateCurriculum = (title: string): string => {
+        if (!title) return title;
+        const normalizedKey = title
+            .toLowerCase()
+            .replace(/\bthe\s+/g, '') // remove "the " prefix
+            .replace(/[^a-z0-9_]/g, ' ')
+            .trim()
+            .replace(/\s+/g, '_');
+        const translationKey = `curriculum.${normalizedKey}`;
+        const translated = t(translationKey);
+        return translated === translationKey ? title : translated;
+    };
+
     const chapters = useMemo(() => {
         if (!data) return [];
 
-        const realChapters = data.movements.map(m => ({
-            id: m.id,
-            title: m.title,
-            lessons: data.lessonsList.filter(l =>
+        const realChapters = data.movements.map(m => {
+            const chapterLessons = data.lessonsList.filter(l =>
                 l.movement?.title === m.title ||
                 l.movement?.title === `The ${m.title}` ||
                 m.title === `The ${l.movement?.title}`
-            )
-        }));
+            );
+            return {
+                id: m.id,
+                title: translateCurriculum(m.title),
+                lessons: chapterLessons.map(l => ({
+                    ...l,
+                    title: translateCurriculum(l.title)
+                }))
+            };
+        });
 
         // Fill up to 10 chapters with placeholders
         const placeholderTitles = [
@@ -93,17 +112,17 @@ export default function PlatformPage() {
             const index = allChapters.length;
             allChapters.push({
                 id: `placeholder-${index}`,
-                title: placeholderTitles[index] || `Advanced Movement ${index + 1}`,
+                title: translateCurriculum(placeholderTitles[index] || `Advanced Movement ${index + 1}`),
                 lessons: [
-                    { id: `l-${index}-1`, title: "Introduction to Theory" },
-                    { id: `l-${index}-2`, title: "Technical Proficiency" },
-                    { id: `l-${index}-3`, title: "Emotional Expression" }
+                    { id: `l-${index}-1`, title: translateCurriculum("Introduction to Theory") },
+                    { id: `l-${index}-2`, title: translateCurriculum("Technical Proficiency") },
+                    { id: `l-${index}-3`, title: translateCurriculum("Emotional Expression") }
                 ] as any
             });
         }
 
         return allChapters;
-    }, [data]);
+    }, [data, t]);
 
     const currentChapter = useMemo(() => {
         return chapters.find(c => c.id === currentChapterId);
