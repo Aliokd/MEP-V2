@@ -3861,6 +3861,18 @@ export default function CreatePage() {
         )
     );
 
+    // Auto-focus the onboarding textarea when a blank project/note is selected or created
+    useEffect(() => {
+        if (selectedNoteId && isNoteBlank) {
+            const timer = setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.focus();
+                }
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [selectedNoteId, isNoteBlank]);
+
     // Preload inspiration card background images to prevent any rendering delay
     useEffect(() => {
         carouselCards.forEach(card => {
