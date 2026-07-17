@@ -9,7 +9,7 @@ if (typeof global !== 'undefined') {
 }
 
 // Use require for pdf-parse since it lacks a default ESM export
-const pdf = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 
 export async function POST(request: Request) {
   try {
@@ -24,7 +24,8 @@ export async function POST(request: Request) {
     let extractedText = '';
 
     if (fileName.endsWith('.pdf')) {
-      const data = await pdf(buffer);
+      const parser = new PDFParse({ data: buffer });
+      const data = await parser.getText();
       extractedText = data.text || '';
     } else if (fileName.endsWith('.docx')) {
       const result = await mammoth.extractRawText({ buffer });
