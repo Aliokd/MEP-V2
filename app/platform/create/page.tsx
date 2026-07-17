@@ -10018,166 +10018,169 @@ export default function CreatePage() {
                                 </div>
                             </div>
 
-                            {/* Middle Section: Columns (Smaller text font sizes with larger vertical height, pulled up to eliminate whitespace gap) */}
-                            <div className="flex-grow overflow-y-auto no-scrollbar pr-2 max-h-[52vh] sm:max-h-[62vh] lg:max-h-[68vh] pb-1.5 -mt-4 sm:-mt-5 md:-mt-6">
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 text-left">
-                                    {/* Left Column: Before You Record */}
-                                    <div className="flex flex-col gap-6">
-                                        <div className="flex flex-col gap-1.5">
-                                            <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-850 tracking-tight">
-                                                {t('studio_banner.before_you_record')}
-                                            </h4>
-                                            <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed">
-                                                {t('studio_banner.before_you_record_sub')}
-                                            </p>
-                                        </div>
-                                        
-                                        <ul className="flex flex-col gap-4">
-                                            {/* Item 1 */}
-                                            <li className="flex items-start gap-3">
-                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={9} className="stroke-[3.5]" />
-                                                </div>
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
-                                                        {t('studio_banner.tip_headphones_title')}
-                                                    </span>
-                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
-                                                        {t('studio_banner.tip_headphones_desc')}
-                                                    </span>
-                                                </div>
-                                            </li>
-                                            
-                                            {/* Item 2 */}
-                                            <li className="flex items-start gap-3">
-                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={9} className="stroke-[3.5]" />
-                                                </div>
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
-                                                        {t('studio_banner.tip_wired_title')}
-                                                    </span>
-                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
-                                                        {t('studio_banner.tip_wired_desc')}
-                                                    </span>
-                                                </div>
-                                            </li>
-
-                                            {/* Item 3 */}
-                                            <li className="flex items-start gap-3">
-                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={9} className="stroke-[3.5]" />
-                                                </div>
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
-                                                        {t('studio_banner.tip_mic_title')}
-                                                    </span>
-                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
-                                                        {t('studio_banner.tip_mic_desc')}
-                                                    </span>
-                                                </div>
-                                            </li>
-
-                                            {/* Item 4 */}
-                                            <li className="flex items-start gap-3">
-                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={9} className="stroke-[3.5]" />
-                                                </div>
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
-                                                        {t('studio_banner.tip_quiet_title')}
-                                                    </span>
-                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
-                                                        {t('studio_banner.tip_quiet_desc')}
-                                                    </span>
-                                                </div>
-                                            </li>
-
-                                            {/* Item 5 */}
-                                            <li className="flex items-start gap-3">
-                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={9} className="stroke-[3.5]" />
-                                                </div>
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
-                                                        {t('studio_banner.tip_pos_title')}
-                                                    </span>
-                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
-                                                        {t('studio_banner.tip_pos_desc')}
-                                                    </span>
-                                                </div>
-                                            </li>
-
-                                            {/* Item 6 */}
-                                            <li className="flex items-start gap-3">
-                                                <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                                                    <Check size={9} className="stroke-[3.5]" />
-                                                </div>
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[13px] font-sans font-bold text-stone-800">
-                                                        {t('studio_banner.tip_apps_title')}
-                                                    </span>
-                                                    <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
-                                                        {t('studio_banner.tip_apps_desc')}
-                                                    </span>
-                                                </div>
-                                            </li>
-                                        </ul>
-                                    </div>
-
-                                    {/* Right Column: Recommended Setup & About Bluetooth */}
-                                    {/* Right Column: Recommended Setup & About Bluetooth (Pushed down to align below enlarged visual) */}
-                                    <div className="flex flex-col gap-6 lg:border-l lg:border-stone-300/30 lg:pl-10 lg:pt-16">
-                                        {/* Recommended Setup */}
-                                        <div className="flex flex-col gap-3">
+                            {/* Middle Section: Columns (Wrapped in relative container with bottom fade overlay) */}
+                            <div className="relative w-full flex-grow flex flex-col min-h-0">
+                                <div className="flex-grow overflow-y-auto no-scrollbar pr-2 max-h-[52vh] sm:max-h-[62vh] lg:max-h-[68vh] pb-12 -mt-4 sm:-mt-5 md:-mt-6">
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 text-left">
+                                        {/* Left Column: Before You Record */}
+                                        <div className="flex flex-col gap-6">
                                             <div className="flex flex-col gap-1.5">
                                                 <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-850 tracking-tight">
-                                                    {t('studio_banner.recommended_setup')}
+                                                    {t('studio_banner.before_you_record')}
                                                 </h4>
                                                 <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed">
-                                                    {t('studio_banner.recommended_setup_sub')}
+                                                    {t('studio_banner.before_you_record_sub')}
+                                                </p>
+                                            </div>
+                                            
+                                            <ul className="flex flex-col gap-4">
+                                                {/* Item 1 */}
+                                                <li className="flex items-start gap-3">
+                                                    <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                        <Check size={9} className="stroke-[3.5]" />
+                                                    </div>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[13px] font-sans font-bold text-stone-800">
+                                                            {t('studio_banner.tip_headphones_title')}
+                                                        </span>
+                                                        <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
+                                                            {t('studio_banner.tip_headphones_desc')}
+                                                        </span>
+                                                    </div>
+                                                </li>
+                                                
+                                                {/* Item 2 */}
+                                                <li className="flex items-start gap-3">
+                                                    <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                        <Check size={9} className="stroke-[3.5]" />
+                                                    </div>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[13px] font-sans font-bold text-stone-800">
+                                                            {t('studio_banner.tip_wired_title')}
+                                                        </span>
+                                                        <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
+                                                            {t('studio_banner.tip_wired_desc')}
+                                                        </span>
+                                                    </div>
+                                                </li>
+
+                                                {/* Item 3 */}
+                                                <li className="flex items-start gap-3">
+                                                    <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                        <Check size={9} className="stroke-[3.5]" />
+                                                    </div>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[13px] font-sans font-bold text-stone-800">
+                                                            {t('studio_banner.tip_mic_title')}
+                                                        </span>
+                                                        <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
+                                                            {t('studio_banner.tip_mic_desc')}
+                                                        </span>
+                                                    </div>
+                                                </li>
+
+                                                {/* Item 4 */}
+                                                <li className="flex items-start gap-3">
+                                                    <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                        <Check size={9} className="stroke-[3.5]" />
+                                                    </div>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[13px] font-sans font-bold text-stone-800">
+                                                            {t('studio_banner.tip_quiet_title')}
+                                                        </span>
+                                                        <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
+                                                            {t('studio_banner.tip_quiet_desc')}
+                                                        </span>
+                                                    </div>
+                                                </li>
+
+                                                {/* Item 5 */}
+                                                <li className="flex items-start gap-3">
+                                                    <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                        <Check size={9} className="stroke-[3.5]" />
+                                                    </div>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[13px] font-sans font-bold text-stone-800">
+                                                            {t('studio_banner.tip_pos_title')}
+                                                        </span>
+                                                        <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
+                                                            {t('studio_banner.tip_pos_desc')}
+                                                        </span>
+                                                    </div>
+                                                </li>
+
+                                                {/* Item 6 */}
+                                                <li className="flex items-start gap-3">
+                                                    <div className="w-4 h-4 rounded-full bg-[#87b884] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
+                                                        <Check size={9} className="stroke-[3.5]" />
+                                                    </div>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[13px] font-sans font-bold text-stone-800">
+                                                            {t('studio_banner.tip_apps_title')}
+                                                        </span>
+                                                        <span className="text-[12px] text-stone-600 font-normal leading-relaxed">
+                                                            {t('studio_banner.tip_apps_desc')}
+                                                        </span>
+                                                    </div>
+                                                </li>
+                                            </ul>
+                                        </div>
+
+                                        {/* Right Column: Recommended Setup & About Bluetooth */}
+                                        <div className="flex flex-col gap-6 lg:border-l lg:border-stone-300/30 lg:pl-10 lg:pt-16">
+                                            {/* Recommended Setup */}
+                                            <div className="flex flex-col gap-3">
+                                                <div className="flex flex-col gap-1.5">
+                                                    <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-850 tracking-tight">
+                                                        {t('studio_banner.recommended_setup')}
+                                                    </h4>
+                                                    <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed">
+                                                        {t('studio_banner.recommended_setup_sub')}
+                                                    </p>
+                                                </div>
+
+                                                <ul className="pl-1 text-[13px] text-stone-700 font-normal leading-relaxed flex flex-col gap-1.5">
+                                                    <li className="flex items-center gap-2">
+                                                        <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
+                                                        <span className="font-medium text-stone-700">{t('studio_banner.rec_item_device')}</span>
+                                                    </li>
+                                                    <li className="flex items-center gap-2">
+                                                        <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
+                                                        <span className="font-medium text-stone-700">{t('studio_banner.rec_item_headphones')}</span>
+                                                    </li>
+                                                    <li className="flex items-center gap-2">
+                                                        <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
+                                                        <span className="font-medium text-stone-700">{t('studio_banner.rec_item_mic')}</span>
+                                                    </li>
+                                                    <li className="flex items-center gap-2">
+                                                        <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
+                                                        <span className="font-medium text-stone-700">{t('studio_banner.rec_item_room')}</span>
+                                                    </li>
+                                                    <li className="flex items-center gap-2">
+                                                        <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
+                                                        <span className="font-medium text-stone-700">{t('studio_banner.rec_item_internet')}</span>
+                                                    </li>
+                                                </ul>
+
+                                                <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed mt-2">
+                                                    {t('studio_banner.higher_quality_note')}
                                                 </p>
                                             </div>
 
-                                            <ul className="pl-1 text-[13px] text-stone-700 font-normal leading-relaxed flex flex-col gap-1.5">
-                                                <li className="flex items-center gap-2">
-                                                    <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
-                                                    <span className="font-medium text-stone-700">{t('studio_banner.rec_item_device')}</span>
-                                                </li>
-                                                <li className="flex items-center gap-2">
-                                                    <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
-                                                    <span className="font-medium text-stone-700">{t('studio_banner.rec_item_headphones')}</span>
-                                                </li>
-                                                <li className="flex items-center gap-2">
-                                                    <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
-                                                    <span className="font-medium text-stone-700">{t('studio_banner.rec_item_mic')}</span>
-                                                </li>
-                                                <li className="flex items-center gap-2">
-                                                    <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
-                                                    <span className="font-medium text-stone-700">{t('studio_banner.rec_item_room')}</span>
-                                                </li>
-                                                <li className="flex items-center gap-2">
-                                                    <span className="text-[#87b884] text-[10px] shrink-0 mt-0.5">●</span>
-                                                    <span className="font-medium text-stone-700">{t('studio_banner.rec_item_internet')}</span>
-                                                </li>
-                                            </ul>
-
-                                            <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed mt-2">
-                                                {t('studio_banner.higher_quality_note')}
-                                            </p>
-                                        </div>
-
-                                        {/* About Bluetooth */}
-                                        <div className="flex flex-col gap-1.5 mt-2">
-                                            <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-850 tracking-tight">
-                                                {t('studio_banner.about_bluetooth')}
-                                            </h4>
-                                            <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed">
-                                                {t('studio_banner.about_bluetooth_desc')}
-                                            </p>
+                                            {/* About Bluetooth */}
+                                            <div className="flex flex-col gap-1.5 mt-2">
+                                                <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-855 tracking-tight">
+                                                    {t('studio_banner.about_bluetooth')}
+                                                </h4>
+                                                <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed">
+                                                    {t('studio_banner.about_bluetooth_desc')}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                                {/* Bottom gradient fade overlay indicator */}
+                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#DCDDD4] via-[#DCDDD4]/85 to-transparent pointer-events-none z-30 rounded-b-[32px]" />
                             </div>
 
                             {/* Button Row */}
