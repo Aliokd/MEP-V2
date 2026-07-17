@@ -50,8 +50,9 @@ export async function GET(request: Request) {
 
     // 3. Swedish and Norwegian queries: Optimized AI-Powered Lexicon Endpoint
     const apiKey = process.env.GEMINI_API_KEY;
+    console.log(`[Lexicon API] Querying word: "${cleanWord}", mode: "${mode}", lang: "${lang}". Key present: ${!!apiKey}`);
     if (!apiKey) {
-      console.warn("GEMINI_API_KEY is not configured in .env.local. Multilingual lexicon results will be empty.");
+      console.warn("GEMINI_API_KEY is not configured. Multilingual lexicon results will be empty.");
       return NextResponse.json([]);
     }
 
@@ -102,11 +103,13 @@ Ensure results are real, correctly spelled, sorted by score in descending order,
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
+      console.error(`[Lexicon API] Gemini API error: ${aiResponse.status} - ${errText}`);
       throw new Error(`Gemini API returned status ${aiResponse.status}: ${errText}`);
     }
 
     const resultData = await aiResponse.json();
     const textResponse = resultData.candidates?.[0]?.content?.parts?.[0]?.text;
+    console.log(`[Lexicon API] Gemini raw response: ${textResponse}`);
 
     if (!textResponse) {
       throw new Error("Empty response from Gemini API");
