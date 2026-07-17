@@ -601,7 +601,9 @@ function PhraseRow({
     draggedAudioId,
     activeRemoteUsers,
     clickedTokenIndex,
-    onDeleteDocBlock
+    onDeleteDocBlock,
+    onTranscribeDocBlock,
+    transcribingDocId
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
@@ -645,6 +647,8 @@ function PhraseRow({
     activeRemoteUsers?: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null }};
     clickedTokenIndex?: number | null;
     onDeleteDocBlock?: (docId: string, headerPhraseId: string) => void;
+    onTranscribeDocBlock?: (docId: string, headerPhraseId: string) => void;
+    transcribingDocId?: string | null;
 }) {
     const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isTouchDraggingRef = useRef(false);
@@ -1158,7 +1162,7 @@ function PhraseRow({
                                     {phrase.text}
                                 </span>
                                 <span className="text-[11px] font-sans text-stone-400 font-medium">
-                                    Document Extracted Text
+                                    Document Attachment
                                 </span>
                             </div>
                         </div>
@@ -1168,6 +1172,26 @@ function PhraseRow({
                                 {phrase.text.split('.').pop() || 'doc'}
                             </span>
                             
+                            {onTranscribeDocBlock && (
+                                <button
+                                    type="button"
+                                    disabled={transcribingDocId !== null}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const docId = phrase.id.replace('p-docheader-', '');
+                                        onTranscribeDocBlock(docId, phrase.id);
+                                    }}
+                                    className="w-7 h-7 rounded-full bg-stone-100 hover:bg-emerald-50 hover:text-emerald-600 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none disabled:opacity-35"
+                                    title="Extract text from document"
+                                >
+                                    {transcribingDocId === phrase.id.replace('p-docheader-', '') ? (
+                                        <div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <RefreshCw size={13} />
+                                    )}
+                                </button>
+                            )}
+
                             {onDeleteDocBlock && (
                                 <button
                                     type="button"
@@ -2599,6 +2623,7 @@ export default function CreatePage() {
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [isRecordingSaving, setIsRecordingSaving] = useState(false);
     const [transcribingAudioNoteId, setTranscribingAudioNoteId] = useState<string | null>(null);
+    const [transcribingDocId, setTranscribingDocId] = useState<string | null>(null);
     const [editingPhraseId, setEditingPhraseId] = useState<string | null>(null);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [localTitleText, setLocalTitleText] = useState('');
@@ -6170,6 +6195,100 @@ export default function CreatePage() {
             }
             return n;
         }));
+    };
+
+    const handleTranscribeDocument = async (docId: string, headerPhraseId: string) => {
+        if (!selectedNoteId) return;
+        setTranscribingDocId(docId);
+        
+        try {
+            const currentNote = notes.find(n => n.id === selectedNoteId);
+            if (!currentNote) throw new Error("Active project not found");
+            
+            const docObj = (currentNote.documents || []).find(d => d.id === docId);
+            if (!docObj) throw new Error("Document object not found in project");
+            
+            // Helper to convert Data URL (Base64) back to File
+            const dataURLtoFile = (dataurl: string, filename: string) => {
+                const arr = dataurl.split(',');
+                const mime = arr[0].match(/:(.*?);/)![1];
+                const bstr = atob(arr[1]);
+                let n = bstr.length;
+                const u8arr = new Uint8Array(n);
+                while (n--) {
+                    u8arr[n] = bstr.charCodeAt(n);
+                }
+                return new File([u8arr], filename, { type: mime });
+            };
+            
+            const file = dataURLtoFile(docObj.url, docObj.name);
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const extractRes = await fetch('/api/extract-text', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!extractRes.ok) {
+                throw new Error('Failed to extract text from file');
+            }
+            
+            const extractData = await extractRes.json();
+            const extractedText = extractData.text || '';
+            
+            if (!extractedText.trim()) {
+                alert("No readable text found inside this document.");
+                setTranscribingDocId(null);
+                return;
+            }
+            
+            // Split text into lines
+            const textLines = extractedText.split('\n')
+                .map((l: string) => l.trim())
+                .filter((l: string) => l.length > 0);
+            
+            // Create phrases for each line
+            const linePhrases: Phrase[] = textLines.map((lineText: string, idx: number) => ({
+                id: `p-docline-${docId}-${idx}`,
+                text: lineText,
+                groupId: null
+            }));
+            
+            const existingPhrases = currentNote.phrases || [];
+            const headerIdx = existingPhrases.findIndex(p => p.id === headerPhraseId);
+            
+            let finalPhrases = [...existingPhrases];
+            if (headerIdx !== -1) {
+                const before = existingPhrases.slice(0, headerIdx + 1);
+                const after = existingPhrases.slice(headerIdx + 1);
+                // Filter out any existing line phrases for this document in case they clicked transcribe twice
+                const cleanAfter = after.filter(p => !p.id.startsWith(`p-docline-${docId}-`));
+                finalPhrases = [...before, ...linePhrases, ...cleanAfter];
+            } else {
+                finalPhrases = [...existingPhrases, ...linePhrases];
+            }
+            
+            const cleanedPhrases = cleanupAndEnsurePlaceholders(finalPhrases, currentNote.verses || []);
+            const newContent = cleanedPhrases.map(p => p.text).join('\n');
+            
+            // Update local state and DB
+            handleUpdateNote(selectedNoteId, {
+                content: newContent,
+                phrases: cleanedPhrases
+            });
+            
+            if (textareaRef.current) {
+                textareaRef.current.value = newContent;
+            }
+            
+            alert(`Successfully transcribed and placed ${textLines.length} lines on the canvas.`);
+        } catch (err: any) {
+            console.error("Document transcription error:", err);
+            alert("Error transcribing document: " + (err.message || err));
+        } finally {
+            setTranscribingDocId(null);
+        }
     };
 
     const handleAudioDragStart = (e: React.DragEvent, audioId: string) => {
@@ -12131,46 +12250,6 @@ export default function CreatePage() {
                                                                     console.error("File reading error:", err);
                                                                     alert('Error reading the audio file.');
                                                                 }
-                                                            } else if (file.type.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
-                                                                const reader = new FileReader();
-                                                                reader.onload = (re) => {
-                                                                    const text = re.target?.result as string;
-                                                                    if (selectedNoteId) {
-                                                                        const currentNote = notes.find(n => n.id === selectedNoteId);
-                                                                        const syncedPhrases = syncPhrasesWithContent(text, currentNote?.phrases || []);
-                                                                        
-                                                                        // Also read as Data URL to attach to documents gallery
-                                                                        const docReader = new FileReader();
-                                                                        docReader.onload = (docRe) => {
-                                                                            const dataUrl = docRe.target?.result as string;
-                                                                            const existingDocs = currentNote?.documents || [];
-                                                                            const nextDocId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                                                                            const newDoc = {
-                                                                                id: nextDocId,
-                                                                                url: dataUrl,
-                                                                                name: file.name,
-                                                                                type: fileName.endsWith('.md') ? 'md' : 'txt',
-                                                                                size: file.size
-                                                                            };
-
-                                                                            handleUpdateNote(selectedNoteId, {
-                                                                                content: text,
-                                                                                phrases: syncedPhrases,
-                                                                                documents: [...existingDocs, newDoc]
-                                                                            });
-                                                                            
-                                                                            alert(`Successfully imported lyrics and document resource: ${file.name}`);
-                                                                        };
-                                                                        docReader.readAsDataURL(file);
-                                                                        
-                                                                        if (textareaRef.current) {
-                                                                            textareaRef.current.value = text;
-                                                                            textareaRef.current.style.height = 'auto';
-                                                                            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-                                                                        }
-                                                                    }
-                                                                };
-                                                                reader.readAsText(file);
                                                             } else if (file.type.startsWith('image/') || fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.gif') || fileName.endsWith('.webp')) {
                                                                 try {
                                                                     const compressedBase64 = await compressAndGetBase64(file);
@@ -12196,6 +12275,9 @@ export default function CreatePage() {
                                                                 fileName.endsWith('.pdf') || 
                                                                 fileName.endsWith('.doc') || 
                                                                 fileName.endsWith('.docx') || 
+                                                                fileName.endsWith('.txt') || 
+                                                                fileName.endsWith('.md') ||
+                                                                file.type.startsWith('text/') ||
                                                                 file.type === 'application/pdf' || 
                                                                 file.type === 'application/msword' || 
                                                                 file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -12210,26 +12292,44 @@ export default function CreatePage() {
                                                                         const dataUrl = re.target?.result as string;
                                                                         if (selectedNoteId) {
                                                                             const currentNote = notes.find(n => n.id === selectedNoteId);
-                                                                            const existingDocs = currentNote?.documents || [];
-                                                                            const nextDocId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                                                                            
-                                                                            let docType = 'other';
-                                                                            if (fileName.endsWith('.pdf')) docType = 'pdf';
-                                                                            else if (fileName.endsWith('.doc')) docType = 'doc';
-                                                                            else if (fileName.endsWith('.docx')) docType = 'docx';
+                                                                            if (currentNote) {
+                                                                                const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                                                                                
+                                                                                let docType = 'other';
+                                                                                if (fileName.endsWith('.pdf')) docType = 'pdf';
+                                                                                else if (fileName.endsWith('.doc')) docType = 'doc';
+                                                                                else if (fileName.endsWith('.docx')) docType = 'docx';
+                                                                                else if (fileName.endsWith('.txt')) docType = 'txt';
+                                                                                else if (fileName.endsWith('.md')) docType = 'md';
 
-                                                                            const newDoc = {
-                                                                                id: nextDocId,
-                                                                                url: dataUrl,
-                                                                                name: file.name,
-                                                                                type: docType,
-                                                                                size: file.size
-                                                                            };
+                                                                                const newDoc = {
+                                                                                    id: docId,
+                                                                                    url: dataUrl,
+                                                                                    name: file.name,
+                                                                                    type: docType,
+                                                                                    size: file.size
+                                                                                };
 
-                                                                            handleUpdateNote(selectedNoteId, {
-                                                                                documents: [...existingDocs, newDoc]
-                                                                            });
-                                                                            alert(`Successfully imported document: ${file.name}`);
+                                                                                // Create the inline document header block ONLY
+                                                                                const headerPhraseId = `p-docheader-${docId}`;
+                                                                                const headerPhrase: Phrase = {
+                                                                                    id: headerPhraseId,
+                                                                                    text: file.name,
+                                                                                    groupId: null
+                                                                                };
+
+                                                                                const existingPhrases = currentNote.phrases || [];
+                                                                                const newPhrases = [...existingPhrases, headerPhrase];
+                                                                                const finalPhrases = cleanupAndEnsurePlaceholders(newPhrases, currentNote.verses || []);
+                                                                                const newContent = finalPhrases.map(p => p.text).join('\n');
+
+                                                                                handleUpdateNote(selectedNoteId, {
+                                                                                    content: newContent,
+                                                                                    phrases: finalPhrases,
+                                                                                    documents: [...(currentNote.documents || []), newDoc]
+                                                                                });
+                                                                                alert(`Successfully uploaded document: ${file.name}`);
+                                                                            }
                                                                         }
                                                                     };
                                                                     reader.readAsDataURL(file);
@@ -12237,8 +12337,6 @@ export default function CreatePage() {
                                                                     console.error("Document reading error:", docErr);
                                                                     alert('Failed to import document.');
                                                                 }
-                                                            } else {
-                                                                alert('Unsupported file type. Please select an audio file, an image, a PDF, a text document, or a Word doc.');
                                                             }
                                                         }
                                                     };
@@ -12854,9 +12952,10 @@ export default function CreatePage() {
                                                                                             hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
                                                                                             handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
                                                                                             draggedAudioId={draggedAudioId}
-                                                                                            draggedAudioIdRef={draggedAudioIdRef}
                                                                                             activeRemoteUsers={activeRemoteUsers}
                                                                                             onDeleteDocBlock={handleDeleteDocBlock}
+                                                                                            onTranscribeDocBlock={handleTranscribeDocument}
+                                                                                            transcribingDocId={transcribingDocId}
                                                                                         />
                                                                                     )}
                                                                                 </div>
@@ -13086,9 +13185,10 @@ export default function CreatePage() {
                                                                         hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
                                                                         handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
                                                                         draggedAudioId={draggedAudioId}
-                                                                        draggedAudioIdRef={draggedAudioIdRef}
                                                                         activeRemoteUsers={activeRemoteUsers}
                                                                         onDeleteDocBlock={handleDeleteDocBlock}
+                                                                        onTranscribeDocBlock={handleTranscribeDocument}
+                                                                        transcribingDocId={transcribingDocId}
                                                                     />
                                                                 )}
                                                             </div>
