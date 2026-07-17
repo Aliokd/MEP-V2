@@ -10239,7 +10239,11 @@ export default function CreatePage() {
                                 <div className="flex flex-col gap-1">
                                     <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Last Modified</span>
                                     <span className="font-medium text-stone-800">
-                                        {activeNote?.updatedAt ? new Date(activeNote.updatedAt).toLocaleString() : 'N/A'}
+                                        {(() => {
+                                            if (!activeNote?.updatedAt) return 'N/A';
+                                            const d = new Date(activeNote.updatedAt);
+                                            return isNaN(d.getTime()) ? activeNote.updatedAt : d.toLocaleString();
+                                        })()}
                                     </span>
                                 </div>
 
