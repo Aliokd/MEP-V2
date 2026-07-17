@@ -12087,7 +12087,7 @@ export default function CreatePage() {
                                                 {t('creative.upload_files') || 'Import'}
                                             </button>
 
-                                            <div className="h-px bg-stone-250/30 my-1.5 w-full" />
+                                            <div className="h-px bg-stone-200 my-1.5 w-full" />
 
                                             {selectedNoteId && (
                                                 <button 
@@ -12099,7 +12099,7 @@ export default function CreatePage() {
                                                     className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                                 >
                                                     <Download size={16} className="text-stone-500" />
-                                                    {t('creative.export_project')}
+                                                    {t('creative.export_project') || 'Download'}
                                                 </button>
                                             )}
 
