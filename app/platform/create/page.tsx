@@ -13645,35 +13645,21 @@ export default function CreatePage() {
             {showDetailsModal && createPortal(
                 <div className="fixed inset-0 bg-stone-900/45 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowDetailsModal(false)}>
                     <div 
-                        className="bg-[#DCDDD4] rounded-[28px] border border-stone-200/20 shadow-[0_20px_50px_rgba(0,0,0,0.15)] max-w-md w-full p-6 sm:p-7 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative"
+                        className="bg-[#DCDDD4]/90 backdrop-blur-xl rounded-[28px] border border-white/10 shadow-[0_24px_64px_rgba(0,0,0,0.16)] max-w-md w-full p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative text-left"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Header */}
-                        <div className="flex items-center justify-between border-b border-stone-300/30 pb-3">
-                            <h3 className="text-xl font-sans font-semibold text-stone-750 flex items-center gap-2">
-                                <Info size={18} className="text-[#87b884]" />
-                                {t('creative.details') || 'Project Details'}
-                            </h3>
-                            <button 
-                                onClick={() => setShowDetailsModal(false)}
-                                className="w-8 h-8 rounded-full hover:bg-stone-200/50 flex items-center justify-center text-stone-500 hover:text-stone-750 transition-colors cursor-pointer"
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
-
                         {/* Content */}
-                        <div className="flex flex-col gap-4 text-stone-700 text-[14px]">
+                        <div className="flex flex-col gap-5 text-stone-700">
                             {/* Title */}
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Title</span>
-                                <span className="font-medium text-stone-850">{activeNote?.title || 'Untitled Project'}</span>
+                            <div className="flex flex-col">
+                                <span className="text-[13px] font-sans font-medium text-stone-500">Title</span>
+                                <span className="text-[15px] font-sans font-semibold text-stone-850 mt-0.5">{activeNote?.title || 'Untitled Project'}</span>
                             </div>
 
                             {/* Modified Date */}
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Last Modified</span>
-                                <span className="font-medium text-stone-800">
+                            <div className="flex flex-col">
+                                <span className="text-[13px] font-sans font-medium text-stone-500">Last Modified</span>
+                                <span className="text-[15px] font-sans font-semibold text-stone-850 mt-0.5">
                                     {(() => {
                                         if (!activeNote?.updatedAt) return 'N/A';
                                         const d = new Date(activeNote.updatedAt);
@@ -13683,9 +13669,9 @@ export default function CreatePage() {
                              </div>
 
                              {/* Owner */}
-                             <div className="flex flex-col gap-1">
-                                 <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Owner / Responsible</span>
-                                 <span className="font-medium text-stone-800">
+                             <div className="flex flex-col">
+                                 <span className="text-[13px] font-sans font-medium text-stone-500">Owner / Responsible</span>
+                                 <span className="text-[15px] font-sans font-semibold text-stone-850 mt-0.5">
                                      {(() => {
                                          try {
                                              return activeNote?.ownerId === user?.uid ? 'You' : ((collaboratorProfiles || {})[activeNote?.ownerId || '']?.name || 'Owner');
@@ -13697,9 +13683,9 @@ export default function CreatePage() {
                              </div>
 
                              {/* Collaborators */}
-                             <div className="flex flex-col gap-1">
-                                 <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Collaborators</span>
-                                 <span className="font-medium text-stone-800">
+                             <div className="flex flex-col">
+                                 <span className="text-[13px] font-sans font-medium text-stone-500">Collaborators</span>
+                                 <span className="text-[15px] font-sans font-semibold text-stone-850 mt-0.5">
                                      {(() => {
                                          try {
                                              const collabList = collaborators || [];
@@ -13716,29 +13702,34 @@ export default function CreatePage() {
 
                              {/* Location */}
                              <div className="flex flex-col gap-1.5">
-                                 <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Location</span>
+                                 <span className="text-[13px] font-sans font-medium text-stone-500">Location</span>
                                  <div className="flex items-center gap-2">
                                      <input 
                                          type="text" 
                                          placeholder="e.g. Studio A, Oslo, Home"
                                          value={detailsLocation}
                                          onChange={(e) => setDetailsLocation(e.target.value)}
-                                         className="flex-1 bg-stone-50 border border-stone-250/30 rounded-xl px-4 py-2.5 outline-none focus:bg-white focus:border-stone-400/80 transition-all font-medium text-stone-800"
+                                         className="flex-1 bg-stone-900/5 hover:bg-stone-900/10 focus:bg-white border border-stone-400/20 rounded-xl px-4 py-2.5 outline-none focus:border-stone-400/50 transition-all font-sans font-medium text-stone-855 text-[14.5px]"
                                      />
                                      <button 
                                          type="button"
                                          onClick={handleDetectLocation}
-                                         title="Detect Location"
-                                         className="h-[40px] px-3.5 bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-800 rounded-xl transition-all flex items-center justify-center cursor-pointer border border-stone-200/50"
+                                         className="h-[40px] px-4 bg-stone-900/10 hover:bg-stone-900/15 active:bg-stone-900/25 text-stone-750 hover:text-stone-850 rounded-xl transition-all flex items-center justify-center font-sans font-medium text-[13px] border border-stone-400/20 cursor-pointer select-none"
                                      >
-                                         <Compass size={18} />
+                                         Locate Me
                                      </button>
                                  </div>
                              </div>
                          </div>
 
-                         {/* Save Button */}
-                         <div className="flex justify-end pt-3 border-t border-stone-300/30">
+                         {/* Action Row */}
+                         <div className="flex justify-end items-center gap-3 pt-3 border-t border-stone-400/10">
+                             <button
+                                 onClick={() => setShowDetailsModal(false)}
+                                 className="px-5 py-2.5 rounded-full text-stone-600 hover:text-stone-850 text-[14px] font-sans font-semibold hover:bg-stone-900/5 transition-all cursor-pointer"
+                             >
+                                 Cancel
+                             </button>
                              <button
                                  onClick={handleSaveDetails}
                                  className="bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-sans font-semibold text-[14px] px-8 py-2.5 rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-md hover:shadow-lg shadow-[#87b884]/20"
