@@ -321,7 +321,7 @@
   },
   "creative": {
     "new_project": "New Project",
-    "upload_files": "Upload Files",
+    "upload_files": "Import",
     "delete_project": "Delete Project",
     "export_project": "Export",
     "details": "Details",

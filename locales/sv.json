@@ -321,7 +321,7 @@
   },
   "creative": {
     "new_project": "Nytt projekt",
-    "upload_files": "Ladda upp filer",
+    "upload_files": "Importera",
     "delete_project": "Ta bort projekt",
     "export_project": "Exportera",
     "details": "Detaljer",

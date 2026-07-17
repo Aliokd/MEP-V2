@@ -2198,6 +2198,53 @@ function parseFlexibleDate(dateStr: any): number {
     return 0;
 }
 
+const compressAndGetBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 800;
+                const MAX_HEIGHT = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height = Math.round((height * MAX_WIDTH) / width);
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width = Math.round((width * MAX_HEIGHT) / height);
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    resolve(e.target?.result as string);
+                    return;
+                }
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                resolve(compressedBase64);
+            };
+            img.onerror = () => {
+                reject(new Error('Failed to load image for compression'));
+            };
+            img.src = e.target?.result as string;
+        };
+        reader.onerror = () => {
+            reject(new Error('Failed to read image file'));
+        };
+        reader.readAsDataURL(file);
+    });
+};
+
 export default function CreatePage() {
     const { user } = useAuth();
     const { language, t } = useLanguage();
@@ -2212,6 +2259,7 @@ export default function CreatePage() {
     const [isSelectionInitialized, setIsSelectionInitialized] = useState(false);
     const [isExporting, setIsExporting] = useState<boolean>(false);
     const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
+    const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     const [detailsLocation, setDetailsLocation] = useState<string>('');
     const [shareStatus, setShareStatus] = useState<'idle' | 'sharing' | 'shared'>('idle');
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -5922,8 +5970,10 @@ export default function CreatePage() {
                         phrases: cleanPhrases,
                         audioNotes: cleanAudio,
                         contributions: updatedContributions,
+                        location: updatedNote.location || '',
+                        images: (updatedNote.images || []).map((img: any) => ({ id: img.id, url: img.url, name: img.name || '' })),
                         updatedAt: new Date().toISOString()
-                    }, { merge: true }).catch(err => console.error("Error updating project note in Firestore:", err));
+                    }, { merge: true }).catch(err => console.warn("Error updating project note in Firestore:", err));
                 }
 
                 return updatedNote;
@@ -11877,7 +11927,7 @@ export default function CreatePage() {
                                                     const input = document.createElement('input');
                                                     input.type = 'file';
                                                     input.multiple = true;
-                                                    input.accept = '.mp3,.wav,.m4a,.ogg,.txt,.md';
+                                                    input.accept = 'audio/*,text/*,image/*,.mp3,.wav,.m4a,.ogg,.txt,.md,.png,.jpg,.jpeg,.gif,.webp';
                                                     input.onchange = async (changeEvent) => {
                                                         const files = Array.from(input.files || []);
                                                         for (const file of files) {
@@ -11945,8 +11995,29 @@ export default function CreatePage() {
                                                                     }
                                                                 };
                                                                 reader.readAsText(file);
+                                                            } else if (file.type.startsWith('image/') || fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.gif') || fileName.endsWith('.webp')) {
+                                                                try {
+                                                                    const compressedBase64 = await compressAndGetBase64(file);
+                                                                    if (selectedNoteId) {
+                                                                        const currentNote = notes.find(n => n.id === selectedNoteId);
+                                                                        const existingImages = currentNote?.images || [];
+                                                                        const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                                                                        const newImage = {
+                                                                            id: nextImageId,
+                                                                            url: compressedBase64,
+                                                                            name: file.name
+                                                                        };
+                                                                        handleUpdateNote(selectedNoteId, {
+                                                                            images: [...existingImages, newImage]
+                                                                        });
+                                                                        alert(`Successfully imported image: ${file.name}`);
+                                                                    }
+                                                                } catch (imgErr) {
+                                                                    console.error("Image loading/compression error:", imgErr);
+                                                                    alert('Failed to import image.');
+                                                                }
                                                             } else {
-                                                                alert('Unsupported file type. Please select an audio file (MP3/WAV/M4A/OGG) or a text document (TXT/MD).');
+                                                                alert('Unsupported file type. Please select an audio file, a text document, or an image.');
                                                             }
                                                         }
                                                     };
@@ -11955,7 +12026,7 @@ export default function CreatePage() {
                                                 className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                             >
                                                 <Upload size={16} className="text-stone-500" />
-                                                {t('creative.upload_files')}
+                                                {t('creative.upload_files') || 'Import'}
                                             </button>
 
                                             <div className="h-px bg-stone-250/30 my-1.5 w-full" />
@@ -12020,6 +12091,42 @@ export default function CreatePage() {
                         {!isNoteBlank ? (
                             <div className="w-full flex flex-col gap-3 max-w-4xl mx-auto py-4">
 
+                                {/* Moodboard Gallery */}
+                                {activeNote?.images && activeNote.images.length > 0 && (
+                                    <div className="flex flex-col mb-4 px-1 flex-shrink-0">
+                                        <span className="text-[13px] font-sans font-medium text-stone-500 mb-2 select-none">Moodboard</span>
+                                        <div className="flex gap-4 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
+                                            {activeNote.images.map((img) => (
+                                                <div 
+                                                    key={img.id}
+                                                    className="relative group w-44 h-28 rounded-2xl overflow-hidden border border-stone-200/60 shadow-sm flex-shrink-0 cursor-pointer hover:shadow-md transition-all bg-stone-100 flex items-center justify-center"
+                                                    onClick={() => setPreviewImageUrl(img.url)}
+                                                >
+                                                    <img 
+                                                        src={img.url} 
+                                                        alt={img.name || 'Moodboard'} 
+                                                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                                    />
+                                                    {/* Delete button */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (confirm("Delete this image from moodboard?")) {
+                                                                const updatedImages = (activeNote.images || []).filter(i => i.id !== img.id);
+                                                                handleUpdateNote(activeNote.id, { images: updatedImages });
+                                                            }
+                                                        }}
+                                                        className="absolute top-2 right-2 bg-stone-900/60 hover:bg-stone-900/85 text-white rounded-full p-1.5 transition-all opacity-0 group-hover:opacity-100 z-10 cursor-pointer shadow border-none outline-none flex items-center justify-center"
+                                                    >
+                                                        <X size={12} className="stroke-[3]" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                
                                 {/* Read-only lock in preview mode — no blur, no tint, just blocks all interaction */}
                                 <div className={`relative ${isCanvasPreview ? 'select-none' : ''}`}>
                                     {isCanvasPreview && (
@@ -13743,6 +13850,28 @@ export default function CreatePage() {
                              </button>
                          </div>
                      </div>
+                 </div>,
+                 document.body
+             )}
+
+             {previewImageUrl && createPortal(
+                 <div 
+                     className="fixed inset-0 bg-stone-900/85 backdrop-blur-md z-[120] flex items-center justify-center p-4 animate-in fade-in duration-200 cursor-zoom-out"
+                     onClick={() => setPreviewImageUrl(null)}
+                 >
+                     <button 
+                         onClick={() => setPreviewImageUrl(null)}
+                         className="absolute top-6 right-6 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all cursor-pointer border-none outline-none"
+                         type="button"
+                     >
+                         <X size={20} className="stroke-[2.5]" />
+                     </button>
+                     <img 
+                         src={previewImageUrl} 
+                         alt="Preview" 
+                         className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200"
+                         onClick={(e) => e.stopPropagation()}
+                     />
                  </div>,
                  document.body
              )}
