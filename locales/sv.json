@@ -12,7 +12,7 @@
     "create": "Skapa",
     "learn": "Lär",
     "practice": "Öva",
-    "connect": "Anslut",
+    "connect": "Community",
     "settings": "Inställningar",
     "feedback": "Återkoppling",
     "support": "Hjälp & support",
@@ -41,7 +41,7 @@
   },
   "canvas": {
     "tuner": "Stämapparat",
-    "tap_tempo": "Tappa tempo",
+    "tap_tempo": "Hitta tempo",
     "inspiration": "Inspiration",
     "rhyme_lexicon": "Rimlexikon",
     "demo_studio": "Demo studio",

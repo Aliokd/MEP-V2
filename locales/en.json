@@ -40,8 +40,8 @@
     "record_again": "Recording Again"
   },
   "canvas": {
-    "tuner": "Tuner",
-    "tap_tempo": "Tap Tempo",
+    "tuner": "Guitar tuner",
+    "tap_tempo": "Tap tempo",
     "inspiration": "Inspiration",
     "rhyme_lexicon": "Rhyme Lexicon",
     "demo_studio": "Demo Studio",

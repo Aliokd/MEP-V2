@@ -12,7 +12,7 @@
     "create": "Skap",
     "learn": "Lær",
     "practice": "Øv",
-    "connect": "Koble til",
+    "connect": "Community",
     "settings": "Innstillinger",
     "feedback": "Tilbakemelding",
     "support": "Hjelp og support",
@@ -41,7 +41,7 @@
   },
   "canvas": {
     "tuner": "Stemmeprogram",
-    "tap_tempo": "Tapp tempo",
+    "tap_tempo": "Finn tempo",
     "inspiration": "Inspirasjon",
     "rhyme_lexicon": "Rimleksikon",
     "demo_studio": "Demo studio",

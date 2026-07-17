@@ -599,6 +599,7 @@ function PhraseRow({
     hasAudioNote,
     handlePlaceAudioAsLineAt,
     draggedAudioId,
+    draggedAudioIdRef,
     activeRemoteUsers,
     clickedTokenIndex,
     onDeleteDocBlock,
@@ -644,7 +645,7 @@ function PhraseRow({
     handlePlaceAudioAsLineAt?: (audioNoteId: string, targetPhraseId: string, position: 'top' | 'bottom') => void;
     draggedAudioId?: string | null;
     draggedAudioIdRef?: React.RefObject<string | null>;
-    activeRemoteUsers?: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null }};
+    activeRemoteUsers?: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null; isStudioOpen?: boolean; activeStudioTrackId?: string | null; activeStudioTrackName?: string | null; isStudioRecording?: boolean }};
     clickedTokenIndex?: number | null;
     onDeleteDocBlock?: (docId: string, headerPhraseId: string) => void;
     onTranscribeDocBlock?: (docId: string, headerPhraseId: string) => void;
@@ -1965,7 +1966,7 @@ function JoinedPill({ name, onDismiss }: JoinedPillProps) {
     }, [onDismiss]);
 
     return (
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-200/70 text-emerald-800 rounded-full text-[14px] font-sans font-medium tracking-wide animate-in fade-in slide-in-from-left-3 duration-250 shadow-3xs shrink-0 select-none">
+        <div className="flex items-center gap-2 pl-4 pr-1.5 py-1.5 bg-emerald-50 border border-emerald-200/70 text-emerald-800 rounded-full text-[14px] font-sans font-medium tracking-wide animate-in fade-in slide-in-from-left-3 duration-250 shadow-3xs shrink-0 select-none">
             <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -1974,13 +1975,10 @@ function JoinedPill({ name, onDismiss }: JoinedPillProps) {
             <button
                 type="button"
                 onClick={onDismiss}
-                className="text-emerald-500 hover:text-emerald-700 ml-1 p-0.5 rounded-full hover:bg-emerald-100 transition-colors cursor-pointer shrink-0"
+                className="w-6 h-6 hover:bg-emerald-100 flex items-center justify-center text-emerald-500 hover:text-emerald-700 rounded-full transition-all active:scale-90 shrink-0 cursor-pointer outline-none ml-1"
                 title="Dismiss"
             >
-                <svg className="w-3 h-3 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
+                <X size={13} className="stroke-[2.5]" />
             </button>
         </div>
     );
@@ -2441,7 +2439,7 @@ export default function CreatePage() {
     const [isCollaborative, setIsCollaborative] = useState(false);
     const [collaborators, setCollaborators] = useState<string[]>([]);
     const [collaboratorProfiles, setCollaboratorProfiles] = useState<{[uid: string]: { name: string; email: string }}>({});
-    const [activeRemoteUsers, setActiveRemoteUsers] = useState<{[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null }}>({});
+    const [activeRemoteUsers, setActiveRemoteUsers] = useState<{[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null; isStudioOpen?: boolean; activeStudioTrackId?: string | null; activeStudioTrackName?: string | null; isStudioRecording?: boolean }}>({});
     const [showShareModal, setShowShareModal] = useState(false);
     const [pendingInvites, setPendingInvites] = useState<any[]>([]);
     const [previewInviteId, setPreviewInviteId] = useState<string | null>(null);
@@ -2451,11 +2449,22 @@ export default function CreatePage() {
     const [inviteStatus, setInviteStatus] = useState<{ type: 'success' | 'error' | ''; message: string }>({ type: '', message: '' });
     const [isInviting, setIsInviting] = useState(false);
     const [currentUserColor, setCurrentUserColor] = useState<string>('indigo');
+    const [studioNotification, setStudioNotification] = useState<{ message: string; color: string; isOpen: boolean }>({ message: '', color: 'rose', isOpen: false });
+    
+    const triggerStudioNotification = (message: string, color: string = 'rose') => {
+        setStudioNotification({ message, color, isOpen: true });
+        setTimeout(() => {
+            setStudioNotification(prev => prev.message === message ? { ...prev, isOpen: false } : prev);
+        }, 3000);
+    };
+
     const [confirmCloseCollab, setConfirmCloseCollab] = useState<{
         isOpen: boolean;
-        type: 'decline_invite' | 'close_collab' | null;
+        type: 'decline_invite' | 'close_collab' | 'remove_collaborator' | 'leave_project' | null;
         invite?: any;
         projectId?: string | null;
+        collaboratorUid?: string;
+        collaboratorName?: string;
     }>({ isOpen: false, type: null });
 
     const [confirmOverwriteStudioRecord, setConfirmOverwriteStudioRecord] = useState<{
@@ -2643,6 +2652,10 @@ export default function CreatePage() {
     const [studioTracks, setStudioTracks] = useState<StudioTrack[]>([
         { id: 1, name: 'Guitar', type: 'guitar', volume: 70, pan: -15, eq: 0, compressor: true, reverb: 25, audioBuffer: null, url: null }
     ]);
+    const studioTracksRef = useRef<StudioTrack[]>(studioTracks);
+    useEffect(() => {
+        studioTracksRef.current = studioTracks;
+    }, [studioTracks]);
     const [studioState, setStudioState] = useState<'idle' | 'playing' | 'recording' | 'paused'>('idle');
     const [activeRecordingTrackId, setActiveRecordingTrackId] = useState<number>(1);
     const [expandedTrackId, setExpandedTrackId] = useState<number | null>(null);
@@ -2885,14 +2898,91 @@ export default function CreatePage() {
         }
     }, [studioTracks, selectedNoteId]);
 
+    const studioTrackUrlsString = studioTracks
+        .filter(Boolean)
+        .map(t => `${t.id}:${t.url || ''}:${!!t.audioBuffer}`)
+        .join(',');
+
+    // Fetch and decode studio track audio buffers from URLs when they load/change
+    useEffect(() => {
+        let active = true;
+        const tracksToDecode = studioTracks.filter(t => t && t.url && !t.audioBuffer);
+        if (tracksToDecode.length === 0) return;
+
+        tracksToDecode.forEach(async (track) => {
+            try {
+                const fetchUrl = track.url!.startsWith('blob:')
+                    ? track.url!
+                    : `/api/download-audio?url=${encodeURIComponent(track.url!)}`;
+
+                const response = await fetch(fetchUrl);
+                if (!response.ok) throw new Error("Fetch failed");
+                const arrayBuffer = await response.arrayBuffer();
+                
+                const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+                const offlineCtx = new OfflineContextClass(1, 1, 44100);
+                const decodedBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+                const finalMonoBuffer = downmixToMono(decodedBuffer, offlineCtx);
+                
+                if (active) {
+                    setStudioTracks(prev => prev.map(t => {
+                        if (t && t.id === track.id) {
+                            return { ...t, audioBuffer: finalMonoBuffer };
+                        }
+                        return t;
+                    }));
+                }
+            } catch (err) {
+                console.error(`Error loading/decoding audio for track ${track.id}:`, err);
+            }
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [studioTrackUrlsString]);
+
+    // Sync local studioTracks changes to Firestore with a debounce to prevent write throttling
+    useEffect(() => {
+        if (!selectedNoteId || !user || !isDataLoaded) return;
+        
+        const projectDocRef = doc(db, "projects", selectedNoteId);
+        
+        const timer = setTimeout(async () => {
+            try {
+                const tracksToSave = studioTracks.map(t => ({
+                    id: t.id,
+                    name: t.name,
+                    type: t.type,
+                    volume: t.volume,
+                    pan: t.pan,
+                    eq: t.eq,
+                    compressor: t.compressor,
+                    reverb: t.reverb,
+                    url: (t.url && t.url.startsWith('blob:')) ? null : (t.url || null),
+                    muted: !!t.muted
+                }));
+                
+                await updateDoc(projectDocRef, {
+                    studioTracks: tracksToSave
+                });
+            } catch (err) {
+                console.error("Error syncing studioTracks to Firestore:", err);
+            }
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, [studioTracks, selectedNoteId, user, isDataLoaded]);
+
     useEffect(() => {
         if (selectedNoteId) {
-            const savedTracks = tracksPerNote[selectedNoteId];
+            const currentNote = notes.find(n => n.id === selectedNoteId);
+            const savedTracks = (currentNote && (currentNote as any).studioTracks) || tracksPerNote[selectedNoteId];
             if (savedTracks) {
                 const validTracks = savedTracks.filter(Boolean);
                 setStudioTracks(validTracks);
                 let maxDur = 0;
-                validTracks.forEach(t => {
+                validTracks.forEach((t: StudioTrack) => {
                     if (t.audioBuffer) {
                         maxDur = Math.max(maxDur, t.audioBuffer.duration);
                     }
@@ -3668,6 +3758,62 @@ export default function CreatePage() {
             if (snapshot.exists()) {
                 const data = snapshot.data();
                 setCollaborators(data.collaborators || []);
+
+                // Sync remote studioTracks if they exist and are different
+                if (data.studioTracks && Array.isArray(data.studioTracks)) {
+                    const remoteTracks = data.studioTracks;
+                    const localTracks = studioTracksRef.current;
+                    
+                    const isTracksIdentical = remoteTracks.length === localTracks.length &&
+                        remoteTracks.every((rt: any, i: number) => {
+                            const lt = localTracks[i];
+                            if (!lt) return false;
+
+                            // Protect local tracks currently uploading (have a blob url)
+                            const isLocalBlob = lt.url && lt.url.startsWith('blob:');
+                            const urlMatches = isLocalBlob ? true : (lt.url === rt.url);
+
+                            return lt.id === rt.id &&
+                                lt.name === rt.name &&
+                                lt.type === rt.type &&
+                                lt.volume === rt.volume &&
+                                lt.pan === rt.pan &&
+                                lt.eq === rt.eq &&
+                                lt.compressor === rt.compressor &&
+                                lt.reverb === rt.reverb &&
+                                urlMatches &&
+                                !!lt.muted === !!rt.muted;
+                        });
+
+                    if (!isTracksIdentical) {
+                        setStudioTracks(prev => {
+                            const updated = remoteTracks.map((rt: any) => {
+                                const existing = prev.find(t => t.id === rt.id);
+                                
+                                // Preserve local track completely if it is currently uploading
+                                if (existing && existing.url && existing.url.startsWith('blob:')) {
+                                    return existing;
+                                }
+
+                                return {
+                                    ...rt,
+                                    audioBuffer: existing && existing.url === rt.url ? existing.audioBuffer : null
+                                };
+                            });
+                            
+                            // Re-calculate the max duration for the timeline ruler
+                            let maxDur = 0;
+                            updated.forEach(t => {
+                                if (t.audioBuffer) {
+                                    maxDur = Math.max(maxDur, t.audioBuffer.duration);
+                                }
+                            });
+                            setStudioDuration(maxDur);
+
+                            return updated;
+                        });
+                    }
+                }
                 setNotes(prev => {
                     const existingNote = prev.find(n => n.id === selectedNoteId);
                     if (!existingNote) {
@@ -3751,19 +3897,25 @@ export default function CreatePage() {
         }
 
         const unsub = onSnapshot(collection(db, "projects", selectedNoteId, "presence"), (snapshot) => {
-            const users: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null }} = {};
+            const users: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null; isStudioOpen?: boolean; activeStudioTrackId?: string | null; activeStudioTrackName?: string | null; isStudioRecording?: boolean }} = {};
+            const ownerId = notes.find(n => n.id === selectedNoteId)?.ownerId;
             
             snapshot.forEach(d => {
                 if (d.id !== user.uid) {
+                    const isAllowed = (ownerId === d.id) || (collaborators.includes(d.id));
+                    if (!isAllowed) return;
+
                     const data = d.data();
-                    if (data.x !== -999 && data.y !== -999) {
-                        users[d.id] = {
-                            name: data.name || 'Collaborator',
-                            color: data.color || 'rose',
-                            cursor: { x: data.x, y: data.y },
-                            activePhraseId: data.activePhraseId || null
-                        };
-                    }
+                    users[d.id] = {
+                        name: data.name || 'Collaborator',
+                        color: data.color || 'rose',
+                        cursor: (data.x !== -999 && data.y !== -999) ? { x: data.x, y: data.y } : undefined,
+                        activePhraseId: data.activePhraseId || null,
+                        isStudioOpen: !!data.isStudioOpen,
+                        activeStudioTrackId: data.activeStudioTrackId || null,
+                        activeStudioTrackName: data.activeStudioTrackName || null,
+                        isStudioRecording: !!data.isStudioRecording
+                    };
                 }
             });
             
@@ -3773,7 +3925,35 @@ export default function CreatePage() {
         });
 
         return () => unsub();
-    }, [selectedNoteId, user, isDataLoaded, currentUserColor]);
+    }, [selectedNoteId, user, isDataLoaded, currentUserColor, collaborators, notes.find(n => n.id === selectedNoteId)?.ownerId]);
+
+    // Sync Studio Presence to Firestore
+    useEffect(() => {
+        if (!selectedNoteId || !user) return;
+        
+        const presenceRef = doc(db, "projects", selectedNoteId, "presence", user.uid);
+        const isStudioOpen = activeToolTab === 'studio';
+        const isStudioRecording = isStudioOpen && studioState === 'recording';
+        const currentTrack = studioTracks.find(t => t.id === activeRecordingTrackId);
+        
+        setDoc(presenceRef, {
+            isStudioOpen: isStudioOpen,
+            activeStudioTrackId: isStudioOpen ? (activeRecordingTrackId || null) : null,
+            activeStudioTrackName: isStudioOpen ? (currentTrack?.name || null) : null,
+            isStudioRecording: isStudioRecording,
+            updatedAt: new Date().toISOString()
+        }, { merge: true }).catch(err => console.error("Error updating studio presence:", err));
+
+        return () => {
+            setDoc(presenceRef, {
+                isStudioOpen: false,
+                activeStudioTrackId: null,
+                activeStudioTrackName: null,
+                isStudioRecording: false,
+                updatedAt: new Date().toISOString()
+            }, { merge: true }).catch(() => {});
+        };
+    }, [selectedNoteId, user, activeToolTab, activeRecordingTrackId, studioTracks, studioState]);
 
     const lastCursorWriteRef = useRef<number>(0);
     
@@ -4012,6 +4192,9 @@ export default function CreatePage() {
                 await updateDoc(projectRef, {
                     collaborators: []
                 });
+                for (const collabUid of collaborators) {
+                    await deleteDoc(doc(db, "projects", projectId, "presence", collabUid)).catch(() => {});
+                }
                 setCollaborators([]);
                 setCollaboratorProfiles({});
             } else {
@@ -4019,6 +4202,7 @@ export default function CreatePage() {
                 await updateDoc(projectRef, {
                     collaborators: arrayRemove(user.uid)
                 });
+                await deleteDoc(doc(db, "projects", projectId, "presence", user.uid)).catch(() => {});
                 
                 // Also update the invitation status to declined so they don't get invited again automatically
                 const inviteId = `${projectId}_${user.uid}`;
@@ -4175,6 +4359,11 @@ export default function CreatePage() {
             const updatedProfiles = { ...collaboratorProfiles };
             delete updatedProfiles[collaboratorUid];
             setCollaboratorProfiles(updatedProfiles);
+            try {
+                await deleteDoc(doc(db, "projects", selectedNoteId, "presence", collaboratorUid));
+            } catch (err) {
+                console.warn("Error deleting removed collaborator presence doc:", err);
+            }
         }
     };
 
@@ -8478,6 +8667,13 @@ export default function CreatePage() {
     };
 
     const startStudioRecording = async () => {
+        const collaboratorOnTrack = Object.values(activeRemoteUsers)
+            .find(u => u.isStudioOpen && u.activeStudioTrackId !== null && u.activeStudioTrackId !== undefined && String(u.activeStudioTrackId) === String(activeRecordingTrackId));
+        if (collaboratorOnTrack && collaboratorOnTrack.isStudioRecording) {
+            triggerStudioNotification(`${collaboratorOnTrack.name} is currently recording on this track!`);
+            return;
+        }
+
         const armedTrack = studioTracks.find(t => t.id === activeRecordingTrackId);
         if (armedTrack && (armedTrack.audioBuffer || armedTrack.url)) {
             setConfirmOverwriteStudioRecord({
@@ -8593,6 +8789,30 @@ export default function CreatePage() {
 
                         return updated;
                     });
+
+                    // Upload recorded track to Firebase Storage
+                    (async () => {
+                        try {
+                            const recId = Math.random().toString(36).substring(2, 9);
+                            const fileRef = storageRef(storage, `users/${user?.uid || 'anonymous'}/recordings/studio_${selectedNoteId}_track_${activeRecordingTrackId}_RecId_${recId}.webm`);
+                            await uploadBytes(fileRef, blob);
+                            const downloadUrl = await getDownloadURL(fileRef);
+                            
+                            // Once uploaded, replace the local blob URL with the public storage URL
+                            setStudioTracks(prev => {
+                                const updated = prev.map(t => {
+                                    if (t.id === activeRecordingTrackId) {
+                                        return { ...t, url: downloadUrl };
+                                    }
+                                    return t;
+                                });
+                                return updated;
+                            });
+                        } catch (uploadErr) {
+                            console.error("Failed to upload recorded track to storage:", uploadErr);
+                        }
+                    })();
+
                 } catch (e) {
                     console.error("Error decoding recorded audio:", e);
                 } finally {
@@ -9452,13 +9672,55 @@ export default function CreatePage() {
             custom: t('instruments.custom')
         };
 
+        const remoteUsersInStudio = Object.keys(activeRemoteUsers)
+            .map(uid => ({ uid, ...activeRemoteUsers[uid] }))
+            .filter(u => u.isStudioOpen);
+
         return (
             <div className="w-full text-left relative pointer-events-auto">
+                {/* Custom Studio Notification Toast */}
+                {studioNotification.isOpen && (
+                    <div className="absolute top-[-16px] left-1/2 -translate-x-1/2 bg-stone-900 text-stone-100 px-5 py-2.5 rounded-full flex items-center gap-2.5 shadow-lg border border-stone-800 text-[13px] font-sans font-medium tracking-wide animate-in fade-in slide-in-from-top-3 duration-250 z-[100] whitespace-nowrap">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                        </span>
+                        <span>{studioNotification.message}</span>
+                    </div>
+                )}
                 {/* Studio Header containing Title & Info Button */}
                 <div className="flex items-center justify-between w-full mb-6 sm:mb-8 px-1">
-                    <h3 className="font-sans font-medium text-stone-500 text-[22px] sm:text-[26px] tracking-tight">
-                        {t('canvas.create_song') || 'Create song'}
-                    </h3>
+                    <div className="flex items-center gap-3 min-w-0">
+                        <h3 className="font-sans font-medium text-stone-500 text-[22px] sm:text-[26px] tracking-tight shrink-0">
+                            {t('canvas.create_song') || 'Create song'}
+                        </h3>
+                        {remoteUsersInStudio.length > 0 && (
+                            <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/60 rounded-full pl-3 pr-3.5 py-1 text-[12px] font-sans font-medium text-emerald-800 animate-fade-in shrink-0">
+                                <span className="relative flex h-1.5 w-1.5 shrink-0">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                </span>
+                                <span className="truncate max-w-[140px] md:max-w-none">
+                                    {remoteUsersInStudio.length === 1 
+                                        ? `${remoteUsersInStudio[0].name} in studio` 
+                                        : `${remoteUsersInStudio.length} in studio`
+                                    }
+                                </span>
+                                <div className="flex items-center -space-x-1 ml-1 shrink-0">
+                                    {remoteUsersInStudio.map(u => (
+                                        <div 
+                                            key={u.uid}
+                                            className="w-5.5 h-5.5 rounded-full flex items-center justify-center font-bold text-[8px] border border-emerald-50 capitalize select-none shrink-0"
+                                            style={{ backgroundColor: u.color, color: '#FFFFFF' }}
+                                            title={u.name}
+                                        >
+                                            {u.name[0]}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     
                     <button
                         onClick={() => setShowWiredHeadphonesBanner(true)}
@@ -9519,18 +9781,34 @@ export default function CreatePage() {
                             const isArmed = activeRecordingTrackId === track.id;
                             const isThisTrackRecording = studioState === 'recording' && isArmed;
 
+                            const collaboratorOnTrack = Object.values(activeRemoteUsers)
+                                .find(u => u.isStudioOpen && u.activeStudioTrackId !== null && u.activeStudioTrackId !== undefined && String(u.activeStudioTrackId) === String(track.id));
+                            const hasCollab = !!collaboratorOnTrack;
+                            const isCollabRecording = hasCollab && collaboratorOnTrack.isStudioRecording;
+                            const collabColor = collaboratorOnTrack?.color || 'rose';
+                            
+                            const collabBorderColor = isCollabRecording 
+                                ? '#EF4444' // solid red
+                                : (collabColor === 'rose' ? '#F43F5E' : collabColor === 'indigo' ? '#6366F1' : collabColor === 'emerald' ? '#10B981' : collabColor === 'amber' ? '#F59E0B' : collabColor === 'sky' ? '#0EA5E9' : '#F43F5E');
+
                             return (
                                 <div 
                                     key={track.id}
-                                    draggable={draggableTrackId === track.id}
+                                    draggable={draggableTrackId === track.id && !isCollabRecording}
                                     onDragStart={() => handleStudioTrackDragStart(idx)}
                                     onDragOver={(e) => handleStudioTrackDragOver(e, idx)}
                                     onDragEnd={handleStudioTrackDragEnd}
                                     onClick={() => {
+                                        if (isCollabRecording) {
+                                            triggerStudioNotification(`${collaboratorOnTrack.name} is currently recording on this track!`);
+                                            return;
+                                        }
                                         setActiveRecordingTrackId(track.id);
                                         setExpandedTrackId(expandedTrackId === track.id ? null : track.id);
                                     }}
-                                    className={`studio-track-row flex items-center gap-3 w-full select-none border-b border-stone-300/40 last:border-0 relative transition-all duration-200 group cursor-pointer ${
+                                    className={`studio-track-row flex items-center gap-3 w-full select-none border-b border-stone-300/40 last:border-0 relative transition-all duration-200 group ${
+                                        isCollabRecording ? '' : 'cursor-pointer'
+                                    } ${
                                         expandedTrackId === track.id ? 'h-[92px] py-2' : 'h-15 sm:h-16 py-1'
                                     } px-4 ${
                                         isArmed 
@@ -9541,7 +9819,18 @@ export default function CreatePage() {
                                             ? 'z-40'
                                             : 'z-10'
                                     }`}
+                                    style={{
+                                        outline: isCollabRecording ? '1.5px solid #EF4444' : undefined,
+                                        outlineOffset: '-1.5px'
+                                    }}
                                 >
+                                    {/* Left Border Indicator for Collaborator Activity */}
+                                    {hasCollab && (
+                                        <div 
+                                            className={`absolute left-0 top-0 bottom-0 w-1 transition-all ${isCollabRecording ? 'animate-pulse w-1.5' : ''}`}
+                                            style={{ backgroundColor: collabBorderColor }}
+                                        />
+                                    )}
                                     {/* Drag Handle */}
                                     <div 
                                         onMouseEnter={() => setDraggableTrackId(track.id)}
@@ -9566,6 +9855,10 @@ export default function CreatePage() {
                                         <div 
                                             onClick={(e) => {
                                                 e.stopPropagation();
+                                                if (isCollabRecording) {
+                                                    triggerStudioNotification(`${collaboratorOnTrack.name} is currently recording on this track!`);
+                                                    return;
+                                                }
                                                 setActiveTrackDropdownId(activeTrackDropdownId === track.id ? null : track.id);
                                             }}
                                             className="bg-[#F9F8F6] hover:bg-[#F3F1ED] rounded-full border border-stone-200/40 pl-3.5 pr-0 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)] cursor-pointer select-none w-32 sm:w-36 md:w-40 lg:w-44 h-11 shrink-0 transition-all hover:shadow-[0_2px_6px_rgba(0,0,0,0.04)] active:scale-98 relative overflow-hidden"
@@ -9715,6 +10008,31 @@ export default function CreatePage() {
                                         )}
                                     </div>
 
+                                    {/* Track Presence Indicators */}
+                                    {(() => {
+                                        const activeRemoteCollaboratorsOnThisTrack = Object.keys(activeRemoteUsers)
+                                            .map(uid => ({ uid, ...activeRemoteUsers[uid] }))
+                                            .filter(u => u.isStudioOpen && u.activeStudioTrackId !== null && u.activeStudioTrackId !== undefined && String(u.activeStudioTrackId) === String(track.id));
+                                        if (activeRemoteCollaboratorsOnThisTrack.length === 0) return null;
+                                        return (
+                                            <div className="flex items-center -space-x-1.5 ml-1 mr-1 shrink-0 z-20">
+                                                {activeRemoteCollaboratorsOnThisTrack.map((u) => (
+                                                    <div 
+                                                        key={u.uid}
+                                                        className="w-6.5 h-6.5 rounded-full flex items-center justify-center font-bold text-[9px] border border-white capitalize select-none relative shrink-0 ring-2 ring-emerald-500/20 animate-pulse"
+                                                        style={{ 
+                                                            backgroundColor: u.color,
+                                                            color: '#FFFFFF'
+                                                        }}
+                                                        title={`${u.name} is working on this track`}
+                                                    >
+                                                        {u.name[0]}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    })()}
+
                                     {/* Controllers Container (No background, larger items) */}
                                     <div className={`px-2 flex items-center justify-between w-[240px] xl:w-[280px] shrink-0 relative select-none transition-all duration-200 ${
                                         expandedTrackId === track.id ? 'h-[74px]' : 'h-11'
@@ -9807,6 +10125,11 @@ export default function CreatePage() {
                                     <div 
                                         className="flex-grow h-11 relative cursor-ew-resize select-none"
                                         onPointerDown={(e) => {
+                                            if (isCollabRecording) {
+                                                e.stopPropagation();
+                                                triggerStudioNotification(`${collaboratorOnTrack.name} is currently recording on this track!`);
+                                                return;
+                                            }
                                             setActiveRecordingTrackId(track.id);
                                             handleTimelinePointerDown(e);
                                         }}
@@ -10071,6 +10394,20 @@ export default function CreatePage() {
                                     </span>
                                 </div>
                             </div>
+
+                            {/* Direct Monitor Pill (Icon only, circular) */}
+                            <div 
+                                onClick={() => setIsDirectMonitorEnabled(prev => !prev)}
+                                className={`w-10 h-10 border rounded-full flex items-center justify-center select-none shrink-0 transition-all duration-300 ease-in-out cursor-pointer active:scale-[0.98]
+                                    ${isDirectMonitorEnabled 
+                                        ? 'bg-white border-stone-200 text-emerald-500 shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:bg-stone-50' 
+                                        : 'bg-stone-100/70 border-stone-250/20 text-stone-500 hover:bg-stone-100'
+                                    }
+                                `}
+                                title={isDirectMonitorEnabled ? "Direct Monitoring: ON" : "Direct Monitoring: OFF"}
+                            >
+                                <Headphones size={16} className={isDirectMonitorEnabled ? 'text-emerald-500 animate-pulse' : 'text-stone-500'} />
+                            </div>
                         </div>
 
                         {/* Right side: Timeline Seeker Capsule containing the actual time ruler */}
@@ -10129,13 +10466,15 @@ export default function CreatePage() {
                             {studioState === 'recording' ? (
                                 <button
                                     onClick={stopStudioRecording}
-                                    className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white border border-stone-200 text-[#FF4040] rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2"
+                                    className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white border border-stone-200 text-[#FF4040] rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2 whitespace-nowrap"
                                 >
                                     <div className="relative flex items-center justify-center shrink-0">
                                         <div className="w-4 h-4 rounded-full bg-[#FF4040] animate-ping absolute" />
                                         <Square size={12} className="fill-[#FF4040] text-[#FF4040] shrink-0 z-10" />
                                     </div>
-                                    <span className="z-10 text-[#FF4040]">{t('creative.recording_status')}</span>
+                                    <span className="z-10 text-[#FF4040] font-bold">
+                                        Recording <span className="font-normal">{formatTime(studioPlayhead)}</span>
+                                    </span>
                                 </button>
                             ) : (
                                 <button
@@ -11501,42 +11840,6 @@ export default function CreatePage() {
                             {renderDemoStudio()}
                         </div>
 
-                        {/* Tab row navigation */}
-                        <div className="w-full bg-[#F9F9F9] rounded-[20px] md:rounded-[34px] p-2 shadow-[inset_0_0_14px_rgba(0,0,0,0.05)] flex items-center justify-between select-none relative z-10">
-                            <button
-                                onClick={() => setActiveToolTab('tuner')}
-                                className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
-                                    (activeToolTab as string) === 'tuner'
-                                        ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
-                                        : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
-                                }`}
-                                type="button"
-                            >
-                                {t('canvas.tuner')}
-                            </button>
-                            <button
-                                onClick={() => setActiveToolTab('tempo')}
-                                className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
-                                    (activeToolTab as string) === 'tempo'
-                                        ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
-                                        : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
-                                }`}
-                                type="button"
-                            >
-                                {t('canvas.tap_tempo')}
-                            </button>
-                            <button
-                                onClick={() => setActiveToolTab('studio')}
-                                className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
-                                    (activeToolTab as string) === 'studio'
-                                        ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
-                                        : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
-                                }`}
-                                type="button"
-                            >
-                                {t('canvas.demo_studio')}
-                            </button>
-                        </div>
                     </div>
                 </div>
             );
@@ -11554,11 +11857,11 @@ export default function CreatePage() {
                 onDragOver={(e) => e.stopPropagation()}
                 onDrop={(e) => e.stopPropagation()}
                 className={`w-full ${
-                    (activeToolTab as string) === 'studio' ? 'flex-grow min-w-0' : 'max-w-[856px]'
+                    (activeToolTab as string) === 'studio' ? 'flex-grow min-w-0 max-w-none' : 'max-w-[856px]'
                 } bg-white border border-stone-200/80 rounded-[24px] sm:rounded-[36px] md:rounded-[45px] p-4 sm:p-6 md:p-7 mb-3 sm:mb-5 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all ${
                     (activeToolTab as string) === 'studio' && showStudioLyrics ? 'rounded-l-none border-l-0 mb-0 sm:mb-0' : ''
                 } ${
-                    (activeToolTab as string) === 'tuner' ? 'gap-0' : 'gap-4 sm:gap-6'
+                    (activeToolTab as string) === 'tuner' ? 'gap-0' : (activeToolTab as string) === 'studio' ? 'gap-4 sm:gap-5' : 'gap-4 sm:gap-6'
                 }`}
             >
                 {/* Content area based on active tab */}
@@ -11568,42 +11871,50 @@ export default function CreatePage() {
                     {(activeToolTab as string) === 'studio' && renderDemoStudio()}
                 </div>
 
-                {/* Tab row navigation */}
-                <div className="w-full bg-[#F9F9F9] rounded-[20px] md:rounded-[34px] p-2 shadow-[inset_0_0_14px_rgba(0,0,0,0.05)] flex items-center justify-between select-none relative z-10">
-                    <button
-                        onClick={() => setActiveToolTab('tuner')}
-                        className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
-                            (activeToolTab as string) === 'tuner'
-                                ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
-                                : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
-                        }`}
-                        type="button"
-                    >
-                        {t('canvas.tuner')}
-                    </button>
-                    <button
-                        onClick={() => setActiveToolTab('tempo')}
-                        className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
-                            (activeToolTab as string) === 'tempo'
-                                ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
-                                : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
-                        }`}
-                        type="button"
-                    >
-                        {t('canvas.tap_tempo')}
-                    </button>
-                    <button
-                        onClick={() => setActiveToolTab('studio')}
-                        className={`flex-1 py-3 md:py-4.5 lg:py-5.5 text-center text-[12.5px] sm:text-[16px] md:text-[20px] lg:text-[24px] font-medium tracking-tight transition-all duration-200 cursor-pointer ${
-                            (activeToolTab as string) === 'studio'
-                                ? 'bg-white text-stone-800 rounded-[15px] md:rounded-[28px] shadow-[0_0_14px_rgba(0,0,0,0.05)] opacity-100 font-medium px-3'
-                                : 'text-stone-600 opacity-60 hover:opacity-75 bg-transparent px-2'
-                        }`}
-                        type="button"
-                    >
-                        Demo studio
-                    </button>
-                </div>
+                {/* Tab row — only show for Guitar Tuner / Metronome, not for Demo Studio */}
+                {(activeToolTab as string) !== 'studio' && (
+                    <div className="w-full bg-[rgba(241,241,241,0.5)] border border-[#E1E1E1] rounded-full p-[7px] flex items-center gap-[7px] select-none relative z-10">
+                        {/* Guitar Tuner tab */}
+                        <button
+                            onClick={() => setActiveToolTab('tuner')}
+                            className={`flex items-center justify-center px-6 py-[26px] rounded-full transition-all duration-200 cursor-pointer flex-1 ${
+                                (activeToolTab as string) === 'tuner'
+                                    ? 'bg-white shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
+                                    : 'hover:bg-white/60'
+                            }`}
+                            type="button"
+                        >
+                            <span style={{ 
+                                fontFamily: 'Inter, sans-serif', 
+                                fontWeight: 400, 
+                                fontSize: '26px', 
+                                color: (activeToolTab as string) === 'tuner' ? '#1A1A1A' : '#757575' 
+                            }}>
+                                {t('canvas.tuner')}
+                            </span>
+                        </button>
+
+                        {/* Metronome tab */}
+                        <button
+                            onClick={() => setActiveToolTab('tempo')}
+                            className={`flex items-center justify-center px-6 py-[26px] rounded-full transition-all duration-200 cursor-pointer flex-1 ${
+                                (activeToolTab as string) === 'tempo'
+                                    ? 'bg-white shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
+                                    : 'hover:bg-white/60'
+                            }`}
+                            type="button"
+                        >
+                            <span style={{ 
+                                fontFamily: 'Inter, sans-serif', 
+                                fontWeight: 400, 
+                                fontSize: '26px', 
+                                color: (activeToolTab as string) === 'tempo' ? '#1A1A1A' : '#757575' 
+                            }}>
+                                {t('canvas.tap_tempo')}
+                            </span>
+                        </button>
+                    </div>
+                )}
             </div>
         );
 
@@ -11933,7 +12244,7 @@ export default function CreatePage() {
                             ) : isActiveCollab ? (
                                 <button 
                                     onClick={() => setShowShareModal(true)}
-                                    className="relative flex items-center gap-2 pl-3.5 pr-2.5 py-1.5 bg-emerald-50 border border-emerald-200/65 text-emerald-800 hover:bg-emerald-100/80 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs select-none shrink-0 animate-fade-in"
+                                    className="relative flex items-center gap-2 pl-3.5 pr-1.5 py-1.5 bg-emerald-50 border border-emerald-200/65 text-emerald-800 hover:bg-emerald-100/80 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs select-none shrink-0 animate-fade-in"
                                     title="View collaboration details"
                                 >
                                     <span className="relative flex h-1.5 w-1.5 shrink-0 mr-0.5">
@@ -12005,13 +12316,10 @@ export default function CreatePage() {
                                                 projectId: selectedNoteId
                                             });
                                         }}
-                                        className="text-emerald-500/65 hover:text-emerald-850 p-0.5 rounded-full hover:bg-emerald-100 transition-colors ml-1 cursor-pointer outline-none flex items-center justify-center shrink-0"
+                                        className="w-7 h-7 hover:bg-emerald-100 flex items-center justify-center text-emerald-500/65 hover:text-emerald-850 rounded-full transition-all active:scale-90 shrink-0 cursor-pointer outline-none ml-1"
                                         title="End collaboration"
                                     >
-                                        <svg className="w-3 h-3 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                                        </svg>
+                                        <X size={15} className="stroke-[2.5]" />
                                     </button>
                                 </button>
                             ) : (
@@ -12408,7 +12716,9 @@ export default function CreatePage() {
                         (isMobile && (editingPhraseId !== null || isFocused)) ? 'pb-16' : ''
                     }`}>
                         {!isNoteBlank ? (
-                            <div className="w-full flex flex-col gap-3 max-w-4xl mx-auto py-4">
+                            <div className={`w-full flex flex-col gap-3 mx-auto py-4 transition-all duration-300 ${
+                                (showToolsPanel && activeToolTab === 'studio') ? 'max-w-full lg:max-w-[calc(100%-1rem)] xl:max-w-[1560px]' : 'max-w-4xl'
+                            }`}>
 
                                 {/* Moodboard Gallery */}
                                 {activeNote?.images && activeNote.images.length > 0 && (
@@ -13584,9 +13894,9 @@ export default function CreatePage() {
                 <div 
                     className={`absolute left-1/2 -translate-x-1/2 w-full ${
                         activeToolTab === 'studio' 
-                            ? (showStudioLyrics ? 'max-w-full md:max-w-[calc(100%-2rem)] xl:max-w-[1760px]' : 'max-w-full md:max-w-[calc(100%-4rem)] xl:max-w-[1400px]')
-                            : 'max-w-[952px]'
-                    } px-4 z-[60] transition-all duration-300 ease-out transform pointer-events-none ${
+                            ? 'max-w-[calc(100%-1rem)] px-1'
+                            : 'max-w-[952px] px-4'
+                    } z-[60] transition-[transform,opacity] duration-300 ease-out transform pointer-events-none ${
                         activeToolTab === 'inspiration' ? 'origin-[61%_bottom]' : 'origin-[53.5%_bottom]'
                     } ${
                         showToolsPanel
@@ -13595,7 +13905,9 @@ export default function CreatePage() {
                     } ${
                         (activeToolTab === 'inspiration' && !expandedCardId)
                             ? "bottom-[65px]"
-                            : "bottom-[120px]"
+                            : activeToolTab === 'studio'
+                                ? "bottom-[96px]"
+                                : "bottom-[120px]"
                     }`}
                 >
                     {renderToolsPanel()}
@@ -13671,7 +13983,7 @@ export default function CreatePage() {
                                 </button>
                             )}
 
-                            {/* REC capsule button */}
+                            {/* REC capsule button — Figma design */}
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -13684,60 +13996,88 @@ export default function CreatePage() {
                                         startRecording();
                                     }
                                 }}
-                                className={`h-14 px-7 flex items-center gap-3 rounded-full text-[15.5px] font-extrabold transition-all duration-200 cursor-pointer border border-stone-200/50 active:scale-95 shadow-3xs ${
-                                    isRecording 
-                                        ? 'bg-[#FF4040] text-white animate-pulse' 
-                                        : 'bg-white text-[#FF4040] hover:bg-red-50/50'
+                                className={`h-[54px] px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border whitespace-nowrap ${
+                                    isRecording
+                                        ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
+                                        : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
                                 }`}
                             >
                                 {isRecording ? (
                                     <>
-                                        <div className="w-3.5 h-3.5 rounded-full bg-white animate-ping absolute" />
-                                        <Square size={14} className="fill-white text-white shrink-0 z-10" />
-                                        <span className="z-10">Recording {formatTime(recordingTime)}</span>
+                                        {/* Square inside pulsing circle on the left */}
+                                        <div className="relative flex items-center justify-center shrink-0 w-4 h-4">
+                                            <div className="w-4 h-4 rounded-full bg-[#FF4040] animate-ping absolute" />
+                                            <Square size={12} className="fill-[#FF4040] text-[#FF4040] shrink-0 z-10" />
+                                        </div>
+                                        <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '15px', color: '#FF4040', letterSpacing: '0.02em' }} className="whitespace-nowrap">
+                                            Recording <span style={{ fontWeight: 400 }}>{formatTime(recordingTime)}</span>
+                                        </span>
                                     </>
                                 ) : (
                                     <>
-                                        <span className="w-3.5 h-3.5 rounded-full bg-[#FF4040] shrink-0" />
-                                        <span>REC</span>
+                                        {/* Static red dot */}
+                                        <div className="w-3 h-3 bg-[#FF4040] rounded-full shrink-0" />
+                                        <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '15px', color: '#FF4040', letterSpacing: '0.02em' }} className="whitespace-nowrap">
+                                            REC
+                                        </span>
                                     </>
                                 )}
                             </button>
 
-                            {/* Tools button */}
                             <button
                                 onClick={handleToolsToggle}
-                                className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
+                                className={`w-[54px] h-[54px] flex items-center justify-center rounded-full transition-all duration-200 active:scale-95 cursor-pointer border ${ 
                                     showToolsPanel && activeToolTab !== 'inspiration'
-                                        ? 'bg-[#F2F2F2] text-stone-900 font-extrabold'
-                                        : 'bg-white text-stone-750 hover:bg-stone-50'
+                                        ? 'bg-[#F2F2F2] border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
+                                        : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
                                 }`}
                                 title="Creative Tools"
                                 type="button"
                             >
-                                <div className="relative w-7.5 h-7.5 flex items-center justify-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 256 256" className={showToolsPanel && activeToolTab !== 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
-                                        <path d="M208,32H160a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H160V176h24a8,8,0,0,0,0-16H160V136h24a8,8,0,0,0,0-16H160V96h24a8,8,0,0,0,0-16H160V48h48V208ZM77.66,26.34a8,8,0,0,0-11.32,0l-32,32A8,8,0,0,0,32,64V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V64a8,8,0,0,0-2.34-5.66ZM48,176V80H64v96ZM80,80H96v96H80ZM72,43.31,92.69,64H51.31ZM48,208V192H96v16Z" />
-                                    </svg>
-                                </div>
+                                {/* Figma camera icon */}
+                                <svg width="22" height="22" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M31.4959 9.28033H24.4654V7.87423C24.4654 7.05381 24.1395 6.26699 23.5594 5.68686C22.9793 5.10673 22.1924 4.78082 21.372 4.78082H14.6228C13.8023 4.78082 13.0155 5.10673 12.4354 5.68686C11.8553 6.26699 11.5293 7.05381 11.5293 7.87423V9.28033H4.49886C3.97677 9.28033 3.47607 9.48772 3.1069 9.8569C2.73772 10.2261 2.53033 10.7268 2.53033 11.2489V26.9971C2.53033 27.5192 2.73772 28.0199 3.1069 28.3891C3.47607 28.7583 3.97677 28.9657 4.49886 28.9657H31.4959C32.018 28.9657 32.5187 28.7583 32.8879 28.3891C33.257 28.0199 33.4644 27.5192 33.4644 26.9971V11.2489C33.4644 10.7268 33.257 10.2261 32.8879 9.8569C32.5187 9.48772 32.018 9.28033 31.4959 9.28033ZM13.2167 7.87423C13.2167 7.50131 13.3648 7.14366 13.6285 6.87997C13.8922 6.61628 14.2498 6.46813 14.6228 6.46813H21.372C21.7449 6.46813 22.1026 6.61628 22.3663 6.87997C22.63 7.14366 22.7781 7.50131 22.7781 7.87423V9.28033H13.2167V7.87423ZM4.49886 10.9676H31.4959C31.5705 10.9676 31.642 10.9973 31.6948 11.05C31.7475 11.1027 31.7771 11.1743 31.7771 11.2489V16.0296H26.7152V14.6235C26.7152 14.3997 26.6263 14.1852 26.4681 14.0269C26.3099 13.8687 26.0953 13.7798 25.8715 13.7798C25.6478 13.7798 25.4332 13.8687 25.275 14.0269C25.1167 14.1852 25.0279 14.3997 25.0279 14.6235V16.0296H10.9669V14.6235C10.9669 14.3997 10.878 14.1852 10.7198 14.0269C10.5616 13.8687 10.347 13.7798 10.1232 13.7798C9.89949 13.7798 9.68491 13.8687 9.52669 14.0269C9.36847 14.1852 9.27959 14.3997 9.27959 14.6235V16.0296H4.21764V11.2489C4.21764 11.1743 4.24727 11.1027 4.30001 11.05C4.35275 10.9973 4.42428 10.9676 4.49886 10.9676ZM31.4959 27.2784H4.49886C4.42428 27.2784 4.35275 27.2487 4.30001 27.196C4.24727 27.1432 4.21764 27.0717 4.21764 26.9971V17.7169H9.27959V19.123C9.27959 19.3468 9.36847 19.5613 9.52669 19.7196C9.68491 19.8778 9.89949 19.9667 10.1232 19.9667C10.347 19.9667 10.5616 19.8778 10.7198 19.7196C10.878 19.5613 10.9669 19.3468 10.9669 19.123V17.7169H25.0279V19.123C25.0279 19.3468 25.1167 19.5613 25.275 19.7196C25.4332 19.8778 25.6478 19.9667 25.8715 19.9667C26.0953 19.9667 26.3099 19.8778 26.4681 19.7196C26.6263 19.5613 26.7152 19.3468 26.7152 19.123V17.7169H31.7771V26.9971C31.7771 27.0717 31.7475 27.1432 31.6948 27.196C31.642 27.2487 31.5705 27.2784 31.4959 27.2784Z" fill="#4B4B4B"/>
+                                </svg>
                             </button>
 
-                            {/* Inspiration button */}
+                            {/* Demo Studio pill button — Figma design */}
                             <button
-                                onClick={handleInspirationToggle}
-                                className={`w-14 h-14 flex items-center justify-center rounded-full transition-all duration-205 active:scale-95 cursor-pointer border border-stone-200/60 shadow-3xs ${
-                                    showToolsPanel && activeToolTab === 'inspiration'
-                                        ? 'bg-[#F2F2F2] text-stone-900 font-extrabold'
-                                        : 'bg-white text-stone-750 hover:bg-stone-50'
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowToolsPanel(true);
+                                    setActiveToolTab('studio');
+                                }}
+                                className={`h-[54px] px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border ${
+                                    showToolsPanel && (activeToolTab as string) === 'studio'
+                                        ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
+                                        : 'bg-white border-stone-200/50 hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]'
                                 }`}
-                                title="Inspiration Tools"
+                                title="Demo Studio"
                                 type="button"
                             >
-                                <div className="relative w-7.5 h-7.5 flex items-center justify-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 256 256" className={showToolsPanel && activeToolTab === 'inspiration' ? 'text-stone-850' : 'text-stone-600'}>
-                                        <path d="M221.28,34.75a64,64,0,0,0-90.49,0L60.69,104A15.9,15.9,0,0,0,56,115.31v73.38L26.34,218.34a8,8,0,0,0,11.32,11.32L67.32,200H140.7A15.92,15.92,0,0,0,152,195.32l0,0,69.23-70A64,64,0,0,0,221.28,34.75ZM142.07,46.06A48,48,0,0,1,211.79,112H155.33l34.35-34.34a8,8,0,0,0-11.32-11.32L120,124.69V67.87ZM72,115.35l32-31.67v57l-32,32ZM140.7,184H83.32l56-56h56.74Z" />
-                                    </svg>
-                                </div>
+                                {/* Music note icon from Figma */}
+                                <svg width="22" height="22" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M29.7667 2.70959C29.6655 2.63067 29.5477 2.57585 29.4222 2.54929C29.2968 2.52272 29.1669 2.52513 29.0424 2.55631L11.0424 7.05631C10.86 7.10207 10.6981 7.20746 10.5825 7.35574C10.4668 7.50402 10.404 7.68669 10.404 7.87475V23.9215C9.57323 23.2164 8.52657 22.8163 7.43734 22.7873C6.34811 22.7584 5.28167 23.1023 4.41461 23.7622C3.54755 24.4221 2.93189 25.3584 2.6696 26.4159C2.4073 27.4735 2.5141 28.5889 2.97231 29.5775C3.43052 30.5661 4.21264 31.3685 5.18917 31.8519C6.16569 32.3353 7.27803 32.4706 8.34197 32.2355C9.40591 32.0004 10.3576 31.4089 11.0395 30.559C11.7214 29.7091 12.0926 28.6519 12.0915 27.5622V15.2829L28.404 11.2047V19.4215C27.5732 18.7164 26.5266 18.3163 25.4373 18.2873C24.3481 18.2584 23.2817 18.6023 22.4146 19.2622C21.5475 19.9221 20.9319 20.8584 20.6696 21.9159C20.4073 22.9735 20.5141 24.0889 20.9723 25.0775C21.4305 26.0661 22.2126 26.8685 23.1892 27.3519C24.1657 27.8353 25.278 27.9706 26.342 27.7355C27.4059 27.5004 28.3576 26.9089 29.0395 26.059C29.7214 25.2091 30.0926 24.1519 30.0915 23.0622V3.37475C30.0915 3.24648 30.0622 3.1199 30.0059 3.00464C29.9496 2.88938 29.8678 2.78848 29.7667 2.70959ZM7.31024 30.656C6.69836 30.656 6.10021 30.4745 5.59145 30.1346C5.08268 29.7947 4.68615 29.3115 4.45199 28.7462C4.21783 28.1809 4.15657 27.5588 4.27594 26.9587C4.39531 26.3586 4.68996 25.8073 5.12263 25.3746C5.5553 24.942 6.10655 24.6473 6.70668 24.5279C7.30681 24.4086 7.92886 24.4698 8.49417 24.704C9.05948 24.9382 9.54266 25.3347 9.8826 25.8434C10.2225 26.3522 10.404 26.9504 10.404 27.5622C10.404 28.3828 10.078 29.1697 9.49786 29.7499C8.91766 30.33 8.13076 30.656 7.31024 30.656ZM12.0915 13.5447V8.53287L28.404 4.45475V9.46662L12.0915 13.5447ZM25.3102 26.156C24.6984 26.156 24.1002 25.9745 23.5914 25.6346C23.0827 25.2947 22.6862 24.8115 22.452 24.2462C22.2178 23.6809 22.1566 23.0588 22.2759 22.4587C22.3953 21.8586 22.69 21.3073 23.1226 20.8746C23.5553 20.442 24.1066 20.1473 24.7067 20.0279C25.3068 19.9086 25.9289 19.9698 26.4942 20.204C27.0595 20.4382 27.5427 20.8347 27.8826 21.3434C28.2225 21.8522 28.404 22.4504 28.404 23.0622C28.404 23.8828 28.078 24.6697 27.4979 25.2499C26.9177 25.83 26.1308 26.156 25.3102 26.156Z" fill="#4B4B4B"/>
+                                </svg>
+                                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px', color: '#656565' }}>Demo studio</span>
+                            </button>
+
+                            {/* Inspirations pill button — Figma design */}
+                            <button
+                                onClick={handleInspirationToggle}
+                                className={`h-[54px] px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border ${
+                                    showToolsPanel && activeToolTab === 'inspiration'
+                                        ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
+                                        : 'bg-white border-stone-200/50 hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]'
+                                }`}
+                                title="Inspirations"
+                                type="button"
+                            >
+                                {/* Inspirations icon from Figma */}
+                                <svg width="22" height="22" viewBox="0 0 35 35" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M23.7892 9.29688C23.7892 9.56728 23.7091 9.83161 23.5588 10.0564C23.4086 10.2813 23.1951 10.4565 22.9452 10.56C22.6954 10.6635 22.4205 10.6905 22.1553 10.6378C21.8901 10.585 21.6465 10.4548 21.4553 10.2636C21.2641 10.0724 21.1339 9.82881 21.0811 9.5636C21.0284 9.29839 21.0555 9.0235 21.1589 8.77368C21.2624 8.52385 21.4376 8.31033 21.6625 8.1601C21.8873 8.00987 22.1516 7.92969 22.422 7.92969C22.7846 7.92969 23.1324 8.07373 23.3888 8.33013C23.6452 8.58653 23.7892 8.93427 23.7892 9.29688ZM32.5392 10.9375C32.5394 11.0727 32.5062 11.2059 32.4425 11.3251C32.3788 11.4444 32.2867 11.5461 32.1742 11.6211L29.258 13.5639V16.4062C29.2536 20.1034 27.783 23.648 25.1687 26.2623C22.5544 28.8766 19.0099 30.3472 15.3127 30.3516H3.28142C2.9208 30.3516 2.5675 30.2498 2.26223 30.0578C1.95697 29.8658 1.71214 29.5914 1.55598 29.2664C1.39981 28.9413 1.33864 28.5788 1.37953 28.2205C1.42042 27.8622 1.5617 27.5227 1.78709 27.2412L1.79666 27.2289L13.3986 13.3096V10.5123C13.3986 6.09356 16.9383 2.48145 21.29 2.46094H21.3283C23.0291 2.46042 24.685 3.00676 26.0515 4.0193C27.4181 5.03184 28.4229 6.45692 28.9176 8.08418L32.1742 10.2539C32.2867 10.3289 32.3788 10.4306 32.4425 10.5499C32.5062 10.6691 32.5394 10.8023 32.5392 10.9375ZM30.2396 10.9375L27.7541 9.28047C27.5865 9.16886 27.4658 8.99952 27.415 8.80469C27.064 7.45768 26.276 6.26519 25.1745 5.41409C24.073 4.56298 22.7203 4.10136 21.3283 4.10156H21.2969C17.8461 4.11797 15.0392 6.99453 15.0392 10.5123V13.6062C15.0395 13.7986 14.9723 13.9849 14.8492 14.1326L3.06677 28.2707C3.03572 28.311 3.01655 28.3592 3.0114 28.4099C3.00626 28.4605 3.01535 28.5116 3.03766 28.5573C3.05997 28.6031 3.09461 28.6417 3.13767 28.6688C3.18074 28.696 3.23052 28.7106 3.28142 28.7109H7.09041L16.8699 16.975C17.0097 16.8098 17.2092 16.7066 17.4248 16.6878C17.6404 16.669 17.8547 16.7362 18.021 16.8747C18.1873 17.0133 18.2921 17.2119 18.3126 17.4273C18.3331 17.6428 18.2676 17.8576 18.1304 18.025L9.22595 28.7109H15.3127C18.575 28.7073 21.7026 27.4098 24.0094 25.103C26.3162 22.7962 27.6137 19.6685 27.6174 16.4062V13.125C27.6172 12.9898 27.6504 12.8566 27.7141 12.7374C27.7778 12.6181 27.8699 12.5164 27.9824 12.4414L30.2396 10.9375Z" fill="#4B4B4B"/>
+                                </svg>
+                                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px', color: '#656565' }}>Inspirations</span>
                             </button>
                         </div>
                     </div>
@@ -14048,9 +14388,39 @@ export default function CreatePage() {
                                     {/* Collaborators Tags */}
                                     {collaborators.map((collabUid) => {
                                         const profile = collaboratorProfiles[collabUid] || { name: 'Collaborator', email: '' };
+                                        const canRemove = (activeNote?.ownerId === user?.uid) || (collabUid === user?.uid);
                                         return (
-                                            <div key={collabUid} className="flex items-center gap-1.5 bg-stone-50 border border-stone-200/60 rounded-full px-4 py-1.5">
+                                            <div key={collabUid} className={`flex items-center gap-1.5 bg-stone-50 border border-stone-200/60 rounded-full py-1.5 ${canRemove ? 'pl-4 pr-2' : 'px-4'}`}>
                                                 <span className="text-sm font-sans font-medium text-stone-700">{profile.name}</span>
+                                                {canRemove && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (activeNote?.ownerId === user?.uid) {
+                                                                setConfirmCloseCollab({
+                                                                    isOpen: true,
+                                                                    type: 'remove_collaborator',
+                                                                    projectId: selectedNoteId,
+                                                                    collaboratorUid: collabUid,
+                                                                    collaboratorName: profile.name
+                                                                });
+                                                            } else {
+                                                                setConfirmCloseCollab({
+                                                                    isOpen: true,
+                                                                    type: 'leave_project',
+                                                                    projectId: selectedNoteId,
+                                                                    collaboratorUid: collabUid,
+                                                                    collaboratorName: profile.name
+                                                                });
+                                                            }
+                                                        }}
+                                                        className="w-6 h-6 rounded-full hover:bg-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-700 transition-all active:scale-90 shrink-0 cursor-pointer"
+                                                        title={activeNote?.ownerId === user?.uid ? `Remove ${profile.name}` : "Leave project"}
+                                                    >
+                                                        <X size={13} className="stroke-[2.5]" />
+                                                    </button>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -14070,12 +14440,21 @@ export default function CreatePage() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h3 className="text-2xl font-sans font-light text-stone-700 tracking-[-0.025em] leading-[1.3]">
-                            {t('collab.confirm_close_title')}
+                            {confirmCloseCollab.type === 'remove_collaborator' 
+                                ? `Remove ${confirmCloseCollab.collaboratorName}?`
+                                : confirmCloseCollab.type === 'leave_project'
+                                    ? 'Leave Project?'
+                                    : t('collab.confirm_close_title')
+                            }
                         </h3>
                         <p className="text-sm text-stone-500 leading-relaxed font-sans font-medium">
                             {confirmCloseCollab.type === 'decline_invite'
                                 ? t('collab.decline_desc')
-                                : t('collab.close_desc')
+                                : confirmCloseCollab.type === 'remove_collaborator'
+                                    ? `Are you sure you want to remove ${confirmCloseCollab.collaboratorName} from this project? They will lose access to all lyrics and audio recordings.`
+                                    : confirmCloseCollab.type === 'leave_project'
+                                        ? 'Are you sure you want to leave this project? You will no longer be able to view or edit these lyrics.'
+                                        : t('collab.close_desc')
                             }
                         </p>
                         <div className="flex items-center justify-center gap-4 mt-2">
@@ -14092,11 +14471,21 @@ export default function CreatePage() {
                                         setConfirmCloseCollab({ isOpen: false, type: null });
                                     } else if (confirmCloseCollab.type === 'close_collab' && confirmCloseCollab.projectId) {
                                         await handleCloseCollaboration(confirmCloseCollab.projectId);
+                                    } else if (confirmCloseCollab.type === 'remove_collaborator' && confirmCloseCollab.collaboratorUid) {
+                                        await handleRemoveCollaborator(confirmCloseCollab.collaboratorUid);
+                                        setConfirmCloseCollab({ isOpen: false, type: null });
+                                    } else if (confirmCloseCollab.type === 'leave_project' && confirmCloseCollab.projectId) {
+                                        await handleCloseCollaboration(confirmCloseCollab.projectId);
                                     }
                                 }}
-                                className="px-6 py-2.5 bg-red-550 hover:bg-red-650 text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
+                                className="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
                             >
-                                {t('common.confirm')}
+                                {confirmCloseCollab.type === 'remove_collaborator'
+                                    ? 'Remove'
+                                    : confirmCloseCollab.type === 'leave_project'
+                                        ? 'Leave'
+                                        : t('common.confirm')
+                                }
                             </button>
                         </div>
                     </div>
