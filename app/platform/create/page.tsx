@@ -13456,7 +13456,7 @@ export default function CreatePage() {
             <div className="space-y-8 mt-1.5 px-4 md:px-0">
                 
                 {/* Header Controls & Navigation */}
-                <div className="flex items-center justify-between gap-4 w-full py-1.5 md:py-2 border-b border-stone-200/40 mb-4">
+                <div className="flex items-center justify-between gap-4 w-full py-1.5 md:py-2 mb-4">
                     {/* Search Field */}
                     <div className="flex items-center gap-3 bg-stone-50/40 hover:bg-stone-50/70 border border-stone-200 px-4 py-2.5 rounded-[16px] text-stone-750 flex-1 focus-within:bg-white focus-within:border-stone-400/80 transition-all duration-300 shadow-3xs">
                         <Search size={16} className="text-stone-500" />
