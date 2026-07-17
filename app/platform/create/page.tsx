@@ -11971,7 +11971,7 @@ export default function CreatePage() {
                                                                                 if (currentNote) {
                                                                                     const newPhrase: Phrase = {
                                                                                         id: newPhraseId,
-                                                                                        text: file.name,
+                                                                                        text: '',
                                                                                         groupId: null
                                                                                     };
                                                                                     const newPhrases = [...(currentNote.phrases || []), newPhrase];
@@ -12002,7 +12002,7 @@ export default function CreatePage() {
                                                                                     content: `Imported Audio Track\n[No lyrics yet]`,
                                                                                     folderId: activeFolderIdFilter,
                                                                                     updatedAt: new Date().toISOString(),
-                                                                                    phrases: [{ id: newPhraseId, text: title, groupId: null }],
+                                                                                    phrases: [{ id: newPhraseId, text: '', groupId: null }],
                                                                                     verses: [],
                                                                                     audioNotes: [{
                                                                                         id: nextRecId,
@@ -12561,51 +12561,54 @@ export default function CreatePage() {
                                                                             <LyricLinesSkeleton />
                                                                         )}
                                                                         {block.phrases.filter(p => !p.id.startsWith('placeholder-')).map((phrase) => {
+                                                                            const isAudioPlaceholder = phrase.id.startsWith('p-audio-') && phrase.text.trim() === '';
                                                                             return (
                                                                                 <div key={phrase.id} className="flex flex-col items-center w-full gap-2">
-                                                                                    <PhraseRow 
-                                                                                        phrase={phrase}
-                                                                                        clickedTokenIndex={clickedTokenIndex}
-                                                                                        draggedPhraseId={draggedPhraseId}
-                                                                                        draggedPhraseIdRef={draggedPhraseIdRef}
-                                                                                        setDraggedPhraseId={setDraggedPhraseId}
-                                                                                        handleWordClick={handleWordClick}
-                                                                                        handleReorderPhrases={handleReorderPhrases}
-                                                                                        handleMovePhraseToGroup={handleMovePhraseToGroup}
-                                                                                        tokenOffset={phraseTokenOffsets[phrase.id] || 0}
-                                                                                        dragOverPhraseId={dragOverPhraseId}
-                                                                                        dropPosition={dropPosition}
-                                                                                        setDragOverPhraseId={setDragOverPhraseId}
-                                                                                        setDropPosition={setDropPosition}
-                                                                                        handleInsertPhraseAt={handleInsertPhraseAt}
-                                                                                        setDragOverGroupId={setDragOverGroupId}
-                                                                                        draggedGroupId={draggedGroupId}
-                                                                                        draggedGroupIdRef={draggedGroupIdRef}
-                                                                                        showSyllables={showSyllables}
-                                                                                        setDragOverBlockId={setDragOverBlockId}
-                                                                                        setBlockDropPosition={setBlockDropPosition}
-                                                                                        handleInsertPhraseAtBlockLevel={handleInsertPhraseAtBlockLevel}
-                                                                                        blockDropPosition={blockDropPosition}
-                                                                                        dragOverBlockId={dragOverBlockId}
-                                                                                        handleAttachAudioToPhrase={handleAttachAudioToPhrase}
-                                                                                        isCurrentlyEditing={editingPhraseId === phrase.id}
-                                                                                        onStartEditing={handleStartEditing}
-                                                                                        onStopEditing={handleStopEditing}
-                                                                                        onUpdateText={handleUpdatePhraseText}
-                                                                                        onBackspaceAtStart={handleBackspaceAtStart}
-                                                                                        selectionOffset={cursorSelectionOffset?.phraseId === phrase.id ? cursorSelectionOffset.offset : undefined}
-                                                                                        draggedWord={draggedWord}
-                                                                                        setDraggedWord={setDraggedWord}
-                                                                                        dragOverWordIndex={dragOverWordIndex}
-                                                                                        setDragOverWordIndex={setDragOverWordIndex}
-                                                                                        handleWordDrop={handleWordDrop}
-                                                                                        handleWordDropOnPhrase={handleWordDropOnPhrase}
-                                                                                        hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
-                                                                                        handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
-                                                                                        draggedAudioId={draggedAudioId}
-                                                                                        draggedAudioIdRef={draggedAudioIdRef}
-                                                                                        activeRemoteUsers={activeRemoteUsers}
-                                                                                    />
+                                                                                    {!isAudioPlaceholder && (
+                                                                                        <PhraseRow 
+                                                                                            phrase={phrase}
+                                                                                            clickedTokenIndex={clickedTokenIndex}
+                                                                                            draggedPhraseId={draggedPhraseId}
+                                                                                            draggedPhraseIdRef={draggedPhraseIdRef}
+                                                                                            setDraggedPhraseId={setDraggedPhraseId}
+                                                                                            handleWordClick={handleWordClick}
+                                                                                            handleReorderPhrases={handleReorderPhrases}
+                                                                                            handleMovePhraseToGroup={handleMovePhraseToGroup}
+                                                                                            tokenOffset={phraseTokenOffsets[phrase.id] || 0}
+                                                                                            dragOverPhraseId={dragOverPhraseId}
+                                                                                            dropPosition={dropPosition}
+                                                                                            setDragOverPhraseId={setDragOverPhraseId}
+                                                                                            setDropPosition={setDropPosition}
+                                                                                            handleInsertPhraseAt={handleInsertPhraseAt}
+                                                                                            setDragOverGroupId={setDragOverGroupId}
+                                                                                            draggedGroupId={draggedGroupId}
+                                                                                            draggedGroupIdRef={draggedGroupIdRef}
+                                                                                            showSyllables={showSyllables}
+                                                                                            setDragOverBlockId={setDragOverBlockId}
+                                                                                            setBlockDropPosition={setBlockDropPosition}
+                                                                                            handleInsertPhraseAtBlockLevel={handleInsertPhraseAtBlockLevel}
+                                                                                            blockDropPosition={blockDropPosition}
+                                                                                            dragOverBlockId={dragOverBlockId}
+                                                                                            handleAttachAudioToPhrase={handleAttachAudioToPhrase}
+                                                                                            isCurrentlyEditing={editingPhraseId === phrase.id}
+                                                                                            onStartEditing={handleStartEditing}
+                                                                                            onStopEditing={handleStopEditing}
+                                                                                            onUpdateText={handleUpdatePhraseText}
+                                                                                            onBackspaceAtStart={handleBackspaceAtStart}
+                                                                                            selectionOffset={cursorSelectionOffset?.phraseId === phrase.id ? cursorSelectionOffset.offset : undefined}
+                                                                                            draggedWord={draggedWord}
+                                                                                            setDraggedWord={setDraggedWord}
+                                                                                            dragOverWordIndex={dragOverWordIndex}
+                                                                                            setDragOverWordIndex={setDragOverWordIndex}
+                                                                                            handleWordDrop={handleWordDrop}
+                                                                                            handleWordDropOnPhrase={handleWordDropOnPhrase}
+                                                                                            hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
+                                                                                            handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
+                                                                                            draggedAudioId={draggedAudioId}
+                                                                                            draggedAudioIdRef={draggedAudioIdRef}
+                                                                                            activeRemoteUsers={activeRemoteUsers}
+                                                                                        />
+                                                                                    )}
                                                                                 </div>
                                                                             );
                                                                         })}
@@ -12792,49 +12795,51 @@ export default function CreatePage() {
                                                                         )}
                                                                     </React.Fragment>
                                                                 ))}
-                                                                <PhraseRow 
-                                                                    phrase={phrase}
-                                                                    clickedTokenIndex={clickedTokenIndex}
-                                                                    draggedPhraseId={draggedPhraseId}
-                                                                    draggedPhraseIdRef={draggedPhraseIdRef}
-                                                                    setDraggedPhraseId={setDraggedPhraseId}
-                                                                    handleWordClick={handleWordClick}
-                                                                    handleReorderPhrases={handleReorderPhrases}
-                                                                    handleMovePhraseToGroup={handleMovePhraseToGroup}
-                                                                    tokenOffset={phraseTokenOffsets[phrase.id] || 0}
-                                                                    dragOverPhraseId={dragOverPhraseId}
-                                                                    dropPosition={dropPosition}
-                                                                    setDragOverPhraseId={setDragOverPhraseId}
-                                                                    setDropPosition={setDropPosition}
-                                                                    handleInsertPhraseAt={handleInsertPhraseAt}
-                                                                    setDragOverGroupId={setDragOverGroupId}
-                                                                    draggedGroupId={draggedGroupId}
-                                                                    draggedGroupIdRef={draggedGroupIdRef}
-                                                                    showSyllables={showSyllables}
-                                                                    setDragOverBlockId={setDragOverBlockId}
-                                                                    setBlockDropPosition={setBlockDropPosition}
-                                                                    handleInsertPhraseAtBlockLevel={handleInsertPhraseAtBlockLevel}
-                                                                    blockDropPosition={blockDropPosition}
-                                                                    dragOverBlockId={dragOverBlockId}
-                                                                    handleAttachAudioToPhrase={handleAttachAudioToPhrase}
-                                                                    isCurrentlyEditing={editingPhraseId === phrase.id}
-                                                                    onStartEditing={handleStartEditing}
-                                                                    onStopEditing={handleStopEditing}
-                                                                    onUpdateText={handleUpdatePhraseText}
-                                                                    onBackspaceAtStart={handleBackspaceAtStart}
-                                                                    selectionOffset={cursorSelectionOffset?.phraseId === phrase.id ? cursorSelectionOffset.offset : undefined}
-                                                                    draggedWord={draggedWord}
-                                                                    setDraggedWord={setDraggedWord}
-                                                                    dragOverWordIndex={dragOverWordIndex}
-                                                                    setDragOverWordIndex={setDragOverWordIndex}
-                                                                    handleWordDrop={handleWordDrop}
-                                                                    handleWordDropOnPhrase={handleWordDropOnPhrase}
-                                                                    hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
-                                                                    handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
-                                                                    draggedAudioId={draggedAudioId}
-                                                                    draggedAudioIdRef={draggedAudioIdRef}
-                                                                    activeRemoteUsers={activeRemoteUsers}
-                                                                />
+                                                                {!(phrase.id.startsWith('p-audio-') && phrase.text.trim() === '') && (
+                                                                    <PhraseRow 
+                                                                        phrase={phrase}
+                                                                        clickedTokenIndex={clickedTokenIndex}
+                                                                        draggedPhraseId={draggedPhraseId}
+                                                                        draggedPhraseIdRef={draggedPhraseIdRef}
+                                                                        setDraggedPhraseId={setDraggedPhraseId}
+                                                                        handleWordClick={handleWordClick}
+                                                                        handleReorderPhrases={handleReorderPhrases}
+                                                                        handleMovePhraseToGroup={handleMovePhraseToGroup}
+                                                                        tokenOffset={phraseTokenOffsets[phrase.id] || 0}
+                                                                        dragOverPhraseId={dragOverPhraseId}
+                                                                        dropPosition={dropPosition}
+                                                                        setDragOverPhraseId={setDragOverPhraseId}
+                                                                        setDropPosition={setDropPosition}
+                                                                        handleInsertPhraseAt={handleInsertPhraseAt}
+                                                                        setDragOverGroupId={setDragOverGroupId}
+                                                                        draggedGroupId={draggedGroupId}
+                                                                        draggedGroupIdRef={draggedGroupIdRef}
+                                                                        showSyllables={showSyllables}
+                                                                        setDragOverBlockId={setDragOverBlockId}
+                                                                        setBlockDropPosition={setBlockDropPosition}
+                                                                        handleInsertPhraseAtBlockLevel={handleInsertPhraseAtBlockLevel}
+                                                                        blockDropPosition={blockDropPosition}
+                                                                        dragOverBlockId={dragOverBlockId}
+                                                                        handleAttachAudioToPhrase={handleAttachAudioToPhrase}
+                                                                        isCurrentlyEditing={editingPhraseId === phrase.id}
+                                                                        onStartEditing={handleStartEditing}
+                                                                        onStopEditing={handleStopEditing}
+                                                                        onUpdateText={handleUpdatePhraseText}
+                                                                        onBackspaceAtStart={handleBackspaceAtStart}
+                                                                        selectionOffset={cursorSelectionOffset?.phraseId === phrase.id ? cursorSelectionOffset.offset : undefined}
+                                                                        draggedWord={draggedWord}
+                                                                        setDraggedWord={setDraggedWord}
+                                                                        dragOverWordIndex={dragOverWordIndex}
+                                                                        setDragOverWordIndex={setDragOverWordIndex}
+                                                                        handleWordDrop={handleWordDrop}
+                                                                        handleWordDropOnPhrase={handleWordDropOnPhrase}
+                                                                        hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
+                                                                        handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
+                                                                        draggedAudioId={draggedAudioId}
+                                                                        draggedAudioIdRef={draggedAudioIdRef}
+                                                                        activeRemoteUsers={activeRemoteUsers}
+                                                                    />
+                                                                )}
                                                             </div>
                                                         );
                                                     })()
