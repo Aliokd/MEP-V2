@@ -3657,8 +3657,10 @@ export default function CreatePage() {
                     
                     const isPhrasesLengthIdentical = (existingNote.phrases || []).length === (data.phrases || []).length;
                     const isAudioLengthIdentical = (existingNote.audioNotes || []).length === (data.audioNotes || []).length;
+                    const isImagesLengthIdentical = (existingNote.images || []).length === (data.images || []).length;
+                    const isDocumentsLengthIdentical = (existingNote.documents || []).length === (data.documents || []).length;
 
-                    if (isTitleIdentical && isContentIdentical && isFolderIdentical && isAudioOnlyIdentical && isPhrasesLengthIdentical && isAudioLengthIdentical) {
+                    if (isTitleIdentical && isContentIdentical && isFolderIdentical && isAudioOnlyIdentical && isPhrasesLengthIdentical && isAudioLengthIdentical && isImagesLengthIdentical && isDocumentsLengthIdentical) {
                         const localPhrases = existingNote.phrases || [];
                         const remotePhrases = data.phrases || [];
                         
@@ -6027,6 +6029,13 @@ export default function CreatePage() {
                         contributions: updatedContributions,
                         location: updatedNote.location || '',
                         images: (updatedNote.images || []).map((img: any) => ({ id: img.id, url: img.url, name: img.name || '' })),
+                        documents: (updatedNote.documents || []).map((d: any) => ({
+                            id: d.id,
+                            url: d.url || '',
+                            name: d.name || '',
+                            type: d.type || 'other',
+                            size: d.size || 0
+                        })),
                         updatedAt: new Date().toISOString()
                     }, { merge: true }).catch(err => console.warn("Error updating project note in Firestore:", err));
                 }
