@@ -13456,55 +13456,46 @@ export default function CreatePage() {
             <div className="space-y-8 mt-6 px-4 md:px-0">
                 
                 {/* Header Controls & Navigation */}
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 relative">
-                        <div className="flex items-center gap-2.5">
-                            <h2 className="text-[15px] font-bold text-stone-600 uppercase tracking-wider">{t('workspace.title') || 'Projects'}</h2>
-                        </div>
+                <div className="flex items-center justify-between gap-4 w-full py-4 md:py-6 border-b border-stone-200/40 mb-6">
+                    {/* Search Field */}
+                    <div className="flex items-center gap-3 bg-stone-50/40 hover:bg-stone-50/70 border border-stone-200 px-4 py-2.5 rounded-[16px] text-stone-750 w-[78%] focus-within:bg-white focus-within:border-stone-400/80 transition-all duration-300 shadow-3xs">
+                        <Search size={16} className="text-stone-500" />
+                        <input 
+                            type="text" 
+                            placeholder={t('workspace.search_placeholder') || 'Search projects...'} 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={handleSearchKeyDown}
+                            className="bg-transparent border-none outline-none w-full text-[13.5px] font-sans placeholder:text-stone-400 font-medium text-stone-800 focus:ring-0 focus:outline-none"
+                        />
                     </div>
-                    
-                    {/* View Style & Search Capsule */}
-                    <div className="flex items-center gap-4">
-                        {/* Grid / List Style Toggle */}
-                        <div className="flex items-center bg-stone-100 p-0.5 rounded-full border border-stone-200/40 select-none">
-                            <button
-                                type="button"
-                                onClick={() => setProjectViewStyle('grid')}
-                                className={`px-2.5 py-1 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                                    projectViewStyle === 'grid'
-                                        ? 'bg-white shadow-3xs text-stone-800'
-                                        : 'text-stone-400 hover:text-stone-600'
-                                }`}
-                                title="Grid View"
-                            >
-                                <LayoutGrid size={15} />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setProjectViewStyle('list')}
-                                className={`px-2.5 py-1 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                                    projectViewStyle === 'list'
-                                        ? 'bg-white shadow-3xs text-stone-800'
-                                        : 'text-stone-400 hover:text-stone-600'
-                                }`}
-                                title="List View"
-                            >
-                                <List size={15} />
-                            </button>
-                        </div>
 
-                        {/* Search Field */}
-                        <div className="flex items-center gap-2 bg-stone-50/50 hover:bg-stone-50/80 border border-stone-200 px-3.5 py-1.5 rounded-[12px] text-stone-750 w-44 focus-within:w-56 focus-within:bg-white focus-within:border-stone-400/80 transition-all duration-300 shadow-3xs">
-                            <Search size={15} className="text-stone-500/80" />
-                            <input 
-                                type="text" 
-                                placeholder={t('workspace.search_placeholder') || 'Search projects...'} 
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyDown={handleSearchKeyDown}
-                                className="bg-transparent border-none outline-none w-full text-xs font-sans placeholder:text-stone-400 font-medium text-stone-800 focus:ring-0 focus:outline-none"
-                            />
-                        </div>
+                    {/* Grid / List Style Toggle */}
+                    <div className="flex items-center bg-stone-100/70 p-1 rounded-[14px] border border-stone-200/60 select-none shrink-0 h-[44px]">
+                        <button
+                            type="button"
+                            onClick={() => setProjectViewStyle('grid')}
+                            className={`px-3.5 rounded-[10px] flex items-center justify-center transition-all cursor-pointer h-full ${
+                                projectViewStyle === 'grid'
+                                    ? 'bg-white shadow-3xs text-stone-800'
+                                    : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                            title="Grid View"
+                        >
+                            <LayoutGrid size={15} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setProjectViewStyle('list')}
+                            className={`px-3.5 rounded-[10px] flex items-center justify-center transition-all cursor-pointer h-full ${
+                                projectViewStyle === 'list'
+                                    ? 'bg-white shadow-3xs text-stone-800'
+                                    : 'text-stone-400 hover:text-stone-600'
+                            }`}
+                            title="List View"
+                        >
+                            <List size={15} />
+                        </button>
                     </div>
                 </div>
                 <div className="flex flex-col gap-6">
