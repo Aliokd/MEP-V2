@@ -11947,6 +11947,7 @@ export default function CreatePage() {
                                                                             const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
                                                                             
                                                                             const nextId = Date.now();
+                                                                            const localUrl = URL.createObjectURL(file);
                                                                             const newTrack: StudioTrack = {
                                                                                 id: nextId,
                                                                                 name: file.name.substring(0, 18) || 'Uploaded Track',
@@ -11957,10 +11958,67 @@ export default function CreatePage() {
                                                                                 compressor: true,
                                                                                 reverb: 40,
                                                                                 audioBuffer: audioBuffer,
-                                                                                url: URL.createObjectURL(file)
+                                                                                url: localUrl
                                                                             };
                                                                             setStudioTracks(prev => [...prev, newTrack]);
                                                                             setActiveRecordingTrackId(nextId);
+
+                                                                            const nextRecId = `imported-rec-${nextId}`;
+                                                                            const newPhraseId = `p-audio-${nextRecId}`;
+
+                                                                            if (selectedNoteId) {
+                                                                                const currentNote = notes.find(n => n.id === selectedNoteId);
+                                                                                if (currentNote) {
+                                                                                    const newPhrase: Phrase = {
+                                                                                        id: newPhraseId,
+                                                                                        text: file.name,
+                                                                                        groupId: null
+                                                                                    };
+                                                                                    const newPhrases = [...(currentNote.phrases || []), newPhrase];
+                                                                                    const finalPhrases = cleanupAndEnsurePlaceholders(newPhrases, currentNote.verses || []);
+
+                                                                                    const existingAudio = currentNote.audioNotes || [];
+                                                                                    const newAudioNote = {
+                                                                                        id: nextRecId,
+                                                                                        url: localUrl,
+                                                                                        title: file.name,
+                                                                                        duration: audioBuffer.duration,
+                                                                                        groupId: null,
+                                                                                        phraseId: newPhraseId,
+                                                                                        createdAt: Date.now()
+                                                                                    };
+
+                                                                                    handleUpdateNote(selectedNoteId, {
+                                                                                        phrases: finalPhrases,
+                                                                                        audioNotes: [...existingAudio, newAudioNote]
+                                                                                    });
+                                                                                }
+                                                                            } else {
+                                                                                const title = file.name || `Imported Track ${new Date().toLocaleDateString()}`;
+                                                                                const newNoteId = `n-${Date.now()}`;
+                                                                                const newNote: SongNote = {
+                                                                                    id: newNoteId,
+                                                                                    title: title,
+                                                                                    content: `Imported Audio Track\n[No lyrics yet]`,
+                                                                                    folderId: activeFolderIdFilter,
+                                                                                    updatedAt: new Date().toISOString(),
+                                                                                    phrases: [{ id: newPhraseId, text: title, groupId: null }],
+                                                                                    verses: [],
+                                                                                    audioNotes: [{
+                                                                                        id: nextRecId,
+                                                                                        url: localUrl,
+                                                                                        title: file.name,
+                                                                                        duration: audioBuffer.duration,
+                                                                                        groupId: null,
+                                                                                        phraseId: newPhraseId,
+                                                                                        createdAt: Date.now()
+                                                                                    }],
+                                                                                    isAudioOnly: false
+                                                                                };
+                                                                                setNotes(prev => [newNote, ...prev]);
+                                                                                setSelectedNoteId(newNoteId);
+                                                                            }
+
                                                                             alert(`Successfully imported audio track: ${file.name}`);
                                                                         } catch (decodeErr) {
                                                                             console.error("Audio decoding error:", decodeErr);
