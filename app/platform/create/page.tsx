@@ -12081,6 +12081,7 @@ export default function CreatePage() {
                                                     onClick={(e) => {
                                                         try {
                                                             e.stopPropagation();
+                                                            alert("Click registered! Selected note ID: " + selectedNoteId);
                                                             const active = notes.find(n => n.id === selectedNoteId);
                                                             setDetailsLocation(active?.location || '');
                                                             setShowDetailsModal(true);
