@@ -270,9 +270,9 @@
     "collab_projects": "Samarbetsprojekt",
     "no_personal_projects": "Inga personliga projekt hittades.",
     "no_collab_projects": "Inga samarbetsprojekt hittades.",
-    "no_projects_found": "Inga projekt hittades. Klicka på +-knappen för att skapa ett nytt projekt!",
-    "search_placeholder": "Sök i arbetsyta...",
-    "title": "Arbetsyta",
+    "no_projects_found": "Inga projekt hittades.",
+    "search_placeholder": "Sök i projekt...",
+    "title": "Projekt",
     "create_project": "Skapa nytt projekt",
     "untitled_note": "Namnlös låt",
     "delete_note": "Ta bort låt"

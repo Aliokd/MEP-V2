@@ -270,9 +270,9 @@
     "collab_projects": "Collab Projects",
     "no_personal_projects": "No personal projects found.",
     "no_collab_projects": "No collab projects found.",
-    "no_projects_found": "No projects found. Click the + button to create a new project!",
-    "search_placeholder": "Search workspace...",
-    "title": "Workspace",
+    "no_projects_found": "No projects found.",
+    "search_placeholder": "Search projects...",
+    "title": "Projects",
     "create_project": "Create new project",
     "untitled_note": "Untitled Song",
     "delete_note": "Delete Note"

@@ -20,6 +20,8 @@ import {
     FileText, 
     Trash2, 
     Search, 
+    LayoutGrid,
+    List,
     Plus,
     Mic,
     Play,
@@ -13457,14 +13459,7 @@ export default function CreatePage() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3 relative">
                         <div className="flex items-center gap-2.5">
-                            <h2 className="text-[15px] font-bold text-stone-550 uppercase tracking-wider">{t('workspace.title')}</h2>
-                            <button 
-                                onClick={() => handleCreateNote()}
-                                className="w-6 h-6 rounded-full bg-stone-300/40 hover:bg-stone-300/60 text-stone-600 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
-                                title={t('workspace.create_project')}
-                            >
-                                <Plus size={12} />
-                            </button>
+                            <h2 className="text-[15px] font-bold text-stone-600 uppercase tracking-wider">{t('workspace.title') || 'Projects'}</h2>
                         </div>
                     </div>
                     
@@ -13482,12 +13477,7 @@ export default function CreatePage() {
                                 }`}
                                 title="Grid View"
                             >
-                                <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="3" y="3" width="7" height="7"></rect>
-                                    <rect x="14" y="3" width="7" height="7"></rect>
-                                    <rect x="14" y="14" width="7" height="7"></rect>
-                                    <rect x="3" y="14" width="7" height="7"></rect>
-                                </svg>
+                                <LayoutGrid size={15} />
                             </button>
                             <button
                                 type="button"
@@ -13499,27 +13489,20 @@ export default function CreatePage() {
                                 }`}
                                 title="List View"
                             >
-                                <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="8" y1="6" x2="21" y2="6"></line>
-                                    <line x1="8" y1="12" x2="21" y2="12"></line>
-                                    <line x1="8" y1="18" x2="21" y2="18"></line>
-                                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                                </svg>
+                                <List size={15} />
                             </button>
                         </div>
 
                         {/* Search Field */}
-                        <div className="flex items-center gap-2 bg-white/40 border border-stone-250/25 px-3.5 py-1.5 rounded-[12px] text-stone-750 w-44 focus-within:w-56 focus-within:bg-white focus-within:border-stone-355 transition-all duration-300">
-                            <Search size={12} className="text-stone-400" />
+                        <div className="flex items-center gap-2 bg-stone-50/50 hover:bg-stone-50/80 border border-stone-200 px-3.5 py-1.5 rounded-[12px] text-stone-750 w-44 focus-within:w-56 focus-within:bg-white focus-within:border-stone-400/80 transition-all duration-300 shadow-3xs">
+                            <Search size={15} className="text-stone-500/80" />
                             <input 
                                 type="text" 
-                                placeholder={t('workspace.search_placeholder')} 
+                                placeholder={t('workspace.search_placeholder') || 'Search projects...'} 
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={handleSearchKeyDown}
-                                className="bg-transparent border-none outline-none w-full text-xs font-sans placeholder:text-stone-400 font-medium"
+                                className="bg-transparent border-none outline-none w-full text-xs font-sans placeholder:text-stone-400 font-medium text-stone-800 focus:ring-0 focus:outline-none"
                             />
                         </div>
                     </div>

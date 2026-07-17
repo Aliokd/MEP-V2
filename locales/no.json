@@ -270,9 +270,9 @@
     "collab_projects": "Samarbeidsprosjekter",
     "no_personal_projects": "Ingen personlige prosjekter funnet.",
     "no_collab_projects": "Ingen samarbeidsprosjekter funnet.",
-    "no_projects_found": "Ingen prosjekter funnet. Klikk på +-knappen for å opprette et nytt prosjekt!",
-    "search_placeholder": "Søk i arbeidsområde...",
-    "title": "Arbeidsområde",
+    "no_projects_found": "Ingen prosjekter funnet.",
+    "search_placeholder": "Søk i prosjekter...",
+    "title": "Prosjekter",
     "create_project": "Opprett nytt prosjekt",
     "untitled_note": "Uten tittel",
     "delete_note": "Slett sang"
