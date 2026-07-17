@@ -418,6 +418,7 @@ interface SongNote {
     forceHistoryPush?: boolean;
     ownerId?: string;
     collaborators?: string[];
+    location?: string;
 }
 
 
@@ -2210,6 +2211,8 @@ export default function CreatePage() {
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
     const [isSelectionInitialized, setIsSelectionInitialized] = useState(false);
     const [isExporting, setIsExporting] = useState<boolean>(false);
+    const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
+    const [detailsLocation, setDetailsLocation] = useState<string>('');
     const [shareStatus, setShareStatus] = useState<'idle' | 'sharing' | 'shared'>('idle');
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
     const [renameGroupName, setRenameGroupName] = useState<string>('');
@@ -6828,6 +6831,51 @@ export default function CreatePage() {
         }
     };
 
+    const handleDetectLocation = () => {
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser.");
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                setDetailsLocation(`Detecting city...`);
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const city = data.address.city || data.address.town || data.address.village || data.address.suburb || '';
+                        const country = data.address.country || '';
+                        if (city && country) {
+                            setDetailsLocation(`${city}, ${country}`);
+                        } else if (data.display_name) {
+                            setDetailsLocation(data.display_name.split(',').slice(0, 3).join(','));
+                        } else {
+                            setDetailsLocation(`Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`);
+                        }
+                    } else {
+                        setDetailsLocation(`Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`);
+                    }
+                } catch (err) {
+                    console.error("Reverse geocoding failed:", err);
+                    setDetailsLocation(`Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`);
+                }
+            },
+            (error) => {
+                console.error("Geolocation error:", error);
+                alert("Failed to detect location. Please type it manually.");
+            }
+        );
+    };
+
+    const handleSaveDetails = () => {
+        if (selectedNoteId) {
+            handleUpdateNote(selectedNoteId, { location: detailsLocation });
+        }
+        setShowDetailsModal(false);
+    };
+
     const handleExportProjectBundle = async (noteId: string) => {
         const activeNote = notes.find(n => n.id === noteId);
         if (!activeNote) return;
@@ -10158,6 +10206,98 @@ export default function CreatePage() {
                     </div>,
                     document.body
                 )}
+
+                {showDetailsModal && createPortal(
+                    <div className="fixed inset-0 bg-stone-900/45 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowDetailsModal(false)}>
+                        <div 
+                            className="bg-[#DCDDD4] rounded-[28px] border border-stone-200/20 shadow-[0_20px_50px_rgba(0,0,0,0.15)] max-w-md w-full p-6 sm:p-7 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between border-b border-stone-300/30 pb-3">
+                                <h3 className="text-xl font-sans font-semibold text-stone-750 flex items-center gap-2">
+                                    <Info size={18} className="text-[#87b884]" />
+                                    {t('creative.details') || 'Project Details'}
+                                </h3>
+                                <button 
+                                    onClick={() => setShowDetailsModal(false)}
+                                    className="w-8 h-8 rounded-full hover:bg-stone-200/50 flex items-center justify-center text-stone-500 hover:text-stone-750 transition-colors cursor-pointer"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex flex-col gap-4 text-stone-700 text-[14px]">
+                                {/* Title */}
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Title</span>
+                                    <span className="font-medium text-stone-850">{activeNote?.title || 'Untitled Project'}</span>
+                                </div>
+
+                                {/* Modified Date */}
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Last Modified</span>
+                                    <span className="font-medium text-stone-800">
+                                        {activeNote?.updatedAt ? new Date(activeNote.updatedAt).toLocaleString() : 'N/A'}
+                                    </span>
+                                </div>
+
+                                {/* Owner */}
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Owner / Responsible</span>
+                                    <span className="font-medium text-stone-800">
+                                        {activeNote?.ownerId === user?.uid ? 'You' : (collaboratorProfiles[activeNote?.ownerId || '']?.name || 'Owner')}
+                                    </span>
+                                </div>
+
+                                {/* Collaborators */}
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Collaborators</span>
+                                    <span className="font-medium text-stone-800">
+                                        {collaborators.length > 0 
+                                            ? collaborators.map(uid => collaboratorProfiles[uid]?.name || 'Collaborator').join(', ')
+                                            : 'No collaborators'
+                                        }
+                                    </span>
+                                </div>
+
+                                {/* Location */}
+                                <div className="flex flex-col gap-1.5">
+                                    <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Location</span>
+                                    <div className="flex items-center gap-2">
+                                        <input 
+                                            type="text" 
+                                            placeholder="e.g. Studio A, Oslo, Home"
+                                            value={detailsLocation}
+                                            onChange={(e) => setDetailsLocation(e.target.value)}
+                                            className="flex-1 bg-stone-50 border border-stone-250/30 rounded-xl px-4 py-2.5 outline-none focus:bg-white focus:border-stone-400/80 transition-all font-medium text-stone-800"
+                                        />
+                                        <button 
+                                            type="button"
+                                            onClick={handleDetectLocation}
+                                            title="Detect Location"
+                                            className="h-[40px] px-3.5 bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-800 rounded-xl transition-all flex items-center justify-center cursor-pointer border border-stone-200/50"
+                                        >
+                                            <Compass size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Save Button */}
+                            <div className="flex justify-end pt-3 border-t border-stone-300/30">
+                                <button
+                                    onClick={handleSaveDetails}
+                                    className="bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-sans font-semibold text-[14px] px-8 py-2.5 rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-md hover:shadow-lg shadow-[#87b884]/20"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 };
@@ -11916,6 +12056,22 @@ export default function CreatePage() {
                                                 >
                                                     <Download size={16} className="text-stone-500" />
                                                     {t('creative.export_project')}
+                                                </button>
+                                            )}
+
+                                            {selectedNoteId && (
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const active = notes.find(n => n.id === selectedNoteId);
+                                                        setDetailsLocation(active?.location || '');
+                                                        setShowDetailsModal(true);
+                                                        setShowCanvasMenu(false);
+                                                    }}
+                                                    className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                >
+                                                    <Info size={16} className="text-stone-500" />
+                                                    {t('creative.details')}
                                                 </button>
                                             )}
 
