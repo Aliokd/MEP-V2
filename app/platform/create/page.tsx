@@ -10251,7 +10251,13 @@ export default function CreatePage() {
                                 <div className="flex flex-col gap-1">
                                     <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Owner / Responsible</span>
                                     <span className="font-medium text-stone-800">
-                                        {activeNote?.ownerId === user?.uid ? 'You' : (collaboratorProfiles[activeNote?.ownerId || '']?.name || 'Owner')}
+                                        {(() => {
+                                            try {
+                                                return activeNote?.ownerId === user?.uid ? 'You' : ((collaboratorProfiles || {})[activeNote?.ownerId || '']?.name || 'Owner');
+                                            } catch (e) {
+                                                return 'Owner';
+                                            }
+                                        })()}
                                     </span>
                                 </div>
 
@@ -10259,10 +10265,17 @@ export default function CreatePage() {
                                 <div className="flex flex-col gap-1">
                                     <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Collaborators</span>
                                     <span className="font-medium text-stone-800">
-                                        {collaborators.length > 0 
-                                            ? collaborators.map(uid => collaboratorProfiles[uid]?.name || 'Collaborator').join(', ')
-                                            : 'No collaborators'
-                                        }
+                                        {(() => {
+                                            try {
+                                                const collabList = collaborators || [];
+                                                const profiles = collaboratorProfiles || {};
+                                                return collabList.length > 0 
+                                                    ? collabList.map(uid => profiles[uid]?.name || 'Collaborator').join(', ')
+                                                    : 'No collaborators';
+                                            } catch (e) {
+                                                return 'No collaborators';
+                                            }
+                                        })()}
                                     </span>
                                 </div>
 
@@ -12066,11 +12079,15 @@ export default function CreatePage() {
                                             {selectedNoteId && (
                                                 <button 
                                                     onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const active = notes.find(n => n.id === selectedNoteId);
-                                                        setDetailsLocation(active?.location || '');
-                                                        setShowDetailsModal(true);
-                                                        setShowCanvasMenu(false);
+                                                        try {
+                                                            e.stopPropagation();
+                                                            const active = notes.find(n => n.id === selectedNoteId);
+                                                            setDetailsLocation(active?.location || '');
+                                                            setShowDetailsModal(true);
+                                                            setShowCanvasMenu(false);
+                                                        } catch (err) {
+                                                            alert("Error opening details: " + err);
+                                                        }
                                                     }}
                                                     className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                                                 >
