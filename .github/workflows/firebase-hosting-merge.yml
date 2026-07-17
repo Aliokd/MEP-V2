@@ -16,6 +16,9 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
+      - name: Create environment configuration
+        run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
       - run: npm run build
       - name: Deploy to Firebase Hosting (CLI)
         env:
