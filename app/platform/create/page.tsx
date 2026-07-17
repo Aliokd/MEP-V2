@@ -2778,7 +2778,7 @@ export default function CreatePage() {
 
         if (!studioAudioCtxRef.current) {
             studioAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
-                latencyHint: 0.005
+                latencyHint: 0.002
             });
             currentContextIsLowLatencyRef.current = resolvedLowLatency;
         }
@@ -4952,7 +4952,7 @@ export default function CreatePage() {
                 
                 // Web Audio analyser setup
                 const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-                    latencyHint: 0.005
+                    latencyHint: 0.002
                 });
                 const analyser = audioContext.createAnalyser();
                 analyser.fftSize = 128; // small size for visualizer frequency counts
@@ -8509,7 +8509,7 @@ export default function CreatePage() {
                     autoGainControl: false,
                     sampleRate: 48000,
                     channelCount: 1,
-                    latency: { ideal: 0.005 }
+                    latency: { ideal: 0.002 }
                 } as any
             };
             let stream: MediaStream;
