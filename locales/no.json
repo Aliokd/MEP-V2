@@ -323,6 +323,7 @@
     "new_project": "Nytt prosjekt",
     "upload_files": "Last opp filer",
     "delete_project": "Slett prosjekt",
+    "export_project": "Eksporter prosjektbunt (.zip)",
     "add": "Legg til",
     "chorus": "Refreng",
     "verse": "Vers",

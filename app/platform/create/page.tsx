@@ -7,7 +7,7 @@ import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, updateDoc, writeBatch, arrayRemove, deleteDoc, arrayUnion } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, getDownloadURL, getBlob } from 'firebase/storage';
 import { 
     migrateLegacyNotesToProjects,
     inviteCollaboratorByEmail,
@@ -62,7 +62,8 @@ import {
     Guitar,
     X,
     Info,
-    Headphones
+    Headphones,
+    Download
 } from 'lucide-react';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -2208,6 +2209,7 @@ export default function CreatePage() {
     const [notes, setNotes] = useState<SongNote[]>(() => readCachedNotes());
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
     const [isSelectionInitialized, setIsSelectionInitialized] = useState(false);
+    const [isExporting, setIsExporting] = useState<boolean>(false);
     const [shareStatus, setShareStatus] = useState<'idle' | 'sharing' | 'shared'>('idle');
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
     const [renameGroupName, setRenameGroupName] = useState<string>('');
@@ -6826,6 +6828,135 @@ export default function CreatePage() {
         }
     };
 
+    const handleExportProjectBundle = async (noteId: string) => {
+        const activeNote = notes.find(n => n.id === noteId);
+        if (!activeNote) return;
+
+        setIsExporting(true);
+        try {
+            const JSZip = (await import('jszip')).default;
+            const zip = new JSZip();
+            
+            const projectTitle = activeNote.title || 'Untitled Project';
+            const contentText = activeNote.content || '';
+            const lyricsDocContent = `${projectTitle}\n\n${contentText}`;
+            
+            // Helper to prevent filename collisions at the ZIP root
+            const usedNames = new Set<string>();
+            const getUniqueFileName = (baseName: string, ext: string) => {
+                // Remove invalid filename characters
+                const sanitized = baseName.replace(/[\\/:*?\"<>|]/g, '_');
+                let name = `${sanitized}.${ext}`;
+                let counter = 1;
+                while (usedNames.has(name.toLowerCase())) {
+                    name = `${sanitized}_${counter}.${ext}`;
+                    counter++;
+                }
+                usedNames.add(name.toLowerCase());
+                return name;
+            };
+
+            // Add lyrics file directly to the root
+            const lyricsFileName = getUniqueFileName(`${projectTitle}_lyrics`, 'doc');
+            zip.file(lyricsFileName, lyricsDocContent);
+
+            // Helper to download audio with a strict timeout to prevent hangs
+            const downloadAudioBlob = async (url: string): Promise<Blob> => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+                try {
+                    // 1. If it's a local blob URL, fetch it directly
+                    if (url.startsWith('blob:')) {
+                        const response = await fetch(url, { signal: controller.signal });
+                        clearTimeout(timeoutId);
+                        if (response.ok) {
+                            return await response.blob();
+                        }
+                        throw new Error(`Local blob fetch failed with HTTP ${response.status}`);
+                    }
+                    
+                    // 2. For remote files, request via our server-side API proxy to bypass CORS
+                    const proxyUrl = `/api/download-audio?url=${encodeURIComponent(url)}`;
+                    const response = await fetch(proxyUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (response.ok) {
+                        return await response.blob();
+                    }
+                    throw new Error(`Proxy fetch failed with HTTP ${response.status}`);
+                } catch (e) {
+                    clearTimeout(timeoutId);
+                    console.warn(`Primary download method failed for url: ${url}. Attempting SDK fallback...`, e);
+                }
+
+                // 3. Fallback: Try Firebase Storage SDK getBlob if it's a firebase URL
+                if (url.includes('firebasestorage.googleapis.com') || url.startsWith('gs://')) {
+                    const sdkTimeout = new Promise<never>((_, reject) => 
+                        setTimeout(() => reject(new Error('Firebase Storage SDK timeout')), 8000)
+                    );
+                    const sdkDownload = (async () => {
+                        const fileRef = storageRef(storage, url);
+                        return await getBlob(fileRef);
+                    })();
+                    return await Promise.race([sdkDownload, sdkTimeout]);
+                }
+
+                throw new Error(`Failed to download audio from: ${url}`);
+            };
+
+            // Fetch and add Canvas Audio Notes (including legacy activeNote.audioUrl & Demo Studio Mixdowns)
+            const audioNotesList = activeNote 
+                ? (activeNote.audioNotes && activeNote.audioNotes.length > 0 
+                    ? activeNote.audioNotes 
+                    : (activeNote.audioUrl 
+                        ? [{ 
+                            id: 'audio-init', 
+                            url: activeNote.audioUrl, 
+                            title: activeNote.title || 'Audio 1', 
+                            duration: activeNote.recordingDuration || 0, 
+                            groupId: activeNote.audioGroupId || null,
+                            phraseId: null,
+                            createdAt: 0
+                          }] 
+                        : []))
+                : [];
+
+            if (audioNotesList.length > 0) {
+                for (let i = 0; i < audioNotesList.length; i++) {
+                    const audioNote = audioNotesList[i];
+                    if (audioNote.url) {
+                        try {
+                            const blob = await downloadAudioBlob(audioNote.url);
+                            const baseTitle = audioNote.title || `Recording_${i + 1}`;
+                            const fileName = getUniqueFileName(baseTitle, 'mp3');
+                            zip.file(fileName, blob);
+                        } catch (fetchErr) {
+                            console.error(`Error fetching canvas recording ${audioNote.title || i}:`, fetchErr);
+                        }
+                    }
+                }
+            }
+
+            // Generate zip file blob
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            
+            // Trigger download
+            const downloadUrl = URL.createObjectURL(zipBlob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = `${projectTitle}_ProjectBundle.zip`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(downloadUrl);
+        } catch (err) {
+            console.error("Failed to generate project bundle zip:", err);
+            alert("Failed to export project bundle. Please try again.");
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const handleDeleteFolder = (folderId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (!confirm("Are you sure you want to delete this folder? Notes inside will be kept uncategorized.")) return;
@@ -10015,6 +10146,18 @@ export default function CreatePage() {
                     </div>,
                     document.body
                 )}
+
+                {isExporting && createPortal(
+                    <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-md z-[110] flex items-center justify-center animate-in fade-in duration-200">
+                        <div className="bg-[#DCDDD4] rounded-3xl p-6 flex flex-col items-center gap-4 shadow-xl border border-stone-250/20 max-w-[280px]">
+                            <Loader2 className="w-10 h-10 text-[#87b884] animate-spin" />
+                            <p className="text-stone-850 text-[14.5px] font-sans font-medium text-center leading-relaxed">
+                                Exporting project bundle, please wait...
+                            </p>
+                        </div>
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 };
@@ -11761,6 +11904,20 @@ export default function CreatePage() {
                                                 <Upload size={16} className="text-stone-500" />
                                                 {t('creative.upload_files')}
                                             </button>
+
+                                            {selectedNoteId && (
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleExportProjectBundle(selectedNoteId);
+                                                        setShowCanvasMenu(false);
+                                                    }}
+                                                    className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                >
+                                                    <Download size={16} className="text-stone-500" />
+                                                    {t('creative.export_project')}
+                                                </button>
+                                            )}
 
                                             {selectedNoteId && (
                                                 <button 

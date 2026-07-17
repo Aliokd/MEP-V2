@@ -323,6 +323,7 @@
     "new_project": "Nytt projekt",
     "upload_files": "Ladda upp filer",
     "delete_project": "Ta bort projekt",
+    "export_project": "Exportera projektbunt (.zip)",
     "add": "Lägg till",
     "chorus": "Refräng",
     "verse": "Vers",

@@ -323,6 +323,7 @@
     "new_project": "New Project",
     "upload_files": "Upload Files",
     "delete_project": "Delete Project",
+    "export_project": "Export Project Bundle (.zip)",
     "add": "Add",
     "chorus": "Chorus",
     "verse": "Verse",
