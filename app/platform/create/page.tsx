@@ -8201,9 +8201,9 @@ export default function CreatePage() {
 
                     source.connect(eqNode);
                     eqNode.connect(compNode);
-                    compNode.connect(panNode);
-                    panNode.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
+                    compNode.connect(gainNode);
+                    gainNode.connect(panNode);
+                    panNode.connect(audioCtx.destination);
 
                     compNode.connect(reverbGainNode);
                     reverbGainNode.connect(reverbNode);
@@ -8411,9 +8411,9 @@ export default function CreatePage() {
 
                 source.connect(eqNode);
                 eqNode.connect(compNode);
-                compNode.connect(panNode);
-                panNode.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
+                compNode.connect(gainNode);
+                gainNode.connect(panNode);
+                panNode.connect(audioCtx.destination);
 
                 compNode.connect(reverbGainNode);
                 reverbGainNode.connect(reverbNode);
@@ -8621,9 +8621,9 @@ export default function CreatePage() {
 
             source.connect(eqNode);
             eqNode.connect(compNode);
-            compNode.connect(panNode);
-            panNode.connect(gainNode);
-            gainNode.connect(offlineCtx.destination);
+            compNode.connect(gainNode);
+            gainNode.connect(panNode);
+            panNode.connect(offlineCtx.destination);
 
             compNode.connect(reverbGainNode);
             reverbGainNode.connect(offlineReverbNode);
