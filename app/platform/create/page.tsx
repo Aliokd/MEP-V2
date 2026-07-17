@@ -421,6 +421,8 @@ interface SongNote {
     ownerId?: string;
     collaborators?: string[];
     location?: string;
+    images?: { id: string; url: string; name: string }[];
+    documents?: { id: string; url: string; name: string; type: string; size?: number }[];
 }
 
 
@@ -11929,7 +11931,7 @@ export default function CreatePage() {
                                                     const input = document.createElement('input');
                                                     input.type = 'file';
                                                     input.multiple = true;
-                                                    input.accept = 'audio/*,text/*,image/*,.mp3,.wav,.m4a,.ogg,.txt,.md,.png,.jpg,.jpeg,.gif,.webp';
+                                                    input.accept = 'audio/*,text/*,image/*,.mp3,.wav,.m4a,.ogg,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
                                                     input.onchange = async (changeEvent) => {
                                                         const files = Array.from(input.files || []);
                                                         for (const file of files) {
@@ -12040,18 +12042,35 @@ export default function CreatePage() {
                                                                         const currentNote = notes.find(n => n.id === selectedNoteId);
                                                                         const syncedPhrases = syncPhrasesWithContent(text, currentNote?.phrases || []);
                                                                         
-                                                                        handleUpdateNote(selectedNoteId, {
-                                                                            content: text,
-                                                                            phrases: syncedPhrases
-                                                                        });
+                                                                        // Also read as Data URL to attach to documents gallery
+                                                                        const docReader = new FileReader();
+                                                                        docReader.onload = (docRe) => {
+                                                                            const dataUrl = docRe.target?.result as string;
+                                                                            const existingDocs = currentNote?.documents || [];
+                                                                            const nextDocId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                                                                            const newDoc = {
+                                                                                id: nextDocId,
+                                                                                url: dataUrl,
+                                                                                name: file.name,
+                                                                                type: fileName.endsWith('.md') ? 'md' : 'txt',
+                                                                                size: file.size
+                                                                            };
+
+                                                                            handleUpdateNote(selectedNoteId, {
+                                                                                content: text,
+                                                                                phrases: syncedPhrases,
+                                                                                documents: [...existingDocs, newDoc]
+                                                                            });
+                                                                            
+                                                                            alert(`Successfully imported lyrics and document resource: ${file.name}`);
+                                                                        };
+                                                                        docReader.readAsDataURL(file);
                                                                         
                                                                         if (textareaRef.current) {
                                                                             textareaRef.current.value = text;
                                                                             textareaRef.current.style.height = 'auto';
                                                                             textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
                                                                         }
-                                                                        
-                                                                        alert(`Successfully imported lyrics from: ${file.name}`);
                                                                     }
                                                                 };
                                                                 reader.readAsText(file);
@@ -12076,8 +12095,53 @@ export default function CreatePage() {
                                                                     console.error("Image loading/compression error:", imgErr);
                                                                     alert('Failed to import image.');
                                                                 }
+                                                            } else if (
+                                                                fileName.endsWith('.pdf') || 
+                                                                fileName.endsWith('.doc') || 
+                                                                fileName.endsWith('.docx') || 
+                                                                file.type === 'application/pdf' || 
+                                                                file.type === 'application/msword' || 
+                                                                file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                                                            ) {
+                                                                if (file.size > 800 * 1024) {
+                                                                    alert('File size exceeds the 800KB limit for attachments. Please compress or upload a smaller file.');
+                                                                    continue;
+                                                                }
+                                                                try {
+                                                                    const reader = new FileReader();
+                                                                    reader.onload = (re) => {
+                                                                        const dataUrl = re.target?.result as string;
+                                                                        if (selectedNoteId) {
+                                                                            const currentNote = notes.find(n => n.id === selectedNoteId);
+                                                                            const existingDocs = currentNote?.documents || [];
+                                                                            const nextDocId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                                                                            
+                                                                            let docType = 'other';
+                                                                            if (fileName.endsWith('.pdf')) docType = 'pdf';
+                                                                            else if (fileName.endsWith('.doc')) docType = 'doc';
+                                                                            else if (fileName.endsWith('.docx')) docType = 'docx';
+
+                                                                            const newDoc = {
+                                                                                id: nextDocId,
+                                                                                url: dataUrl,
+                                                                                name: file.name,
+                                                                                type: docType,
+                                                                                size: file.size
+                                                                            };
+
+                                                                            handleUpdateNote(selectedNoteId, {
+                                                                                documents: [...existingDocs, newDoc]
+                                                                            });
+                                                                            alert(`Successfully imported document: ${file.name}`);
+                                                                        }
+                                                                    };
+                                                                    reader.readAsDataURL(file);
+                                                                } catch (docErr) {
+                                                                    console.error("Document reading error:", docErr);
+                                                                    alert('Failed to import document.');
+                                                                }
                                                             } else {
-                                                                alert('Unsupported file type. Please select an audio file, a text document, or an image.');
+                                                                alert('Unsupported file type. Please select an audio file, an image, a PDF, a text document, or a Word doc.');
                                                             }
                                                         }
                                                     };
@@ -12183,6 +12247,92 @@ export default function CreatePage() {
                                                     </button>
                                                 </div>
                                             ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Documents Gallery */}
+                                {activeNote?.documents && activeNote.documents.length > 0 && (
+                                    <div className="flex flex-col mb-4 px-1 flex-shrink-0">
+                                        <span className="text-[13px] font-sans font-medium text-stone-500 mb-2 select-none">Documents</span>
+                                        <div className="flex gap-4 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
+                                            {activeNote.documents.map((doc) => {
+                                                // Icon color depending on file type
+                                                let iconBg = 'bg-stone-50';
+                                                let iconColor = 'text-stone-500';
+                                                if (doc.type === 'pdf') {
+                                                    iconBg = 'bg-red-50';
+                                                    iconColor = 'text-red-500';
+                                                } else if (doc.type === 'doc' || doc.type === 'docx') {
+                                                    iconBg = 'bg-blue-50';
+                                                    iconColor = 'text-blue-500';
+                                                } else if (doc.type === 'txt' || doc.type === 'md') {
+                                                    iconBg = 'bg-emerald-50';
+                                                    iconColor = 'text-emerald-600';
+                                                }
+
+                                                // Human readable size helper
+                                                const formatSize = (bytes?: number) => {
+                                                    if (!bytes) return '';
+                                                    if (bytes < 1024) return `${bytes} B`;
+                                                    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+                                                    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                                                };
+
+                                                return (
+                                                    <div 
+                                                        key={doc.id}
+                                                        className="relative group w-44 h-28 rounded-2xl border border-stone-200/60 shadow-sm flex-shrink-0 cursor-pointer hover:shadow-md transition-all bg-white flex flex-col justify-between p-3.5 select-none"
+                                                        onClick={() => {
+                                                            try {
+                                                                const link = document.createElement('a');
+                                                                link.href = doc.url;
+                                                                link.download = doc.name;
+                                                                document.body.appendChild(link);
+                                                                link.click();
+                                                                document.body.removeChild(link);
+                                                            } catch (err) {
+                                                                window.open(doc.url, '_blank');
+                                                            }
+                                                        }}
+                                                    >
+                                                        {/* Top Row: File icon & Extension Badge */}
+                                                        <div className="flex justify-between items-start">
+                                                            <div className={`p-2 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center`}>
+                                                                <FileText size={20} />
+                                                            </div>
+                                                            <span className="text-[10px] font-sans font-bold text-stone-400 uppercase tracking-wider bg-stone-100 px-2 py-0.5 rounded-md">
+                                                                {doc.type}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Bottom Row: Name & Size */}
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="text-[12.5px] font-sans font-semibold text-stone-750 truncate max-w-full leading-tight pr-4" title={doc.name}>
+                                                                {doc.name}
+                                                            </span>
+                                                            <span className="text-[10.5px] font-sans font-medium text-stone-400">
+                                                                {formatSize(doc.size)}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Delete button */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (confirm(`Delete document "${doc.name}"?`)) {
+                                                                    const updatedDocs = (activeNote.documents || []).filter(d => d.id !== doc.id);
+                                                                    handleUpdateNote(activeNote.id, { documents: updatedDocs });
+                                                                }
+                                                            }}
+                                                            className="absolute top-2 right-2 bg-stone-900/60 hover:bg-stone-900/85 text-white rounded-full p-1.5 transition-all opacity-0 group-hover:opacity-100 z-10 cursor-pointer shadow border-none outline-none flex items-center justify-center"
+                                                        >
+                                                            <X size={12} className="stroke-[3]" />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
