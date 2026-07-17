@@ -10207,114 +10207,7 @@ export default function CreatePage() {
                     document.body
                 )}
 
-                {showDetailsModal && createPortal(
-                    <div className="fixed inset-0 bg-stone-900/45 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowDetailsModal(false)}>
-                        <div 
-                            className="bg-[#DCDDD4] rounded-[28px] border border-stone-200/20 shadow-[0_20px_50px_rgba(0,0,0,0.15)] max-w-md w-full p-6 sm:p-7 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {/* Header */}
-                            <div className="flex items-center justify-between border-b border-stone-300/30 pb-3">
-                                <h3 className="text-xl font-sans font-semibold text-stone-750 flex items-center gap-2">
-                                    <Info size={18} className="text-[#87b884]" />
-                                    {t('creative.details') || 'Project Details'}
-                                </h3>
-                                <button 
-                                    onClick={() => setShowDetailsModal(false)}
-                                    className="w-8 h-8 rounded-full hover:bg-stone-200/50 flex items-center justify-center text-stone-500 hover:text-stone-750 transition-colors cursor-pointer"
-                                >
-                                    <X size={18} />
-                                </button>
-                            </div>
 
-                            {/* Content */}
-                            <div className="flex flex-col gap-4 text-stone-700 text-[14px]">
-                                {/* Title */}
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Title</span>
-                                    <span className="font-medium text-stone-850">{activeNote?.title || 'Untitled Project'}</span>
-                                </div>
-
-                                {/* Modified Date */}
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Last Modified</span>
-                                    <span className="font-medium text-stone-800">
-                                        {(() => {
-                                            if (!activeNote?.updatedAt) return 'N/A';
-                                            const d = new Date(activeNote.updatedAt);
-                                            return isNaN(d.getTime()) ? activeNote.updatedAt : d.toLocaleString();
-                                        })()}
-                                    </span>
-                                </div>
-
-                                {/* Owner */}
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Owner / Responsible</span>
-                                    <span className="font-medium text-stone-800">
-                                        {(() => {
-                                            try {
-                                                return activeNote?.ownerId === user?.uid ? 'You' : ((collaboratorProfiles || {})[activeNote?.ownerId || '']?.name || 'Owner');
-                                            } catch (e) {
-                                                return 'Owner';
-                                            }
-                                        })()}
-                                    </span>
-                                </div>
-
-                                {/* Collaborators */}
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Collaborators</span>
-                                    <span className="font-medium text-stone-800">
-                                        {(() => {
-                                            try {
-                                                const collabList = collaborators || [];
-                                                const profiles = collaboratorProfiles || {};
-                                                return collabList.length > 0 
-                                                    ? collabList.map(uid => profiles[uid]?.name || 'Collaborator').join(', ')
-                                                    : 'No collaborators';
-                                            } catch (e) {
-                                                return 'No collaborators';
-                                            }
-                                        })()}
-                                    </span>
-                                </div>
-
-                                {/* Location */}
-                                <div className="flex flex-col gap-1.5">
-                                    <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Location</span>
-                                    <div className="flex items-center gap-2">
-                                        <input 
-                                            type="text" 
-                                            placeholder="e.g. Studio A, Oslo, Home"
-                                            value={detailsLocation}
-                                            onChange={(e) => setDetailsLocation(e.target.value)}
-                                            className="flex-1 bg-stone-50 border border-stone-250/30 rounded-xl px-4 py-2.5 outline-none focus:bg-white focus:border-stone-400/80 transition-all font-medium text-stone-800"
-                                        />
-                                        <button 
-                                            type="button"
-                                            onClick={handleDetectLocation}
-                                            title="Detect Location"
-                                            className="h-[40px] px-3.5 bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-800 rounded-xl transition-all flex items-center justify-center cursor-pointer border border-stone-200/50"
-                                        >
-                                            <Compass size={18} />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Save Button */}
-                            <div className="flex justify-end pt-3 border-t border-stone-300/30">
-                                <button
-                                    onClick={handleSaveDetails}
-                                    className="bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-sans font-semibold text-[14px] px-8 py-2.5 rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-md hover:shadow-lg shadow-[#87b884]/20"
-                                >
-                                    Save Changes
-                                </button>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
-                )}
         </div>
     );
 };
@@ -12081,7 +11974,6 @@ export default function CreatePage() {
                                                     onClick={(e) => {
                                                         try {
                                                             e.stopPropagation();
-                                                            alert("Click registered! Selected note ID: " + selectedNoteId);
                                                             const active = notes.find(n => n.id === selectedNoteId);
                                                             setDetailsLocation(active?.location || '');
                                                             setShowDetailsModal(true);
@@ -13749,6 +13641,115 @@ export default function CreatePage() {
                 </div>,
                 document.body
             )}
+
+            {showDetailsModal && createPortal(
+                <div className="fixed inset-0 bg-stone-900/45 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowDetailsModal(false)}>
+                    <div 
+                        className="bg-[#DCDDD4] rounded-[28px] border border-stone-200/20 shadow-[0_20px_50px_rgba(0,0,0,0.15)] max-w-md w-full p-6 sm:p-7 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between border-b border-stone-300/30 pb-3">
+                            <h3 className="text-xl font-sans font-semibold text-stone-750 flex items-center gap-2">
+                                <Info size={18} className="text-[#87b884]" />
+                                {t('creative.details') || 'Project Details'}
+                            </h3>
+                            <button 
+                                onClick={() => setShowDetailsModal(false)}
+                                className="w-8 h-8 rounded-full hover:bg-stone-200/50 flex items-center justify-center text-stone-500 hover:text-stone-750 transition-colors cursor-pointer"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex flex-col gap-4 text-stone-700 text-[14px]">
+                            {/* Title */}
+                            <div className="flex flex-col gap-1">
+                                <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Title</span>
+                                <span className="font-medium text-stone-850">{activeNote?.title || 'Untitled Project'}</span>
+                            </div>
+
+                            {/* Modified Date */}
+                            <div className="flex flex-col gap-1">
+                                <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Last Modified</span>
+                                <span className="font-medium text-stone-800">
+                                    {(() => {
+                                        if (!activeNote?.updatedAt) return 'N/A';
+                                        const d = new Date(activeNote.updatedAt);
+                                        return isNaN(d.getTime()) ? activeNote.updatedAt : d.toLocaleString();
+                                    })()}
+                                </span>
+                             </div>
+
+                             {/* Owner */}
+                             <div className="flex flex-col gap-1">
+                                 <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Owner / Responsible</span>
+                                 <span className="font-medium text-stone-800">
+                                     {(() => {
+                                         try {
+                                             return activeNote?.ownerId === user?.uid ? 'You' : ((collaboratorProfiles || {})[activeNote?.ownerId || '']?.name || 'Owner');
+                                         } catch (e) {
+                                             return 'Owner';
+                                         }
+                                     })()}
+                                 </span>
+                             </div>
+
+                             {/* Collaborators */}
+                             <div className="flex flex-col gap-1">
+                                 <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Collaborators</span>
+                                 <span className="font-medium text-stone-800">
+                                     {(() => {
+                                         try {
+                                             const collabList = collaborators || [];
+                                             const profiles = collaboratorProfiles || {};
+                                             return collabList.length > 0 
+                                                 ? collabList.map(uid => profiles[uid]?.name || 'Collaborator').join(', ')
+                                                 : 'No collaborators';
+                                         } catch (e) {
+                                             return 'No collaborators';
+                                         }
+                                     })()}
+                                 </span>
+                             </div>
+
+                             {/* Location */}
+                             <div className="flex flex-col gap-1.5">
+                                 <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Location</span>
+                                 <div className="flex items-center gap-2">
+                                     <input 
+                                         type="text" 
+                                         placeholder="e.g. Studio A, Oslo, Home"
+                                         value={detailsLocation}
+                                         onChange={(e) => setDetailsLocation(e.target.value)}
+                                         className="flex-1 bg-stone-50 border border-stone-250/30 rounded-xl px-4 py-2.5 outline-none focus:bg-white focus:border-stone-400/80 transition-all font-medium text-stone-800"
+                                     />
+                                     <button 
+                                         type="button"
+                                         onClick={handleDetectLocation}
+                                         title="Detect Location"
+                                         className="h-[40px] px-3.5 bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-800 rounded-xl transition-all flex items-center justify-center cursor-pointer border border-stone-200/50"
+                                     >
+                                         <Compass size={18} />
+                                     </button>
+                                 </div>
+                             </div>
+                         </div>
+
+                         {/* Save Button */}
+                         <div className="flex justify-end pt-3 border-t border-stone-300/30">
+                             <button
+                                 onClick={handleSaveDetails}
+                                 className="bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-sans font-semibold text-[14px] px-8 py-2.5 rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-md hover:shadow-lg shadow-[#87b884]/20"
+                             >
+                                 Save Changes
+                             </button>
+                         </div>
+                     </div>
+                 </div>,
+                 document.body
+             )}
 
             {/* Studio Guide Info Modal */}
             {isStudioInfoOpen && createPortal(
