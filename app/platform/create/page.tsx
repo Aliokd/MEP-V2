@@ -11958,6 +11958,8 @@ export default function CreatePage() {
                                                 {t('creative.upload_files')}
                                             </button>
 
+                                            <div className="h-px bg-stone-250/30 my-1.5 w-full" />
+
                                             {selectedNoteId && (
                                                 <button 
                                                     onClick={(e) => {
