@@ -599,9 +599,9 @@ function PhraseRow({
     hasAudioNote,
     handlePlaceAudioAsLineAt,
     draggedAudioId,
-    draggedAudioIdRef,
     activeRemoteUsers,
-    clickedTokenIndex
+    clickedTokenIndex,
+    onDeleteDocBlock
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
@@ -644,6 +644,7 @@ function PhraseRow({
     draggedAudioIdRef?: React.RefObject<string | null>;
     activeRemoteUsers?: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null }};
     clickedTokenIndex?: number | null;
+    onDeleteDocBlock?: (docId: string, headerPhraseId: string) => void;
 }) {
     const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isTouchDraggingRef = useRef(false);
@@ -1134,7 +1135,57 @@ function PhraseRow({
                 </div>
             )}
             
-            {isCurrentlyEditing ? (
+            {phrase.id.startsWith('p-docheader-') ? (
+                <div className="w-full max-w-2xl mx-auto px-4 py-2 select-none">
+                    <div className="flex items-center justify-between bg-stone-50 border border-stone-200/80 rounded-2xl p-4 shadow-3xs group/doc">
+                        <div className="flex items-center gap-3.5">
+                            {(() => {
+                                const fn = phrase.text.toLowerCase();
+                                let bg = 'bg-stone-100 text-stone-500';
+                                if (fn.endsWith('.pdf')) bg = 'bg-red-50 text-red-500';
+                                else if (fn.endsWith('.doc') || fn.endsWith('.docx')) bg = 'bg-blue-50 text-blue-500';
+                                else if (fn.endsWith('.txt') || fn.endsWith('.md')) bg = 'bg-emerald-50 text-emerald-600';
+                                
+                                return (
+                                    <div className={`p-2.5 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+                                        <FileText size={22} />
+                                    </div>
+                                );
+                            })()}
+                            
+                            <div className="flex flex-col text-left">
+                                <span className="text-[14.5px] font-semibold text-stone-850 font-sans leading-tight">
+                                    {phrase.text}
+                                </span>
+                                <span className="text-[11px] font-sans text-stone-400 font-medium">
+                                    Document Extracted Text
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-bold text-stone-400 bg-stone-100 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                {phrase.text.split('.').pop() || 'doc'}
+                            </span>
+                            
+                            {onDeleteDocBlock && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const docId = phrase.id.replace('p-docheader-', '');
+                                        onDeleteDocBlock(docId, phrase.id);
+                                    }}
+                                    className="w-7 h-7 rounded-full bg-stone-100 hover:bg-red-50 hover:text-red-500 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none"
+                                    title="Delete Document Block"
+                                >
+                                    <Trash2 size={13} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ) : isCurrentlyEditing ? (
                 <div className="text-[30px] md:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4">
                     <textarea
                         ref={textareaRef}
@@ -6069,6 +6120,43 @@ export default function CreatePage() {
                     audioNotes: updatedAudioNotes,
                     audioUrl: latestAudio ? latestAudio.url : '',
                     phrases: finalPhrases
+                };
+            }
+            return n;
+        }));
+    };
+
+    const handleDeleteDocBlock = (docId: string, headerPhraseId: string) => {
+        if (!selectedNoteId) return;
+        if (!confirm("Are you sure you want to delete this document block and all of its extracted text?")) return;
+        
+        setNotes(prev => prev.map(n => {
+            if (n.id === selectedNoteId) {
+                const filteredPhrases = (n.phrases || []).filter(p => 
+                    p.id !== headerPhraseId && !p.id.startsWith(`p-docline-${docId}-`)
+                );
+                const finalPhrases = cleanupAndEnsurePlaceholders(filteredPhrases, n.verses || []);
+                const filteredDocs = (n.documents || []).filter(d => d.id !== docId);
+                const newContent = finalPhrases.map(p => p.text).join('\n');
+                
+                if (user) {
+                    updateDoc(doc(db, "projects", selectedNoteId), {
+                        phrases: finalPhrases,
+                        content: newContent,
+                        documents: filteredDocs
+                    }).catch(err => console.error("Error deleting doc block in Firestore:", err));
+                }
+                
+                // Refresh text area display if active
+                if (textareaRef.current) {
+                    textareaRef.current.value = newContent;
+                }
+
+                return {
+                    ...n,
+                    phrases: finalPhrases,
+                    content: newContent,
+                    documents: filteredDocs
                 };
             }
             return n;
@@ -12759,6 +12847,7 @@ export default function CreatePage() {
                                                                                             draggedAudioId={draggedAudioId}
                                                                                             draggedAudioIdRef={draggedAudioIdRef}
                                                                                             activeRemoteUsers={activeRemoteUsers}
+                                                                                            onDeleteDocBlock={handleDeleteDocBlock}
                                                                                         />
                                                                                     )}
                                                                                 </div>
@@ -12990,6 +13079,7 @@ export default function CreatePage() {
                                                                         draggedAudioId={draggedAudioId}
                                                                         draggedAudioIdRef={draggedAudioIdRef}
                                                                         activeRemoteUsers={activeRemoteUsers}
+                                                                        onDeleteDocBlock={handleDeleteDocBlock}
                                                                     />
                                                                 )}
                                                             </div>
