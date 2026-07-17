@@ -3605,7 +3605,7 @@ export default function CreatePage() {
                 });
             }
         }, (err) => {
-            console.error("Firestore subscription error:", err);
+            console.warn("Firestore subscription error (normal for unsynced local projects):", err.message);
         });
 
         return () => unsub();
@@ -3639,7 +3639,7 @@ export default function CreatePage() {
             
             setActiveRemoteUsers(users);
         }, (err) => {
-            console.error("Presence snapshot error:", err);
+            console.warn("Presence snapshot error (normal for unsynced local projects):", err.message);
         });
 
         return () => unsub();
@@ -3979,7 +3979,7 @@ export default function CreatePage() {
                 setCollaboratorProfiles({});
             }
         }, (err) => {
-            console.error("Error listening to collaborator details:", err);
+            console.warn("Error listening to collaborator details (normal for non-collaborative projects):", err.message);
         });
 
         return () => unsubscribe();
