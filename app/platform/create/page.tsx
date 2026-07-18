@@ -1359,6 +1359,21 @@ function PhraseRow({
     );
 }
 
+function decodeAudioDataPromise(audioCtx: AudioContext | OfflineAudioContext, arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
+    return new Promise((resolve, reject) => {
+        try {
+            const successCallback = (buffer: AudioBuffer) => resolve(buffer);
+            const errorCallback = (err: DOMException) => reject(err);
+            const result = audioCtx.decodeAudioData(arrayBuffer, successCallback, errorCallback);
+            if (result && typeof (result as any).then === 'function') {
+                (result as any).then(resolve, reject);
+            }
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
 function downmixToMono(audioBuffer: AudioBuffer, audioCtx: AudioContext | OfflineAudioContext): AudioBuffer {
     if (audioBuffer.numberOfChannels <= 1) {
         return audioBuffer;
@@ -1386,7 +1401,7 @@ async function getWavBlob(audioBlob: Blob): Promise<Blob> {
     const offlineCtx = new OfflineContextClass(1, 1, 44100);
     
     // Decode audio data using OfflineAudioContext to prevent suspended state hangs on mobile
-    const decodedBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+    const decodedBuffer = await decodeAudioDataPromise(offlineCtx, arrayBuffer);
     const monoDecodedBuffer = downmixToMono(decodedBuffer, offlineCtx);
     
     // Resample to 16000Hz mono using OfflineAudioContext
@@ -1579,8 +1594,9 @@ function AudioCapsulePlayer({
                 const response = await fetch(audioNote.url);
                 const arrayBuffer = await response.arrayBuffer();
                 // Use OfflineAudioContext just to decode — no playback routing
-                const offlineCtx = new OfflineAudioContext(1, 1, 44100);
-                const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+                const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+                const offlineCtx = new OfflineContextClass(1, 1, 44100);
+                const audioBuffer = await decodeAudioDataPromise(offlineCtx, arrayBuffer);
                 const data = audioBuffer.getChannelData(0);
                 const blockSize = Math.floor(data.length / barCount);
                 const peaks: number[] = [];
@@ -1985,17 +2001,19 @@ function JoinedPill({ name, onDismiss }: JoinedPillProps) {
 }
 
 // Helper: read notes cache from localStorage synchronously
-function readCachedNotes(): SongNote[] {
+function readCachedNotes(uid?: string): SongNote[] {
     if (typeof window === 'undefined') return [];
     try {
-        const raw = localStorage.getItem('veinote-create-notes');
+        const key = uid ? `veinote-create-notes-${uid}` : 'veinote-create-notes';
+        const raw = localStorage.getItem(key);
         return raw ? (JSON.parse(raw) as SongNote[]) : [];
     } catch { return []; }
 }
-function readCachedFolders(): SongFolder[] {
+function readCachedFolders(uid?: string): SongFolder[] {
     if (typeof window === 'undefined') return [];
     try {
-        const raw = localStorage.getItem('veinote-create-folders');
+        const key = uid ? `veinote-create-folders-${uid}` : 'veinote-create-folders';
+        const raw = localStorage.getItem(key);
         return raw ? (JSON.parse(raw) as SongFolder[]) : [];
     } catch { return []; }
 }
@@ -2350,13 +2368,14 @@ export default function CreatePage() {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const stored = localStorage.getItem('veinote-selected-note-id');
+            const key = user ? `veinote-selected-note-id-${user.uid}` : 'veinote-selected-note-id';
+            const stored = localStorage.getItem(key);
             if (stored) {
                 setSelectedNoteId(stored);
             }
         }
         setIsSelectionInitialized(true);
-    }, []);
+    }, [user]);
 
     const [undoStack, setUndoStack] = useState<{ content: string; phrases: Phrase[]; verses: VerseGroup[]; audioNotes: AudioNote[] }[]>([]);
     const [redoStack, setRedoStack] = useState<{ content: string; phrases: Phrase[]; verses: VerseGroup[]; audioNotes: AudioNote[] }[]>([]);
@@ -2921,7 +2940,7 @@ export default function CreatePage() {
                 
                 const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
                 const offlineCtx = new OfflineContextClass(1, 1, 44100);
-                const decodedBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+                const decodedBuffer = await decodeAudioDataPromise(offlineCtx, arrayBuffer);
                 const finalMonoBuffer = downmixToMono(decodedBuffer, offlineCtx);
                 
                 if (active) {
@@ -3378,6 +3397,8 @@ export default function CreatePage() {
                             const userData = userDoc.data();
                             if (userData.createFolders && userData.createFolders.length > 0) {
                                 setFolders(userData.createFolders);
+                            } else {
+                                setFolders([]);
                             }
                             if (!userData.email || !userData.name) {
                                 setDoc(userDocRef, {
@@ -3387,6 +3408,7 @@ export default function CreatePage() {
                                 }, { merge: true }).catch(console.error);
                             }
                         } else {
+                            setFolders([]);
                             setDoc(userDocRef, {
                                 uid: user.uid,
                                 name: user.displayName || user.email?.split('@')[0] || 'Collaborator',
@@ -3413,60 +3435,16 @@ export default function CreatePage() {
 
                         if (merged.length === 0 && forceFallback && !initialLoadComplete) {
                             initialLoadComplete = true;
-                            // Fallback to localStorage
-                            const savedNotes = localStorage.getItem('veinote-create-notes');
-                            let fallbackNotes: SongNote[] = [];
-                            if (savedNotes) {
-                                fallbackNotes = JSON.parse(savedNotes);
-                            } else {
-                                fallbackNotes = [
-                                    { 
-                                        id: 'n-1', 
-                                        title: 'Ocean Breeze Lyrics', 
-                                        content: 'Ocean Breeze Lyrics\n\nVerse 1:\nWalking down the sandy beach\nFeel the warmth within my reach\n\nChorus:\nOcean breeze, carry me away\nTo the place where we used to play...', 
-                                        folderId: 'f-1', 
-                                        updatedAt: new Date().toISOString() 
-                                    },
-                                    { 
-                                        id: 'n-2', 
-                                        title: 'A minor progression', 
-                                        content: 'A minor progression\n\nChords:\nAm - F - C - G\n\nTempo: 120bpm\nFeel: Ethereal and flowing.\nTry adding a violin counter-melody in the chorus.', 
-                                        folderId: 'f-2', 
-                                        updatedAt: new Date().toISOString() 
-                                    },
-                                    { 
-                                        id: 'n-3', 
-                                        title: 'Songwriting Prompts', 
-                                        content: 'Songwriting Prompts\n\n- Write about nostalgia for a city you only visited once.\n- Use the word "spectral" in the bridge.\n- Start the song on a subdominant major chord.', 
-                                        folderId: null, 
-                                        updatedAt: new Date().toISOString() 
-                                    }
-                                ];
-                                localStorage.setItem('veinote-create-notes', JSON.stringify(fallbackNotes));
-                            }
-                            
-                            // Upload defaults to projects collection
-                            try {
-                                const batch = writeBatch(db);
-                                for (const note of fallbackNotes) {
-                                    const ref = doc(db, "projects", note.id);
-                                    batch.set(ref, {
-                                        ...note,
-                                        ownerId: user.uid,
-                                        collaborators: []
-                                    }, { merge: true });
-                                }
-                                await batch.commit();
-                            } catch (err) {
-                                console.error("Error migrating local defaults to Firestore:", err);
-                            }
+                            setNotes([]);
+                            setIsDataLoaded(true);
+                            setSelectedNoteId(null);
                             return;
                         }
-
+ 
                         initialLoadComplete = true;
-
+ 
                         // Merge Firestore notes with local cache notes to preserve latest unsaved edits on page reload
-                        const cachedNotes = readCachedNotes();
+                        const cachedNotes = readCachedNotes(user.uid);
                         const finalNotes = merged.map(remoteNote => {
                             const cachedNote = cachedNotes.find(cn => cn.id === remoteNote.id);
                             if (cachedNote) {
@@ -3485,7 +3463,7 @@ export default function CreatePage() {
                                         verses: cachedNote.verses || [],
                                         updatedAt: new Date().toISOString()
                                     }, { merge: true }).catch(console.error);
-
+ 
                                     return {
                                         ...cachedNote,
                                         ownerId: remoteNote.ownerId,
@@ -3495,20 +3473,20 @@ export default function CreatePage() {
                             }
                             return remoteNote;
                         });
-
+ 
                         // Append any local notes that are not in Firestore yet (e.g. created offline)
                         cachedNotes.forEach(cn => {
                             if (!finalNotes.some(fn => fn.id === cn.id)) {
                                 finalNotes.push(cn);
                             }
                         });
-
+ 
                         setNotes(finalNotes);
                         setIsDataLoaded(true);
-
+ 
                         if (finalNotes.length > 0) {
                             setSelectedNoteId(prev => {
-                                const storedId = prev || localStorage.getItem('veinote-selected-note-id');
+                                const storedId = prev || localStorage.getItem(`veinote-selected-note-id-${user.uid}`);
                                 if (storedId && finalNotes.some(n => n.id === storedId)) {
                                     return storedId;
                                 }
@@ -4792,6 +4770,10 @@ export default function CreatePage() {
             const audioCtx = new AudioCtxClass();
             tunerAudioContextRef.current = audioCtx;
 
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(console.error);
+            }
+
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
 
@@ -5143,6 +5125,9 @@ export default function CreatePage() {
                 const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
                     latencyHint: 0.002
                 });
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume().catch(console.error);
+                }
                 const analyser = audioContext.createAnalyser();
                 analyser.fftSize = 128; // small size for visualizer frequency counts
                 const source = audioContext.createMediaStreamSource(stream);
@@ -8760,7 +8745,7 @@ export default function CreatePage() {
                     const arrayBuffer = await blob.arrayBuffer();
                     const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
                     const offlineCtx = new OfflineContextClass(1, 1, 44100);
-                    const decodedBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+                    const decodedBuffer = await decodeAudioDataPromise(offlineCtx, arrayBuffer);
                     
                     // Enforce mono setting for track buffer
                     const finalMonoBuffer = downmixToMono(decodedBuffer, offlineCtx);
@@ -11245,7 +11230,18 @@ export default function CreatePage() {
                     <button
                         onClick={(e) => {
                             e.stopPropagation(); // Prevent triggering tap tempo
-                            setIsMetronomePlaying(!isMetronomePlaying);
+                            const nextState = !isMetronomePlaying;
+                            if (nextState) {
+                                try {
+                                    const audioCtx = getMetronomeAudioContext();
+                                    if (audioCtx.state === 'suspended') {
+                                        audioCtx.resume().catch(console.error);
+                                    }
+                                } catch (err) {
+                                    console.error("Failed to unlock metronome AudioContext:", err);
+                                }
+                            }
+                            setIsMetronomePlaying(nextState);
                         }}
                         onMouseDown={(e) => e.stopPropagation()}
                         onPointerDown={(e) => e.stopPropagation()}
@@ -12472,7 +12468,7 @@ export default function CreatePage() {
                                                                             const arrayBuffer = re.target?.result as ArrayBuffer;
                                                                             const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
                                                                             const offlineCtx = new OfflineContextClass(1, 1, 44100);
-                                                                            const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+                                                                            const audioBuffer = await decodeAudioDataPromise(offlineCtx, arrayBuffer);
                                                                             
                                                                             const nextId = Date.now();
                                                                             const localUrl = URL.createObjectURL(file);

@@ -5,6 +5,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ChevronRight, ArrowUpRight, ArrowRight, MousePointer2, Plus, Menu, Heart } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 const TopNav = () => {
     const [isScrolled, setIsScrolled] = useState(false);
@@ -537,6 +540,30 @@ const NewFooter = () => {
 };
 
 export default function HomePage() {
+    const router = useRouter();
+    const [isRedirecting, setIsRedirecting] = useState(false);
+
+    useEffect(() => {
+        const unsub = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                setIsRedirecting(true);
+                router.push('/platform/create');
+            }
+        });
+        return () => unsub();
+    }, [router]);
+
+    if (isRedirecting) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[#E6E3DB]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 border-2 border-stone-850 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-stone-600 text-sm font-medium tracking-wide">Redirecting to platform...</span>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="overflow-x-clip bg-[#E6E3DB] min-h-screen">
             <HeroSection />
