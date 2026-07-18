@@ -399,7 +399,7 @@ function PlatformLayoutInner({
                     
                     <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
                         <Link href="/platform/create">
-                            <Logo size="md" />
+                            <Logo size="md" showBeta />
                         </Link>
                     </div>
 

@@ -75,9 +75,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ text: '', isMock: true });
         }
 
+        const url = new URL(request.url);
+        const lang = url.searchParams.get('lang') || request.headers.get('x-language') || 'en';
+        let languageCode = 'en-US';
+        if (lang === 'sv') {
+            languageCode = 'sv-SE';
+        } else if (lang === 'no') {
+            languageCode = 'nb-NO';
+        }
+
         const speechConfig: any = {
             encoding: encoding,
-            languageCode: 'en-US',
+            languageCode: languageCode,
         };
         if (encoding === 'WEBM_OPUS') {
             speechConfig.audioChannelCount = 2;

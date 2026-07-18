@@ -88,125 +88,145 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                 } : { 
                     x: 0,
                     width: isCollapsed ? 100 : 260,
-                    paddingLeft: isCollapsed ? 12 : 24,
-                    paddingRight: isCollapsed ? 12 : 24
+                    paddingLeft: isCollapsed ? 10 : 24,
+                    paddingRight: isCollapsed ? 0 : 24
                 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className="h-screen fixed inset-y-0 left-0 md:sticky md:top-0 z-50 flex flex-col py-8 justify-between select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none"
+                className="h-screen fixed inset-y-0 left-0 md:sticky md:top-0 z-50 flex flex-col py-8 select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-visible"
             >
-                {/* Top Logo & Toggle */}
-                <div className="flex flex-col gap-10">
-                    {!isCollapsed || isMobile ? (
-                        <div className="flex items-center justify-start gap-3 min-h-[40px] w-full">
-                            <Link href="/platform" className="opacity-95 hover:opacity-100 transition-opacity" onClick={onClose}>
-                                <Logo size="md" />
-                            </Link>
-                            {isMobile ? (
-                                <button
-                                    onClick={onClose}
-                                    className="ml-auto w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 transition-all text-stone-700 hover:text-stone-955 shadow-xs"
-                                >
-                                    <X size={18} />
-                                </button>
-                            ) : (
+                {/* Collapsed layout: full-height flex centered */}
+                {isCollapsed && !isMobile ? (
+                    <div className="flex flex-col h-full w-full">
+                        {/* Logo — centered with manual px-3 padding, expand icon floats right outside */}
+                        <div className="flex justify-end w-full py-2 pr-3 group/logoarea relative">
+                            <div className="relative flex items-center">
+                                <Link href="/platform/create" className="opacity-95 hover:opacity-100 transition-opacity flex justify-center" onClick={onClose}>
+                                    <Logo size="sm" variant="icon" showBeta />
+                                </Link>
+                                {/* Expand icon: appears to the right of the badge, outside the logo, never overlapping */}
                                 <button
                                     onClick={toggleSidebar}
-                                    className="w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 transition-all text-stone-700 hover:text-stone-950 shadow-xs shrink-0"
-                                    aria-label="Collapse Sidebar"
+                                    className="absolute left-full ml-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/logoarea:opacity-100 transition-opacity duration-150 w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 text-stone-700 hover:text-stone-950 shadow-xs shrink-0"
+                                    aria-label="Expand Sidebar"
                                 >
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                                         <rect x="3" y="3" width="18" height="18" rx="2.5" />
                                         <path d="M9 3v18" />
                                     </svg>
                                 </button>
-                            )}
+                            </div>
                         </div>
-                    ) : (
-                        <div className="flex flex-col items-center gap-4 w-full">
-                            <Link href="/platform" className="opacity-95 hover:opacity-100 transition-opacity flex justify-center w-full" onClick={onClose}>
-                                <Logo size="sm" />
-                            </Link>
-                            <button
-                                onClick={toggleSidebar}
-                                className="w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 transition-all text-stone-700 hover:text-stone-950 shadow-xs shrink-0"
-                                aria-label="Expand Sidebar"
-                            >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="3" y="3" width="18" height="18" rx="2.5" />
-                                    <path d="M9 3v18" />
-                                </svg>
-                            </button>
-                        </div>
-                    )}
 
-                    {/* Navigation Menu */}
-                    <nav className="flex flex-col gap-2.5 w-full">
-                        {menuItems.map((item) => {
-                            const isActive = pathname === item.href || (item.href === '/platform' && pathname.startsWith('/platform/lesson'));
-                            const Icon = item.icon;
-                            return (
-                                <Link key={item.label} href={item.href} onClick={onClose}>
-                                    <div className={`
-                                        flex items-center gap-4 px-4 py-3 rounded-[12px] transition-all group cursor-pointer
-                                        ${isActive 
-                                            ? 'bg-white text-stone-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40' 
-                                            : 'text-stone-500 hover:text-stone-800 hover:bg-white/30'
-                                        }
-                                        ${isCollapsed && !isMobile ? 'justify-center px-0' : ''}
-                                    `}>
-                                        {/* Show icon only when sidebar is collapsed/minimized (and not on mobile) */}
-                                        {isCollapsed && !isMobile ? (
+                        {/* Nav — same top position as expanded (mt-6 matches tighter spacing), full-width active box */}
+                        <nav className="flex flex-col gap-1 w-full mt-6">
+                            {menuItems.map((item) => {
+                                const isActive = pathname === item.href || (item.href === '/platform' && pathname.startsWith('/platform/lesson'));
+                                const Icon = item.icon;
+                                return (
+                                    <Link key={item.label} href={item.href} onClick={onClose} className="block w-full">
+                                        <div className={`
+                                            flex items-center justify-center py-3 w-full rounded-[12px] transition-all group cursor-pointer
+                                            ${isActive 
+                                                ? 'bg-white text-stone-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40' 
+                                                : 'text-stone-500 hover:text-stone-800 hover:bg-white/30'
+                                            }
+                                        `}>
                                             <Icon 
                                                 size={18} 
                                                 className={`${isActive ? 'text-stone-800' : 'text-stone-500 group-hover:text-stone-700'} stroke-[2.2] shrink-0`} 
                                             />
-                                        ) : (
-                                            /* Show text when expanded or on mobile */
-                                            <div className="flex items-center gap-2 select-none">
-                                                <span className="font-sans text-[22px] font-medium tracking-wide whitespace-nowrap">
-                                                    {item.label}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    </Link>
+                                );
+                            })}
+                        </nav>
+                    </div>
+                ) : (
+                    /* Expanded / mobile layout */
+                    <div className="flex flex-col gap-10 justify-between h-full">
+                        <div className="flex flex-col gap-10">
+                            <div className="flex items-center justify-start gap-3 min-h-[40px] w-full group/logoarea">
+                                <Link href="/platform/create" className="opacity-95 hover:opacity-100 transition-opacity" onClick={onClose}>
+                                    <Logo size="md" showBeta />
                                 </Link>
-                            );
-                        })}
-                    </nav>
-                </div>
+                                {isMobile ? (
+                                    <button
+                                        onClick={onClose}
+                                        className="ml-auto w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 transition-all text-stone-700 hover:text-stone-955 shadow-xs"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={toggleSidebar}
+                                        className="opacity-0 group-hover/logoarea:opacity-100 transition-opacity duration-150 w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 text-stone-700 hover:text-stone-950 shadow-xs shrink-0"
+                                        aria-label="Collapse Sidebar"
+                                    >
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                            <rect x="3" y="3" width="18" height="18" rx="2.5" />
+                                            <path d="M9 3v18" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
 
-                {/* Bottom Actions */}
-                <div className={`flex flex-col gap-3 w-full ${isCollapsed && !isMobile ? 'items-center' : 'items-start pl-4'}`}>
-                    {bottomItems.map((item) => {
-                        if (isCollapsed && !isMobile) {
-                            return null;
-                        }
-                        if (item.onClick) {
-                            return (
-                                <button
-                                    key={item.label}
-                                    onClick={() => {
-                                        if (item.onClick) item.onClick();
-                                        if (onClose) onClose();
-                                    }}
-                                    className={`font-sans text-[13px] text-stone-650 hover:text-stone-900 transition-colors text-left ${item.isBold ? 'font-bold mt-2 text-stone-900' : 'font-medium'}`}
-                                >
-                                    {item.label}
-                                </button>
-                            );
-                        }
-                        return (
-                            <Link 
-                                key={item.label} 
-                                href={item.href || '#'}
-                                onClick={onClose}
-                                className={`font-sans text-[13px] text-stone-650 hover:text-stone-900 transition-colors ${item.isBold ? 'font-bold mt-2 text-stone-900' : 'font-medium'}`}
-                            >
-                                {item.label}
-                            </Link>
-                        );
-                    })}
-                </div>
+                            {/* Navigation Menu */}
+                            <nav className="flex flex-col gap-2.5 w-full">
+                                {menuItems.map((item) => {
+                                    const isActive = pathname === item.href || (item.href === '/platform' && pathname.startsWith('/platform/lesson'));
+                                    const Icon = item.icon;
+                                    return (
+                                        <Link key={item.label} href={item.href} onClick={onClose}>
+                                            <div className={`
+                                                flex items-center gap-4 px-4 py-3 rounded-[12px] transition-all group cursor-pointer
+                                                ${isActive 
+                                                    ? 'bg-white text-stone-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40' 
+                                                    : 'text-stone-500 hover:text-stone-800 hover:bg-white/30'
+                                                }
+                                            `}>
+                                                <div className="flex items-center gap-2 select-none">
+                                                    <span className="font-sans text-[22px] font-medium tracking-wide whitespace-nowrap">
+                                                        {item.label}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    );
+                                })}
+                            </nav>
+                        </div>
+
+                        {/* Bottom Actions */}
+                        <div className="flex flex-col gap-3 w-full items-start pl-4">
+                            {bottomItems.map((item) => {
+                                if (item.onClick) {
+                                    return (
+                                        <button
+                                            key={item.label}
+                                            onClick={() => {
+                                                if (item.onClick) item.onClick();
+                                                if (onClose) onClose();
+                                            }}
+                                            className={`font-sans text-[13px] text-stone-650 hover:text-stone-900 transition-colors text-left ${item.isBold ? 'font-bold mt-2 text-stone-900' : 'font-medium'}`}
+                                        >
+                                            {item.label}
+                                        </button>
+                                    );
+                                }
+                                return (
+                                    <Link 
+                                        key={item.label} 
+                                        href={item.href || '#'}
+                                        onClick={onClose}
+                                        className={`font-sans text-[13px] text-stone-650 hover:text-stone-900 transition-colors ${item.isBold ? 'font-bold mt-2 text-stone-900' : 'font-medium'}`}
+                                    >
+                                        {item.label}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </motion.div>
         </>
     );

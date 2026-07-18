@@ -3310,7 +3310,7 @@ export default function CreatePage() {
                         headers['Content-Type'] = 'application/json';
                     }
 
-                    const response = await fetch('/api/transcribe', {
+                    const response = await fetch(`/api/transcribe?lang=${language}`, {
                         method: 'POST',
                         headers: headers,
                         body: body,
@@ -5409,7 +5409,7 @@ export default function CreatePage() {
                         if (runSpeech && !finalTranscript && durationSeconds > 1.5) {
                             try {
                                 const wavBlob = await getWavBlob(audioBlob);
-                                const response = await fetch('/api/transcribe', {
+                                const response = await fetch(`/api/transcribe?lang=${language}`, {
                                     method: 'POST',
                                     body: wavBlob,
                                 });
@@ -7124,7 +7124,7 @@ export default function CreatePage() {
                 headers['Content-Type'] = 'application/json';
             }
 
-            const response = await fetch('/api/transcribe', {
+            const response = await fetch(`/api/transcribe?lang=${language}`, {
                 method: 'POST',
                 headers: headers,
                 body: body,
