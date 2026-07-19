@@ -826,7 +826,7 @@ function PhraseRow({
                     
                     const wordIndices: number[] = [];
                     wordsList.forEach((token, idx) => {
-                        if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/)) {
+                        if (!/^\s+$/.test(token) && token.match(/^([^\p{L}]*)(\p{L}+(?:['’\-]\p{L}+)*)([^\p{L}]*)$/u)) {
                             wordIndices.push(idx);
                         }
                     });
@@ -900,7 +900,7 @@ function PhraseRow({
                     } else {
                         const wordIndices: number[] = [];
                         wordsList.forEach((token, idx) => {
-                            if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/)) {
+                            if (!/^\s+$/.test(token) && token.match(/^([^\p{L}]*)(\p{L}+(?:['’\-]\p{L}+)*)([^\p{L}]*)$/u)) {
                                 wordIndices.push(idx);
                             }
                         });
@@ -1258,7 +1258,7 @@ function PhraseRow({
                             }
                             
                             // Parse alphabetical word to isolate punctuation
-                            const match = token.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/);
+                            const match = token.match(/^([^\p{L}]*)(\p{L}+(?:['’\-]\p{L}+)*)([^\p{L}]*)$/u);
                             if (match) {
                                 const prePunc = match[1];
                                 const word = match[2];
@@ -4415,7 +4415,10 @@ export default function CreatePage() {
         return INSPIRATION_CARDS.map(getTranslatedCard);
     }, [t]);
 
-    const carouselCards = localizedInspirationCards.slice(0, 8);
+    const carouselCards = useMemo(() => {
+        const cards = inspirationCards.length > 0 ? inspirationCards.map(getTranslatedCard) : localizedInspirationCards;
+        return cards.slice(0, 8);
+    }, [inspirationCards, localizedInspirationCards]);
     const isNoteBlank = !isCanvasPreview && (
         !selectedNoteId ||
         !activeNote ||
@@ -4442,7 +4445,7 @@ export default function CreatePage() {
             const img = new Image();
             img.src = card.bgImage;
         });
-    }, []);
+    }, [carouselCards]);
 
     // Auto-scroll the inspirations carousel in the empty canvas state (every 3.5 seconds)
     useEffect(() => {
@@ -5015,7 +5018,7 @@ export default function CreatePage() {
 
     useEffect(() => {
         if (clickedWord) {
-            const clean = clickedWord.toLowerCase().replace(/[^a-zåäöæø]/g, '');
+            const clean = clickedWord.toLowerCase().replace(/[^\p{L}]/gu, '');
             setLexiconWord(clean);
             searchRhymeLexicon(clean, lexiconMode);
             runSpellCheck(clean);
@@ -8307,7 +8310,7 @@ export default function CreatePage() {
     };
 
     const handleWordClick = (e: React.MouseEvent, word: string, tokenIndex: number) => {
-        const cleanWord = word.replace(/[^a-zA-Z]/g, '');
+        const cleanWord = word.replace(/[^\p{L}]/gu, '');
         if (!cleanWord) return;
 
         setClickedWord(cleanWord);
@@ -8329,7 +8332,7 @@ export default function CreatePage() {
             const originalToken = wordsList[clickedTokenIndex];
             
             // Swap out alphabetical portion, keeping surrounding punctuation
-            const match = originalToken.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/);
+            const match = originalToken.match(/^([^\p{L}]*)(\p{L}+(?:['’\-]\p{L}+)*)([^\p{L}]*)$/u);
             if (match) {
                 const pre = match[1];
                 const post = match[3];
@@ -8379,7 +8382,7 @@ export default function CreatePage() {
             const originalToken = wordsList[clickedTokenIndex];
             
             // Swap out alphabetical portion, keeping surrounding punctuation
-            const match = originalToken.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/);
+            const match = originalToken.match(/^([^\p{L}]*)(\p{L}+(?:['’\-]\p{L}+)*)([^\p{L}]*)$/u);
             if (match) {
                 const pre = match[1];
                 const post = match[3];
@@ -11484,23 +11487,24 @@ export default function CreatePage() {
                                                     setInspirationQuestionIndex(0);
                                                 }}
                                             >
-                                                {/* Background Image */}
-                                                <div
-                                                    className="absolute inset-0 bg-cover bg-center"
-                                                    style={{
-                                                        backgroundImage: `url(${card.bgImage})`,
-                                                    }}
-                                                >
-                                                    {/* Blurry Vignette Overlay */}
-                                                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                                                        <div 
-                                                            className="absolute inset-0 backdrop-blur-[3px]" 
-                                                            style={{
-                                                                maskImage: 'radial-gradient(circle at center, transparent 40%, black 100%)',
-                                                                WebkitMaskImage: 'radial-gradient(circle at center, transparent 40%, black 100%)'
-                                                            }}
-                                                        />
-                                                    </div>
+                                                {/* Background Image Container */}
+                                                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                                                    {/* 1. Blurred Background Layer */}
+                                                    <div 
+                                                        className="absolute inset-0 bg-cover bg-center filter blur-[12px] scale-110"
+                                                        style={{
+                                                            backgroundImage: `url(${card.bgImage})`,
+                                                        }}
+                                                    />
+                                                    {/* 2. Crisp Foreground Layer with radial gradient mask */}
+                                                    <div 
+                                                        className="absolute inset-0 bg-cover bg-center"
+                                                        style={{
+                                                            backgroundImage: `url(${card.bgImage})`,
+                                                            maskImage: 'radial-gradient(circle at center, black 35%, transparent 80%)',
+                                                            WebkitMaskImage: 'radial-gradient(circle at center, black 35%, transparent 80%)'
+                                                        }}
+                                                    />
                                                 </div>
 
                                                 {/* Soft gradient overlay on top of background image to make sure glass overlay stands out */}
@@ -12563,6 +12567,7 @@ export default function CreatePage() {
                                                                                     content: `Imported Audio Track\n[No lyrics yet]`,
                                                                                     folderId: activeFolderIdFilter,
                                                                                     updatedAt: new Date().toISOString(),
+                                                                                    ownerId: user ? user.uid : undefined,
                                                                                     phrases: [{ id: newPhraseId, text: '', groupId: null }],
                                                                                     verses: [],
                                                                                     audioNotes: [{
@@ -12578,6 +12583,15 @@ export default function CreatePage() {
                                                                                 };
                                                                                 setNotes(prev => [newNote, ...prev]);
                                                                                 setSelectedNoteId(newNoteId);
+
+                                                                                if (user) {
+                                                                                    const docRef = doc(db, "projects", newNoteId);
+                                                                                    setDoc(docRef, {
+                                                                                        ...newNote,
+                                                                                        ownerId: user.uid,
+                                                                                        collaborators: []
+                                                                                    }).catch(err => console.error("Error creating project in Firestore:", err));
+                                                                                }
                                                                             }
 
                                                                             alert(`Successfully imported audio track: ${file.name}`);
@@ -12606,6 +12620,39 @@ export default function CreatePage() {
                                                                         handleUpdateNote(selectedNoteId, {
                                                                             images: [...existingImages, newImage]
                                                                         });
+                                                                        alert(`Successfully imported image: ${file.name}`);
+                                                                    } else {
+                                                                        const newNoteId = `n-${Date.now()}`;
+                                                                        const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                                                                        const newImage = {
+                                                                            id: nextImageId,
+                                                                            url: compressedBase64,
+                                                                            name: file.name
+                                                                        };
+                                                                        const title = file.name || `Imported Image ${new Date().toLocaleDateString()}`;
+                                                                        const newNote: SongNote = {
+                                                                            id: newNoteId,
+                                                                            title: title,
+                                                                            content: `Imported Image\n[No lyrics yet]`,
+                                                                            folderId: activeFolderIdFilter,
+                                                                            updatedAt: new Date().toISOString(),
+                                                                            ownerId: user ? user.uid : undefined,
+                                                                            phrases: [],
+                                                                            verses: [],
+                                                                            images: [newImage],
+                                                                            isAudioOnly: false
+                                                                        };
+                                                                        setNotes(prev => [newNote, ...prev]);
+                                                                        setSelectedNoteId(newNoteId);
+
+                                                                        if (user) {
+                                                                            const docRef = doc(db, "projects", newNoteId);
+                                                                            setDoc(docRef, {
+                                                                                ...newNote,
+                                                                                ownerId: user.uid,
+                                                                                collaborators: []
+                                                                            }).catch(err => console.error("Error creating project in Firestore:", err));
+                                                                        }
                                                                         alert(`Successfully imported image: ${file.name}`);
                                                                     }
                                                                 } catch (imgErr) {
@@ -12671,6 +12718,57 @@ export default function CreatePage() {
                                                                                 });
                                                                                 alert(`Successfully uploaded document: ${file.name}`);
                                                                             }
+                                                                        } else {
+                                                                            const newNoteId = `n-${Date.now()}`;
+                                                                            const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                                                                            
+                                                                            let docType = 'other';
+                                                                            if (fileName.endsWith('.pdf')) docType = 'pdf';
+                                                                            else if (fileName.endsWith('.doc')) docType = 'doc';
+                                                                            else if (fileName.endsWith('.docx')) docType = 'docx';
+                                                                            else if (fileName.endsWith('.txt')) docType = 'txt';
+                                                                            else if (fileName.endsWith('.md')) docType = 'md';
+
+                                                                            const newDoc = {
+                                                                                id: docId,
+                                                                                url: dataUrl,
+                                                                                name: file.name,
+                                                                                type: docType,
+                                                                                size: file.size
+                                                                            };
+
+                                                                            const headerPhraseId = `p-docheader-${docId}`;
+                                                                            const headerPhrase: Phrase = {
+                                                                                id: headerPhraseId,
+                                                                                text: file.name,
+                                                                                groupId: null
+                                                                            };
+
+                                                                            const title = file.name || `Imported Document ${new Date().toLocaleDateString()}`;
+                                                                            const newNote: SongNote = {
+                                                                                id: newNoteId,
+                                                                                title: title,
+                                                                                content: file.name,
+                                                                                folderId: activeFolderIdFilter,
+                                                                                updatedAt: new Date().toISOString(),
+                                                                                ownerId: user ? user.uid : undefined,
+                                                                                phrases: [headerPhrase],
+                                                                                verses: [],
+                                                                                documents: [newDoc],
+                                                                                isAudioOnly: false
+                                                                            };
+                                                                            setNotes(prev => [newNote, ...prev]);
+                                                                            setSelectedNoteId(newNoteId);
+
+                                                                            if (user) {
+                                                                                const docRef = doc(db, "projects", newNoteId);
+                                                                                setDoc(docRef, {
+                                                                                    ...newNote,
+                                                                                    ownerId: user.uid,
+                                                                                    collaborators: []
+                                                                                }).catch(err => console.error("Error creating project in Firestore:", err));
+                                                                            }
+                                                                            alert(`Successfully uploaded document: ${file.name}`);
                                                                         }
                                                                     };
                                                                     reader.readAsDataURL(file);
@@ -12689,7 +12787,9 @@ export default function CreatePage() {
                                                 {t('creative.upload_files') || 'Import'}
                                             </button>
 
-                                            <div className="h-px bg-stone-200 my-1.5 w-full" />
+                                            {selectedNoteId && (
+                                                <div className="h-px bg-stone-200 my-1.5 w-full" />
+                                            )}
 
                                             {selectedNoteId && (
                                                 <button 
@@ -13330,7 +13430,7 @@ export default function CreatePage() {
                                                                                         const wordIndices: number[] = [];
                                                                                         const tokens = phrase.text.split(/(\s+)/);
                                                                                         tokens.forEach((token, idx) => {
-                                                                                            if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/)) {
+                                                                                            if (!/^\s+$/.test(token) && token.match(/^([^\p{L}]*)(\p{L}+(?:['’\-]\p{L}+)*)([^\p{L}]*)$/u)) {
                                                                                                 wordIndices.push(idx);
                                                                                             }
                                                                                         });
@@ -13401,7 +13501,7 @@ export default function CreatePage() {
                                                                                     const tokens = phrase.text.split(/(\s+)/);
                                                                                     const wordIndices: number[] = [];
                                                                                     tokens.forEach((token, idx) => {
-                                                                                        if (!/^\s+$/.test(token) && token.match(/^([^a-zA-Z]*)([a-zA-Z]+(?:['’\-][a-zA-Z]+)*)([^a-zA-Z]*)$/)) {
+                                                                                        if (!/^\s+$/.test(token) && token.match(/^([^\p{L}]*)(\p{L}+(?:['’\-]\p{L}+)*)([^\p{L}]*)$/u)) {
                                                                                             wordIndices.push(idx);
                                                                                         }
                                                                                     });
@@ -13714,19 +13814,30 @@ export default function CreatePage() {
                                                                 setActiveToolTab('inspiration');
                                                                 setShowToolsPanel(true);
                                                             }}
-                                                            className={`relative w-[220px] h-[125px] shrink-0 rounded-[20px] overflow-hidden border border-stone-200/40 shadow-[0_4px_12px_rgba(0,0,0,0.03)] cursor-pointer transition-all duration-500 hover:scale-105 active:scale-95 group/card bg-stone-100
+                                                            className={`relative w-[220px] h-[125px] shrink-0 rounded-[20px] overflow-hidden border border-stone-200/40 cursor-pointer transition-all duration-500 hover:scale-105 active:scale-95 group/card bg-stone-100
                                                                 ${isActive 
-                                                                    ? 'opacity-100 scale-100 shadow-md' 
+                                                                    ? 'opacity-100 scale-100' 
                                                                     : 'opacity-35 scale-95 hover:opacity-50'
                                                                 }
                                                             `}
                                                         >
-                                                            {/* Background Image using eager loading WebP to prevent flicker */}
+                                                            {/* 1. Blurred Background Image underneath */}
                                                             <img 
-                                                                src={card.bgImage.replace('.png', '.webp')} 
+                                                                src={card.bgImage} 
+                                                                alt=""
+                                                                loading="eager"
+                                                                className="absolute inset-0 w-full h-full object-cover filter blur-[12px] scale-115 transition-transform duration-700 group-hover/card:scale-120 pointer-events-none"
+                                                            />
+                                                            {/* 2. Sharp Foreground Image on top, masked to fade out at the edges */}
+                                                            <img 
+                                                                src={card.bgImage} 
                                                                 alt={card.title}
                                                                 loading="eager"
                                                                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105"
+                                                                style={{
+                                                                    maskImage: 'radial-gradient(circle at center, black 35%, transparent 80%)',
+                                                                    WebkitMaskImage: 'radial-gradient(circle at center, black 35%, transparent 80%)'
+                                                                }}
                                                             />
                                                         </div>
                                                     );
