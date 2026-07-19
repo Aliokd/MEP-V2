@@ -41,6 +41,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return unsubscribe;
     }, []);
 
+    useEffect(() => {
+        if (user && typeof window !== 'undefined') {
+            try {
+                const clarity = (window as any).clarity;
+                if (typeof clarity === 'function') {
+                    clarity("identify", user.uid, {
+                        name: user.displayName || 'Active User',
+                        email: user.email || ''
+                    });
+                } else {
+                    // Queue call if script isn't fully loaded yet
+                    (window as any).clarity = (window as any).clarity || function() {
+                        ((window as any).clarity.q = (window as any).clarity.q || []).push(arguments);
+                    };
+                    (window as any).clarity("identify", user.uid, {
+                        name: user.displayName || 'Active User',
+                        email: user.email || ''
+                    });
+                }
+            } catch (err) {
+                console.error("Error identifying user in Clarity:", err);
+            }
+        }
+    }, [user]);
+
     return (
         <AuthContext.Provider value={{ user, loading }}>
             {children}
