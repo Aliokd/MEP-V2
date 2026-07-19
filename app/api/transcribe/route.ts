@@ -1,25 +1,4 @@
-import { GoogleAuth } from 'google-auth-library';
 import { NextResponse } from 'next/server';
-
-const credentialsJson = {
-  type: "service_account",
-  project_id: "mep-v2",
-  private_key_id: "8251fd3fe7e55cc0833b825f697b6f11a92b5751",
-  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDNs/6r+/zbDQnf\nGk4b3nhXs8qwtCOkTSBXT1ldDpa9PalJV4L+5WmhxGm0rEeEMW/DlSyMyUauHAW1\npWovVGZbLAIsWtB5ueXm7Vr1QqsbXzOkdp+JBHZyJbWQGE//GJ3rHwon9mD387tU\na0mSD9tI89g/7XV2bM9VsjDtQG0MVfx7HepUkGigQycEaZ7b31UEDGFmE5c9Ia81\nFp3F2JBJGYjpTypXIoJXL08ykFfPMvs/NDDDSKgm6Aa8YrIqVdxNKOnG9O1BChSY\nhbI2sjrBhE4KOFMM6oCzT1RhMq9LsmqYIVCyuEc8kfxhrXFZ+USQTRR5gXVCzuX+\njufYBgThAgMBAAECggEACjlzo6XLTDIKNxIuJrl4ntdbcEwL53tD68MQbI0wlehu\nNSyJ4NSTWwyRun7DsUDpzr1n8PmCL15KNFyr+f1GdyqpUv4SlbJVSJSsrDsrmRky\nzm5tAJj9sC/KpgZnV4UoOEsbLKBU8o4lVg1dI0rxed9Q9OB/Mas35QkN4IUOxoma\nyiq/wNvz5gFwoxZKuQXN675frbAO8VI1CUkByYgDzB7tkk1YT478UWmWZhaXQmSY\nmAwVxAtxMsgZfuHWXryLgVrePQeu91e2ePBfLxYo3MGSVEhvuzAScSxnux6sSpua\nAZ1pI1RY/tlkrf6cJTGSJkrgMBH6NDpNkpOoWUgxZwKBgQDoQSIC0kMU8CYG1f1a\nyLRV6drjGIPFxTyoZEdRJLc7tyYpkMCdaU57MM340lBP59iDnKjJHg8EP55NpAcG\nc0l3mlU/HyxwVh5sz9VjMXZOSVzQDBgbmnxz9TboPCO1wtDBf1KPoL2D/JqbyNPl\nTWc2OJE9I/9H+dFKjZhZ3KWpFwKBgQDiu+0Ot0EMBOIscF0dCAGf2Zw4yYP7AvGw\nwzXt7ZKMteMM45/o2Fm3MdyJ6nKdONIybVOVN1fMhAwgrOb8u7snXlrUlwzSBroA\nnZhylbDd0b/oGQV00HnJ2FEDYpmwdxb5M0JMOwDoA3ZfgXJ31AJy8igtE9/pIiDe\nmqLJKdGMxwKBgDOQMlLaB5agcnDWFXeQU6k3UCdXC/pefccM7GBxfFS/prNXtcu8\n03W6MiBp4Pa8jG872qU8DS1uSmEGZ6Dg+5CYLRDkhOMz23Fg+wkYtCFRXE+8P6Xx\nOGwuJtCMeYkjBWHQOK42i5y/+jtX7ONdueppyKUAVu7N4c9hfE+HEyhlAoGAZHik\nHn5EG8BaPRj5mfC/T4dNe7iIfIWcdhi64BkDdMjwuPhxFuwwLUayFIdIjLTuKBxc\nCmZAyMbG3P/hR6Mk1tgv5b6dlsAWUkmDkVsVyeW1ZXMZAN+U6EWr+JULx6+uBXWa\nbk9DIozOOpoREFppT2hRN1B0S0mtSRc7BWs7iWcCgYEApB+BYJfMZpsU9dLZxiKZ\nefGxaTASOpW53uGhlJUReg2bcE8F8Knl7CkwATo0SrUbr5FOOnOsIDS717U4K4wY\n4fCgqUMmND1VLRZd4cbS9uksFK9x+79D2kai77B8FsOB5NSLZSDAr6VZ9/awIB6o\ntq2lZ/jad04fu3rVm0rBfPg=\n-----END PRIVATE KEY-----\n",
-  client_email: "firebase-adminsdk-fbsvc@mep-v2.iam.gserviceaccount.com",
-  client_id: "103281381125574326190",
-  auth_uri: "https://accounts.google.com/o/oauth2/auth",
-  token_uri: "https://oauth2.googleapis.com/token",
-  auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-  client_x509_cert_url: "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40mep-v2.iam.gserviceaccount.com",
-  universe_domain: "googleapis.com"
-};
-
-const auth = new GoogleAuth({
-    credentials: credentialsJson,
-    scopes: ['https://www.googleapis.com/auth/cloud-platform']
-});
-
 
 export async function POST(request: Request) {
     try {
@@ -48,82 +27,86 @@ export async function POST(request: Request) {
         const buffer = Buffer.from(rawBuffer);
         const audioBytes = buffer.toString('base64');
 
-        // Detect audio container using magic bytes
-        const first4Hex = buffer.toString('hex', 0, Math.min(4, buffer.length)).toUpperCase();
-        
-        let encoding = 'LINEAR16';
-        let sampleRateHertz: number | undefined = 16000;
-
-        if (first4Hex === '1A45DFA3') { // WebM magic bytes (EBML header)
-            encoding = 'WEBM_OPUS';
-            sampleRateHertz = undefined; // Let Google detect sample rate automatically from the WebM header
-        } else if (first4Hex === '52494646') { // RIFF magic bytes (WAV header)
-            encoding = 'LINEAR16';
-            sampleRateHertz = 16000;
+        // Detect MIME type using magic bytes or Content-Type header fallback
+        let mimeType = request.headers.get('content-type') || '';
+        if (!mimeType || mimeType.includes('octet-stream') || mimeType.includes('json')) {
+            const first4Hex = buffer.toString('hex', 0, Math.min(4, buffer.length)).toUpperCase();
+            const first8Hex = buffer.toString('hex', 0, Math.min(8, buffer.length)).toUpperCase();
+            
+            if (first4Hex === '1A45DFA3') {
+                mimeType = 'audio/webm';
+            } else if (first4Hex === '52494646') {
+                mimeType = 'audio/wav';
+            } else if (first4Hex === '494433' || first4Hex.startsWith('FFF')) {
+                mimeType = 'audio/mp3';
+            } else if (first8Hex.includes('66747970') || first4Hex === '00000014' || first4Hex === '00000018' || first4Hex === '00000020') {
+                mimeType = 'audio/mp4';
+            } else if (buffer.toString('utf8', 0, 4) === 'OggS') {
+                mimeType = 'audio/ogg';
+            } else {
+                mimeType = 'audio/wav'; // default fallback
+            }
         }
-        
-        let token: string | null | undefined = null;
-        try {
-            token = await auth.getAccessToken();
-        } catch (authError: any) {
-            console.warn('Could not load Google Cloud credentials. Falling back to mock transcription.', authError.message);
-        }
 
-        if (!token) {
-            // No GCP credentials available – return empty transcription
-            // (the user can type the lyrics manually)
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            console.warn("GEMINI_API_KEY is not configured. Transcription will fall back to empty text.");
             return NextResponse.json({ text: '', isMock: true });
         }
 
         const url = new URL(request.url);
         const lang = url.searchParams.get('lang') || request.headers.get('x-language') || 'en';
-        let languageCode = 'en-US';
+        let languageName = 'English';
         if (lang === 'sv') {
-            languageCode = 'sv-SE';
+            languageName = 'Swedish';
         } else if (lang === 'no') {
-            languageCode = 'nb-NO';
+            languageName = 'Norwegian';
         }
 
-        const speechConfig: any = {
-            encoding: encoding,
-            languageCode: languageCode,
-        };
-        if (encoding === 'WEBM_OPUS') {
-            speechConfig.audioChannelCount = 2;
-        }
-        if (sampleRateHertz !== undefined) {
-            speechConfig.sampleRateHertz = sampleRateHertz;
-        }
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-        const response = await fetch('https://speech.googleapis.com/v1/speech:recognize', {
+        const prompt = `Transcribe the audio accurately. The spoken language is likely ${languageName}. Output ONLY the transcription text, nothing else. Do not translate the text to English; transcribe it in its native language. If there is no speech, return an empty string.`;
+
+        const response = await fetch(geminiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
-                config: speechConfig,
-                audio: {
-                    content: audioBytes,
-                },
-            }),
+                contents: [
+                    {
+                        parts: [
+                            {
+                                inlineData: {
+                                    mimeType: mimeType,
+                                    data: audioBytes
+                                }
+                            },
+                            {
+                                text: prompt
+                            }
+                        ]
+                    }
+                ],
+                generationConfig: {
+                    temperature: 0.1,
+                    maxOutputTokens: 2000
+                }
+            })
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Speech API response error: ${response.status} - ${errorText}`);
+            throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
         }
 
         const result = await response.json();
-        const transcription = result.results
-            ?.map((res: any) => res.alternatives?.[0]?.transcript)
-            .join(' ');
+        const transcription = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        return NextResponse.json({ text: transcription || '' });
+        return NextResponse.json({ text: (transcription || '').trim() });
     } catch (error: any) {
         console.error('Transcription API error:', error);
         // Return empty transcription on error so the user can type manually
         return NextResponse.json({ text: '', isMock: true });
     }
 }
-

@@ -1592,7 +1592,10 @@ function AudioCapsulePlayer({
 }: AudioCapsulePlayerProps) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [playbackTime, setPlaybackTime] = useState(0);
-    const [playbackDuration, setPlaybackDuration] = useState(audioNote.duration || 0);
+    const [playbackDuration, setPlaybackDuration] = useState(() => {
+        const d = Number(audioNote.duration);
+        return (d && !isNaN(d) && isFinite(d)) ? d : 0;
+    });
     const playbackAudioRef = useRef<HTMLAudioElement | null>(null);
     const isStudioMix = audioNote.id.startsWith('studio-mix-') || audioNote.title?.toLowerCase().includes('studio');
 
@@ -1705,8 +1708,10 @@ function AudioCapsulePlayer({
         setPlaybackTime(percent * playbackDuration);
     };
 
-    const formatTime = (s: number) =>
-        `${Math.floor(s / 60).toString().padStart(2, '0')}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
+    const formatTime = (s: number) => {
+        if (typeof s !== 'number' || isNaN(s) || !isFinite(s)) return '00:00';
+        return `${Math.floor(s / 60).toString().padStart(2, '0')}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
+    };
 
     // Shared touch drag handlers (for draggable pill)
     const sharedTouchHandlers = {
@@ -1778,7 +1783,22 @@ function AudioCapsulePlayer({
             ref={playbackAudioRef}
             src={audioNote.url}
             onTimeUpdate={() => { if (playbackAudioRef.current) setPlaybackTime(playbackAudioRef.current.currentTime); }}
-            onLoadedMetadata={() => { if (playbackAudioRef.current) setPlaybackDuration(playbackAudioRef.current.duration); }}
+            onLoadedMetadata={() => {
+                if (playbackAudioRef.current) {
+                    const dur = playbackAudioRef.current.duration;
+                    if (typeof dur === 'number' && !isNaN(dur) && isFinite(dur) && dur > 0) {
+                        setPlaybackDuration(dur);
+                    }
+                }
+            }}
+            onDurationChange={() => {
+                if (playbackAudioRef.current) {
+                    const dur = playbackAudioRef.current.duration;
+                    if (typeof dur === 'number' && !isNaN(dur) && isFinite(dur) && dur > 0) {
+                        setPlaybackDuration(dur);
+                    }
+                }
+            }}
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
@@ -3280,6 +3300,7 @@ export default function CreatePage() {
     const [playbackDuration, setPlaybackDuration] = useState(0);
 
     const formatTime = (seconds: number) => {
+        if (typeof seconds !== 'number' || isNaN(seconds) || !isFinite(seconds)) return '00:00';
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
