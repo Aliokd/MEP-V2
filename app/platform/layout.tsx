@@ -6,7 +6,7 @@ import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { TreePine, Menu, User, Play, Pause, X, Globe } from 'lucide-react';
+import { TreePine, Menu, User, Play, Pause, X, Globe, RotateCcw } from 'lucide-react';
 import Logo from '@/components/Logo';
 
 function PlatformLayoutInner({
@@ -666,24 +666,21 @@ function PlatformLayoutInner({
 
                         {hasEnded && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-20 p-8 text-center animate-in fade-in duration-300">
-                                <h3 className="text-3xl font-sans font-light text-stone-900 mb-2">Workspace ready.</h3>
-                                <p className="text-stone-500 max-w-md text-sm mb-8 font-medium">
-                                    You're all set to start writing lyrics, analyzing chords, and creating visual music stories.
-                                </p>
-                                <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-xs sm:max-w-md justify-center">
-                                    <button
-                                        onClick={handleCloseWelcomeModal}
-                                        className="w-full sm:w-auto px-10 py-4.5 bg-[#86BE7F] hover:opacity-95 text-stone-900 text-base font-bold rounded-[18px] transition-all shadow-[0_4px_12px_rgba(134,190,127,0.2)] cursor-pointer active:scale-95 flex items-center justify-center gap-2"
-                                    >
-                                        Start now
-                                    </button>
-                                    <button
-                                        onClick={handleReplay}
-                                        className="w-full sm:w-auto px-8 py-4.5 border border-stone-205 hover:bg-stone-50 text-stone-700 text-base font-semibold rounded-[18px] transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
-                                    >
-                                        Replay video
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={handleReplay}
+                                    className="p-4 text-stone-600 hover:text-stone-900 hover:bg-stone-50 rounded-full transition-all cursor-pointer active:scale-95 flex items-center justify-center mb-6 border border-stone-150 bg-stone-50/50 shadow-xs"
+                                    aria-label="Replay video"
+                                    title="Replay video"
+                                >
+                                    <RotateCcw className="w-8 h-8 stroke-[1.5]" />
+                                </button>
+                                
+                                <button
+                                    onClick={handleCloseWelcomeModal}
+                                    className="w-full sm:w-auto px-16 py-4 bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] text-base font-semibold rounded-full transition-all shadow-md hover:shadow-lg shadow-[#87b884]/20 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2"
+                                >
+                                    Start now
+                                </button>
                             </div>
                         )}
                     </div>

@@ -1374,6 +1374,42 @@ function decodeAudioDataPromise(audioCtx: AudioContext | OfflineAudioContext, ar
     });
 }
 
+function showMicrophoneHelp(err?: any) {
+    if (typeof window === 'undefined') return;
+
+    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!isSecure) {
+        alert(
+            "Microphone Access Error:\n\n" +
+            "Your browser blocks microphone access on insecure (HTTP) connections.\n\n" +
+            "Please use a secure (HTTPS) URL, or test locally via localhost."
+        );
+        return;
+    }
+
+    const userAgent = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(userAgent);
+
+    if (isIOS || isSafari) {
+        alert(
+            "Microphone Permission Denied:\n\n" +
+            "To record on iPhone / Safari, please allow microphone access:\n\n" +
+            "1. Tap the 'aA' settings icon on the left of the URL search bar.\n" +
+            "2. Tap 'Website Settings'.\n" +
+            "3. Change Microphone permission to 'Allow'.\n" +
+            "4. Reload the page and try again.\n\n" +
+            "Alternatively, go to iOS Settings > Safari > Microphone and select 'Ask' or 'Allow'."
+        );
+    } else {
+        alert(
+            "Microphone Permission Denied:\n\n" +
+            "Please grant microphone permission to record audio:\n\n" +
+            "Click the microphone/settings icon in your browser URL bar, change permission to 'Allow', and reload the page."
+        );
+    }
+}
+
 function downmixToMono(audioBuffer: AudioBuffer, audioCtx: AudioContext | OfflineAudioContext): AudioBuffer {
     if (audioBuffer.numberOfChannels <= 1) {
         return audioBuffer;
@@ -5516,7 +5552,7 @@ export default function CreatePage() {
             
         } catch (err) {
             console.error("Microphone access error:", err);
-            alert("Microphone access is required. Please check browser permissions.");
+            showMicrophoneHelp(err);
         }
     };
 
@@ -8872,6 +8908,7 @@ export default function CreatePage() {
         } catch (err) {
             console.error("Microphone access denied or failed to record:", err);
             setStudioState('idle');
+            showMicrophoneHelp(err);
         }
     };
 
