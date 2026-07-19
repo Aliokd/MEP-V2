@@ -1,6 +1,8 @@
 "use client";
 
 import MaestroSidebar from './components/MaestroSidebar';
+import SupportModal from './components/SupportModal';
+import FeedbackModal from './components/FeedbackModal';
 import { useAuth } from '@/context/AuthContext';
 import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
@@ -21,6 +23,8 @@ function PlatformLayoutInner({
     
     const [showProgressPopup, setShowProgressPopup] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isSupportOpen, setIsSupportOpen] = useState(false);
+    const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
     const popupRef = useRef<HTMLDivElement>(null);
 
     // Progress breakdowns and state values
@@ -376,6 +380,18 @@ function PlatformLayoutInner({
             <MaestroSidebar 
                 isMobileOpen={isMobileMenuOpen} 
                 onClose={() => setIsMobileMenuOpen(false)} 
+                onSupportClick={() => setIsSupportOpen(true)}
+                onFeedbackClick={() => setIsFeedbackOpen(true)}
+            />
+
+            <SupportModal 
+                isOpen={isSupportOpen} 
+                onClose={() => setIsSupportOpen(false)} 
+            />
+
+            <FeedbackModal 
+                isOpen={isFeedbackOpen} 
+                onClose={() => setIsFeedbackOpen(false)} 
             />
 
             {/* Main Content Area */}

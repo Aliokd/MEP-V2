@@ -14,7 +14,7 @@
     "practice": "Öva",
     "connect": "Community",
     "settings": "Inställningar",
-    "feedback": "Återkoppling",
+    "feedback": "Dela din feedback",
     "support": "Hjälp & support",
     "logout": "Logga ut",
     "my_profile": "Min profil"
@@ -526,5 +526,26 @@
     "about_bluetooth": "Om Bluetooth",
     "about_bluetooth_desc": "Bluetooth-hörlurar är användbara för att lyssna, men de rekommenderas inte under inspelning. Bluetooth introducerar latens (fördröjning), vilket innebär att du kan höra ljudet något senare än du spelar eller sjunger.",
     "got_it": "Uppfattat"
+  },
+  "support": {
+    "title": "Kontakta support",
+    "subject_placeholder": "Ämne / Vad gäller det?",
+    "message_placeholder": "Skriv ditt meddelande eller klagomål här...",
+    "send": "Skicka meddelande",
+    "sending": "Skickar...",
+    "success": "Ditt meddelande har skickats! Vi återkommer till dig inom kort.",
+    "error": "Kunde inte skicka meddelandet. Kontrollera din anslutning och försök igen."
+  },
+  "feedback_modal": {
+    "title": "Din feedback hjälper andra låtskrivare att få den bästa plattformen för",
+    "subject_placeholder": "Ämne / Vad gäller det?",
+    "message_placeholder": "Skriv din feedback eller idéer här...",
+    "send": "Skicka feedback",
+    "sending": "Skickar...",
+    "success": "Tack för din feedback! Vi granskar alla förslag för att förbättra plattformen.",
+    "error": "Det gick inte att skicka feedback. Kontrollera din anslutning och försök igen.",
+    "attachment_label": "Bilaga (Valfritt)",
+    "upload_placeholder": "Bifoga en bild, video eller PDF",
+    "uploading_file": "Laddar upp bilaga..."
   }
 }

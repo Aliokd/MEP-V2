@@ -14,9 +14,11 @@ import { useLanguage } from '@/context/LanguageContext';
 interface MaestroSidebarProps {
     isMobileOpen?: boolean;
     onClose?: () => void;
+    onSupportClick?: () => void;
+    onFeedbackClick?: () => void;
 }
 
-export default function MaestroSidebar({ isMobileOpen = false, onClose }: MaestroSidebarProps) {
+export default function MaestroSidebar({ isMobileOpen = false, onClose, onSupportClick, onFeedbackClick }: MaestroSidebarProps) {
     const { t } = useLanguage();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -61,9 +63,15 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
     ];
 
     const bottomItems = [
-        { label: t('navigation.settings'), href: '/platform/profile' },
-        { label: t('navigation.feedback'), href: '#' },
-        { label: t('navigation.support'), href: '#' },
+        { 
+            label: t('navigation.feedback'), 
+            onClick: onFeedbackClick,
+            icon: (className?: string) => (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" className={className}>
+                    <path d="M170,112a6,6,0,0,1-6,6H96a6,6,0,0,1,0-12h68A6,6,0,0,1,170,112Zm-6,26H96a6,6,0,0,0,0,12h68a6,6,0,0,0,0-12Zm66-14a98.11,98.11,0,0,1-98,98H48a14,14,0,0,1-14-14V124a98,98,0,0,1,196,0Zm-12,0a86,86,0,0,0-172,0v84a2,2,0,0,0,2,2h84A86.1,86.1,0,0,0,218,124Z"></path>
+                </svg>
+            )
+        },
         { label: t('navigation.logout'), onClick: handleSignOut, isBold: true },
     ];
 
@@ -198,7 +206,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
 
                         {/* Bottom Actions */}
                         <div className="flex flex-col gap-3 w-full items-start pl-4">
-                            {bottomItems.map((item) => {
+                            {bottomItems.map((item: any) => {
                                 if (item.onClick) {
                                     return (
                                         <button
@@ -207,9 +215,13 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                                                 if (item.onClick) item.onClick();
                                                 if (onClose) onClose();
                                             }}
-                                            className={`font-sans text-[13px] text-stone-650 hover:text-stone-900 transition-colors text-left ${item.isBold ? 'font-bold mt-2 text-stone-900' : 'font-medium'}`}
+                                            className={item.isBold 
+                                                ? `font-sans text-[13px] text-stone-655 hover:text-stone-950 transition-colors text-left font-bold mt-2 cursor-pointer`
+                                                : `flex items-center gap-2 font-sans text-[13px] bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-700 hover:text-stone-950 transition-all text-left rounded-[10px] px-3.5 py-2 font-medium group/btn cursor-pointer`
+                                            }
                                         >
-                                            {item.label}
+                                            {item.icon && item.icon("w-[16px] h-[16px] text-stone-500 group-hover/btn:text-stone-900 transition-colors shrink-0")}
+                                            <span>{item.label}</span>
                                         </button>
                                     );
                                 }
@@ -218,9 +230,13 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose }: Maestr
                                         key={item.label} 
                                         href={item.href || '#'}
                                         onClick={onClose}
-                                        className={`font-sans text-[13px] text-stone-650 hover:text-stone-900 transition-colors ${item.isBold ? 'font-bold mt-2 text-stone-900' : 'font-medium'}`}
+                                        className={item.isBold 
+                                            ? `font-sans text-[13px] text-stone-655 hover:text-stone-950 transition-colors font-bold mt-2`
+                                            : `flex items-center gap-2 font-sans text-[13px] bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-700 hover:text-stone-955 transition-all rounded-[10px] px-3.5 py-2 font-medium group/link`
+                                        }
                                     >
-                                        {item.label}
+                                        {item.icon && item.icon("w-[16px] h-[16px] text-stone-500 group-hover/link:text-stone-900 transition-colors shrink-0")}
+                                        <span>{item.label}</span>
                                     </Link>
                                 );
                             })}

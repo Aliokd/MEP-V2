@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-        const prompt = `Transcribe the audio accurately. The spoken language is likely ${languageName}. Output ONLY the transcription text, nothing else. Do not translate the text to English; transcribe it in its native language. If there is no speech, return an empty string.`;
+        const prompt = `Transcribe the audio accurately. The spoken language is strictly ${languageName}. Do NOT translate the words to English. The transcription output must be in ${languageName} only. Do not mix English words into the transcription unless the speaker literally said an English word. Output ONLY the transcription text, nothing else. If there is no speech, return an empty string.`;
 
         const response = await fetch(geminiUrl, {
             method: 'POST',

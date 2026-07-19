@@ -14,7 +14,7 @@
     "practice": "Practice",
     "connect": "Connect",
     "settings": "Settings",
-    "feedback": "Feedback",
+    "feedback": "Share your feedback",
     "support": "Support",
     "logout": "Log out",
     "my_profile": "My profile"
@@ -526,5 +526,26 @@
     "about_bluetooth": "About Bluetooth",
     "about_bluetooth_desc": "Bluetooth headphones are useful for listening, but they are not recommended while recording. Bluetooth introduces latency, which means you may hear the sound slightly later than you play or sing.",
     "got_it": "Got it"
+  },
+  "support": {
+    "title": "Contact Support",
+    "subject_placeholder": "Subject / What is this about?",
+    "message_placeholder": "Write your message or complaint here...",
+    "send": "Send Message",
+    "sending": "Sending...",
+    "success": "Your message has been sent successfully! We will contact you back shortly.",
+    "error": "Failed to send message. Please check your connection or try again."
+  },
+  "feedback_modal": {
+    "title": "Your feedback is helping other songwriters having the best platform for",
+    "subject_placeholder": "Subject / What is this about?",
+    "message_placeholder": "Write your feedback or ideas here...",
+    "send": "Send Feedback",
+    "sending": "Sending...",
+    "success": "Thank you for your feedback! We review all suggestions to improve the platform.",
+    "error": "Failed to send feedback. Please check your connection or try again.",
+    "attachment_label": "Attachment (Optional)",
+    "upload_placeholder": "Attach an image, video, or PDF",
+    "uploading_file": "Uploading attachment..."
   }
 }

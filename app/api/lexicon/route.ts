@@ -70,11 +70,11 @@ export async function GET(request: Request) {
     let instructions = '';
 
     if (mode === 'rhyme') {
-      instructions = `Find words that perfectly rhyme with "${cleanWord}". Prioritize native ${languageName} words. You should also include a few highly relevant English words that rhyme with "${cleanWord}" as secondary options at the end.`;
+      instructions = `Find up to 25 words that perfectly rhyme with "${cleanWord}" in ${languageName}. Perfect rhymes must share the identical vowel and consonant sound starting from the last stressed syllable (e.g. Swedish "himmel" and "vimmel", Norwegian "stein" and "bein"). Every single returned word MUST be a real, valid word in the ${languageName} language. Do NOT include any English words under any circumstances.`;
     } else if (mode === 'near') {
-      instructions = `Find words that are near-rhymes, slant rhymes, or share assonance/consonance with "${cleanWord}". Prioritize native ${languageName} words. You should also include a few highly relevant English slant rhymes as secondary options at the end.`;
+      instructions = `Find up to 25 words that are near-rhymes, slant rhymes, or share assonance/consonance with "${cleanWord}" in ${languageName} (e.g. words that sound musically similar but might not be perfect rhymes, like Swedish "hjärta" and "smärta" or slant matches). Every single returned word MUST be a real, valid word in the ${languageName} language. Do NOT include any English words under any circumstances.`;
     } else {
-      instructions = `Find synonyms or semantically closely related words for "${cleanWord}". Prioritize native ${languageName} words. You should also include a few highly relevant English synonyms/related words as secondary options at the end.`;
+      instructions = `Find up to 25 synonyms or semantically closely related words for "${cleanWord}" in ${languageName}. Every single returned word MUST be a real, valid word in the ${languageName} language. Do NOT include any English words under any circumstances.`;
     }
 
     const prompt = `Analyze the ${languageName} word: "${cleanWord}". ${instructions}`;
@@ -97,13 +97,13 @@ export async function GET(request: Request) {
         systemInstruction: {
           parts: [
             {
-              text: `You are a professional songwriting assistant. Analyze the requested word and find matching rhymes, near-rhymes, or synonyms. Keep replies strictly as JSON arrays of objects conforming to the requested schema. No markdown formatting, no code block wrap.
+              text: `You are a professional songwriting assistant. Analyze the requested word in ${languageName} and find matching rhymes, near-rhymes, or synonyms. Keep replies strictly as JSON arrays of objects conforming to the requested schema. No markdown formatting, no code block wrap.
 Schema: [ { "word": "matching_word", "syllables": syllable_count_integer, "score": score_integer_from_1_to_1000 } ]
 
 CRITICAL RULES:
-1. Primary results must be in ${languageName} (authentic, native vocabulary). Assign them higher scores (e.g. 600 to 1000) so they appear first.
-2. Include some highly relevant English words that rhyme or are synonymous as secondary options. Assign them lower scores (e.g. 100 to 500) so they appear at the end. This allows songwriters to mix ${languageName} and English.
-3. Sort the final JSON array by score in descending order. Ensure syllables represent the exact count.`
+1. Every word in the output JSON array MUST be a real, correctly spelled word in the ${languageName} language.
+2. STRICTLY EXCLUDE ALL ENGLISH WORDS. Do not include English words in the results even as secondary options.
+3. Sort results by score in descending order and ensure syllables represent the exact count.`
             }
           ]
         },

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { User, Mail, CreditCard } from 'lucide-react';
+import SupportModal from '../components/SupportModal';
 
 export default function ProfilePage() {
     const { user } = useAuth();
@@ -13,6 +14,7 @@ export default function ProfilePage() {
     const [email, setEmail] = useState('');
     const [pendingEmail, setPendingEmail] = useState('');
     const [verificationState, setVerificationState] = useState<'idle' | 'pending' | 'success'>('idle');
+    const [isSupportOpen, setIsSupportOpen] = useState(false);
     const [notification, setNotification] = useState('');
 
     useEffect(() => {
@@ -253,10 +255,17 @@ export default function ProfilePage() {
 
                     <div className="bg-white/60 p-6 rounded-[16px] text-center border border-stone-200/80 shadow-xs">
                         <p className="text-xs text-stone-700 font-semibold mb-4">{t('profile.need_assistance')}</p>
-                        <button className="text-stone-900 text-sm font-bold hover:underline">{t('profile.contact_concierge')}</button>
+                        <button 
+                            onClick={() => setIsSupportOpen(true)}
+                            className="text-stone-900 text-sm font-bold hover:underline"
+                        >
+                            {t('profile.contact_concierge')}
+                        </button>
                     </div>
                 </div>
             </div>
+            
+            <SupportModal isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
         </div>
     );
 }
