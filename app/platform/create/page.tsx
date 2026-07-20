@@ -3224,6 +3224,10 @@ export default function CreatePage() {
     const [swipingToBack, setSwipingToBack] = useState(false);
     const [activeInspirationIndex, setActiveInspirationIndex] = useState(8);
     const [transitionEnabled, setTransitionEnabled] = useState(true);
+    const [isDraggingOverCanvas, setIsDraggingOverCanvas] = useState(false);
+    const [inspirationPhraseIndex, setInspirationPhraseIndex] = useState(0);
+    const [phraseTransitionClass, setPhraseTransitionClass] = useState('opacity-100 translate-y-0 transition-all duration-500 ease-in-out');
+    const dragCounterRef = useRef(0);
     const inspirationTouchStartXRef = useRef(0);
     const inspirationDragStartXRef = useRef(0);
     const inspirationSwiperRef = useRef<any>(null);
@@ -3266,6 +3270,27 @@ export default function CreatePage() {
             return () => clearTimeout(timer);
         }
     }, [isDataLoaded]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            // Slide up and fade out
+            setPhraseTransitionClass('opacity-0 -translate-y-2 transition-all duration-500 ease-in-out');
+            
+            setTimeout(() => {
+                // Teleport to bottom instantly
+                setPhraseTransitionClass('opacity-0 translate-y-2 transition-none');
+                
+                // Change index
+                setInspirationPhraseIndex((prev) => (prev + 1) % 3);
+                
+                // Slide up to center
+                setTimeout(() => {
+                    setPhraseTransitionClass('opacity-100 translate-y-0 transition-all duration-500 ease-in-out');
+                }, 50);
+            }, 500);
+        }, 4000);
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         isRecordingRef.current = isRecording;
@@ -4444,7 +4469,11 @@ export default function CreatePage() {
         !selectedNoteId ||
         !activeNote ||
         (activeNote.content.trim() === '' &&
-            (!activeNote.audioNotes || activeNote.audioNotes.length === 0)
+            (!activeNote.audioNotes || activeNote.audioNotes.length === 0) &&
+            (!activeNote.images || activeNote.images.length === 0) &&
+            (!activeNote.documents || activeNote.documents.length === 0) &&
+            (!activeNote.verses || activeNote.verses.length === 0) &&
+            (!activeNote.phrases || activeNote.phrases.length === 0)
         )
     );
 
@@ -5911,6 +5940,380 @@ export default function CreatePage() {
             }
         }
     }, [selectedNoteId, activeNote, isMounted]);
+
+    const processImportFile = async (file: File, targetNoteId?: string | null): Promise<string | null> => {
+        if (file.size > 3 * 1024 * 1024) {
+            alert('File size exceeds the 3MB limit.');
+            return null;
+        }
+
+        const fileName = file.name.toLowerCase();
+        const effectiveNoteId = targetNoteId !== undefined ? targetNoteId : selectedNoteId;
+
+        if (file.type.startsWith('audio/') || fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.m4a') || fileName.endsWith('.ogg')) {
+            if (studioTracks.length >= 4) {
+                alert('Studio tracks limit reached (maximum 4 tracks).');
+                return null;
+            }
+            return new Promise<string | null>((resolve) => {
+                try {
+                    const reader = new FileReader();
+                    reader.onload = async (re) => {
+                        try {
+                            const arrayBuffer = re.target?.result as ArrayBuffer;
+                            const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+                            const offlineCtx = new OfflineContextClass(1, 1, 44100);
+                            const audioBuffer = await decodeAudioDataPromise(offlineCtx, arrayBuffer);
+                            
+                            const nextId = Date.now();
+                            const localUrl = URL.createObjectURL(file);
+                            const newTrack: StudioTrack = {
+                                id: nextId,
+                                name: file.name.substring(0, 18) || 'Uploaded Track',
+                                type: 'guitar',
+                                volume: 80,
+                                pan: 0,
+                                eq: 0,
+                                compressor: true,
+                                reverb: 40,
+                                audioBuffer: audioBuffer,
+                                url: localUrl
+                            };
+                            setStudioTracks(prev => [...prev, newTrack]);
+                            setActiveRecordingTrackId(nextId);
+
+                            const nextRecId = `imported-rec-${nextId}`;
+
+                            if (effectiveNoteId) {
+                                setNotes(prev => prev.map(n => {
+                                    if (n.id === effectiveNoteId) {
+                                        const existingAudio = n.audioNotes || [];
+                                        const newAudioNote = {
+                                            id: nextRecId,
+                                            url: localUrl,
+                                            title: file.name,
+                                            duration: audioBuffer.duration,
+                                            groupId: null,
+                                            phraseId: null,
+                                            createdAt: Date.now()
+                                        };
+                                        const updated = {
+                                            ...n,
+                                            audioNotes: [...existingAudio, newAudioNote],
+                                            updatedAt: new Date().toISOString()
+                                        };
+                                        if (user) {
+                                            const docRef = doc(db, "projects", effectiveNoteId);
+                                            const cleanAudio = (updated.audioNotes || []).map((an: any) => ({
+                                                id: an.id,
+                                                url: an.url || '',
+                                                title: an.title || '',
+                                                duration: an.duration || 0,
+                                                groupId: an.groupId || null,
+                                                phraseId: an.phraseId || null,
+                                                createdAt: an.createdAt || 0
+                                            }));
+                                            setDoc(docRef, { audioNotes: cleanAudio, updatedAt: updated.updatedAt }, { merge: true })
+                                                .catch(err => console.error("Error updating audio project in Firestore:", err));
+                                        }
+                                        return updated;
+                                    }
+                                    return n;
+                                }));
+                                alert(`Successfully imported audio track: ${file.name}`);
+                                resolve(effectiveNoteId);
+                            } else {
+                                const title = file.name || `Imported Track ${new Date().toLocaleDateString()}`;
+                                const newNoteId = `n-${Date.now()}`;
+                                const newNote: SongNote = {
+                                    id: newNoteId,
+                                    title: title,
+                                    content: '',
+                                    folderId: activeFolderIdFilter,
+                                    updatedAt: new Date().toISOString(),
+                                    ownerId: user ? user.uid : undefined,
+                                    phrases: [],
+                                    verses: [],
+                                    audioNotes: [{
+                                        id: nextRecId,
+                                        url: localUrl,
+                                        title: file.name,
+                                        duration: audioBuffer.duration,
+                                        groupId: null,
+                                        phraseId: null,
+                                        createdAt: Date.now()
+                                    }],
+                                    isAudioOnly: false
+                                };
+                                setNotes(prev => [newNote, ...prev]);
+                                setSelectedNoteId(newNoteId);
+
+                                if (user) {
+                                    const docRef = doc(db, "projects", newNoteId);
+                                    setDoc(docRef, {
+                                        ...newNote,
+                                        ownerId: user.uid,
+                                        collaborators: []
+                                    }).catch(err => console.error("Error creating project in Firestore:", err));
+                                }
+                                alert(`Successfully imported audio track: ${file.name}`);
+                                resolve(newNoteId);
+                            }
+                        } catch (decodeErr) {
+                            console.error("Audio decoding error:", decodeErr);
+                            alert('Failed to decode audio file. Please ensure it is a valid, uncorrupted audio file.');
+                            resolve(null);
+                        }
+                    };
+                    reader.onerror = (err) => {
+                        console.error("FileReader error:", err);
+                        alert('Error reading the audio file.');
+                        resolve(null);
+                    };
+                    reader.readAsArrayBuffer(file);
+                } catch (err) {
+                    console.error("File reading error:", err);
+                    alert('Error reading the audio file.');
+                    resolve(null);
+                }
+            });
+        } else if (file.type.startsWith('image/') || fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.gif') || fileName.endsWith('.webp')) {
+            try {
+                const compressedBase64 = await compressAndGetBase64(file);
+                if (effectiveNoteId) {
+                    setNotes(prev => prev.map(n => {
+                        if (n.id === effectiveNoteId) {
+                            const existingImages = n.images || [];
+                            const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                            const newImage = {
+                                id: nextImageId,
+                                url: compressedBase64,
+                                name: file.name
+                            };
+                            const updated = {
+                                ...n,
+                                images: [...existingImages, newImage],
+                                updatedAt: new Date().toISOString()
+                            };
+                            if (user) {
+                                const docRef = doc(db, "projects", effectiveNoteId);
+                                const cleanImages = (updated.images || []).map((img: any) => ({
+                                    id: img.id,
+                                    url: img.url || '',
+                                    name: img.name || ''
+                                }));
+                                setDoc(docRef, { images: cleanImages, updatedAt: updated.updatedAt }, { merge: true })
+                                    .catch(err => console.error("Error updating image project in Firestore:", err));
+                            }
+                            return updated;
+                        }
+                        return n;
+                    }));
+                    alert(`Successfully imported image: ${file.name}`);
+                    return effectiveNoteId;
+                } else {
+                    const newNoteId = `n-${Date.now()}`;
+                    const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    const newImage = {
+                        id: nextImageId,
+                        url: compressedBase64,
+                        name: file.name
+                    };
+                    const title = file.name || `Imported Image ${new Date().toLocaleDateString()}`;
+                    const newNote: SongNote = {
+                        id: newNoteId,
+                        title: title,
+                        content: '',
+                        folderId: activeFolderIdFilter,
+                        updatedAt: new Date().toISOString(),
+                        ownerId: user ? user.uid : undefined,
+                        phrases: [],
+                        verses: [],
+                        images: [newImage],
+                        isAudioOnly: false
+                    };
+                    setNotes(prev => [newNote, ...prev]);
+                    setSelectedNoteId(newNoteId);
+
+                    if (user) {
+                        const docRef = doc(db, "projects", newNoteId);
+                        setDoc(docRef, {
+                            ...newNote,
+                            ownerId: user.uid,
+                            collaborators: []
+                        }).catch(err => console.error("Error creating project in Firestore:", err));
+                    }
+                    alert(`Successfully imported image: ${file.name}`);
+                    return newNoteId;
+                }
+            } catch (imgErr) {
+                console.error("Image loading/compression error:", imgErr);
+                alert('Failed to import image.');
+                return null;
+            }
+        } else if (
+            fileName.endsWith('.pdf') || 
+            fileName.endsWith('.doc') || 
+            fileName.endsWith('.docx') || 
+            fileName.endsWith('.txt') || 
+            fileName.endsWith('.md') ||
+            file.type.startsWith('text/') ||
+            file.type === 'application/pdf' || 
+            file.type === 'application/msword' || 
+            file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ) {
+            return new Promise<string | null>((resolve) => {
+                try {
+                    const reader = new FileReader();
+                    reader.onload = (re) => {
+                        try {
+                            const dataUrl = re.target?.result as string;
+                            let docType = 'other';
+                            if (fileName.endsWith('.pdf')) docType = 'pdf';
+                            else if (fileName.endsWith('.doc')) docType = 'doc';
+                            else if (fileName.endsWith('.docx')) docType = 'docx';
+                            else if (fileName.endsWith('.txt')) docType = 'txt';
+                            else if (fileName.endsWith('.md')) docType = 'md';
+
+                            const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                            const newDoc = {
+                                id: docId,
+                                url: dataUrl,
+                                name: file.name,
+                                type: docType,
+                                size: file.size
+                            };
+
+                            if (effectiveNoteId) {
+                                setNotes(prev => prev.map(n => {
+                                    if (n.id === effectiveNoteId) {
+                                        const existingDocs = n.documents || [];
+                                        const updated = {
+                                            ...n,
+                                            documents: [...existingDocs, newDoc],
+                                            updatedAt: new Date().toISOString()
+                                        };
+                                        if (user) {
+                                            const docRef = doc(db, "projects", effectiveNoteId);
+                                            const cleanDocs = (updated.documents || []).map((d: any) => ({
+                                                id: d.id,
+                                                url: d.url || '',
+                                                name: d.name || '',
+                                                type: d.type || 'other',
+                                                size: d.size || 0
+                                            }));
+                                            setDoc(docRef, { documents: cleanDocs, updatedAt: updated.updatedAt }, { merge: true })
+                                                .catch(err => console.error("Error updating document project in Firestore:", err));
+                                        }
+                                        return updated;
+                                    }
+                                    return n;
+                                }));
+                                alert(`Successfully uploaded document: ${file.name}`);
+                                resolve(effectiveNoteId);
+                            } else {
+                                const newNoteId = `n-${Date.now()}`;
+                                const title = file.name || `Imported Document ${new Date().toLocaleDateString()}`;
+                                const newNote: SongNote = {
+                                    id: newNoteId,
+                                    title: title,
+                                    content: '',
+                                    folderId: activeFolderIdFilter,
+                                    updatedAt: new Date().toISOString(),
+                                    ownerId: user ? user.uid : undefined,
+                                    phrases: [],
+                                    verses: [],
+                                    documents: [newDoc],
+                                    isAudioOnly: false
+                                };
+                                setNotes(prev => [newNote, ...prev]);
+                                setSelectedNoteId(newNoteId);
+
+                                if (user) {
+                                    const docRef = doc(db, "projects", newNoteId);
+                                    setDoc(docRef, {
+                                        ...newNote,
+                                        ownerId: user.uid,
+                                        collaborators: []
+                                    }).catch(err => console.error("Error creating project in Firestore:", err));
+                                }
+                                alert(`Successfully uploaded document: ${file.name}`);
+                                resolve(newNoteId);
+                            }
+                        } catch (err) {
+                            console.error("Document parsing error:", err);
+                            resolve(null);
+                        }
+                    };
+                    reader.onerror = (err) => {
+                        console.error("FileReader error:", err);
+                        resolve(null);
+                    };
+                    reader.readAsDataURL(file);
+                } catch (docErr) {
+                    console.error("Document reading error:", docErr);
+                    alert('Failed to import document.');
+                    resolve(null);
+                }
+            });
+        }
+        return null;
+    };
+
+    const handleDragEnter = (e: React.DragEvent) => {
+        e.preventDefault();
+        const types = e.dataTransfer.types;
+        const isFilesDrag = types ? Array.from(types).includes('Files') : false;
+        if (!isFilesDrag) return;
+
+        dragCounterRef.current++;
+        if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+            setIsDraggingOverCanvas(true);
+        }
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        const types = e.dataTransfer.types;
+        const isFilesDrag = types ? Array.from(types).includes('Files') : false;
+        if (!isFilesDrag) return;
+
+        dragCounterRef.current--;
+        if (dragCounterRef.current <= 0) {
+            dragCounterRef.current = 0;
+            setIsDraggingOverCanvas(false);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        const types = e.dataTransfer.types;
+        const isFilesDrag = types ? Array.from(types).includes('Files') : false;
+        if (!isFilesDrag) return;
+
+        e.dataTransfer.dropEffect = 'copy';
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDraggingOverCanvas(false);
+        dragCounterRef.current = 0;
+
+        const types = e.dataTransfer.types;
+        const isFilesDrag = types ? Array.from(types).includes('Files') : false;
+        if (!isFilesDrag) return;
+
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const files = Array.from(e.dataTransfer.files);
+            let activeNoteId = selectedNoteId;
+            for (const file of files) {
+                const createdId = await processImportFile(file, activeNoteId);
+                if (createdId) {
+                    activeNoteId = createdId;
+                }
+            }
+        }
+    };
 
 
     const handleCreateFolder = () => {
@@ -8465,10 +8868,6 @@ export default function CreatePage() {
     // Native Drag and Drop handlers
     const handleDragStart = (e: React.DragEvent, noteId: string) => {
         e.dataTransfer.setData('text/plain', noteId);
-    };
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
     };
 
     const handleDropOnFolder = (e: React.DragEvent, folderId: string) => {
@@ -12513,290 +12912,13 @@ export default function CreatePage() {
                                                     const input = document.createElement('input');
                                                     input.type = 'file';
                                                     input.multiple = true;
-                                                    input.accept = 'audio/*,text/*,image/*,.mp3,.wav,.m4a,.ogg,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-                                                    input.onchange = async (changeEvent) => {
-                                                        const files = Array.from(input.files || []);
+                                                    input.onchange = async (e) => {
+                                                        const files = Array.from((e.target as HTMLInputElement).files || []);
+                                                        let activeNoteId = selectedNoteId;
                                                         for (const file of files) {
-                                                            const fileName = file.name.toLowerCase();
-                                                            if (file.type.startsWith('audio/') || fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.m4a') || fileName.endsWith('.ogg')) {
-                                                                if (studioTracks.length >= 4) {
-                                                                    alert('Studio tracks limit reached (maximum 4 tracks).');
-                                                                    continue;
-                                                                }
-                                                                try {
-                                                                    const reader = new FileReader();
-                                                                    reader.onload = async (re) => {
-                                                                        try {
-                                                                            const arrayBuffer = re.target?.result as ArrayBuffer;
-                                                                            const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
-                                                                            const offlineCtx = new OfflineContextClass(1, 1, 44100);
-                                                                            const audioBuffer = await decodeAudioDataPromise(offlineCtx, arrayBuffer);
-                                                                            
-                                                                            const nextId = Date.now();
-                                                                            const localUrl = URL.createObjectURL(file);
-                                                                            const newTrack: StudioTrack = {
-                                                                                id: nextId,
-                                                                                name: file.name.substring(0, 18) || 'Uploaded Track',
-                                                                                type: 'guitar', // default type
-                                                                                volume: 80,
-                                                                                pan: 0,
-                                                                                eq: 0,
-                                                                                compressor: true,
-                                                                                reverb: 40,
-                                                                                audioBuffer: audioBuffer,
-                                                                                url: localUrl
-                                                                            };
-                                                                            setStudioTracks(prev => [...prev, newTrack]);
-                                                                            setActiveRecordingTrackId(nextId);
-
-                                                                            const nextRecId = `imported-rec-${nextId}`;
-                                                                            const newPhraseId = `p-audio-${nextRecId}`;
-
-                                                                            if (selectedNoteId) {
-                                                                                const currentNote = notes.find(n => n.id === selectedNoteId);
-                                                                                if (currentNote) {
-                                                                                    const newPhrase: Phrase = {
-                                                                                        id: newPhraseId,
-                                                                                        text: '',
-                                                                                        groupId: null
-                                                                                    };
-                                                                                    const newPhrases = [...(currentNote.phrases || []), newPhrase];
-                                                                                    const finalPhrases = cleanupAndEnsurePlaceholders(newPhrases, currentNote.verses || []);
-
-                                                                                    const existingAudio = currentNote.audioNotes || [];
-                                                                                    const newAudioNote = {
-                                                                                        id: nextRecId,
-                                                                                        url: localUrl,
-                                                                                        title: file.name,
-                                                                                        duration: audioBuffer.duration,
-                                                                                        groupId: null,
-                                                                                        phraseId: newPhraseId,
-                                                                                        createdAt: Date.now()
-                                                                                    };
-
-                                                                                    handleUpdateNote(selectedNoteId, {
-                                                                                        phrases: finalPhrases,
-                                                                                        audioNotes: [...existingAudio, newAudioNote]
-                                                                                    });
-                                                                                }
-                                                                            } else {
-                                                                                const title = file.name || `Imported Track ${new Date().toLocaleDateString()}`;
-                                                                                const newNoteId = `n-${Date.now()}`;
-                                                                                const newNote: SongNote = {
-                                                                                    id: newNoteId,
-                                                                                    title: title,
-                                                                                    content: `Imported Audio Track\n[No lyrics yet]`,
-                                                                                    folderId: activeFolderIdFilter,
-                                                                                    updatedAt: new Date().toISOString(),
-                                                                                    ownerId: user ? user.uid : undefined,
-                                                                                    phrases: [{ id: newPhraseId, text: '', groupId: null }],
-                                                                                    verses: [],
-                                                                                    audioNotes: [{
-                                                                                        id: nextRecId,
-                                                                                        url: localUrl,
-                                                                                        title: file.name,
-                                                                                        duration: audioBuffer.duration,
-                                                                                        groupId: null,
-                                                                                        phraseId: newPhraseId,
-                                                                                        createdAt: Date.now()
-                                                                                    }],
-                                                                                    isAudioOnly: false
-                                                                                };
-                                                                                setNotes(prev => [newNote, ...prev]);
-                                                                                setSelectedNoteId(newNoteId);
-
-                                                                                if (user) {
-                                                                                    const docRef = doc(db, "projects", newNoteId);
-                                                                                    setDoc(docRef, {
-                                                                                        ...newNote,
-                                                                                        ownerId: user.uid,
-                                                                                        collaborators: []
-                                                                                    }).catch(err => console.error("Error creating project in Firestore:", err));
-                                                                                }
-                                                                            }
-
-                                                                            alert(`Successfully imported audio track: ${file.name}`);
-                                                                        } catch (decodeErr) {
-                                                                            console.error("Audio decoding error:", decodeErr);
-                                                                            alert('Failed to decode audio file. Please ensure it is a valid, uncorrupted audio file.');
-                                                                        }
-                                                                    };
-                                                                    reader.readAsArrayBuffer(file);
-                                                                } catch (err) {
-                                                                    console.error("File reading error:", err);
-                                                                    alert('Error reading the audio file.');
-                                                                }
-                                                            } else if (file.type.startsWith('image/') || fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.gif') || fileName.endsWith('.webp')) {
-                                                                try {
-                                                                    const compressedBase64 = await compressAndGetBase64(file);
-                                                                    if (selectedNoteId) {
-                                                                        const currentNote = notes.find(n => n.id === selectedNoteId);
-                                                                        const existingImages = currentNote?.images || [];
-                                                                        const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                                                                        const newImage = {
-                                                                            id: nextImageId,
-                                                                            url: compressedBase64,
-                                                                            name: file.name
-                                                                        };
-                                                                        handleUpdateNote(selectedNoteId, {
-                                                                            images: [...existingImages, newImage]
-                                                                        });
-                                                                        alert(`Successfully imported image: ${file.name}`);
-                                                                    } else {
-                                                                        const newNoteId = `n-${Date.now()}`;
-                                                                        const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                                                                        const newImage = {
-                                                                            id: nextImageId,
-                                                                            url: compressedBase64,
-                                                                            name: file.name
-                                                                        };
-                                                                        const title = file.name || `Imported Image ${new Date().toLocaleDateString()}`;
-                                                                        const newNote: SongNote = {
-                                                                            id: newNoteId,
-                                                                            title: title,
-                                                                            content: `Imported Image\n[No lyrics yet]`,
-                                                                            folderId: activeFolderIdFilter,
-                                                                            updatedAt: new Date().toISOString(),
-                                                                            ownerId: user ? user.uid : undefined,
-                                                                            phrases: [],
-                                                                            verses: [],
-                                                                            images: [newImage],
-                                                                            isAudioOnly: false
-                                                                        };
-                                                                        setNotes(prev => [newNote, ...prev]);
-                                                                        setSelectedNoteId(newNoteId);
-
-                                                                        if (user) {
-                                                                            const docRef = doc(db, "projects", newNoteId);
-                                                                            setDoc(docRef, {
-                                                                                ...newNote,
-                                                                                ownerId: user.uid,
-                                                                                collaborators: []
-                                                                            }).catch(err => console.error("Error creating project in Firestore:", err));
-                                                                        }
-                                                                        alert(`Successfully imported image: ${file.name}`);
-                                                                    }
-                                                                } catch (imgErr) {
-                                                                    console.error("Image loading/compression error:", imgErr);
-                                                                    alert('Failed to import image.');
-                                                                }
-                                                            } else if (
-                                                                fileName.endsWith('.pdf') || 
-                                                                fileName.endsWith('.doc') || 
-                                                                fileName.endsWith('.docx') || 
-                                                                fileName.endsWith('.txt') || 
-                                                                fileName.endsWith('.md') ||
-                                                                file.type.startsWith('text/') ||
-                                                                file.type === 'application/pdf' || 
-                                                                file.type === 'application/msword' || 
-                                                                file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                                                            ) {
-                                                                if (file.size > 800 * 1024) {
-                                                                    alert('File size exceeds the 800KB limit for attachments. Please compress or upload a smaller file.');
-                                                                    continue;
-                                                                }
-                                                                try {
-                                                                    const reader = new FileReader();
-                                                                    reader.onload = (re) => {
-                                                                        const dataUrl = re.target?.result as string;
-                                                                        if (selectedNoteId) {
-                                                                            const currentNote = notes.find(n => n.id === selectedNoteId);
-                                                                            if (currentNote) {
-                                                                                const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                                                                                
-                                                                                let docType = 'other';
-                                                                                if (fileName.endsWith('.pdf')) docType = 'pdf';
-                                                                                else if (fileName.endsWith('.doc')) docType = 'doc';
-                                                                                else if (fileName.endsWith('.docx')) docType = 'docx';
-                                                                                else if (fileName.endsWith('.txt')) docType = 'txt';
-                                                                                else if (fileName.endsWith('.md')) docType = 'md';
-
-                                                                                const newDoc = {
-                                                                                    id: docId,
-                                                                                    url: dataUrl,
-                                                                                    name: file.name,
-                                                                                    type: docType,
-                                                                                    size: file.size
-                                                                                };
-
-                                                                                // Create the inline document header block ONLY
-                                                                                const headerPhraseId = `p-docheader-${docId}`;
-                                                                                const headerPhrase: Phrase = {
-                                                                                    id: headerPhraseId,
-                                                                                    text: file.name,
-                                                                                    groupId: null
-                                                                                };
-
-                                                                                const existingPhrases = currentNote.phrases || [];
-                                                                                const newPhrases = [...existingPhrases, headerPhrase];
-                                                                                const finalPhrases = cleanupAndEnsurePlaceholders(newPhrases, currentNote.verses || []);
-                                                                                const newContent = finalPhrases.map(p => p.text).join('\n');
-
-                                                                                handleUpdateNote(selectedNoteId, {
-                                                                                    content: newContent,
-                                                                                    phrases: finalPhrases,
-                                                                                    documents: [...(currentNote.documents || []), newDoc]
-                                                                                });
-                                                                                alert(`Successfully uploaded document: ${file.name}`);
-                                                                            }
-                                                                        } else {
-                                                                            const newNoteId = `n-${Date.now()}`;
-                                                                            const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                                                                            
-                                                                            let docType = 'other';
-                                                                            if (fileName.endsWith('.pdf')) docType = 'pdf';
-                                                                            else if (fileName.endsWith('.doc')) docType = 'doc';
-                                                                            else if (fileName.endsWith('.docx')) docType = 'docx';
-                                                                            else if (fileName.endsWith('.txt')) docType = 'txt';
-                                                                            else if (fileName.endsWith('.md')) docType = 'md';
-
-                                                                            const newDoc = {
-                                                                                id: docId,
-                                                                                url: dataUrl,
-                                                                                name: file.name,
-                                                                                type: docType,
-                                                                                size: file.size
-                                                                            };
-
-                                                                            const headerPhraseId = `p-docheader-${docId}`;
-                                                                            const headerPhrase: Phrase = {
-                                                                                id: headerPhraseId,
-                                                                                text: file.name,
-                                                                                groupId: null
-                                                                            };
-
-                                                                            const title = file.name || `Imported Document ${new Date().toLocaleDateString()}`;
-                                                                            const newNote: SongNote = {
-                                                                                id: newNoteId,
-                                                                                title: title,
-                                                                                content: file.name,
-                                                                                folderId: activeFolderIdFilter,
-                                                                                updatedAt: new Date().toISOString(),
-                                                                                ownerId: user ? user.uid : undefined,
-                                                                                phrases: [headerPhrase],
-                                                                                verses: [],
-                                                                                documents: [newDoc],
-                                                                                isAudioOnly: false
-                                                                            };
-                                                                            setNotes(prev => [newNote, ...prev]);
-                                                                            setSelectedNoteId(newNoteId);
-
-                                                                            if (user) {
-                                                                                const docRef = doc(db, "projects", newNoteId);
-                                                                                setDoc(docRef, {
-                                                                                    ...newNote,
-                                                                                    ownerId: user.uid,
-                                                                                    collaborators: []
-                                                                                }).catch(err => console.error("Error creating project in Firestore:", err));
-                                                                            }
-                                                                            alert(`Successfully uploaded document: ${file.name}`);
-                                                                        }
-                                                                    };
-                                                                    reader.readAsDataURL(file);
-                                                                } catch (docErr) {
-                                                                    console.error("Document reading error:", docErr);
-                                                                    alert('Failed to import document.');
-                                                                }
+                                                            const createdId = await processImportFile(file, activeNoteId);
+                                                            if (createdId) {
+                                                                activeNoteId = createdId;
                                                             }
                                                         }
                                                     };
@@ -12866,9 +12988,26 @@ export default function CreatePage() {
                         )}
                     </div>
                 </div>
-                    <div className={`w-full flex-grow flex-1 flex flex-col z-10 py-6 relative ${
-                        (isMobile && (editingPhraseId !== null || isFocused)) ? 'pb-16' : ''
-                    }`}>
+                    <div 
+                        onDragEnter={handleDragEnter}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`w-full flex-grow flex-1 flex flex-col z-10 py-6 relative ${
+                            (isMobile && (editingPhraseId !== null || isFocused)) ? 'pb-16' : ''
+                        }`}
+                    >
+                        {/* Drag and Drop Hover Overlay */}
+                        {isDraggingOverCanvas && (
+                            <div className="absolute inset-0 bg-stone-50/80 backdrop-blur-[2px] border-2 border-dashed border-stone-300 rounded-[24px] z-[50] flex flex-col items-center justify-center gap-3 animate-in fade-in duration-200 pointer-events-none select-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" viewBox="0 0 256 256" className="text-stone-400 animate-bounce">
+                                    <path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66-93.66a8,8,0,0,0-11.32,0l-40,40a8,8,0,0,0,11.32,11.32L112,75.31V152a8,8,0,0,0,16,0V75.31l29.66,29.67a8,8,0,0,0,11.32-11.32Z"></path>
+                                </svg>
+                                <span className="font-sans text-[20px] font-medium text-stone-600">
+                                    {t('creative.drop_files_here') || 'Drop files here'}
+                                </span>
+                            </div>
+                        )}
                         {!isNoteBlank ? (
                             <div className={`w-full flex flex-col gap-3 mx-auto py-4 transition-all duration-300 ${
                                 (showToolsPanel && activeToolTab === 'studio') ? 'max-w-full lg:max-w-[calc(100%-1rem)] xl:max-w-[1560px]' : 'max-w-4xl'
@@ -13739,7 +13878,7 @@ export default function CreatePage() {
                                  </div>
                             </div>
                         ) : (
-                            <div className="absolute inset-x-0 top-0 px-[10%] flex flex-col items-center justify-start pointer-events-none z-10 mt-6 sm:mt-8 md:mt-10">
+                            <div className="absolute inset-x-0 top-[18%] px-[10%] flex flex-col items-center justify-start pointer-events-none z-10 mt-0">
                                 <style>{`
                                     @keyframes caret-blink {
                                         0%, 100% { opacity: 1; }
@@ -13782,91 +13921,84 @@ export default function CreatePage() {
                                     )}
                                 </div>
                                 
-                                <div className={`w-full flex flex-col items-center transition-all duration-500 ease-in-out ${
-                                    contentVal !== '' 
-                                        ? 'opacity-0 max-h-0 pointer-events-none overflow-hidden mt-0' 
-                                        : 'opacity-100 max-h-[500px] mt-0'
-                                }`}>
-                                    <div className="w-full h-[1.5px] bg-stone-200/40 mt-1 mb-14 pointer-events-none select-none" />
+                                {(() => {
+                                    const inspirationPhrases = [
+                                        t('creative.inspiration_audio') || 'an existing song, voice memo or beat',
+                                        t('creative.inspiration_photo') || 'a photo of your handwritten lyrics',
+                                        t('creative.inspiration_doc') || 'a PDF, text file or Word document of your lyrics'
+                                    ];
+                                    const currentPhrase = inspirationPhrases[inspirationPhraseIndex % inspirationPhrases.length];
                                     
-                                    <div className="flex flex-col items-center pointer-events-auto w-full">
-                                        <span className="font-sans text-[15px] sm:text-[17px] text-stone-400 font-normal tracking-normal pointer-events-none select-none mb-1">
-                                            {t('creative.or_start_inspiration')}
-                                        </span>
-                                        
-                                        {/* Category name changes dynamically above the sliding cards */}
-                                        <span className="font-sans italic text-[22px] sm:text-[24px] text-stone-550 lowercase mb-6 select-none animate-in fade-in duration-300" key={activeInspirationIndex}>
-                                            {carouselCards[activeInspirationIndex % 8].title.toLowerCase()}
-                                        </span>
-                                        
-                                        {/* Slider Viewport Container */}
-                                        <div className="w-full max-w-[620px] overflow-hidden py-1 relative flex items-center justify-start">
-                                            {/* Left gradient fade overlay */}
-                                            <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none z-20" />
-                                            {/* Right gradient fade overlay */}
-                                            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none z-20" />
-
+                                    return (
+                                        <div className={`w-full flex flex-col items-center transition-all duration-500 ease-in-out ${
+                                            contentVal !== '' 
+                                                ? 'opacity-0 max-h-0 pointer-events-none overflow-hidden mt-0' 
+                                                : 'opacity-100 max-h-[250px] mt-0'
+                                        }`}>
+                                            <div className="w-full h-[1.5px] bg-stone-200/40 mt-1 mb-10 pointer-events-none select-none" />
+                                            
                                             <div 
-                                                className="flex gap-4 relative"
-                                                style={{ 
-                                                    left: '50%',
-                                                    transform: `translateX(-${activeInspirationIndex * 236 + 110}px)`,
-                                                    transition: transitionEnabled ? 'transform 700ms cubic-bezier(0.25, 1, 0.5, 1)' : 'none'
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const input = document.createElement('input');
+                                                    input.type = 'file';
+                                                    input.multiple = true;
+                                                    input.onchange = async (changeEvent) => {
+                                                        const files = Array.from((changeEvent.target as HTMLInputElement).files || []);
+                                                        let activeNoteId = selectedNoteId;
+                                                        for (const file of files) {
+                                                            const createdId = await processImportFile(file, activeNoteId);
+                                                            if (createdId) {
+                                                                activeNoteId = createdId;
+                                                            }
+                                                        }
+                                                    };
+                                                    input.click();
                                                 }}
+                                                className="flex flex-col items-center pointer-events-auto w-full gap-2 cursor-pointer hover:opacity-75 active:scale-99 transition-all duration-200"
                                             >
-                                                {Array.from({ length: 240 }).map((_, idx) => {
-                                                    const card = carouselCards[idx % 8];
-                                                    const isActive = idx === activeInspirationIndex;
-                                                    return (
-                                                        <div
-                                                            key={idx}
-                                                            onClick={() => {
-                                                                setActiveInspirationIndex(idx);
-                                                                const activeCardsList = inspirationCards.length > 0 ? inspirationCards.map(getTranslatedCard) : localizedInspirationCards;
-                                                                const cardIdx = activeCardsList.findIndex(c => c.id === card.id);
-                                                                if (cardIdx !== -1) {
-                                                                    setCurrentCardIndex(cardIdx);
-                                                                    if (inspirationSwiperRef.current) {
-                                                                        inspirationSwiperRef.current.slideTo(cardIdx, 0);
-                                                                    }
-                                                                }
-                                                                setExpandedCardId(card.id);
-                                                                setInspirationQuestionIndex(0);
-                                                                setActiveToolTab('inspiration');
-                                                                setShowToolsPanel(true);
-                                                            }}
-                                                            className={`relative w-[220px] h-[125px] shrink-0 rounded-[20px] overflow-hidden border border-stone-200/40 cursor-pointer transition-all duration-500 hover:scale-105 active:scale-95 group/card bg-stone-100
-                                                                ${isActive 
-                                                                    ? 'opacity-100 scale-100' 
-                                                                    : 'opacity-35 scale-95 hover:opacity-50'
-                                                                }
-                                                            `}
-                                                        >
-                                                            {/* 1. Blurred Background Image underneath */}
-                                                            <img 
-                                                                src={card.bgImage} 
-                                                                alt=""
-                                                                loading="eager"
-                                                                className="absolute inset-0 w-full h-full object-cover filter blur-[12px] scale-115 transition-transform duration-700 group-hover/card:scale-120 pointer-events-none"
-                                                            />
-                                                            {/* 2. Sharp Foreground Image on top, masked to fade out at the edges */}
-                                                            <img 
-                                                                src={card.bgImage} 
-                                                                alt={card.title}
-                                                                loading="eager"
-                                                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105"
-                                                                style={{
-                                                                    maskImage: 'radial-gradient(circle at center, black 35%, transparent 80%)',
-                                                                    WebkitMaskImage: 'radial-gradient(circle at center, black 35%, transparent 80%)'
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    );
-                                                })}
+                                                <div className="flex items-center gap-2.5 text-stone-400 pointer-events-none select-none">
+                                                    {/* Import Icon (UploadSimple style matching the user's design) */}
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0 text-stone-400">
+                                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                        <polyline points="17 8 12 3 7 8" />
+                                                        <line x1="12" x2="12" y1="3" y2="15" />
+                                                    </svg>
+                                                    <span className="font-sans text-[18px] sm:text-[20px] font-light tracking-normal">
+                                                        {t('creative.upload_existing_files') || 'Import existing files'}
+                                                    </span>
+                                                </div>
+                                                
+                                                {/* Minimalist Icons Row - Hidden for now */}
+                                                {false && (
+                                                    <div className="flex items-center gap-6 text-stone-300 pointer-events-none select-none">
+                                                        {/* Audio/Music Icon with Plus */}
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256">
+                                                            <path d="M230,48a6,6,0,0,1-6,6H206V72a6,6,0,0,1-12,0V54H176a6,6,0,0,1,0-12h18V24a6,6,0,0,1,12,0V42h18A6,6,0,0,1,230,48Zm-16,64v52a34.06,34.06,0,1,1-12-25.89V112a6,6,0,0,1,12,0Zm-12,52a22,22,0,1,0-22,22A22,22,0,0,0,202,164ZM86,108.68V196a34.06,34.06,0,1,1-12-25.89V56a6,6,0,0,1,4.54-5.82l56-14a6,6,0,1,1,2.92,11.64L86,60.68V96.32l72.54-18.14a6,6,0,1,1,2.92,11.64ZM74,196a22,22,0,1,0-22,22A22,22,0,0,0,74,196Z"></path>
+                                                        </svg>
+                                                        
+                                                        {/* Document/File Icon with Extension Badges */}
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256">
+                                                            <path d="M52,146H36a6,6,0,0,0-6,6v56a6,6,0,0,0,6,6H52a34,34,0,0,0,0-68Zm0,56H42V158H52a22,22,0,0,1,0,44Zm168.15-5.46a6,6,0,0,1,.18,8.48A28.06,28.06,0,0,1,200,214c-16.54,0-30-15.25-30-34s13.46-34,30-34a28.06,28.06,0,0,1,20.33,9,6,6,0,0,1-8.66,8.3A16.23,16.23,0,0,0,200,158c-9.93,0-18,9.87-18,22s8.07,22,18,22a16.23,16.23,0,0,0,11.67-5.28A6,6,0,0,1,220.15,196.54ZM128,146c-16.54,0-30,15.25-30,34s13.46,34,30,34,30-15.25,30-34S144.54,146,128,146Zm0,56c-9.93,0-18-9.87-18,22s8.07-22,18-22,18,9.87,18,22S137.93,202,128,202ZM48,118a6,6,0,0,0,6-6V40a2,2,0,0,1,2-2h90V88a6,6,0,0,0,6,6h50v18a6,6,0,0,0,12,0V88a6,6,0,0,0-1.76-4.24l-56-56A6,6,0,0,0,152,26H56A14,14,0,0,0,42,40v72A6,6,0,0,0,48,118ZM158,46.48,193.52,82H158Z"></path>
+                                                        </svg>
+                                                        
+                                                        {/* Image/Gallery Icon */}
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256">
+                                                            <path d="M216,42H72A14,14,0,0,0,58,56V74H40A14,14,0,0,0,26,88V200a14,14,0,0,0,14,14H184a14,14,0,0,0,14-14V182h18a14,14,0,0,0,14-14V56A14,14,0,0,0,216,42ZM70,56a2,2,0,0,1,2-2H216a2,2,0,0,1,2,2v67.57L204.53,110.1a14,14,0,0,0-19.8,0l-21.42,21.41L117.9,86.1a14,14,0,0,0-19.8,0L70,114.2ZM186,200a2,2,0,0,1-2,2H40a2,2,0,0,1-2-2V88a2,2,0,0,1,2-2H58v82a14,14,0,0,0,14,14H186Zm30-30H72a2,2,0,0,1-2-2V131.17l36.58-36.58a2,2,0,0,1,2.83,0l49.66,49.66a6,6,0,0,0,8.49,0l25.65-25.66a2,2,0,0,1,2.83,0l22,22V168A2,2,0,0,1,216,170ZM162,84a10,10,0,1,1,10,10A10,10,0,0,1,162,84Z"></path>
+                                                        </svg>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Rotating Inspiration Line */}
+                                                <span 
+                                                    className={`font-sans text-[13px] sm:text-[14px] text-stone-500/80 font-light italic pointer-events-none select-none ${phraseTransitionClass}`}
+                                                >
+                                                    {currentPhrase}
+                                                </span>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
+                                    );
+                                })()}
                             </div>
                         )}
                     </div>
@@ -14080,10 +14212,12 @@ export default function CreatePage() {
 
                 <div 
                     onClick={(e) => e.stopPropagation()}
-                    className={`flex select-none z-20 justify-center ${
+                    className={`flex select-none z-20 justify-center transition-all duration-300 ${
                         (isMobile && (editingPhraseId !== null || isFocused))
                             ? "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2 justify-center"
-                            : "px-2 md:px-8 mt-8 pb-4"
+                            : isNoteBlank
+                                ? "px-2 md:px-8 mt-8 pb-16 md:pb-28"
+                                : "px-2 md:px-8 mt-8 pb-4"
                     }`}
                     style={(isMobile && (editingPhraseId !== null || isFocused)) ? { bottom: `${visualViewportOffset}px` } : undefined}
                 >

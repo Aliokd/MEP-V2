@@ -14,7 +14,7 @@
     "practice": "Øv",
     "connect": "Community",
     "settings": "Innstillinger",
-    "feedback": "Del din tilbakemelding",
+    "feedback": "Del tilbakemelding",
     "support": "Hjelp og support",
     "logout": "Logg ut",
     "my_profile": "Min profil"
@@ -347,7 +347,13 @@
     "show_lyrics": "Vis Lyrics",
     "project_name": "Prosjektnavn",
     "type_lyrics_placeholder": "Skriv sangteksten din...",
-    "or_start_inspiration": "eller start med en inspirasjon"
+    "or_start_inspiration": "eller start med en inspirasjon",
+    "drag_and_drop_files": "Dra og slipp filene dine",
+    "upload_existing_files": "Importer eksisterende filer",
+    "inspiration_audio": "en eksisterende sang, et talememo eller en beat",
+    "inspiration_photo": "et bilde av de håndskrevne tekstene dine",
+    "inspiration_doc": "en PDF, tekstfil eller et Word-dokument med tekstene dine",
+    "drop_files_here": "Slipp filer her"
   },
   "progress": {
     "title": "Fremgangen din",
@@ -537,15 +543,17 @@
     "error": "Kunne ikke sende meldingen. Vennligst sjekk tilkoblingen din og prøv igjen."
   },
   "feedback_modal": {
-    "title": "Din tilbakemelding hjelper andre låtskrivere med å få den beste plattformen for",
+    "title": "Din tilbakemelding gjør Veinote bedre for alle.",
     "subject_placeholder": "Emne / Hva gjelder det?",
     "message_placeholder": "Skriv din tilbakemelding eller ideer her...",
     "send": "Send tilbakemelding",
     "sending": "Sender...",
-    "success": "Takk for tilbakemeldingen! Vi går gjennom alle forslag for å forbedre plattformen.",
+    "success": "Din tilbakemelding har blitt sendt. Takk!",
     "error": "Kunne ikke sende tilbakemelding. Vennligst sjekk tilkoblingen og prøv igjen.",
     "attachment_label": "Vedlegg (Valgfritt)",
     "upload_placeholder": "Legg ved et bilde, video eller PDF",
-    "uploading_file": "Laster opp vedlegg..."
+    "uploading_file": "Laster opp vedlegg...",
+    "size_limit_error": "Filstørrelsen overskrider grensen på 3 MB. Vennligst velg en mindre fil.",
+    "max_size_hint": "Maks størrelse: 3MB"
   }
 }

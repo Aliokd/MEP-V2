@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { db, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL, UploadTask } from 'firebase/storage';
 
 interface FeedbackModalProps {
     isOpen: boolean;
@@ -19,10 +19,18 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     
     const [subject, setSubject] = useState('');
     const [message, setMessage] = useState('');
+    
+    // File upload states
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+    const [uploadedName, setUploadedName] = useState<string | null>(null);
+    
     const [isSending, setIsSending] = useState(false);
     const [status, setStatus] = useState<{ type: 'success' | 'error' | ''; message: string }>({ type: '', message: '' });
     
+    const uploadTaskRef = useRef<UploadTask | null>(null);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -30,99 +38,151 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         return () => setMounted(false);
     }, []);
 
-    // Reset form states on close/open
+    // Reset form states on close/open, and cancel any active background uploads
     useEffect(() => {
         if (isOpen) {
             setSubject('');
             setMessage('');
             setSelectedFile(null);
+            setIsUploading(false);
+            setUploadProgress(0);
+            setUploadedUrl(null);
+            setUploadedName(null);
             setStatus({ type: '', message: '' });
+        } else {
+            cancelActiveUpload();
         }
     }, [isOpen]);
+
+    const cancelActiveUpload = () => {
+        if (uploadTaskRef.current) {
+            try {
+                uploadTaskRef.current.cancel();
+            } catch (err) {
+                console.log("Upload cancel info:", err);
+            }
+            uploadTaskRef.current = null;
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            
+            // Validate client-side limit of 3MB
+            if (file.size > 3 * 1024 * 1024) {
+                setStatus({
+                    type: 'error',
+                    message: t('feedback_modal.size_limit_error') || 'File size exceeds the 3MB limit. Please select a smaller file.'
+                });
+                return;
+            }
+
+            setStatus({ type: '', message: '' });
+            setSelectedFile(file);
+            startBackgroundUpload(file);
+        }
+    };
+
+    const startBackgroundUpload = (file: File) => {
+        cancelActiveUpload();
+        setIsUploading(true);
+        setUploadProgress(0);
+        setUploadedUrl(null);
+        setUploadedName(null);
+
+        const fileExtension = file.name.split('.').pop();
+        const storagePath = `users/${user?.uid || 'anonymous'}/feedback_attachments/${Date.now()}.${fileExtension}`;
+        const storageRef = ref(storage, storagePath);
+
+        const uploadTask = uploadBytesResumable(storageRef, file);
+        uploadTaskRef.current = uploadTask;
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUploadProgress(progress);
+            },
+            (error) => {
+                // If it was cancelled by the user, don't show an error
+                if (error.code === 'storage/canceled') {
+                    console.log("Upload cancelled by user.");
+                    return;
+                }
+                console.error("Upload error:", error);
+                setStatus({
+                    type: 'error',
+                    message: t('feedback_modal.error') || 'Failed to upload attachment. Please check your connection or try again.'
+                });
+                setSelectedFile(null);
+                setIsUploading(false);
+                setUploadProgress(0);
+            },
+            async () => {
+                try {
+                    const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                    setUploadedUrl(downloadUrl);
+                    setUploadedName(file.name);
+                } catch (urlErr) {
+                    console.error("Error getting download URL:", urlErr);
+                } finally {
+                    setIsUploading(false);
+                    uploadTaskRef.current = null;
+                }
+            }
+        );
+    };
+
+    const handleRemoveFile = () => {
+        cancelActiveUpload();
+        setSelectedFile(null);
+        setIsUploading(false);
+        setUploadProgress(0);
+        setUploadedUrl(null);
+        setUploadedName(null);
+        // Clear size limit or attachment errors if they remove the file
+        if (status.type === 'error' && (status.message.includes('3MB') || status.message.includes('attachment'))) {
+            setStatus({ type: '', message: '' });
+        }
+    };
 
     if (!isOpen || !mounted) return null;
 
     const handleSubmitFeedback = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!subject.trim() || !message.trim()) return;
+        if (!subject.trim() || !message.trim() || isUploading) return;
 
         setIsSending(true);
         setStatus({ type: '', message: '' });
 
         try {
-            let attachmentUrl = null;
-            let attachmentName = null;
-
-            // 1. Upload attachment to Firebase Storage if present
-            if (selectedFile) {
-                try {
-                    setStatus({ type: '', message: t('feedback_modal.uploading_file') || 'Uploading attachment...' });
-                    const fileExtension = selectedFile.name.split('.').pop();
-                    const storagePath = `feedback_attachments/${user?.uid || 'anonymous'}/${Date.now()}.${fileExtension}`;
-                    const storageRef = ref(storage, storagePath);
-                    
-                    const snapshot = await uploadBytes(storageRef, selectedFile);
-                    attachmentUrl = await getDownloadURL(snapshot.ref);
-                    attachmentName = selectedFile.name;
-                } catch (uploadError) {
-                    console.error('Error uploading feedback attachment:', uploadError);
-                    throw new Error('Failed to upload attachment. Please check file size or try again.');
-                }
-            }
-
-            const feedbackData: any = {
-                userId: user?.uid || 'anonymous',
-                userName: user?.displayName || 'Anonymous User',
-                userEmail: user?.email || 'no-email@veinote.com',
-                subject: subject.trim(),
-                message: message.trim(),
-                createdAt: serverTimestamp(),
-                status: 'received'
-            };
-
-            if (attachmentUrl) {
-                feedbackData.attachmentUrl = attachmentUrl;
-                feedbackData.attachmentName = attachmentName;
-            }
-
-            // 2. Write the feedback to Firestore
-            await addDoc(collection(db, "user_feedback"), feedbackData);
-
-            // 3. Call our API route to email the feedback
+            // Call API route to email and save the feedback.
             const response = await fetch('/api/feedback', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    userId: feedbackData.userId,
-                    userName: feedbackData.userName,
-                    userEmail: feedbackData.userEmail,
-                    subject: feedbackData.subject,
-                    message: feedbackData.message,
-                    attachmentUrl: attachmentUrl,
-                    attachmentName: attachmentName
+                    userId: user?.uid || 'anonymous',
+                    userName: user?.displayName || 'Anonymous User',
+                    userEmail: user?.email || 'no-email@veinote.com',
+                    subject: subject.trim(),
+                    message: message.trim(),
+                    attachmentUrl: uploadedUrl,
+                    attachmentName: uploadedName
                 }),
             });
 
             if (!response.ok) {
                 const errData = await response.json();
-                throw new Error(errData.error || 'API call failed');
+                throw new Error(errData.error || 'Failed to send feedback email');
             }
 
             // Success!
             setStatus({
                 type: 'success',
-                message: t('feedback_modal.success') || 'Thank you for your feedback! We review all suggestions to improve the platform.'
+                message: t('feedback_modal.success') || 'Your feedback has been sent. Thank you!'
             });
-            setSubject('');
-            setMessage('');
-            setSelectedFile(null);
-
-            // Auto-close modal after success message
-            setTimeout(() => {
-                onClose();
-            }, 3000);
 
         } catch (err: any) {
             console.error('Error submitting feedback:', err);
@@ -134,6 +194,45 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
             setIsSending(false);
         }
     };
+
+    // Render Success Modal view
+    if (status.type === 'success') {
+        return createPortal(
+            <div 
+                className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[1000] flex items-center justify-center p-4 animate-in fade-in duration-200"
+                onClick={onClose}
+            >
+                <div 
+                    className="bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-6 items-center text-center animate-in zoom-in-95 duration-200 relative"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Success icon */}
+                    <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256">
+                            <path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L100,192.69,218.34,74.34a8,8,0,0,1,11.32,11.32Z"></path>
+                        </svg>
+                    </div>
+
+                    <h3 className="text-2xl md:text-3xl font-sans font-light text-stone-700 tracking-tight">
+                        {t('feedback_modal.title') || 'Your feedback makes Veinote better for everyone.'}
+                    </h3>
+                    
+                    <p className="text-[15px] font-sans font-medium text-stone-500 max-w-sm">
+                        {status.message}
+                    </p>
+
+                    <button 
+                        type="button"
+                        onClick={onClose}
+                        className="mt-4 px-10 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer"
+                    >
+                        {t('common.close') || 'Close'}
+                    </button>
+                </div>
+            </div>,
+            document.body
+        );
+    }
 
     return createPortal(
         <div 
@@ -181,31 +280,49 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
                     {/* File Attachment Upload */}
                     <div className="flex flex-col gap-2">
-                        <label className="text-[10px] uppercase tracking-widest text-stone-700 font-bold px-1">
-                            {t('feedback_modal.attachment_label') || 'Attachment (Optional)'}
-                        </label>
+                        <div className="flex items-baseline justify-between px-1">
+                            <label className="text-[10px] uppercase tracking-widest text-stone-700 font-bold">
+                                {t('feedback_modal.attachment_label') || 'Attachment (Optional)'}
+                            </label>
+                            <span className="text-[10px] text-stone-400 font-medium">
+                                {t('feedback_modal.max_size_hint') || 'Max size: 3MB'}
+                            </span>
+                        </div>
                         <input 
                             type="file"
                             id="feedback-file-upload"
                             className="hidden"
                             accept="image/*,application/pdf,video/*"
-                            onChange={(e) => {
-                                if (e.target.files && e.target.files[0]) {
-                                    setSelectedFile(e.target.files[0]);
-                                }
-                            }}
-                            disabled={isSending}
+                            onChange={handleFileChange}
+                            disabled={isSending || isUploading}
                         />
                         {selectedFile ? (
-                            <div className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-full px-6 py-3 text-sm font-sans font-medium text-stone-700">
-                                <span className="truncate max-w-[85%]">{selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                            <div className="relative overflow-hidden bg-stone-50 border border-stone-200 rounded-full h-[46px] flex items-center justify-between px-6 py-3 text-sm font-sans font-medium text-stone-700">
+                                {/* Progress bar background fill */}
+                                {isUploading && (
+                                    <div 
+                                        className="absolute left-0 top-0 bottom-0 bg-stone-200/50 transition-all duration-300 ease-out z-0"
+                                        style={{ width: `${uploadProgress}%` }}
+                                    />
+                                )}
+                                <span className="relative z-10 truncate max-w-[70%] text-stone-750">
+                                    {selectedFile.name}
+                                </span>
+                                <span className="relative z-10 text-xs font-semibold text-stone-500">
+                                    {isUploading 
+                                        ? `${Math.round(uploadProgress)}%` 
+                                        : `(${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`
+                                    }
+                                </span>
                                 <button 
                                     type="button" 
-                                    onClick={() => setSelectedFile(null)}
-                                    className="text-stone-400 hover:text-stone-700 font-bold cursor-pointer transition-colors"
+                                    onClick={handleRemoveFile}
+                                    className="relative z-10 p-1 hover:bg-stone-200/60 rounded-full transition-colors text-stone-400 hover:text-stone-700 cursor-pointer shrink-0"
                                     disabled={isSending}
                                 >
-                                    {t('profile.cancel') || 'Cancel'}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+                                        <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"></path>
+                                    </svg>
                                 </button>
                             </div>
                         ) : (
@@ -233,21 +350,31 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                         </button>
                         <button 
                             type="submit"
-                            disabled={isSending || !subject.trim() || !message.trim()}
-                            className="px-8 py-3 bg-stone-900 hover:bg-stone-855 text-white rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer disabled:opacity-50"
+                            disabled={isSending || isUploading || !subject.trim() || !message.trim()}
+                            className={`px-8 py-3 rounded-full text-[15px] font-sans font-medium transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
+                                isSending 
+                                    ? 'bg-stone-850 text-stone-300' 
+                                    : 'bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-40 disabled:cursor-not-allowed'
+                            }`}
                         >
-                            {isSending 
-                                ? (t('feedback_modal.sending') || 'Sending...') 
-                                : (t('feedback_modal.send') || 'Send Feedback')}
+                            {isSending && (
+                                <svg className="animate-spin h-4 w-4 text-stone-300" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                            )}
+                            <span>
+                                {isSending 
+                                    ? (t('feedback_modal.sending') || 'Sending...') 
+                                    : (t('feedback_modal.send') || 'Send Feedback')}
+                            </span>
                         </button>
                     </div>
                 </div>
 
                 {/* Status Message */}
-                {status.message && (
-                    <p className={`text-xs font-semibold text-center -mt-2 px-1 ${
-                        status.type === 'success' ? 'text-emerald-650' : status.type === 'error' ? 'text-red-650' : 'text-stone-500'
-                    }`}>
+                {status.message && status.type === 'error' && (
+                    <p className="text-xs font-semibold text-center -mt-2 px-1 text-red-650">
                         {status.message}
                     </p>
                 )}

@@ -28,15 +28,13 @@ export async function POST(request: Request) {
             feedbackData.attachmentName = attachmentName || 'Attached File';
         }
         
-        try {
-            await addDoc(collection(db, "user_feedback"), {
-                ...feedbackData,
-                createdAt: serverTimestamp()
-            });
-        } catch (dbError) {
+        // Save feedback in Firestore collection "user_feedback" (non-blocking)
+        addDoc(collection(db, "user_feedback"), {
+            ...feedbackData,
+            createdAt: serverTimestamp()
+        }).catch((dbError) => {
             console.error('Error saving feedback to Firestore:', dbError);
-            // Non-blocking db error, proceed to mail sending
-        }
+        });
 
         // Configure Nodemailer transporter with SMTP credentials
         const transporter = nodemailer.createTransport({

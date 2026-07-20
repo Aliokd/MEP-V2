@@ -14,7 +14,7 @@
     "practice": "Practice",
     "connect": "Connect",
     "settings": "Settings",
-    "feedback": "Share your feedback",
+    "feedback": "Share feedback",
     "support": "Support",
     "logout": "Log out",
     "my_profile": "My profile"
@@ -347,7 +347,13 @@
     "show_lyrics": "Show Lyrics",
     "project_name": "Project name",
     "type_lyrics_placeholder": "Type your lyrics...",
-    "or_start_inspiration": "or just start with an inspiration"
+    "or_start_inspiration": "or just start with an inspiration",
+    "drag_and_drop_files": "Drag and drop your files",
+    "upload_existing_files": "Import existing files",
+    "inspiration_audio": "an existing song, voice memo or beat",
+    "inspiration_photo": "a photo of your handwritten lyrics",
+    "inspiration_doc": "a PDF, text file or Word document of your lyrics",
+    "drop_files_here": "Drop files here"
   },
   "progress": {
     "title": "Your progress",
@@ -537,15 +543,17 @@
     "error": "Failed to send message. Please check your connection or try again."
   },
   "feedback_modal": {
-    "title": "Your feedback is helping other songwriters having the best platform for",
+    "title": "Your feedback makes Veinote better for everyone.",
     "subject_placeholder": "Subject / What is this about?",
     "message_placeholder": "Write your feedback or ideas here...",
     "send": "Send Feedback",
     "sending": "Sending...",
-    "success": "Thank you for your feedback! We review all suggestions to improve the platform.",
+    "success": "Your feedback has been sent. Thank you!",
     "error": "Failed to send feedback. Please check your connection or try again.",
     "attachment_label": "Attachment (Optional)",
     "upload_placeholder": "Attach an image, video, or PDF",
-    "uploading_file": "Uploading attachment..."
+    "uploading_file": "Uploading attachment...",
+    "size_limit_error": "File size exceeds the 3MB limit. Please select a smaller file.",
+    "max_size_hint": "Max size: 3MB"
   }
 }

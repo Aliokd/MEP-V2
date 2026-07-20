@@ -14,7 +14,7 @@
     "practice": "Öva",
     "connect": "Community",
     "settings": "Inställningar",
-    "feedback": "Dela din feedback",
+    "feedback": "Dela feedback",
     "support": "Hjälp & support",
     "logout": "Logga ut",
     "my_profile": "Min profil"
@@ -347,7 +347,13 @@
     "show_lyrics": "Visa Lyrics",
     "project_name": "Projektnamn",
     "type_lyrics_placeholder": "Skriv dina låttexter...",
-    "or_start_inspiration": "eller starta med en inspiration"
+    "or_start_inspiration": "eller starta med en inspiration",
+    "drag_and_drop_files": "Dra och släpp dina filer",
+    "upload_existing_files": "Importera befintliga filer",
+    "inspiration_audio": "en befintlig låt, röstmemo eller beat",
+    "inspiration_photo": "ett foto av dina handskrivna texter",
+    "inspiration_doc": "en PDF, textfil eller ett Word-dokument med dina texter",
+    "drop_files_here": "Slipp filer här"
   },
   "progress": {
     "title": "Dina framsteg",
@@ -537,15 +543,17 @@
     "error": "Kunde inte skicka meddelandet. Kontrollera din anslutning och försök igen."
   },
   "feedback_modal": {
-    "title": "Din feedback hjälper andra låtskrivare att få den bästa plattformen för",
+    "title": "Din feedback gör Veinote bättre för alla.",
     "subject_placeholder": "Ämne / Vad gäller det?",
     "message_placeholder": "Skriv din feedback eller idéer här...",
     "send": "Skicka feedback",
     "sending": "Skickar...",
-    "success": "Tack för din feedback! Vi granskar alla förslag för att förbättra plattformen.",
+    "success": "Din feedback har skickats. Tack!",
     "error": "Det gick inte att skicka feedback. Kontrollera din anslutning och försök igen.",
     "attachment_label": "Bilaga (Valfritt)",
     "upload_placeholder": "Bifoga en bild, video eller PDF",
-    "uploading_file": "Laddar upp bilaga..."
+    "uploading_file": "Laddar upp bilaga...",
+    "size_limit_error": "Filstorleken överskrider gränsen på 3 MB. Välj en mindre fil.",
+    "max_size_hint": "Maxstorlek: 3MB"
   }
 }
