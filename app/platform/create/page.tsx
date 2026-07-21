@@ -6239,11 +6239,6 @@ export default function CreatePage() {
     }, [selectedNoteId, activeNote, isMounted]);
 
     const processImportFile = async (file: File, targetNoteId?: string | null): Promise<string | null> => {
-        if (file.size > 3 * 1024 * 1024) {
-            triggerStudioNotification('File size exceeds the 3MB limit.', 'rose');
-            return null;
-        }
-
         const fileName = file.name.toLowerCase();
         const effectiveNoteId = targetNoteId !== undefined ? targetNoteId : selectedNoteId;
 
@@ -6253,6 +6248,19 @@ export default function CreatePage() {
             uploadType = 'audio';
         } else if (file.type.startsWith('image/') || fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.gif') || fileName.endsWith('.webp')) {
             uploadType = 'image';
+        }
+
+        // Apply type-specific size limits
+        if (uploadType === 'audio') {
+            if (file.size > 30 * 1024 * 1024) {
+                triggerStudioNotification('Audio file size exceeds the 30MB limit.', 'rose');
+                return null;
+            }
+        } else {
+            if (file.size > 3 * 1024 * 1024) {
+                triggerStudioNotification('File size exceeds the 3MB limit.', 'rose');
+                return null;
+            }
         }
 
         const tempUploadId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
