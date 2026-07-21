@@ -9220,6 +9220,10 @@ export default function CreatePage() {
         }
     }
 
+    const unattachedAudioNotes = sortAudioNotesChronologically(
+        (activeAudioNotes || []).filter(an => !an.phraseId && !an.groupId)
+    );
+
     const renderBlocks = getRenderBlocks(activePhrases, activeVerses);
     
     const phraseExists = (phraseId?: string | null) => {
