@@ -1668,6 +1668,11 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
                     alt={img.name || 'Image preview'} 
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                 />
+                {isScanning && (
+                    <div className="absolute inset-0 bg-stone-900/10 pointer-events-none overflow-hidden">
+                        <div className="absolute left-0 right-0 h-1.5 bg-white shadow-[0_0_12px_rgba(255,255,255,1),0_0_20px_rgba(255,255,255,0.8)] animate-white-laser-scan" />
+                    </div>
+                )}
             </div>
 
             {/* Control Bar */}
@@ -7192,7 +7197,7 @@ export default function CreatePage() {
             const extractedText = extractData.text || '';
             
             if (!extractedText.trim()) {
-                alert("No readable text found inside this document.");
+                triggerStudioNotification("No readable text found inside this document.", 'rose');
                 setTranscribingDocId(null);
                 return;
             }
@@ -7236,10 +7241,10 @@ export default function CreatePage() {
                 textareaRef.current.value = newContent;
             }
             
-            alert(`Successfully transcribed and placed ${textLines.length} lines on the canvas.`);
+            triggerStudioNotification(`Successfully transcribed and placed ${textLines.length} lines on the canvas.`, 'emerald');
         } catch (err: any) {
             console.error("Document transcription error:", err);
-            alert("Error transcribing document: " + (err.message || err));
+            triggerStudioNotification("Error transcribing document: " + (err.message || err), 'rose');
         } finally {
             setTranscribingDocId(null);
         }
@@ -7274,7 +7279,7 @@ export default function CreatePage() {
             const text = (data.text || '').trim();
 
             if (!text || text === 'NO_TEXT' || text.toUpperCase() === 'NONE' || text.toLowerCase().includes('no text') || text.toLowerCase().includes('no lyrics')) {
-                alert("This image has no lyrics or text on it.");
+                triggerStudioNotification("This image has no lyrics or text on it.", 'rose');
                 return;
             }
 
@@ -7298,14 +7303,14 @@ export default function CreatePage() {
                 textareaRef.current.value = newContent;
             }
 
-            alert(`Successfully scanned image: Extracted ${textLines.length} lines.`);
+            triggerStudioNotification(`Successfully scanned image: Extracted ${textLines.length} lines.`, 'emerald');
         } catch (err: any) {
             console.error("Image scan error:", err);
             const msg = err.message || String(err);
             if (msg.includes('429') || msg.includes('quota') || msg.includes('Quota')) {
-                alert("AI image scanning limit temporarily reached for this key. Please wait 1 minute and click Scan again.");
+                triggerStudioNotification("AI image scanning limit temporarily reached for this key. Please wait 1 minute and click Scan again.", 'rose');
             } else {
-                alert("Error scanning image: " + msg);
+                triggerStudioNotification("Error scanning image: " + msg, 'rose');
             }
         } finally {
             setScanningImageId(null);
