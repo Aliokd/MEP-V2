@@ -181,6 +181,22 @@ input:-webkit-autofill:active {
     animation: laser-scan 3.5s ease-in-out infinite;
 }
 
+/* White gradient laser scanner effect */
+@keyframes white-laser-scan {
+    0% {
+        top: -15%;
+    }
+    50% {
+        top: 115%;
+    }
+    100% {
+        top: -15%;
+    }
+}
+.animate-white-laser-scan {
+    animation: white-laser-scan 3s ease-in-out infinite;
+}
+
 @keyframes pulse-neutral-shimmer {
     0%, 100% {
         opacity: 0.15;

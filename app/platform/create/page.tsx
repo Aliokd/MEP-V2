@@ -1749,6 +1749,34 @@ function LyricLinesSkeleton() {
     );
 }
 
+function ImageCapsuleSkeleton() {
+    return (
+        <div className="rounded-[32px] bg-white p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-3 w-full max-w-[440px] mx-auto select-none my-3 animate-pulse">
+            <div className="w-full h-60 rounded-[24px] bg-stone-100 flex items-center justify-center relative border border-stone-100/80">
+                <Loader2 size={32} className="animate-spin text-stone-300" />
+            </div>
+            <div className="flex items-center justify-between px-2 pt-0.5">
+                <div className="bg-stone-200 h-4 w-32 rounded" />
+                <div className="h-4 w-px bg-stone-200 shrink-0 mx-1" />
+                <div className="bg-stone-200 h-4 w-12 rounded" />
+            </div>
+        </div>
+    );
+}
+
+function DocumentCapsuleSkeleton() {
+    return (
+        <div className="bg-white border border-stone-200/80 rounded-full px-5 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3.5 z-30 transition-all select-none max-w-full my-2 mx-auto animate-pulse">
+            <Loader2 size={16} className="animate-spin text-stone-400 shrink-0" />
+            <div className="bg-stone-200 h-4 w-32 rounded shrink-0" />
+            <div className="h-4 w-px bg-stone-200 shrink-0" />
+            <div className="bg-stone-200 h-4 w-12 rounded shrink-0" />
+            <div className="h-4 w-px bg-stone-200 shrink-0" />
+            <div className="bg-stone-200 h-3.5 w-16 rounded shrink-0" />
+        </div>
+    );
+}
+
 // Global cache to prevent decoding/fetching the same audio peaks repeatedly when component re-renders/remounts.
 const peaksCache = new Map<string, number[]>();
 
@@ -2922,6 +2950,7 @@ export default function CreatePage() {
     }, [studioTracks]);
     const [studioState, setStudioState] = useState<'idle' | 'playing' | 'recording' | 'paused'>('idle');
     const [activeRecordingTrackId, setActiveRecordingTrackId] = useState<number>(1);
+    const [uploadingFiles, setUploadingFiles] = useState<Array<{ id: string; name: string; type: 'audio' | 'image' | 'document' }>>([]);
     const [expandedTrackId, setExpandedTrackId] = useState<number | null>(null);
     const [isStudioInfoOpen, setIsStudioInfoOpen] = useState(false);
     const [isStudioInfoExpanded, setIsStudioInfoExpanded] = useState(false);
@@ -6211,16 +6240,32 @@ export default function CreatePage() {
 
     const processImportFile = async (file: File, targetNoteId?: string | null): Promise<string | null> => {
         if (file.size > 3 * 1024 * 1024) {
-            alert('File size exceeds the 3MB limit.');
+            triggerStudioNotification('File size exceeds the 3MB limit.', 'rose');
             return null;
         }
 
         const fileName = file.name.toLowerCase();
         const effectiveNoteId = targetNoteId !== undefined ? targetNoteId : selectedNoteId;
 
+        // Determine file upload type
+        let uploadType: 'audio' | 'image' | 'document' = 'document';
         if (file.type.startsWith('audio/') || fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.m4a') || fileName.endsWith('.ogg')) {
+            uploadType = 'audio';
+        } else if (file.type.startsWith('image/') || fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.gif') || fileName.endsWith('.webp')) {
+            uploadType = 'image';
+        }
+
+        const tempUploadId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        setUploadingFiles(prev => [...prev, { id: tempUploadId, name: file.name, type: uploadType }]);
+
+        const cleanupUpload = () => {
+            setUploadingFiles(prev => prev.filter(f => f.id !== tempUploadId));
+        };
+
+        if (uploadType === 'audio') {
             if (studioTracks.length >= 4) {
-                alert('Studio tracks limit reached (maximum 4 tracks).');
+                triggerStudioNotification('Studio tracks limit reached (maximum 4 tracks).', 'rose');
+                cleanupUpload();
                 return null;
             }
             return new Promise<string | null>((resolve) => {
@@ -6288,7 +6333,7 @@ export default function CreatePage() {
                                     }
                                     return n;
                                 }));
-                                alert(`Successfully imported audio track: ${file.name}`);
+                                cleanupUpload();
                                 resolve(effectiveNoteId);
                             } else {
                                 const title = file.name || `Imported Track ${new Date().toLocaleDateString()}`;
@@ -6324,28 +6369,31 @@ export default function CreatePage() {
                                         collaborators: []
                                     }).catch(err => console.error("Error creating project in Firestore:", err));
                                 }
-                                alert(`Successfully imported audio track: ${file.name}`);
+                                cleanupUpload();
                                 resolve(newNoteId);
                             }
                         } catch (decodeErr) {
                             console.error("Audio decoding error:", decodeErr);
-                            alert('Failed to decode audio file. Please ensure it is a valid, uncorrupted audio file.');
+                            triggerStudioNotification('Failed to decode audio file. Please ensure it is valid.', 'rose');
+                            cleanupUpload();
                             resolve(null);
                         }
                     };
                     reader.onerror = (err) => {
                         console.error("FileReader error:", err);
-                        alert('Error reading the audio file.');
+                        triggerStudioNotification('Error reading the audio file.', 'rose');
+                        cleanupUpload();
                         resolve(null);
                     };
                     reader.readAsArrayBuffer(file);
                 } catch (err) {
                     console.error("File reading error:", err);
-                    alert('Error reading the audio file.');
+                    triggerStudioNotification('Error reading the audio file.', 'rose');
+                    cleanupUpload();
                     resolve(null);
                 }
             });
-        } else if (file.type.startsWith('image/') || fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.gif') || fileName.endsWith('.webp')) {
+        } else if (uploadType === 'image') {
             try {
                 const compressedBase64 = await compressAndGetBase64(file);
                 if (effectiveNoteId) {
@@ -6377,7 +6425,7 @@ export default function CreatePage() {
                         }
                         return n;
                     }));
-                    alert(`Successfully imported image: ${file.name}`);
+                    cleanupUpload();
                     return effectiveNoteId;
                 } else {
                     const newNoteId = `n-${Date.now()}`;
@@ -6411,25 +6459,16 @@ export default function CreatePage() {
                             collaborators: []
                         }).catch(err => console.error("Error creating project in Firestore:", err));
                     }
-                    alert(`Successfully imported image: ${file.name}`);
+                    cleanupUpload();
                     return newNoteId;
                 }
             } catch (imgErr) {
                 console.error("Image loading/compression error:", imgErr);
-                alert('Failed to import image.');
+                triggerStudioNotification('Failed to import image.', 'rose');
+                cleanupUpload();
                 return null;
             }
-        } else if (
-            fileName.endsWith('.pdf') || 
-            fileName.endsWith('.doc') || 
-            fileName.endsWith('.docx') || 
-            fileName.endsWith('.txt') || 
-            fileName.endsWith('.md') ||
-            file.type.startsWith('text/') ||
-            file.type === 'application/pdf' || 
-            file.type === 'application/msword' || 
-            file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ) {
+        } else {
             return new Promise<string | null>((resolve) => {
                 try {
                     const reader = new FileReader();
@@ -6477,7 +6516,7 @@ export default function CreatePage() {
                                     }
                                     return n;
                                 }));
-                                alert(`Successfully uploaded document: ${file.name}`);
+                                cleanupUpload();
                                 resolve(effectiveNoteId);
                             } else {
                                 const newNoteId = `n-${Date.now()}`;
@@ -6505,27 +6544,29 @@ export default function CreatePage() {
                                         collaborators: []
                                     }).catch(err => console.error("Error creating project in Firestore:", err));
                                 }
-                                alert(`Successfully uploaded document: ${file.name}`);
+                                cleanupUpload();
                                 resolve(newNoteId);
                             }
                         } catch (err) {
                             console.error("Document parsing error:", err);
+                            cleanupUpload();
                             resolve(null);
                         }
                     };
                     reader.onerror = (err) => {
                         console.error("FileReader error:", err);
+                        cleanupUpload();
                         resolve(null);
                     };
                     reader.readAsDataURL(file);
                 } catch (docErr) {
                     console.error("Document reading error:", docErr);
-                    alert('Failed to import document.');
+                    triggerStudioNotification('Failed to import document.', 'rose');
+                    cleanupUpload();
                     resolve(null);
                 }
             });
         }
-        return null;
     };
 
     const handleDragEnter = (e: React.DragEvent) => {
@@ -13373,9 +13414,9 @@ export default function CreatePage() {
                             }`}>
 
                                 {/* Images Display Cards */}
-                                {activeNote?.images && activeNote.images.length > 0 && (
+                                {((activeNote?.images && activeNote.images.length > 0) || uploadingFiles.some(f => f.type === 'image')) && (
                                     <div className="flex flex-col gap-3 mb-2 px-1 flex-shrink-0 w-full items-center">
-                                        {activeNote.images.map((img) => (
+                                        {activeNote?.images && activeNote.images.map((img) => (
                                             <ImageCapsuleCard
                                                 key={img.id}
                                                 img={img}
@@ -13396,13 +13437,16 @@ export default function CreatePage() {
                                                 isScanning={scanningImageId === img.id}
                                             />
                                         ))}
+                                        {uploadingFiles.filter(f => f.type === 'image').map(f => (
+                                            <ImageCapsuleSkeleton key={f.id} />
+                                        ))}
                                     </div>
                                 )}
 
                                 {/* Documents Capsule Cards */}
-                                {activeNote?.documents && activeNote.documents.length > 0 && (
+                                {((activeNote?.documents && activeNote.documents.length > 0) || uploadingFiles.some(f => f.type === 'document')) && (
                                     <div className="flex flex-col gap-3 mb-2 px-1 flex-shrink-0 w-full items-center">
-                                        {activeNote.documents.map((doc) => (
+                                        {activeNote?.documents && activeNote.documents.map((doc) => (
                                             <DocumentCapsuleCard
                                                 key={doc.id}
                                                 doc={doc}
@@ -13421,6 +13465,44 @@ export default function CreatePage() {
                                                 }}
                                                 isScanning={transcribingDocId === doc.id}
                                             />
+                                        ))}
+                                        {uploadingFiles.filter(f => f.type === 'document').map(f => (
+                                            <DocumentCapsuleSkeleton key={f.id} />
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Audio Notes Display Cards */}
+                                {((unattachedAudioNotes.length > 0) || uploadingFiles.some(f => f.type === 'audio')) && (
+                                    <div className="flex flex-col gap-3 mb-2 px-1 flex-shrink-0 w-full items-center">
+                                        {unattachedAudioNotes.map((audioNote) => (
+                                            <div key={audioNote.id} className="w-full max-w-2xl mx-auto">
+                                                <AudioCapsulePlayer 
+                                                    audioNote={audioNote}
+                                                    onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
+                                                    onDelete={() => activeNote && handleDeleteAudioNote(activeNote.id, audioNote.id)}
+                                                    onTranscribe={(activeNote && handleTranscribeAudioNote) ? (() => handleTranscribeAudioNote(activeNote.id, audioNote.id, audioNote.url)) : undefined}
+                                                    isTranscribing={transcribingAudioNoteId === audioNote.id}
+                                                    isDocked={false}
+                                                    onDragStart={(e) => handleAudioDragStart(e, audioNote.id)}
+                                                    onDragEnd={handleAudioDragEnd}
+                                                    activeNoteId={activeNote?.id}
+                                                    handleUpdateAudioNoteGroup={handleUpdateAudioNoteGroup}
+                                                    handleAttachAudioToPhrase={handleAttachAudioToPhrase}
+                                                    draggedAudioId={draggedAudioId}
+                                                    setDraggedAudioId={setDraggedAudioId}
+                                                    draggedAudioIdRef={draggedAudioIdRef}
+                                                    setDragOverGroupId={setDragOverGroupId}
+                                                    setDragOverPhraseId={setDragOverPhraseId}
+                                                    dragOverGroupIdRef={dragOverGroupIdRef}
+                                                    dragOverPhraseIdRef={dragOverPhraseIdRef}
+                                                />
+                                            </div>
+                                        ))}
+                                        {uploadingFiles.filter(f => f.type === 'audio').map(f => (
+                                            <div key={f.id} className="w-full max-w-2xl mx-auto">
+                                                <AudioCapsuleSkeleton />
+                                            </div>
                                         ))}
                                     </div>
                                 )}
@@ -14103,9 +14185,12 @@ export default function CreatePage() {
                             </div>
                         </div>
 
-                                {isRecordingSaving && (
-                                    <div className="flex justify-center w-full py-1.5 select-none z-20">
-                                        <AudioCapsuleSkeleton />
+                                {(isRecordingSaving || uploadingFiles.some(f => f.type === 'audio')) && (
+                                    <div className="flex flex-col gap-2 justify-center w-full py-1.5 select-none z-20 items-center">
+                                        {isRecordingSaving && <AudioCapsuleSkeleton />}
+                                        {uploadingFiles.filter(f => f.type === 'audio').map(f => (
+                                            <AudioCapsuleSkeleton key={f.id} />
+                                        ))}
                                     </div>
                                 )}
 
