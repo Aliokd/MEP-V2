@@ -1,5 +1,5 @@
 "use client";
-
+import { safeLocalStorageSetItem } from '@/lib/storage';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -57,7 +57,7 @@ export default function ProfilePage() {
             if (mockUserJson) {
                 const mockUser = JSON.parse(mockUserJson);
                 mockUser.displayName = newDisplayName;
-                localStorage.setItem('playwright_mock_user', JSON.stringify(mockUser));
+                safeLocalStorageSetItem('playwright_mock_user', JSON.stringify(mockUser));
                 return;
             }
 
@@ -78,7 +78,7 @@ export default function ProfilePage() {
             if (mockUserJson) {
                 const mockUser = JSON.parse(mockUserJson);
                 mockUser.email = pendingEmail;
-                localStorage.setItem('playwright_mock_user', JSON.stringify(mockUser));
+                safeLocalStorageSetItem('playwright_mock_user', JSON.stringify(mockUser));
             } else {
                 const { updateEmail } = await import('firebase/auth');
                 const { auth } = await import('@/lib/firebase');

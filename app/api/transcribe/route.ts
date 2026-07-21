@@ -3,15 +3,16 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
     try {
         const contentType = request.headers.get('content-type') || '';
-        let rawBuffer: ArrayBuffer;
+        let rawBuffer: ArrayBuffer | null = null;
 
         if (contentType.includes('application/json')) {
             const { audioUrl } = await request.json();
             if (!audioUrl) {
                 return NextResponse.json({ error: 'No audioUrl received in JSON body' }, { status: 400 });
             }
-            // Fetch audio on the server side to bypass browser CORS policy
-            const audioResponse = await fetch(audioUrl);
+            // Fetch audio on the server side (bypassing CORS)
+            const fetchUrl = audioUrl.startsWith('blob:') ? audioUrl : audioUrl;
+            const audioResponse = await fetch(fetchUrl);
             if (!audioResponse.ok) {
                 throw new Error(`Failed to fetch audio from remote URL: ${audioResponse.statusText}`);
             }
@@ -50,8 +51,8 @@ export async function POST(request: Request) {
 
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
-            console.warn("GEMINI_API_KEY is not configured. Transcription will fall back to empty text.");
-            return NextResponse.json({ text: '', isMock: true });
+            console.warn("GEMINI_API_KEY is not configured.");
+            return NextResponse.json({ error: 'GEMINI_API_KEY missing' }, { status: 500 });
         }
 
         const url = new URL(request.url);
@@ -63,50 +64,70 @@ export async function POST(request: Request) {
             languageName = 'Norwegian';
         }
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        const prompt = `Transcribe the audio accurately. The spoken language is strictly ${languageName}. Do NOT translate the words to English. The transcription output must be in ${languageName} only. Do not mix English words into the transcription unless the speaker literally said an English word. Output ONLY the transcription text, nothing else. If there is no speech or only background noise, return NO_SPEECH.`;
 
-        const prompt = `Transcribe the audio accurately. The spoken language is strictly ${languageName}. Do NOT translate the words to English. The transcription output must be in ${languageName} only. Do not mix English words into the transcription unless the speaker literally said an English word. Output ONLY the transcription text, nothing else. If there is no speech, return an empty string.`;
+        const modelsToTry = [
+            'gemini-1.5-flash',
+            'gemini-2.0-flash-lite-preview-02-05',
+            'gemini-flash-lite-latest',
+            'gemini-1.5-pro',
+            'gemini-2.0-flash',
+        ];
 
-        const response = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [
+        let transcript = '';
+        let lastErrorMessage = '';
+
+        for (const model of modelsToTry) {
+            try {
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const apiRes = await fetch(geminiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [
                             {
-                                inlineData: {
-                                    mimeType: mimeType,
-                                    data: audioBytes
-                                }
-                            },
-                            {
-                                text: prompt
+                                parts: [
+                                    {
+                                        inlineData: {
+                                            mimeType: mimeType,
+                                            data: audioBytes
+                                        }
+                                    },
+                                    { text: prompt }
+                                ]
                             }
-                        ]
-                    }
-                ],
-                generationConfig: {
-                    temperature: 0.1,
-                    maxOutputTokens: 2000
-                }
-            })
-        });
+                        ],
+                        generationConfig: {
+                            temperature: 0.1,
+                            maxOutputTokens: 2000
+                        }
+                    })
+                });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+                if (apiRes.ok) {
+                    const result = await apiRes.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+                    if (text && text !== 'NO_SPEECH') {
+                        transcript = text;
+                        break;
+                    } else if (text === 'NO_SPEECH') {
+                        transcript = '';
+                        break;
+                    }
+                } else {
+                    const errText = await apiRes.text();
+                    lastErrorMessage = `Model ${model} HTTP ${apiRes.status}: ${errText.slice(0, 150)}`;
+                    console.warn(`[Transcribe] ${lastErrorMessage}`);
+                }
+            } catch (modelErr: any) {
+                lastErrorMessage = `Model ${model} network error: ${modelErr.message}`;
+                console.warn(`[Transcribe] ${lastErrorMessage}`);
+            }
         }
 
-        const result = await response.json();
-        const transcription = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-        return NextResponse.json({ text: (transcription || '').trim() });
+        return NextResponse.json({ text: transcript, error: transcript ? null : lastErrorMessage });
     } catch (error: any) {
         console.error('Transcription API error:', error);
-        // Return empty transcription on error so the user can type manually
-        return NextResponse.json({ text: '', isMock: true });
+        return NextResponse.json({ text: '', error: error.message }, { status: 500 });
     }
 }

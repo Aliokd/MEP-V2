@@ -1,5 +1,5 @@
 "use client";
-
+import { safeLocalStorageSetItem } from '@/lib/storage';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { PenTool, BookOpen, Music, Users, Zap, Bot, X } from 'lucide-react';
@@ -42,7 +42,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
     const toggleSidebar = () => {
         const newState = !isCollapsed;
         setIsCollapsed(newState);
-        localStorage.setItem('maestro-sidebar-collapsed', JSON.stringify(newState));
+        safeLocalStorageSetItem('maestro-sidebar-collapsed', JSON.stringify(newState));
     };
 
     const handleSignOut = async () => {

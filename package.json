@@ -38,6 +38,7 @@
     "react-router-dom": "^7.12.0",
     "swiper": "^11.2.2",
     "tailwind-merge": "^3.4.0",
+    "tesseract.js": "^7.0.0",
     "wavesurfer.js": "^7.12.8"
   },
   "devDependencies": {

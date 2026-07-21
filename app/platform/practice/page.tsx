@@ -1,5 +1,5 @@
 "use client";
-
+import { safeLocalStorageSetItem } from '@/lib/storage';
 import { useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -18,7 +18,7 @@ export default function PracticePage() {
         const interval = setInterval(() => {
             const storedSeconds = parseInt(localStorage.getItem('mep-practice-seconds') || '0');
             const nextSeconds = storedSeconds + 10; // add 10 seconds
-            localStorage.setItem('mep-practice-seconds', nextSeconds.toString());
+            safeLocalStorageSetItem('mep-practice-seconds', nextSeconds.toString());
             
             // Dispatch event to update the platform header progress calculations
             window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));

@@ -1,5 +1,5 @@
 "use client";
-
+import { safeLocalStorageSetItem } from '@/lib/storage';
 import MaestroSidebar from './components/MaestroSidebar';
 import SupportModal from './components/SupportModal';
 import FeedbackModal from './components/FeedbackModal';
@@ -82,7 +82,7 @@ function PlatformLayoutInner({
         setProgressLevel(level);
         setLevelProgress(allMet ? 100 : avgProgress);
 
-        localStorage.setItem('songwriting-progress', avgProgress.toString());
+        safeLocalStorageSetItem('songwriting-progress', avgProgress.toString());
     };
 
     // Load initial values from localStorage
@@ -93,7 +93,7 @@ function PlatformLayoutInner({
         if (storedQuote) {
             setActiveQuote(storedQuote);
         } else {
-            localStorage.setItem('songwriting-progress-quote', 'progress.proverbs.0');
+            safeLocalStorageSetItem('songwriting-progress-quote', 'progress.proverbs.0');
             setActiveQuote('progress.proverbs.0');
         }
     }, []);
@@ -121,11 +121,11 @@ function PlatformLayoutInner({
             if (lastFirstActionDate !== todayStr) {
                 // First action of the day!
                 shouldAutoPop = true;
-                localStorage.setItem('mep-last-auto-pop-first-action-date', todayStr);
+                safeLocalStorageSetItem('mep-last-auto-pop-first-action-date', todayStr);
             } else if (isMajorTask && lastMajorTaskDate !== todayStr) {
                 // Major task completed today!
                 shouldAutoPop = true;
-                localStorage.setItem('mep-last-auto-pop-major-task-date', todayStr);
+                safeLocalStorageSetItem('mep-last-auto-pop-major-task-date', todayStr);
             }
             
             if (shouldAutoPop) {
@@ -146,7 +146,7 @@ function PlatformLayoutInner({
                     setTimeout(() => {
                         fireLocalConfetti();
                     }, 100);
-                    localStorage.setItem('songwriting-progress-confetti', 'false');
+                    safeLocalStorageSetItem('songwriting-progress-confetti', 'false');
                 }
             }
         };
@@ -278,7 +278,7 @@ function PlatformLayoutInner({
 
     const handleCloseWelcomeModal = () => {
         setShowWelcomeVideoModal(false);
-        localStorage.setItem('mep-welcome-video-seen', 'true');
+        safeLocalStorageSetItem('mep-welcome-video-seen', 'true');
         if (videoRef.current) {
             videoRef.current.pause();
             setIsPlaying(false);
@@ -365,7 +365,7 @@ function PlatformLayoutInner({
                         <button 
                             onClick={() => {
                                 setShowConfettiOverlay(false);
-                                localStorage.setItem('songwriting-progress', '0');
+                                safeLocalStorageSetItem('songwriting-progress', '0');
                                 setLevelProgress(0);
                             }}
                             className="w-full py-4.5 bg-stone-900 hover:bg-stone-800 text-white rounded-[16px] text-base font-bold transition-all shadow-md cursor-pointer active:scale-95"

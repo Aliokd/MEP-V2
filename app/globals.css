@@ -164,3 +164,50 @@ input:-webkit-autofill:active {
 .animate-spin-reverse {
     animation: spin-reverse 8s linear infinite;
 }
+
+/* Laser scanner effect (neutral white) */
+@keyframes laser-scan {
+    0% {
+        top: 0%;
+    }
+    50% {
+        top: 100%;
+    }
+    100% {
+        top: 0%;
+    }
+}
+.animate-laser-scan {
+    animation: laser-scan 3.5s ease-in-out infinite;
+}
+
+@keyframes pulse-neutral-shimmer {
+    0%, 100% {
+        opacity: 0.15;
+    }
+    50% {
+        opacity: 0.35;
+    }
+}
+.scan-grid-overlay {
+    background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+    background-size: 16px 16px;
+    animation: pulse-neutral-shimmer 2s ease-in-out infinite;
+}
+
+/* Skeleton Shimmering Effect */
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+.animate-shimmer {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.25) 50%, rgba(255, 255, 255, 0) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.8s infinite linear;
+}

@@ -1,5 +1,5 @@
 "use client";
-
+import { safeLocalStorageSetItem } from '@/lib/storage';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Check, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -49,7 +49,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
             const completedPractices = JSON.parse(localStorage.getItem('mep-completed-practices') || '[]');
             if (!completedPractices.includes(song.id)) {
                 completedPractices.push(song.id);
-                localStorage.setItem('mep-completed-practices', JSON.stringify(completedPractices));
+                safeLocalStorageSetItem('mep-completed-practices', JSON.stringify(completedPractices));
                 window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
             }
         }
@@ -200,7 +200,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
             // Correct match: dispatch songwriting-progress-updated event
             const currentProgress = parseInt(localStorage.getItem('songwriting-progress') || '35');
             const newProgress = Math.min(100, currentProgress + 15);
-            localStorage.setItem('songwriting-progress', newProgress.toString());
+            safeLocalStorageSetItem('songwriting-progress', newProgress.toString());
             window.dispatchEvent(new Event('songwriting-progress-updated'));
         } else {
             // Shake slot border on incorrect match

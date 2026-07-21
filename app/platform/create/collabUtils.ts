@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { 
     doc, 
     setDoc, 
@@ -42,6 +42,7 @@ export interface CollaborativeProject {
  * Migrates a user's private createNotes array from /users/{userId} to individual docs in /projects
  */
 export async function migrateLegacyNotesToProjects(userId: string) {
+    if (!auth.currentUser || auth.currentUser.uid !== userId) return;
     try {
         const userDocRef = doc(db, "users", userId);
         const userDoc = await getDoc(userDocRef);
@@ -52,50 +53,45 @@ export async function migrateLegacyNotesToProjects(userId: string) {
         const legacyNotes = userData.createNotes || [];
         const isMigrated = userData.notesMigratedToProjects || false;
         
-        if (isMigrated || legacyNotes.length === 0) {
-            console.log("Migration: Already migrated or no legacy notes to migrate.");
-            return;
-        }
-        
-        console.log(`Migration: Starting migration of ${legacyNotes.length} notes for user: ${userId}`);
-        const batch = writeBatch(db);
+        if (isMigrated || legacyNotes.length === 0) return;
         
         for (const note of legacyNotes) {
-            const projectRef = doc(db, "projects", note.id);
-            const projectData: CollaborativeProject = {
-                id: note.id,
-                title: note.title || "Untitled Song",
-                content: note.content || "",
-                folderId: note.folderId || null,
-                updatedAt: note.updatedAt || new Date().toLocaleString(),
-                ownerId: userId,
-                collaborators: [],
-                verses: note.verses || [],
-                phrases: note.phrases || [],
-                audioNotes: note.audioNotes || [],
-                isAudioOnly: note.isAudioOnly || false,
-                isTitleLocked: note.isTitleLocked || false,
-                contributions: {
-                    [userId]: {
-                        charactersTyped: (note.content || "").length,
-                        linesCreated: (note.phrases || []).length,
-                        recordingsAdded: (note.audioNotes || []).length,
-                        lastActive: new Date().toISOString()
+            try {
+                const projectRef = doc(db, "projects", note.id);
+                const projectData: CollaborativeProject = {
+                    id: note.id,
+                    title: note.title || "Untitled Song",
+                    content: note.content || "",
+                    folderId: note.folderId || null,
+                    updatedAt: note.updatedAt || new Date().toLocaleString(),
+                    ownerId: userId,
+                    collaborators: [],
+                    verses: note.verses || [],
+                    phrases: note.phrases || [],
+                    audioNotes: note.audioNotes || [],
+                    isAudioOnly: note.isAudioOnly || false,
+                    isTitleLocked: note.isTitleLocked || false,
+                    contributions: {
+                        [userId]: {
+                            charactersTyped: (note.content || "").length,
+                            linesCreated: (note.phrases || []).length,
+                            recordingsAdded: (note.audioNotes || []).length,
+                            lastActive: new Date().toISOString()
+                        }
                     }
-                }
-            };
-            batch.set(projectRef, projectData, { merge: true });
+                };
+                await setDoc(projectRef, projectData, { merge: true });
+            } catch (noteErr) {
+                console.warn(`Migration skipped for note ${note.id}:`, noteErr);
+            }
         }
         
         // Mark user doc as migrated
-        batch.update(userDocRef, { 
+        await setDoc(userDocRef, { 
             notesMigratedToProjects: true 
-        });
-        
-        await batch.commit();
-        console.log("Migration: Completed successfully!");
+        }, { merge: true }).catch(err => console.warn("Migration status flag update skipped:", err));
     } catch (err) {
-        console.error("Migration: Error migrating legacy notes:", err);
+        console.warn("Migration skipped:", err);
     }
 }
 

@@ -1,8 +1,33 @@
 "use client";
 
+const getFirstInitial = (nameOrEmail?: string) => {
+    if (!nameOrEmail) return 'C';
+    const clean = nameOrEmail.trim();
+    if (!clean) return 'C';
+    return clean[0].toUpperCase();
+};
+
+const getCollabColor = (colorNameOrHex?: string) => {
+    if (!colorNameOrHex) return '#A1B5EE';
+    if (colorNameOrHex.startsWith('#')) return colorNameOrHex;
+    switch (colorNameOrHex.toLowerCase()) {
+        case 'green':
+        case 'emerald': return '#92CF90';
+        case 'pink': return '#F7B3FF';
+        case 'purple': return '#E5B5ED';
+        case 'blue':
+        case 'indigo': return '#A1B5EE';
+        case 'rose': return '#F9A8D4';
+        case 'amber': return '#FDE047';
+        case 'sky': return '#BAE6FD';
+        default: return '#A1B5EE';
+    }
+};
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '@/context/LanguageContext';
+import { safeLocalStorageSetItem } from '@/lib/storage';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/lib/firebase';
@@ -560,7 +585,7 @@ function mergeLocalAndRemotePhrases(localPhrases: Phrase[], remotePhrases: Phras
 
 // Draggable Phrase row rendering individual words for songwriting suggestions
 // Draggable Phrase row rendering individual words for songwriting suggestions
-function PhraseRow({ 
+const PhraseRow = React.memo(function PhraseRow({ 
     phrase, 
     draggedPhraseId, 
     draggedPhraseIdRef,
@@ -660,10 +685,12 @@ function PhraseRow({
     
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-    // Auto-adjust height when text changes
+    // Auto-adjust height and sync value without overwriting active typing
     useEffect(() => {
         if (isCurrentlyEditing && textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
+            if (document.activeElement !== textareaRef.current) {
+                textareaRef.current.value = phrase.text;
+            }
             textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
         }
     }, [isCurrentlyEditing, phrase.text]);
@@ -671,13 +698,17 @@ function PhraseRow({
     // Handle focus and selection range when starting edit mode or when selectionOffset changes
     useEffect(() => {
         if (isCurrentlyEditing && textareaRef.current) {
-            textareaRef.current.focus();
+            if (document.activeElement !== textareaRef.current) {
+                textareaRef.current.focus();
 
-            if (typeof selectionOffset === 'number') {
+                if (typeof selectionOffset === 'number') {
+                    textareaRef.current.setSelectionRange(selectionOffset, selectionOffset);
+                } else {
+                    const valLength = phrase.text.length;
+                    textareaRef.current.setSelectionRange(valLength, valLength);
+                }
+            } else if (typeof selectionOffset === 'number') {
                 textareaRef.current.setSelectionRange(selectionOffset, selectionOffset);
-            } else {
-                const valLength = phrase.text.length;
-                textareaRef.current.setSelectionRange(valLength, valLength);
             }
         }
     }, [isCurrentlyEditing, selectionOffset]);
@@ -1215,9 +1246,20 @@ function PhraseRow({
                     <textarea
                         ref={textareaRef}
                         autoFocus
-                        value={phrase.text}
+                        defaultValue={phrase.text}
                         placeholder=""
-                        onChange={(e) => onUpdateText && onUpdateText(phrase.id, e.target.value)}
+                        onInput={(e) => {
+                            const target = e.currentTarget;
+                            target.style.height = `${target.scrollHeight}px`;
+                            if (onUpdateText) {
+                                onUpdateText(phrase.id, target.value);
+                            }
+                        }}
+                        onChange={(e) => {
+                            if (onUpdateText) {
+                                onUpdateText(phrase.id, e.target.value);
+                            }
+                        }}
                         onBlur={() => onStopEditing && onStopEditing(false)}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
@@ -1357,7 +1399,7 @@ function PhraseRow({
             )}
         </div>
     );
-}
+});
 
 function decodeAudioDataPromise(audioCtx: AudioContext | OfflineAudioContext, arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
     return new Promise((resolve, reject) => {
@@ -1530,6 +1572,146 @@ interface AudioCapsulePlayerProps {
     setDragOverPhraseId?: (id: string | null) => void;
     dragOverGroupIdRef?: React.RefObject<string | null>;
     dragOverPhraseIdRef?: React.RefObject<string | null>;
+}
+
+interface DocumentCapsuleCardProps {
+    doc: { id: string; url: string; name: string; type: string; size?: number; createdAt?: number };
+    onRename: (newName: string) => void;
+    onDelete: () => void;
+    onScan: () => void;
+    isScanning?: boolean;
+}
+
+function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning }: DocumentCapsuleCardProps) {
+    const formatSize = (bytes?: number) => {
+        if (!bytes) return doc.type.toUpperCase();
+        if (bytes < 1024) return `${doc.type.toUpperCase()} • ${bytes} B`;
+        if (bytes < 1024 * 1024) return `${doc.type.toUpperCase()} • ${(bytes / 1024).toFixed(1)} KB`;
+        return `${doc.type.toUpperCase()} • ${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    return (
+        <div className="bg-white border border-stone-200/80 rounded-full px-5 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3.5 z-30 transition-all select-none max-w-full my-2 mx-auto">
+            {/* Red File Icon */}
+            <div className="p-1 rounded-md text-red-500 flex items-center justify-center shrink-0">
+                <FileText size={17} className="stroke-[2.2]" />
+            </div>
+
+            {/* Title Input */}
+            <input
+                type="text"
+                value={doc.name || ''}
+                onChange={(e) => onRename(e.target.value)}
+                placeholder="Document name..."
+                style={{ width: `${Math.max(8, (doc.name || '').length)}ch` }}
+                className="bg-transparent border-none outline-none font-bold text-[14px] text-stone-900 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors max-w-[180px] sm:max-w-[240px] truncate"
+            />
+
+            <div className="h-4 w-px bg-stone-200 shrink-0" />
+
+            {/* Scan / Transcribe Button */}
+            <button
+                type="button"
+                disabled={isScanning}
+                onClick={onScan}
+                className="flex items-center gap-1.5 text-stone-700 hover:text-stone-950 font-semibold text-[13px] transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+            >
+                {isScanning ? (
+                    <Loader2 size={13} className="animate-spin text-stone-600" />
+                ) : (
+                    <RefreshCw size={13} className="text-stone-500 stroke-[2.2]" />
+                )}
+                <span>Scan</span>
+            </button>
+
+            <div className="h-4 w-px bg-stone-200 shrink-0" />
+
+            {/* Meta Size / Type */}
+            <span className="text-[12px] font-semibold text-stone-400 uppercase tracking-wide shrink-0">
+                {formatSize(doc.size)}
+            </span>
+
+            <div className="h-4 w-px bg-stone-200 shrink-0" />
+
+            {/* Delete Button */}
+            <button
+                type="button"
+                onClick={onDelete}
+                className="text-stone-400 hover:text-red-500 transition-colors p-1 cursor-pointer shrink-0"
+                title="Delete document"
+            >
+                <Trash2 size={14} />
+            </button>
+        </div>
+    );
+}
+
+interface ImageCapsuleCardProps {
+    img: { id: string; url: string; name: string };
+    onRename: (newName: string) => void;
+    onDelete: () => void;
+    onScan: () => void;
+    onPreview: () => void;
+    isScanning?: boolean;
+}
+
+function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanning }: ImageCapsuleCardProps) {
+    return (
+        <div className="rounded-[32px] bg-white p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-3 w-full max-w-[440px] mx-auto select-none my-3">
+            {/* Image Preview Area */}
+            <div 
+                onClick={onPreview}
+                className="w-full h-60 rounded-[24px] overflow-hidden bg-stone-100 flex items-center justify-center border border-stone-100/80 relative group cursor-pointer"
+            >
+                <img 
+                    src={img.url} 
+                    alt={img.name || 'Image preview'} 
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                />
+            </div>
+
+            {/* Control Bar */}
+            <div className="flex items-center justify-between px-2 pt-0.5">
+                {/* Image Title Input */}
+                <input
+                    type="text"
+                    value={img.name || ''}
+                    onChange={(e) => onRename(e.target.value)}
+                    placeholder="Long image title here...."
+                    className="bg-transparent border-none outline-none font-semibold text-[14px] text-stone-800 placeholder:text-stone-400 truncate flex-1 pr-2 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors"
+                />
+
+                <div className="h-4 w-px bg-stone-200 shrink-0 mx-1" />
+
+                {/* Scan Button with Sparkles */}
+                <button
+                    type="button"
+                    disabled={isScanning}
+                    onClick={onScan}
+                    className="flex items-center gap-1.5 text-stone-700 hover:text-stone-950 font-semibold text-[13px] transition-colors cursor-pointer px-2 py-1 shrink-0 disabled:opacity-50"
+                >
+                    {isScanning ? (
+                        <Loader2 size={14} className="animate-spin text-stone-600" />
+                    ) : (
+                        <Sparkles size={14} className="text-stone-600 stroke-[2]" />
+                    )}
+                    <span>Scan</span>
+                </button>
+
+                <div className="h-4 w-px bg-stone-200 shrink-0 mx-1" />
+
+                {/* Delete Button */}
+                <button
+                    type="button"
+                    onClick={onDelete}
+                    className="text-stone-400 hover:text-red-500 transition-colors p-1 cursor-pointer shrink-0"
+                    title="Delete image"
+                >
+                    <Trash2 size={14} />
+                </button>
+            </div>
+        </div>
+    );
 }
 
 function AudioCapsuleSkeleton() {
@@ -2460,7 +2642,7 @@ export default function CreatePage() {
         const interval = setInterval(() => {
             const storedSeconds = parseInt(localStorage.getItem('mep-create-seconds') || '0');
             const nextSeconds = storedSeconds + 10; // add 10 seconds
-            localStorage.setItem('mep-create-seconds', nextSeconds.toString());
+            safeLocalStorageSetItem('mep-create-seconds', nextSeconds.toString());
             
             // Dispatch event to update the platform header progress calculations
             window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
@@ -2479,7 +2661,7 @@ export default function CreatePage() {
             const words = (note.content || '').trim().split(/\s+/).filter(w => w.length > 0).length;
             return sum + words;
         }, 0);
-        localStorage.setItem('mep-create-words-typed', totalWords.toString());
+        safeLocalStorageSetItem('mep-create-words-typed', totalWords.toString());
 
         const totalRecordingsDuration = notes.reduce((sum, note) => {
             const noteDuration = note.recordingDuration || 0;
@@ -2489,7 +2671,7 @@ export default function CreatePage() {
 
         const currentSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
         const nextSeconds = Math.max(currentSeconds, totalRecordingsDuration);
-        localStorage.setItem('mep-create-recording-seconds', nextSeconds.toString());
+        safeLocalStorageSetItem('mep-create-recording-seconds', nextSeconds.toString());
 
         window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
     }, [notes]);
@@ -2550,19 +2732,24 @@ export default function CreatePage() {
 
     // Curated elegant neutral colors for collaborators
     const COLLABORATOR_COLORS = [
-        '#A5AFDF',
-        '#86BE7F',
-        '#FFF35F',
-        '#ADCDC0',
-        '#46455D'
+        '#92CF90', // Soft Sage Green
+        '#F7B3FF', // Soft Pastel Pink
+        '#A1B5EE', // Soft Periwinkle Blue
+        '#F9A8D4', // Soft Rose
+        '#FDE047', // Soft Yellow
+        '#BAE6FD', // Soft Sky Blue
+        '#E5B5ED'  // Soft Lavender
     ];
 
-    // Generate or fetch user color on mount
+    // Assign current user's color token deterministically from user UID on mount
     useEffect(() => {
         if (user) {
-            // Pick a random color from the palette
-            const randomIndex = Math.floor(Math.random() * COLLABORATOR_COLORS.length);
-            const color = COLLABORATOR_COLORS[randomIndex];
+            let hash = 0;
+            for (let i = 0; i < user.uid.length; i++) {
+                hash = (hash << 5) - hash + user.uid.charCodeAt(i);
+                hash |= 0;
+            }
+            const color = COLLABORATOR_COLORS[Math.abs(hash) % COLLABORATOR_COLORS.length];
             setCurrentUserColor(color);
         }
     }, [user]);
@@ -2619,7 +2806,7 @@ export default function CreatePage() {
     const [isEditing, setIsEditing] = useState(true);
     const [clickedWord, setClickedWord] = useState<string | null>(null);
     const [clickedTokenIndex, setClickedTokenIndex] = useState<number | null>(null);
-    const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
+    const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number; isNearBottom?: boolean } | null>(null);
     const [draggedPhraseId, setDraggedPhraseId] = useState<string | null>(null);
     const [showCanvasMenu, setShowCanvasMenu] = useState(false);
     const [dragOverPhraseId, setDragOverPhraseIdState] = useState<string | null>(null);
@@ -2692,6 +2879,7 @@ export default function CreatePage() {
     const lastTapTimeRef = useRef<number>(0);
     const canvasTouchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
     const writingCanvasRef = useRef<HTMLDivElement>(null);
+    const studioContainerRef = useRef<HTMLDivElement>(null);
     const remoteCursorsRef = useRef<{[uid: string]: HTMLDivElement | null}>({});
 
     // Audio recording & metronome state variables
@@ -2708,6 +2896,7 @@ export default function CreatePage() {
     const [isRecordingSaving, setIsRecordingSaving] = useState(false);
     const [transcribingAudioNoteId, setTranscribingAudioNoteId] = useState<string | null>(null);
     const [transcribingDocId, setTranscribingDocId] = useState<string | null>(null);
+    const [scanningImageId, setScanningImageId] = useState<string | null>(null);
     const [editingPhraseId, setEditingPhraseId] = useState<string | null>(null);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [localTitleText, setLocalTitleText] = useState('');
@@ -3000,12 +3189,22 @@ export default function CreatePage() {
                 const finalMonoBuffer = downmixToMono(decodedBuffer, offlineCtx);
                 
                 if (active) {
-                    setStudioTracks(prev => prev.map(t => {
-                        if (t && t.id === track.id) {
-                            return { ...t, audioBuffer: finalMonoBuffer };
-                        }
-                        return t;
-                    }));
+                    setStudioTracks(prev => {
+                        const updated = prev.map(t => {
+                            if (t && t.id === track.id) {
+                                return { ...t, audioBuffer: finalMonoBuffer };
+                            }
+                            return t;
+                        });
+                        let maxDur = 0;
+                        updated.forEach(t => {
+                            if (t.audioBuffer) {
+                                maxDur = Math.max(maxDur, t.audioBuffer.duration);
+                            }
+                        });
+                        setStudioDuration(maxDur);
+                        return updated;
+                    });
                 }
             } catch (err) {
                 console.error(`Error loading/decoding audio for track ${track.id}:`, err);
@@ -3034,7 +3233,7 @@ export default function CreatePage() {
                     eq: t.eq,
                     compressor: t.compressor,
                     reverb: t.reverb,
-                    url: (t.url && t.url.startsWith('blob:')) ? null : (t.url || null),
+                    url: (t.url && !t.url.startsWith('blob:')) ? t.url : null,
                     muted: !!t.muted
                 }));
                 
@@ -3159,7 +3358,7 @@ export default function CreatePage() {
             if (!hasShown) {
                 const timer = setTimeout(() => {
                     setShowWiredHeadphonesBanner(true);
-                    localStorage.setItem('mep_studio_info_banner_shown', 'true');
+                    safeLocalStorageSetItem('mep_studio_info_banner_shown', 'true');
                 }, 5000);
                 return () => clearTimeout(timer);
             }
@@ -3661,7 +3860,7 @@ export default function CreatePage() {
                         { id: 'f-1', name: 'Summer Album' },
                         { id: 'f-2', name: 'Melodic Ideas' }
                     ];
-                    localStorage.setItem('veinote-create-folders', JSON.stringify(initialFolders));
+                    safeLocalStorageSetItem('veinote-create-folders', JSON.stringify(initialFolders));
                 }
 
                 if (savedNotes) {
@@ -3696,7 +3895,7 @@ export default function CreatePage() {
                             updatedAt: new Date().toISOString() 
                         }
                     ];
-                    localStorage.setItem('veinote-create-notes', JSON.stringify(initialNotes));
+                    safeLocalStorageSetItem('veinote-create-notes', JSON.stringify(initialNotes));
                 }
 
                 setFolders(initialFolders);
@@ -3731,7 +3930,7 @@ export default function CreatePage() {
     // Save changes to localStorage and Firestore
     useEffect(() => {
         if (isDataLoaded) {
-            localStorage.setItem('veinote-create-folders', JSON.stringify(folders));
+            safeLocalStorageSetItem('veinote-create-folders', JSON.stringify(folders));
             if (user) {
                 setDoc(doc(db, "users", user.uid), {
                     createFolders: folders
@@ -3742,14 +3941,14 @@ export default function CreatePage() {
 
     useEffect(() => {
         if (isDataLoaded) {
-            localStorage.setItem('veinote-create-notes', JSON.stringify(notes));
+            safeLocalStorageSetItem('veinote-create-notes', JSON.stringify(notes));
         }
     }, [notes, isDataLoaded]);
 
     useEffect(() => {
         if (isDataLoaded && isSelectionInitialized) {
             if (selectedNoteId) {
-                localStorage.setItem('veinote-selected-note-id', selectedNoteId);
+                safeLocalStorageSetItem('veinote-selected-note-id', selectedNoteId);
             } else {
                 localStorage.removeItem('veinote-selected-note-id');
             }
@@ -3958,17 +4157,13 @@ export default function CreatePage() {
 
         const unsub = onSnapshot(collection(db, "projects", selectedNoteId, "presence"), (snapshot) => {
             const users: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null; isStudioOpen?: boolean; activeStudioTrackId?: string | null; activeStudioTrackName?: string | null; isStudioRecording?: boolean }} = {};
-            const ownerId = notes.find(n => n.id === selectedNoteId)?.ownerId;
             
             snapshot.forEach(d => {
                 if (d.id !== user.uid) {
-                    const isAllowed = (ownerId === d.id) || (collaborators.includes(d.id));
-                    if (!isAllowed) return;
-
                     const data = d.data();
                     users[d.id] = {
                         name: data.name || 'Collaborator',
-                        color: data.color || 'rose',
+                        color: getMemberColorToken(d.id),
                         cursor: (data.x !== -999 && data.y !== -999) ? { x: data.x, y: data.y } : undefined,
                         activePhraseId: data.activePhraseId || null,
                         isStudioOpen: !!data.isStudioOpen,
@@ -3996,7 +4191,12 @@ export default function CreatePage() {
         const isStudioRecording = isStudioOpen && studioState === 'recording';
         const currentTrack = studioTracks.find(t => t.id === activeRecordingTrackId);
         
+        const myCollabMember = allCollabMembers.find(m => m.uid === user.uid);
+        const myColorToken = myCollabMember ? myCollabMember.color : (currentUserColor || COLLABORATOR_COLORS[0]);
+
         setDoc(presenceRef, {
+            name: user.displayName || user.email?.split('@')[0] || 'Collaborator',
+            color: myColorToken,
             isStudioOpen: isStudioOpen,
             activeStudioTrackId: isStudioOpen ? (activeRecordingTrackId || null) : null,
             activeStudioTrackName: isStudioOpen ? (currentTrack?.name || null) : null,
@@ -4018,15 +4218,21 @@ export default function CreatePage() {
     const lastCursorWriteRef = useRef<number>(0);
     
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (!selectedNoteId || !user || !writingCanvasRef.current) return;
+        if (!selectedNoteId || !user) return;
         
         const now = Date.now();
-        if (now - lastCursorWriteRef.current < 120) return; // 120ms throttle
+        if (now - lastCursorWriteRef.current < 80) return; // 80ms smooth throttle
         lastCursorWriteRef.current = now;
 
-        const rect = writingCanvasRef.current.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        const targetRef = (activeToolTab === 'studio' && studioContainerRef.current) 
+            ? studioContainerRef.current 
+            : writingCanvasRef.current;
+
+        if (!targetRef) return;
+
+        const rect = targetRef.getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+        const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
 
         const presenceRef = doc(db, "projects", selectedNoteId, "presence", user.uid);
         setDoc(presenceRef, {
@@ -4158,64 +4364,64 @@ export default function CreatePage() {
 
     const handleAcceptInvite = async (invite: any) => {
         if (!user) return;
+
+        const projId = invite.projectId;
+
+        // Immediately hide invitation modal/banner
+        setPreviewInviteId(null);
+        setShowShareModal(false);
+        setPendingInvites(prev => prev.filter(inv => inv.id !== invite.id && inv.projectId !== projId));
+
         try {
-            const deterministicId = `${invite.projectId}_${user.uid}`;
+            const deterministicId = `${projId}_${user.uid}`;
             const inviteeName = user.displayName || user.email?.split('@')[0] || 'Collaborator';
 
-            // Step 1: Ensure a deterministic invitation doc exists with inviteeId set.
-            // If the invite had a non-deterministic email-based ID, create the canonical doc first.
-            if (invite.id !== deterministicId) {
-                await setDoc(doc(db, "invitations", deterministicId), {
+            // Parallelize Firestore write & read operations for maximum speed
+            const inviteDocPromise = (invite.id !== deterministicId)
+                ? setDoc(doc(db, "invitations", deterministicId), {
                     ...invite,
                     id: deterministicId,
                     inviteeId: user.uid,
                     inviteeName,
                     status: 'accepted',
                     senderNotified: false,
-                });
-                // Delete the old non-deterministic doc (best-effort, non-blocking)
-                updateDoc(doc(db, "invitations", invite.id), { status: 'accepted' }).catch(() => {});
-            } else {
-                // Step 1b: Update the existing deterministic invitation doc in place.
-                await updateDoc(doc(db, "invitations", deterministicId), {
+                })
+                : updateDoc(doc(db, "invitations", deterministicId), {
                     status: 'accepted',
                     inviteeId: user.uid,
                     inviteeName,
                     senderNotified: false,
                 });
-            }
 
-            // Step 2: Add user to project collaborators.
-            // The rule allows this because the user is only adding themselves
-            // (affectedKeys == ['collaborators'] && difference == [uid]).
-            await updateDoc(doc(db, "projects", invite.projectId), {
+            const collabUpdatePromise = updateDoc(doc(db, "projects", projId), {
                 collaborators: arrayUnion(user.uid)
             });
 
-            // Step 3: Exit preview mode and open the project canvas.
-            setPreviewInviteId(null);
+            const projectDocPromise = getDoc(doc(db, "projects", projId));
 
-            const projectDoc = await getDoc(doc(db, "projects", invite.projectId));
+            const [, , projectDoc] = await Promise.all([inviteDocPromise, collabUpdatePromise, projectDocPromise]);
+
             if (projectDoc.exists()) {
                 const noteData = projectDoc.data() as SongNote;
-                const currentCollaborators = projectDoc.data().collaborators || [];
+                const currentCollaborators = noteData.collaborators || [];
+                const fullCollabNote: SongNote = {
+                    ...noteData,
+                    id: projId,
+                    collaborators: currentCollaborators
+                };
+
+                // Populate local state with owner's real project content & select it
                 setNotes(prev => {
-                    if (prev.some(n => n.id === invite.projectId)) {
-                        return prev.map(n => n.id === invite.projectId
-                            ? { ...noteData, id: invite.projectId, collaborators: currentCollaborators }
-                            : n
-                        );
+                    if (prev.some(n => n.id === projId)) {
+                        return prev.map(n => n.id === projId ? fullCollabNote : n);
                     }
-                    return [{ ...noteData, id: invite.projectId, collaborators: currentCollaborators }, ...prev];
+                    return [fullCollabNote, ...prev];
                 });
-                setSelectedNoteId(invite.projectId);
-                setShowShareModal(false);
+
+                setSelectedNoteId(projId);
             }
         } catch (err) {
             console.error("Error accepting invitation:", err);
-            // Exit preview cleanly so the user is never stuck
-            setPreviewInviteId(null);
-            setSelectedNoteId(null);
         }
     };
 
@@ -4428,6 +4634,68 @@ export default function CreatePage() {
     };
 
     const activeNote = notes.find(n => n.id === selectedNoteId) || null;
+
+    // Single unified 100% deterministic color token helper across all components & browsers
+    const getMemberColorToken = (targetUid: string) => {
+        if (!targetUid) return getCollabColor(COLLABORATOR_COLORS[0]);
+        
+        const memberSet = new Set<string>();
+        if (activeNote?.ownerId) memberSet.add(activeNote.ownerId);
+        (collaborators || []).forEach(c => { if (c) memberSet.add(c); });
+        Object.keys(activeRemoteUsers || {}).forEach(uid => { if (uid) memberSet.add(uid); });
+        if (user?.uid) memberSet.add(user.uid);
+
+        // Sort UIDs alphabetically so EVERY browser computes the exact same index order
+        const sortedMembers = Array.from(memberSet).sort();
+        const index = sortedMembers.indexOf(targetUid);
+        
+        if (index >= 0) {
+            return getCollabColor(COLLABORATOR_COLORS[index % COLLABORATOR_COLORS.length]);
+        }
+
+        let hash = 0;
+        for (let i = 0; i < targetUid.length; i++) {
+            hash = (hash << 5) - hash + targetUid.charCodeAt(i);
+            hash |= 0;
+        }
+        return getCollabColor(COLLABORATOR_COLORS[Math.abs(hash) % COLLABORATOR_COLORS.length]);
+    };
+
+    // Compute complete project collaboration members with strict alphabetical sorting
+    const allCollabMembers = useMemo(() => {
+        if (!activeNote) return [];
+        const members: Array<{ uid: string; name: string; color: string; isOwner: boolean; isActive: boolean }> = [];
+        
+        const memberSet = new Set<string>();
+        if (activeNote?.ownerId) memberSet.add(activeNote.ownerId);
+        (collaborators || []).forEach(c => { if (c) memberSet.add(c); });
+        Object.keys(activeRemoteUsers || {}).forEach(uid => { if (uid) memberSet.add(uid); });
+        if (user?.uid) memberSet.add(user.uid);
+
+        const sortedMembers = Array.from(memberSet).sort();
+
+        sortedMembers.forEach((uid) => {
+            const isMe = uid === user?.uid;
+            const profile = collaboratorProfiles[uid] || { name: '', email: '' };
+            const rawName = isMe 
+                ? (user?.displayName || user?.email?.split('@')[0] || 'Me')
+                : (profile.name || profile.email?.split('@')[0] || (uid === activeNote.ownerId ? 'Owner' : 'Collaborator'));
+            const isActive = isMe || activeRemoteUsers[uid] !== undefined;
+            const assignedColor = getMemberColorToken(uid);
+
+            members.push({
+                uid,
+                name: isMe ? `Me (${rawName})` : rawName,
+                color: assignedColor,
+                isOwner: uid === activeNote.ownerId,
+                isActive
+            });
+        });
+
+        return members;
+    }, [activeNote, user, collaboratorProfiles, activeRemoteUsers, collaborators]);
+
+
     const getTranslatedCard = (card: InspirationCard) => {
         if (!card) return card;
         const cleanKey = card.id.replace('therapy-', '').replace(/-/g, '_');
@@ -5594,7 +5862,7 @@ export default function CreatePage() {
             timerRef.current = setInterval(() => {
                 setRecordingTime(t => t + 1);
                 const storedSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
-                localStorage.setItem('mep-create-recording-seconds', (storedSeconds + 1).toString());
+                safeLocalStorageSetItem('mep-create-recording-seconds', (storedSeconds + 1).toString());
                 window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
             }, 1000);
             
@@ -5703,7 +5971,7 @@ export default function CreatePage() {
             timerRef.current = setInterval(() => {
                 setRecordingTime(t => t + 1);
                 const storedSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
-                localStorage.setItem('mep-create-recording-seconds', (storedSeconds + 1).toString());
+                safeLocalStorageSetItem('mep-create-recording-seconds', (storedSeconds + 1).toString());
                 window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
             }, 1000);
             
@@ -6451,7 +6719,7 @@ export default function CreatePage() {
             if (saved) {
                 try { currentPosts = JSON.parse(saved); } catch (e) {}
             }
-            localStorage.setItem('mep-connect-posts-v4', JSON.stringify([newPost, ...currentPosts]));
+            safeLocalStorageSetItem('mep-connect-posts-v4', JSON.stringify([newPost, ...currentPosts]));
             setShareStatus('shared');
         }
     };
@@ -6925,6 +7193,73 @@ export default function CreatePage() {
             alert("Error transcribing document: " + (err.message || err));
         } finally {
             setTranscribingDocId(null);
+        }
+    };
+
+    const handleScanImage = async (imageId: string) => {
+        if (!selectedNoteId) return;
+        setScanningImageId(imageId);
+        try {
+            const currentNote = notes.find(n => n.id === selectedNoteId);
+            if (!currentNote) throw new Error("Active project not found");
+
+            const imgObj = (currentNote.images || []).find(i => i.id === imageId);
+            if (!imgObj) throw new Error("Image object not found");
+
+            const res = await fetch('/api/transcribe-image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    imageUrl: imgObj.url
+                })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to scan image text');
+            }
+
+            const data = await res.json();
+            const text = (data.text || '').trim();
+
+            if (!text || text === 'NO_TEXT' || text.toUpperCase() === 'NONE' || text.toLowerCase().includes('no text') || text.toLowerCase().includes('no lyrics')) {
+                alert("This image has no lyrics or text on it.");
+                return;
+            }
+
+            const textLines = text.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+            const linePhrases: Phrase[] = textLines.map((lineText: string, idx: number) => ({
+                id: `p-imgline-${imageId}-${idx}`,
+                text: lineText,
+                groupId: null
+            }));
+
+            const existingPhrases = currentNote.phrases || [];
+            const finalPhrases = cleanupAndEnsurePlaceholders([...existingPhrases, ...linePhrases], currentNote.verses || []);
+            const newContent = finalPhrases.map(p => p.text).join('\n');
+
+            handleUpdateNote(selectedNoteId, {
+                content: newContent,
+                phrases: finalPhrases
+            });
+
+            if (textareaRef.current) {
+                textareaRef.current.value = newContent;
+            }
+
+            alert(`Successfully scanned image: Extracted ${textLines.length} lines.`);
+        } catch (err: any) {
+            console.error("Image scan error:", err);
+            const msg = err.message || String(err);
+            if (msg.includes('429') || msg.includes('quota') || msg.includes('Quota')) {
+                alert("AI image scanning limit temporarily reached for this key. Please wait 1 minute and click Scan again.");
+            } else {
+                alert("Error scanning image: " + msg);
+            }
+        } finally {
+            setScanningImageId(null);
         }
     };
 
@@ -7555,8 +7890,9 @@ export default function CreatePage() {
             let fetchedBlob: Blob | null = null;
             
             try {
-                // Try fetching on the client side to convert to WAV (highly reliable client-side transcoding)
-                const res = await fetch(audioUrl);
+                // Fetch audio via client or server proxy for reliable WAV transcoding
+                const fetchUrl = audioUrl.startsWith('blob:') ? audioUrl : `/api/download-audio?url=${encodeURIComponent(audioUrl)}`;
+                const res = await fetch(fetchUrl);
                 if (res.ok) {
                     fetchedBlob = await res.blob();
                 }
@@ -7581,6 +7917,9 @@ export default function CreatePage() {
                 const data = await response.json();
                 const transcriptText = (data.text || "").trim();
                 
+                if (!transcriptText) {
+                    alert(t('audio.no_lyrics_found') || "No spoken lyrics found in this recording.");
+                }
                 let line1 = "";
                 let line2 = "";
                 if (transcriptText) {
@@ -7992,7 +8331,21 @@ export default function CreatePage() {
         const newPhrases: Phrase[] = [];
         const matchedIndices = new Set<number>();
         
-        for (const line of lines) {
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // 1. Exact text match at same index
+            if (i < existingPhrases.length && !matchedIndices.has(i) && existingPhrases[i].text === line) {
+                newPhrases.push({
+                    id: existingPhrases[i].id,
+                    text: line,
+                    groupId: existingPhrases[i].groupId
+                });
+                matchedIndices.add(i);
+                continue;
+            }
+
+            // 2. Exact text match anywhere in existingPhrases
             let foundIdx = existingPhrases.findIndex((p, idx) => p.text === line && !matchedIndices.has(idx));
             if (foundIdx !== -1) {
                 newPhrases.push({
@@ -8001,27 +8354,54 @@ export default function CreatePage() {
                     groupId: existingPhrases[foundIdx].groupId
                 });
                 matchedIndices.add(foundIdx);
-            } else {
-                foundIdx = existingPhrases.findIndex((p, idx) => 
-                    (p.text.toLowerCase().includes(line.toLowerCase()) || 
-                     line.toLowerCase().includes(p.text.toLowerCase())) && 
-                    !matchedIndices.has(idx)
-                );
-                if (foundIdx !== -1) {
-                    newPhrases.push({
-                        id: existingPhrases[foundIdx].id,
-                        text: line,
-                        groupId: existingPhrases[foundIdx].groupId
-                    });
-                    matchedIndices.add(foundIdx);
-                } else {
-                    newPhrases.push({
-                        id: `p-${Math.random().toString(36).substring(2, 9)}`,
-                        text: line,
-                        groupId: null
-                    });
-                }
+                continue;
             }
+
+            // 3. Positional index match if existing phrase at index i is not yet matched
+            if (i < existingPhrases.length && !matchedIndices.has(i)) {
+                newPhrases.push({
+                    id: existingPhrases[i].id,
+                    text: line,
+                    groupId: existingPhrases[i].groupId
+                });
+                matchedIndices.add(i);
+                continue;
+            }
+
+            // 4. Substring / Includes match anywhere in existingPhrases
+            foundIdx = existingPhrases.findIndex((p, idx) => 
+                (p.text.toLowerCase().includes(line.toLowerCase()) || 
+                 line.toLowerCase().includes(p.text.toLowerCase())) && 
+                !matchedIndices.has(idx)
+            );
+            if (foundIdx !== -1) {
+                newPhrases.push({
+                    id: existingPhrases[foundIdx].id,
+                    text: line,
+                    groupId: existingPhrases[foundIdx].groupId
+                });
+                matchedIndices.add(foundIdx);
+                continue;
+            }
+
+            // 5. Fallback: match any remaining unmatched existing phrase
+            const nextUnmatched = existingPhrases.findIndex((_, idx) => !matchedIndices.has(idx));
+            if (nextUnmatched !== -1) {
+                newPhrases.push({
+                    id: existingPhrases[nextUnmatched].id,
+                    text: line,
+                    groupId: existingPhrases[nextUnmatched].groupId
+                });
+                matchedIndices.add(nextUnmatched);
+                continue;
+            }
+
+            // 6. Brand new phrase beyond existing phrases length
+            newPhrases.push({
+                id: `p-${Math.random().toString(36).substring(2, 9)}`,
+                text: line,
+                groupId: null
+            });
         }
         return newPhrases;
     }
@@ -8031,7 +8411,7 @@ export default function CreatePage() {
             const currentProgressStr = localStorage.getItem('songwriting-progress') || '35';
             let currentProgress = parseInt(currentProgressStr);
             const nextProgress = Math.min(100, currentProgress + 2);
-            localStorage.setItem('songwriting-progress', nextProgress.toString());
+            safeLocalStorageSetItem('songwriting-progress', nextProgress.toString());
             
             const proverbs = [
                 "Remember, small actions makes progress",
@@ -8047,7 +8427,7 @@ export default function CreatePage() {
             const randomQuote = proverbs[Math.floor(Math.random() * proverbs.length)];
             
             if (nextProgress === 100) {
-                localStorage.setItem('songwriting-progress-confetti', 'true');
+                safeLocalStorageSetItem('songwriting-progress-confetti', 'true');
             }
             
             window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
@@ -8083,7 +8463,7 @@ export default function CreatePage() {
                     const currentProgressStr = localStorage.getItem('songwriting-progress') || '35';
                     let currentProgress = parseInt(currentProgressStr);
                     const nextProgress = Math.min(100, currentProgress + bonusAmount);
-                    localStorage.setItem('songwriting-progress', nextProgress.toString());
+                    safeLocalStorageSetItem('songwriting-progress', nextProgress.toString());
                     
                     window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
                 }
@@ -8578,159 +8958,12 @@ export default function CreatePage() {
     // Word suggestion click handler in Suggestion Mode
     const getCompatibilityScore = (word: string, context: string): number => {
         if (!word || !clickedWord) return 50;
-        
         const w = word.toLowerCase().trim();
         const orig = clickedWord.toLowerCase().trim();
-        const canvasText = context.toLowerCase();
-        
-        // If w === orig, we are analyzing the clicked word itself inside the written context
-        if (w === orig) {
-            let contextScore = 65; // Base context score
-            
-            // Get all other lines in the context
-            const lines = canvasText.split('\n').map(l => l.trim()).filter(Boolean);
-            if (lines.length > 1) {
-                // 1. Rhyme matching with other lines' end words
-                const otherEndWords = lines.map(line => {
-                    const parts = line.split(/\s+/);
-                    return parts[parts.length - 1]?.replace(/[^a-z]/g, '') || '';
-                }).filter(ew => ew && ew !== w);
-                
-                let hasRhyme = false;
-                for (const ew of otherEndWords) {
-                    if (ew.length < 3 || w.length < 3) continue;
-                    if (w.endsWith(ew.slice(-3)) || ew.endsWith(w.slice(-3))) {
-                        contextScore += 18;
-                        hasRhyme = true;
-                        break;
-                    } else if (w.endsWith(ew.slice(-2)) || ew.endsWith(w.slice(-2))) {
-                        contextScore += 10;
-                        hasRhyme = true;
-                        break;
-                    }
-                }
-                
-                // 2. Rhythmic/Syllable balance compared to other lines
-                const countSyllables = (str: string) => (str.match(/[aeiouy]{1,2}/g) || []).length || 1;
-                const otherLinesSyllables = lines.map(line => {
-                    if (line.includes(word)) return 0;
-                    return countSyllables(line);
-                }).filter(Boolean);
-                
-                if (otherLinesSyllables.length > 0) {
-                    const avgOtherSyllables = otherLinesSyllables.reduce((a, b) => a + b, 0) / otherLinesSyllables.length;
-                    const thisLineText = lines.find(l => l.includes(word)) || '';
-                    const thisLineSylCount = countSyllables(thisLineText);
-                    const sylDiff = Math.abs(thisLineSylCount - avgOtherSyllables);
-                    
-                    if (sylDiff <= 1.5) contextScore += 12; // Perfect rhythmic balance!
-                    else if (sylDiff <= 3) contextScore += 6;
-                    else contextScore -= 8; // Rhythm feels off!
-                }
-                
-                // 3. Mood/Thematic harmony with the active inspiration category
-                const currentInspiration = carouselCards[activeInspirationIndex % 8];
-                const activeCategory = currentInspiration?.category?.toLowerCase() || '';
-                const titleText = currentInspiration?.title?.toLowerCase() || '';
-                
-                const calmKeywords = ['peace', 'still', 'quiet', 'rest', 'breath', 'slow', 'ease', 'soft', 'dream', 'sleep', 'night', 'sky', 'wind', 'light', 'achieved', 'stillness', 'calm', 'nature'];
-                const melancholyKeywords = ['sad', 'rain', 'lost', 'tears', 'dark', 'cold', 'empty', 'cry', 'alone', 'blue', 'fall', 'gone', 'grief', 'regret', 'shadow', 'fear', 'melancholy'];
-                const energyKeywords = ['fire', 'run', 'loud', 'gold', 'dance', 'burn', 'wild', 'free', 'rise', 'high', 'strong', 'light', 'sun', 'bright', 'power', 'beat', 'energy'];
-                
-                let matchesCategory = false;
-                if (activeCategory.includes('calm') || titleText.includes('stillness')) {
-                    matchesCategory = calmKeywords.some(kw => w.includes(kw) || kw.includes(w));
-                } else if (activeCategory.includes('melancholy') || activeCategory.includes('release') || titleText.includes('regret')) {
-                    matchesCategory = melancholyKeywords.some(kw => w.includes(kw) || kw.includes(w));
-                } else if (activeCategory.includes('energy') || activeCategory.includes('bold')) {
-                    matchesCategory = energyKeywords.some(kw => w.includes(kw) || kw.includes(w));
-                }
-                
-                if (matchesCategory) {
-                    contextScore += 10;
-                } else {
-                    if (activeCategory.includes('energy') && melancholyKeywords.some(kw => w.includes(kw))) {
-                        contextScore -= 10;
-                    } else if (activeCategory.includes('calm') && energyKeywords.some(kw => w.includes(kw))) {
-                        contextScore -= 8;
-                    }
-                }
-            } else {
-                const currentInspiration = carouselCards[activeInspirationIndex % 8];
-                const activeCategory = currentInspiration?.category?.toLowerCase() || '';
-                const calmKeywords = ['peace', 'still', 'quiet', 'rest', 'breath', 'slow', 'ease', 'soft', 'dream', 'sleep', 'night', 'sky', 'wind', 'light', 'achieved', 'stillness', 'calm'];
-                const melancholyKeywords = ['sad', 'rain', 'lost', 'tears', 'dark', 'cold', 'empty', 'cry', 'alone', 'blue', 'fall', 'gone', 'grief', 'regret', 'shadow', 'fear'];
-                const energyKeywords = ['fire', 'run', 'loud', 'gold', 'dance', 'burn', 'wild', 'free', 'rise', 'high', 'strong', 'light', 'sun', 'bright', 'power', 'beat', 'energy'];
-                
-                let matchesCategory = false;
-                if (activeCategory.includes('calm')) matchesCategory = calmKeywords.some(kw => w.includes(kw));
-                else if (activeCategory.includes('melancholy')) matchesCategory = melancholyKeywords.some(kw => w.includes(kw));
-                else if (activeCategory.includes('energy')) matchesCategory = energyKeywords.some(kw => w.includes(kw));
-                
-                if (matchesCategory) contextScore += 15;
-                else contextScore += 5;
-            }
-            
-            return Math.max(40, Math.min(99, contextScore));
-        }
-        
-        let score = 55; // Base score
-        
-        // 1. Length/Rhythm proximity
-        const lenDiff = Math.abs(w.length - orig.length);
-        if (lenDiff === 0) score += 10;
-        else if (lenDiff === 1) score += 7;
-        else if (lenDiff === 2) score += 4;
-        
-        // Syllable/Vowel group count proximity
-        const countSyllables = (str: string) => (str.match(/[aeiouy]{1,2}/g) || []).length || 1;
-        const sylDiff = Math.abs(countSyllables(w) - countSyllables(orig));
-        if (sylDiff === 0) score += 12;
-        else if (sylDiff === 1) score += 6;
-        
-        // 2. Vowel sound/Assonance match
-        const getVowels = (str: string) => str.replace(/[^aeiouy]/g, '');
-        if (getVowels(w) === getVowels(orig) && w !== orig) {
-            score += 15; // perfect assonance!
-        } else {
-            // partial vowel overlap
-            const v1 = new Set(getVowels(w));
-            const v2 = new Set(getVowels(orig));
-            let intersection = 0;
-            v1.forEach(v => { if (v2.has(v)) intersection++; });
-            if (intersection > 0) score += intersection * 4;
-        }
-        
-        // 3. Lyric context analysis (rhyme matching with end words in canvas)
-        const lines = canvasText.split('\n').map(l => l.trim()).filter(Boolean);
-        const endWords = lines.map(line => {
-            const parts = line.split(/\s+/);
-            return parts[parts.length - 1]?.replace(/[^a-z]/g, '') || '';
-        }).filter(Boolean);
-        
-        // Check if suggestion rhymes or shares endings with any end word of other lines
-        let hasRhymeMatch = false;
-        for (const ew of endWords) {
-            if (ew === w || ew.length < 3 || w.length < 3) continue;
-            // Check suffix match of last 2 or 3 characters (e.g. -ing, -ight, -y, -ear)
-            if (w.endsWith(ew.slice(-3)) || ew.endsWith(w.slice(-3))) {
-                score += 15;
-                hasRhymeMatch = true;
-                break;
-            } else if (w.endsWith(ew.slice(-2)) || ew.endsWith(w.slice(-2))) {
-                score += 8;
-                hasRhymeMatch = true;
-                break;
-            }
-        }
-        
-        // 4. Alliteration match with current phrase
-        if (w[0] === orig[0] && w !== orig) {
-            score += 8;
-        }
-        
-        // Bound between 40 and 99
-        return Math.max(40, Math.min(99, score));
+        if (w === orig) return 100;
+        if (orig.length >= 3 && (w.endsWith(orig.slice(-3)) || orig.endsWith(w.slice(-3)))) return 88;
+        if (orig.length >= 2 && (w.endsWith(orig.slice(-2)) || orig.endsWith(w.slice(-2)))) return 75;
+        return 65;
     };
 
     const handleWordClick = (e: React.MouseEvent, word: string, tokenIndex: number) => {
@@ -8740,14 +8973,36 @@ export default function CreatePage() {
         setClickedWord(cleanWord);
         setClickedTokenIndex(tokenIndex);
 
-        const rect = e.currentTarget.getBoundingClientRect();
-        const parentRect = e.currentTarget.closest('.cursor-text')?.getBoundingClientRect();
-        if (parentRect) {
-            setPopoverPosition({
-                top: rect.bottom - parentRect.top + 8, // 8px spacing
-                left: rect.left - parentRect.left + (rect.width / 2)
-            });
-        }
+        const targetEl = e.currentTarget as HTMLElement;
+        const rect = targetEl.getBoundingClientRect();
+        const parent = (targetEl.closest('.cursor-text') || targetEl.closest('.block-wrapper') || targetEl.closest('.creative-canvas-container') || document.body) as HTMLElement;
+        const parentRect = parent.getBoundingClientRect();
+
+        const wordCenterX = rect.left + (rect.width / 2);
+        const popoverWidth = Math.min(680, Math.min(window.innerWidth - 32, (parentRect.width || 680) - 32));
+        const halfPopover = popoverWidth / 2;
+
+        // Determine left boundary: ensure popover stays to the right of sidebar (min 280px on desktop or parent left)
+        const minLeftScreenX = Math.max(window.innerWidth >= 768 ? 280 : 16, parentRect.left + 16);
+        const maxRightScreenX = Math.min(window.innerWidth - 16, parentRect.right - 16);
+
+        const minAllowedCenterX = minLeftScreenX + halfPopover;
+        const maxAllowedCenterX = Math.max(minAllowedCenterX, maxRightScreenX - halfPopover);
+
+        // Clamp viewport X so popover stays 100% inside bounds and clear of sidebar
+        const clampedViewportX = Math.max(minAllowedCenterX, Math.min(maxAllowedCenterX, wordCenterX));
+        const clampedParentLeft = clampedViewportX - parentRect.left;
+
+        const isNearBottom = rect.bottom + 420 > window.innerHeight && rect.top > 400;
+        const topPos = isNearBottom 
+            ? rect.top - parentRect.top - 12 
+            : rect.bottom - parentRect.top + 8;
+
+        setPopoverPosition({
+            top: topPos,
+            left: clampedParentLeft,
+            isNearBottom: isNearBottom
+        });
     };
 
     const handleSelectSuggestion = (suggestion: string) => {
@@ -8903,6 +9158,27 @@ export default function CreatePage() {
     const contentVal = activeNote ? activeNote.content : '';
     const activePhrases = getActivePhrases(activeNote);
     const activeVerses = getActiveVerses(activeNote);
+    const audioByPhraseIdMap: Record<string, AudioNote[]> = {};
+    const audioByGroupIdMap: Record<string, AudioNote[]> = {};
+    if (activeAudioNotes && activeAudioNotes.length > 0) {
+        for (const an of activeAudioNotes) {
+            if (an.phraseId) {
+                if (!audioByPhraseIdMap[an.phraseId]) audioByPhraseIdMap[an.phraseId] = [];
+                audioByPhraseIdMap[an.phraseId].push(an);
+            }
+            if (an.groupId) {
+                if (!audioByGroupIdMap[an.groupId]) audioByGroupIdMap[an.groupId] = [];
+                audioByGroupIdMap[an.groupId].push(an);
+            }
+        }
+        for (const key in audioByPhraseIdMap) {
+            audioByPhraseIdMap[key] = sortAudioNotesChronologically(audioByPhraseIdMap[key]);
+        }
+        for (const key in audioByGroupIdMap) {
+            audioByGroupIdMap[key] = sortAudioNotesChronologically(audioByGroupIdMap[key]);
+        }
+    }
+
     const renderBlocks = getRenderBlocks(activePhrases, activeVerses);
     
     const phraseExists = (phraseId?: string | null) => {
@@ -9234,22 +9510,41 @@ export default function CreatePage() {
                         return updated;
                     });
 
-                    // Upload recorded track to Firebase Storage
+                    // Upload recorded track to Firebase Storage and sync to Firestore immediately
                     (async () => {
                         try {
+                            const targetTrackId = activeRecordingTrackId;
                             const recId = Math.random().toString(36).substring(2, 9);
-                            const fileRef = storageRef(storage, `users/${user?.uid || 'anonymous'}/recordings/studio_${selectedNoteId}_track_${activeRecordingTrackId}_RecId_${recId}.webm`);
+                            const fileRef = storageRef(storage, `users/${user?.uid || 'anonymous'}/recordings/studio_${selectedNoteId}_track_${targetTrackId}_RecId_${recId}.webm`);
                             await uploadBytes(fileRef, blob);
                             const downloadUrl = await getDownloadURL(fileRef);
                             
-                            // Once uploaded, replace the local blob URL with the public storage URL
+                            // Replace local blob URL with public download URL and sync directly to Firestore
                             setStudioTracks(prev => {
                                 const updated = prev.map(t => {
-                                    if (t.id === activeRecordingTrackId) {
+                                    if (t.id === targetTrackId) {
                                         return { ...t, url: downloadUrl };
                                     }
                                     return t;
                                 });
+
+                                if (selectedNoteId) {
+                                    const projectDocRef = doc(db, "projects", selectedNoteId);
+                                    const tracksToSave = updated.map(t => ({
+                                        id: t.id,
+                                        name: t.name,
+                                        type: t.type,
+                                        volume: t.volume,
+                                        pan: t.pan,
+                                        eq: t.eq,
+                                        compressor: t.compressor,
+                                        reverb: t.reverb,
+                                        url: t.url && !t.url.startsWith('blob:') ? t.url : (t.id === targetTrackId ? downloadUrl : null),
+                                        muted: !!t.muted
+                                    }));
+                                    updateDoc(projectDocRef, { studioTracks: tracksToSave }).catch(e => console.error("Error updating studioTracks doc:", e));
+                                }
+
                                 return updated;
                             });
                         } catch (uploadErr) {
@@ -9353,6 +9648,14 @@ export default function CreatePage() {
         setStudioState('idle');
         setStudioPlayhead(0);
     };
+
+    useEffect(() => {
+        if (!showToolsPanel || activeToolTab !== 'studio') {
+            if (studioState !== 'idle') {
+                stopStudioPlaybackAndReset();
+            }
+        }
+    }, [showToolsPanel, activeToolTab, studioState]);
 
     const handleUpdateTrackParam = (
         trackId: number, 
@@ -10117,12 +10420,73 @@ export default function CreatePage() {
             custom: t('instruments.custom')
         };
 
-        const remoteUsersInStudio = Object.keys(activeRemoteUsers)
-            .map(uid => ({ uid, ...activeRemoteUsers[uid] }))
-            .filter(u => u.isStudioOpen);
+        const allUsersInStudio: Array<{ uid: string; name: string; color: string; cursor?: { x: number; y: number }; isMe: boolean; activeStudioTrackId: string | number | null; isStudioRecording: boolean }> = [];
+        if (user) {
+            allUsersInStudio.push({
+                uid: user.uid,
+                name: user.displayName || user.email?.split('@')[0] || 'Me',
+                color: getMemberColorToken(user.uid),
+                isMe: true,
+                activeStudioTrackId: activeRecordingTrackId || null,
+                isStudioRecording: studioState === 'recording'
+            });
+        }
+        Object.keys(activeRemoteUsers).forEach(uid => {
+            const rUser = activeRemoteUsers[uid];
+            if (rUser && rUser.isStudioOpen) {
+                allUsersInStudio.push({
+                    uid,
+                    name: rUser.name || 'Collaborator',
+                    color: getMemberColorToken(uid),
+                    cursor: rUser.cursor,
+                    isMe: false,
+                    activeStudioTrackId: rUser.activeStudioTrackId || null,
+                    isStudioRecording: !!rUser.isStudioRecording
+                });
+            }
+        });
+
+        const remoteUsersInStudio = allUsersInStudio.filter(u => !u.isMe);
 
         return (
-            <div className="w-full text-left relative pointer-events-auto">
+            <div ref={studioContainerRef} onMouseMove={handleMouseMove} className="w-full text-left relative pointer-events-auto">
+                {/* Live Remote Cursors Layer inside Demo Studio (Matching Circle Colors Always) */}
+                {remoteUsersInStudio.map((rUser) => {
+                    if (!rUser.cursor) return null;
+                    const member = allCollabMembers.find(m => m.uid === rUser.uid);
+                    const cColor = member ? member.color : getCollabColor(rUser.color);
+                    const cursorName = rUser.name || (member ? (member.name.startsWith('Me (') ? member.name.slice(4, -1) : member.name) : 'Collaborator');
+                    return (
+                        <div 
+                            key={rUser.uid}
+                            className="absolute pointer-events-none z-50 select-none transition-all duration-100 ease-out flex flex-col items-start"
+                            style={{ 
+                                left: `${rUser.cursor.x}%`, 
+                                top: `${rUser.cursor.y}%`,
+                                transform: 'translate(-4px, -4px)'
+                            }}
+                        >
+                            <svg 
+                                className="w-7 h-7 drop-shadow-md"
+                                viewBox="0 0 134 134"
+                                fill="none"
+                            >
+                                <path 
+                                    d="M26.0776 24.6597C26.0776 17.2078 34.1446 12.5503 40.5981 16.2763L115.143 59.3147C122.598 63.6193 121.147 74.7852 112.838 77.0404L74.0838 87.5595C72.4453 88.0043 70.9525 88.8721 69.7553 90.0761L42.6222 117.362C36.5318 123.487 26.0776 119.174 26.0776 110.536L26.0776 24.6597Z" 
+                                    fill={cColor} 
+                                    stroke="white" 
+                                    strokeWidth="8"
+                                />
+                            </svg>
+                            <span 
+                                className="px-2.5 py-0.5 text-[11px] font-bold text-stone-900 rounded-full shadow-md whitespace-nowrap -mt-1 ml-3 select-none border border-white/60"
+                                style={{ backgroundColor: cColor }}
+                            >
+                                {cursorName}
+                            </span>
+                        </div>
+                    );
+                })}
                 {/* Custom Studio Notification Toast */}
                 {studioNotification.isOpen && (
                     <div className="absolute top-[-16px] left-1/2 -translate-x-1/2 bg-stone-900 text-stone-100 px-5 py-2.5 rounded-full flex items-center gap-2.5 shadow-lg border border-stone-800 text-[13px] font-sans font-medium tracking-wide animate-in fade-in slide-in-from-top-3 duration-250 z-[100] whitespace-nowrap">
@@ -10139,30 +10503,20 @@ export default function CreatePage() {
                         <h3 className="font-sans font-medium text-stone-500 text-[22px] sm:text-[26px] tracking-tight shrink-0">
                             {t('canvas.create_song') || 'Create song'}
                         </h3>
-                        {remoteUsersInStudio.length > 0 && (
-                            <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/60 rounded-full pl-3 pr-3.5 py-1 text-[12px] font-sans font-medium text-emerald-800 animate-fade-in shrink-0">
-                                <span className="relative flex h-1.5 w-1.5 shrink-0">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                                </span>
-                                <span className="truncate max-w-[140px] md:max-w-none">
-                                    {remoteUsersInStudio.length === 1 
-                                        ? `${remoteUsersInStudio[0].name} in studio` 
-                                        : `${remoteUsersInStudio.length} in studio`
-                                    }
-                                </span>
-                                <div className="flex items-center -space-x-1 ml-1 shrink-0">
-                                    {remoteUsersInStudio.map(u => (
-                                        <div 
-                                            key={u.uid}
-                                            className="w-5.5 h-5.5 rounded-full flex items-center justify-center font-bold text-[8px] border border-emerald-50 capitalize select-none shrink-0"
-                                            style={{ backgroundColor: u.color, color: '#FFFFFF' }}
-                                            title={u.name}
-                                        >
-                                            {u.name[0]}
-                                        </div>
-                                    ))}
-                                </div>
+                        
+                        {/* Collaborator Circle Avatars Stack for ALL Users inside Demo Studio */}
+                        {allUsersInStudio.length > 0 && (
+                            <div className="inline-flex items-center ml-2.5 select-none shrink-0 relative">
+                                {allUsersInStudio.map((u, i) => (
+                                    <div 
+                                        key={u.uid}
+                                        className="w-8 h-8 aspect-square rounded-full flex items-center justify-center font-normal text-[14px] text-stone-900 border-[2.5px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] capitalize shrink-0 transition-all -ml-2 first:ml-0 cursor-pointer animate-in fade-in duration-200"
+                                        style={{ backgroundColor: u.color, zIndex: 20 - i }}
+                                        title={u.isMe ? `You (${u.name})` : u.name}
+                                    >
+                                        {getFirstInitial(u.name)}
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
@@ -10221,20 +10575,43 @@ export default function CreatePage() {
                     </div>
 
                     {/* Sequencer Track List Container */}
-                    <div className="flex flex-col gap-1 w-full relative">
+                    <div className="flex flex-col gap-2.5 w-full relative">
                         {studioTracks.filter(Boolean).map((track, idx) => {
                             const isArmed = activeRecordingTrackId === track.id;
                             const isThisTrackRecording = studioState === 'recording' && isArmed;
 
-                            const collaboratorOnTrack = Object.values(activeRemoteUsers)
+                            const collaboratorOnTrack = Object.keys(activeRemoteUsers)
+                                .map(uid => ({ uid, ...activeRemoteUsers[uid] }))
                                 .find(u => u.isStudioOpen && u.activeStudioTrackId !== null && u.activeStudioTrackId !== undefined && String(u.activeStudioTrackId) === String(track.id));
                             const hasCollab = !!collaboratorOnTrack;
                             const isCollabRecording = hasCollab && collaboratorOnTrack.isStudioRecording;
-                            const collabColor = collaboratorOnTrack?.color || 'rose';
                             
-                            const collabBorderColor = isCollabRecording 
-                                ? '#EF4444' // solid red
-                                : (collabColor === 'rose' ? '#F43F5E' : collabColor === 'indigo' ? '#6366F1' : collabColor === 'emerald' ? '#10B981' : collabColor === 'amber' ? '#F59E0B' : collabColor === 'sky' ? '#0EA5E9' : '#F43F5E');
+                            // User active on track determination with strict getMemberColorToken lookup
+                            const trackActiveUser = (() => {
+                                if (collaboratorOnTrack) {
+                                    const targetUid = collaboratorOnTrack.uid;
+                                    const member = allCollabMembers.find(m => m.uid === targetUid);
+                                    return {
+                                        uid: targetUid,
+                                        name: collaboratorOnTrack.name || (member ? (member.name.startsWith('Me (') ? member.name.slice(4, -1) : member.name) : 'Collaborator'),
+                                        color: getMemberColorToken(targetUid)
+                                    };
+                                }
+                                if (isArmed && user) {
+                                    return {
+                                        uid: user.uid,
+                                        name: user.displayName || user.email?.split('@')[0] || 'Me',
+                                        color: getMemberColorToken(user.uid)
+                                    };
+                                }
+                                return null;
+                            })();
+
+                            const trackBorderColor = isCollabRecording 
+                                ? '#EF4444'
+                                : (trackActiveUser ? trackActiveUser.color : null);
+
+                            const userInitial = trackActiveUser ? getFirstInitial(trackActiveUser.name) : null;
 
                             return (
                                 <div 
@@ -10251,31 +10628,36 @@ export default function CreatePage() {
                                         setActiveRecordingTrackId(track.id);
                                         setExpandedTrackId(expandedTrackId === track.id ? null : track.id);
                                     }}
-                                    className={`studio-track-row flex items-center gap-3 w-full select-none border-b border-stone-300/40 last:border-0 relative transition-all duration-200 group ${
+                                    className={`studio-track-row flex items-center gap-3 w-full select-none rounded-2xl relative transition-all duration-200 group ${
                                         isCollabRecording ? '' : 'cursor-pointer'
                                     } ${
                                         expandedTrackId === track.id ? 'h-[92px] py-2' : 'h-15 sm:h-16 py-1'
                                     } px-4 ${
                                         isArmed 
-                                            ? 'bg-stone-200/50 hover:bg-stone-200/60' 
-                                            : 'bg-stone-50/70 hover:bg-stone-200/35'
+                                            ? 'bg-stone-150/70 hover:bg-stone-200/70' 
+                                            : 'bg-stone-50/70 hover:bg-stone-100/80'
                                     } ${
                                         (activeTrackMenuId === track.id || activeTrackDropdownId === track.id)
                                             ? 'z-40'
                                             : 'z-10'
                                     }`}
                                     style={{
-                                        outline: isCollabRecording ? '1.5px solid #EF4444' : undefined,
-                                        outlineOffset: '-1.5px'
+                                        border: trackBorderColor ? `2px solid ${trackBorderColor}` : '1px solid rgba(229, 231, 235, 0.7)',
+                                        boxShadow: trackBorderColor ? `0 0 12px ${trackBorderColor}20` : undefined
                                     }}
                                 >
-                                    {/* Left Border Indicator for Collaborator Activity */}
-                                    {hasCollab && (
+                                    {/* Left Floating Avatar Circle Badge */}
+                                    {trackActiveUser && (
                                         <div 
-                                            className={`absolute left-0 top-0 bottom-0 w-1 transition-all ${isCollabRecording ? 'animate-pulse w-1.5' : ''}`}
-                                            style={{ backgroundColor: collabBorderColor }}
-                                        />
+                                            className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center font-bold text-[12px] text-white shadow-md border-2 border-white z-30 select-none uppercase transition-transform hover:scale-110"
+                                            style={{ backgroundColor: trackBorderColor || '#818CF8', color: '#1C1917' }}
+                                            title={`${trackActiveUser.name} is on this track`}
+                                        >
+                                            {userInitial}
+                                        </div>
                                     )}
+
+
                                     {/* Drag Handle */}
                                     <div 
                                         onMouseEnter={() => setDraggableTrackId(track.id)}
@@ -10453,30 +10835,7 @@ export default function CreatePage() {
                                         )}
                                     </div>
 
-                                    {/* Track Presence Indicators */}
-                                    {(() => {
-                                        const activeRemoteCollaboratorsOnThisTrack = Object.keys(activeRemoteUsers)
-                                            .map(uid => ({ uid, ...activeRemoteUsers[uid] }))
-                                            .filter(u => u.isStudioOpen && u.activeStudioTrackId !== null && u.activeStudioTrackId !== undefined && String(u.activeStudioTrackId) === String(track.id));
-                                        if (activeRemoteCollaboratorsOnThisTrack.length === 0) return null;
-                                        return (
-                                            <div className="flex items-center -space-x-1.5 ml-1 mr-1 shrink-0 z-20">
-                                                {activeRemoteCollaboratorsOnThisTrack.map((u) => (
-                                                    <div 
-                                                        key={u.uid}
-                                                        className="w-6.5 h-6.5 rounded-full flex items-center justify-center font-bold text-[9px] border border-white capitalize select-none relative shrink-0 ring-2 ring-emerald-500/20 animate-pulse"
-                                                        style={{ 
-                                                            backgroundColor: u.color,
-                                                            color: '#FFFFFF'
-                                                        }}
-                                                        title={`${u.name} is working on this track`}
-                                                    >
-                                                        {u.name[0]}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        );
-                                    })()}
+
 
                                     {/* Controllers Container (No background, larger items) */}
                                     <div className={`px-2 flex items-center justify-between w-[240px] xl:w-[280px] shrink-0 relative select-none transition-all duration-200 ${
@@ -10600,6 +10959,16 @@ export default function CreatePage() {
                                                         studioState={studioState}
                                                         trackName={track.name}
                                                     />
+
+                                                    {/* Live Collaborator Recording Badge Centered in Waveform Area */}
+                                                    {isCollabRecording && (
+                                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 select-none">
+                                                            <div className="bg-[#FF5555] text-white font-bold text-[12px] px-4 py-1.5 rounded-full shadow-lg border border-white/30 flex items-center gap-2 animate-pulse whitespace-nowrap">
+                                                                <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
+                                                                <span className="tracking-tight">{collaboratorOnTrack.name} Recording...</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })()}
@@ -11837,7 +12206,7 @@ export default function CreatePage() {
                 [noteKey]: noteAnswers
             };
             setInspirationAnswers(updated);
-            localStorage.setItem('veinote-inspiration-answers', JSON.stringify(updated));
+            safeLocalStorageSetItem('veinote-inspiration-answers', JSON.stringify(updated));
         };
 
         const handleCopySummaryToCanvas = () => {
@@ -12508,6 +12877,55 @@ export default function CreatePage() {
                 return <TouchDragGhost label={ghostLabel} pos={touchGhostPos} />;
             })()}
             
+            {/* 1a. Top Collaboration Invitation Capsule Banner (Above Canvas Card) */}
+            {pendingInvites.length > 0 && !isCanvasPreview && (
+                <div className="w-full flex items-center justify-center px-4 pt-1 pb-3 z-30 select-none animate-in fade-in slide-in-from-top-3 duration-300">
+                    <div 
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="bg-[#78B673] text-white rounded-full px-5 py-2 shadow-md flex items-center justify-between gap-5 sm:gap-7 border border-[#6FA96A] max-w-fit mx-auto transition-all"
+                    >
+                        {/* Status dot + text */}
+                        <div className="flex items-center gap-2.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#E5FE6C] animate-pulse shrink-0" />
+                            <span className="font-medium text-[14px] sm:text-[14.5px] text-white tracking-tight whitespace-nowrap">
+                                {pendingInvites[0].senderName || "Peter"} invited you for collab
+                            </span>
+                        </div>
+
+                        {/* Actions: Decline & Join */}
+                        <div className="flex items-center gap-3 shrink-0">
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConfirmCloseCollab({
+                                        isOpen: true,
+                                        type: 'decline_invite',
+                                        invite: pendingInvites[0]
+                                    });
+                                }}
+                                className="text-stone-900 hover:text-stone-950 font-medium text-[13.5px] cursor-pointer transition-colors px-1 bg-transparent border-none outline-none"
+                            >
+                                Decline
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    await handleAcceptInvite(pendingInvites[0]);
+                                }}
+                                className="bg-[#E5FE6C] hover:bg-[#EEFE7B] text-stone-950 font-semibold text-[13.5px] px-4 py-1.5 rounded-full shadow-xs transition-all cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 border-none outline-none"
+                            >
+                                <span>Join</span>
+                                <ArrowRight size={14} className="stroke-[2.5]" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* 1. TYPING / WRITING CANVAS AREA (Top Panel) */}
             <div 
                 ref={writingCanvasRef}
@@ -12589,7 +13007,9 @@ export default function CreatePage() {
                 }}
                 className="bg-white border border-stone-200/60 shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative cursor-text justify-between w-full"
             >
-                {/* 1a. Canvas Header (Title and Ellipsis Menu) */}
+
+
+                {/* 1b. Canvas Header (Title and Ellipsis Menu) */}
                 <div 
                     id="canvas-header"
                     className="w-full flex items-center justify-between gap-4 pb-4 border-b border-stone-200/40 select-none z-20 cursor-default"
@@ -12663,43 +13083,10 @@ export default function CreatePage() {
                     
                     {/* Collaborative Users Share Button */}
                     <div className="flex items-center gap-3 mr-1 shrink-0">
-                        {/* Unified Collab Button (Pending Invitation / Active / Passive States) */}
+                        {/* Unified Collab Button (Active / Passive States) */}
                         {!isCanvasPreview && (
-                            pendingInvites.length > 0 ? (
-                                <button 
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowShareModal(true);
-                                    }}
-                                    className="relative flex items-center gap-2 pl-3.5 pr-2.5 py-1.5 bg-yellow-400 border border-yellow-500 text-stone-900 hover:bg-yellow-500 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-pulse"
-                                    title="View incoming invitation"
-                                >
-                                    <span className="relative flex h-1.5 w-1.5 shrink-0 mr-0.5">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-stone-900 opacity-75" />
-                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-stone-900" />
-                                    </span>
-                                    <span>{pendingInvites[0].senderName || "Someone"} invited you</span>
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setConfirmCloseCollab({
-                                                isOpen: true,
-                                                type: 'decline_invite',
-                                                invite: pendingInvites[0]
-                                            });
-                                        }}
-                                        className="text-stone-900/60 hover:text-stone-950 p-0.5 rounded-full hover:bg-stone-900/10 transition-colors ml-1 cursor-pointer outline-none flex items-center justify-center shrink-0"
-                                        title="Decline invitation"
-                                    >
-                                        <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                                        </svg>
-                                    </button>
-                                </button>
-                            ) : isActiveCollab ? (
-                                <button 
+                            isActiveCollab ? (
+                                <div 
                                     onClick={() => setShowShareModal(true)}
                                     className="relative flex items-center gap-2 pl-3.5 pr-1.5 py-1.5 bg-emerald-50 border border-emerald-200/65 text-emerald-800 hover:bg-emerald-100/80 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs select-none shrink-0 animate-fade-in"
                                     title="View collaboration details"
@@ -12708,58 +13095,30 @@ export default function CreatePage() {
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
                                     </span>
-                                    <span>
-                                        {activeNote && activeNote.ownerId && activeNote.ownerId !== user?.uid
-                                            ? `Co-writing with ${collaboratorProfiles[activeNote.ownerId]?.name || 'Owner'}`
-                                            : (collaborators.length > 0
-                                                ? `Co-writing with ${collaboratorProfiles[collaborators[0]]?.name || 'Collaborator'}${collaborators.length > 1 ? ` & ${collaborators.length - 1} others` : ''}`
-                                                : 'Co-writing'
-                                            )
-                                        }
-                                    </span>
+                                    <span>Collab</span>
                                     
-                                    {/* Collaborator Avatars inline inside button */}
-                                    {collaborators.length > 0 && (
-                                        <div className="flex items-center -space-x-1.5 ml-1 mr-0.5">
-                                            {collaborators.slice(0, 3).map((collabUid) => {
-                                                const profile = collaboratorProfiles[collabUid] || { name: 'Collaborator', email: '' };
-                                                const hash = collabUid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                                                const isUserActive = activeRemoteUsers[collabUid] !== undefined;
-                                                const color = isUserActive 
-                                                    ? activeRemoteUsers[collabUid].color 
-                                                    : COLLABORATOR_COLORS[hash % COLLABORATOR_COLORS.length];
-
+                                    {/* Active & Invited Collaboration Members Avatars inside capsule (Matching Who's in) */}
+                                    {allCollabMembers.length > 0 && (
+                                        <div className="inline-flex items-center ml-2 mr-0.5 select-none shrink-0 relative">
+                                            {allCollabMembers.slice(0, 5).map((member, i) => {
+                                                const displayName = member.name.startsWith('Me (') ? member.name.slice(4, -1) : member.name;
+                                                const initial = getFirstInitial(displayName);
                                                 return (
                                                     <div 
-                                                        key={collabUid} 
-                                                        className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] border border-emerald-50 capitalize select-none relative shrink-0 ${
-                                                            isUserActive ? 'ring-[1px] ring-emerald-500/50' : ''
+                                                        key={member.uid} 
+                                                        className={`w-8 h-8 aspect-square rounded-full flex items-center justify-center font-normal text-[13.5px] text-stone-900 border-[2.5px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.14)] capitalize shrink-0 transition-all -ml-2.5 first:ml-0 cursor-pointer ${
+                                                            member.isActive ? 'opacity-100 ring-2 ring-emerald-400/40' : 'opacity-70'
                                                         }`}
                                                         style={{ 
-                                                            backgroundColor: color,
-                                                            color: (() => {
-                                                                const cleanColor = color.toUpperCase().replace('#', '');
-                                                                if (cleanColor.length === 6) {
-                                                                    const r = parseInt(cleanColor.substring(0, 2), 16);
-                                                                    const g = parseInt(cleanColor.substring(2, 4), 16);
-                                                                    const b = parseInt(cleanColor.substring(4, 6), 16);
-                                                                    const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-                                                                    return luma > 0.65 ? '#1C1917' : '#FFFFFF';
-                                                                }
-                                                                return '#FFFFFF';
-                                                            })()
+                                                            backgroundColor: member.color,
+                                                            zIndex: 15 - i
                                                         }}
-                                                        title={`${profile.name} (${isUserActive ? 'Active' : 'Offline'})`}
+                                                        title={`${member.name}${member.isActive ? ' (Online)' : ' (Offline)'}`}
                                                     >
-                                                        {profile.name[0]}
+                                                        {initial}
                                                     </div>
                                                 );
                                             })}
-                                            {collaborators.length > 3 && (
-                                                <div className="w-6 h-6 rounded-full bg-emerald-100 border border-emerald-50 flex items-center justify-center text-[8px] font-bold text-emerald-800 select-none shrink-0">
-                                                    +{collaborators.length - 3}
-                                                </div>
-                                            )}
                                         </div>
                                     )}
 
@@ -12778,7 +13137,7 @@ export default function CreatePage() {
                                     >
                                         <X size={15} className="stroke-[2.5]" />
                                     </button>
-                                </button>
+                                </div>
                             ) : (
                                 <button 
                                     onClick={async (e) => {
@@ -13013,127 +13372,59 @@ export default function CreatePage() {
                                 (showToolsPanel && activeToolTab === 'studio') ? 'max-w-full lg:max-w-[calc(100%-1rem)] xl:max-w-[1560px]' : 'max-w-4xl'
                             }`}>
 
-                                {/* Moodboard Gallery */}
+                                {/* Images Display Cards */}
                                 {activeNote?.images && activeNote.images.length > 0 && (
-                                    <div className="flex flex-col mb-4 px-1 flex-shrink-0">
-                                        <span className="text-[13px] font-sans font-medium text-stone-500 mb-2 select-none">Moodboard</span>
-                                        <div className="flex gap-4 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
-                                            {activeNote.images.map((img) => (
-                                                <div 
-                                                    key={img.id}
-                                                    className="relative group w-44 h-28 rounded-2xl overflow-hidden border border-stone-200/60 shadow-sm flex-shrink-0 cursor-pointer hover:shadow-md transition-all bg-stone-100 flex items-center justify-center"
-                                                    onClick={() => setPreviewImageUrl(img.url)}
-                                                >
-                                                    <img 
-                                                        src={img.url} 
-                                                        alt={img.name || 'Moodboard'} 
-                                                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                                    />
-                                                    {/* Delete button */}
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (confirm("Delete this image from moodboard?")) {
-                                                                const updatedImages = (activeNote.images || []).filter(i => i.id !== img.id);
-                                                                handleUpdateNote(activeNote.id, { images: updatedImages });
-                                                            }
-                                                        }}
-                                                        className="absolute top-2 right-2 bg-stone-900/60 hover:bg-stone-900/85 text-white rounded-full p-1.5 transition-all opacity-0 group-hover:opacity-100 z-10 cursor-pointer shadow border-none outline-none flex items-center justify-center"
-                                                    >
-                                                        <X size={12} className="stroke-[3]" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
+                                    <div className="flex flex-col gap-3 mb-2 px-1 flex-shrink-0 w-full items-center">
+                                        {activeNote.images.map((img) => (
+                                            <ImageCapsuleCard
+                                                key={img.id}
+                                                img={img}
+                                                onRename={(newName) => {
+                                                    const updatedImages = (activeNote.images || []).map(i => i.id === img.id ? { ...i, name: newName } : i);
+                                                    handleUpdateNote(activeNote.id, { images: updatedImages });
+                                                }}
+                                                onDelete={() => {
+                                                    if (confirm("Delete this image?")) {
+                                                        const updatedImages = (activeNote.images || []).filter(i => i.id !== img.id);
+                                                        handleUpdateNote(activeNote.id, { images: updatedImages });
+                                                    }
+                                                }}
+                                                onScan={() => {
+                                                    handleScanImage(img.id);
+                                                }}
+                                                onPreview={() => setPreviewImageUrl(img.url)}
+                                                isScanning={scanningImageId === img.id}
+                                            />
+                                        ))}
                                     </div>
                                 )}
 
-                                {/* Documents Gallery */}
+                                {/* Documents Capsule Cards */}
                                 {activeNote?.documents && activeNote.documents.length > 0 && (
-                                    <div className="flex flex-col mb-4 px-1 flex-shrink-0">
-                                        <span className="text-[13px] font-sans font-medium text-stone-500 mb-2 select-none">Documents</span>
-                                        <div className="flex gap-4 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
-                                            {activeNote.documents.map((doc) => {
-                                                // Icon color depending on file type
-                                                let iconBg = 'bg-stone-50';
-                                                let iconColor = 'text-stone-500';
-                                                if (doc.type === 'pdf') {
-                                                    iconBg = 'bg-red-50';
-                                                    iconColor = 'text-red-500';
-                                                } else if (doc.type === 'doc' || doc.type === 'docx') {
-                                                    iconBg = 'bg-blue-50';
-                                                    iconColor = 'text-blue-500';
-                                                } else if (doc.type === 'txt' || doc.type === 'md') {
-                                                    iconBg = 'bg-emerald-50';
-                                                    iconColor = 'text-emerald-600';
-                                                }
-
-                                                // Human readable size helper
-                                                const formatSize = (bytes?: number) => {
-                                                    if (!bytes) return '';
-                                                    if (bytes < 1024) return `${bytes} B`;
-                                                    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-                                                    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-                                                };
-
-                                                return (
-                                                    <div 
-                                                        key={doc.id}
-                                                        className="relative group w-44 h-28 rounded-2xl border border-stone-200/60 shadow-sm flex-shrink-0 cursor-pointer hover:shadow-md transition-all bg-white flex flex-col justify-between p-3.5 select-none"
-                                                        onClick={() => {
-                                                            try {
-                                                                const link = document.createElement('a');
-                                                                link.href = doc.url;
-                                                                link.download = doc.name;
-                                                                document.body.appendChild(link);
-                                                                link.click();
-                                                                document.body.removeChild(link);
-                                                            } catch (err) {
-                                                                window.open(doc.url, '_blank');
-                                                            }
-                                                        }}
-                                                    >
-                                                        {/* Top Row: File icon & Extension Badge */}
-                                                        <div className="flex justify-between items-start">
-                                                            <div className={`p-2 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center`}>
-                                                                <FileText size={20} />
-                                                            </div>
-                                                            <span className="text-[10px] font-sans font-bold text-stone-400 uppercase tracking-wider bg-stone-100 px-2 py-0.5 rounded-md">
-                                                                {doc.type}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Bottom Row: Name & Size */}
-                                                        <div className="flex flex-col gap-0.5">
-                                                            <span className="text-[12.5px] font-sans font-semibold text-stone-750 truncate max-w-full leading-tight pr-4" title={doc.name}>
-                                                                {doc.name}
-                                                            </span>
-                                                            <span className="text-[10.5px] font-sans font-medium text-stone-400">
-                                                                {formatSize(doc.size)}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Delete button */}
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (confirm(`Delete document "${doc.name}"?`)) {
-                                                                    const updatedDocs = (activeNote.documents || []).filter(d => d.id !== doc.id);
-                                                                    handleUpdateNote(activeNote.id, { documents: updatedDocs });
-                                                                }
-                                                            }}
-                                                            className="absolute top-2 right-2 bg-stone-900/60 hover:bg-stone-900/85 text-white rounded-full p-1.5 transition-all opacity-0 group-hover:opacity-100 z-10 cursor-pointer shadow border-none outline-none flex items-center justify-center"
-                                                        >
-                                                            <X size={12} className="stroke-[3]" />
-                                                        </button>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                    <div className="flex flex-col gap-3 mb-2 px-1 flex-shrink-0 w-full items-center">
+                                        {activeNote.documents.map((doc) => (
+                                            <DocumentCapsuleCard
+                                                key={doc.id}
+                                                doc={doc}
+                                                onRename={(newName) => {
+                                                    const updatedDocs = (activeNote.documents || []).map(d => d.id === doc.id ? { ...d, name: newName } : d);
+                                                    handleUpdateNote(activeNote.id, { documents: updatedDocs });
+                                                }}
+                                                onDelete={() => {
+                                                    if (confirm(`Delete document "${doc.name}"?`)) {
+                                                        const updatedDocs = (activeNote.documents || []).filter(d => d.id !== doc.id);
+                                                        handleUpdateNote(activeNote.id, { documents: updatedDocs });
+                                                    }
+                                                }}
+                                                onScan={() => {
+                                                    handleTranscribeDocument(doc.id);
+                                                }}
+                                                isScanning={transcribingDocId === doc.id}
+                                            />
+                                        ))}
                                     </div>
                                 )}
+
                                 
                                 {/* Read-only lock in preview mode — no blur, no tint, just blocks all interaction */}
                                 <div className={`relative ${isCanvasPreview ? 'select-none' : ''}`}>
@@ -13472,7 +13763,7 @@ export default function CreatePage() {
                                                                         </div>
                                                                     )}
 
-                                                                    {sortAudioNotesChronologically(activeAudioNotes.filter(an => an.groupId === block.groupId)).map(audioNote => (
+                                                                    {(audioByGroupIdMap[block.groupId || ''] || []).map(audioNote => (
                                                                         <AudioCapsulePlayer 
                                                                             key={audioNote.id}
                                                                             audioNote={audioNote}
@@ -13552,7 +13843,7 @@ export default function CreatePage() {
                                                                                             setDragOverWordIndex={setDragOverWordIndex}
                                                                                             handleWordDrop={handleWordDrop}
                                                                                             handleWordDropOnPhrase={handleWordDropOnPhrase}
-                                                                                            hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
+                                                                                            hasAudioNote={!!(audioByPhraseIdMap[phrase.id] && audioByPhraseIdMap[phrase.id].length > 0)}
                                                                                             handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
                                                                                             draggedAudioId={draggedAudioId}
                                                                                             activeRemoteUsers={activeRemoteUsers}
@@ -13572,7 +13863,7 @@ export default function CreatePage() {
                                                 ) : (
                                                     (() => {
                                                         const phrase = block.phrases[0];
-                                                        const phraseAudios = sortAudioNotesChronologically(activeAudioNotes.filter(an => an.phraseId === phrase.id));
+                                                        const phraseAudios = audioByPhraseIdMap[phrase.id] || [];
                                                         return (
                                                             <div className="flex flex-col items-center w-full gap-2">
                                                                 {phraseAudios.map((audioNote, idx) => (
@@ -13785,7 +14076,7 @@ export default function CreatePage() {
                                                                         setDragOverWordIndex={setDragOverWordIndex}
                                                                         handleWordDrop={handleWordDrop}
                                                                         handleWordDropOnPhrase={handleWordDropOnPhrase}
-                                                                        hasAudioNote={activeAudioNotes.some(an => an.phraseId === phrase.id)}
+                                                                        hasAudioNote={!!(audioByPhraseIdMap[phrase.id] && audioByPhraseIdMap[phrase.id].length > 0)}
                                                                         handlePlaceAudioAsLineAt={handlePlaceAudioAsLineAt}
                                                                         draggedAudioId={draggedAudioId}
                                                                         activeRemoteUsers={activeRemoteUsers}
@@ -14014,7 +14305,7 @@ export default function CreatePage() {
                             style={isMobile ? undefined : { 
                                 top: `${popoverPosition.top}px`, 
                                 left: `${popoverPosition.left}px`,
-                                transform: 'translateX(-50%)' 
+                                transform: popoverPosition.isNearBottom ? 'translate(-50%, -100%)' : 'translateX(-50%)' 
                             }}
                         >
                             {/* Header: Hovered word + compatibility */}
@@ -14382,11 +14673,13 @@ export default function CreatePage() {
                     </div>
                 </div>
 
-                {/* Remote Collaborator Cursors Layer */}
+                {/* Remote Collaborator Cursors Layer (Matching Circle Colors Always) */}
                 {Object.keys(activeRemoteUsers).map((uid) => {
                     const rUser = activeRemoteUsers[uid];
-                    if (!rUser.cursor) return null;
-                    const color = rUser.color;
+                    if (!rUser || !rUser.cursor) return null;
+                    const member = allCollabMembers.find(m => m.uid === uid);
+                    const color = member ? member.color : getCollabColor(rUser.color);
+                    const cursorName = (rUser.name || (member ? (member.name.startsWith('Me (') ? member.name.slice(4, -1) : member.name) : 'Collaborator')).split(' ')[0];
                     
                     return (
                         <div 
@@ -14411,29 +14704,16 @@ export default function CreatePage() {
                                 <path 
                                     d="M26.0776 24.6597C26.0776 17.2078 34.1446 12.5503 40.5981 16.2763L115.143 59.3147C122.598 63.6193 121.147 74.7852 112.838 77.0404L74.0838 87.5595C72.4453 88.0043 70.9525 88.8721 69.7553 90.0761L42.6222 117.362C36.5318 123.487 26.0776 119.174 26.0776 110.536L26.0776 24.6597Z" 
                                     fill={color} 
-                                    stroke="black" 
-                                    strokeWidth="7.60595"
+                                    stroke="rgba(0,0,0,0.15)" 
+                                    strokeWidth="4"
                                 />
                             </svg>
                             
                             <div 
-                                className="mt-1.5 text-[13px] font-sans font-bold px-3.5 py-1 rounded-full shadow-2xs whitespace-nowrap select-none capitalize"
-                                style={{ 
-                                    backgroundColor: color,
-                                    color: (() => {
-                                        const cleanColor = color.toUpperCase().replace('#', '');
-                                        if (cleanColor.length === 6) {
-                                            const r = parseInt(cleanColor.substring(0, 2), 16);
-                                            const g = parseInt(cleanColor.substring(2, 4), 16);
-                                            const b = parseInt(cleanColor.substring(4, 6), 16);
-                                            const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-                                            return luma > 0.65 ? '#1C1917' : '#FFFFFF';
-                                        }
-                                        return '#FFFFFF';
-                                    })()
-                                }}
+                                className="mt-1 text-[13px] font-sans font-medium px-3.5 py-1 rounded-full shadow-md whitespace-nowrap select-none capitalize text-stone-900 border border-white/60"
+                                style={{ backgroundColor: color }}
                             >
-                                {rUser.name.split(' ')[0]}
+                                {cursorName}
                             </div>
                         </div>
                     );

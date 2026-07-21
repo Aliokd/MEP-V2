@@ -1,5 +1,5 @@
 "use client";
-
+import { safeLocalStorageSetItem } from '@/lib/storage';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -63,7 +63,7 @@ export default function PlatformPage() {
     useEffect(() => {
         if (data) {
             const masteredIds = data.user.lessonProgress.filter(p => p.status === 'MASTERED').map(p => p.lessonId);
-            localStorage.setItem('mep-completed-lessons', JSON.stringify(masteredIds));
+            safeLocalStorageSetItem('mep-completed-lessons', JSON.stringify(masteredIds));
             window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
         }
     }, [data]);

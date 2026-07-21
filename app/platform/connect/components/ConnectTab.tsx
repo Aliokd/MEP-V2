@@ -1,5 +1,5 @@
 "use client";
-
+import { safeLocalStorageSetItem } from '@/lib/storage';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
@@ -1073,7 +1073,7 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
       if (savedNotesRaw) {
         currentNotes = JSON.parse(savedNotesRaw);
       }
-      localStorage.setItem('veinote-create-notes', JSON.stringify([duplicatedProject, ...currentNotes]));
+      safeLocalStorageSetItem('veinote-create-notes', JSON.stringify([duplicatedProject, ...currentNotes]));
     } catch (e) {
       console.error("Error writing duplicated project to cache fallback:", e);
     }

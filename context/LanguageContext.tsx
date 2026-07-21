@@ -30,7 +30,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem('veinote-lang', lang);
+    try {
+      localStorage.setItem('veinote-lang', lang);
+    } catch (e) {
+      console.warn('Failed to save veinote-lang to localStorage:', e);
+    }
   };
 
   // Helper function to resolve dot-notation strings, e.g. "navigation.create"

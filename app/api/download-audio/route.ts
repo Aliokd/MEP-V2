@@ -17,12 +17,14 @@ export async function GET(req: NextRequest) {
         const arrayBuffer = await response.arrayBuffer();
         const headers = new Headers();
         
-        // Forward content-type if available, otherwise default to audio/mpeg
-        const contentType = response.headers.get('content-type') || 'audio/mpeg';
+        // Forward content-type if valid, otherwise default to audio/webm
+        const rawType = response.headers.get('content-type') || '';
+        const contentType = (rawType && !rawType.includes('octet-stream')) ? rawType : 'audio/webm';
         headers.set('Content-Type', contentType);
         
-        // Disable caching to get fresh uploads
-        headers.set('Cache-Control', 'no-store, max-age=0');
+        // Enable caching & CORS headers
+        headers.set('Access-Control-Allow-Origin', '*');
+        headers.set('Cache-Control', 'public, max-age=3600');
 
         return new NextResponse(Buffer.from(arrayBuffer), {
             status: 200,
