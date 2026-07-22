@@ -19,11 +19,19 @@ jobs:
       - name: Create environment configuration
         run: |
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
+          echo "SMTP_HOST=${{ secrets.SMTP_HOST }}" >> .env
+          echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env
+          echo "SMTP_USER=${{ secrets.SMTP_USER }}" >> .env
+          echo "SMTP_PASS=${{ secrets.SMTP_PASS }}" >> .env
       - run: npm run build
       - name: Deploy to Firebase Hosting (CLI)
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: |
           if ! npx firebase deploy --only hosting --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}" > deploy.log 2>&1; then
             cat deploy.log

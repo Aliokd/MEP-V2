@@ -64,11 +64,9 @@ Do NOT correct spelling, do NOT translate, and do NOT add markdown wrappers or c
 If the image has NO text or lyrics on it at all, output EXACTLY: NO_TEXT`;
 
         const modelsToTry = [
-            'gemini-1.5-flash',
-            'gemini-2.0-flash-lite-preview-02-05',
-            'gemini-flash-lite-latest',
-            'gemini-1.5-pro',
-            'gemini-2.0-flash'
+            'gemini-2.5-flash-lite',
+            'gemini-2.5-flash',
+            'gemini-3.5-flash-lite',
         ];
 
         let extractedText: string | null = null;
@@ -100,7 +98,6 @@ If the image has NO text or lyrics on it at all, output EXACTLY: NO_TEXT`;
                             }
                         ],
                         generationConfig: {
-                            temperature: 0.1,
                             maxOutputTokens: 2048
                         }
                     })

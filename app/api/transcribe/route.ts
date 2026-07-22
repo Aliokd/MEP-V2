@@ -67,11 +67,9 @@ export async function POST(request: Request) {
         const prompt = `Transcribe the audio accurately. The spoken language is strictly ${languageName}. Do NOT translate the words to English. The transcription output must be in ${languageName} only. Do not mix English words into the transcription unless the speaker literally said an English word. Output ONLY the transcription text, nothing else. If there is no speech or only background noise, return NO_SPEECH.`;
 
         const modelsToTry = [
-            'gemini-1.5-flash',
-            'gemini-2.0-flash-lite-preview-02-05',
-            'gemini-flash-lite-latest',
-            'gemini-1.5-pro',
-            'gemini-2.0-flash',
+            'gemini-2.5-flash-lite',
+            'gemini-2.5-flash',
+            'gemini-3.5-flash-lite',
         ];
 
         let transcript = '';
@@ -98,7 +96,6 @@ export async function POST(request: Request) {
                             }
                         ],
                         generationConfig: {
-                            temperature: 0.1,
                             maxOutputTokens: 2000
                         }
                     })

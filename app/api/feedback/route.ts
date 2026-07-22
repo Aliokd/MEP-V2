@@ -36,6 +36,11 @@ export async function POST(request: Request) {
             console.error('Error saving feedback to Firestore:', dbError);
         });
 
+        if (!process.env.SMTP_PASS) {
+            console.error('SMTP_PASS is not configured — cannot send feedback email.');
+            return NextResponse.json({ error: 'Email service is not configured' }, { status: 500 });
+        }
+
         // Configure Nodemailer transporter with SMTP credentials
         const transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST || 'send.one.com',
@@ -43,7 +48,7 @@ export async function POST(request: Request) {
             secure: true,
             auth: {
                 user: process.env.SMTP_USER || 'support@veinote.com',
-                pass: process.env.SMTP_PASS || 'scH$@@qk^BpkTi23s%JJ',
+                pass: process.env.SMTP_PASS,
             },
         });
 

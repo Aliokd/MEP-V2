@@ -10,6 +10,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
+        if (!process.env.SMTP_PASS) {
+            console.error('SMTP_PASS is not configured — cannot send support email.');
+            return NextResponse.json({ error: 'Email service is not configured' }, { status: 500 });
+        }
+
         // Configure Nodemailer transporter with One.com SMTP credentials
         const transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST || 'send.one.com',
@@ -17,7 +22,7 @@ export async function POST(request: Request) {
             secure: true, // true for port 465
             auth: {
                 user: process.env.SMTP_USER || 'support@veinote.com',
-                pass: process.env.SMTP_PASS || 'scH$@@qk^BpkTi23s%JJ',
+                pass: process.env.SMTP_PASS,
             },
         });
 
