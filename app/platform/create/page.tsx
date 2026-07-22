@@ -4775,7 +4775,7 @@ export default function CreatePage() {
             (!activeNote.images || activeNote.images.length === 0) &&
             (!activeNote.documents || activeNote.documents.length === 0) &&
             (!activeNote.verses || activeNote.verses.length === 0) &&
-            (!activeNote.phrases || activeNote.phrases.length === 0)
+            (!activeNote.phrases || activeNote.phrases.filter(p => p.text.trim() !== '').length === 0)
         )
     );
 
