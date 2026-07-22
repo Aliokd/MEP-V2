@@ -23,6 +23,7 @@ jobs:
       - name: Deploy to Firebase Hosting (CLI)
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           if ! npx firebase deploy --only hosting --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}" > deploy.log 2>&1; then
             cat deploy.log
