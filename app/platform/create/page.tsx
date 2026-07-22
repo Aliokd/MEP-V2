@@ -24,7 +24,7 @@ const getCollabColor = (colorNameOrHex?: string) => {
     }
 };
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { safeLocalStorageSetItem } from '@/lib/storage';
@@ -90,7 +90,8 @@ import {
     X,
     Info,
     Headphones,
-    Download
+    Download,
+    Image as ImageIcon
 } from 'lucide-react';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -446,8 +447,8 @@ interface SongNote {
     ownerId?: string;
     collaborators?: string[];
     location?: string;
-    images?: { id: string; url: string; name: string }[];
-    documents?: { id: string; url: string; name: string; type: string; size?: number }[];
+    images?: { id: string; url: string; name: string; phraseId?: string | null }[];
+    documents?: { id: string; url: string; name: string; type: string; size?: number; phraseId?: string | null }[];
 }
 
 
@@ -629,7 +630,13 @@ const PhraseRow = React.memo(function PhraseRow({
     clickedTokenIndex,
     onDeleteDocBlock,
     onTranscribeDocBlock,
-    transcribingDocId
+    transcribingDocId,
+    handlePlaceImageAsLineAt,
+    handlePlaceDocAsLineAt,
+    draggedImageId,
+    draggedImageIdRef,
+    draggedDocId,
+    draggedDocIdRef
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
@@ -675,6 +682,12 @@ const PhraseRow = React.memo(function PhraseRow({
     onDeleteDocBlock?: (docId: string, headerPhraseId: string) => void;
     onTranscribeDocBlock?: (docId: string, headerPhraseId: string) => void;
     transcribingDocId?: string | null;
+    handlePlaceImageAsLineAt?: (imageId: string, targetPhraseId: string, position: 'top' | 'bottom') => void;
+    handlePlaceDocAsLineAt?: (docId: string, targetPhraseId: string, position: 'top' | 'bottom') => void;
+    draggedImageId?: string | null;
+    draggedImageIdRef?: React.RefObject<string | null>;
+    draggedDocId?: string | null;
+    draggedDocIdRef?: React.RefObject<string | null>;
 }) {
     const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isTouchDraggingRef = useRef(false);
@@ -695,21 +708,21 @@ const PhraseRow = React.memo(function PhraseRow({
         }
     }, [isCurrentlyEditing, phrase.text]);
 
-    // Handle focus and selection range when starting edit mode or when selectionOffset changes
-    useEffect(() => {
+    // Handle focus and selection range when starting edit mode or when selectionOffset changes.
+    // useLayoutEffect (not useEffect) so focus-handoff from the blank-canvas textarea happens
+    // synchronously in the same commit — otherwise a fast keystroke right after the first
+    // character can arrive before this runs, land on no focused element, and get dropped.
+    // Always set the selection range explicitly, even if the element already has focus:
+    // React's own `autoFocus` prop can focus this textarea before this effect runs, defaulting
+    // the caret to position 0 — without an explicit setSelectionRange call here that default
+    // never gets corrected, so the next keystroke inserts at the start instead of the end.
+    useLayoutEffect(() => {
         if (isCurrentlyEditing && textareaRef.current) {
             if (document.activeElement !== textareaRef.current) {
                 textareaRef.current.focus();
-
-                if (typeof selectionOffset === 'number') {
-                    textareaRef.current.setSelectionRange(selectionOffset, selectionOffset);
-                } else {
-                    const valLength = phrase.text.length;
-                    textareaRef.current.setSelectionRange(valLength, valLength);
-                }
-            } else if (typeof selectionOffset === 'number') {
-                textareaRef.current.setSelectionRange(selectionOffset, selectionOffset);
             }
+            const pos = typeof selectionOffset === 'number' ? selectionOffset : phrase.text.length;
+            textareaRef.current.setSelectionRange(pos, pos);
         }
     }, [isCurrentlyEditing, selectionOffset]);
     
@@ -756,7 +769,27 @@ const PhraseRow = React.memo(function PhraseRow({
                         if (setBlockDropPosition) setBlockDropPosition(null);
                         return;
                     }
-                    
+
+                    const droppedImageId = e.dataTransfer.getData('text/image-id') || (draggedImageIdRef ? draggedImageIdRef.current : null) || draggedImageId;
+                    if (droppedImageId) {
+                        if (handlePlaceImageAsLineAt) handlePlaceImageAsLineAt(droppedImageId, phrase.id, 'bottom');
+                        setDragOverPhraseId(null);
+                        setDropPosition(null);
+                        if (setDragOverBlockId) setDragOverBlockId(null);
+                        if (setBlockDropPosition) setBlockDropPosition(null);
+                        return;
+                    }
+
+                    const droppedDocId = e.dataTransfer.getData('text/document-id') || (draggedDocIdRef ? draggedDocIdRef.current : null) || draggedDocId;
+                    if (droppedDocId) {
+                        if (handlePlaceDocAsLineAt) handlePlaceDocAsLineAt(droppedDocId, phrase.id, 'bottom');
+                        setDragOverPhraseId(null);
+                        setDropPosition(null);
+                        if (setDragOverBlockId) setDragOverBlockId(null);
+                        if (setBlockDropPosition) setBlockDropPosition(null);
+                        return;
+                    }
+
                     const draggedId = e.dataTransfer.getData('text/plain') || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null) || draggedPhraseId;
                     setDraggedPhraseId(null);
                     if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
@@ -880,9 +913,11 @@ const PhraseRow = React.memo(function PhraseRow({
                     return;
                 }
 
-                // If it is an audio note drag
-                const isAudioDrag = e.dataTransfer.types.includes('text/audio-note-id');
-                if (isAudioDrag) {
+                // If it is an audio / image / document card drag
+                const isCardDrag = e.dataTransfer.types.includes('text/audio-note-id')
+                    || e.dataTransfer.types.includes('text/image-id')
+                    || e.dataTransfer.types.includes('text/document-id');
+                if (isCardDrag) {
                     e.preventDefault();
                     e.stopPropagation();
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -965,6 +1000,32 @@ const PhraseRow = React.memo(function PhraseRow({
                         const targetPhraseId = phrase.groupId ? null : (isPlaceholder ? null : phrase.id);
                         handleAttachAudioToPhrase(audioNoteId, targetPhraseId, phrase.groupId);
                     }
+                    setDragOverPhraseId(null);
+                    setDropPosition(null);
+                    if (setDragOverBlockId) setDragOverBlockId(null);
+                    if (setBlockDropPosition) setBlockDropPosition(null);
+                    return;
+                }
+
+                const imageId = e.dataTransfer.getData('text/image-id') || (draggedImageIdRef ? draggedImageIdRef.current : null) || draggedImageId;
+                if (imageId) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const pos = (dropPosition === 'top' || dropPosition === 'bottom') ? dropPosition : 'bottom';
+                    if (handlePlaceImageAsLineAt) handlePlaceImageAsLineAt(imageId, phrase.id, pos);
+                    setDragOverPhraseId(null);
+                    setDropPosition(null);
+                    if (setDragOverBlockId) setDragOverBlockId(null);
+                    if (setBlockDropPosition) setBlockDropPosition(null);
+                    return;
+                }
+
+                const documentId = e.dataTransfer.getData('text/document-id') || (draggedDocIdRef ? draggedDocIdRef.current : null) || draggedDocId;
+                if (documentId) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const pos = (dropPosition === 'top' || dropPosition === 'bottom') ? dropPosition : 'bottom';
+                    if (handlePlaceDocAsLineAt) handlePlaceDocAsLineAt(documentId, phrase.id, pos);
                     setDragOverPhraseId(null);
                     setDropPosition(null);
                     if (setDragOverBlockId) setDragOverBlockId(null);
@@ -1339,13 +1400,18 @@ const PhraseRow = React.memo(function PhraseRow({
                                                 if (setDragOverWordIndex) setDragOverWordIndex(null);
                                             }}
                                             onDrop={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
                                                 const dragInfoStr = e.dataTransfer.getData('text/word-drag-info');
                                                 if (dragInfoStr && handleWordDrop) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
                                                     const dragInfo = JSON.parse(dragInfoStr);
                                                     handleWordDrop(dragInfo, { phraseId: phrase.id, targetWordIndex: idx, position: dragOverWordIndex?.position || 'left' });
+                                                    if (setDraggedWord) setDraggedWord(null);
+                                                    if (setDragOverWordIndex) setDragOverWordIndex(null);
+                                                    return;
                                                 }
+                                                // Not a word drag (audio/image/document card, or a whole-line reorder) —
+                                                // don't swallow it, let it bubble up to the line's own drop handler.
                                                 if (setDraggedWord) setDraggedWord(null);
                                                 if (setDragOverWordIndex) setDragOverWordIndex(null);
                                             }}
@@ -1575,14 +1641,16 @@ interface AudioCapsulePlayerProps {
 }
 
 interface DocumentCapsuleCardProps {
-    doc: { id: string; url: string; name: string; type: string; size?: number; createdAt?: number };
+    doc: { id: string; url: string; name: string; type: string; size?: number; createdAt?: number; phraseId?: string | null };
     onRename: (newName: string) => void;
     onDelete: () => void;
     onScan: () => void;
     isScanning?: boolean;
+    onDragStart?: (e: React.DragEvent) => void;
+    onDragEnd?: () => void;
 }
 
-function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning }: DocumentCapsuleCardProps) {
+function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDragStart, onDragEnd }: DocumentCapsuleCardProps) {
     const formatSize = (bytes?: number) => {
         if (!bytes) return doc.type.toUpperCase();
         if (bytes < 1024) return `${doc.type.toUpperCase()} • ${bytes} B`;
@@ -1591,7 +1659,11 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning }: Do
     };
 
     return (
-        <div className="bg-white border border-stone-200/80 rounded-full px-5 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3.5 z-30 transition-all select-none max-w-full my-2 mx-auto">
+        <div
+            draggable={!!onDragStart}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            className={`bg-white border border-stone-200/80 rounded-full px-5 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3.5 z-30 transition-all select-none max-w-full my-2 mx-auto ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
             {/* Red File Icon */}
             <div className="p-1 rounded-md text-red-500 flex items-center justify-center shrink-0">
                 <FileText size={17} className="stroke-[2.2]" />
@@ -1647,25 +1719,32 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning }: Do
 }
 
 interface ImageCapsuleCardProps {
-    img: { id: string; url: string; name: string };
+    img: { id: string; url: string; name: string; phraseId?: string | null };
     onRename: (newName: string) => void;
     onDelete: () => void;
     onScan: () => void;
     onPreview: () => void;
     isScanning?: boolean;
+    onDragStart?: (e: React.DragEvent) => void;
+    onDragEnd?: () => void;
 }
 
-function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanning }: ImageCapsuleCardProps) {
+function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanning, onDragStart, onDragEnd }: ImageCapsuleCardProps) {
     return (
-        <div className="rounded-[32px] bg-white p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-3 w-full max-w-[440px] mx-auto select-none my-3">
+        <div
+            draggable={!!onDragStart}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            className={`rounded-[32px] bg-white p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-3 w-full max-w-[440px] mx-auto select-none my-3 ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
             {/* Image Preview Area */}
             <div 
                 onClick={onPreview}
                 className="w-full h-60 rounded-[24px] overflow-hidden bg-stone-100 flex items-center justify-center border border-stone-100/80 relative group cursor-pointer"
             >
-                <img 
-                    src={img.url} 
-                    alt={img.name || 'Image preview'} 
+                <img
+                    src={img.url}
+                    alt={img.name || 'Image preview'}
+                    draggable={false}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                 />
                 {isScanning && (
@@ -2812,6 +2891,13 @@ export default function CreatePage() {
             setDraggedPhraseId(null);
             setDraggedGroupId(null);
             setDraggedAudioId(null);
+            setDraggedImageId(null);
+            draggedImageIdRef.current = null;
+            setDraggedDocId(null);
+            draggedDocIdRef.current = null;
+            setIsDraggingOverCanvas(false);
+            dragCounterRef.current = 0;
+            setDraggedWord(null);
             if (setDragOverWordIndex) setDragOverWordIndex(null);
         };
 
@@ -2859,6 +2945,8 @@ export default function CreatePage() {
     const [blockDropPosition, setBlockDropPosition] = useState<'top' | 'bottom' | null>(null);
     const [draggedGroupId, setDraggedGroupId] = useState<string | null>(null);
     const [draggedAudioId, setDraggedAudioId] = useState<string | null>(null);
+    const [draggedImageId, setDraggedImageId] = useState<string | null>(null);
+    const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
     const [touchGhostPos, setTouchGhostPos] = useState<{ x: number; y: number } | null>(null);
     const [touchGhostLabel, setTouchGhostLabel] = useState<string>('');
     const [visualViewportOffset, setVisualViewportOffset] = useState(0);
@@ -2905,6 +2993,8 @@ export default function CreatePage() {
     const draggedPhraseIdRef = useRef<string | null>(null);
     const draggedGroupIdRef = useRef<string | null>(null);
     const draggedAudioIdRef = useRef<string | null>(null);
+    const draggedImageIdRef = useRef<string | null>(null);
+    const draggedDocIdRef = useRef<string | null>(null);
     const groupTouchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const groupIsTouchDraggingRef = useRef(false);
     const groupStartXRef = useRef(0);
@@ -3975,9 +4065,17 @@ export default function CreatePage() {
 
     useEffect(() => {
         if (isDataLoaded) {
-            safeLocalStorageSetItem('veinote-create-notes', JSON.stringify(notes));
+            const serialized = JSON.stringify(notes);
+            safeLocalStorageSetItem('veinote-create-notes', serialized);
+            // Also cache under the uid-scoped key — readCachedNotes(user.uid) (used to recover
+            // unsaved edits on reload/merge with Firestore) only ever reads that key, so without
+            // this write a logged-in user's most recent edits are unrecoverable if the Firestore
+            // write hasn't finished propagating by the time the page reloads.
+            if (user) {
+                safeLocalStorageSetItem(`veinote-create-notes-${user.uid}`, serialized);
+            }
         }
-    }, [notes, isDataLoaded]);
+    }, [notes, isDataLoaded, user]);
 
     useEffect(() => {
         if (isDataLoaded && isSelectionInitialized) {
@@ -6349,7 +6447,10 @@ export default function CreatePage() {
                                 cleanupUpload();
                                 resolve(effectiveNoteId);
                             } else {
-                                const title = file.name || `Imported Track ${new Date().toLocaleDateString()}`;
+                                const _now = new Date();
+                                const _dateStr = _now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                const _timeStr = _now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                                const title = `${t('creative.project')} - ${_dateStr} ${_timeStr}`;
                                 const newNoteId = `n-${Date.now()}`;
                                 const newNote: SongNote = {
                                     id: newNoteId,
@@ -6414,14 +6515,22 @@ export default function CreatePage() {
                         if (n.id === effectiveNoteId) {
                             const existingImages = n.images || [];
                             const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                            const dedicatedPhraseId = `p-image-${nextImageId}`;
                             const newImage = {
                                 id: nextImageId,
                                 url: compressedBase64,
-                                name: file.name
+                                name: file.name,
+                                phraseId: dedicatedPhraseId
                             };
+                            // Append the card into the lyric flow as a placeholder phrase
+                            const appendedPhrases = [...(n.phrases || []), { id: dedicatedPhraseId, text: '', groupId: null }];
+                            const finalPhrases = cleanupAndEnsurePlaceholders(appendedPhrases, n.verses || []);
+                            const updatedContent = finalPhrases.map(p => p.text).join('\n');
                             const updated = {
                                 ...n,
                                 images: [...existingImages, newImage],
+                                phrases: finalPhrases,
+                                content: updatedContent,
                                 updatedAt: new Date().toISOString()
                             };
                             if (user) {
@@ -6429,9 +6538,10 @@ export default function CreatePage() {
                                 const cleanImages = (updated.images || []).map((img: any) => ({
                                     id: img.id,
                                     url: img.url || '',
-                                    name: img.name || ''
+                                    name: img.name || '',
+                                    phraseId: img.phraseId || null
                                 }));
-                                setDoc(docRef, { images: cleanImages, updatedAt: updated.updatedAt }, { merge: true })
+                                setDoc(docRef, { images: cleanImages, phrases: finalPhrases, content: updatedContent, updatedAt: updated.updatedAt }, { merge: true })
                                     .catch(err => console.error("Error updating image project in Firestore:", err));
                             }
                             return updated;
@@ -6443,12 +6553,17 @@ export default function CreatePage() {
                 } else {
                     const newNoteId = `n-${Date.now()}`;
                     const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    const dedicatedPhraseId = `p-image-${nextImageId}`;
                     const newImage = {
                         id: nextImageId,
                         url: compressedBase64,
-                        name: file.name
+                        name: file.name,
+                        phraseId: dedicatedPhraseId
                     };
-                    const title = file.name || `Imported Image ${new Date().toLocaleDateString()}`;
+                    const _now = new Date();
+                    const _dateStr = _now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const _timeStr = _now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                    const title = `${t('creative.project')} - ${_dateStr} ${_timeStr}`;
                     const newNote: SongNote = {
                         id: newNoteId,
                         title: title,
@@ -6456,7 +6571,7 @@ export default function CreatePage() {
                         folderId: activeFolderIdFilter,
                         updatedAt: new Date().toISOString(),
                         ownerId: user ? user.uid : undefined,
-                        phrases: [],
+                        phrases: [{ id: dedicatedPhraseId, text: '', groupId: null }],
                         verses: [],
                         images: [newImage],
                         isAudioOnly: false
@@ -6496,21 +6611,29 @@ export default function CreatePage() {
                             else if (fileName.endsWith('.md')) docType = 'md';
 
                             const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                            const dedicatedPhraseId = `p-docblock-${docId}`;
                             const newDoc = {
                                 id: docId,
                                 url: dataUrl,
                                 name: file.name,
                                 type: docType,
-                                size: file.size
+                                size: file.size,
+                                phraseId: dedicatedPhraseId
                             };
 
                             if (effectiveNoteId) {
                                 setNotes(prev => prev.map(n => {
                                     if (n.id === effectiveNoteId) {
                                         const existingDocs = n.documents || [];
+                                        // Append the card into the lyric flow as a placeholder phrase
+                                        const appendedPhrases = [...(n.phrases || []), { id: dedicatedPhraseId, text: '', groupId: null }];
+                                        const finalPhrases = cleanupAndEnsurePlaceholders(appendedPhrases, n.verses || []);
+                                        const updatedContent = finalPhrases.map(p => p.text).join('\n');
                                         const updated = {
                                             ...n,
                                             documents: [...existingDocs, newDoc],
+                                            phrases: finalPhrases,
+                                            content: updatedContent,
                                             updatedAt: new Date().toISOString()
                                         };
                                         if (user) {
@@ -6520,9 +6643,10 @@ export default function CreatePage() {
                                                 url: d.url || '',
                                                 name: d.name || '',
                                                 type: d.type || 'other',
-                                                size: d.size || 0
+                                                size: d.size || 0,
+                                                phraseId: d.phraseId || null
                                             }));
-                                            setDoc(docRef, { documents: cleanDocs, updatedAt: updated.updatedAt }, { merge: true })
+                                            setDoc(docRef, { documents: cleanDocs, phrases: finalPhrases, content: updatedContent, updatedAt: updated.updatedAt }, { merge: true })
                                                 .catch(err => console.error("Error updating document project in Firestore:", err));
                                         }
                                         return updated;
@@ -6533,7 +6657,10 @@ export default function CreatePage() {
                                 resolve(effectiveNoteId);
                             } else {
                                 const newNoteId = `n-${Date.now()}`;
-                                const title = file.name || `Imported Document ${new Date().toLocaleDateString()}`;
+                                const _now = new Date();
+                                const _dateStr = _now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                const _timeStr = _now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                                const title = `${t('creative.project')} - ${_dateStr} ${_timeStr}`;
                                 const newNote: SongNote = {
                                     id: newNoteId,
                                     title: title,
@@ -6541,7 +6668,7 @@ export default function CreatePage() {
                                     folderId: activeFolderIdFilter,
                                     updatedAt: new Date().toISOString(),
                                     ownerId: user ? user.uid : undefined,
-                                    phrases: [],
+                                    phrases: [{ id: dedicatedPhraseId, text: '', groupId: null }],
                                     verses: [],
                                     documents: [newDoc],
                                     isAudioOnly: false
@@ -7012,13 +7139,14 @@ export default function CreatePage() {
                         audioNotes: cleanAudio,
                         contributions: updatedContributions,
                         location: updatedNote.location || '',
-                        images: (updatedNote.images || []).map((img: any) => ({ id: img.id, url: img.url, name: img.name || '' })),
+                        images: (updatedNote.images || []).map((img: any) => ({ id: img.id, url: img.url, name: img.name || '', phraseId: img.phraseId || null })),
                         documents: (updatedNote.documents || []).map((d: any) => ({
                             id: d.id,
                             url: d.url || '',
                             name: d.name || '',
                             type: d.type || 'other',
-                            size: d.size || 0
+                            size: d.size || 0,
+                            phraseId: d.phraseId || null
                         })),
                         updatedAt: new Date().toISOString()
                     }, { merge: true }).catch(err => console.warn("Error updating project note in Firestore:", err));
@@ -7335,6 +7463,40 @@ export default function CreatePage() {
         setBlockDropPosition(null);
     };
 
+    const handleImageDragStart = (e: React.DragEvent, imageId: string) => {
+        e.stopPropagation();
+        e.dataTransfer.setData('text/image-id', imageId);
+        setDraggedImageId(imageId);
+        draggedImageIdRef.current = imageId;
+    };
+
+    const handleImageDragEnd = () => {
+        setDraggedImageId(null);
+        draggedImageIdRef.current = null;
+        setDragOverPhraseId(null);
+        setDropPosition(null);
+        setDragOverGroupId(null);
+        setDragOverBlockId(null);
+        setBlockDropPosition(null);
+    };
+
+    const handleDocDragStart = (e: React.DragEvent, docId: string) => {
+        e.stopPropagation();
+        e.dataTransfer.setData('text/document-id', docId);
+        setDraggedDocId(docId);
+        draggedDocIdRef.current = docId;
+    };
+
+    const handleDocDragEnd = () => {
+        setDraggedDocId(null);
+        draggedDocIdRef.current = null;
+        setDragOverPhraseId(null);
+        setDropPosition(null);
+        setDragOverGroupId(null);
+        setDragOverBlockId(null);
+        setBlockDropPosition(null);
+    };
+
     const handleUpdateAudioNoteGroup = (noteId: string, audioNoteId: string, targetGroupId: string | null) => {
         setDraggedAudioId(null);
         if (draggedAudioIdRef) draggedAudioIdRef.current = null;
@@ -7481,6 +7643,112 @@ export default function CreatePage() {
 
         handleUpdateNote(selectedNoteId, {
             audioNotes: updatedAudioNotes,
+            phrases: finalPhrases,
+            content: updatedContent
+        });
+    };
+
+    // Move an image card to sit as its own line between lyric lines (mirrors handlePlaceAudioAsLineAt)
+    const handlePlaceImageAsLineAt = (imageId: string, targetPhraseId: string, position: 'top' | 'bottom') => {
+        setDraggedImageId(null);
+        draggedImageIdRef.current = null;
+        setDragOverPhraseId(null);
+        setDropPosition(null);
+        setDragOverGroupId(null);
+        setDragOverBlockId(null);
+        setBlockDropPosition(null);
+
+        if (!selectedNoteId) return;
+        const targetNote = notesRef.current.find(n => n.id === selectedNoteId);
+        if (!targetNote) return;
+
+        const images = targetNote.images || [];
+        const matchingImage = images.find(im => im.id === imageId);
+        if (!matchingImage) return;
+
+        const dedicatedPhraseId = `p-image-${imageId}`;
+        const currentPhrases = targetNote.phrases || [];
+
+        // Remove any previous placeholder for this image so we can re-place it
+        let updatedPhrases = currentPhrases.filter(p => p.id !== dedicatedPhraseId);
+
+        const newTargetIdx = updatedPhrases.findIndex(p => p.id === targetPhraseId);
+        if (newTargetIdx === -1) return;
+
+        const targetGroupId = updatedPhrases[newTargetIdx].groupId;
+        const spliceIdx = position === 'top' ? newTargetIdx : newTargetIdx + 1;
+
+        updatedPhrases.splice(spliceIdx, 0, { id: dedicatedPhraseId, text: '', groupId: targetGroupId });
+
+        const updatedImages = images.map(im => im.id === imageId ? { ...im, phraseId: dedicatedPhraseId } : im);
+
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, targetNote.verses || []);
+        const updatedContent = finalPhrases.map(p => p.text).join('\n');
+
+        handleUpdateNote(selectedNoteId, {
+            images: updatedImages,
+            phrases: finalPhrases,
+            content: updatedContent
+        });
+    };
+
+    // Move a document card to sit as its own line between lyric lines (mirrors handlePlaceAudioAsLineAt)
+    const handlePlaceDocAsLineAt = (docId: string, targetPhraseId: string, position: 'top' | 'bottom') => {
+        setDraggedDocId(null);
+        draggedDocIdRef.current = null;
+        setDragOverPhraseId(null);
+        setDropPosition(null);
+        setDragOverGroupId(null);
+        setDragOverBlockId(null);
+        setBlockDropPosition(null);
+
+        if (!selectedNoteId) return;
+        const targetNote = notesRef.current.find(n => n.id === selectedNoteId);
+        if (!targetNote) return;
+
+        const documents = targetNote.documents || [];
+        const matchingDoc = documents.find(d => d.id === docId);
+        if (!matchingDoc) return;
+
+        const dedicatedPhraseId = `p-docblock-${docId}`;
+        const currentPhrases = targetNote.phrases || [];
+
+        // Remove the doc's placeholder header (keep its transcribed p-docline- rows in place)
+        let updatedPhrases = currentPhrases.filter(p => p.id !== dedicatedPhraseId);
+
+        const newTargetIdx = updatedPhrases.findIndex(p => p.id === targetPhraseId);
+        if (newTargetIdx === -1) return;
+
+        const targetGroupId = updatedPhrases[newTargetIdx].groupId;
+        const spliceIdx = position === 'top' ? newTargetIdx : newTargetIdx + 1;
+
+        updatedPhrases.splice(spliceIdx, 0, { id: dedicatedPhraseId, text: '', groupId: targetGroupId });
+
+        const updatedDocs = documents.map(d => d.id === docId ? { ...d, phraseId: dedicatedPhraseId } : d);
+
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, targetNote.verses || []);
+        const updatedContent = finalPhrases.map(p => p.text).join('\n');
+
+        handleUpdateNote(selectedNoteId, {
+            documents: updatedDocs,
+            phrases: finalPhrases,
+            content: updatedContent
+        });
+    };
+
+    // Delete an image card and remove its in-flow placeholder phrase
+    const handleDeleteImage = (imageId: string) => {
+        if (!selectedNoteId) return;
+        const targetNote = notesRef.current.find(n => n.id === selectedNoteId);
+        if (!targetNote) return;
+
+        const updatedImages = (targetNote.images || []).filter(im => im.id !== imageId);
+        const filteredPhrases = (targetNote.phrases || []).filter(p => p.id !== `p-image-${imageId}`);
+        const finalPhrases = cleanupAndEnsurePlaceholders(filteredPhrases, targetNote.verses || []);
+        const updatedContent = finalPhrases.map(p => p.text).join('\n');
+
+        handleUpdateNote(selectedNoteId, {
+            images: updatedImages,
             phrases: finalPhrases,
             content: updatedContent
         });
@@ -8831,7 +9099,7 @@ export default function CreatePage() {
         });
     };
 
-    const handleAddVerseGroup = (type: 'Verse' | 'Chorus' | 'Bridge') => {
+    const handleAddVerseGroup = (type: 'Verse' | 'Pre-Chorus' | 'Chorus' | 'Bridge' | 'Intro' | 'Outro' | 'Solo') => {
         setIsAddMenuSticky(false);
         if (!selectedNoteId || !activeNote) return;
         const currentVerses = activeNote.verses || [];
@@ -9237,8 +9505,128 @@ export default function CreatePage() {
         (activeAudioNotes || []).filter(an => !an.phraseId && !an.groupId)
     );
 
+    // Images / documents placed in the lyric flow, keyed by their placeholder phrase id
+    type FlowImage = NonNullable<SongNote['images']>[number];
+    type FlowDoc = NonNullable<SongNote['documents']>[number];
+    const imageByPhraseIdMap: Record<string, FlowImage> = {};
+    for (const im of (activeNote?.images || [])) {
+        if (im.phraseId) imageByPhraseIdMap[im.phraseId] = im;
+    }
+    const docByPhraseIdMap: Record<string, FlowDoc> = {};
+    for (const d of (activeNote?.documents || [])) {
+        if (d.phraseId) docByPhraseIdMap[d.phraseId] = d;
+    }
+
     const renderBlocks = getRenderBlocks(activePhrases, activeVerses);
-    
+
+    // First/last phrase id of a rendered block — used so a card dropped anywhere in the
+    // block's area (including its margins/gaps) lands at that block's top or bottom edge.
+    const getBlockEdgePhraseId = (blockId: string, position: 'top' | 'bottom'): string | null => {
+        const block = renderBlocks.find(b => (b.type === 'group' ? b.groupId === blockId : b.phrases[0]?.id === blockId));
+        if (!block || block.phrases.length === 0) return null;
+        return position === 'top' ? block.phrases[0].id : block.phrases[block.phrases.length - 1].id;
+    };
+
+    // A phrase id that is really an inline image/document card placeholder
+    const flowCardKind = (id: string): 'image' | 'doc' | null => {
+        if (id.startsWith('p-image-')) return 'image';
+        if (id.startsWith('p-docblock-')) return 'doc';
+        return null;
+    };
+
+    const dropIndicator = (edge: 'top' | 'bottom') => (
+        <div className={`absolute ${edge === 'top' ? 'top-0 -translate-y-1/2' : 'bottom-0 translate-y-1/2'} left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]`}>
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+        </div>
+    );
+
+    // Renders an image/document card inline in the lyric flow, acting as its own guided drop zone
+    const renderFlowCard = (phrase: Phrase) => {
+        const kind = flowCardKind(phrase.id);
+        if (!kind) return null;
+
+        const showTop = dragOverPhraseId === phrase.id && dropPosition === 'top';
+        const showBottom = dragOverPhraseId === phrase.id && dropPosition === 'bottom';
+
+        const onCardDragOver = (e: React.DragEvent) => {
+            if (isCanvasPreview) return;
+            const dt = e.dataTransfer.types;
+            const relevant = dt.includes('text/audio-note-id') || dt.includes('text/image-id') || dt.includes('text/document-id') || dt.includes('text/plain');
+            if (!relevant) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const relativeY = e.clientY - rect.top;
+            setDragOverPhraseId(phrase.id);
+            setDropPosition(relativeY < rect.height / 2 ? 'top' : 'bottom');
+        };
+
+        const onCardDrop = (e: React.DragEvent) => {
+            if (isCanvasPreview) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const pos: 'top' | 'bottom' = (dropPosition === 'top' || dropPosition === 'bottom') ? dropPosition : 'bottom';
+            const imageId = e.dataTransfer.getData('text/image-id') || draggedImageIdRef.current || draggedImageId;
+            const documentId = e.dataTransfer.getData('text/document-id') || draggedDocIdRef.current || draggedDocId;
+            const audioNoteId = e.dataTransfer.getData('text/audio-note-id') || draggedAudioIdRef.current || draggedAudioId;
+            const phraseDraggedId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
+
+            if (imageId) handlePlaceImageAsLineAt(imageId, phrase.id, pos);
+            else if (documentId) handlePlaceDocAsLineAt(documentId, phrase.id, pos);
+            else if (audioNoteId) handlePlaceAudioAsLineAt(audioNoteId, phrase.id, pos);
+            else if (phraseDraggedId && phraseDraggedId !== phrase.id) handleInsertPhraseAt(phraseDraggedId, phrase.id, pos);
+
+            setDragOverPhraseId(null);
+            setDropPosition(null);
+            setDraggedPhraseId(null);
+            if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
+        };
+
+        return (
+            <div
+                data-phrase-id={phrase.id}
+                className="relative w-full flex flex-col items-center"
+                onDragOver={onCardDragOver}
+                onDragLeave={() => { setDragOverPhraseId(null); setDropPosition(null); }}
+                onDrop={onCardDrop}
+            >
+                {showTop && dropIndicator('top')}
+                {kind === 'image' ? (() => {
+                    const img = imageByPhraseIdMap[phrase.id];
+                    if (!img) return null;
+                    return (
+                        <ImageCapsuleCard
+                            img={img}
+                            onRename={(newName) => activeNote && handleUpdateNote(activeNote.id, { images: (activeNote.images || []).map(i => i.id === img.id ? { ...i, name: newName } : i) })}
+                            onDelete={() => { if (confirm("Delete this image?")) handleDeleteImage(img.id); }}
+                            onScan={() => handleScanImage(img.id)}
+                            onPreview={() => setPreviewImageUrl(img.url)}
+                            isScanning={scanningImageId === img.id}
+                            onDragStart={isCanvasPreview ? undefined : (e) => handleImageDragStart(e, img.id)}
+                            onDragEnd={handleImageDragEnd}
+                        />
+                    );
+                })() : (() => {
+                    const dcard = docByPhraseIdMap[phrase.id];
+                    if (!dcard) return null;
+                    return (
+                        <DocumentCapsuleCard
+                            doc={dcard}
+                            onRename={(newName) => activeNote && handleUpdateNote(activeNote.id, { documents: (activeNote.documents || []).map(d => d.id === dcard.id ? { ...d, name: newName } : d) })}
+                            onDelete={() => handleDeleteDocBlock(dcard.id, phrase.id)}
+                            onScan={() => handleTranscribeDocument(dcard.id, phrase.id)}
+                            isScanning={transcribingDocId === dcard.id}
+                            onDragStart={isCanvasPreview ? undefined : (e) => handleDocDragStart(e, dcard.id)}
+                            onDragEnd={handleDocDragEnd}
+                        />
+                    );
+                })()}
+                {showBottom && dropIndicator('bottom')}
+            </div>
+        );
+    };
+
     const phraseExists = (phraseId?: string | null) => {
         if (!phraseId) return false;
         return activeNote?.phrases?.some(p => p.id === phraseId) || false;
@@ -13430,64 +13818,7 @@ export default function CreatePage() {
                                 (showToolsPanel && activeToolTab === 'studio') ? 'max-w-full lg:max-w-[calc(100%-1rem)] xl:max-w-[1560px]' : 'max-w-4xl'
                             }`}>
 
-                                {/* Images Display Cards */}
-                                {((activeNote?.images && activeNote.images.length > 0) || uploadingFiles.some(f => f.type === 'image')) && (
-                                    <div className="flex flex-col gap-3 mb-2 px-1 flex-shrink-0 w-full items-center">
-                                        {activeNote?.images && activeNote.images.map((img) => (
-                                            <ImageCapsuleCard
-                                                key={img.id}
-                                                img={img}
-                                                onRename={(newName) => {
-                                                    const updatedImages = (activeNote.images || []).map(i => i.id === img.id ? { ...i, name: newName } : i);
-                                                    handleUpdateNote(activeNote.id, { images: updatedImages });
-                                                }}
-                                                onDelete={() => {
-                                                    if (confirm("Delete this image?")) {
-                                                        const updatedImages = (activeNote.images || []).filter(i => i.id !== img.id);
-                                                        handleUpdateNote(activeNote.id, { images: updatedImages });
-                                                    }
-                                                }}
-                                                onScan={() => {
-                                                    handleScanImage(img.id);
-                                                }}
-                                                onPreview={() => setPreviewImageUrl(img.url)}
-                                                isScanning={scanningImageId === img.id}
-                                            />
-                                        ))}
-                                        {uploadingFiles.filter(f => f.type === 'image').map(f => (
-                                            <ImageCapsuleSkeleton key={f.id} />
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Documents Capsule Cards */}
-                                {((activeNote?.documents && activeNote.documents.length > 0) || uploadingFiles.some(f => f.type === 'document')) && (
-                                    <div className="flex flex-col gap-3 mb-2 px-1 flex-shrink-0 w-full items-center">
-                                        {activeNote?.documents && activeNote.documents.map((doc) => (
-                                            <DocumentCapsuleCard
-                                                key={doc.id}
-                                                doc={doc}
-                                                onRename={(newName) => {
-                                                    const updatedDocs = (activeNote.documents || []).map(d => d.id === doc.id ? { ...d, name: newName } : d);
-                                                    handleUpdateNote(activeNote.id, { documents: updatedDocs });
-                                                }}
-                                                onDelete={() => {
-                                                    if (confirm(`Delete document "${doc.name}"?`)) {
-                                                        const updatedDocs = (activeNote.documents || []).filter(d => d.id !== doc.id);
-                                                        handleUpdateNote(activeNote.id, { documents: updatedDocs });
-                                                    }
-                                                }}
-                                                onScan={() => {
-                                                    handleTranscribeDocument(doc.id);
-                                                }}
-                                                isScanning={transcribingDocId === doc.id}
-                                            />
-                                        ))}
-                                        {uploadingFiles.filter(f => f.type === 'document').map(f => (
-                                            <DocumentCapsuleSkeleton key={f.id} />
-                                        ))}
-                                    </div>
-                                )}
+                                {/* Images & documents now render inline within the lyric flow as placeholder-phrase cards (see block render below). Only unplaced audio remains pinned here. */}
 
                                 {/* Audio Notes Display Cards */}
                                 {((unattachedAudioNotes.length > 0) || uploadingFiles.some(f => f.type === 'audio')) && (
@@ -13549,22 +13880,24 @@ export default function CreatePage() {
                                             <div 
                                                 key={blockId || `block-${bIdx}`}
                                                 className={`block-wrapper w-full relative ${
-                                                    block.type === 'group' ? 'my-10' : 'my-1'
+                                                    block.type === 'group' ? 'pt-10 pb-10' : 'pt-1 pb-1'
                                                 }`}
                                                 data-block-id={blockId}
                                                 onDragOver={(e) => {
                                                     const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
                                                     const currentDraggedPhraseId = draggedPhraseId || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null);
-                                                    
-                                                    if (currentDraggedGroupId || currentDraggedPhraseId) {
+                                                    const dt = e.dataTransfer.types;
+                                                    const isCardDrag = dt.includes('text/audio-note-id') || dt.includes('text/image-id') || dt.includes('text/document-id');
+
+                                                    if (currentDraggedGroupId || currentDraggedPhraseId || isCardDrag) {
                                                         if (block.type === 'group' && currentDraggedGroupId === block.groupId) return;
                                                         if (block.type === 'ungrouped' && currentDraggedPhraseId === block.phrases[0]?.id) return;
-                                                        
+
                                                         e.preventDefault();
                                                         const rect = e.currentTarget.getBoundingClientRect();
                                                         const relativeY = e.clientY - rect.top;
                                                         const position = relativeY < rect.height / 2 ? 'top' : 'bottom';
-                                                        
+
                                                         setDragOverBlockId(blockId);
                                                         setBlockDropPosition(position);
                                                     }
@@ -13576,16 +13909,20 @@ export default function CreatePage() {
                                                 onDrop={(e) => {
                                                     const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
                                                     const currentDraggedPhraseId = draggedPhraseId || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null);
-                                                    
+                                                    const audioNoteId = e.dataTransfer.getData('text/audio-note-id') || draggedAudioIdRef.current || draggedAudioId;
+                                                    const imageId = e.dataTransfer.getData('text/image-id') || draggedImageIdRef.current || draggedImageId;
+                                                    const documentId = e.dataTransfer.getData('text/document-id') || draggedDocIdRef.current || draggedDocId;
+                                                    const dropPos = blockDropPosition || 'bottom';
+
                                                     setDragOverBlockId(null);
                                                     setBlockDropPosition(null);
                                                     setDragOverGroupId(null);
-                                                    
+
                                                     setDraggedGroupId(null);
                                                     if (draggedGroupIdRef) draggedGroupIdRef.current = null;
                                                     setDraggedPhraseId(null);
                                                     if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
-                                                    
+
                                                     if (currentDraggedGroupId && currentDraggedGroupId !== blockId) {
                                                         e.preventDefault();
                                                         e.stopPropagation();
@@ -13594,6 +13931,15 @@ export default function CreatePage() {
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                         handleInsertPhraseAtBlockLevel(currentDraggedPhraseId, blockId, blockDropPosition);
+                                                    } else if (imageId || documentId || audioNoteId) {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        const targetPhraseId = getBlockEdgePhraseId(blockId, dropPos);
+                                                        if (targetPhraseId) {
+                                                            if (imageId) handlePlaceImageAsLineAt(imageId, targetPhraseId, dropPos);
+                                                            else if (documentId) handlePlaceDocAsLineAt(documentId, targetPhraseId, dropPos);
+                                                            else if (audioNoteId) handlePlaceAudioAsLineAt(audioNoteId, targetPhraseId, dropPos);
+                                                        }
                                                     }
                                                 }}
                                             >
@@ -13710,6 +14056,11 @@ export default function CreatePage() {
                                                                         e.stopPropagation();
                                                                         return;
                                                                     }
+                                                                    if (e.dataTransfer.types.includes('text/image-id') || e.dataTransfer.types.includes('text/document-id')) {
+                                                                        // Let this bubble to the block-level handler, which owns image/doc
+                                                                        // placement and its own top/bottom drop indicator.
+                                                                        return;
+                                                                    }
                                                                     const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
                                                                     if (currentDraggedGroupId) {
                                                                         return;
@@ -13738,6 +14089,12 @@ export default function CreatePage() {
                                                                         e.preventDefault();
                                                                         e.stopPropagation();
                                                                         handleUpdateAudioNoteGroup(activeNote.id, audioNoteId, block.groupId);
+                                                                        return;
+                                                                    }
+                                                                    if (e.dataTransfer.types.includes('text/image-id') || e.dataTransfer.types.includes('text/document-id')) {
+                                                                        // Don't swallow this drop — let it bubble to the block-level
+                                                                        // handler so the card lands at this group's top/bottom edge.
+                                                                        setDragOverGroupId(null);
                                                                         return;
                                                                     }
                                                                     const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
@@ -13902,10 +14259,12 @@ export default function CreatePage() {
                                                                         )}
                                                                         {block.phrases.filter(p => !p.id.startsWith('placeholder-')).map((phrase) => {
                                                                             const isAudioPlaceholder = phrase.id.startsWith('p-audio-') && phrase.text.trim() === '';
+                                                                            const flowCard = renderFlowCard(phrase);
                                                                             return (
                                                                                 <div key={phrase.id} className="flex flex-col items-center w-full gap-2">
-                                                                                    {!isAudioPlaceholder && (
-                                                                                        <PhraseRow 
+                                                                                    {flowCard}
+                                                                                    {!isAudioPlaceholder && !flowCard && (
+                                                                                        <PhraseRow
                                                                                             phrase={phrase}
                                                                                             clickedTokenIndex={clickedTokenIndex}
                                                                                             draggedPhraseId={draggedPhraseId}
@@ -13949,6 +14308,12 @@ export default function CreatePage() {
                                                                                             onDeleteDocBlock={handleDeleteDocBlock}
                                                                                             onTranscribeDocBlock={handleTranscribeDocument}
                                                                                             transcribingDocId={transcribingDocId}
+                                                                                            handlePlaceImageAsLineAt={handlePlaceImageAsLineAt}
+                                                                                            handlePlaceDocAsLineAt={handlePlaceDocAsLineAt}
+                                                                                            draggedImageId={draggedImageId}
+                                                                                            draggedImageIdRef={draggedImageIdRef}
+                                                                                            draggedDocId={draggedDocId}
+                                                                                            draggedDocIdRef={draggedDocIdRef}
                                                                                         />
                                                                                     )}
                                                                                 </div>
@@ -14082,14 +14447,36 @@ export default function CreatePage() {
                                                                                     return;
                                                                                 }
 
+                                                                                const imageId = e.dataTransfer.getData('text/image-id') || (draggedImageIdRef ? draggedImageIdRef.current : null) || draggedImageId;
+                                                                                if (imageId) {
+                                                                                    e.preventDefault();
+                                                                                    e.stopPropagation();
+                                                                                    const pos = (dropPosition === 'top' || dropPosition === 'bottom') ? dropPosition : 'bottom';
+                                                                                    if (handlePlaceImageAsLineAt) handlePlaceImageAsLineAt(imageId, phrase.id, pos);
+                                                                                    setDragOverPhraseId(null);
+                                                                                    setDropPosition(null);
+                                                                                    return;
+                                                                                }
+
+                                                                                const documentId = e.dataTransfer.getData('text/document-id') || (draggedDocIdRef ? draggedDocIdRef.current : null) || draggedDocId;
+                                                                                if (documentId) {
+                                                                                    e.preventDefault();
+                                                                                    e.stopPropagation();
+                                                                                    const pos = (dropPosition === 'top' || dropPosition === 'bottom') ? dropPosition : 'bottom';
+                                                                                    if (handlePlaceDocAsLineAt) handlePlaceDocAsLineAt(documentId, phrase.id, pos);
+                                                                                    setDragOverPhraseId(null);
+                                                                                    setDropPosition(null);
+                                                                                    return;
+                                                                                }
+
                                                                                 const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
                                                                                 if (currentDraggedGroupId) return;
 
                                                                                 e.preventDefault();
                                                                                 e.stopPropagation();
-                                                                                
+
                                                                                 const draggedId = e.dataTransfer.getData('text/plain') || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null) || draggedPhraseId;
-                                                                                
+
                                                                                 setDraggedPhraseId(null);
                                                                                 if (draggedPhraseIdRef) {
                                                                                     draggedPhraseIdRef.current = null;
@@ -14137,8 +14524,9 @@ export default function CreatePage() {
                                                                         )}
                                                                     </React.Fragment>
                                                                 ))}
-                                                                {!(phrase.id.startsWith('p-audio-') && phrase.text.trim() === '') && (
-                                                                    <PhraseRow 
+                                                                {renderFlowCard(phrase)}
+                                                                {!(phrase.id.startsWith('p-audio-') && phrase.text.trim() === '') && !flowCardKind(phrase.id) && (
+                                                                    <PhraseRow
                                                                         phrase={phrase}
                                                                         clickedTokenIndex={clickedTokenIndex}
                                                                         draggedPhraseId={draggedPhraseId}
@@ -14182,6 +14570,12 @@ export default function CreatePage() {
                                                                         onDeleteDocBlock={handleDeleteDocBlock}
                                                                         onTranscribeDocBlock={handleTranscribeDocument}
                                                                         transcribingDocId={transcribingDocId}
+                                                                        handlePlaceImageAsLineAt={handlePlaceImageAsLineAt}
+                                                                        handlePlaceDocAsLineAt={handlePlaceDocAsLineAt}
+                                                                        draggedImageId={draggedImageId}
+                                                                        draggedImageIdRef={draggedImageIdRef}
+                                                                        draggedDocId={draggedDocId}
+                                                                        draggedDocIdRef={draggedDocIdRef}
                                                                     />
                                                                 )}
                                                             </div>
@@ -14202,68 +14596,121 @@ export default function CreatePage() {
                             </div>
                         </div>
 
-                                {(isRecordingSaving || uploadingFiles.some(f => f.type === 'audio')) && (
+                                {(isRecordingSaving || uploadingFiles.some(f => f.type === 'audio' || f.type === 'image' || f.type === 'document')) && (
                                     <div className="flex flex-col gap-2 justify-center w-full py-1.5 select-none z-20 items-center">
                                         {isRecordingSaving && <AudioCapsuleSkeleton />}
                                         {uploadingFiles.filter(f => f.type === 'audio').map(f => (
                                             <AudioCapsuleSkeleton key={f.id} />
                                         ))}
+                                        {uploadingFiles.filter(f => f.type === 'image').map(f => (
+                                            <ImageCapsuleSkeleton key={f.id} />
+                                        ))}
+                                        {uploadingFiles.filter(f => f.type === 'document').map(f => (
+                                            <DocumentCapsuleSkeleton key={f.id} />
+                                        ))}
                                     </div>
                                 )}
 
-                                {/* Centered Add Section Trigger with Hover Inline Expand */}
-                                <div className="flex items-center justify-center mt-8 pb-2 w-full select-none z-30">
-                                     <div className="group/add-menu py-3 px-6 pointer-events-auto flex items-center justify-center">
-                                         <div className={`flex items-center bg-white border rounded-full h-9 shadow-3xs transition-all duration-300 ease-in-out overflow-hidden w-fit ${
-                                             isAddMenuSticky 
-                                                 ? "border-stone-300 delay-0" 
-                                                 : "border-stone-200 hover:border-stone-300 delay-150 group-hover/add-menu:border-stone-300 group-hover/add-menu:delay-0"
-                                         }`}>
-                                             {/* Trigger Button: "+ Add" */}
-                                             <div 
+                                {/* Centered Add Section Trigger with Hover Expansion (sections + import) — one continuous box, three lines */}
+                                <div className="flex items-center justify-center mt-8 pb-2 w-full select-none relative z-50">
+                                     <div className="group/add-menu relative py-3 px-6 pointer-events-auto flex items-center justify-center">
+                                         {/* Invisible spacer: reserves the trigger's collapsed footprint in normal flow */}
+                                         <div className="h-9 px-5 flex items-center justify-center gap-1.5 font-sans font-bold text-[13px] opacity-0 pointer-events-none shrink-0 whitespace-nowrap" aria-hidden="true">
+                                             <Plus size={15} className="stroke-[2.5]" />
+                                             <span>{t('creative.add')}</span>
+                                         </div>
+
+                                         {/* The one box: same border/radius throughout, width+height grow together, everything centered */}
+                                         <div
+                                             className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center bg-white border rounded-[20px] overflow-hidden transition-all duration-500 ease-in-out ${
+                                                 isAddMenuSticky
+                                                     ? "max-w-[600px] max-h-[200px] border-stone-300"
+                                                     : "max-w-[130px] max-h-9 border-stone-200 hover:border-stone-300 group-hover/add-menu:max-w-[600px] group-hover/add-menu:max-h-[200px] group-hover/add-menu:border-stone-300"
+                                             }`}
+                                         >
+                                             {/* Line 1: "+ Add" trigger */}
+                                             <div
                                                  onClick={(e) => {
                                                      e.stopPropagation();
                                                      setIsAddMenuSticky(!isAddMenuSticky);
                                                  }}
-                                                 className={`h-full px-5 flex items-center justify-center gap-1.5 font-sans font-bold text-[13px] cursor-pointer transition-colors duration-300 ease-in-out shrink-0 whitespace-nowrap ${isAddMenuSticky ? "text-stone-700" : "text-stone-400/80 group-hover/add-menu:text-stone-700"}`}
+                                                 className={`h-9 px-5 flex items-center justify-center gap-1.5 font-sans font-bold text-[13px] cursor-pointer transition-colors duration-500 ease-in-out shrink-0 whitespace-nowrap ${
+                                                     isAddMenuSticky ? "text-stone-700" : "text-stone-400/80 hover:text-stone-700 group-hover/add-menu:text-stone-700"
+                                                 }`}
                                              >
                                                  <Plus size={15} className="stroke-[2.5]" />
                                                  <span>{t('creative.add')}</span>
                                              </div>
 
-                                             {/* Divider line (appears on hover or when sticky) */}
-                                             <div className={`h-4.5 bg-stone-200 transition-all duration-300 ease-in-out ${isAddMenuSticky ? "w-[1px] delay-0" : "w-0 delay-150 group-hover/add-menu:w-[1px] group-hover/add-menu:delay-0"}`} />
+                                             {/* Lines 2 & 3: fade in alongside the box's own width/height growth, same timing */}
+                                             <div className={`transition-opacity duration-500 ease-in-out ${
+                                                 isAddMenuSticky
+                                                     ? "opacity-100 pointer-events-auto"
+                                                     : "opacity-0 pointer-events-none group-hover/add-menu:opacity-100 group-hover/add-menu:pointer-events-auto"
+                                             }`}>
+                                                 <div className="overflow-hidden min-h-0">
+                                                     {/* Line 2: Add section */}
+                                                     <div className="flex items-center justify-center gap-1 px-2 pb-2">
+                                                         {([
+                                                             ['Verse', t('creative.verse')],
+                                                             ['Pre-Chorus', t('creative.prechorus')],
+                                                             ['Chorus', t('creative.chorus')],
+                                                             ['Bridge', t('creative.bridge')],
+                                                             ['Intro', t('creative.intro')],
+                                                             ['Outro', t('creative.outro')],
+                                                             ['Solo', t('creative.solo')],
+                                                         ] as const).map(([sectionType, label]) => (
+                                                             <button
+                                                                 key={sectionType}
+                                                                 onClick={(e) => {
+                                                                     e.stopPropagation();
+                                                                     handleAddVerseGroup(sectionType);
+                                                                 }}
+                                                                 className="h-7 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center shrink-0"
+                                                             >
+                                                                 {label}
+                                                             </button>
+                                                         ))}
+                                                     </div>
 
-                                             {/* Inline Options (expands horizontally on hover or when sticky as a sliding mask) */}
-                                             <div className={`flex items-center overflow-hidden transition-all duration-300 ease-in-out ${isAddMenuSticky ? "max-w-[226px] opacity-100 px-3 delay-0" : "max-w-0 opacity-0 delay-150 group-hover/add-menu:max-w-[226px] group-hover/add-menu:opacity-100 group-hover/add-menu:px-3 group-hover/add-menu:delay-0"}`}>
-                                                 <div className="flex items-center gap-1 shrink-0 w-[202px] h-full pointer-events-auto">
-                                                     <button
-                                                         onClick={(e) => {
-                                                             e.stopPropagation();
-                                                             handleAddVerseGroup("Chorus");
-                                                         }}
-                                                         className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
-                                                     >
-                                                         {t('creative.chorus')}
-                                                     </button>
-                                                     <button
-                                                         onClick={(e) => {
-                                                             e.stopPropagation();
-                                                             handleAddVerseGroup("Verse");
-                                                         }}
-                                                         className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
-                                                     >
-                                                         {t('creative.verse')}
-                                                     </button>
-                                                     <button
-                                                         onClick={(e) => {
-                                                             e.stopPropagation();
-                                                             handleAddVerseGroup("Bridge");
-                                                         }}
-                                                         className="h-7 px-3.5 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center pointer-events-auto"
-                                                     >
-                                                         {t('creative.bridge')}
-                                                     </button>
+                                                     {/* Divider */}
+                                                     <div className="h-px bg-stone-100 mx-4 mb-2" />
+
+                                                     {/* Line 3: Import */}
+                                                     <div className="flex items-center justify-center gap-1 px-2 pb-2">
+                                                         {([
+                                                             ['image/*,.png,.jpg,.jpeg,.gif,.webp', ImageIcon, t('creative.import_image')],
+                                                             ['.pdf,.doc,.docx,.txt', FileText, t('creative.import_document')],
+                                                             ['audio/*,.mp3,.wav,.m4a,.ogg', Music, t('creative.import_audio')],
+                                                         ] as const).map(([accept, Icon, label]) => (
+                                                             <button
+                                                                 key={label}
+                                                                 onClick={(e) => {
+                                                                     e.stopPropagation();
+                                                                     setIsAddMenuSticky(false);
+                                                                     const input = document.createElement('input');
+                                                                     input.type = 'file';
+                                                                     input.multiple = true;
+                                                                     input.accept = accept;
+                                                                     input.onchange = async (changeEvent) => {
+                                                                         const files = Array.from((changeEvent.target as HTMLInputElement).files || []);
+                                                                         let activeNoteId = selectedNoteId;
+                                                                         for (const file of files) {
+                                                                             const createdId = await processImportFile(file, activeNoteId);
+                                                                             if (createdId) {
+                                                                                 activeNoteId = createdId;
+                                                                             }
+                                                                         }
+                                                                     };
+                                                                     input.click();
+                                                                 }}
+                                                                 className="h-7 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                                                             >
+                                                                 <Icon size={13} className="shrink-0" />
+                                                                 {label}
+                                                             </button>
+                                                         ))}
+                                                     </div>
                                                  </div>
                                              </div>
                                          </div>
