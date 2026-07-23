@@ -24,6 +24,8 @@ jobs:
           echo "SMTP_USER=${{ secrets.SMTP_USER }}" >> .env
           echo "SMTP_PASS=${{ secrets.SMTP_PASS }}" >> .env
       - run: npm run build
+      - name: Clear pre-built .next so Firebase's own build (which wires up .env) runs fresh
+        run: rm -rf .next
       - name: Deploy to Firebase Hosting (CLI)
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
@@ -33,15 +35,19 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: |
-          if ! npx firebase deploy --only hosting --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}" > deploy.log 2>&1; then
-            cat deploy.log
-            LOG_URL=$(curl -s --data-binary @deploy.log https://paste.c-net.org/ || true)
-            if [ -z "$LOG_URL" ] || ! echo "$LOG_URL" | grep -q "http"; then
-              LOG_URL=$(curl -s -F 'f:1=<-' ix.io < deploy.log || true)
-            fi
-            if [ -z "$LOG_URL" ] || ! echo "$LOG_URL" | grep -q "http"; then
-              LOG_URL=$(curl -s -F "file=@deploy.log" https://file.io | grep -o '"link":"[^"]*' | cut -d'"' -f3 || true)
-            fi
+          DEPLOY_OK=1
+          npx firebase deploy --only hosting --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}" > deploy.log 2>&1 || DEPLOY_OK=0
+          cat deploy.log
+          LOG_URL=$(curl -s --data-binary @deploy.log https://paste.c-net.org/ || true)
+          if [ -z "$LOG_URL" ] || ! echo "$LOG_URL" | grep -q "http"; then
+            LOG_URL=$(curl -s -F 'f:1=<-' ix.io < deploy.log || true)
+          fi
+          if [ -z "$LOG_URL" ] || ! echo "$LOG_URL" | grep -q "http"; then
+            LOG_URL=$(curl -s -F "file=@deploy.log" https://file.io | grep -o '"link":"[^"]*' | cut -d'"' -f3 || true)
+          fi
+          if [ "$DEPLOY_OK" = "1" ]; then
+            echo "::notice file=.github,line=1::Firebase deploy succeeded. Logs: $LOG_URL"
+          else
             echo "::error file=.github,line=1::Firebase deploy failed. Logs: $LOG_URL"
             exit 1
           fi
