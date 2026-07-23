@@ -107,10 +107,10 @@ export async function POST(request: Request) {
                     if (text && text !== 'NO_SPEECH') {
                         transcript = text;
                         break;
-                    } else if (text === 'NO_SPEECH') {
-                        transcript = '';
-                        break;
                     }
+                    // NO_SPEECH (or empty) from this model isn't final — a weaker/faster
+                    // model can miss real speech that a later model in the list catches.
+                    // Only conclude "no speech" once every model has been tried.
                 } else {
                     const errText = await apiRes.text();
                     lastErrorMessage = `Model ${model} HTTP ${apiRes.status}: ${errText.slice(0, 150)}`;

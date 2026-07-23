@@ -70,6 +70,7 @@ If the image has NO text or lyrics on it at all, output EXACTLY: NO_TEXT`;
         ];
 
         let extractedText: string | null = null;
+        let anyModelResponded = false;
         let isQuotaError = false;
         let lastErrorText = '';
 
@@ -104,10 +105,17 @@ If the image has NO text or lyrics on it at all, output EXACTLY: NO_TEXT`;
                 });
 
                 if (response.ok) {
+                    anyModelResponded = true;
                     const result = await response.json();
-                    extractedText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                    console.log(`[Image OCR] Successfully scanned image using model: ${model}`);
-                    break;
+                    const text = (result.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+                    if (text && text !== 'NO_TEXT') {
+                        extractedText = text;
+                        console.log(`[Image OCR] Successfully scanned image using model: ${model}`);
+                        break;
+                    }
+                    // NO_TEXT (or empty) from this model isn't final — a weaker/faster
+                    // model can miss real text that a later model in the list catches.
+                    // Only conclude "no text" once every model has been tried.
                 } else {
                     const errBody = await response.text();
                     lastErrorText = errBody;
@@ -125,10 +133,15 @@ If the image has NO text or lyrics on it at all, output EXACTLY: NO_TEXT`;
             return NextResponse.json({ text: extractedText.trim() });
         }
 
+        if (anyModelResponded) {
+            // Every model that responded agreed there's no text — a normal result, not a failure.
+            return NextResponse.json({ text: '' });
+        }
+
         if (isQuotaError) {
-            return NextResponse.json({ 
+            return NextResponse.json({
                 error: 'AI scanning quota temporarily exceeded. Please try again in a few moments.',
-                isQuotaError: true 
+                isQuotaError: true
             }, { status: 429 });
         }
 
