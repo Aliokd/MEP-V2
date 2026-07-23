@@ -1,15 +1,4 @@
 import { NextResponse } from 'next/server';
-import mammoth from 'mammoth';
-
-// Polyfill DOMMatrix for Node.js server environment to prevent pdf-parse layout trace crashes
-if (typeof global !== 'undefined') {
-  if (!(global as any).DOMMatrix) {
-    (global as any).DOMMatrix = class DOMMatrix {};
-  }
-}
-
-// Use require for pdf-parse since it lacks a default ESM export
-const { PDFParse } = require('pdf-parse');
 
 export async function POST(request: Request) {
   try {
@@ -24,10 +13,32 @@ export async function POST(request: Request) {
     let extractedText = '';
 
     if (fileName.endsWith('.pdf')) {
+      // Polyfill DOMMatrix for Node.js server environment to prevent pdf-parse layout trace crashes
+      if (typeof global !== 'undefined' && !(global as any).DOMMatrix) {
+        (global as any).DOMMatrix = class DOMMatrix {};
+      }
+      // Loaded lazily (only for .pdf requests) so a failure here doesn't take down
+      // extraction for every other file type — this endpoint previously crashed on
+      // ALL requests, including .txt files, because this require() ran unconditionally
+      // at module load time for the entire route.
+      let PDFParse: any;
+      try {
+        ({ PDFParse } = require('pdf-parse'));
+      } catch (loadErr: any) {
+        console.error('Failed to load pdf-parse:', loadErr);
+        return NextResponse.json({ error: 'PDF extraction is temporarily unavailable' }, { status: 500 });
+      }
       const parser = new PDFParse({ data: buffer });
       const data = await parser.getText();
       extractedText = data.text || '';
     } else if (fileName.endsWith('.docx')) {
+      let mammoth: any;
+      try {
+        mammoth = require('mammoth');
+      } catch (loadErr: any) {
+        console.error('Failed to load mammoth:', loadErr);
+        return NextResponse.json({ error: 'DOCX extraction is temporarily unavailable' }, { status: 500 });
+      }
       const result = await mammoth.extractRawText({ buffer });
       extractedText = result.value || '';
     } else if (fileName.endsWith('.doc')) {
