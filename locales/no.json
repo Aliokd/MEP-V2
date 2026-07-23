@@ -275,7 +275,9 @@
     "title": "Prosjekter",
     "create_project": "Opprett nytt prosjekt",
     "untitled_note": "Uten tittel",
-    "delete_note": "Slett sang"
+    "delete_note": "Slett sang",
+    "duplicate_note": "Dupliser sang",
+    "copy_suffix": "Kopi"
   },
   "learn": {
     "access_restricted": "Begrenset tilgang",

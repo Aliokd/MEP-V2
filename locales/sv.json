@@ -275,7 +275,9 @@
     "title": "Projekt",
     "create_project": "Skapa nytt projekt",
     "untitled_note": "Namnlös låt",
-    "delete_note": "Ta bort låt"
+    "delete_note": "Ta bort låt",
+    "duplicate_note": "Duplicera låt",
+    "copy_suffix": "Kopia"
   },
   "learn": {
     "access_restricted": "Begränsad åtkomst",

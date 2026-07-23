@@ -275,7 +275,9 @@
     "title": "Projects",
     "create_project": "Create new project",
     "untitled_note": "Untitled Song",
-    "delete_note": "Delete Note"
+    "delete_note": "Delete Note",
+    "duplicate_note": "Duplicate Note",
+    "copy_suffix": "Copy"
   },
   "learn": {
     "access_restricted": "Access restricted",
