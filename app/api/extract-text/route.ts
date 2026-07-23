@@ -24,23 +24,24 @@ export async function POST(request: Request) {
       let PDFParse: any;
       try {
         ({ PDFParse } = require('pdf-parse'));
+        const parser = new PDFParse({ data: buffer });
+        const data = await parser.getText();
+        extractedText = data.text || '';
       } catch (loadErr: any) {
-        console.error('Failed to load pdf-parse:', loadErr);
-        return NextResponse.json({ error: 'PDF extraction is temporarily unavailable' }, { status: 500 });
+        console.error('Failed to load/run pdf-parse:', loadErr);
+        // TEMP: surfacing the real error for diagnosis, will revert to a generic message once fixed.
+        return NextResponse.json({ error: 'PDF extraction failed: ' + (loadErr?.message || String(loadErr)) + ' | stack: ' + (loadErr?.stack || '').slice(0, 500) }, { status: 500 });
       }
-      const parser = new PDFParse({ data: buffer });
-      const data = await parser.getText();
-      extractedText = data.text || '';
     } else if (fileName.endsWith('.docx')) {
-      let mammoth: any;
       try {
-        mammoth = require('mammoth');
+        const mammoth = require('mammoth');
+        const result = await mammoth.extractRawText({ buffer });
+        extractedText = result.value || '';
       } catch (loadErr: any) {
-        console.error('Failed to load mammoth:', loadErr);
-        return NextResponse.json({ error: 'DOCX extraction is temporarily unavailable' }, { status: 500 });
+        console.error('Failed to load/run mammoth:', loadErr);
+        // TEMP: surfacing the real error for diagnosis, will revert to a generic message once fixed.
+        return NextResponse.json({ error: 'DOCX extraction failed: ' + (loadErr?.message || String(loadErr)) + ' | stack: ' + (loadErr?.stack || '').slice(0, 500) }, { status: 500 });
       }
-      const result = await mammoth.extractRawText({ buffer });
-      extractedText = result.value || '';
     } else if (fileName.endsWith('.doc')) {
       // Old word doc fallback: extract printable character sequences from binary representation
       const rawText = buffer.toString('binary');
