@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { useLanguage } from '@/context/LanguageContext';
+import LanguageSwitcher from './LanguageSwitcher';
 
 interface MaestroSidebarProps {
     isMobileOpen?: boolean;
@@ -206,6 +207,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
 
                         {/* Bottom Actions */}
                         <div className="flex flex-col gap-3 w-full items-start pl-4">
+                            <LanguageSwitcher />
                             {bottomItems.map((item: any) => {
                                 if (item.onClick) {
                                     return (

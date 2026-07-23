@@ -366,6 +366,8 @@
     "title": "Dina framsteg",
     "level_label": "Nivå",
     "subtitle": "Slutför alla 3 målen för att nå Nivå 2",
+    "mind_power_label": "Mental styrka",
+    "mind_power_desc": "Mental styrka mäter tiden du lägger på att tänka och skapa låtar. Ditt sinne är en muskel — ju mer du använder det, desto starkare blir det.",
     "create": "Skapa",
     "learn": "Lär",
     "practice": "Öva",
@@ -392,7 +394,7 @@
   "profile": {
     "title": "Profil & inställningar",
     "subtitle": "Hantera dina kontouppgifter och inställningar.",
-    "tier": "Virtuoso-nivå",
+    "tier": "Pro-plan",
     "display_name": "Visningsnamn",
     "placeholder_name": "Ange ett visningsnamn",
     "email": "E-postadress",
@@ -412,10 +414,11 @@
     "public_profile_title": "Offentlig profil",
     "public_profile_desc": "Låt andra studenter se dina framsteg i konstellationen.",
     "current_plan": "Nuvarande abonnemang",
-    "virtuoso_membership": "Virtuoso-medlemskap",
+    "virtuoso_membership": "Pro",
     "manage_subscription": "Hantera abonnemang",
+    "upgrade_to_max": "Uppgradera till Max",
     "need_assistance": "Behöver du hjälp?",
-    "contact_concierge": "Kontakta concierge",
+    "contact_concierge": "Kontakta support",
     "error_update_email": "Det gick inte att uppdatera e-post. Vänligen logga in igen."
   },
   "practice": {

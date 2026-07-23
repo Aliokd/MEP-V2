@@ -3,7 +3,7 @@ import { safeLocalStorageSetItem } from '@/lib/storage';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { User, Mail, CreditCard } from 'lucide-react';
+import { User, Mail } from 'lucide-react';
 import SupportModal from '../components/SupportModal';
 
 export default function ProfilePage() {
@@ -102,169 +102,171 @@ export default function ProfilePage() {
     };
 
     return (
-        <div className="space-y-12 text-stone-900 font-sans">
-            <header className="space-y-4">
-                <h1 className="text-4xl font-sans font-light tracking-tight text-stone-900">{t('profile.title')}</h1>
-                <p className="text-stone-700 font-sans max-w-2xl text-sm font-medium">
+        <div className="space-y-10 text-stone-900 font-sans">
+            <header className="space-y-2">
+                <h1 className="text-3xl font-sans font-light tracking-tight text-stone-900">{t('profile.title')}</h1>
+                <p className="text-stone-500 font-sans max-w-2xl text-sm font-normal">
                     {t('profile.subtitle')}
                 </p>
             </header>
 
             <div className="grid lg:grid-cols-3 gap-12">
-                {/* Main Profile Card */}
-                <div className="lg:col-span-2 space-y-8">
-                    <section className="bg-white/60 border border-stone-200/80 p-8 rounded-[16px] space-y-8 shadow-xs">
-                        <div className="flex items-center gap-6">
-                            <div className="w-24 h-24 bg-stone-900 rounded-full flex items-center justify-center text-4xl font-sans text-[#DCDDD4] font-bold">
-                                {name.charAt(0) || 'M'}
-                            </div>
-                            <div>
-                                <h2 className="text-2xl font-sans font-bold text-stone-900">{name || 'Maestro'}</h2>
-                                <p className="text-stone-700 text-xs font-bold mt-1">{t('profile.tier')}</p>
-                                <p className="text-stone-700 text-sm font-medium mt-2">{email}</p>
-                            </div>
+                {/* Main column */}
+                <div className="lg:col-span-2 space-y-10">
+                    {/* Identity */}
+                    <div className="flex items-center gap-5">
+                        <div className="w-20 h-20 bg-stone-900 rounded-full flex items-center justify-center text-3xl font-sans text-[#DCDDD4] font-medium">
+                            {name.charAt(0) || 'M'}
                         </div>
+                        <div>
+                            <h2 className="text-xl font-sans font-semibold text-stone-900">{name || 'Maestro'}</h2>
+                            <p className="text-stone-500 text-xs font-medium mt-1">{t('profile.tier')} · {email}</p>
+                        </div>
+                    </div>
 
-                        {verificationState === 'idle' && (
-                            <form onSubmit={handleSave} className="space-y-6">
-                                <div className="grid md:grid-cols-2 gap-6 pt-6 border-t border-stone-250">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] uppercase tracking-widest text-stone-700 font-bold">{t('profile.display_name')}</label>
-                                        <div className="flex items-center gap-3 bg-white/80 p-4 border border-stone-200 rounded-[12px] text-stone-900 focus-within:border-stone-400 transition-colors">
-                                            <User size={16} className="text-stone-900" />
-                                            <input
-                                                type="text"
-                                                value={name}
-                                                onChange={(e) => setName(e.target.value)}
-                                                placeholder={t('profile.placeholder_name')}
-                                                className="bg-transparent border-none outline-none w-full font-medium p-0 focus:ring-0"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] uppercase tracking-widest text-stone-700 font-bold">{t('profile.email')}</label>
-                                        <div className="flex items-center gap-3 bg-white/80 p-4 border border-stone-200 rounded-[12px] text-stone-900 focus-within:border-stone-400 transition-colors">
-                                            <Mail size={16} className="text-stone-900" />
-                                            <input
-                                                type="email"
-                                                value={email}
-                                                onChange={(e) => setEmail(e.target.value)}
-                                                className="bg-transparent border-none outline-none w-full font-medium p-0 focus:ring-0"
-                                            />
-                                        </div>
+                    <div className="h-px bg-stone-200/60" />
+
+                    {/* Details form */}
+                    {verificationState === 'idle' && (
+                        <form onSubmit={handleSave} className="space-y-6">
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-xs text-stone-400 font-medium">{t('profile.display_name')}</label>
+                                    <div className="flex items-center gap-2.5 border-b border-stone-300 focus-within:border-stone-500 transition-colors py-2">
+                                        <User size={15} className="text-stone-400" />
+                                        <input
+                                            type="text"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            placeholder={t('profile.placeholder_name')}
+                                            className="bg-transparent border-none outline-none w-full font-medium text-stone-800 p-0 focus:ring-0"
+                                        />
                                     </div>
                                 </div>
-                                {hasChanges && (
-                                    <div className="pt-2">
-                                        <button
-                                            type="submit"
-                                            className="px-5 py-2.5 bg-stone-900 text-[#DCDDD4] hover:bg-stone-800 text-xs font-semibold rounded-lg transition-all cursor-pointer"
-                                        >
-                                            {t('profile.save_details')}
-                                        </button>
+                                <div className="space-y-2">
+                                    <label className="text-xs text-stone-400 font-medium">{t('profile.email')}</label>
+                                    <div className="flex items-center gap-2.5 border-b border-stone-300 focus-within:border-stone-500 transition-colors py-2">
+                                        <Mail size={15} className="text-stone-400" />
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            className="bg-transparent border-none outline-none w-full font-medium text-stone-800 p-0 focus:ring-0"
+                                        />
                                     </div>
-                                )}
-                                {notification && (
-                                    <p className="text-xs text-stone-600 font-medium animate-in fade-in duration-200">{notification}</p>
-                                )}
-                            </form>
-                        )}
-
-                        {verificationState === 'pending' && (
-                            <div className="space-y-4 py-2 border-l-2 border-stone-400 pl-4 animate-in fade-in duration-200 pt-6 border-t border-stone-250">
-                                <p className="text-sm font-semibold text-stone-800">{t('profile.verify_title')}</p>
-                                <p className="text-xs text-stone-500 leading-relaxed font-medium">
-                                    {t('profile.verify_sent')} <span className="font-semibold text-stone-700">{pendingEmail}</span>{t('profile.verify_sent_end')}
-                                </p>
-                                <div className="flex flex-wrap gap-3 pt-2">
-                                    <a
-                                        href="https://mail.google.com"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="px-4 py-2 border border-stone-200 hover:border-stone-300 hover:bg-stone-50/50 text-stone-700 text-xs font-semibold rounded-lg transition-all"
-                                    >
-                                        {t('profile.open_gmail')}
-                                    </a>
+                                </div>
+                            </div>
+                            {hasChanges && (
+                                <div className="pt-1">
                                     <button
-                                        onClick={handleCompleteVerification}
-                                        className="px-4 py-2 bg-stone-100 hover:bg-stone-200/60 border border-stone-200 text-stone-850 text-xs font-semibold rounded-lg transition-all cursor-pointer"
+                                        type="submit"
+                                        className="px-5 py-2.5 bg-stone-900 text-[#DCDDD4] hover:bg-stone-800 text-xs font-semibold rounded-full transition-all cursor-pointer"
                                     >
-                                        {t('profile.simulate_click')}
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setVerificationState('idle');
-                                            setEmail(user.email || '');
-                                        }}
-                                        className="px-4 py-2 text-stone-500 hover:text-stone-700 text-xs font-semibold transition-all cursor-pointer"
-                                    >
-                                        {t('profile.cancel')}
+                                        {t('profile.save_details')}
                                     </button>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                            {notification && (
+                                <p className="text-xs text-stone-500 font-medium animate-in fade-in duration-200">{notification}</p>
+                            )}
+                        </form>
+                    )}
 
-                        {verificationState === 'success' && (
-                            <div className="py-2 border-l-2 border-emerald-500 pl-4 animate-in fade-in duration-200 pt-6 border-t border-stone-250">
-                                <p className="text-sm font-semibold text-emerald-700">✓ {t('profile.success_title')}</p>
-                                <p className="text-xs text-emerald-600 font-medium mt-1">{t('profile.success_desc')} {email}{t('profile.returning_platform')}</p>
-                            </div>
-                        )}
-                    </section>
-
-                    <section className="bg-white/60 border border-stone-200/80 p-8 rounded-[16px] space-y-6 shadow-xs">
-                        <h3 className="text-xl font-sans font-bold border-b border-stone-200 pb-4">{t('profile.preferences')}</h3>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between p-4 hover:bg-stone-200/30 rounded-[12px] transition-colors cursor-pointer group">
-                                <div className="space-y-1">
-                                    <p className="font-sans text-sm font-bold text-stone-900 group-hover:text-stone-950 transition-colors">{t('profile.notifications_title')}</p>
-                                    <p className="text-xs text-stone-700 font-medium">{t('profile.notifications_desc')}</p>
-                                </div>
-                                <div className="w-10 h-6 bg-stone-900/10 rounded-full relative">
-                                    <div className="absolute right-1 top-1 w-4 h-4 bg-stone-900 rounded-full shadow-lg" />
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between p-4 hover:bg-stone-200/30 rounded-[12px] transition-colors cursor-pointer group">
-                                <div className="space-y-1">
-                                    <p className="font-sans text-sm font-bold text-stone-900 group-hover:text-stone-950 transition-colors">{t('profile.public_profile_title')}</p>
-                                    <p className="text-xs text-stone-700 font-medium">{t('profile.public_profile_desc')}</p>
-                                </div>
-                                <div className="w-10 h-6 bg-stone-200 rounded-full relative">
-                                    <div className="absolute left-1 top-1 w-4 h-4 bg-stone-400 rounded-full shadow-lg" />
-                                </div>
+                    {verificationState === 'pending' && (
+                        <div className="space-y-4 py-2 border-l-2 border-stone-300 pl-4 animate-in fade-in duration-200">
+                            <p className="text-sm font-semibold text-stone-800">{t('profile.verify_title')}</p>
+                            <p className="text-xs text-stone-500 leading-relaxed font-medium">
+                                {t('profile.verify_sent')} <span className="font-semibold text-stone-700">{pendingEmail}</span>{t('profile.verify_sent_end')}
+                            </p>
+                            <div className="flex flex-wrap gap-3 pt-2">
+                                <a
+                                    href="https://mail.google.com"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-4 py-2 border border-stone-200 hover:border-stone-300 hover:bg-stone-50/50 text-stone-700 text-xs font-semibold rounded-full transition-all"
+                                >
+                                    {t('profile.open_gmail')}
+                                </a>
+                                <button
+                                    onClick={handleCompleteVerification}
+                                    className="px-4 py-2 bg-stone-100 hover:bg-stone-200/60 border border-stone-200 text-stone-700 text-xs font-semibold rounded-full transition-all cursor-pointer"
+                                >
+                                    {t('profile.simulate_click')}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setVerificationState('idle');
+                                        setEmail(user.email || '');
+                                    }}
+                                    className="px-4 py-2 text-stone-500 hover:text-stone-700 text-xs font-semibold transition-all cursor-pointer"
+                                >
+                                    {t('profile.cancel')}
+                                </button>
                             </div>
                         </div>
-                    </section>
+                    )}
+
+                    {verificationState === 'success' && (
+                        <div className="py-2 border-l-2 border-emerald-500 pl-4 animate-in fade-in duration-200">
+                            <p className="text-sm font-semibold text-emerald-700">✓ {t('profile.success_title')}</p>
+                            <p className="text-xs text-emerald-600 font-medium mt-1">{t('profile.success_desc')} {email}{t('profile.returning_platform')}</p>
+                        </div>
+                    )}
+
+                    <div className="h-px bg-stone-200/60" />
+
+                    {/* Preferences */}
+                    <div className="space-y-1">
+                        <h3 className="text-sm font-sans font-semibold text-stone-700 mb-3">{t('profile.preferences')}</h3>
+                        <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
+                            <div className="space-y-0.5">
+                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.notifications_title')}</p>
+                                <p className="text-xs text-stone-500">{t('profile.notifications_desc')}</p>
+                            </div>
+                            <div className="w-10 h-6 bg-stone-900/10 rounded-full relative shrink-0 ml-4">
+                                <div className="absolute right-1 top-1 w-4 h-4 bg-stone-900 rounded-full" />
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between py-4">
+                            <div className="space-y-0.5">
+                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.public_profile_title')}</p>
+                                <p className="text-xs text-stone-500">{t('profile.public_profile_desc')}</p>
+                            </div>
+                            <div className="w-10 h-6 bg-stone-200 rounded-full relative shrink-0 ml-4">
+                                <div className="absolute left-1 top-1 w-4 h-4 bg-stone-400 rounded-full" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Sidebar / Plan Info */}
                 <div className="space-y-6">
-                    <div className="bg-white/80 border border-stone-200/80 p-8 rounded-[16px] space-y-6 text-center shadow-xs">
-                        <div className="w-16 h-16 bg-stone-900 rounded-full flex items-center justify-center mx-auto text-[#DCDDD4]">
-                            <CreditCard size={28} />
-                        </div>
+                    <div className="bg-white/60 border border-stone-200/70 p-7 rounded-[16px] space-y-5 text-center">
                         <div>
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-bold mb-2">{t('profile.current_plan')}</p>
-                            <h3 className="text-2xl font-sans font-bold text-stone-900">{t('profile.virtuoso_membership')}</h3>
-                            <p className="text-stone-700 text-xs font-semibold mt-2">$29.99 / month</p>
+                            <p className="text-xs text-stone-400 font-medium mb-1.5">{t('profile.current_plan')}</p>
+                            <h3 className="text-xl font-sans font-semibold text-stone-900">{t('profile.virtuoso_membership')}</h3>
+                            <p className="text-stone-500 text-xs font-medium mt-1">$29.99 / month</p>
                         </div>
-                        <button className="w-full py-5 bg-stone-900 text-[#DCDDD4] text-base font-bold hover:bg-stone-800 transition-colors rounded-full">
+                        <button className="w-full py-3 bg-[#86BE7F]/15 hover:bg-[#86BE7F]/25 text-[#3f6a3a] text-sm font-semibold rounded-full transition-colors cursor-pointer">
+                            {t('profile.upgrade_to_max')}
+                        </button>
+                        <button className="text-stone-500 hover:text-stone-800 text-xs font-medium hover:underline transition-colors cursor-pointer">
                             {t('profile.manage_subscription')}
                         </button>
                     </div>
 
-                    <div className="bg-white/60 p-6 rounded-[16px] text-center border border-stone-200/80 shadow-xs">
-                        <p className="text-xs text-stone-700 font-semibold mb-4">{t('profile.need_assistance')}</p>
-                        <button 
+                    <p className="text-center text-xs text-stone-500">
+                        {t('profile.need_assistance')}{' '}
+                        <button
                             onClick={() => setIsSupportOpen(true)}
-                            className="text-stone-900 text-sm font-bold hover:underline"
+                            className="text-stone-800 font-semibold hover:underline"
                         >
                             {t('profile.contact_concierge')}
                         </button>
-                    </div>
+                    </p>
                 </div>
             </div>
-            
+
             <SupportModal isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
         </div>
     );

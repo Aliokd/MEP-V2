@@ -227,3 +227,39 @@ input:-webkit-autofill:active {
     background-size: 200% 100%;
     animation: shimmer 1.8s infinite linear;
 }
+
+/* Mind Power achievement glow — a moving multicolor border that settles to green, then fades */
+@keyframes mind-power-glow {
+    0% {
+        background-position: 0% 50%;
+        opacity: 0;
+    }
+    8% {
+        opacity: 1;
+    }
+    55% {
+        background-position: 200% 50%;
+        opacity: 1;
+    }
+    75% {
+        background-position: 200% 50%;
+        opacity: 1;
+    }
+    100% {
+        background-position: 200% 50%;
+        opacity: 0;
+    }
+}
+.mind-power-glow-ring {
+    position: absolute;
+    inset: -3px;
+    border-radius: 9999px;
+    padding: 2px;
+    pointer-events: none;
+    background: linear-gradient(90deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
+    background-size: 220% 100%;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: mind-power-glow 3.4s ease-out forwards;
+}

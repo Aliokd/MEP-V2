@@ -1612,6 +1612,7 @@ export default function ConnectTab() {
 
     const newPost = {
       id: postId,
+      authorId: user?.uid || null,
       author: user?.displayName || user?.email?.split('@')[0] || 'Anonymous',
       avatarFallback: user?.displayName?.slice(0, 2).toUpperCase() || user?.email?.slice(0, 2).toUpperCase() || 'AN',
       time: t('connect.just_now'),
@@ -1629,6 +1630,9 @@ export default function ConnectTab() {
 
     try {
       await setDoc(doc(db, 'connect_posts', postId), newPost);
+      window.dispatchEvent(new CustomEvent('songwriting-progress-updated', {
+        detail: { triggerType: 'major-task' }
+      }));
     } catch (err) {
       console.error("Error creating post:", err);
     }

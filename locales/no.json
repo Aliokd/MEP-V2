@@ -366,6 +366,8 @@
     "title": "Fremgangen din",
     "level_label": "Nivå",
     "subtitle": "Fullfør alle 3 målene for å nå Nivå 2",
+    "mind_power_label": "Mental styrke",
+    "mind_power_desc": "Mental styrke måler tiden du bruker på å tenke og skape sanger. Sinnet ditt er en muskel — jo mer du bruker det, desto sterkere blir det.",
     "create": "Skap",
     "learn": "Lær",
     "practice": "Øv",
@@ -392,7 +394,7 @@
   "profile": {
     "title": "Profil og innstillinger",
     "subtitle": "Administrer kontodetaljer og preferanser.",
-    "tier": "Virtuoso-nivå",
+    "tier": "Pro-plan",
     "display_name": "Visningsnavn",
     "placeholder_name": "Velg et visningsnavn",
     "email": "E-postadresse",
@@ -412,10 +414,11 @@
     "public_profile_title": "Offentlig profil",
     "public_profile_desc": "La andre studenter se fremgangen din i konstellasjonen.",
     "current_plan": "Gjeldende abonnement",
-    "virtuoso_membership": "Virtuoso-medlemskap",
+    "virtuoso_membership": "Pro",
     "manage_subscription": "Administrer abonnement",
+    "upgrade_to_max": "Oppgrader til Max",
     "need_assistance": "Trenger du hjelp?",
-    "contact_concierge": "Kontakt concierge",
+    "contact_concierge": "Kontakt support",
     "error_update_email": "Kunne ikke oppdatere e-post. Vennligst prøv å logge inn på nytt."
   },
   "practice": {
