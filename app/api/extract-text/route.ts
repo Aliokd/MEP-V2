@@ -1,5 +1,77 @@
 import { NextResponse } from 'next/server';
 
+async function extractPdfTextViaGemini(buffer: Buffer): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('PDF extraction requires GEMINI_API_KEY to be configured');
+  }
+
+  const base64Data = buffer.toString('base64');
+  const prompt = `Extract ALL text content from this PDF document exactly as written, including lyrics, headers, and titles.
+Preserve exact line breaks and paragraph structure.
+Do NOT correct spelling, do NOT translate, and do NOT add markdown wrappers or conversational intro/outro text.
+If the PDF has no extractable text at all, output EXACTLY: NO_TEXT`;
+
+  // Local PDF-parsing libraries (pdf-parse v2 needs pdfjs-dist's worker setup, which Turbopack
+  // can't statically bundle for the deployed Cloud Function; pdf-parse v1's vendored parser is
+  // too old to reliably handle PDFs from real-world producers) proved unreliable in this exact
+  // deployment. Routing through Gemini instead — same approach already proven reliable for
+  // image OCR — avoids the local-parser/bundler problem entirely.
+  const modelsToTry = [
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-3.5-flash-lite',
+  ];
+
+  let extractedText: string | null = null;
+  let anyModelResponded = false;
+  let isQuotaError = false;
+  let lastErrorText = '';
+
+  for (const model of modelsToTry) {
+    try {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { inlineData: { mimeType: 'application/pdf', data: base64Data } },
+                { text: prompt }
+              ]
+            }
+          ],
+          generationConfig: { maxOutputTokens: 8192 }
+        })
+      });
+
+      if (response.ok) {
+        anyModelResponded = true;
+        const result = await response.json();
+        const text = (result.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+        if (text && text !== 'NO_TEXT') {
+          extractedText = text;
+          break;
+        }
+        // NO_TEXT (or empty) from this model isn't final — a weaker/faster model can
+        // miss text a later model catches. Only conclude "no text" once all models are tried.
+      } else {
+        lastErrorText = await response.text();
+        if (response.status === 429) isQuotaError = true;
+      }
+    } catch (err: any) {
+      lastErrorText = err.message || String(err);
+    }
+  }
+
+  if (extractedText !== null) return extractedText;
+  if (anyModelResponded) return ''; // every model agreed there's no text — a normal result
+  if (isQuotaError) throw new Error('AI extraction quota temporarily exceeded. Please try again in a few moments.');
+  throw new Error(`PDF extraction failed. ${lastErrorText}`);
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -13,35 +85,11 @@ export async function POST(request: Request) {
     let extractedText = '';
 
     if (fileName.endsWith('.pdf')) {
-      // Polyfill DOMMatrix for Node.js server environment to prevent pdf-parse layout trace crashes
-      if (typeof global !== 'undefined' && !(global as any).DOMMatrix) {
-        (global as any).DOMMatrix = class DOMMatrix {};
-      }
-      // Loaded lazily (only for .pdf requests) so a failure here doesn't take down
-      // extraction for every other file type — this endpoint previously crashed on
-      // ALL requests, including .txt files, because this require() ran unconditionally
-      // at module load time for the entire route.
-      let PDFParse: any;
-      try {
-        ({ PDFParse } = require('pdf-parse'));
-        const parser = new PDFParse({ data: buffer });
-        const data = await parser.getText();
-        extractedText = data.text || '';
-      } catch (loadErr: any) {
-        console.error('Failed to load/run pdf-parse:', loadErr);
-        // TEMP: surfacing the real error for diagnosis, will revert to a generic message once fixed.
-        return NextResponse.json({ error: 'PDF extraction failed: ' + (loadErr?.message || String(loadErr)) + ' | stack: ' + (loadErr?.stack || '').slice(0, 500) }, { status: 500 });
-      }
+      extractedText = await extractPdfTextViaGemini(buffer);
     } else if (fileName.endsWith('.docx')) {
-      try {
-        const mammoth = require('mammoth');
-        const result = await mammoth.extractRawText({ buffer });
-        extractedText = result.value || '';
-      } catch (loadErr: any) {
-        console.error('Failed to load/run mammoth:', loadErr);
-        // TEMP: surfacing the real error for diagnosis, will revert to a generic message once fixed.
-        return NextResponse.json({ error: 'DOCX extraction failed: ' + (loadErr?.message || String(loadErr)) + ' | stack: ' + (loadErr?.stack || '').slice(0, 500) }, { status: 500 });
-      }
+      const mammoth = require('mammoth');
+      const result = await mammoth.extractRawText({ buffer });
+      extractedText = result.value || '';
     } else if (fileName.endsWith('.doc')) {
       // Old word doc fallback: extract printable character sequences from binary representation
       const rawText = buffer.toString('binary');
