@@ -53,184 +53,184 @@
   "inspiration": {
     "cards": {
       "releasing_regret": {
-        "title": "Releasing Regret",
+        "title": "Letting Go of Regret",
         "category": "Release",
-        "q0": "What is one memory or regret from your past that feels like a heavy, withered leaf?",
-        "q1": "If you let it drop onto the forest floor, how does the earth promise to decompose and renew it?",
-        "q2": "What would your life look like if you stopped holding onto branches that no longer nourish you?",
-        "q3": "Write a lyric describing the weight of carrying what has already died.",
-        "q4": "What chord progression captures the peaceful release of letting go?"
+        "q0": "What's one memory from your past that still feels heavy?",
+        "q1": "What would it feel like to finally let that go?",
+        "q2": "What are you holding onto that isn't helping you anymore?",
+        "q3": "Write one line about carrying something heavy.",
+        "q4": "What kind of music feels like relief?"
       },
       "finding_stillness": {
-        "title": "Finding Stillness",
+        "title": "Finding Calm",
         "category": "Calm",
-        "q0": "What part of your mind is currently rippled with anxiety, and how can you invite it to settle?",
-        "q1": "When you look at the perfect reflection on the water, what true version of yourself do you see?",
-        "q2": "If you sat in complete silence by this shore, what is the first feeling that would emerge?",
-        "q3": "Describe the texture of absolute quietness using musical terms (tempo, volume, tone).",
-        "q4": "Write a line of gratitude for this moment of pause."
+        "q0": "What's making your mind feel busy right now?",
+        "q1": "What would it feel like if everything went quiet for a moment?",
+        "q2": "What does calm feel like to you?",
+        "q3": "Write one line about a quiet moment.",
+        "q4": "What kind of tempo feels calm — slow, steady, gentle?"
       },
       "growth_after_pain": {
-        "title": "Growth After Pain",
-        "category": "Resilience",
-        "q0": "What personal struggle or heartbreak was the fire that burned your old canvas away?",
-        "q1": "Where do you see the first tiny green shoot of new strength emerging within you?",
-        "q2": "How does ashes fertilizing the soil represent the hidden value of your hardest days?",
-        "q3": "Write a lyric comparing your resilience to a forest growing back stronger.",
-        "q4": "What tempo or rhythm represents a slow, unstoppable rebirth?"
+        "title": "Growing Stronger",
+        "category": "Growth",
+        "q0": "What hard time in your life changed you the most?",
+        "q1": "What's one way you've grown since then?",
+        "q2": "How did that hard time end up teaching you something?",
+        "q3": "Write one line comparing your strength to something that grows back.",
+        "q4": "What rhythm feels like slowly getting stronger?"
       },
       "embracing_uncertainty": {
-        "title": "Embracing Uncertainty",
+        "title": "Trusting the Unknown",
         "category": "Trust",
-        "q0": "What makes you fearful about not being able to see the road far ahead?",
-        "q1": "If you could only see three steps in front of you, how would you find the courage to take the next one?",
-        "q2": "What comfort does the mysterious, soft fog bring when it covers the noise of the world?",
-        "q3": "Write a line about trusting the journey when the destination is hidden.",
-        "q4": "What musical key feels like walking into the beautiful unknown?"
+        "q0": "What's something in your life that feels uncertain right now?",
+        "q1": "What would it feel like to take one step without knowing what's next?",
+        "q2": "What helps you feel safe when things are unclear?",
+        "q3": "Write one line about trusting yourself, even without answers.",
+        "q4": "What kind of melody feels like stepping into the unknown?"
       },
       "grief_and_honoring": {
-        "title": "Grief and Honoring",
+        "title": "Honoring a Loss",
         "category": "Healing",
-        "q0": "What loss or grief are you carrying that feels frozen inside your chest?",
-        "q1": "As the sun warms the mountain, how can you allow your frozen tears to melt and flow?",
-        "q2": "Where does the melting water go, and how can it bring life to the valleys below?",
-        "q3": "Write a line that honors the beauty of what you lost while accepting that life moves forward.",
-        "q4": "If your grief was a gentle acoustic melody, how would it resolve?"
+        "q0": "What or who are you missing right now?",
+        "q1": "What's one good memory connected to this?",
+        "q2": "What would it feel like to let some of that sadness soften?",
+        "q3": "Write one line that honors what you lost.",
+        "q4": "What melody feels like healing to you?"
       },
       "overcoming_fear": {
-        "title": "Overcoming Fear",
+        "title": "Facing Fear",
         "category": "Courage",
-        "q0": "What is the edge or cliff you are standing on, and what leap of faith are you afraid to take?",
-        "q1": "How does the raw, howling wind challenge you to stand tall in your truth?",
-        "q2": "If you knew the ocean below would catch you and teach you to swim, would you jump?",
-        "q3": "Write a powerful line describing the moment fear turns into freedom.",
-        "q4": "What dynamic shift in a song captures the transition from hesitation to courage?"
+        "q0": "What's something you're scared to do, but want to do anyway?",
+        "q1": "What's the worst that could happen if you tried?",
+        "q2": "What would it feel like on the other side of that fear?",
+        "q3": "Write one line about turning fear into courage.",
+        "q4": "What moment in a song feels like a big, brave leap?"
       },
       "self_compassion": {
-        "title": "Self-Compassion",
+        "title": "Being Kind to Yourself",
         "category": "Comfort",
-        "q0": "In what ways have you been harsh or demanding of yourself during your dry seasons?",
-        "q1": "How does it feel to finally sit by a cool pool and offer yourself kindness?",
-        "q2": "If you were speaking to a dear friend who was lost in the desert, what comforting words would you say to them?",
-        "q3": "Write a gentle verse about soothing your own tired mind.",
-        "q4": "What soft, warm instrumentation represents a sanctuary of self-love?"
+        "q0": "Where have you been hard on yourself lately?",
+        "q1": "What would you say to a friend going through the same thing?",
+        "q2": "What does it feel like to finally give yourself a break?",
+        "q3": "Write one gentle line just for you.",
+        "q4": "What kind of sound feels comforting, like a warm hug?"
       },
       "reclaiming_voice": {
-        "title": "Reclaiming Voice",
-        "category": "Expression",
-        "q0": "What feelings or truths have you silenced in order to keep the peace?",
-        "q1": "If your voice was a cascading waterfall, what powerful message would it shout to the valley?",
-        "q2": "How does expressing your raw emotion release the blockages inside you?",
-        "q3": "Write a lyric that refuses to be quiet or small anymore.",
-        "q4": "What vocal or instrumental buildup represents reclaiming your personal power?"
+        "title": "Speaking Your Truth",
+        "category": "Voice",
+        "q0": "What have you been holding back from saying?",
+        "q1": "What would it feel like to finally say it out loud?",
+        "q2": "Who do you most want to hear this?",
+        "q3": "Write one line that says what you've been afraid to say.",
+        "q4": "What kind of sound feels loud and powerful?"
       },
       "patience_and_timing": {
-        "title": "Patience and Timing",
+        "title": "Trusting Your Timing",
         "category": "Patience",
-        "q0": "Why are you rushing your healing or your creative process?",
-        "q1": "What do the ancient redwoods teach us about growing slowly and deeply over centuries?",
-        "q2": "How do deep, unseen roots support the tall branches through the heaviest storms?",
-        "q3": "Write a line about the quiet beauty of growing without needing to rush.",
-        "q4": "What slow, grounding tempo represents the rhythm of deep roots?"
+        "q0": "What are you rushing that maybe needs more time?",
+        "q1": "What good things have come from waiting, in your life?",
+        "q2": "What's helping you grow, even if you can't see it yet?",
+        "q3": "Write one line about growing at your own pace.",
+        "q4": "What slow rhythm feels patient to you?"
       },
       "strength_vulnerability": {
-        "title": "Strength in Vulnerability",
-        "category": "Vulnerability",
-        "q0": "How does it feel to stand under the open sky without any armor or hiding spots?",
-        "q1": "Why is being open to the wind and rain a sign of strength rather than weakness?",
-        "q2": "If you showed the world your softest, most fragile parts, what beauty would bloom?",
-        "q3": "Write a lyric about finding strength in being completely exposed and honest.",
-        "q4": "What instrument represents the fragile yet resilient nature of a wildflower?"
+        "title": "Strong Enough to Be Open",
+        "category": "Openness",
+        "q0": "What's something real about you that you usually hide?",
+        "q1": "Why does showing that feel scary?",
+        "q2": "What could happen if you let people see the real you?",
+        "q3": "Write one honest line about being open, even when it's hard.",
+        "q4": "What instrument feels soft but strong?"
       },
       "navigating_darkness": {
-        "title": "Navigating Darkness",
+        "title": "Finding Light in Hard Times",
         "category": "Hope",
-        "q0": "When your mind feels dark, what are the tiny stars or points of light that still shine?",
-        "q1": "How does the darkness make the stars visible in a way the bright day never could?",
-        "q2": "What comfort is there in knowing that the night is a natural, temporary phase?",
-        "q3": "Write a verse about finding guidance in your darkest hours.",
-        "q4": "What ambient, spacious sound represents the peace of a starry night?"
+        "q0": "What's making things feel dark for you right now?",
+        "q1": "What's one small good thing you can still see?",
+        "q2": "What helps you keep going when things feel hard?",
+        "q3": "Write one line about finding light in a hard moment.",
+        "q4": "What sound feels hopeful, even when it's quiet?"
       },
       "cleansing_renewal": {
-        "title": "Cleansing and Renewal",
-        "category": "Renewal",
-        "q0": "What emotional clutter or toxic thoughts do you need the heavy rain to wash away?",
-        "q1": "How does the air smell and feel after a powerful lightning storm clears the sky?",
-        "q2": "If the rain could wash off the labels others have put on you, who would you be?",
-        "q3": "Write a lyric about starting fresh after the storm has passed.",
-        "q4": "What beat or rhythm captures the refreshing energy of clean rain?"
+        "title": "Starting Fresh",
+        "category": "Fresh Start",
+        "q0": "What do you want to leave behind?",
+        "q1": "What would it feel like to start clean, with nothing weighing you down?",
+        "q2": "Who would you be without other people's labels for you?",
+        "q3": "Write one line about starting over.",
+        "q4": "What beat feels fresh and new to you?"
       },
       "staying_grounded": {
         "title": "Staying Grounded",
-        "category": "Presence",
-        "q0": "When your thoughts are spinning, how can you draw energy from the solid, unmoving rock beneath you?",
-        "q1": "What does it feel like to be completely held and protected by the earth?",
-        "q2": "If you could leave your anxieties in the darkness of the cave, what light would you walk back out with?",
-        "q3": "Write a line about feeling steady, anchored, and safe in the present moment.",
-        "q4": "What deep, low-frequency sound represents the grounding energy of the earth?"
+        "category": "Grounded",
+        "q0": "What's making you feel scattered or overwhelmed right now?",
+        "q1": "What helps you feel steady when life feels like too much?",
+        "q2": "What's one thing you're grateful for in this moment?",
+        "q3": "Write one line about feeling safe and steady.",
+        "q4": "What low, steady sound feels grounding to you?"
       },
       "feeling_connected": {
-        "title": "Feeling Connected",
+        "title": "Feeling Less Alone",
         "category": "Connection",
-        "q0": "In what ways have you isolated yourself, and who are the people you long to fly with?",
-        "q1": "How does it feel to realize that your pain is shared by others, and you are not alone?",
-        "q2": "What collective song or harmony is created when we support each other's journeys?",
-        "q3": "Write a lyric about reaching out your hand in the dark.",
-        "q4": "What vocal harmony structure represents perfect connection and support?"
+        "q0": "When do you feel most alone?",
+        "q1": "Who do you wish understood what you're going through?",
+        "q2": "What does it feel like to know someone else has felt this too?",
+        "q3": "Write one line about reaching out to someone.",
+        "q4": "What harmony — two voices together — feels like connection to you?"
       },
       "accepting_change": {
         "title": "Accepting Change",
         "category": "Acceptance",
-        "q0": "What change in your life are you currently fighting or resisting?",
-        "q1": "How does the river teach us that carving away old rock is necessary to create a beautiful canyon?",
-        "q2": "If you flowed with the current instead of swimming against it, where would it carry you?",
-        "q3": "Write a verse about the elegance of letting life reshape you.",
-        "q4": "What time signature or metric shift represents the natural flow of change?"
+        "q0": "What change in your life are you fighting right now?",
+        "q1": "What might this change be teaching you?",
+        "q2": "What would it feel like to go with it, instead of against it?",
+        "q3": "Write one line about letting life change you.",
+        "q4": "What kind of rhythm shift feels like change?"
       },
       "releasing_anger": {
-        "title": "Releasing Anger",
-        "category": "Catharsis",
-        "q0": "What anger or resentment has been boiling underneath your surface?",
-        "q1": "How can you let the steam rise and vent without burning yourself or others?",
-        "q2": "What does it feel like to watch your heated thoughts evaporate into the cool air?",
-        "q3": "Write a fiery line that lets out the heat and leaves behind calm water.",
-        "q4": "What musical dynamic transition represents a sudden, explosive release of tension?"
+        "title": "Letting Out Anger",
+        "category": "Release",
+        "q0": "What's been making you angry or frustrated lately?",
+        "q1": "What's underneath the anger — hurt, fear, something else?",
+        "q2": "What would it feel like to finally let that anger out?",
+        "q3": "Write one strong line that says what you really feel.",
+        "q4": "What moment in a song feels like release — loud, then calm?"
       },
       "new_beginnings": {
         "title": "New Beginnings",
         "category": "Hope",
-        "q0": "What is one promise you want to make to yourself as a new day begins?",
-        "q1": "How does the first golden light breaking over the hills change your perspective?",
-        "q2": "If today was a blank sheet of music, what is the first note you would play?",
-        "q3": "Write a hopeful lyric about the end of a long, dark night.",
-        "q4": "What chord resolving to major represents the first light of dawn?"
+        "q0": "What's one thing you want to start fresh?",
+        "q1": "What would today look like with a clean start?",
+        "q2": "What's the first small step you could take?",
+        "q3": "Write one hopeful line about a new beginning.",
+        "q4": "What chord or note feels like the start of something good?"
       },
       "unconditional_worth": {
-        "title": "Unconditional Worth",
+        "title": "Knowing Your Worth",
         "category": "Worth",
-        "q0": "What makes you believe you need to achieve or perform to have value?",
-        "q1": "How do the mountains exist in quiet majesty without needing to prove anything to anyone?",
-        "q2": "What is your inner peak—the steady, immovable core of your worth?",
-        "q3": "Write a lyric about your value being as solid and unshakeable as a mountain.",
-        "q4": "What grand, orchestral arrangement evokes the scale of unconditional self-worth?"
+        "q0": "Do you feel like you have to earn your worth? Why?",
+        "q1": "What makes you valuable, even when you're not doing anything?",
+        "q2": "What would it feel like to believe you're enough, just as you are?",
+        "q3": "Write one line about your own worth.",
+        "q4": "What kind of big, full sound feels like strength to you?"
       },
       "healing_child": {
-        "title": "Healing the Child",
+        "title": "Remembering How to Play",
         "category": "Play",
-        "q0": "What did your inner child love to do before the weight of the world took over?",
-        "q1": "If you could play, make mistakes, and create without judgment today, what would you make?",
-        "q2": "What message of safety and love does your adult self want to tell your younger self?",
-        "q3": "Write a playful, lighthearted line that makes you smile.",
-        "q4": "What bright, major-key melody captures the innocence of play?"
+        "q0": "What did you love doing as a kid, before life got serious?",
+        "q1": "What would you make today if you weren't afraid of getting it wrong?",
+        "q2": "What would you want to tell your younger self?",
+        "q3": "Write one playful line that makes you smile.",
+        "q4": "What melody feels light and playful to you?"
       },
       "quiet_strength": {
         "title": "Quiet Strength",
         "category": "Strength",
-        "q0": "How do you protect your inner light when the dark storms of life beat against you?",
-        "q1": "What does it mean to be a steady guide for yourself and others through rough seas?",
-        "q2": "How can you find strength in standing still and just shining your light?",
-        "q3": "Write a lyric about being a lighthouse in someone's storm (or your own).",
-        "q4": "What steady, repeating rhythm represents the rotating beam of a lighthouse?"
+        "q0": "What's a hard time you've stayed strong through, quietly?",
+        "q1": "How do you keep going when things get tough?",
+        "q2": "What does your strength look like when no one's watching?",
+        "q3": "Write one line about being strong in a quiet way.",
+        "q4": "What steady rhythm feels like quiet strength?"
       }
     },
     "back": "back",
@@ -277,7 +277,12 @@
     "untitled_note": "Untitled Song",
     "delete_note": "Delete Note",
     "duplicate_note": "Duplicate Note",
-    "copy_suffix": "Copy"
+    "copy_suffix": "Copy",
+    "sort_label": "Sort",
+    "sort_newest": "Newest first",
+    "sort_oldest": "Oldest first",
+    "sort_az": "A → Z",
+    "sort_za": "Z → A"
   },
   "learn": {
     "access_restricted": "Access restricted",
@@ -292,7 +297,33 @@
     "check": "Check",
     "complete_next_chapter": "Complete & Go to Next Chapter",
     "chapter": "Chapter",
-    "video_not_supported": "Your browser does not support the video tag."
+    "video_not_supported": "Your browser does not support the video tag.",
+    "master_fundamentals": "Master Fundamentals",
+    "deep_dive": "Deep dive",
+    "coming_next_year": "Coming next year",
+    "deep_dive_desc": "More advanced music lessons are on their way. Check back soon.",
+    "bank_of_ideas": "Bank of ideas",
+    "bank_of_ideas_desc": "Curated ideas and shortcuts are on their way.",
+    "bank_of_ideas_tooltip": "These tips are not rules.\nThey are simple ways to help you start, explore, and improve your lyrics.\nUse what feels useful.\nSkip what does not fit.\nThere is no single right way to write a song.",
+    "back_to_overview": "Back to overview",
+    "no_lessons_yet": "New lessons are on their way.",
+    "placeholder_intro": "Lesson notes for this chapter are coming soon. For now, use the video alongside these placeholder notes to get a feel for the new layout.",
+    "placeholder_point_1": "First key takeaway from this lesson.",
+    "placeholder_point_2": "Second key takeaway from this lesson.",
+    "placeholder_point_3": "Third key takeaway from this lesson.",
+    "ideas_search": "Search",
+    "ideas_favorites": "Favorites",
+    "ideas_tab_all": "All",
+    "ideas_tab_lyrics": "Lyrics",
+    "ideas_tab_melody": "Melody",
+    "ideas_tab_chords": "Chords",
+    "ideas_tab_vibe": "Vibe",
+    "ideas_like": "Like",
+    "ideas_apply_in_create": "Apply idea in Create",
+    "ideas_empty": "No ideas match yet.",
+    "ideas_why_label": "Why this helps",
+    "ideas_placeholder_title": "Idea title",
+    "ideas_placeholder_description": "Description coming soon."
   },
   "connect": {
     "create_your_song": "Create your song",
@@ -369,7 +400,9 @@
     "level_label": "Level",
     "subtitle": "Complete all 3 goals to reach Level 2",
     "mind_power_label": "Mind Power",
-    "mind_power_desc": "Mind Power tracks the time you spend thinking and creating songs. Your mind is a muscle — the more you use it, the stronger it gets.",
+    "mind_power_title_line1": "Songwriter",
+    "mind_power_title_line2": "Mind Power",
+    "mind_power_desc": "Songwriter Mind Power tracks the time you spend thinking and creating songs. Your mind is a muscle. The more you use it, the stronger it gets.",
     "focus_timer": "Focus Timer",
     "section_progress": "Progress",
     "community": "Community",
@@ -426,6 +459,17 @@
     "need_assistance": "Need help?",
     "contact_concierge": "Contact support",
     "error_update_email": "Failed to update email. Please try logging in again."
+  },
+  "email": {
+    "welcome": {
+      "subject": "Welcome to Veinote, {{name}}",
+      "greeting": "Hi {{name}},",
+      "body_1": "Welcome to Veinote. You've just opened a space built for one thing: finishing songs you're proud of.",
+      "body_2": "Your canvas is ready whenever you are — lyrics, melody notes, and ideas all in one flow.",
+      "cta": "Open your canvas",
+      "signoff": "See you inside,",
+      "team": "The Veinote team"
+    }
   },
   "practice": {
     "master_song_structure": "Master song structure",

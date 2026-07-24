@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', '.next', '.firebase', 'node_modules', 'legacy-src', 'lib/dataconnect-generated']),
+  globalIgnores(['dist', '.next', '.firebase', 'node_modules', 'lib/dataconnect-generated']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

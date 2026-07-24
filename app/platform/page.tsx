@@ -7,17 +7,17 @@ import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getUserConstellation, ConstellationData } from '@/app/actions/lesson-actions';
 import { useLanguage } from '@/context/LanguageContext';
-import ChapterList from './components/ChapterList';
-import Logo from '@/components/Logo';
-import Link from 'next/link';
+import LearnLanding from './components/LearnLanding';
+import LessonReader from './components/LessonReader';
+import BankOfIdeas from './components/BankOfIdeas';
+import DeepDive from './components/DeepDive';
 
 export default function PlatformPage() {
     const { user, loading: authLoading } = useAuth();
     const { t } = useLanguage();
     const router = useRouter();
     const [data, setData] = useState<ConstellationData | null>(null);
-    const [currentChapterId, setCurrentChapterId] = useState<string | null>(null);
-    const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
+    const [view, setView] = useState<'landing' | 'reader' | 'ideas' | 'deepDive'>('landing');
 
     useEffect(() => {
         if (user) {
@@ -42,9 +42,6 @@ export default function PlatformPage() {
                     lessonsCount: res.lessonsList.length
                 });
                 setData(res);
-                if (res.movements.length > 0) {
-                    setCurrentChapterId(res.movements[0].id);
-                }
             }).catch(err => {
                 clearTimeout(timeoutId);
                 console.error("PlatformPage: Error fetching constellation", err);
@@ -84,7 +81,7 @@ export default function PlatformPage() {
     const chapters = useMemo(() => {
         if (!data) return [];
 
-        const realChapters = data.movements.map(m => {
+        return data.movements.map(m => {
             const chapterLessons = data.lessonsList.filter(l =>
                 l.movement?.title === m.title ||
                 l.movement?.title === `The ${m.title}` ||
@@ -99,50 +96,7 @@ export default function PlatformPage() {
                 }))
             };
         });
-
-        // Fill up to 10 chapters with placeholders
-        const placeholderTitles = [
-            "Harmonic resonance", "Rhythmic architecture", "The velvet legato",
-            "Symphonic geometry", "Atmospheric tension", "Melodic counterpoint",
-            "Spectral dynamics", "The final movement", "Mastery plateau", "Infinite echo"
-        ];
-
-        const allChapters = [...realChapters];
-        while (allChapters.length < 10) {
-            const index = allChapters.length;
-            allChapters.push({
-                id: `placeholder-${index}`,
-                title: translateCurriculum(placeholderTitles[index] || `Advanced Movement ${index + 1}`),
-                lessons: [
-                    { id: `l-${index}-1`, title: translateCurriculum("Introduction to Theory") },
-                    { id: `l-${index}-2`, title: translateCurriculum("Technical Proficiency") },
-                    { id: `l-${index}-3`, title: translateCurriculum("Emotional Expression") }
-                ] as any
-            });
-        }
-
-        return allChapters;
     }, [data, t]);
-
-    const currentChapter = useMemo(() => {
-        return chapters.find(c => c.id === currentChapterId);
-    }, [chapters, currentChapterId]);
-
-    const currentLesson = useMemo(() => {
-        if (!currentChapter || currentChapter.lessons.length === 0) return null;
-        return currentChapter.lessons[currentLessonIndex] || currentChapter.lessons[0];
-    }, [currentChapter, currentLessonIndex]);
-
-    const overallProgress = useMemo(() => {
-        if (!data || data.lessonsList.length === 0) return 0;
-        const completed = data.user.lessonProgress.filter(p => p.status === 'MASTERED').length;
-        return Math.round((completed / data.lessonsList.length) * 100);
-    }, [data]);
-
-    const isLessonCompleted = useMemo(() => {
-        if (!data || !currentLesson) return false;
-        return data.user.lessonProgress.some(p => p.lessonId === currentLesson.id && p.status === 'MASTERED');
-    }, [data, currentLesson]);
 
     if (authLoading || !data) return (
         <div className="w-full max-w-6xl mx-auto mt-0 mb-20 flex flex-col gap-4 animate-pulse">
@@ -179,16 +133,15 @@ export default function PlatformPage() {
         }
     };
 
-    const handleComplete = () => {
-        if (!currentLesson) return;
+    const handleComplete = (lessonId: string) => {
         setData(prev => {
             if (!prev) return prev;
             const updatedProgress = [...prev.user.lessonProgress];
-            const existingIndex = updatedProgress.findIndex(p => p.lessonId === currentLesson.id);
+            const existingIndex = updatedProgress.findIndex(p => p.lessonId === lessonId);
             if (existingIndex >= 0) {
                 updatedProgress[existingIndex] = { ...updatedProgress[existingIndex], status: 'MASTERED' };
             } else {
-                updatedProgress.push({ lessonId: currentLesson.id, status: 'MASTERED' });
+                updatedProgress.push({ lessonId, status: 'MASTERED' });
             }
             return {
                 ...prev,
@@ -197,39 +150,28 @@ export default function PlatformPage() {
         });
     };
 
-    const handleNextChapter = () => {
-        if (!currentChapterId) return;
-        const currentIdx = chapters.findIndex(c => c.id === currentChapterId);
-        if (currentIdx !== -1 && currentIdx < chapters.length - 1) {
-            const nextChapter = chapters[currentIdx + 1];
-            setCurrentChapterId(nextChapter.id);
-            setCurrentLessonIndex(0);
-        }
-    };
-
     return (
-        <div className="w-full max-w-6xl mx-auto flex flex-col items-center">
-            <ChapterList
-                chapters={chapters.map(c => ({
-                    id: c.id,
-                    title: c.title,
-                    description: `MOVEMENT ${chapters.indexOf(c) + 1}`,
-                    lessons: c.lessons.map(l => ({ id: l.id, title: l.title, videoUrl: l.videoUrl }))
-                }))}
-                currentChapterId={currentChapterId || ""}
-                currentLesson={currentLesson}
-                currentLessonIndex={currentLessonIndex}
-                masteredLessonIds={data.user.lessonProgress.filter(p => p.status === 'MASTERED').map(p => p.lessonId)}
-                onChapterSelect={(id) => {
-                    setCurrentChapterId(id);
-                    setCurrentLessonIndex(0);
-                }}
-                onLessonSelect={(index) => setCurrentLessonIndex(index)}
-                onBack={() => setCurrentLessonIndex(prev => Math.max(0, prev - 1))}
-                onNext={() => setCurrentLessonIndex(prev => Math.min((currentChapter?.lessons.length || 1) - 1, prev + 1))}
-                onComplete={handleComplete}
-                onNextChapter={handleNextChapter}
-            />
+        <div className="w-full max-w-6xl mx-auto h-full flex flex-col items-center">
+            {view === 'landing' && (
+                <LearnLanding
+                    onStart={() => setView('reader')}
+                    onOpenIdeas={() => setView('ideas')}
+                    onOpenDeepDive={() => setView('deepDive')}
+                />
+            )}
+            {view === 'reader' && (
+                <LessonReader
+                    chapters={chapters}
+                    onComplete={handleComplete}
+                    onBackToLanding={() => setView('landing')}
+                />
+            )}
+            {view === 'ideas' && (
+                <BankOfIdeas onBackToLanding={() => setView('landing')} />
+            )}
+            {view === 'deepDive' && (
+                <DeepDive onBackToLanding={() => setView('landing')} />
+            )}
         </div>
     );
 }

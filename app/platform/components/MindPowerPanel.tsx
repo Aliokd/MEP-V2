@@ -71,10 +71,9 @@ export default function MindPowerPanel({
         <div className="w-80 bg-[#F5F4EE] rounded-[24px] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.14)] border border-stone-200/70 flex flex-col gap-5 normal-case text-stone-800">
             {/* Header */}
             <div className="flex flex-col items-center text-center gap-1.5">
-                <div className="flex items-center gap-2">
-                    <Brain size={20} className="text-stone-700 shrink-0" strokeWidth={1.5} />
-                    <span className="text-3xl font-serif italic text-stone-900 font-light">{t('progress.mind_power_label')}</span>
-                </div>
+                <span className="text-2xl font-serif text-stone-900 font-normal leading-tight">
+                    {t('progress.mind_power_title_line1')}<br />{t('progress.mind_power_title_line2')}
+                </span>
                 <span className="text-[10px] text-stone-400 uppercase tracking-widest font-semibold">{t('progress.level_label')} {progressLevel}</span>
                 <p className="text-xs text-stone-500 leading-relaxed max-w-[240px]">{t('progress.mind_power_desc')}</p>
             </div>

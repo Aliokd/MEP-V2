@@ -1,8 +1,7 @@
 "use client";
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { PenTool, BookOpen, Music, Users, Zap, Bot, X } from 'lucide-react';
+import { PenTool, BookOpen, Music, Users, Zap, Bot, X, LogOut } from 'lucide-react';
 import Logo from '@/components/Logo';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -28,21 +27,42 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
     const router = useRouter();
 
     useEffect(() => {
+        // Between the mobile and large-desktop breakpoints, the expanded sidebar eats too much
+        // width from the content area — default to collapsed there unless the user has explicitly
+        // chosen a state (tracked separately from the collapsed value itself).
+        const isTabletRange = () => window.innerWidth >= 768 && window.innerWidth < 1024;
+
+        const applyDefaultCollapsed = () => {
+            const hasUserPreference = localStorage.getItem('maestro-sidebar-collapsed-manual') === 'true';
+            if (!hasUserPreference) {
+                setIsCollapsed(isTabletRange());
+            }
+        };
+
         const saved = localStorage.getItem('maestro-sidebar-collapsed');
-        if (saved !== null) {
+        const hasUserPreference = localStorage.getItem('maestro-sidebar-collapsed-manual') === 'true';
+        if (hasUserPreference && saved !== null) {
             setIsCollapsed(JSON.parse(saved));
+        } else {
+            setIsCollapsed(isTabletRange());
         }
         setMounted(true);
 
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
         checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
+
+        const handleResize = () => {
+            checkMobile();
+            applyDefaultCollapsed();
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     const toggleSidebar = () => {
         const newState = !isCollapsed;
         setIsCollapsed(newState);
+        safeLocalStorageSetItem('maestro-sidebar-collapsed-manual', 'true');
         safeLocalStorageSetItem('maestro-sidebar-collapsed', JSON.stringify(newState));
     };
 
@@ -88,20 +108,12 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                 />
             )}
 
-            <motion.div
-                animate={isMobile ? { 
-                    x: isMobileOpen ? 0 : -280,
-                    width: 260,
-                    paddingLeft: 24,
-                    paddingRight: 24
-                } : { 
-                    x: 0,
-                    width: isCollapsed ? 100 : 260,
-                    paddingLeft: isCollapsed ? 10 : 24,
-                    paddingRight: isCollapsed ? 0 : 24
-                }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className="h-screen fixed inset-y-0 left-0 md:sticky md:top-0 z-50 flex flex-col py-8 select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-visible"
+            <div
+                className={`h-screen fixed inset-y-0 left-0 md:sticky md:top-0 z-50 flex flex-col py-8 select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-visible transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
+                    isMobileOpen ? 'translate-x-0' : '-translate-x-[110%]'
+                } md:translate-x-0 ${
+                    isCollapsed && !isMobile ? 'w-[100px] pl-[10px] pr-0' : 'w-[260px] px-6'
+                }`}
             >
                 {/* Collapsed layout: full-height flex centered */}
                 {isCollapsed && !isMobile ? (
@@ -129,7 +141,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                         {/* Nav — same top position as expanded (mt-6 matches tighter spacing), full-width active box */}
                         <nav className="flex flex-col gap-1 w-full mt-6">
                             {menuItems.map((item) => {
-                                const isActive = pathname === item.href || (item.href === '/platform' && pathname.startsWith('/platform/lesson'));
+                                const isActive = pathname === item.href;
                                 const Icon = item.icon;
                                 return (
                                     <Link key={item.label} href={item.href} onClick={onClose} className="block w-full">
@@ -149,6 +161,29 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                 );
                             })}
                         </nav>
+
+                        {/* Bottom Actions — icon-only equivalents of the expanded view's language/feedback/logout */}
+                        <div className="flex flex-col items-center gap-2 w-full mt-auto pt-6">
+                            <LanguageSwitcher iconOnly />
+                            <button
+                                onClick={onFeedbackClick}
+                                aria-label={t('navigation.feedback')}
+                                title={t('navigation.feedback')}
+                                className="flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" className="w-[16px] h-[16px]">
+                                    <path d="M170,112a6,6,0,0,1-6,6H96a6,6,0,0,1,0-12h68A6,6,0,0,1,170,112Zm-6,26H96a6,6,0,0,0,0,12h68a6,6,0,0,0,0-12Zm66-14a98.11,98.11,0,0,1-98,98H48a14,14,0,0,1-14-14V124a98,98,0,0,1,196,0Zm-12,0a86,86,0,0,0-172,0v84a2,2,0,0,0,2,2h84A86.1,86.1,0,0,0,218,124Z"></path>
+                                </svg>
+                            </button>
+                            <button
+                                onClick={handleSignOut}
+                                aria-label={t('navigation.logout')}
+                                title={t('navigation.logout')}
+                                className="flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
+                            >
+                                <LogOut size={16} className="stroke-[2.2]" />
+                            </button>
+                        </div>
                     </div>
                 ) : (
                     /* Expanded / mobile layout */
@@ -182,7 +217,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                             {/* Navigation Menu */}
                             <nav className="flex flex-col gap-2.5 w-full">
                                 {menuItems.map((item) => {
-                                    const isActive = pathname === item.href || (item.href === '/platform' && pathname.startsWith('/platform/lesson'));
+                                    const isActive = pathname === item.href;
                                     const Icon = item.icon;
                                     return (
                                         <Link key={item.label} href={item.href} onClick={onClose}>
@@ -245,7 +280,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                         </div>
                     </div>
                 )}
-            </motion.div>
+            </div>
         </>
     );
 }

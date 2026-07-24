@@ -33,12 +33,13 @@ import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, updateDoc, writeBatch, arrayRemove, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, getBlob } from 'firebase/storage';
-import { 
+import {
     migrateLegacyNotesToProjects,
     inviteCollaboratorByEmail,
     removeCollaboratorFromProject,
     getCollaboratorProfiles,
-    calculateContributionsPercentage
+    calculateContributionsPercentage,
+    MAX_COLLABORATORS
 } from './collabUtils';
 import { 
     Folder, 
@@ -91,7 +92,9 @@ import {
     Info,
     Headphones,
     Download,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Copy,
+    ArrowUpDown
 } from 'lucide-react';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -111,184 +114,184 @@ interface InspirationCard {
 const INSPIRATION_CARDS: InspirationCard[] = [
     {
         id: 'therapy-releasing-regret',
-        title: 'Releasing Regret',
+        title: 'Letting Go of Regret',
         category: 'Release',
         bgImage: '/assets/inspiration/therapy_releasing_regret.png',
         questions: [
-            'What is one memory or regret from your past that feels like a heavy, withered leaf?',
-            'If you let it drop onto the forest floor, how does the earth promise to decompose and renew it?',
-            'What would your life look like if you stopped holding onto branches that no longer nourish you?',
-            'Write a lyric describing the weight of carrying what has already died.',
-            'What chord progression captures the peaceful release of letting go?'
+            'What\'s one memory from your past that still feels heavy?',
+            'What would it feel like to finally let that go?',
+            'What are you holding onto that isn\'t helping you anymore?',
+            'Write one line about carrying something heavy.',
+            'What kind of music feels like relief?'
         ]
     },
     {
         id: 'therapy-finding-stillness',
-        title: 'Finding Stillness',
+        title: 'Finding Calm',
         category: 'Calm',
         bgImage: '/assets/inspiration/therapy_finding_stillness.png',
         questions: [
-            'What part of your mind is currently rippled with anxiety, and how can you invite it to settle?',
-            'When you look at the perfect reflection on the water, what true version of yourself do you see?',
-            'If you sat in complete silence by this shore, what is the first feeling that would emerge?',
-            'Describe the texture of absolute quietness using musical terms (tempo, volume, tone).',
-            'Write a line of gratitude for this moment of pause.'
+            'What\'s making your mind feel busy right now?',
+            'What would it feel like if everything went quiet for a moment?',
+            'What does calm feel like to you?',
+            'Write one line about a quiet moment.',
+            'What kind of tempo feels calm — slow, steady, gentle?'
         ]
     },
     {
         id: 'therapy-growth-after-pain',
-        title: 'Growth After Pain',
-        category: 'Resilience',
+        title: 'Growing Stronger',
+        category: 'Growth',
         bgImage: '/assets/inspiration/therapy_growth_pain.png',
         questions: [
-            'What personal struggle or heartbreak was the fire that burned your old canvas away?',
-            'Where do you see the first tiny green shoot of new strength emerging within you?',
-            'How does ashes fertilizing the soil represent the hidden value of your hardest days?',
-            'Write a lyric comparing your resilience to a forest growing back stronger.',
-            'What tempo or rhythm represents a slow, unstoppable rebirth?'
+            'What hard time in your life changed you the most?',
+            'What\'s one way you\'ve grown since then?',
+            'How did that hard time end up teaching you something?',
+            'Write one line comparing your strength to something that grows back.',
+            'What rhythm feels like slowly getting stronger?'
         ]
     },
     {
         id: 'therapy-embracing-uncertainty',
-        title: 'Embracing Uncertainty',
+        title: 'Trusting the Unknown',
         category: 'Trust',
         bgImage: '/assets/inspiration/therapy_embracing_uncertainty.png',
         questions: [
-            'What makes you fearful about not being able to see the road far ahead?',
-            'If you could only see three steps in front of you, how would you find the courage to take the next one?',
-            'What comfort does the mysterious, soft fog bring when it covers the noise of the world?',
-            'Write a line about trusting the journey when the destination is hidden.',
-            'What musical key feels like walking into the beautiful unknown?'
+            'What\'s something in your life that feels uncertain right now?',
+            'What would it feel like to take one step without knowing what\'s next?',
+            'What helps you feel safe when things are unclear?',
+            'Write one line about trusting yourself, even without answers.',
+            'What kind of melody feels like stepping into the unknown?'
         ]
     },
     {
         id: 'therapy-grief-and-honoring',
-        title: 'Grief and Honoring',
+        title: 'Honoring a Loss',
         category: 'Healing',
         bgImage: '/assets/inspiration/therapy_grief_honoring.png',
         questions: [
-            'What loss or grief are you carrying that feels frozen inside your chest?',
-            'As the sun warms the mountain, how can you allow your frozen tears to melt and flow?',
-            'Where does the melting water go, and how can it bring life to the valleys below?',
-            'Write a line that honors the beauty of what you lost while accepting that life moves forward.',
-            'If your grief was a gentle acoustic melody, how would it resolve?'
+            'What or who are you missing right now?',
+            'What\'s one good memory connected to this?',
+            'What would it feel like to let some of that sadness soften?',
+            'Write one line that honors what you lost.',
+            'What melody feels like healing to you?'
         ]
     },
     {
         id: 'therapy-overcoming-fear',
-        title: 'Overcoming Fear',
+        title: 'Facing Fear',
         category: 'Courage',
         bgImage: '/assets/inspiration/therapy_overcoming_fear.png',
         questions: [
-            'What is the edge or cliff you are standing on, and what leap of faith are you afraid to take?',
-            'How does the raw, howling wind challenge you to stand tall in your truth?',
-            'If you knew the ocean below would catch you and teach you to swim, would you jump?',
-            'Write a powerful line describing the moment fear turns into freedom.',
-            'What dynamic shift in a song captures the transition from hesitation to courage?'
+            'What\'s something you\'re scared to do, but want to do anyway?',
+            'What\'s the worst that could happen if you tried?',
+            'What would it feel like on the other side of that fear?',
+            'Write one line about turning fear into courage.',
+            'What moment in a song feels like a big, brave leap?'
         ]
     },
     {
         id: 'therapy-self-compassion',
-        title: 'Self-Compassion',
+        title: 'Being Kind to Yourself',
         category: 'Comfort',
         bgImage: '/assets/inspiration/therapy_self_compassion.png',
         questions: [
-            'In what ways have you been harsh or demanding of yourself during your dry seasons?',
-            'How does it feel to finally sit by a cool pool and offer yourself kindness?',
-            'If you were speaking to a dear friend who was lost in the desert, what comforting words would you say to them?',
-            'Write a gentle verse about soothing your own tired mind.',
-            'What soft, warm instrumentation represents a sanctuary of self-love?'
+            'Where have you been hard on yourself lately?',
+            'What would you say to a friend going through the same thing?',
+            'What does it feel like to finally give yourself a break?',
+            'Write one gentle line just for you.',
+            'What kind of sound feels comforting, like a warm hug?'
         ]
     },
     {
         id: 'therapy-reclaiming-voice',
-        title: 'Reclaiming Voice',
-        category: 'Expression',
+        title: 'Speaking Your Truth',
+        category: 'Voice',
         bgImage: '/assets/inspiration/therapy_reclaiming_voice.png',
         questions: [
-            'What feelings or truths have you silenced in order to keep the peace?',
-            'If your voice was a cascading waterfall, what powerful message would it shout to the valley?',
-            'How does expressing your raw emotion release the blockages inside you?',
-            'Write a lyric that refuses to be quiet or small anymore.',
-            'What vocal or instrumental buildup represents reclaiming your personal power?'
+            'What have you been holding back from saying?',
+            'What would it feel like to finally say it out loud?',
+            'Who do you most want to hear this?',
+            'Write one line that says what you\'ve been afraid to say.',
+            'What kind of sound feels loud and powerful?'
         ]
     },
     {
         id: 'therapy-patience-and-timing',
-        title: 'Patience and Timing',
+        title: 'Trusting Your Timing',
         category: 'Patience',
         bgImage: '/assets/inspiration/therapy_patience_timing.png',
         questions: [
-            'Why are you rushing your healing or your creative process?',
-            'What do the ancient redwoods teach us about growing slowly and deeply over centuries?',
-            'How do deep, unseen roots support the tall branches through the heaviest storms?',
-            'Write a line about the quiet beauty of growing without needing to rush.',
-            'What slow, grounding tempo represents the rhythm of deep roots?'
+            'What are you rushing that maybe needs more time?',
+            'What good things have come from waiting, in your life?',
+            'What\'s helping you grow, even if you can\'t see it yet?',
+            'Write one line about growing at your own pace.',
+            'What slow rhythm feels patient to you?'
         ]
     },
     {
         id: 'therapy-strength-vulnerability',
-        title: 'Strength in Vulnerability',
-        category: 'Vulnerability',
+        title: 'Strong Enough to Be Open',
+        category: 'Openness',
         bgImage: '/assets/inspiration/therapy_strength_vulnerability.png',
         questions: [
-            'How does it feel to stand under the open sky without any armor or hiding spots?',
-            'Why is being open to the wind and rain a sign of strength rather than weakness?',
-            'If you showed the world your softest, most fragile parts, what beauty would bloom?',
-            'Write a lyric about finding strength in being completely exposed and honest.',
-            'What instrument represents the fragile yet resilient nature of a wildflower?'
+            'What\'s something real about you that you usually hide?',
+            'Why does showing that feel scary?',
+            'What could happen if you let people see the real you?',
+            'Write one honest line about being open, even when it\'s hard.',
+            'What instrument feels soft but strong?'
         ]
     },
     {
         id: 'therapy-navigating-darkness',
-        title: 'Navigating Darkness',
+        title: 'Finding Light in Hard Times',
         category: 'Hope',
         bgImage: '/assets/inspiration/therapy_navigating_darkness.png',
         questions: [
-            'When your mind feels dark, what are the tiny stars or points of light that still shine?',
-            'How does the darkness make the stars visible in a way the bright day never could?',
-            'What comfort is there in knowing that the night is a natural, temporary phase?',
-            'Write a verse about finding guidance in your darkest hours.',
-            'What ambient, spacious sound represents the peace of a starry night?'
+            'What\'s making things feel dark for you right now?',
+            'What\'s one small good thing you can still see?',
+            'What helps you keep going when things feel hard?',
+            'Write one line about finding light in a hard moment.',
+            'What sound feels hopeful, even when it\'s quiet?'
         ]
     },
     {
         id: 'therapy-cleansing-renewal',
-        title: 'Cleansing and Renewal',
-        category: 'Renewal',
+        title: 'Starting Fresh',
+        category: 'Fresh Start',
         bgImage: '/assets/inspiration/therapy_cleansing_renewal.png',
         questions: [
-            'What emotional clutter or toxic thoughts do you need the heavy rain to wash away?',
-            'How does the air smell and feel after a powerful lightning storm clears the sky?',
-            'If the rain could wash off the labels others have put on you, who would you be?',
-            'Write a lyric about starting fresh after the storm has passed.',
-            'What beat or rhythm captures the refreshing energy of clean rain?'
+            'What do you want to leave behind?',
+            'What would it feel like to start clean, with nothing weighing you down?',
+            'Who would you be without other people\'s labels for you?',
+            'Write one line about starting over.',
+            'What beat feels fresh and new to you?'
         ]
     },
     {
         id: 'therapy-staying-grounded',
         title: 'Staying Grounded',
-        category: 'Presence',
+        category: 'Grounded',
         bgImage: '/assets/inspiration/therapy_staying_grounded.png',
         questions: [
-            'When your thoughts are spinning, how can you draw energy from the solid, unmoving rock beneath you?',
-            'What does it feel like to be completely held and protected by the earth?',
-            'If you could leave your anxieties in the darkness of the cave, what light would you walk back out with?',
-            'Write a line about feeling steady, anchored, and safe in the present moment.',
-            'What deep, low-frequency sound represents the grounding energy of the earth?'
+            'What\'s making you feel scattered or overwhelmed right now?',
+            'What helps you feel steady when life feels like too much?',
+            'What\'s one thing you\'re grateful for in this moment?',
+            'Write one line about feeling safe and steady.',
+            'What low, steady sound feels grounding to you?'
         ]
     },
     {
         id: 'therapy-feeling-connected',
-        title: 'Feeling Connected',
+        title: 'Feeling Less Alone',
         category: 'Connection',
         bgImage: '/assets/inspiration/therapy_feeling_connected.png',
         questions: [
-            'In what ways have you isolated yourself, and who are the people you long to fly with?',
-            'How does it feel to realize that your pain is shared by others, and you are not alone?',
-            'What collective song or harmony is created when we support each other\'s journeys?',
-            'Write a lyric about reaching out your hand in the dark.',
-            'What vocal harmony structure represents perfect connection and support?'
+            'When do you feel most alone?',
+            'Who do you wish understood what you\'re going through?',
+            'What does it feel like to know someone else has felt this too?',
+            'Write one line about reaching out to someone.',
+            'What harmony — two voices together — feels like connection to you?'
         ]
     },
     {
@@ -297,24 +300,24 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         category: 'Acceptance',
         bgImage: '/assets/inspiration/therapy_accepting_change.png',
         questions: [
-            'What change in your life are you currently fighting or resisting?',
-            'How does the river teach us that carving away old rock is necessary to create a beautiful canyon?',
-            'If you flowed with the current instead of swimming against it, where would it carry you?',
-            'Write a verse about the elegance of letting life reshape you.',
-            'What time signature or metric shift represents the natural flow of change?'
+            'What change in your life are you fighting right now?',
+            'What might this change be teaching you?',
+            'What would it feel like to go with it, instead of against it?',
+            'Write one line about letting life change you.',
+            'What kind of rhythm shift feels like change?'
         ]
     },
     {
         id: 'therapy-releasing-anger',
-        title: 'Releasing Anger',
-        category: 'Catharsis',
+        title: 'Letting Out Anger',
+        category: 'Release',
         bgImage: '/assets/inspiration/therapy_releasing_anger.png',
         questions: [
-            'What anger or resentment has been boiling underneath your surface?',
-            'How can you let the steam rise and vent without burning yourself or others?',
-            'What does it feel like to watch your heated thoughts evaporate into the cool air?',
-            'Write a fiery line that lets out the heat and leaves behind calm water.',
-            'What musical dynamic transition represents a sudden, explosive release of tension?'
+            'What\'s been making you angry or frustrated lately?',
+            'What\'s underneath the anger — hurt, fear, something else?',
+            'What would it feel like to finally let that anger out?',
+            'Write one strong line that says what you really feel.',
+            'What moment in a song feels like release — loud, then calm?'
         ]
     },
     {
@@ -323,37 +326,37 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         category: 'Hope',
         bgImage: '/assets/inspiration/therapy_new_beginnings.png',
         questions: [
-            'What is one promise you want to make to yourself as a new day begins?',
-            'How does the first golden light breaking over the hills change your perspective?',
-            'If today was a blank sheet of music, what is the first note you would play?',
-            'Write a hopeful lyric about the end of a long, dark night.',
-            'What chord resolving to major represents the first light of dawn?'
+            'What\'s one thing you want to start fresh?',
+            'What would today look like with a clean start?',
+            'What\'s the first small step you could take?',
+            'Write one hopeful line about a new beginning.',
+            'What chord or note feels like the start of something good?'
         ]
     },
     {
         id: 'therapy-unconditional-worth',
-        title: 'Unconditional Worth',
+        title: 'Knowing Your Worth',
         category: 'Worth',
         bgImage: '/assets/inspiration/therapy_unconditional_worth.png',
         questions: [
-            'What makes you believe you need to achieve or perform to have value?',
-            'How do the mountains exist in quiet majesty without needing to prove anything to anyone?',
-            'What is your inner peak—the steady, immovable core of your worth?',
-            'Write a lyric about your value being as solid and unshakeable as a mountain.',
-            'What grand, orchestral arrangement evokes the scale of unconditional self-worth?'
+            'Do you feel like you have to earn your worth? Why?',
+            'What makes you valuable, even when you\'re not doing anything?',
+            'What would it feel like to believe you\'re enough, just as you are?',
+            'Write one line about your own worth.',
+            'What kind of big, full sound feels like strength to you?'
         ]
     },
     {
         id: 'therapy-healing-child',
-        title: 'Healing the Child',
+        title: 'Remembering How to Play',
         category: 'Play',
         bgImage: '/assets/inspiration/therapy_healing_child.png',
         questions: [
-            'What did your inner child love to do before the weight of the world took over?',
-            'If you could play, make mistakes, and create without judgment today, what would you make?',
-            'What message of safety and love does your adult self want to tell your younger self?',
-            'Write a playful, lighthearted line that makes you smile.',
-            'What bright, major-key melody captures the innocence of play?'
+            'What did you love doing as a kid, before life got serious?',
+            'What would you make today if you weren\'t afraid of getting it wrong?',
+            'What would you want to tell your younger self?',
+            'Write one playful line that makes you smile.',
+            'What melody feels light and playful to you?'
         ]
     },
     {
@@ -362,11 +365,11 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         category: 'Strength',
         bgImage: '/assets/inspiration/therapy_quiet_strength.png',
         questions: [
-            'How do you protect your inner light when the dark storms of life beat against you?',
-            'What does it mean to be a steady guide for yourself and others through rough seas?',
-            'How can you find strength in standing still and just shining your light?',
-            'Write a lyric about being a lighthouse in someone\'s storm (or your own).',
-            'What steady, repeating rhythm represents the rotating beam of a lighthouse?'
+            'What\'s a hard time you\'ve stayed strong through, quietly?',
+            'How do you keep going when things get tough?',
+            'What does your strength look like when no one\'s watching?',
+            'Write one line about being strong in a quiet way.',
+            'What steady rhythm feels like quiet strength?'
         ]
     }
 ];
@@ -395,6 +398,9 @@ interface AudioNote {
     groupId: string | null;
     phraseId?: string | null;
     createdAt?: number;
+    // Present on Demo Studio mixdown cards — lets the card be reopened back into Demo Studio
+    // with its original per-track stems, not just the flattened mixdown.
+    stemTracks?: SavedStemTrack[];
 }
 
 const getAudioNoteTimestamp = (an: AudioNote): number => {
@@ -465,6 +471,10 @@ interface StudioTrack {
     type: 'guitar' | 'piano' | 'drums' | 'vocals' | 'synth' | 'custom';
     muted?: boolean;
 }
+
+// A StudioTrack snapshot saved onto an AudioNote — everything needed to reload the track
+// except the runtime-only decoded audio buffer, which gets re-fetched/decoded from `url`.
+type SavedStemTrack = Omit<StudioTrack, 'audioBuffer'>;
 
 
 // Visual SVG Folder Illustration Component
@@ -1626,6 +1636,8 @@ interface AudioCapsulePlayerProps {
     onTranscribe?: () => void;
     isTranscribing?: boolean;
     isDocked: boolean;
+    onReopenInStudio?: () => void;
+    onAddAsStudioTrack?: () => void;
     onDragStart: (e: React.DragEvent) => void;
     onDragEnd?: (e: React.DragEvent) => void;
     activeNoteId?: string;
@@ -1868,9 +1880,11 @@ function AudioCapsulePlayer({
     audioNote, 
     onRename, 
     onDelete, 
-    onTranscribe, 
-    isTranscribing, 
-    isDocked, 
+    onTranscribe,
+    isTranscribing,
+    isDocked,
+    onReopenInStudio,
+    onAddAsStudioTrack,
     onDragStart,
     onDragEnd,
     activeNoteId,
@@ -2175,6 +2189,26 @@ function AudioCapsulePlayer({
                             Studio
                         </span>
                     )}
+                    {!!audioNote.stemTracks?.length && onReopenInStudio && (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onReopenInStudio(); }}
+                            className="text-indigo-500 hover:text-indigo-700 transition-colors cursor-pointer shrink-0"
+                            title="Reopen in Demo Studio"
+                        >
+                            <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
+                        </button>
+                    )}
+                    {!audioNote.stemTracks?.length && onAddAsStudioTrack && (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onAddAsStudioTrack(); }}
+                            className="text-indigo-500 hover:text-indigo-700 transition-colors cursor-pointer shrink-0"
+                            title="Add to Demo Studio"
+                        >
+                            <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
+                        </button>
+                    )}
                     <input
                         type="text" value={audioNote.title || ''} placeholder="Name"
                         disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
@@ -2253,6 +2287,26 @@ function AudioCapsulePlayer({
                     <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-600 border border-indigo-100/80 rounded-full select-none shrink-0 shadow-sm animate-in fade-in duration-300">
                         Studio
                     </span>
+                )}
+                {!!audioNote.stemTracks?.length && onReopenInStudio && (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onReopenInStudio(); }}
+                        className="w-5 h-5 flex items-center justify-center rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
+                        title="Reopen in Demo Studio"
+                    >
+                        <ArrowUpRight className="w-3 h-3" strokeWidth={2.5} />
+                    </button>
+                )}
+                {!audioNote.stemTracks?.length && onAddAsStudioTrack && (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onAddAsStudioTrack(); }}
+                        className="w-5 h-5 flex items-center justify-center rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
+                        title="Add to Demo Studio"
+                    >
+                        <ArrowUpRight className="w-3 h-3" strokeWidth={2.5} />
+                    </button>
                 )}
                 <input
                     type="text" value={audioNote.title || ''} placeholder="Name"
@@ -2560,9 +2614,9 @@ const StudioKnob = ({
                 }}
             />
             
-            {/* Floating Tooltip Value on top */}
+            {/* Floating Tooltip Value on top — pushed up clear of the VOL/PAN/EQ/REV/COMP column labels above the knob */}
             {(isHovered || isDragging) && (
-                <div className="absolute bottom-full mb-1 text-[11px] font-bold text-stone-400 select-none pointer-events-none animate-in fade-in duration-150 z-50 whitespace-nowrap">
+                <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 bg-stone-900 text-white text-[11px] font-bold px-2 py-1 rounded-full shadow-lg select-none pointer-events-none animate-in fade-in duration-150 z-50 whitespace-nowrap">
                     {Math.round(value)}
                 </div>
             )}
@@ -2650,8 +2704,15 @@ const compressAndGetBase64 = (file: File): Promise<string> => {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 800;
-                const MAX_HEIGHT = 800;
+                // Sized for OCR legibility, not just thumbnail display: at 800px, fine
+                // handwriting/cursive strokes in a full-page photo blur into illegibility
+                // for the "Scan" feature. Firestore caps each document at 1MB and this
+                // base64 string is stored inline in the note doc, so this can't grow
+                // unbounded — 1400px keeps typical (sparse handwriting on a light
+                // background) photos well under ~300KB while meaningfully improving
+                // legibility over the old 800px cap.
+                const MAX_WIDTH = 1400;
+                const MAX_HEIGHT = 1400;
                 let width = img.width;
                 let height = img.height;
 
@@ -2675,7 +2736,7 @@ const compressAndGetBase64 = (file: File): Promise<string> => {
                     return;
                 }
                 ctx.drawImage(img, 0, 0, width, height);
-                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
                 resolve(compressedBase64);
             };
             img.onerror = () => {
@@ -2793,6 +2854,8 @@ export default function CreatePage() {
     const [isMyProjectsOpen, setIsMyProjectsOpen] = useState(false);
     const [isCollabProjectsOpen, setIsCollabProjectsOpen] = useState(false);
     const [projectViewStyle, setProjectViewStyle] = useState<'grid' | 'list'>('list');
+    const [projectSortOption, setProjectSortOption] = useState<'date_desc' | 'date_asc' | 'az' | 'za'>('date_desc');
+    const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
     const [showNewItemMenu, setShowNewItemMenu] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -2841,6 +2904,55 @@ export default function CreatePage() {
         trackName: string;
         onConfirm: (() => void) | null;
     }>({ isOpen: false, trackName: '', onConfirm: null });
+
+    // Generic confirm dialog — replaces native window.confirm() everywhere in this file.
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        confirmLabel?: string;
+        cancelLabel?: string;
+        destructive?: boolean;
+        onConfirm: (() => void) | null;
+    }>({ isOpen: false, title: '', message: '', onConfirm: null });
+
+    const requestConfirm = (opts: {
+        title: string;
+        message: string;
+        confirmLabel?: string;
+        cancelLabel?: string;
+        destructive?: boolean;
+        onConfirm: () => void;
+    }) => {
+        setConfirmDialog({ isOpen: true, ...opts });
+    };
+
+    // Generic text-input prompt dialog — replaces native window.prompt() everywhere in this file.
+    const [promptDialog, setPromptDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        placeholder?: string;
+        confirmLabel?: string;
+        value: string;
+        onConfirm: ((value: string) => void) | null;
+    }>({ isOpen: false, title: '', value: '', onConfirm: null });
+
+    const requestPrompt = (opts: {
+        title: string;
+        placeholder?: string;
+        confirmLabel?: string;
+        defaultValue?: string;
+        onConfirm: (value: string) => void;
+    }) => {
+        setPromptDialog({
+            isOpen: true,
+            title: opts.title,
+            placeholder: opts.placeholder,
+            confirmLabel: opts.confirmLabel,
+            value: opts.defaultValue || '',
+            onConfirm: opts.onConfirm
+        });
+    };
 
     // Curated elegant neutral colors for collaborators
     const COLLABORATOR_COLORS = [
@@ -3348,7 +3460,10 @@ export default function CreatePage() {
         
         const timer = setTimeout(async () => {
             try {
-                const tracksToSave = studioTracks.map(t => ({
+                // Read from the ref (latest value) rather than the closed-over `studioTracks` —
+                // otherwise a debounce timer scheduled before a track's upload finished can fire
+                // afterward with a stale snapshot and null out the just-uploaded real URL.
+                const tracksToSave = studioTracksRef.current.map(t => ({
                     id: t.id,
                     name: t.name,
                     type: t.type,
@@ -3360,7 +3475,7 @@ export default function CreatePage() {
                     url: (t.url && !t.url.startsWith('blob:')) ? t.url : null,
                     muted: !!t.muted
                 }));
-                
+
                 await updateDoc(projectDocRef, {
                     studioTracks: tracksToSave
                 });
@@ -3770,15 +3885,20 @@ export default function CreatePage() {
     };
 
     const handlePillDelete = () => {
-        if (confirm("Are you sure you want to delete this recording?")) {
-            cleanupRecordingStream();
-            setIsRecording(false);
-            setIsPaused(false);
-            setAudioUrl(null);
-            if (selectedNoteId) {
-                handleDeleteNote(selectedNoteId);
+        requestConfirm({
+            title: 'Delete Recording?',
+            message: 'Are you sure you want to delete this recording?',
+            destructive: true,
+            onConfirm: () => {
+                cleanupRecordingStream();
+                setIsRecording(false);
+                setIsPaused(false);
+                setAudioUrl(null);
+                if (selectedNoteId) {
+                    handleDeleteNote(selectedNoteId);
+                }
             }
-        }
+        });
     };
 
     useEffect(() => {
@@ -4345,7 +4465,12 @@ export default function CreatePage() {
                 updatedAt: new Date().toISOString()
             }, { merge: true }).catch(() => {});
         };
-    }, [selectedNoteId, user, activeToolTab, activeRecordingTrackId, studioTracks, studioState]);
+        // Depend on the derived track name (a primitive), not the whole `studioTracks` array —
+        // otherwise every knob tweak/mute/reorder re-fires this effect, and since React runs the
+        // cleanup above before each re-run (not just on unmount), that meant two presence writes
+        // per tweak: a false "not open/recording" reset immediately followed by the real state,
+        // visible as flicker to other collaborators watching presence indicators.
+    }, [selectedNoteId, user, activeToolTab, activeRecordingTrackId, studioTracks.find(t => t.id === activeRecordingTrackId)?.name, studioState]);
 
     const lastCursorWriteRef = useRef<number>(0);
     
@@ -4508,8 +4633,24 @@ export default function CreatePage() {
             const deterministicId = `${projId}_${user.uid}`;
             const inviteeName = user.displayName || user.email?.split('@')[0] || 'Collaborator';
 
-            // Parallelize Firestore write & read operations for maximum speed
-            const inviteDocPromise = (invite.id !== deterministicId)
+            // Check membership cap BEFORE writing anything, so a full project never
+            // leaves a "zombie" invite (marked accepted but never actually added).
+            const projectDoc = await getDoc(doc(db, "projects", projId));
+            const noteData = projectDoc.exists() ? (projectDoc.data() as SongNote) : null;
+            const currentCollaborators = noteData?.collaborators || [];
+
+            if (currentCollaborators.length >= MAX_COLLABORATORS) {
+                alert("This project already has the maximum of 5 members.");
+                return;
+            }
+
+            // Only mark the invite accepted once the membership write itself succeeds —
+            // a rejected/denied collaborators write must never leave the invite doc stuck at "accepted".
+            await updateDoc(doc(db, "projects", projId), {
+                collaborators: arrayUnion(user.uid)
+            });
+
+            await (invite.id !== deterministicId
                 ? setDoc(doc(db, "invitations", deterministicId), {
                     ...invite,
                     id: deterministicId,
@@ -4523,23 +4664,13 @@ export default function CreatePage() {
                     inviteeId: user.uid,
                     inviteeName,
                     senderNotified: false,
-                });
+                }));
 
-            const collabUpdatePromise = updateDoc(doc(db, "projects", projId), {
-                collaborators: arrayUnion(user.uid)
-            });
-
-            const projectDocPromise = getDoc(doc(db, "projects", projId));
-
-            const [, , projectDoc] = await Promise.all([inviteDocPromise, collabUpdatePromise, projectDocPromise]);
-
-            if (projectDoc.exists()) {
-                const noteData = projectDoc.data() as SongNote;
-                const currentCollaborators = noteData.collaborators || [];
+            if (noteData) {
                 const fullCollabNote: SongNote = {
                     ...noteData,
                     id: projId,
-                    collaborators: currentCollaborators
+                    collaborators: [...currentCollaborators, user.uid]
                 };
 
                 // Populate local state with owner's real project content & select it
@@ -6394,7 +6525,7 @@ export default function CreatePage() {
                             const newTrack: StudioTrack = {
                                 id: nextId,
                                 name: file.name.substring(0, 18) || 'Uploaded Track',
-                                type: 'guitar',
+                                type: 'custom', // honest "not yet classified" default — patched below once/if classification resolves
                                 volume: 80,
                                 pan: 0,
                                 eq: 0,
@@ -6404,9 +6535,71 @@ export default function CreatePage() {
                                 url: localUrl
                             };
                             setStudioTracks(prev => [...prev, newTrack]);
+
+                            // Background instrument classification — send the original file directly
+                            // (rather than the `arrayBuffer` above, which some browsers detach once
+                            // handed to decodeAudioData) so this never disrupts the track just added.
+                            (async () => {
+                                try {
+                                    const res = await fetch('/api/classify-instrument', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+                                        body: file
+                                    });
+                                    const data = await res.json();
+                                    if (data?.instrument) {
+                                        setStudioTracks(prev => prev.map(t => t.id === nextId ? { ...t, type: data.instrument } : t));
+                                    }
+                                } catch (err) {
+                                    console.error("Instrument classification failed:", err);
+                                }
+                            })();
                             setActiveRecordingTrackId(nextId);
 
                             const nextRecId = `imported-rec-${nextId}`;
+                            const finalNoteId = effectiveNoteId || `n-${Date.now()}`;
+
+                            // The blob: URL above only works in this tab and is never durably stored —
+                            // upload the original file to Storage in the background and patch the real
+                            // URL in once it's ready, so the card survives a reload and other
+                            // collaborators can actually fetch it (a blob: URL is fetchable by no one
+                            // else, including this app's own server-side classification endpoint).
+                            if (user) {
+                                (async () => {
+                                    try {
+                                        const fileExt = (file.name.split('.').pop() || 'audio').toLowerCase();
+                                        const fileRef = storageRef(storage, `users/${user.uid}/recordings/${finalNoteId}_ImportId_${nextId}.${fileExt}`);
+                                        await uploadBytes(fileRef, file);
+                                        const downloadUrl = await getDownloadURL(fileRef);
+
+                                        setStudioTracks(prev => prev.map(t => t.id === nextId ? { ...t, url: downloadUrl } : t));
+
+                                        setNotes(prev => prev.map(n => {
+                                            if (n.id !== finalNoteId) return n;
+                                            const updatedAudioNotes = (n.audioNotes || []).map(an =>
+                                                an.id === nextRecId ? { ...an, url: downloadUrl } : an
+                                            );
+                                            const updated = { ...n, audioNotes: updatedAudioNotes };
+                                            const docRef = doc(db, "projects", finalNoteId);
+                                            const cleanAudio = updatedAudioNotes.map((an: any) => ({
+                                                id: an.id,
+                                                url: an.url || '',
+                                                title: an.title || '',
+                                                duration: an.duration || 0,
+                                                groupId: an.groupId || null,
+                                                phraseId: an.phraseId || null,
+                                                createdAt: an.createdAt || 0,
+                                                ...(an.stemTracks ? { stemTracks: an.stemTracks } : {})
+                                            }));
+                                            setDoc(docRef, { audioNotes: cleanAudio, updatedAt: new Date().toISOString() }, { merge: true })
+                                                .catch(err => console.error("Error persisting uploaded audio URL to Firestore:", err));
+                                            return updated;
+                                        }));
+                                    } catch (uploadErr) {
+                                        console.error("Import audio upload to Storage failed:", uploadErr);
+                                    }
+                                })();
+                            }
 
                             if (effectiveNoteId) {
                                 setNotes(prev => prev.map(n => {
@@ -6435,7 +6628,8 @@ export default function CreatePage() {
                                                 duration: an.duration || 0,
                                                 groupId: an.groupId || null,
                                                 phraseId: an.phraseId || null,
-                                                createdAt: an.createdAt || 0
+                                                createdAt: an.createdAt || 0,
+                                                ...(an.stemTracks ? { stemTracks: an.stemTracks } : {})
                                             }));
                                             setDoc(docRef, { audioNotes: cleanAudio, updatedAt: updated.updatedAt }, { merge: true })
                                                 .catch(err => console.error("Error updating audio project in Firestore:", err));
@@ -6451,7 +6645,7 @@ export default function CreatePage() {
                                 const _dateStr = _now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
                                 const _timeStr = _now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
                                 const title = `${t('creative.project')} - ${_dateStr} ${_timeStr}`;
-                                const newNoteId = `n-${Date.now()}`;
+                                const newNoteId = finalNoteId;
                                 const newNote: SongNote = {
                                     id: newNoteId,
                                     title: title,
@@ -6766,13 +6960,19 @@ export default function CreatePage() {
 
 
     const handleCreateFolder = () => {
-        const name = prompt("Enter folder name:");
-        if (!name || name.trim() === '') return;
-        const newFolder: SongFolder = {
-            id: `f-${Date.now()}`,
-            name: name.trim()
-        };
-        setFolders(prev => [...prev, newFolder]);
+        requestPrompt({
+            title: 'Enter folder name',
+            placeholder: 'Folder name',
+            confirmLabel: 'Create',
+            onConfirm: (name) => {
+                if (!name || name.trim() === '') return;
+                const newFolder: SongFolder = {
+                    id: `f-${Date.now()}`,
+                    name: name.trim()
+                };
+                setFolders(prev => [...prev, newFolder]);
+            }
+        });
     };
 
     const handleCreateNote = (folderId: string | null = null) => {
@@ -7099,7 +7299,8 @@ export default function CreatePage() {
                         groupId: an.groupId || null,
                         phraseId: an.phraseId || null,
                         createdAt: an.createdAt || 0,
-                        authorId: an.authorId || user.uid
+                        authorId: an.authorId || user.uid,
+                        ...(an.stemTracks ? { stemTracks: an.stemTracks } : {})
                     }));
 
                     const existingContributions = (updatedNote as any).contributions || {};
@@ -7210,78 +7411,89 @@ export default function CreatePage() {
     };
 
     const handleDeleteAudioNote = (noteId: string, audioNoteId: string) => {
-        if (!confirm("Are you sure you want to delete this audio recording?")) return;
-        setNotes(prev => prev.map(n => {
-            if (n.id === noteId) {
-                const matchingAudio = (n.audioNotes || []).find(an => an.id === audioNoteId);
-                const attachedPhraseId = matchingAudio ? matchingAudio.phraseId : null;
-                
-                const updatedAudioNotes = (n.audioNotes || []).filter(an => an.id !== audioNoteId);
-                const latestAudio = updatedAudioNotes[updatedAudioNotes.length - 1];
-                
-                let updatedPhrases = n.phrases || [];
-                if (attachedPhraseId && attachedPhraseId.startsWith('p-audio-')) {
-                    const phraseObj = updatedPhrases.find(p => p.id === attachedPhraseId);
-                    if (phraseObj && phraseObj.text.trim() === '') {
-                        updatedPhrases = updatedPhrases.filter(p => p.id !== attachedPhraseId);
-                    }
-                }
-                const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, n.verses || []);
-                
-                if (user) {
-                    updateDoc(doc(db, "projects", noteId), {
-                        audioNotes: updatedAudioNotes,
-                        audioUrl: latestAudio ? latestAudio.url : '',
-                        phrases: finalPhrases
-                    }).catch(err => console.error("Error deleting audio note in Firestore:", err));
-                }
+        requestConfirm({
+            title: 'Delete Audio Recording?',
+            message: 'Are you sure you want to delete this audio recording?',
+            destructive: true,
+            onConfirm: () => {
+                setNotes(prev => prev.map(n => {
+                    if (n.id === noteId) {
+                        const matchingAudio = (n.audioNotes || []).find(an => an.id === audioNoteId);
+                        const attachedPhraseId = matchingAudio ? matchingAudio.phraseId : null;
 
-                return {
-                    ...n,
-                    audioNotes: updatedAudioNotes,
-                    audioUrl: latestAudio ? latestAudio.url : '',
-                    phrases: finalPhrases
-                };
+                        const updatedAudioNotes = (n.audioNotes || []).filter(an => an.id !== audioNoteId);
+                        const latestAudio = updatedAudioNotes[updatedAudioNotes.length - 1];
+
+                        let updatedPhrases = n.phrases || [];
+                        if (attachedPhraseId && attachedPhraseId.startsWith('p-audio-')) {
+                            const phraseObj = updatedPhrases.find(p => p.id === attachedPhraseId);
+                            if (phraseObj && phraseObj.text.trim() === '') {
+                                updatedPhrases = updatedPhrases.filter(p => p.id !== attachedPhraseId);
+                            }
+                        }
+                        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, n.verses || []);
+
+                        if (user) {
+                            updateDoc(doc(db, "projects", noteId), {
+                                audioNotes: updatedAudioNotes,
+                                audioUrl: latestAudio ? latestAudio.url : '',
+                                phrases: finalPhrases
+                            }).catch(err => console.error("Error deleting audio note in Firestore:", err));
+                        }
+
+                        return {
+                            ...n,
+                            audioNotes: updatedAudioNotes,
+                            audioUrl: latestAudio ? latestAudio.url : '',
+                            phrases: finalPhrases
+                        };
+                    }
+                    return n;
+                }));
             }
-            return n;
-        }));
+        });
     };
 
     const handleDeleteDocBlock = (docId: string, headerPhraseId: string) => {
         if (!selectedNoteId) return;
-        if (!confirm("Are you sure you want to delete this document block and all of its extracted text?")) return;
-        
-        setNotes(prev => prev.map(n => {
-            if (n.id === selectedNoteId) {
-                const filteredPhrases = (n.phrases || []).filter(p => 
-                    p.id !== headerPhraseId && !p.id.startsWith(`p-docline-${docId}-`)
-                );
-                const finalPhrases = cleanupAndEnsurePlaceholders(filteredPhrases, n.verses || []);
-                const filteredDocs = (n.documents || []).filter(d => d.id !== docId);
-                const newContent = finalPhrases.map(p => p.text).join('\n');
-                
-                if (user) {
-                    updateDoc(doc(db, "projects", selectedNoteId), {
-                        phrases: finalPhrases,
-                        content: newContent,
-                        documents: filteredDocs
-                    }).catch(err => console.error("Error deleting doc block in Firestore:", err));
-                }
-                
-                // Refresh text area display if active
-                if (textareaRef.current) {
-                    textareaRef.current.value = newContent;
-                }
+        requestConfirm({
+            title: 'Delete Document Block?',
+            message: 'Are you sure you want to delete this document block and all of its extracted text?',
+            destructive: true,
+            onConfirm: () => {
+                setNotes(prev => prev.map(n => {
+                    if (n.id === selectedNoteId) {
+                        const filteredPhrases = (n.phrases || []).filter(p =>
+                            p.id !== headerPhraseId && !p.id.startsWith(`p-docline-${docId}-`)
+                        );
+                        const finalPhrases = cleanupAndEnsurePlaceholders(filteredPhrases, n.verses || []);
+                        const filteredDocs = (n.documents || []).filter(d => d.id !== docId);
+                        const newContent = finalPhrases.map(p => p.text).join('\n');
 
-                return {
-                    ...n,
-                    phrases: finalPhrases,
-                    content: newContent,
-                    documents: filteredDocs
-                };
+                        if (user) {
+                            updateDoc(doc(db, "projects", selectedNoteId), {
+                                phrases: finalPhrases,
+                                content: newContent,
+                                documents: filteredDocs
+                            }).catch(err => console.error("Error deleting doc block in Firestore:", err));
+                        }
+
+                        // Refresh text area display if active
+                        if (textareaRef.current) {
+                            textareaRef.current.value = newContent;
+                        }
+
+                        return {
+                            ...n,
+                            phrases: finalPhrases,
+                            content: newContent,
+                            documents: filteredDocs
+                        };
+                    }
+                    return n;
+                }));
             }
-            return n;
-        }));
+        });
     };
 
     const handleTranscribeDocument = async (docId: string, headerPhraseId: string) => {
@@ -8388,14 +8600,98 @@ export default function CreatePage() {
 
     const handleDeleteNote = (id: string, e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
-        if (!confirm("Are you sure you want to delete this note?")) return;
-        setNotes(prev => prev.filter(n => n.id !== id));
-        if (selectedNoteId === id) {
-            setSelectedNoteId(null);
-            setIsEditing(false);
-        }
+        requestConfirm({
+            title: 'Delete Note?',
+            message: 'Are you sure you want to delete this note?',
+            destructive: true,
+            onConfirm: () => {
+                setNotes(prev => prev.filter(n => n.id !== id));
+                if (selectedNoteId === id) {
+                    setSelectedNoteId(null);
+                    setIsEditing(false);
+                }
+                if (user) {
+                    deleteDoc(doc(db, "projects", id)).catch(err => console.error("Error deleting project in Firestore:", err));
+                }
+            }
+        });
+    };
+
+    const handleDuplicateNote = (id: string, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        const source = notes.find(n => n.id === id);
+        if (!source) return;
+
+        const newNoteId = `n-${Date.now()}`;
+
+        // Regenerate every nested id so the duplicate is a fully independent copy
+        // (not sharing phrase/group ids with the original, which could otherwise
+        // cause cross-project confusion for anything keyed by those ids).
+        const groupIdMap = new Map<string, string>();
+        const newVerses = (source.verses || []).map(v => {
+            const newId = `v-${Math.random().toString(36).substring(2, 9)}`;
+            groupIdMap.set(v.id, newId);
+            return { ...v, id: newId };
+        });
+
+        const phraseIdMap = new Map<string, string>();
+        const newPhrases = (source.phrases || []).map(p => {
+            const newId = `p-${Math.random().toString(36).substring(2, 9)}`;
+            phraseIdMap.set(p.id, newId);
+            return {
+                ...p,
+                id: newId,
+                groupId: p.groupId ? (groupIdMap.get(p.groupId) || p.groupId) : p.groupId
+            };
+        });
+
+        const newAudioNotes = (source.audioNotes || []).map(an => ({
+            ...an,
+            id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            phraseId: an.phraseId ? (phraseIdMap.get(an.phraseId) || an.phraseId) : an.phraseId,
+            groupId: an.groupId ? (groupIdMap.get(an.groupId) || an.groupId) : an.groupId
+        }));
+
+        const newImages = (source.images || []).map(img => ({
+            ...img,
+            id: `img-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            phraseId: img.phraseId ? (phraseIdMap.get(img.phraseId) || img.phraseId) : img.phraseId
+        }));
+
+        const newDocuments = (source.documents || []).map(d => ({
+            ...d,
+            id: `doc-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            phraseId: d.phraseId ? (phraseIdMap.get(d.phraseId) || d.phraseId) : d.phraseId
+        }));
+
+        const timestamp = new Date().toISOString();
+        const sourceTitle = getTranslatedTitle(source.title) || t('workspace.untitled_note');
+
+        const newNote: SongNote = {
+            ...source,
+            id: newNoteId,
+            title: `${sourceTitle} (${t('workspace.copy_suffix')})`,
+            updatedAt: timestamp,
+            verses: newVerses,
+            phrases: newPhrases,
+            audioNotes: newAudioNotes,
+            images: newImages,
+            documents: newDocuments,
+            ownerId: user ? user.uid : undefined,
+            collaborators: [],
+            isTitleLocked: false
+        };
+
+        setNotes(prev => [newNote, ...prev]);
+        setSelectedNoteId(newNoteId);
+
         if (user) {
-            deleteDoc(doc(db, "projects", id)).catch(err => console.error("Error deleting project in Firestore:", err));
+            const docRef = doc(db, "projects", newNoteId);
+            setDoc(docRef, {
+                ...newNote,
+                ownerId: user.uid,
+                collaborators: []
+            }).catch(err => console.error("Error duplicating project in Firestore:", err));
         }
     };
 
@@ -8575,18 +8871,23 @@ export default function CreatePage() {
 
     const handleDeleteFolder = (folderId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!confirm("Are you sure you want to delete this folder? Notes inside will be kept uncategorized.")) return;
-        
-        setFolders(prev => prev.filter(f => f.id !== folderId));
-        setNotes(prev => prev.map(n => {
-            if (n.folderId === folderId) {
-                return { ...n, folderId: null };
+        requestConfirm({
+            title: 'Delete Folder?',
+            message: 'Are you sure you want to delete this folder? Notes inside will be kept uncategorized.',
+            destructive: true,
+            onConfirm: () => {
+                setFolders(prev => prev.filter(f => f.id !== folderId));
+                setNotes(prev => prev.map(n => {
+                    if (n.folderId === folderId) {
+                        return { ...n, folderId: null };
+                    }
+                    return n;
+                }));
+                if (activeFolderIdFilter === folderId) {
+                    setActiveFolderIdFilter(null);
+                }
             }
-            return n;
-        }));
-        if (activeFolderIdFilter === folderId) {
-            setActiveFolderIdFilter(null);
-        }
+        });
     };
 
     // Derived title logic (first line of the content)
@@ -8804,13 +9105,19 @@ export default function CreatePage() {
     const handleRevertChanges = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (selectedNoteId && activeNote) {
-            if (confirm("Are you sure you want to revert all unsaved changes for this note?")) {
-                const revertedPhrases = syncPhrasesWithContent(lastSavedContent, []);
-                handleUpdateNote(selectedNoteId, {
-                    content: lastSavedContent,
-                    phrases: revertedPhrases
-                });
-            }
+            requestConfirm({
+                title: 'Revert Changes?',
+                message: 'Are you sure you want to revert all unsaved changes for this note?',
+                destructive: true,
+                confirmLabel: 'Revert',
+                onConfirm: () => {
+                    const revertedPhrases = syncPhrasesWithContent(lastSavedContent, []);
+                    handleUpdateNote(selectedNoteId, {
+                        content: lastSavedContent,
+                        phrases: revertedPhrases
+                    });
+                }
+            });
         }
     };
 
@@ -9467,7 +9774,19 @@ export default function CreatePage() {
         return parseFlexibleDate(note.updatedAt);
     };
 
-    const notesFilteredByMode = [...notes].sort((a, b) => getNoteTime(b) - getNoteTime(a));
+    const notesFilteredByMode = [...notes].sort((a, b) => {
+        switch (projectSortOption) {
+            case 'date_asc':
+                return getNoteTime(a) - getNoteTime(b);
+            case 'az':
+                return (getTranslatedTitle(a.title) || t('workspace.untitled_note')).localeCompare(getTranslatedTitle(b.title) || t('workspace.untitled_note'));
+            case 'za':
+                return (getTranslatedTitle(b.title) || t('workspace.untitled_note')).localeCompare(getTranslatedTitle(a.title) || t('workspace.untitled_note'));
+            case 'date_desc':
+            default:
+                return getNoteTime(b) - getNoteTime(a);
+        }
+    });
 
     const filteredNotes = notesFilteredByMode.filter(n => 
         n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -9599,7 +9918,12 @@ export default function CreatePage() {
                         <ImageCapsuleCard
                             img={img}
                             onRename={(newName) => activeNote && handleUpdateNote(activeNote.id, { images: (activeNote.images || []).map(i => i.id === img.id ? { ...i, name: newName } : i) })}
-                            onDelete={() => { if (confirm("Delete this image?")) handleDeleteImage(img.id); }}
+                            onDelete={() => requestConfirm({
+                                title: 'Delete Image?',
+                                message: 'Are you sure you want to delete this image?',
+                                destructive: true,
+                                onConfirm: () => handleDeleteImage(img.id)
+                            })}
                             onScan={() => handleScanImage(img.id)}
                             onPreview={() => setPreviewImageUrl(img.url)}
                             isScanning={scanningImageId === img.id}
@@ -10312,6 +10636,15 @@ export default function CreatePage() {
             const recId = `studio-mix-${Date.now()}`;
             const durationSecs = renderedBuffer.duration;
 
+            // Snapshot the current per-track stems (minus the runtime-only audioBuffer) so this
+            // specific card can be reopened later with its original tracks, not just the flattened
+            // mixdown. Tracks still mid-upload (blob: URL) are skipped — the live studio session's
+            // own autosave will get their real URL moments later, but this particular snapshot can't
+            // wait on an in-flight upload without making "Send to canvas" feel broken/slow.
+            const stemTracksSnapshot: SavedStemTrack[] = studioTracks
+                .filter(t => t.url && !t.url.startsWith('blob:'))
+                .map(({ audioBuffer, ...rest }) => rest);
+
             const newAudioNote: AudioNote = {
                 id: recId,
                 url: localUrl,
@@ -10319,7 +10652,8 @@ export default function CreatePage() {
                 duration: durationSecs,
                 groupId: null,
                 phraseId: null,
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                stemTracks: stemTracksSnapshot
             };
 
             const initialTargetNoteId = selectedNoteId;
@@ -10403,7 +10737,8 @@ export default function CreatePage() {
                                 groupId: null,
                                 phraseId: null,
                                 createdAt: newAudioNote.createdAt,
-                                authorId: user.uid
+                                authorId: user.uid,
+                                stemTracks: newAudioNote.stemTracks
                             }
                         ],
                         audioUrl: localUrl,
@@ -10456,30 +10791,35 @@ export default function CreatePage() {
     };
 
     const handleClearTrack = (trackId: number) => {
-        if (!confirm("Are you sure you want to delete this track's recording?")) return;
-        
-        stopAllStudioAudio();
-        setStudioState('idle');
-        setStudioPlayhead(0);
+        requestConfirm({
+            title: 'Delete Recording?',
+            message: "Are you sure you want to delete this track's recording?",
+            destructive: true,
+            onConfirm: () => {
+                stopAllStudioAudio();
+                setStudioState('idle');
+                setStudioPlayhead(0);
 
-        setStudioTracks(prev => {
-            const updated = prev.map(t => {
-                if (t.id === trackId) {
-                    if (t.url) URL.revokeObjectURL(t.url);
-                    return { ...t, audioBuffer: null, url: null };
-                }
-                return t;
-            });
-            
-            let maxDur = 0;
-            updated.forEach(t => {
-                if (t.audioBuffer) {
-                    maxDur = Math.max(maxDur, t.audioBuffer.duration);
-                }
-            });
-            setStudioDuration(maxDur);
+                setStudioTracks(prev => {
+                    const updated = prev.map(t => {
+                        if (t.id === trackId) {
+                            if (t.url) URL.revokeObjectURL(t.url);
+                            return { ...t, audioBuffer: null, url: null };
+                        }
+                        return t;
+                    });
 
-            return updated;
+                    let maxDur = 0;
+                    updated.forEach(t => {
+                        if (t.audioBuffer) {
+                            maxDur = Math.max(maxDur, t.audioBuffer.duration);
+                        }
+                    });
+                    setStudioDuration(maxDur);
+
+                    return updated;
+                });
+            }
         });
     };
 
@@ -10507,6 +10847,74 @@ export default function CreatePage() {
 
     const handleStudioTrackDragEnd = () => {
         setDraggedTrackIndex(null);
+    };
+
+    const handleReopenStudioMix = (audioNote: AudioNote) => {
+        if (!audioNote.stemTracks?.length) return;
+        requestConfirm({
+            title: 'Reopen this Demo Studio mix?',
+            message: 'This will replace your current Demo Studio tracks with the ones saved on this card. Continue?',
+            confirmLabel: 'Reopen',
+            onConfirm: () => {
+                stopAllStudioAudio();
+                setStudioState('idle');
+                setStudioPlayhead(0);
+                const reopenedTracks: StudioTrack[] = audioNote.stemTracks!.map(t => ({ ...t, audioBuffer: null }));
+                setStudioTracks(reopenedTracks);
+                setActiveRecordingTrackId(reopenedTracks[0]?.id ?? 1);
+                setActiveToolTab('studio');
+                setShowToolsPanel(true);
+            }
+        });
+    };
+
+    // Lets any collaborator pull an already-imported/recorded audio card into their own
+    // live Demo Studio session as a new track (distinct from handleReopenStudioMix, which
+    // replaces the whole session with a saved mixdown's stems).
+    const handleAddAsStudioTrack = (audioNote: AudioNote) => {
+        if (studioTracks.length >= 4) {
+            triggerStudioNotification('Studio tracks limit reached (maximum 4 tracks).', 'rose');
+            return;
+        }
+
+        const nextId = Date.now();
+        const newTrack: StudioTrack = {
+            id: nextId,
+            name: (audioNote.title || 'Track').substring(0, 18),
+            type: 'custom', // honest "not yet classified" default — patched below once/if classification resolves
+            volume: 80,
+            pan: 0,
+            eq: 0,
+            compressor: true,
+            reverb: 40,
+            audioBuffer: null,
+            url: audioNote.url
+        };
+        setStudioTracks(prev => [...prev, newTrack]);
+        setActiveRecordingTrackId(nextId);
+        setActiveToolTab('studio');
+        setShowToolsPanel(true);
+
+        // Classification is a background enhancement only — a blob: URL (not yet uploaded to
+        // Storage) can't be fetched server-side, and any failure here must never disrupt the
+        // track that was already added above.
+        if (audioNote.url && !audioNote.url.startsWith('blob:')) {
+            (async () => {
+                try {
+                    const res = await fetch('/api/classify-instrument', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ audioUrl: audioNote.url })
+                    });
+                    const data = await res.json();
+                    if (data?.instrument) {
+                        setStudioTracks(prev => prev.map(t => t.id === nextId ? { ...t, type: data.instrument } : t));
+                    }
+                } catch (err) {
+                    console.error("Instrument classification failed:", err);
+                }
+            })();
+        }
     };
 
     const handleAddTrack = () => {
@@ -10567,27 +10975,32 @@ export default function CreatePage() {
     };
 
     const handleDeleteTrack = (trackId: number) => {
-        if (!confirm("Are you sure you want to delete this track?")) return;
+        requestConfirm({
+            title: 'Delete Track?',
+            message: 'Are you sure you want to delete this track?',
+            destructive: true,
+            onConfirm: () => {
+                stopAllStudioAudio();
+                setStudioState('idle');
+                setStudioPlayhead(0);
 
-        stopAllStudioAudio();
-        setStudioState('idle');
-        setStudioPlayhead(0);
+                setStudioTracks(prev => {
+                    const updated = prev.filter(t => t.id !== trackId);
 
-        setStudioTracks(prev => {
-            const updated = prev.filter(t => t.id !== trackId);
-            
-            let maxDur = 0;
-            updated.forEach(t => {
-                if (t.audioBuffer) {
-                    maxDur = Math.max(maxDur, t.audioBuffer.duration);
-                }
-            });
-            setStudioDuration(maxDur);
+                    let maxDur = 0;
+                    updated.forEach(t => {
+                        if (t.audioBuffer) {
+                            maxDur = Math.max(maxDur, t.audioBuffer.duration);
+                        }
+                    });
+                    setStudioDuration(maxDur);
 
-            return updated;
+                    return updated;
+                });
+                setActiveTrackMenuId(null);
+                setTrackMenuPos(null);
+            }
         });
-        setActiveTrackMenuId(null);
-        setTrackMenuPos(null);
     };
 
     const handleTrackMenuClick = (e: React.MouseEvent<HTMLButtonElement>, trackId: number) => {
@@ -10950,8 +11363,8 @@ export default function CreatePage() {
                             {t('canvas.create_song') || 'Create song'}
                         </h3>
                         
-                        {/* Collaborator Circle Avatars Stack for ALL Users inside Demo Studio */}
-                        {allUsersInStudio.length > 0 && (
+                        {/* Collaborator Circle Avatars Stack — only shown during an actual live collaboration (someone else present), not for a solo session */}
+                        {remoteUsersInStudio.length > 0 && (
                             <div className="inline-flex items-center ml-2.5 select-none shrink-0 relative">
                                 {allUsersInStudio.map((u, i) => (
                                     <div 
@@ -10979,11 +11392,11 @@ export default function CreatePage() {
 
                 <div className="contents">
                     {/* Main Studio Sequencer Area */}
-                        <div className="w-full flex flex-col gap-6 select-none animate-in fade-in zoom-in-95 duration-250 relative">
+                        <div className="w-full flex flex-col gap-6 select-none animate-in fade-in zoom-in-95 duration-250 relative min-h-[20vh] sm:min-h-[24vh] lg:min-h-[28vh]">
                     {/* Unified Sequencer Panel Grid Area */}
-                    <div className="flex flex-col w-full relative gap-1.5">
+                    <div className="flex flex-col w-full relative gap-6">
                     {/* Headers Row */}
-                    <div className="hidden lg:flex items-center gap-3 select-none h-8 mb-[-4px] px-4">
+                    <div className="hidden lg:flex items-center gap-3 select-none h-8 px-4">
                         <div className="w-5 shrink-0" /> {/* reorder handle gap */}
                         <div className="w-32 sm:w-36 md:w-40 lg:w-44 shrink-0" /> {/* track selector gap */}
                         
@@ -11043,7 +11456,9 @@ export default function CreatePage() {
                                         color: getMemberColorToken(targetUid)
                                     };
                                 }
-                                if (isArmed && user) {
+                                // Only show your own avatar/border on the armed track when someone
+                                // else is actually here to see it — pointless noise in a solo session.
+                                if (isArmed && user && remoteUsersInStudio.length > 0) {
                                     return {
                                         uid: user.uid,
                                         name: user.displayName || user.email?.split('@')[0] || 'Me',
@@ -11298,7 +11713,7 @@ export default function CreatePage() {
                                             />
                                             {expandedTrackId === track.id && (
                                                 <span className="text-[11px] font-normal text-stone-400/80 mt-1 select-none animate-in fade-in duration-200">
-                                                    {track.volume}
+                                                    {Math.round(track.volume)}
                                                 </span>
                                             )}
                                         </div>
@@ -11313,7 +11728,10 @@ export default function CreatePage() {
                                             />
                                             {expandedTrackId === track.id && (
                                                 <span className="text-[11px] font-normal text-stone-400/80 mt-1 select-none animate-in fade-in duration-200">
-                                                    {track.pan > 0 ? `R${track.pan}` : track.pan < 0 ? `L${Math.abs(track.pan)}` : 'C'}
+                                                    {(() => {
+                                                        const roundedPan = Math.round(track.pan);
+                                                        return roundedPan > 0 ? `R${roundedPan}` : roundedPan < 0 ? `L${Math.abs(roundedPan)}` : 'C';
+                                                    })()}
                                                 </span>
                                             )}
                                         </div>
@@ -11328,7 +11746,10 @@ export default function CreatePage() {
                                             />
                                             {expandedTrackId === track.id && (
                                                 <span className="text-[11px] font-normal text-stone-400/80 mt-1 select-none animate-in fade-in duration-200">
-                                                    {track.eq > 0 ? `+${track.eq}` : track.eq}
+                                                    {(() => {
+                                                        const roundedEq = Math.round(track.eq);
+                                                        return roundedEq > 0 ? `+${roundedEq}` : roundedEq;
+                                                    })()}
                                                 </span>
                                             )}
                                         </div>
@@ -11343,7 +11764,7 @@ export default function CreatePage() {
                                             />
                                             {expandedTrackId === track.id && (
                                                 <span className="text-[11px] font-normal text-stone-400/80 mt-1 select-none animate-in fade-in duration-200">
-                                                    {track.reverb}
+                                                    {Math.round(track.reverb)}
                                                 </span>
                                             )}
                                         </div>
@@ -11502,7 +11923,8 @@ export default function CreatePage() {
 
                 </div>
 
-
+                {/* Flexible spacer: fills leftover height so the transport controls stay anchored to the bottom of the taller panel instead of floating right under a short track list */}
+                <div className="flex-grow" />
 
                 {/* Bottom Control Bar */}
                 <div className="flex flex-col gap-3 pt-4 mt-2 w-full">
@@ -11858,12 +12280,12 @@ export default function CreatePage() {
                 </div>
 
                 {showWiredHeadphonesBanner && createPortal(
-                    <div 
-                        className="fixed inset-0 bg-stone-900/40 backdrop-blur-md z-[100] flex items-start md:items-center justify-center p-4 sm:p-6 md:p-10 animate-in fade-in duration-200 overflow-y-auto no-scrollbar pt-24 pb-12 md:py-10"
+                    <div
+                        className="fixed inset-0 bg-stone-900/40 backdrop-blur-md z-[100] flex items-start md:items-center justify-center p-4 sm:p-6 md:p-10 animate-in fade-in duration-150 ease-out overflow-y-auto no-scrollbar pt-24 pb-12 md:py-10"
                         onClick={() => setShowWiredHeadphonesBanner(false)}
                     >
-                        <div 
-                            className="bg-[#DCDDD4] rounded-[32px] border border-stone-300/20 shadow-[0_25px_60px_rgba(0,0,0,0.18)] max-w-[1080px] w-full pt-2 pb-3 px-6 sm:pt-2.5 sm:pb-4 sm:px-8 md:pt-3 md:pb-4 md:px-10 flex flex-col gap-1.5 md:gap-2 animate-in zoom-in-95 duration-200 relative max-h-[98vh] overflow-visible text-left text-stone-850 select-text"
+                        <div
+                            className="bg-[#DCDDD4] rounded-[32px] border border-stone-300/20 shadow-[0_25px_60px_rgba(0,0,0,0.18)] w-[92vw] sm:w-[90vw] max-w-[1400px] pt-2 pb-3 px-6 sm:pt-2.5 sm:pb-4 sm:px-8 md:pt-3 md:pb-4 md:px-10 flex flex-col gap-1.5 md:gap-2 animate-in zoom-in-95 duration-200 ease-out origin-center relative h-[90vh] max-h-[90vh] overflow-visible text-left text-stone-850 select-text"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Top Section: Side-by-Side Layout */}
@@ -11889,7 +12311,7 @@ export default function CreatePage() {
 
                             {/* Middle Section: Columns (Wrapped in relative container with bottom fade overlay) */}
                             <div className="relative w-full flex-grow flex flex-col min-h-0">
-                                <div className="flex-grow overflow-y-auto no-scrollbar pr-2 max-h-[52vh] sm:max-h-[62vh] lg:max-h-[68vh] pb-12 -mt-4 sm:-mt-5 md:-mt-6">
+                                <div className="flex-grow overflow-y-auto no-scrollbar pr-2 pb-12 -mt-4 sm:-mt-5 md:-mt-6">
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 text-left">
                                         {/* Left Column: Before You Record */}
                                         <div className="flex flex-col gap-6">
@@ -13046,7 +13468,7 @@ export default function CreatePage() {
 
         if (activeToolTab === 'studio') {
             return (
-                <div className="flex w-full text-left items-stretch mb-3 sm:mb-5 pointer-events-auto select-none relative">
+                <div className="flex w-full max-h-[calc(100vh-6rem)] sm:max-h-[calc(100vh-8rem)] text-left items-stretch mb-3 sm:mb-5 pointer-events-auto select-none relative">
                     {/* Left Gray Lyrics Panel with smooth width transition */}
                     <div 
                         className={`bg-[#E5E4DE] flex flex-col overflow-hidden transition-all duration-300 ease-out relative z-10 ${
@@ -13056,10 +13478,10 @@ export default function CreatePage() {
                         }`}
                     >
                         {/* Fixed-width wrapper so content doesn't squeeze during animation */}
-                        <div className="w-[240px] sm:w-[260px] flex flex-col h-full shrink-0">
-                            <h3 className="font-sans font-medium text-stone-500 text-[26px] tracking-tight mb-8">{t('studio.lyrics_sidebar')}</h3>
-                            
-                            <div className="flex-1 overflow-y-auto pr-2 no-scrollbar flex flex-col gap-6 font-sans">
+                        <div className="w-[240px] sm:w-[260px] flex flex-col h-full min-h-0 shrink-0">
+                            <h3 className="font-sans font-medium text-stone-500 text-[26px] tracking-tight mb-8 shrink-0">{t('studio.lyrics_sidebar')}</h3>
+
+                            <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-canvas-scrollbar flex flex-col gap-6 font-sans">
                                 {canvasLyrics.length === 0 ? (
                                     <div className="text-stone-400/80 text-[15px] font-medium italic mt-4">
                                         {t('studio.empty_lyrics')}
@@ -13101,9 +13523,9 @@ export default function CreatePage() {
                         onDragStart={(e) => e.stopPropagation()}
                         onDragOver={(e) => e.stopPropagation()}
                         onDrop={(e) => e.stopPropagation()}
-                        className={`flex-grow min-w-0 bg-white border border-stone-200/80 p-4 sm:p-6 md:p-7 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all duration-300 ease-out relative z-20 ${
-                            showStudioLyrics 
-                                ? 'rounded-r-[24px] sm:rounded-r-[36px] md:rounded-r-[45px] rounded-l-none border-l-0' 
+                        className={`flex-grow min-w-0 bg-white border border-stone-200/80 p-4 sm:p-6 md:p-7 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all duration-300 ease-out relative z-20 overflow-y-auto no-scrollbar ${
+                            showStudioLyrics
+                                ? 'rounded-r-[24px] sm:rounded-r-[36px] md:rounded-r-[45px] rounded-l-none border-l-0'
                                 : 'rounded-[24px] sm:rounded-[36px] md:rounded-[45px]'
                         } gap-4 sm:gap-6`}
                     >
@@ -13226,8 +13648,14 @@ export default function CreatePage() {
         }
     };
 
-    const myProjects = displayNotes.filter(n => !n.ownerId || n.ownerId === user?.uid);
-    const collabProjects = displayNotes.filter(n => n.ownerId && n.ownerId !== user?.uid);
+    // A project counts as "collab" if someone else owns it, OR if I own it but have
+    // invited collaborators onto it — either way, other people are actively involved.
+    const isCollabProject = (n: SongNote) =>
+        (!!n.ownerId && n.ownerId !== user?.uid) ||
+        (n.ownerId === user?.uid && !!n.collaborators && n.collaborators.length > 0);
+
+    const myProjects = displayNotes.filter(n => !isCollabProject(n));
+    const collabProjects = displayNotes.filter(isCollabProject);
 
     const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
@@ -13263,14 +13691,23 @@ export default function CreatePage() {
                     </span>
                 </div>
                 
-                {/* Delete Note */}
-                <button 
-                    onClick={(e) => handleDeleteNote(note.id, e)}
-                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 z-10 cursor-pointer"
-                    title={t('workspace.delete_note')}
-                >
-                    <Trash2 size={12} />
-                </button>
+                {/* Duplicate / Delete Note */}
+                <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
+                    <button
+                        onClick={(e) => handleDuplicateNote(note.id, e)}
+                        className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
+                        title={t('workspace.duplicate_note')}
+                    >
+                        <Copy size={12} />
+                    </button>
+                    <button
+                        onClick={(e) => handleDeleteNote(note.id, e)}
+                        className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
+                        title={t('workspace.delete_note')}
+                    >
+                        <Trash2 size={12} />
+                    </button>
+                </div>
             </div>
         );
     };
@@ -13292,10 +13729,17 @@ export default function CreatePage() {
                     {getTranslatedTitle(note.title) || t('workspace.untitled_note')}
                 </span>
                 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                        onClick={(e) => handleDuplicateNote(note.id, e)}
+                        className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
+                        title={t('workspace.duplicate_note')}
+                    >
+                        <Copy size={13} />
+                    </button>
                     <button
                         onClick={(e) => handleDeleteNote(note.id, e)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
+                        className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
                         title={t('workspace.delete_note')}
                     >
                         <Trash2 size={13} />
@@ -13832,6 +14276,8 @@ export default function CreatePage() {
                                                     onTranscribe={(activeNote && handleTranscribeAudioNote) ? (() => handleTranscribeAudioNote(activeNote.id, audioNote.id, audioNote.url)) : undefined}
                                                     isTranscribing={transcribingAudioNoteId === audioNote.id}
                                                     isDocked={false}
+                                                    onReopenInStudio={() => handleReopenStudioMix(audioNote)}
+                                                    onAddAsStudioTrack={() => handleAddAsStudioTrack(audioNote)}
                                                     onDragStart={(e) => handleAudioDragStart(e, audioNote.id)}
                                                     onDragEnd={handleAudioDragEnd}
                                                     activeNoteId={activeNote?.id}
@@ -14228,6 +14674,8 @@ export default function CreatePage() {
                                                                             onTranscribe={() => activeNote && handleTranscribeAudioNote(activeNote.id, audioNote.id, audioNote.url)}
                                                                             isTranscribing={transcribingAudioNoteId === audioNote.id}
                                                                             isDocked={true}
+                                                                            onReopenInStudio={() => handleReopenStudioMix(audioNote)}
+                                                                            onAddAsStudioTrack={() => handleAddAsStudioTrack(audioNote)}
                                                                             onDragStart={(e) => handleAudioDragStart(e, audioNote.id)}
                                                                             onDragEnd={handleAudioDragEnd}
                                                                             activeNoteId={activeNote?.id}
@@ -14505,6 +14953,8 @@ export default function CreatePage() {
                                                                                 onTranscribe={(activeNote && handleTranscribeAudioNote) ? (() => handleTranscribeAudioNote(activeNote.id, audioNote.id, audioNote.url)) : undefined}
                                                                                 isTranscribing={transcribingAudioNoteId === audioNote.id}
                                                                                 isDocked={false}
+                                                                                onReopenInStudio={() => handleReopenStudioMix(audioNote)}
+                                                                                onAddAsStudioTrack={() => handleAddAsStudioTrack(audioNote)}
                                                                                 onDragStart={(e) => handleAudioDragStart(e, audioNote.id)}
                                                                                 onDragEnd={handleAudioDragEnd}
                                                                                 activeNoteId={activeNote?.id}
@@ -14718,7 +15168,7 @@ export default function CreatePage() {
                                  </div>
                             </div>
                         ) : (
-                            <div className="absolute inset-x-0 top-[18%] px-[10%] flex flex-col items-center justify-start pointer-events-none z-10 mt-0">
+                            <div className="w-full flex-1 min-h-0 px-[10%] flex flex-col items-center justify-center pointer-events-none z-10 mt-0">
                                 <style>{`
                                     @keyframes caret-blink {
                                         0%, 100% { opacity: 1; }
@@ -14831,7 +15281,7 @@ export default function CreatePage() {
                                                 
                                                 {/* Rotating Inspiration Line */}
                                                 <span 
-                                                    className={`font-sans text-[13px] sm:text-[14px] text-stone-500/80 font-light italic pointer-events-none select-none ${phraseTransitionClass}`}
+                                                    className={`font-sans text-[13px] sm:text-[14px] text-stone-400 font-normal italic pointer-events-none select-none ${phraseTransitionClass}`}
                                                 >
                                                     {currentPhrase}
                                                 </span>
@@ -15028,23 +15478,15 @@ export default function CreatePage() {
                 )}
 
                 {/* Creative Tools Panel */}
-                <div 
-                    className={`absolute left-1/2 -translate-x-1/2 w-full ${
-                        activeToolTab === 'studio' 
-                            ? 'max-w-[calc(100%-1rem)] px-1'
+                <div
+                    className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full ${
+                        activeToolTab === 'studio'
+                            ? 'max-w-[1560px] px-6 sm:px-10 md:px-16'
                             : 'max-w-[952px] px-4'
-                    } z-[60] transition-[transform,opacity] duration-300 ease-out transform pointer-events-none ${
-                        activeToolTab === 'inspiration' ? 'origin-[61%_bottom]' : 'origin-[53.5%_bottom]'
-                    } ${
+                    } z-[60] transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] transform origin-center pointer-events-none ${
                         showToolsPanel
-                            ? "scale-100 opacity-100"
-                            : "scale-0 opacity-0"
-                    } ${
-                        (activeToolTab === 'inspiration' && !expandedCardId)
-                            ? "bottom-[65px]"
-                            : activeToolTab === 'studio'
-                                ? "bottom-[96px]"
-                                : "bottom-[120px]"
+                            ? "scale-100 opacity-100 visible"
+                            : "scale-95 opacity-0 invisible"
                     }`}
                 >
                     {renderToolsPanel()}
@@ -15056,8 +15498,8 @@ export default function CreatePage() {
                         (isMobile && (editingPhraseId !== null || isFocused))
                             ? "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2 justify-center"
                             : isNoteBlank
-                                ? "px-2 md:px-8 mt-8 pb-16 md:pb-28"
-                                : "px-2 md:px-8 mt-8 pb-4"
+                                ? "px-2 md:px-8 mt-auto pb-2 md:pb-8"
+                                : "px-2 md:px-8 mt-auto pb-4"
                     }`}
                     style={(isMobile && (editingPhraseId !== null || isFocused)) ? { bottom: `${visualViewportOffset}px` } : undefined}
                 >
@@ -15186,7 +15628,7 @@ export default function CreatePage() {
                                     setShowToolsPanel(true);
                                     setActiveToolTab('studio');
                                 }}
-                                className={`h-[54px] px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border ${
+                                className={`h-[54px] px-3.5 lg:px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border ${
                                     showToolsPanel && (activeToolTab as string) === 'studio'
                                         ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
                                         : 'bg-white border-stone-200/50 hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]'
@@ -15198,13 +15640,13 @@ export default function CreatePage() {
                                 <svg width="22" height="22" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M29.7667 2.70959C29.6655 2.63067 29.5477 2.57585 29.4222 2.54929C29.2968 2.52272 29.1669 2.52513 29.0424 2.55631L11.0424 7.05631C10.86 7.10207 10.6981 7.20746 10.5825 7.35574C10.4668 7.50402 10.404 7.68669 10.404 7.87475V23.9215C9.57323 23.2164 8.52657 22.8163 7.43734 22.7873C6.34811 22.7584 5.28167 23.1023 4.41461 23.7622C3.54755 24.4221 2.93189 25.3584 2.6696 26.4159C2.4073 27.4735 2.5141 28.5889 2.97231 29.5775C3.43052 30.5661 4.21264 31.3685 5.18917 31.8519C6.16569 32.3353 7.27803 32.4706 8.34197 32.2355C9.40591 32.0004 10.3576 31.4089 11.0395 30.559C11.7214 29.7091 12.0926 28.6519 12.0915 27.5622V15.2829L28.404 11.2047V19.4215C27.5732 18.7164 26.5266 18.3163 25.4373 18.2873C24.3481 18.2584 23.2817 18.6023 22.4146 19.2622C21.5475 19.9221 20.9319 20.8584 20.6696 21.9159C20.4073 22.9735 20.5141 24.0889 20.9723 25.0775C21.4305 26.0661 22.2126 26.8685 23.1892 27.3519C24.1657 27.8353 25.278 27.9706 26.342 27.7355C27.4059 27.5004 28.3576 26.9089 29.0395 26.059C29.7214 25.2091 30.0926 24.1519 30.0915 23.0622V3.37475C30.0915 3.24648 30.0622 3.1199 30.0059 3.00464C29.9496 2.88938 29.8678 2.78848 29.7667 2.70959ZM7.31024 30.656C6.69836 30.656 6.10021 30.4745 5.59145 30.1346C5.08268 29.7947 4.68615 29.3115 4.45199 28.7462C4.21783 28.1809 4.15657 27.5588 4.27594 26.9587C4.39531 26.3586 4.68996 25.8073 5.12263 25.3746C5.5553 24.942 6.10655 24.6473 6.70668 24.5279C7.30681 24.4086 7.92886 24.4698 8.49417 24.704C9.05948 24.9382 9.54266 25.3347 9.8826 25.8434C10.2225 26.3522 10.404 26.9504 10.404 27.5622C10.404 28.3828 10.078 29.1697 9.49786 29.7499C8.91766 30.33 8.13076 30.656 7.31024 30.656ZM12.0915 13.5447V8.53287L28.404 4.45475V9.46662L12.0915 13.5447ZM25.3102 26.156C24.6984 26.156 24.1002 25.9745 23.5914 25.6346C23.0827 25.2947 22.6862 24.8115 22.452 24.2462C22.2178 23.6809 22.1566 23.0588 22.2759 22.4587C22.3953 21.8586 22.69 21.3073 23.1226 20.8746C23.5553 20.442 24.1066 20.1473 24.7067 20.0279C25.3068 19.9086 25.9289 19.9698 26.4942 20.204C27.0595 20.4382 27.5427 20.8347 27.8826 21.3434C28.2225 21.8522 28.404 22.4504 28.404 23.0622C28.404 23.8828 28.078 24.6697 27.4979 25.2499C26.9177 25.83 26.1308 26.156 25.3102 26.156Z" fill="#4B4B4B"/>
                                 </svg>
-                                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px', color: '#656565' }}>Demo studio</span>
+                                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px', color: '#656565' }} className="hidden lg:inline">Demo studio</span>
                             </button>
 
                             {/* Inspirations pill button — Figma design */}
                             <button
                                 onClick={handleInspirationToggle}
-                                className={`h-[54px] px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border ${
+                                className={`h-[54px] px-3.5 lg:px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border ${
                                     showToolsPanel && activeToolTab === 'inspiration'
                                         ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
                                         : 'bg-white border-stone-200/50 hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]'
@@ -15216,7 +15658,7 @@ export default function CreatePage() {
                                 <svg width="22" height="22" viewBox="0 0 35 35" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M23.7892 9.29688C23.7892 9.56728 23.7091 9.83161 23.5588 10.0564C23.4086 10.2813 23.1951 10.4565 22.9452 10.56C22.6954 10.6635 22.4205 10.6905 22.1553 10.6378C21.8901 10.585 21.6465 10.4548 21.4553 10.2636C21.2641 10.0724 21.1339 9.82881 21.0811 9.5636C21.0284 9.29839 21.0555 9.0235 21.1589 8.77368C21.2624 8.52385 21.4376 8.31033 21.6625 8.1601C21.8873 8.00987 22.1516 7.92969 22.422 7.92969C22.7846 7.92969 23.1324 8.07373 23.3888 8.33013C23.6452 8.58653 23.7892 8.93427 23.7892 9.29688ZM32.5392 10.9375C32.5394 11.0727 32.5062 11.2059 32.4425 11.3251C32.3788 11.4444 32.2867 11.5461 32.1742 11.6211L29.258 13.5639V16.4062C29.2536 20.1034 27.783 23.648 25.1687 26.2623C22.5544 28.8766 19.0099 30.3472 15.3127 30.3516H3.28142C2.9208 30.3516 2.5675 30.2498 2.26223 30.0578C1.95697 29.8658 1.71214 29.5914 1.55598 29.2664C1.39981 28.9413 1.33864 28.5788 1.37953 28.2205C1.42042 27.8622 1.5617 27.5227 1.78709 27.2412L1.79666 27.2289L13.3986 13.3096V10.5123C13.3986 6.09356 16.9383 2.48145 21.29 2.46094H21.3283C23.0291 2.46042 24.685 3.00676 26.0515 4.0193C27.4181 5.03184 28.4229 6.45692 28.9176 8.08418L32.1742 10.2539C32.2867 10.3289 32.3788 10.4306 32.4425 10.5499C32.5062 10.6691 32.5394 10.8023 32.5392 10.9375ZM30.2396 10.9375L27.7541 9.28047C27.5865 9.16886 27.4658 8.99952 27.415 8.80469C27.064 7.45768 26.276 6.26519 25.1745 5.41409C24.073 4.56298 22.7203 4.10136 21.3283 4.10156H21.2969C17.8461 4.11797 15.0392 6.99453 15.0392 10.5123V13.6062C15.0395 13.7986 14.9723 13.9849 14.8492 14.1326L3.06677 28.2707C3.03572 28.311 3.01655 28.3592 3.0114 28.4099C3.00626 28.4605 3.01535 28.5116 3.03766 28.5573C3.05997 28.6031 3.09461 28.6417 3.13767 28.6688C3.18074 28.696 3.23052 28.7106 3.28142 28.7109H7.09041L16.8699 16.975C17.0097 16.8098 17.2092 16.7066 17.4248 16.6878C17.6404 16.669 17.8547 16.7362 18.021 16.8747C18.1873 17.0133 18.2921 17.2119 18.3126 17.4273C18.3331 17.6428 18.2676 17.8576 18.1304 18.025L9.22595 28.7109H15.3127C18.575 28.7073 21.7026 27.4098 24.0094 25.103C26.3162 22.7962 27.6137 19.6685 27.6174 16.4062V13.125C27.6172 12.9898 27.6504 12.8566 27.7141 12.7374C27.7778 12.6181 27.8699 12.5164 27.9824 12.4414L30.2396 10.9375Z" fill="#4B4B4B"/>
                                 </svg>
-                                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px', color: '#656565' }}>Inspirations</span>
+                                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px', color: '#656565' }} className="hidden lg:inline">Inspirations</span>
                             </button>
                         </div>
                     </div>
@@ -15285,6 +15727,53 @@ export default function CreatePage() {
                             onKeyDown={handleSearchKeyDown}
                             className="bg-transparent border-none outline-none w-full text-[13.5px] font-sans placeholder:text-stone-400 font-medium text-stone-800 focus:ring-0 focus:outline-none"
                         />
+                    </div>
+
+                    {/* Sort Dropdown */}
+                    <div className="relative shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => setIsSortMenuOpen(prev => !prev)}
+                            className={`flex items-center gap-2 border px-3.5 rounded-[14px] h-[44px] text-[13px] font-sans font-medium transition-all cursor-pointer select-none ${
+                                isSortMenuOpen
+                                    ? 'bg-white border-stone-400/80 text-stone-800'
+                                    : 'bg-stone-100/70 hover:bg-stone-200/60 border-stone-200/60 text-stone-600'
+                            }`}
+                            title={t('workspace.sort_label') || 'Sort'}
+                        >
+                            <ArrowUpDown size={14} />
+                            <span className="hidden sm:inline whitespace-nowrap">
+                                {projectSortOption === 'date_desc' && (t('workspace.sort_newest') || 'Newest first')}
+                                {projectSortOption === 'date_asc' && (t('workspace.sort_oldest') || 'Oldest first')}
+                                {projectSortOption === 'az' && (t('workspace.sort_az') || 'A → Z')}
+                                {projectSortOption === 'za' && (t('workspace.sort_za') || 'Z → A')}
+                            </span>
+                        </button>
+
+                        {isSortMenuOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsSortMenuOpen(false)} />
+                                <div className="absolute right-0 top-full mt-2 bg-white border border-stone-200/80 rounded-[16px] shadow-[0_10px_30px_rgba(0,0,0,0.08)] py-1.5 min-w-[180px] z-50 animate-in fade-in zoom-in-95 duration-150">
+                                    {([
+                                        ['date_desc', t('workspace.sort_newest') || 'Newest first'],
+                                        ['date_asc', t('workspace.sort_oldest') || 'Oldest first'],
+                                        ['az', t('workspace.sort_az') || 'A → Z'],
+                                        ['za', t('workspace.sort_za') || 'Z → A'],
+                                    ] as const).map(([opt, label]) => (
+                                        <button
+                                            key={opt}
+                                            type="button"
+                                            onClick={() => { setProjectSortOption(opt); setIsSortMenuOpen(false); }}
+                                            className={`w-full text-left px-4 py-2 text-[13px] font-sans transition-colors cursor-pointer ${
+                                                projectSortOption === opt ? 'text-stone-900 font-semibold bg-stone-50' : 'text-stone-600 hover:bg-stone-50'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Grid / List Style Toggle */}
@@ -15556,6 +16045,96 @@ export default function CreatePage() {
                             </div>
                         )}
                     </form>
+                </div>,
+                document.body
+            )}
+
+            {/* Generic confirm dialog — replaces native window.confirm() everywhere in this file */}
+            {confirmDialog.isOpen && createPortal(
+                <div
+                    className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                >
+                    <div
+                        className="bg-white rounded-[24px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="text-2xl font-sans font-light text-stone-700 tracking-[-0.025em] leading-[1.3]">
+                            {confirmDialog.title}
+                        </h3>
+                        <p className="text-sm text-stone-500 leading-relaxed font-sans font-medium">
+                            {confirmDialog.message}
+                        </p>
+                        <div className="flex items-center justify-center gap-4 mt-2">
+                            <button
+                                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                                className="px-6 py-2.5 bg-stone-100 hover:bg-stone-200/70 text-stone-600 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
+                            >
+                                {confirmDialog.cancelLabel || t('common.cancel')}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    confirmDialog.onConfirm?.();
+                                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                                }}
+                                className={`px-6 py-2.5 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95 text-white ${
+                                    confirmDialog.destructive ? 'bg-red-500 hover:bg-red-600' : 'bg-stone-800 hover:bg-stone-900'
+                                }`}
+                            >
+                                {confirmDialog.confirmLabel || t('common.confirm')}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Generic text-input prompt dialog — replaces native window.prompt() everywhere in this file */}
+            {promptDialog.isOpen && createPortal(
+                <div
+                    className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => setPromptDialog(prev => ({ ...prev, isOpen: false }))}
+                >
+                    <div
+                        className="bg-white rounded-[24px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="text-2xl font-sans font-light text-stone-700 tracking-[-0.025em] leading-[1.3]">
+                            {promptDialog.title}
+                        </h3>
+                        <input
+                            autoFocus
+                            type="text"
+                            value={promptDialog.value}
+                            placeholder={promptDialog.placeholder}
+                            onChange={(e) => setPromptDialog(prev => ({ ...prev, value: e.target.value }))}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && promptDialog.value.trim()) {
+                                    promptDialog.onConfirm?.(promptDialog.value);
+                                    setPromptDialog(prev => ({ ...prev, isOpen: false }));
+                                }
+                            }}
+                            className="w-full px-4 py-2.5 rounded-full border border-stone-200 text-center text-[14px] font-sans text-stone-700 outline-none focus:border-stone-400 transition-colors"
+                        />
+                        <div className="flex items-center justify-center gap-4 mt-2">
+                            <button
+                                onClick={() => setPromptDialog(prev => ({ ...prev, isOpen: false }))}
+                                className="px-6 py-2.5 bg-stone-100 hover:bg-stone-200/70 text-stone-600 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
+                            >
+                                {t('common.cancel')}
+                            </button>
+                            <button
+                                disabled={!promptDialog.value.trim()}
+                                onClick={() => {
+                                    promptDialog.onConfirm?.(promptDialog.value);
+                                    setPromptDialog(prev => ({ ...prev, isOpen: false }));
+                                }}
+                                className="px-6 py-2.5 bg-stone-800 hover:bg-stone-900 disabled:bg-stone-300 disabled:cursor-not-allowed text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
+                            >
+                                {promptDialog.confirmLabel || t('common.confirm')}
+                            </button>
+                        </div>
+                    </div>
                 </div>,
                 document.body
             )}

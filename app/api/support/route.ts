@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { sendMail } from '@/lib/email/send';
 
 export async function POST(request: Request) {
     try {
@@ -10,25 +10,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        if (!process.env.SMTP_PASS) {
-            console.error('SMTP_PASS is not configured — cannot send support email.');
-            return NextResponse.json({ error: 'Email service is not configured' }, { status: 500 });
-        }
-
-        // Configure Nodemailer transporter with One.com SMTP credentials
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'send.one.com',
-            port: parseInt(process.env.SMTP_PORT || '465'),
-            secure: true, // true for port 465
-            auth: {
-                user: process.env.SMTP_USER || 'support@veinote.com',
-                pass: process.env.SMTP_PASS,
-            },
-        });
-
-        // Set up email details
-        const mailOptions = {
-            from: `"${userName || 'Veinote User'}" <support@veinote.com>`, // Must be support@veinote.com for One.com sending authorization
+        // Send the mail
+        await sendMail({
+            fromName: userName || 'Veinote User',
             replyTo: userEmail, // So replies go directly to the user who raised the ticket
             to: 'support@veinote.com',
             subject: `[Support Ticket] ${subject}`,
@@ -47,10 +31,7 @@ ${message}
 ------------------------------------------
 
 (You can reply directly to this email to contact the user at ${userEmail}.)`,
-        };
-
-        // Send the mail
-        await transporter.sendMail(mailOptions);
+        });
 
         return NextResponse.json({ success: true, message: 'Email sent successfully' });
     } catch (error: any) {

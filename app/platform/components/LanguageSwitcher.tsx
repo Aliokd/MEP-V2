@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Globe } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
-export default function LanguageSwitcher() {
+export default function LanguageSwitcher({ iconOnly = false }: { iconOnly?: boolean }) {
     const { language, setLanguage } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -57,14 +57,20 @@ export default function LanguageSwitcher() {
         <div className="relative inline-block font-sans text-[13px] tracking-wider" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-1.5 bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-700 hover:text-stone-950 transition-all text-left rounded-[10px] px-3.5 py-2 font-medium uppercase select-none cursor-pointer"
+                aria-label="Change language"
+                className={iconOnly
+                    ? "flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-700 hover:text-stone-950 transition-all select-none cursor-pointer"
+                    : "flex items-center gap-1.5 bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-700 hover:text-stone-950 transition-all text-left rounded-[10px] px-3.5 py-2 font-medium uppercase select-none cursor-pointer"
+                }
             >
                 {renderFlagIcon(currentLang.code, true)}
-                <span>{currentLang.label}</span>
+                {!iconOnly && <span>{currentLang.label}</span>}
             </button>
 
             {isOpen && (
-                <div className="absolute bottom-full left-0 mb-2 w-32 bg-white border border-stone-200/85 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.06)] py-1.5 z-[999] flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-1 duration-150">
+                <div className={`absolute bottom-full mb-2 w-32 bg-white border border-stone-200/85 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.06)] py-1.5 z-[999] flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-1 duration-150 ${
+                    iconOnly ? 'left-1/2 -translate-x-1/2' : 'left-0'
+                }`}>
                     {languages.map((lang) => (
                         <button
                             key={lang.code}

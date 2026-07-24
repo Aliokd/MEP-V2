@@ -6,18 +6,29 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail, signInWithRedirect, getRedirectResult } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
+import { createUserProfile } from '@/lib/userProfile';
+import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
 
 export default function SignInPage() {
+    return (
+        <LanguageProvider>
+            <SignInPageInner />
+        </LanguageProvider>
+    );
+}
+
+function SignInPageInner() {
     const [view, setView] = useState<'login' | 'forgot' | 'sent'>('login');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    
+
     const router = useRouter();
+    const { language } = useLanguage();
 
     const handleAuthError = (err: any) => {
         console.error('Google Sign-In error details:', err);
@@ -43,13 +54,7 @@ export default function SignInPage() {
                     const user = result.user;
                     const userDoc = await getDoc(doc(db, "users", user.uid));
                     if (!userDoc.exists()) {
-                        await setDoc(doc(db, "users", user.uid), {
-                            uid: user.uid,
-                            name: user.displayName,
-                            email: user.email,
-                            createdAt: new Date().toISOString(),
-                            tier: 'performer'
-                        });
+                        await createUserProfile(user, { locale: language });
                     }
                     router.push('/platform/create');
                 }
@@ -61,7 +66,7 @@ export default function SignInPage() {
             }
         };
         checkRedirectResult();
-    }, [router]);
+    }, [router, language]);
 
     const handlePasswordSignIn = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -120,13 +125,7 @@ export default function SignInPage() {
 
             const userDoc = await getDoc(doc(db, "users", user.uid));
             if (!userDoc.exists()) {
-                await setDoc(doc(db, "users", user.uid), {
-                    uid: user.uid,
-                    name: user.displayName,
-                    email: user.email,
-                    createdAt: new Date().toISOString(),
-                    tier: 'performer'
-                });
+                await createUserProfile(user, { locale: language });
             }
             router.push('/platform/create');
         } catch (err: any) {

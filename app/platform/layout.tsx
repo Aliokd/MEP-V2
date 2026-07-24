@@ -331,17 +331,6 @@ function PlatformLayoutInner({
 
     const firstName = (user.displayName || '').trim().split(' ')[0] || t('navigation.my_profile');
 
-    // Check if the current page is the immersive lesson player which should be full screen
-    const isLessonPage = pathname.startsWith('/platform/lesson');
-
-    if (isLessonPage) {
-        return (
-            <div className="min-h-screen bg-black text-white font-sans">
-                {children}
-            </div>
-        );
-    }
-
     return (
         <div className={`min-h-screen flex text-stone-900 font-sans selection:bg-stone-900/10 selection:text-stone-900 transition-colors duration-200 ${
             pathname?.startsWith('/platform/create') ? 'bg-[#FAF9F5] md:bg-[#E4E4DF]' : 'bg-[#E4E4DF]'

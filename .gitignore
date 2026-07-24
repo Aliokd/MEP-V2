@@ -33,6 +33,10 @@ build
 # Environment variables
 .env*.local
 
+# Firebase Admin service account keys (local dev only)
+*service-account*.json
+firebase-adminsdk*.json
+
 # Firebase
 firebase-debug.log*
 .firebase/
@@ -40,6 +44,8 @@ firebase-debug.log*
 # Project specific
 .gemini
 .agent
+.claude
+.mcp.json
 brain
 dataconnect/.dataconnect/
 playwright-report/

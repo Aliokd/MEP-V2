@@ -6,8 +6,10 @@ import { ChevronRight, Music, Check, Star, Sparkles, Wand2, ShieldCheck, CreditC
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
+import { createUserProfile } from '@/lib/userProfile';
+import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
 
 const STEPS = {
     QUIZ: 'quiz',
@@ -76,6 +78,14 @@ const QUESTIONS = [
 ];
 
 export default function OnboardingPage() {
+    return (
+        <LanguageProvider>
+            <OnboardingPageInner />
+        </LanguageProvider>
+    );
+}
+
+function OnboardingPageInner() {
     const [currentStep, setCurrentStep] = useState(STEPS.QUIZ);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -91,6 +101,7 @@ export default function OnboardingPage() {
     const [emailShowError, setEmailShowError] = useState(false);
 
     const router = useRouter();
+    const { language } = useLanguage();
 
     const handleAuthError = (err: any) => {
         console.error('Google Sign-Up error details:', err);
@@ -116,15 +127,7 @@ export default function OnboardingPage() {
                     const user = result.user;
                     const userDoc = await getDoc(doc(db, "users", user.uid));
                     if (!userDoc.exists()) {
-                        await setDoc(doc(db, "users", user.uid), {
-                            uid: user.uid,
-                            name: user.displayName || 'Guest User',
-                            email: user.email || '',
-                            answers: answers,
-                            createdAt: new Date().toISOString(),
-                            tier: 'trial',
-                            lastActiveAt: new Date().toISOString()
-                        });
+                        await createUserProfile(user, { answers, locale: language });
                     }
                     setCurrentStep(STEPS.PAYWALL);
                 }
@@ -136,7 +139,7 @@ export default function OnboardingPage() {
             }
         };
         checkRedirectResult();
-    }, [router, answers]);
+    }, [router, answers, language]);
 
     const handleGoogleSignUp = async () => {
         setError('');
@@ -147,15 +150,7 @@ export default function OnboardingPage() {
 
             const userDoc = await getDoc(doc(db, "users", user.uid));
             if (!userDoc.exists()) {
-                await setDoc(doc(db, "users", user.uid), {
-                    uid: user.uid,
-                    name: user.displayName || 'Guest User',
-                    email: user.email || '',
-                    answers: answers,
-                    createdAt: new Date().toISOString(),
-                    tier: 'trial',
-                    lastActiveAt: new Date().toISOString()
-                });
+                await createUserProfile(user, { answers, locale: language });
             }
             setCurrentStep(STEPS.PAYWALL);
         } catch (err: any) {
@@ -274,15 +269,7 @@ export default function OnboardingPage() {
             await updateProfile(user, { displayName: defaultName });
 
             // Create Firestore user document
-            await setDoc(doc(db, "users", user.uid), {
-                uid: user.uid,
-                name: defaultName,
-                email: email,
-                answers: answers,
-                createdAt: new Date().toISOString(),
-                tier: 'trial',
-                lastActiveAt: new Date().toISOString()
-            });
+            await createUserProfile(user, { answers, locale: language, name: defaultName });
 
             // Progress to paywall
             setCurrentStep(STEPS.PAYWALL);

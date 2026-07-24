@@ -53,184 +53,184 @@
   "inspiration": {
     "cards": {
       "releasing_regret": {
-        "title": "Släppa ånger",
-        "category": "Frisläppande",
-        "q0": "Vad är ett minne eller en ånger från ditt förflutna som känns som ett tungt, vissnat löv?",
-        "q1": "Om du låter det falla till skogsgolvet, hur lovar jorden att bryta ner och förnya det?",
-        "q2": "Hur skulle ditt liv se ut om du slutade hålla fast vid grenar som inte längre ger dig näring?",
-        "q3": "Skriv en textrad som beskriver tyngden av att bära på det som redan har dött.",
-        "q4": "Vilken ackordföljd fångar det fridfulla frisläppandet i att släppa taget?"
+        "title": "Att släppa ånger",
+        "category": "Släpp",
+        "q0": "Vad är ett minne från ditt förflutna som fortfarande känns tungt?",
+        "q1": "Hur skulle det kännas att äntligen släppa det?",
+        "q2": "Vad håller du fast vid som inte längre hjälper dig?",
+        "q3": "Skriv en rad om att bära på något tungt.",
+        "q4": "Vilken sorts musik känns som lättnad?"
       },
       "finding_stillness": {
-        "title": "Hitta stillhet",
+        "title": "Hitta lugn",
         "category": "Lugn",
-        "q0": "Vilken del av ditt sinne är för närvarande fyllt av oro, och hur kan du bjuda in det att lugna sig?",
-        "q1": "När du tittar på den perfekta reflektionen i vattnet, vilken sann version av dig själv ser du?",
-        "q2": "Om du satt i fullständig tystnad vid denna strand, vad är den första känslan som skulle uppstå?",
-        "q3": "Beskriv texturen av absolut tystnad med hjälp av musikaliska termer (tempo, volym, ton).",
-        "q4": "Skriv en rad av tacksamhet för detta ögonblick av paus."
+        "q0": "Vad gör att ditt sinne känns upptaget just nu?",
+        "q1": "Hur skulle det kännas om allt blev tyst för en stund?",
+        "q2": "Hur känns lugn för dig?",
+        "q3": "Skriv en rad om ett tyst ögonblick.",
+        "q4": "Vilket tempo känns lugnt — långsamt, stadigt, mjukt?"
       },
       "growth_after_pain": {
-        "title": "Tillväxt efter smärta",
-        "category": "Resiliens",
-        "q0": "Vilken personlig kamp eller sorg var elden som brände bort din gamla duk?",
-        "q1": "Var ser du det första lilla gröna skottet av ny styrka spira inom dig?",
-        "q2": "Hur representerar aska som gödslar jorden det dolda värdet av dina svåraste dagar?",
-        "q3": "Skriv en textrad som jämför din styrka med en skog som växer sig starkare efter en brand.",
-        "q4": "Vilket tempo eller vilken rytm representerar en långsam, ostoppbar återfödelse?"
+        "title": "Att bli starkare",
+        "category": "Tillväxt",
+        "q0": "Vilken svår tid i ditt liv förändrade dig mest?",
+        "q1": "Vad är ett sätt du har vuxit sedan dess?",
+        "q2": "Hur lärde den svåra tiden dig något?",
+        "q3": "Skriv en rad som jämför din styrka med något som växer tillbaka.",
+        "q4": "Vilken rytm känns som att långsamt bli starkare?"
       },
       "embracing_uncertainty": {
-        "title": "Omfamna osäkerhet",
+        "title": "Att lita på det okända",
         "category": "Tillit",
-        "q0": "Vad gör dig rädd för att inte kunna se vägen långt framför dig?",
-        "q1": "Om du bara kunde se tre steg framför dig, hur skulle du hitta modet att ta nästa steg?",
-        "q2": "Vilken tröst ger den mystiska, mjuka dimman när den täcker världens buller?",
-        "q3": "Skriv en rad om att lita på resan när målet är dolt.",
-        "q4": "Vilken musikalisk tonart känns som att gå in i det vackra okända?"
+        "q0": "Vad i ditt liv känns osäkert just nu?",
+        "q1": "Hur skulle det kännas att ta ett steg utan att veta vad som väntar?",
+        "q2": "Vad hjälper dig känna dig trygg när saker är oklara?",
+        "q3": "Skriv en rad om att lita på dig själv, även utan svar.",
+        "q4": "Vilken melodi känns som att kliva in i det okända?"
       },
       "grief_and_honoring": {
-        "title": "Sorg och hedrande",
+        "title": "Att hedra en förlust",
         "category": "Läkande",
-        "q0": "Vilken förlust eller sorg bär du på som känns frusen inuti ditt bröst?",
-        "q1": "När solen värmer berget, hur kan du låta dina frosna tårar smälta och rinna?",
-        "q2": "Vart tar smältvattnet vägen, och hur kan det ge liv till dalarna nedanför?",
-        "q3": "Skriv en rad som hedrar skönheten i det du förlorade, samtidigt som du accepterar att livet går vidare.",
-        "q4": "Om din sorg var en mild akustisk melodi, hur skulle den lösas upp?"
+        "q0": "Vad eller vem saknar du just nu?",
+        "q1": "Vad är ett bra minne kopplat till detta?",
+        "q2": "Hur skulle det kännas att låta lite av den sorgen mjukna?",
+        "q3": "Skriv en rad som hedrar det du förlorade.",
+        "q4": "Vilken melodi känns som läkning för dig?"
       },
       "overcoming_fear": {
-        "title": "Övervinna rädsla",
+        "title": "Att möta rädsla",
         "category": "Mod",
-        "q0": "Vad är kanten eller klippan du står på, och vilket språng i tron är du rädd för att ta?",
-        "q1": "Hur utmanar den råa, tjutande vinden dig att stå rak i din sanning?",
-        "q2": "Om du visste att havet nedanför skulle fånga dig och lära dig att simma, skulle du hoppa?",
-        "q3": "Skriv en kraftfull rad som beskriver ögonblicket då rädsla blir till frihet.",
-        "q4": "Vilket dynamiskt skifte i en sång fångar övergången från tvekan till mod?"
+        "q0": "Vad är något du är rädd för att göra, men ändå vill göra?",
+        "q1": "Vad är det värsta som kan hända om du försökte?",
+        "q2": "Hur skulle det kännas på andra sidan den rädslan?",
+        "q3": "Skriv en rad om att förvandla rädsla till mod.",
+        "q4": "Vilket ögonblick i en sång känns som ett stort, modigt hopp?"
       },
       "self_compassion": {
-        "title": "Självmedkänsla",
+        "title": "Att vara snäll mot dig själv",
         "category": "Tröst",
-        "q0": "På vilka sätt har du varit hård eller krävande mot dig själv under dina torra perioder?",
-        "q1": "Hur känns det att äntligen sitta vid en sval pool och visa dig själv godhet?",
-        "q2": "Om du talade till en nära vän som var vilse i öknen, vilka tröstande ord skulle du säga till dem?",
-        "q3": "Skriv en mild vers om att lugna ditt eget trötta sinne.",
-        "q4": "Vilken mjuk, varm instrumentering representerar en fristad av självkärlek?"
+        "q0": "Var har du varit hård mot dig själv på sistone?",
+        "q1": "Vad skulle du säga till en vän som gick igenom samma sak?",
+        "q2": "Hur känns det att äntligen ge dig själv en paus?",
+        "q3": "Skriv en mild rad bara till dig själv.",
+        "q4": "Vilken sorts ljud känns tröstande, som en varm kram?"
       },
       "reclaiming_voice": {
-        "title": "Återta sin röst",
-        "category": "Uttryck",
-        "q0": "Vilka känslor eller sanningar har du tystat för att bevara freden?",
-        "q1": "Om din röst var ett vattenfall, vilket kraftfullt budskap skulle den ropa ut till dalen?",
-        "q2": "Hur frigör uttryckandet av dina råa känslor blockeringarna inom dig?",
-        "q3": "Skriv en textrad som vägrar att vara tyst eller liten längre.",
-        "q4": "Vilken vokal eller instrumental uppbyggnad representerar att återta din personliga kraft?"
+        "title": "Att säga din sanning",
+        "category": "Röst",
+        "q0": "Vad har du hållit tillbaka från att säga?",
+        "q1": "Hur skulle det kännas att äntligen säga det högt?",
+        "q2": "Vem vill du mest av allt ska höra detta?",
+        "q3": "Skriv en rad som säger det du varit rädd för att säga.",
+        "q4": "Vilken sorts ljud känns högt och kraftfullt?"
       },
       "patience_and_timing": {
-        "title": "Tålamod och timing",
+        "title": "Att lita på din timing",
         "category": "Tålamod",
-        "q0": "Varför skyndar du på din läkning eller din kreativa process?",
-        "q1": "Vad lär de urgamla redwoodträden oss om att växa långsamt och djupt under århundraden?",
-        "q2": "Hur stödjer djupa, osynliga rötter de höga grenarna genom de tyngsta stormarna?",
-        "q3": "Skriv en rad om den tysta skönheten i att växa utan att behöva stressa.",
-        "q4": "Vilket långsamt, jordande tempo representerar rytmen av djupa rötter?"
+        "q0": "Vad skyndar du på som kanske behöver mer tid?",
+        "q1": "Vad har väntan gett dig av gott i livet?",
+        "q2": "Vad hjälper dig växa, även om du inte kan se det än?",
+        "q3": "Skriv en rad om att växa i din egen takt.",
+        "q4": "Vilken långsam rytm känns tålmodig för dig?"
       },
       "strength_vulnerability": {
-        "title": "Styrka i sårbarhet",
-        "category": "Sårbarhet",
-        "q0": "Hur känns det att stå under den öppna himlen utan rustning eller gömställen?",
-        "q1": "Varför är det att vara öppen för vind och regn ett tegn på styrka snarare än svaghet?",
-        "q2": "Om du visade världen dina mjukaste, mest sårbara delar, vilken skönhet skulle blomma?",
-        "q3": "Skriv en textrad om att hitta styrka i att vara helt exponerad och ärlig.",
-        "q4": "Vilket instrument representerar den sköra men robusta naturen hos en vildblomma?"
+        "title": "Stark nog att vara öppen",
+        "category": "Öppenhet",
+        "q0": "Vad är något äkta hos dig som du oftast döljer?",
+        "q1": "Varför känns det läskigt att visa det?",
+        "q2": "Vad kan hända om du låter folk se den verkliga dig?",
+        "q3": "Skriv en ärlig rad om att vara öppen, även när det är svårt.",
+        "q4": "Vilket instrument känns mjukt men starkt?"
       },
       "navigating_darkness": {
-        "title": "Navigera i mörker",
+        "title": "Att hitta ljus i svåra tider",
         "category": "Hopp",
-        "q0": "När ditt sinne känns mörkt, vad är de små stjärnorna eller ljuspunkterna som fortfarande lyser?",
-        "q1": "Hur gör mörker stjärnorna synliga på ett sätt som den ljusa dagen aldrig kunde?",
-        "q2": "Vilken tröst finns det i att veta att natten är en naturlig, tillfällig fas?",
-        "q3": "Skriv en vers om att hitta vägledning i dina mörkaste stunder.",
-        "q4": "Vilket ambient, rymligt ljud representerar friden i en stjärnklar natt?"
+        "q0": "Vad gör att saker känns mörka för dig just nu?",
+        "q1": "Vad är en liten bra sak du fortfarande kan se?",
+        "q2": "Vad hjälper dig fortsätta när saker känns svåra?",
+        "q3": "Skriv en rad om att hitta ljus i ett svårt ögonblick.",
+        "q4": "Vilket ljud känns hoppfullt, även när det är tyst?"
       },
       "cleansing_renewal": {
-        "title": "Rening och förnyelse",
-        "category": "Förnyelse",
-        "q0": "Vilket känslomässigt skräp eller giftiga tankar behöver du att det tunga regnet sköljer bort?",
-        "q1": "Hur luktar och känns luften efter att ett kraftigt åskväder rensar himlen?",
-        "q2": "Om regnet kunde tvätta bort etiketterna som andra har satt på dig, vem skulle du vara?",
-        "q3": "Skriv en textrad om att börja om på nytt efter att stormen har passerat.",
-        "q4": "Vilken takt eller rytm fångar den uppfriskande energin i rent regn?"
+        "title": "Att börja om",
+        "category": "Ny start",
+        "q0": "Vad vill du lämna bakom dig?",
+        "q1": "Hur skulle det kännas att börja rent, utan något som tynger dig?",
+        "q2": "Vem skulle du vara utan andras stämplar på dig?",
+        "q3": "Skriv en rad om att börja om.",
+        "q4": "Vilket beat känns fräscht och nytt för dig?"
       },
       "staying_grounded": {
-        "title": "Förbli jordad",
-        "category": "Närvaro",
-        "q0": "När dina tankar snurrar, hur kan du hämta energi från den solida, orörliga klippan under dig?",
-        "q1": "Hur känns det att bli fullständigt omsluten och skyddad av jorden?",
-        "q2": "Om du kunde lämna din oro i grottans mörker, vilket ljus skulle du gå ut igen med?",
-        "q3": "Skriv en rad om att känna dig stadig, förankrad och trygg i nuet.",
-        "q4": "Vilket djupt, lågfrekvent ljud representerar jordens jordande energi?"
+        "title": "Att hålla sig jordad",
+        "category": "Jordad",
+        "q0": "Vad gör att du känner dig splittrad eller överväldigad just nu?",
+        "q1": "Vad hjälper dig känna dig stadig när livet känns för mycket?",
+        "q2": "Vad är en sak du är tacksam för just nu?",
+        "q3": "Skriv en rad om att känna dig trygg och stadig.",
+        "q4": "Vilket djupt, stadigt ljud känns jordande för dig?"
       },
       "feeling_connected": {
-        "title": "Känna samhörighet",
-        "category": "Samhörighet",
-        "q0": "På vilka sätt har du isolerat dig själv, och vilka är människorna du längtar efter att flyga med?",
-        "q1": "Hur känns det att inse att din smärta delas av andra, och att du inte är ensam?",
-        "q2": "Vilken kollektiv sång eller harmoni skapas när vi stöttar varandras resor?",
-        "q3": "Skriv en textrad om att sträcka ut din hand i mörkret.",
-        "q4": "Vilken vokalharmonistruktur representerar perfekt samhörighet och stöd?"
+        "title": "Att känna sig mindre ensam",
+        "category": "Gemenskap",
+        "q0": "När känner du dig mest ensam?",
+        "q1": "Vem önskar du förstod det du går igenom?",
+        "q2": "Hur känns det att veta att någon annan också känt detta?",
+        "q3": "Skriv en rad om att sträcka ut din hand till någon.",
+        "q4": "Vilken harmoni — två röster tillsammans — känns som gemenskap för dig?"
       },
       "accepting_change": {
-        "title": "Acceptera förändring",
+        "title": "Att acceptera förändring",
         "category": "Acceptans",
-        "q0": "Vilken förändring i ditt liv kämpar du mot eller motsetter du dig för närvarande?",
-        "q1": "Hur lär floden oss att det är nödvändigt att gräva bort gammal sten för att skapa en vacker canyon?",
-        "q2": "Om du flöt med strömmen istället för att simma mot den, vart skulle den föra dig?",
-        "q3": "Skriv en vers om elegansen i att låta livet omforma dig.",
-        "q4": "Vilken taktarts- eller metrisk förändring representerar den naturliga flyten av förändring?"
+        "q0": "Vilken förändring i ditt liv kämpar du emot just nu?",
+        "q1": "Vad kan denna förändring lära dig?",
+        "q2": "Hur skulle det kännas att följa med den, istället för att kämpa emot?",
+        "q3": "Skriv en rad om att låta livet förändra dig.",
+        "q4": "Vilken sorts rytmbyte känns som förändring?"
       },
       "releasing_anger": {
-        "title": "Släppa ilska",
-        "category": "Katarsis",
-        "q0": "Vilken ilska eller bitterhet har kokat under din yta?",
-        "q1": "Hur kan du låta ångan stiga och pysa ut utan att bränna dig själv eller andra?",
-        "q2": "Hur känns det att se dina upphettade tankar förångas i den svala luften?",
-        "q3": "Skriv en eldig rad som släpper ut värmen och lämnar kvar lugnt vatten.",
-        "q4": "Vilken musikalisk dynamisk övergång representerar en plötslig, explosiv utlösning av spänning?"
+        "title": "Att släppa ut ilska",
+        "category": "Släpp",
+        "q0": "Vad har gjort dig arg eller frustrerad på sistone?",
+        "q1": "Vad finns under ilskan — smärta, rädsla, något annat?",
+        "q2": "Hur skulle det kännas att äntligen släppa ut den ilskan?",
+        "q3": "Skriv en stark rad som säger vad du verkligen känner.",
+        "q4": "Vilket ögonblick i en sång känns som en befrielse — högt, sen lugnt?"
       },
       "new_beginnings": {
         "title": "Nya början",
         "category": "Hopp",
-        "q0": "Vad är ett löfte du vill ge till dig själv när en ny dag börjar?",
-        "q1": "Hur förändrar det första gyllene ljuset som bryter över kullarna ditt perspektiv?",
-        "q2": "Om idag var ett blankt notblad, vad är den första tonen du skulle spela?",
-        "q3": "Skriv en hoppfull textrad om slutet på en lång, mörk natt.",
-        "q4": "Vilket ackord som upplöses i dur representerar det första morgonljuset?"
+        "q0": "Vad är en sak du vill börja om med?",
+        "q1": "Hur skulle idag se ut med en ren start?",
+        "q2": "Vad är det första lilla steget du skulle kunna ta?",
+        "q3": "Skriv en hoppfull rad om en ny början.",
+        "q4": "Vilket ackord eller ton känns som starten på något bra?"
       },
       "unconditional_worth": {
-        "title": "Villkorslöst värde",
+        "title": "Att känna ditt eget värde",
         "category": "Värde",
-        "q0": "Vad får dig att tro att du måste prestera eller uppnå något för att ha värde?",
-        "q1": "Hur existerar bergen i tyst majestät utan att behöva bevisa något för någon?",
-        "q2": "Vad är din inre topp—den stadiga, orubbliga kärnan i ditt värde?",
-        "q3": "Skriv en textrad om att ditt värde är så solid och orubblig som ett berg.",
-        "q4": "Vilket storslagit, orkestralt arrangemang framkallar omfattningen av villkorslöst självvärde?"
+        "q0": "Känner du att du måste förtjäna ditt värde? Varför?",
+        "q1": "Vad gör dig värdefull, även när du inte gör något?",
+        "q2": "Hur skulle det kännas att tro att du är tillräcklig, precis som du är?",
+        "q3": "Skriv en rad om ditt eget värde.",
+        "q4": "Vilken sorts stort, fullt ljud känns som styrka för dig?"
       },
       "healing_child": {
-        "title": "Läka barnet",
+        "title": "Att minnas hur man leker",
         "category": "Lek",
-        "q0": "Vad älskade ditt inre barn att göra innan världens tyngd tog över?",
-        "q1": "Om du kunde leka, göra misstag och skapa utan dömande idag, vad skulle du göra?",
-        "q2": "Vilket budskap om trygghet och kärlek vill ditt vuxna jag berätta för ditt yngre jag?",
-        "q3": "Skriv en lekfull, lättsam rad som får dig att le.",
-        "q4": "Vilken ljus melodi i dur fångar lekfullhetens oskuld?"
+        "q0": "Vad älskade du att göra som barn, innan livet blev allvarligt?",
+        "q1": "Vad skulle du skapa idag om du inte var rädd för att göra fel?",
+        "q2": "Vad skulle du vilja säga till ditt yngre jag?",
+        "q3": "Skriv en lekfull rad som får dig att le.",
+        "q4": "Vilken melodi känns lätt och lekfull för dig?"
       },
       "quiet_strength": {
         "title": "Tyst styrka",
         "category": "Styrka",
-        "q0": "Hur skyddar du ditt inre ljus när livets mörka stormar slår mot dig?",
-        "q1": "Vad innebär det att vara en stadig guide för dig själv och andra genom stormigt hav?",
-        "q2": "Hur kan du hitta styrka i att stå stilla och bara sprida ditt ljus?",
-        "q3": "Skriv en textrad om att vara en fyr i någons storm (eller din egen).",
-        "q4": "Vilken stadig, repeterande rytm representerar den roterande strålen hos en fyr?"
+        "q0": "Vad är en svår tid du hållit ut genom, i tysthet?",
+        "q1": "Hur fortsätter du när saker blir tuffa?",
+        "q2": "Hur ser din styrka ut när ingen tittar?",
+        "q3": "Skriv en rad om att vara stark på ett tyst sätt.",
+        "q4": "Vilken stadig rytm känns som tyst styrka?"
       }
     },
     "back": "tillbaka",
@@ -277,7 +277,12 @@
     "untitled_note": "Namnlös låt",
     "delete_note": "Ta bort låt",
     "duplicate_note": "Duplicera låt",
-    "copy_suffix": "Kopia"
+    "copy_suffix": "Kopia",
+    "sort_label": "Sortera",
+    "sort_newest": "Nyast först",
+    "sort_oldest": "Äldst först",
+    "sort_az": "A → Ö",
+    "sort_za": "Ö → A"
   },
   "learn": {
     "access_restricted": "Begränsad åtkomst",
@@ -292,7 +297,33 @@
     "check": "Kolla",
     "complete_next_chapter": "Slutför och gå till nästa kapitel",
     "chapter": "Kapitel",
-    "video_not_supported": "Din webbläsare stöder inte videotaggen."
+    "video_not_supported": "Din webbläsare stöder inte videotaggen.",
+    "master_fundamentals": "Bemästra grunderna",
+    "deep_dive": "Fördjupning",
+    "coming_next_year": "Kommer nästa år",
+    "deep_dive_desc": "Mer avancerade musiklektioner är på väg. Kom tillbaka snart.",
+    "bank_of_ideas": "Idébank",
+    "bank_of_ideas_desc": "Utvalda idéer och genvägar är på väg.",
+    "bank_of_ideas_tooltip": "De här tipsen är inte regler.\nDe är enkla sätt att hjälpa dig komma igång, utforska och förbättra din text.\nAnvänd det som känns användbart.\nHoppa över det som inte passar.\nDet finns inget enda rätt sätt att skriva en låt på.",
+    "back_to_overview": "Tillbaka till översikten",
+    "no_lessons_yet": "Nya lektioner är på väg.",
+    "placeholder_intro": "Lektionsanteckningar för det här kapitlet kommer snart. Använd videon tillsammans med dessa platshållaranteckningar för att känna på det nya upplägget under tiden.",
+    "placeholder_point_1": "Första nyckelinsikten från den här lektionen.",
+    "placeholder_point_2": "Andra nyckelinsikten från den här lektionen.",
+    "placeholder_point_3": "Tredje nyckelinsikten från den här lektionen.",
+    "ideas_search": "Sök",
+    "ideas_favorites": "Favoriter",
+    "ideas_tab_all": "Alla",
+    "ideas_tab_lyrics": "Text",
+    "ideas_tab_melody": "Melodi",
+    "ideas_tab_chords": "Ackord",
+    "ideas_tab_vibe": "Stämning",
+    "ideas_like": "Gilla",
+    "ideas_apply_in_create": "Använd idé i Create",
+    "ideas_empty": "Inga idéer matchar än.",
+    "ideas_why_label": "Varför detta hjälper",
+    "ideas_placeholder_title": "Idétitel",
+    "ideas_placeholder_description": "Beskrivning kommer snart."
   },
   "connect": {
     "create_your_song": "Skapa din låt",
@@ -369,7 +400,13 @@
     "level_label": "Nivå",
     "subtitle": "Slutför alla 3 målen för att nå Nivå 2",
     "mind_power_label": "Mental styrka",
-    "mind_power_desc": "Mental styrka mäter tiden du lägger på att tänka och skapa låtar. Ditt sinne är en muskel — ju mer du använder det, desto starkare blir det.",
+    "mind_power_title_line1": "Låtskrivare",
+    "mind_power_title_line2": "Mental Styrka",
+    "mind_power_desc": "Låtskrivare Mental Styrka mäter tiden du lägger på att tänka och skapa låtar. Ditt sinne är en muskel. Ju mer du använder det, desto starkare blir det.",
+    "focus_timer": "Fokustimer",
+    "section_progress": "Framsteg",
+    "community": "Community",
+    "projects_unit": "delat",
     "create": "Skapa",
     "learn": "Lär",
     "practice": "Öva",
@@ -422,6 +459,17 @@
     "need_assistance": "Behöver du hjälp?",
     "contact_concierge": "Kontakta support",
     "error_update_email": "Det gick inte att uppdatera e-post. Vänligen logga in igen."
+  },
+  "email": {
+    "welcome": {
+      "subject": "Välkommen till Veinote, {{name}}",
+      "greeting": "Hej {{name}},",
+      "body_1": "Välkommen till Veinote. Du har just öppnat ett utrymme byggt för en sak: att slutföra låtar du är stolt över.",
+      "body_2": "Din canvas är redo när du är det — texter, melodianteckningar och idéer i ett och samma flöde.",
+      "cta": "Öppna din canvas",
+      "signoff": "Vi ses därinne,",
+      "team": "Veinote-teamet"
+    }
   },
   "practice": {
     "master_song_structure": "Bemästra sångstruktur",

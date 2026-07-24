@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { sendMail } from '@/lib/email/send';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -36,22 +36,6 @@ export async function POST(request: Request) {
             console.error('Error saving feedback to Firestore:', dbError);
         });
 
-        if (!process.env.SMTP_PASS) {
-            console.error('SMTP_PASS is not configured — cannot send feedback email.');
-            return NextResponse.json({ error: 'Email service is not configured' }, { status: 500 });
-        }
-
-        // Configure Nodemailer transporter with SMTP credentials
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'send.one.com',
-            port: parseInt(process.env.SMTP_PORT || '465'),
-            secure: true,
-            auth: {
-                user: process.env.SMTP_USER || 'support@veinote.com',
-                pass: process.env.SMTP_PASS,
-            },
-        });
-
         // Construct email body with conditional attachments info
         let emailText = `A new feedback message has been submitted from the Veinote platform.
 
@@ -81,17 +65,14 @@ Name: ${attachmentName || 'Attached File'}
 
 (You can reply directly to this email to contact the user at ${userEmail}.)`;
 
-        // Set up email details
-        const mailOptions = {
-            from: `"${userName || 'Veinote User'}" <support@veinote.com>`,
+        // Send the mail
+        await sendMail({
+            fromName: userName || 'Veinote User',
             replyTo: userEmail,
             to: 'support@veinote.com',
             subject: `[User Feedback] ${subject}`,
-            text: emailText
-        };
-
-        // Send the mail
-        await transporter.sendMail(mailOptions);
+            text: emailText,
+        });
 
         return NextResponse.json({ success: true, message: 'Feedback sent successfully' });
     } catch (error: any) {

@@ -14,6 +14,10 @@ import {
     writeBatch
 } from "firebase/firestore";
 
+// Total project membership cap, owner included.
+export const MAX_PROJECT_MEMBERS = 5;
+export const MAX_COLLABORATORS = MAX_PROJECT_MEMBERS - 1; // 4, excludes owner
+
 // Interface matches SongNote from page.tsx
 export interface CollaborativeProject {
     id: string;
@@ -150,6 +154,9 @@ export async function inviteCollaboratorByEmail(
             }
             if (data.collaborators && data.collaborators.includes(collaboratorId)) {
                 return { success: false, message: "This user is already a collaborator." };
+            }
+            if ((data.collaborators?.length || 0) >= MAX_COLLABORATORS) {
+                return { success: false, message: "This project already has the maximum of 5 members." };
             }
         }
         
