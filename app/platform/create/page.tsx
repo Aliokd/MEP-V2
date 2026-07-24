@@ -9784,7 +9784,7 @@ export default function CreatePage() {
         return parseFlexibleDate(note.updatedAt);
     };
 
-    const notesFilteredByMode = [...notes].sort((a, b) => {
+    const notesFilteredByMode = useMemo(() => [...notes].sort((a, b) => {
         switch (projectSortOption) {
             case 'date_asc':
                 return getNoteTime(a) - getNoteTime(b);
@@ -9796,57 +9796,67 @@ export default function CreatePage() {
             default:
                 return getNoteTime(b) - getNoteTime(a);
         }
-    });
+    }), [notes, projectSortOption, t]);
 
-    const filteredNotes = notesFilteredByMode.filter(n => 
+    const filteredNotes = useMemo(() => notesFilteredByMode.filter(n =>
         n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         n.content.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    ), [notesFilteredByMode, searchQuery]);
 
     // Filter notes based on search state (folders are removed)
     const displayNotes = filteredNotes;
 
     const contentVal = activeNote ? activeNote.content : '';
-    const activePhrases = getActivePhrases(activeNote);
-    const activeVerses = getActiveVerses(activeNote);
-    const audioByPhraseIdMap: Record<string, AudioNote[]> = {};
-    const audioByGroupIdMap: Record<string, AudioNote[]> = {};
-    if (activeAudioNotes && activeAudioNotes.length > 0) {
-        for (const an of activeAudioNotes) {
-            if (an.phraseId) {
-                if (!audioByPhraseIdMap[an.phraseId]) audioByPhraseIdMap[an.phraseId] = [];
-                audioByPhraseIdMap[an.phraseId].push(an);
-            }
-            if (an.groupId) {
-                if (!audioByGroupIdMap[an.groupId]) audioByGroupIdMap[an.groupId] = [];
-                audioByGroupIdMap[an.groupId].push(an);
-            }
-        }
-        for (const key in audioByPhraseIdMap) {
-            audioByPhraseIdMap[key] = sortAudioNotesChronologically(audioByPhraseIdMap[key]);
-        }
-        for (const key in audioByGroupIdMap) {
-            audioByGroupIdMap[key] = sortAudioNotesChronologically(audioByGroupIdMap[key]);
-        }
-    }
+    const activePhrases = useMemo(() => getActivePhrases(activeNote), [activeNote]);
+    const activeVerses = useMemo(() => getActiveVerses(activeNote), [activeNote]);
 
-    const unattachedAudioNotes = sortAudioNotesChronologically(
+    const { audioByPhraseIdMap, audioByGroupIdMap } = useMemo(() => {
+        const byPhrase: Record<string, AudioNote[]> = {};
+        const byGroup: Record<string, AudioNote[]> = {};
+        if (activeAudioNotes && activeAudioNotes.length > 0) {
+            for (const an of activeAudioNotes) {
+                if (an.phraseId) {
+                    if (!byPhrase[an.phraseId]) byPhrase[an.phraseId] = [];
+                    byPhrase[an.phraseId].push(an);
+                }
+                if (an.groupId) {
+                    if (!byGroup[an.groupId]) byGroup[an.groupId] = [];
+                    byGroup[an.groupId].push(an);
+                }
+            }
+            for (const key in byPhrase) {
+                byPhrase[key] = sortAudioNotesChronologically(byPhrase[key]);
+            }
+            for (const key in byGroup) {
+                byGroup[key] = sortAudioNotesChronologically(byGroup[key]);
+            }
+        }
+        return { audioByPhraseIdMap: byPhrase, audioByGroupIdMap: byGroup };
+    }, [activeAudioNotes]);
+
+    const unattachedAudioNotes = useMemo(() => sortAudioNotesChronologically(
         (activeAudioNotes || []).filter(an => !an.phraseId && !an.groupId)
-    );
+    ), [activeAudioNotes]);
 
     // Images / documents placed in the lyric flow, keyed by their placeholder phrase id
     type FlowImage = NonNullable<SongNote['images']>[number];
     type FlowDoc = NonNullable<SongNote['documents']>[number];
-    const imageByPhraseIdMap: Record<string, FlowImage> = {};
-    for (const im of (activeNote?.images || [])) {
-        if (im.phraseId) imageByPhraseIdMap[im.phraseId] = im;
-    }
-    const docByPhraseIdMap: Record<string, FlowDoc> = {};
-    for (const d of (activeNote?.documents || [])) {
-        if (d.phraseId) docByPhraseIdMap[d.phraseId] = d;
-    }
+    const imageByPhraseIdMap = useMemo(() => {
+        const map: Record<string, FlowImage> = {};
+        for (const im of (activeNote?.images || [])) {
+            if (im.phraseId) map[im.phraseId] = im;
+        }
+        return map;
+    }, [activeNote?.images]);
+    const docByPhraseIdMap = useMemo(() => {
+        const map: Record<string, FlowDoc> = {};
+        for (const d of (activeNote?.documents || [])) {
+            if (d.phraseId) map[d.phraseId] = d;
+        }
+        return map;
+    }, [activeNote?.documents]);
 
-    const renderBlocks = getRenderBlocks(activePhrases, activeVerses);
+    const renderBlocks = useMemo(() => getRenderBlocks(activePhrases, activeVerses), [activePhrases, activeVerses]);
 
     // First/last phrase id of a rendered block — used so a card dropped anywhere in the
     // block's area (including its margins/gaps) lands at that block's top or bottom edge.

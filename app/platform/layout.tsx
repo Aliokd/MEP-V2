@@ -14,6 +14,53 @@ import Logo from '@/components/Logo';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getCountFromServer } from 'firebase/firestore';
 
+// Owns the focus-timer's 1s tick locally so it doesn't force the entire
+// PlatformLayoutInner tree to re-render every second while running.
+function FocusMindPowerPanel(props: Omit<React.ComponentProps<typeof MindPowerPanel>, 'isFocusRunning' | 'focusSeconds' | 'onToggleFocus'>) {
+    const [focusSeconds, setFocusSeconds] = useState(0);
+    const [isFocusRunning, setIsFocusRunning] = useState(false);
+    const focusIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        const storedSeconds = parseInt(localStorage.getItem('mep-focus-timer-seconds') || '0');
+        const storedRunning = localStorage.getItem('mep-focus-timer-running') === 'true';
+        setFocusSeconds(storedSeconds);
+        setIsFocusRunning(storedRunning);
+    }, []);
+
+    useEffect(() => {
+        if (isFocusRunning) {
+            focusIntervalRef.current = setInterval(() => {
+                setFocusSeconds(prev => {
+                    const next = prev + 1;
+                    safeLocalStorageSetItem('mep-focus-timer-seconds', next.toString());
+                    return next;
+                });
+            }, 1000);
+        }
+        return () => {
+            if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
+        };
+    }, [isFocusRunning]);
+
+    const toggleFocusTimer = () => {
+        setIsFocusRunning(prev => {
+            const next = !prev;
+            safeLocalStorageSetItem('mep-focus-timer-running', next.toString());
+            return next;
+        });
+    };
+
+    return (
+        <MindPowerPanel
+            {...props}
+            isFocusRunning={isFocusRunning}
+            focusSeconds={focusSeconds}
+            onToggleFocus={toggleFocusTimer}
+        />
+    );
+}
+
 function PlatformLayoutInner({
     children,
 }: {
@@ -44,11 +91,6 @@ function PlatformLayoutInner({
 
     // Community section sub-metrics (projects shared in Connect)
     const [communityCount, setCommunityCount] = useState(0);
-
-    // Focus timer (simple on/off stopwatch shown in the Mind Power panel)
-    const [focusSeconds, setFocusSeconds] = useState(0);
-    const [isFocusRunning, setIsFocusRunning] = useState(false);
-    const focusIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Level milestone criteria (Level 1 → Level 2)
     const L1_WORDS   = 200;  // words
@@ -206,37 +248,6 @@ function PlatformLayoutInner({
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-
-    // Focus timer — simple on/off stopwatch, persisted across navigation/reloads
-    useEffect(() => {
-        const storedSeconds = parseInt(localStorage.getItem('mep-focus-timer-seconds') || '0');
-        const storedRunning = localStorage.getItem('mep-focus-timer-running') === 'true';
-        setFocusSeconds(storedSeconds);
-        setIsFocusRunning(storedRunning);
-    }, []);
-
-    useEffect(() => {
-        if (isFocusRunning) {
-            focusIntervalRef.current = setInterval(() => {
-                setFocusSeconds(prev => {
-                    const next = prev + 1;
-                    safeLocalStorageSetItem('mep-focus-timer-seconds', next.toString());
-                    return next;
-                });
-            }, 1000);
-        }
-        return () => {
-            if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
-        };
-    }, [isFocusRunning]);
-
-    const toggleFocusTimer = () => {
-        setIsFocusRunning(prev => {
-            const next = !prev;
-            safeLocalStorageSetItem('mep-focus-timer-running', next.toString());
-            return next;
-        });
-    };
 
     useEffect(() => {
         if (!loading && !user) {
@@ -449,7 +460,7 @@ function PlatformLayoutInner({
                         {showTooltip && (
                             <div className="absolute top-12 left-1/2 -translate-x-1/2 animate-in fade-in slide-in-from-top-1.5 duration-200 z-50">
                                 <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#F5F4EE] border-l border-t border-stone-200/70 rotate-45 z-10" />
-                                <MindPowerPanel
+                                <FocusMindPowerPanel
                                     t={t}
                                     progressLevel={progressLevel}
                                     levelProgress={levelProgress}
@@ -463,9 +474,6 @@ function PlatformLayoutInner({
                                     communityCount={communityCount}
                                     communityGoal={L1_COMMUNITY}
                                     activeQuote={activeQuote}
-                                    isFocusRunning={isFocusRunning}
-                                    focusSeconds={focusSeconds}
-                                    onToggleFocus={toggleFocusTimer}
                                 />
                             </div>
                         )}
@@ -500,7 +508,7 @@ function PlatformLayoutInner({
                             {showTooltip && (
                                 <div className="absolute top-14 left-1/2 -translate-x-1/2 animate-in fade-in slide-in-from-top-1.5 duration-200 z-50">
                                     <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#F5F4EE] border-l border-t border-stone-200/70 rotate-45 z-10" />
-                                    <MindPowerPanel
+                                    <FocusMindPowerPanel
                                         t={t}
                                         progressLevel={progressLevel}
                                         levelProgress={levelProgress}
@@ -514,9 +522,6 @@ function PlatformLayoutInner({
                                         communityCount={communityCount}
                                         communityGoal={L1_COMMUNITY}
                                         activeQuote={activeQuote}
-                                        isFocusRunning={isFocusRunning}
-                                        focusSeconds={focusSeconds}
-                                        onToggleFocus={toggleFocusTimer}
                                     />
                                 </div>
                             )}

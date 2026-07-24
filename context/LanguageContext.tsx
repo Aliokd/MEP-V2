@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import en from '../locales/en.json';
 import no from '../locales/no.json';
 import sv from '../locales/sv.json';
@@ -28,19 +28,19 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  const setLanguage = (lang: Language) => {
+  const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
     try {
       localStorage.setItem('veinote-lang', lang);
     } catch (e) {
       console.warn('Failed to save veinote-lang to localStorage:', e);
     }
-  };
+  }, []);
 
   // Helper function to resolve dot-notation strings, e.g. "navigation.create"
-  const t = (keyPath: string): string => {
+  const t = useCallback((keyPath: string): string => {
     if (!mounted) return keyPath;
-    
+
     const keys = keyPath.split('.');
     let result = translations[language];
     for (const key of keys) {
@@ -56,10 +56,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       }
     }
     return typeof result === 'string' ? result : keyPath;
-  };
+  }, [language, mounted]);
+
+  const value = useMemo(() => ({ language, setLanguage, t }), [language, setLanguage, t]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );
