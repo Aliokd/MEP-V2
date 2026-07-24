@@ -432,6 +432,7 @@ function PlatformLayoutInner({
                         {showProgressGlow && <div className="mind-power-glow-ring" />}
                         <div
                             onClick={() => setShowTooltip(!showTooltip)}
+                            data-tour="mind-power"
                             className="relative flex items-center gap-3 w-full bg-white/50 border border-stone-200/40 px-5 py-3 rounded-[20px] select-none cursor-pointer transition-all active:scale-[0.99] shadow-2xs font-sans text-xs text-stone-500 font-medium normal-case"
                         >
                             <Brain size={16} className="text-stone-600 shrink-0" strokeWidth={1.5} />
@@ -482,6 +483,7 @@ function PlatformLayoutInner({
                             {showProgressGlow && <div className="mind-power-glow-ring" />}
                             <div
                                 onClick={() => setShowTooltip(!showTooltip)}
+                                data-tour="mind-power"
                                 className="relative flex items-center gap-3 bg-white/50 hover:bg-white/70 border border-stone-200/80 px-6 py-3 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-sm text-stone-650 font-bold normal-case tracking-normal"
                             >
                                 <Brain size={19} className="text-stone-600 shrink-0" strokeWidth={1.5} />

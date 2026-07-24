@@ -38,6 +38,7 @@ export default function LearnLanding({ onStart, onOpenIdeas, onOpenDeepDive }: L
             <div className="w-full md:w-[62%] flex-1 md:flex-none flex flex-col gap-4">
                 <button
                     onClick={onStart}
+                    data-tour="learn-fundamentals"
                     className="text-left w-full flex-1 min-h-[160px] bg-white border border-stone-300/85 rounded-[20px] p-8 flex flex-col justify-between gap-6 shadow-[0_4px_20px_rgba(0,0,0,0.015)] hover:border-stone-400 transition-all cursor-pointer active:scale-[0.995]"
                 >
                     <div className="flex flex-col gap-2">
@@ -67,6 +68,7 @@ export default function LearnLanding({ onStart, onOpenIdeas, onOpenDeepDive }: L
 
             <button
                 onClick={onOpenIdeas}
+                data-tour="learn-ideas"
                 className="text-left w-full md:w-[38%] flex-1 md:flex-none min-h-[160px] bg-white border border-stone-300/85 rounded-[20px] p-8 flex flex-col gap-3 shadow-[0_4px_20px_rgba(0,0,0,0.015)] hover:border-stone-400 transition-all cursor-pointer active:scale-[0.995]"
             >
                 <h2 className="text-3xl font-sans font-light text-stone-500">

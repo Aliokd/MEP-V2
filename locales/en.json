@@ -615,5 +615,33 @@
     "uploading_file": "Uploading attachment...",
     "size_limit_error": "File size exceeds the 3MB limit. Please select a smaller file.",
     "max_size_hint": "Max size: 3MB"
+  },
+  "onboarding_tour": {
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "platform": {
+      "mind_power_title": "Track your Mind Power",
+      "mind_power_desc": "This bar fills up as you write, record, practice and share. It's your overall songwriting momentum.",
+      "fundamentals_title": "Start with the fundamentals",
+      "fundamentals_desc": "Short lessons that build your songwriting foundations, one chapter at a time.",
+      "ideas_title": "Stuck? Check the Bank of Ideas",
+      "ideas_desc": "A library of prompts and shortcuts whenever you need a spark.",
+      "create_nav_title": "Ready to write?",
+      "create_nav_desc": "Head to Create whenever you want to start a new song."
+    },
+    "create": {
+      "canvas_title": "Your lyric canvas",
+      "canvas_desc": "Double-click anywhere to start writing a line. Drag audio, images or documents in to place them right in the flow.",
+      "record_title": "Record ideas on the fly",
+      "record_desc": "Capture a melody or voice memo any time — it becomes a card in your canvas.",
+      "tools_title": "Creative tools",
+      "tools_desc": "Open the tools panel for rhyme suggestions, uploads and more.",
+      "studio_title": "Demo studio",
+      "studio_desc": "Layer your recordings into a full demo mix when you're ready.",
+      "inspirations_title": "Need inspiration?",
+      "inspirations_desc": "Get prompts and ideas without leaving the canvas."
+    }
   }
 }

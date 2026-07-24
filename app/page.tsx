@@ -505,6 +505,8 @@ const NewFooter = () => {
 
                 {/* Top Right Links */}
                 <div className="flex items-center gap-6 text-[15px] text-[#363636]">
+                    <Link href="/about" className="font-medium hover:text-black transition-colors">About</Link>
+                    <Link href="/privacy" className="font-medium hover:text-black transition-colors">Privacy</Link>
                     <Link href="#qa" className="font-medium hover:text-black transition-colors">Q&A</Link>
                     <Link href="/onboarding" className="font-bold hover:text-black transition-colors">Join now</Link>
                 </div>

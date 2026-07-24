@@ -615,5 +615,33 @@
     "uploading_file": "Laddar upp bilaga...",
     "size_limit_error": "Filstorleken överskrider gränsen på 3 MB. Välj en mindre fil.",
     "max_size_hint": "Maxstorlek: 3MB"
+  },
+  "onboarding_tour": {
+    "skip": "Hoppa över",
+    "back": "Tillbaka",
+    "next": "Nästa",
+    "done": "Klar",
+    "platform": {
+      "mind_power_title": "Följ din Mind Power",
+      "mind_power_desc": "Den här raden fylls på när du skriver, spelar in, övar och delar. Det är ditt samlade skrivmomentum.",
+      "fundamentals_title": "Börja med grunderna",
+      "fundamentals_desc": "Korta lektioner som bygger din låtskrivargrund, ett kapitel i taget.",
+      "ideas_title": "Fastnat? Kolla idébanken",
+      "ideas_desc": "Ett bibliotek med idéer och genvägar när du behöver inspiration.",
+      "create_nav_title": "Redo att skriva?",
+      "create_nav_desc": "Gå till Create när du vill börja på en ny låt."
+    },
+    "create": {
+      "canvas_title": "Din textduk",
+      "canvas_desc": "Dubbelklicka var som helst för att börja skriva en rad. Dra in ljud, bilder eller dokument för att placera dem direkt i flödet.",
+      "record_title": "Spela in idéer direkt",
+      "record_desc": "Fånga en melodi eller ett röstmemo när som helst — det blir ett kort på din duk.",
+      "tools_title": "Kreativa verktyg",
+      "tools_desc": "Öppna verktygspanelen för rimförslag, uppladdningar och mer.",
+      "studio_title": "Demostudio",
+      "studio_desc": "Lägg dina inspelningar i lager till en fullständig demomix när du är redo.",
+      "inspirations_title": "Behöver du inspiration?",
+      "inspirations_desc": "Få förslag och idéer utan att lämna duken."
+    }
   }
 }

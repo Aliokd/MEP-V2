@@ -144,7 +144,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                 const isActive = pathname === item.href;
                                 const Icon = item.icon;
                                 return (
-                                    <Link key={item.label} href={item.href} onClick={onClose} className="block w-full">
+                                    <Link key={item.label} href={item.href} onClick={onClose} className="block w-full" data-tour={item.href === '/platform/create' ? 'nav-create' : undefined}>
                                         <div className={`
                                             flex items-center justify-center py-3 w-full rounded-[12px] transition-all group cursor-pointer
                                             ${isActive 
@@ -220,7 +220,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                     const isActive = pathname === item.href;
                                     const Icon = item.icon;
                                     return (
-                                        <Link key={item.label} href={item.href} onClick={onClose}>
+                                        <Link key={item.label} href={item.href} onClick={onClose} data-tour={item.href === '/platform/create' ? 'nav-create' : undefined}>
                                             <div className={`
                                                 flex items-center gap-4 px-4 py-3 rounded-[12px] transition-all group cursor-pointer
                                                 ${isActive 

@@ -320,7 +320,11 @@ function ConnectPostCard({
     const children = container.children;
     const targetChild = children[index + 1] as HTMLDivElement; // index + 1 to skip top spacer
     if (targetChild) {
-      const targetScrollTop = Math.max(0, targetChild.offsetTop - 70);
+      // Offset scales with the scroller's own live height so the spotlighted line lands in
+      // roughly the same relative position at every breakpoint (tuned against the 305px/70px
+      // desktop ratio).
+      const centeringOffset = container.clientHeight * (70 / 305);
+      const targetScrollTop = Math.max(0, targetChild.offsetTop - centeringOffset);
       
       isProgrammaticScrollingRef.current = true;
       container.scrollTo({
@@ -644,11 +648,10 @@ function ConnectPostCard({
           </div>
         ) : (
           post.lyrics.length > 0 && (
-            <motion.div
-              initial={false}
-              animate={{ height: isExpanded ? 'auto' : 320 }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-              className="overflow-hidden relative w-full animate-height"
+            <div
+              className={`overflow-hidden relative w-full transition-[max-height] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                isExpanded ? 'max-h-[3000px]' : 'max-h-[168px] sm:max-h-[230px] md:max-h-[320px]'
+              }`}
             >
               {isExpanded ? (
                 /* Expanded state: Show all lyrics vertically, flexible height, no scrollbars */
@@ -664,9 +667,9 @@ function ConnectPostCard({
                           setActiveLineIndex(idx);
                         }}
                         className={`
-                          cursor-pointer tracking-wide leading-[73px] font-sans text-[60px] font-normal transition-all duration-300 origin-left
-                          ${isActive 
-                            ? 'text-[#656565] opacity-100 scale-101 translate-x-1' 
+                          cursor-pointer tracking-wide leading-[34px] sm:leading-[48px] md:leading-[73px] font-sans text-[26px] sm:text-[38px] md:text-[60px] font-normal transition-all duration-300 origin-left
+                          ${isActive
+                            ? 'text-[#656565] opacity-100 scale-101 translate-x-1'
                             : 'text-[#656565] opacity-15 hover:opacity-40'
                           }
                         `}
@@ -678,15 +681,15 @@ function ConnectPostCard({
                 </div>
               ) : (
                 /* Collapsed state: auto-scrolling spotlight viewport */
-                <div className="py-2 mb-4 relative bg-transparent border-0 outline-none h-[305px] flex items-center">
-                  <div 
+                <div className="py-2 mb-4 relative bg-transparent border-0 outline-none h-[168px] sm:h-[230px] md:h-[305px] flex items-center">
+                  <div
                     ref={scrollerRef}
                     onScroll={handleScroll}
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUpOrLeave}
                     onMouseLeave={handleMouseUpOrLeave}
-                    className="flex-1 h-[305px] overflow-y-auto overflow-x-hidden scroll-smooth text-left scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-transparent border-0 outline-none cursor-grab active:cursor-grabbing select-none"
+                    className="flex-1 h-[168px] sm:h-[230px] md:h-[305px] overflow-y-auto overflow-x-hidden scroll-smooth text-left scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-transparent border-0 outline-none cursor-grab active:cursor-grabbing select-none"
                   >
                     <div className="h-4 shrink-0" />
                     
@@ -697,10 +700,10 @@ function ConnectPostCard({
                           key={idx}
                           onClick={() => scrollToIndex(idx)}
                           className={`
-                            py-2.5 cursor-pointer tracking-wide leading-[73px] font-sans text-[60px] font-normal
+                            py-2.5 cursor-pointer tracking-wide leading-[34px] sm:leading-[48px] md:leading-[73px] font-sans text-[26px] sm:text-[38px] md:text-[60px] font-normal
                             transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] origin-left
-                            ${isActive 
-                              ? 'text-[#656565] opacity-100 scale-102 translate-x-1.5' 
+                            ${isActive
+                              ? 'text-[#656565] opacity-100 scale-102 translate-x-1.5'
                               : 'text-[#656565] opacity-15 hover:opacity-35 scale-95 translate-x-0'
                             }
                           `}
@@ -714,7 +717,7 @@ function ConnectPostCard({
                   </div>
                 </div>
               )}
-            </motion.div>
+            </div>
           )
         )}
 

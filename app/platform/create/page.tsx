@@ -3061,24 +3061,29 @@ export default function CreatePage() {
     const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
     const [touchGhostPos, setTouchGhostPos] = useState<{ x: number; y: number } | null>(null);
     const [touchGhostLabel, setTouchGhostLabel] = useState<string>('');
-    const [visualViewportOffset, setVisualViewportOffset] = useState(0);
+    // Bottom edge of the visually-visible viewport, in layout pixels (accounts for both the
+    // on-screen keyboard shrinking it AND the page having scrolled while the keyboard is open).
+    // We anchor the mobile toolbar to this via an explicit top + translateY(-100%) rather than
+    // `bottom: Npx` on a `position: fixed` box — iOS Safari doesn't reliably reposition `bottom`-
+    // anchored fixed elements against the shrunk visual viewport, which is what makes toolbars
+    // appear to float mid-screen instead of sitting above the keyboard.
+    const [visualViewportBottom, setVisualViewportBottom] = useState<number | null>(null);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.visualViewport) return;
-        
+
         const updateOffset = () => {
             const vv = window.visualViewport;
             if (vv) {
-                const offset = window.innerHeight - vv.height;
-                setVisualViewportOffset(Math.max(0, offset));
+                setVisualViewportBottom(vv.offsetTop + vv.height);
             }
         };
-        
+
         window.visualViewport.addEventListener('resize', updateOffset);
         window.visualViewport.addEventListener('scroll', updateOffset);
-        
+
         updateOffset();
-        
+
         return () => {
             window.visualViewport?.removeEventListener('resize', updateOffset);
             window.visualViewport?.removeEventListener('scroll', updateOffset);
@@ -5011,6 +5016,11 @@ export default function CreatePage() {
     // Auto-focus the onboarding textarea when a blank project/note is selected or created
     useEffect(() => {
         if (selectedNoteId && isNoteBlank) {
+            // Skip while the first-time welcome video overlay hasn't been dismissed yet —
+            // focusing this textarea pops the mobile keyboard on top of the video.
+            if (typeof window !== 'undefined' && !localStorage.getItem('mep-welcome-video-seen')) {
+                return;
+            }
             const timer = setTimeout(() => {
                 if (textareaRef.current) {
                     textareaRef.current.focus();
@@ -11394,7 +11404,7 @@ export default function CreatePage() {
                     {/* Main Studio Sequencer Area */}
                         <div className="w-full flex flex-col gap-6 select-none animate-in fade-in zoom-in-95 duration-250 relative min-h-[20vh] sm:min-h-[24vh] lg:min-h-[28vh]">
                     {/* Unified Sequencer Panel Grid Area */}
-                    <div className="flex flex-col w-full relative gap-6">
+                    <div className="flex flex-col w-full relative gap-6 overflow-x-auto no-scrollbar">
                     {/* Headers Row */}
                     <div className="hidden lg:flex items-center gap-3 select-none h-8 px-4">
                         <div className="w-5 shrink-0" /> {/* reorder handle gap */}
@@ -11929,7 +11939,7 @@ export default function CreatePage() {
                 {/* Bottom Control Bar */}
                 <div className="flex flex-col gap-3 pt-4 mt-2 w-full">
                     {/* Level 1: Metronome, Guitar Tuner, and Timeline Seeker Capsule */}
-                    <div className="flex w-full items-center gap-3 px-4 h-10 select-none">
+                    <div className="flex w-full items-center gap-3 px-4 h-10 select-none overflow-x-auto no-scrollbar">
                         {/* Left side: Instrument and Utility pills aligned with tracks left column */}
                         <div className="w-[412px] sm:w-[428px] md:w-[444px] lg:w-[460px] xl:w-[500px] shrink-0 flex items-center gap-2.5">
                             {/* Metronome Volume Control */}
@@ -14237,11 +14247,12 @@ export default function CreatePage() {
                         )}
                     </div>
                 </div>
-                    <div 
+                    <div
                         onDragEnter={handleDragEnter}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
+                        data-tour="create-canvas"
                         className={`w-full flex-grow flex-1 flex flex-col z-10 py-6 relative ${
                             (isMobile && (editingPhraseId !== null || isFocused)) ? 'pb-16' : ''
                         }`}
@@ -15492,16 +15503,20 @@ export default function CreatePage() {
                     {renderToolsPanel()}
                 </div>
 
-                <div 
+                <div
                     onClick={(e) => e.stopPropagation()}
                     className={`flex select-none z-20 justify-center transition-all duration-300 ${
                         (isMobile && (editingPhraseId !== null || isFocused))
-                            ? "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2 justify-center"
+                            ? "fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2 justify-center"
                             : isNoteBlank
                                 ? "px-2 md:px-8 mt-auto pb-2 md:pb-8"
                                 : "px-2 md:px-8 mt-auto pb-4"
                     }`}
-                    style={(isMobile && (editingPhraseId !== null || isFocused)) ? { bottom: `${visualViewportOffset}px` } : undefined}
+                    style={(isMobile && (editingPhraseId !== null || isFocused)) ? {
+                        bottom: 'auto',
+                        top: visualViewportBottom !== null ? `${visualViewportBottom}px` : '100%',
+                        transform: 'translateY(-100%)'
+                    } : undefined}
                 >
                     {/* Right Side: Button Row (✓ SAVE, REC, Tools, Inspiration) */}
                     <div className="flex items-center gap-4">
@@ -15577,6 +15592,7 @@ export default function CreatePage() {
                                         startRecording();
                                     }
                                 }}
+                                data-tour="create-record"
                                 className={`h-[54px] px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border whitespace-nowrap ${
                                     isRecording
                                         ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
@@ -15607,7 +15623,8 @@ export default function CreatePage() {
 
                             <button
                                 onClick={handleToolsToggle}
-                                className={`w-[54px] h-[54px] flex items-center justify-center rounded-full transition-all duration-200 active:scale-95 cursor-pointer border ${ 
+                                data-tour="create-tools"
+                                className={`w-[54px] h-[54px] flex items-center justify-center rounded-full transition-all duration-200 active:scale-95 cursor-pointer border ${
                                     showToolsPanel && activeToolTab !== 'inspiration'
                                         ? 'bg-[#F2F2F2] border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
                                         : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
@@ -15628,6 +15645,7 @@ export default function CreatePage() {
                                     setShowToolsPanel(true);
                                     setActiveToolTab('studio');
                                 }}
+                                data-tour="create-studio"
                                 className={`h-[54px] px-3.5 lg:px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border ${
                                     showToolsPanel && (activeToolTab as string) === 'studio'
                                         ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
@@ -15646,6 +15664,7 @@ export default function CreatePage() {
                             {/* Inspirations pill button — Figma design */}
                             <button
                                 onClick={handleInspirationToggle}
+                                data-tour="create-inspirations"
                                 className={`h-[54px] px-3.5 lg:px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border ${
                                     showToolsPanel && activeToolTab === 'inspiration'
                                         ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'

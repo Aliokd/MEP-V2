@@ -615,5 +615,33 @@
     "uploading_file": "Laster opp vedlegg...",
     "size_limit_error": "Filstørrelsen overskrider grensen på 3 MB. Vennligst velg en mindre fil.",
     "max_size_hint": "Maks størrelse: 3MB"
+  },
+  "onboarding_tour": {
+    "skip": "Hopp over",
+    "back": "Tilbake",
+    "next": "Neste",
+    "done": "Ferdig",
+    "platform": {
+      "mind_power_title": "Følg med på Mind Power",
+      "mind_power_desc": "Denne linjen fylles opp etter hvert som du skriver, spiller inn, øver og deler. Det er ditt samlede fremdriftsmål.",
+      "fundamentals_title": "Start med grunnlaget",
+      "fundamentals_desc": "Korte leksjoner som bygger ditt sangskrivergrunnlag, ett kapittel om gangen.",
+      "ideas_title": "Sitter du fast? Sjekk idébanken",
+      "ideas_desc": "Et bibliotek med idéer og snarveier når du trenger inspirasjon.",
+      "create_nav_title": "Klar til å skrive?",
+      "create_nav_desc": "Gå til Create når du vil starte en ny sang."
+    },
+    "create": {
+      "canvas_title": "Ditt tekst-lerret",
+      "canvas_desc": "Dobbeltklikk hvor som helst for å begynne å skrive en linje. Dra inn lyd, bilder eller dokumenter for å plassere dem rett i flyten.",
+      "record_title": "Spill inn idéer på sparket",
+      "record_desc": "Fang en melodi eller talememo når som helst — den blir et kort på lerretet ditt.",
+      "tools_title": "Kreative verktøy",
+      "tools_desc": "Åpne verktøypanelet for rimforslag, opplastinger og mer.",
+      "studio_title": "Demo-studio",
+      "studio_desc": "Legg opptakene dine sammen til en full demomiks når du er klar.",
+      "inspirations_title": "Trenger du inspirasjon?",
+      "inspirations_desc": "Få forslag og idéer uten å forlate lerretet."
+    }
   }
 }
