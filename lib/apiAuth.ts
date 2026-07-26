@@ -38,12 +38,26 @@ export async function requireUser(request: Request): Promise<AuthedUser | Respon
 
     if (!match) return unauthorized('Sign in to use this feature.');
 
+    // Imported here, not at module scope: a top-level import that fails to
+    // resolve throws while the module loads, taking down every route that
+    // imports this one with an unexplained 500. Kept in its OWN try/catch,
+    // separate from token verification below: when this import failed in
+    // production (the Turbopack external-alias bug), the shared catch blamed
+    // the user's token — "Your session has expired" — for what was actually a
+    // broken server. A wrong error message costs hours; users refresh and
+    // retry forever while the real fault sits elsewhere.
+    let adminAuth: (typeof import('@/lib/firebaseAdmin'))['adminAuth'];
     try {
-        // Imported here, not at module scope: a top-level import that fails to
-        // resolve throws while the module loads, taking down every route that
-        // imports this one with an unexplained 500. Loading it inside the try
-        // turns that into an honest error the caller can act on.
-        const { adminAuth } = await import('@/lib/firebaseAdmin');
+        ({ adminAuth } = await import('@/lib/firebaseAdmin'));
+    } catch (error: any) {
+        console.error('[apiAuth] firebase-admin failed to load:', error?.message || error);
+        return NextResponse.json(
+            { error: 'This feature is temporarily unavailable. Please try again shortly.' },
+            { status: 503 },
+        );
+    }
+
+    try {
         const decoded = await adminAuth.verifyIdToken(match[1]);
         return { uid: decoded.uid };
     } catch (error: any) {

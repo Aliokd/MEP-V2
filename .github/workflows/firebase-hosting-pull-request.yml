@@ -30,5 +30,7 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          # Same webpack forcing as the merge workflow — see the note there.
+          IS_WEBPACK_TEST: '1'
         run: |
           npx firebase hosting:channel:deploy pr-${{ github.event.pull_request.number }} --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}"

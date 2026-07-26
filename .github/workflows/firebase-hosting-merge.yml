@@ -34,6 +34,14 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          # Forces the build Firebase runs to use webpack. firebase-tools spawns a
+          # bare `next build` (no CLI flags) but inherits this process env, and in
+          # Next 16.1 IS_WEBPACK_TEST is the only env-level webpack switch
+          # (node_modules/next/dist/lib/bundler.js). Without it, Turbopack emits
+          # firebase-admin as a hashed external alias that doesn't resolve in the
+          # deployed function, which 503'd every route importing it. Internal flag —
+          # re-verify against bundler.js when upgrading Next.
+          IS_WEBPACK_TEST: '1'
         run: |
           DEPLOY_OK=1
           npx firebase deploy --only hosting --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}" > deploy.log 2>&1 || DEPLOY_OK=0
