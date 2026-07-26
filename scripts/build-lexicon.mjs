@@ -14,62 +14,225 @@
  *
  * See vendor/lexicon/README.md for data licensing — output is server-side only.
  */
-import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, existsSync, createReadStream } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { IterableHunspellReader } from 'hunspell-reader';
+import { createInterface } from 'node:readline';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = join(ROOT, 'lib', 'lexicon', 'data');
 
-// Shared by both languages. Swedish uses ä/ö, Norwegian æ/ø, so the union is safe.
-const VOWELS = 'aeiouyåäöæø';
 const WORD_RE = /^[a-zåäöæøéèêüàáóç]{2,14}$/;
 
-/** Rhyme key: everything from the penultimate vowel on ("hjärta" -> "ärta"), which
- *  is what makes hjärta/smärta/svärta collide. Single-vowel words fall back to the
- *  last vowel ("hus" -> "us") so monosyllables still rhyme with each other. */
-function rhymeKey(word) {
-    const positions = [];
-    for (let i = 0; i < word.length; i++) {
-        if (VOWELS.includes(word[i])) positions.push(i);
-    }
-    if (positions.length === 0) return null;
-    return word.slice(positions[positions.length - (positions.length >= 2 ? 2 : 1)]);
-}
-
-/** Vowel skeleton of the tail, e.g. "hjärta" -> "ä-a". Two words sharing this
- *  assonate even when their consonants differ (hjärta/värma), which is what the
- *  "near" mode looks for. */
-function assonanceKey(word) {
-    const vowels = [...word].filter(c => VOWELS.includes(c));
-    if (vowels.length === 0) return null;
-    return vowels.slice(-2).join('-');
-}
-
 /** Real Swedish/Norwegian words of one or two letters worth offering as rhymes.
- *  Everything else that short in the Hunspell expansions is an abbreviation or
- *  affix fragment ("ig", "us"), which shortest-first ranking would otherwise put
- *  at the very top of every rhyme list. */
+ *  Everything else that short in the source data is an abbreviation or affix
+ *  fragment, which ranking would otherwise surface. */
 const NORDIC_SHORT_WORDS = new Set([
     'bo', 'ro', 'gå', 'må', 'nå', 'så', 'se', 'le', 'ny', 'nu', 'ju', 'du',
     'vi', 'ni', 'de', 'ha', 'ge', 'gi', 'be', 'ta', 'tå', 'rå', 'ku', 'by',
     'sy', 'dø', 'ö', 'å', 'ø', 'öl', 'øl', 'ur', 'os', 'is', 'el', 'ek',
 ]);
 
-async function expandWordList(pkg) {
-    const aff = join(ROOT, 'node_modules', pkg, 'index.aff');
-    const dic = join(ROOT, 'node_modules', pkg, 'index.dic');
-    const reader = await IterableHunspellReader.createFromFiles(aff, dic);
+// ─── NST pronunciation lexicons (Språkbanken / Norwegian National Library) ────
+//
+// Nordic rhymes were originally keyed on SPELLING, which Swedish and Norwegian
+// are regular enough to make ~90% right — but the misses were exactly the words
+// songwriters use most: "mig" is pronounced "mej" (rhymes dig/sig/nej, not
+// krig/stig), "meg"/"deg" share the diphthong /æi/, kärlek starts with the
+// tje-sound. The NST lexicons carry curated SAMPA transcriptions for ~650k
+// inflected forms per language, letting Nordic use the exact phoneme-key
+// architecture English already uses with CMUdict.
+//
+// The raw files are ~180 MB each, so they are NOT committed (vendor/lexicon/nst
+// is gitignored); this downloads and unpacks them on demand. The generated
+// output in lib/lexicon/data IS committed, so CI never needs the download unless
+// the lexicon is deliberately rebuilt.
 
-    const words = new Set();
-    for (const raw of reader.iterateWords()) {
-        const word = String(raw).trim().toLowerCase();
-        if (!WORD_RE.test(word)) continue;
-        if (word.length <= 2 && !NORDIC_SHORT_WORDS.has(word)) continue;
-        words.add(word);
+const NST_SOURCES = {
+    sv: {
+        url: 'https://www.nb.no/sbfil/leksikalske_databaser/leksikon/sv.leksikon.tar.gz',
+        pron: 'swe030224NST.pron',
+        tarPath: 'NST svensk leksikon/swe030224NST.pron/swe030224NST.pron',
+    },
+    no: {
+        url: 'https://www.nb.no/sbfil/leksikalske_databaser/leksikon/no.leksikon.tar.gz',
+        pron: 'nor030224NST.pron',
+        tarPath: 'NSTs norske leksikon/nor030224NST.pron/nor030224NST.pron',
+    },
+};
+
+function ensureNstFile(code) {
+    const source = NST_SOURCES[code];
+    const target = join(ROOT, 'vendor', 'lexicon', 'nst', source.pron);
+    if (existsSync(target)) return target;
+
+    console.log(`[lexicon] ${code}: NST lexicon missing, downloading (~20 MB compressed)…`);
+    const work = join(tmpdir(), `nst-${code}-${Date.now()}`);
+    mkdirSync(work, { recursive: true });
+    mkdirSync(dirname(target), { recursive: true });
+    const tarball = join(work, 'lex.tar.gz');
+    execFileSync('curl', ['-sL', '-o', tarball, '--max-time', '300', source.url], { stdio: 'inherit' });
+    execFileSync('tar', ['xzf', tarball, '-C', work], { stdio: 'inherit' });
+    execFileSync(process.platform === 'win32' ? 'cmd' : 'cp',
+        process.platform === 'win32'
+            ? ['/c', 'copy', '/y', join(work, source.tarPath).replaceAll('/', '\\'), target.replaceAll('/', '\\')]
+            : [join(work, source.tarPath), target],
+        { stdio: 'inherit' });
+    return target;
+}
+
+/** Streams an NST .pron file (too large for readFileSync) into orth → SAMPA.
+ *  Field 0 is the orthography, field 11 the transcription. First entry wins —
+ *  later rows are alternate pronunciations and rarer readings. */
+async function parseNstPron(file) {
+    const pron = new Map();
+    const rl = createInterface({ input: createReadStream(file, { encoding: 'latin1' }) });
+    for await (const line of rl) {
+        const fields = line.split(';');
+        const orth = fields[0]?.toLowerCase();
+        const trans = fields[11];
+        if (!orth || !trans || pron.has(orth)) continue;
+        if (!WORD_RE.test(orth)) continue;
+        if (orth.length <= 2 && !NORDIC_SHORT_WORDS.has(orth)) continue;
+        pron.set(orth, trans);
     }
-    return words;
+    return pron;
+}
+
+/** word → corpus frequency, from the OpenSubtitles-derived 50k lists. This is
+ *  what keeps "blommar" above "vommar" in the rhymes for "sommar" — the
+ *  shortest-first heuristic had no way to tell a common word from a rare one. */
+function parseFrequency(file) {
+    const freq = new Map();
+    for (const line of readFileSync(file, 'utf8').split('\n')) {
+        const [word, count] = line.split(' ');
+        if (word && count) freq.set(word.toLowerCase(), Number(count));
+    }
+    return freq;
+}
+
+// NST SAMPA vowel characters (Swedish + Norwegian union). ':' marks length and
+// '*' joins diphthongs ("m{*I"); both continue a nucleus rather than start one.
+const NST_VOWELS = 'aeiouyAEIOUY29@{}';
+
+/** Phonetic rhyme + assonance keys from an NST transcription: everything from
+ *  the vowel of the last STRESSED syllable onward — primary '"' (doubled for
+ *  tonal accent 2) or secondary '%'. Secondary counts on purpose: Nordic
+ *  compounds carry primary stress on the first element and secondary on the
+ *  last, and song rhyming works on that final element — "kärlek" rhymes on
+ *  "-lek" ('%' syllable), not on a full "-ärlek" tail nothing else shares.
+ *  Anchoring only on primary left every compound rhymeless. '$' = syllable. */
+function nstKeys(trans) {
+    const tail = trans.slice(Math.max(trans.lastIndexOf('"'), trans.lastIndexOf('%')) + 1);
+    let vowelAt = -1;
+    for (let i = 0; i < tail.length; i++) {
+        if (NST_VOWELS.includes(tail[i])) { vowelAt = i; break; }
+    }
+    if (vowelAt < 0) return null;
+    const rhyme = tail.slice(vowelAt).replace(/[$%"]/g, '');
+    let nucleus = '';
+    for (const ch of rhyme) {
+        if (NST_VOWELS.includes(ch) || ch === ':' || ch === '*') nucleus += ch;
+        else break;
+    }
+    return { rhyme, near: nucleus };
+}
+
+/** NST marks every syllable boundary with '$', so the count is direct. */
+function nstSyllables(trans) {
+    return trans.split('$').length;
+}
+
+// The UI never renders more than 40 entries, so Nordic buckets stay tight —
+// the NST vocabulary is so large that generous caps balloon the output file
+// (60/120 produced an 11.5 MB sv.json; 40/80 keeps it manageable).
+const NORDIC_RHYME_CAP = 40;
+const NORDIC_NEAR_CAP = 80;
+
+function buildNordic(pron, freq, synonyms) {
+    const rhymeBuckets = new Map();
+    const nearBuckets = new Map();
+    const keyOf = new Map();
+
+    for (const [word, trans] of pron) {
+        const keys = nstKeys(trans);
+        if (!keys) continue;
+        keyOf.set(word, keys);
+        push(rhymeBuckets, keys.rhyme, word);
+        // Assonance over a whole vocabulary is dominated by monosyllabic function
+        // words once frequency-ranked ("hjärta" near -> vi/de/men), which is true
+        // but musically useless. Longer words keep the mode about vowel colour.
+        if (word.length >= 4) push(nearBuckets, keys.near, word);
+    }
+
+    const byFrequency = (a, b) =>
+        (freq.get(b) || 0) - (freq.get(a) || 0) || a.length - b.length || a.localeCompare(b);
+
+    const trim = (buckets, cap) => {
+        const out = {};
+        for (const [key, bucket] of buckets) {
+            if (bucket.length < 2) continue;
+            out[key] = bucket.sort(byFrequency).slice(0, cap);
+        }
+        return out;
+    };
+
+    const rhyme = trim(rhymeBuckets, NORDIC_RHYME_CAP);
+    const near = trim(nearBuckets, NORDIC_NEAR_CAP);
+
+    // The runtime resolves a query word's phonetic key by finding the word in a
+    // bucket — but a common word can be ranked out of its own oversubscribed
+    // bucket ("sommar" fell outside the 'O'-assonance cap and could no longer
+    // look itself up at all). Ship explicit keys for every corpus-frequent word
+    // so lookup never depends on surviving a cap. Bucketed words are covered by
+    // the reverse index; this map only needs the frequent ones.
+    const keys = {};
+    for (const word of freq.keys()) {
+        const k = keyOf.get(word);
+        if (k) keys[word] = [k.rhyme, k.near];
+    }
+
+    const syn = {};
+    for (const [word, set] of synonyms) {
+        // Only keep synonyms the pronunciation lexicon can vouch for as real words.
+        const vetted = [...set].filter(s => pron.has(s));
+        if (vetted.length) syn[word] = vetted.sort(byFrequency).slice(0, SYNONYM_CAP);
+    }
+
+    // Syllable counts only for displayable words, and only where the phonetic
+    // count DIFFERS from the orthographic vowel-run count the runtime falls back
+    // to. Nordic spelling is regular enough that they almost always agree, so
+    // storing every count tripled the file for information the runtime could
+    // derive itself. This loop must mirror countSyllables in lib/lexicon/index.ts
+    // exactly — the store-only-differences trick is only correct if both sides
+    // compute the same fallback.
+    const naiveSyllables = (word) => {
+        const vowels = 'aeiouyåäöæø';
+        let count = 0;
+        let inRun = false;
+        for (const ch of word) {
+            const isVowel = vowels.includes(ch);
+            if (isVowel && !inRun) count++;
+            inRun = isVowel;
+        }
+        return Math.max(1, count);
+    };
+    const displayed = new Set();
+    Object.values(rhyme).forEach(list => list.forEach(w => displayed.add(w)));
+    Object.values(near).forEach(list => list.forEach(w => displayed.add(w)));
+    Object.values(syn).forEach(list => list.forEach(w => displayed.add(w)));
+    Object.keys(syn).forEach(w => displayed.add(w));
+    const syllables = {};
+    for (const word of displayed) {
+        const trans = pron.get(word);
+        if (!trans) continue;
+        const phonetic = nstSyllables(trans);
+        if (phonetic !== naiveSyllables(word)) syllables[word] = phonetic;
+    }
+
+    return { rhyme, near, syn, syllables, keys };
 }
 
 /** MyThes format:  word|senseCount  then one "(pos)|syn|syn" line per sense. */
@@ -115,56 +278,10 @@ const RHYME_BUCKET_CAP = 60;
 const NEAR_BUCKET_CAP = 120;
 const SYNONYM_CAP = 25;
 
-function buildLanguage(words, synonyms) {
-    const rhymeBuckets = new Map();
-    const nearBuckets = new Map();
-
-    for (const word of words) {
-        const rk = rhymeKey(word);
-        if (rk) push(rhymeBuckets, rk, word);
-        const ak = assonanceKey(word);
-        if (ak) push(nearBuckets, ak, word);
-    }
-
-    // Every word in a rhyme bucket ends with that bucket's key by construction, so
-    // only the leading part is stored and the route re-appends the key on read.
-    // Roughly halves the file.
-    const rhyme = {};
-    for (const [key, bucket] of rhymeBuckets) {
-        if (bucket.length < 2) continue;
-        rhyme[key] = bucket
-            .sort(byUsefulness)
-            .slice(0, RHYME_BUCKET_CAP)
-            .map(word => word.slice(0, word.length - key.length));
-    }
-
-    const near = {};
-    for (const [key, bucket] of nearBuckets) {
-        if (bucket.length < 2) continue;
-        near[key] = bucket.sort(byUsefulness).slice(0, NEAR_BUCKET_CAP);
-    }
-
-    const syn = {};
-    for (const [word, set] of synonyms) {
-        // Only keep synonyms the word list can also vouch for as real words.
-        const vetted = [...set].filter(s => words.has(s));
-        if (vetted.length) syn[word] = vetted.sort(byUsefulness).slice(0, SYNONYM_CAP);
-    }
-
-    return { rhyme, near, syn };
-}
-
 function push(map, key, value) {
     const bucket = map.get(key);
     if (bucket) bucket.push(value);
     else map.set(key, [value]);
-}
-
-/** No frequency data ships with these lists, so approximate it: shorter words are
- *  overwhelmingly the common ones, and long entries are almost all compounds
- *  ("moderskärlek", "admiralitetsbue") that a songwriter does not want first. */
-function byUsefulness(a, b) {
-    return a.length - b.length || a.localeCompare(b);
 }
 
 /**
@@ -366,17 +483,19 @@ async function main() {
     mkdirSync(OUT_DIR, { recursive: true });
 
     const languages = [
-        { code: 'sv', pkg: 'dictionary-sv', thesaurus: 'th_sv_SE.dat' },
-        { code: 'no', pkg: 'dictionary-nb', thesaurus: 'th_nb_NO.dat' },
+        { code: 'sv', thesaurus: 'th_sv_SE.dat', freqFile: 'sv_50k.txt' },
+        { code: 'no', thesaurus: 'th_nb_NO.dat', freqFile: 'no_50k.txt' },
     ];
 
-    for (const { code, pkg, thesaurus } of languages) {
-        process.stdout.write(`[lexicon] ${code}: expanding ${pkg}… `);
-        const words = await expandWordList(pkg);
-        process.stdout.write(`${words.size.toLocaleString()} forms\n`);
+    for (const { code, thesaurus, freqFile } of languages) {
+        const pronFile = ensureNstFile(code);
+        process.stdout.write(`[lexicon] ${code}: reading NST pronunciations… `);
+        const pron = await parseNstPron(pronFile);
+        process.stdout.write(`${pron.size.toLocaleString()} forms\n`);
 
+        const freq = parseFrequency(join(ROOT, 'vendor', 'lexicon', 'freq', freqFile));
         const synonyms = parseThesaurus(join(ROOT, 'vendor', 'lexicon', thesaurus));
-        const data = buildLanguage(words, synonyms);
+        const data = buildNordic(pron, freq, synonyms);
 
         const file = join(OUT_DIR, `${code}.json`);
         writeFileSync(file, JSON.stringify(data));

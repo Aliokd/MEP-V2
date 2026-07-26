@@ -18,6 +18,25 @@ inflected forms (`dröm` → `drömmar`, `drömmen`) are rhymable:
 | Swedish  | `dictionary-sv` | LGPL-3.0  |
 | Bokmål   | `dictionary-nb` | GPL-2.0   |
 
+## Pronunciation lexicons (NOT vendored — auto-downloaded)
+
+Swedish and Norwegian rhymes are phoneme-keyed using the **NST pronunciation
+lexicons** (SAMPA transcriptions, ~650k inflected forms per language), published
+by Språkbanken at the National Library of Norway and distributed as freely
+available resources (CC0-style, no usage restrictions):
+<https://www.nb.no/sprakbanken/>
+
+The raw `.pron` files are ~180 MB each, so `nst/` is **gitignored**;
+`scripts/build-lexicon.mjs` downloads and unpacks them on demand. The generated
+indexes in `lib/lexicon/data/` are committed, so CI never needs the download.
+
+## Frequency lists (vendored in `freq/`)
+
+`sv_50k.txt` / `no_50k.txt` from the FrequencyWords project (MIT licence),
+derived from the OpenSubtitles corpus:
+<https://github.com/hermitdave/FrequencyWords>
+Used to rank rhyme/synonym results by how common a word actually is.
+
 ## Thesauri (vendored here)
 
 MyThes format, as shipped with LibreOffice.
