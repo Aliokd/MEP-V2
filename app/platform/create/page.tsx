@@ -7240,6 +7240,104 @@ export default function CreatePage() {
         }
     }, [selectedNoteId, activeNote, isMounted]);
 
+    /**
+     * Moves an image or document off the project document into Firebase Storage.
+     *
+     * Base64 previews are fine in local state — they render instantly — but a
+     * Firestore document is capped at 1 MiB, so storing them there meant two
+     * images could break every subsequent save, lyrics included. Audio already
+     * used Storage for exactly this reason; this brings media in line.
+     *
+     * Runs in the background: the card is already on screen with its inline
+     * preview, and the durable URL is patched in when the upload lands. Used by
+     * new uploads AND by the lazy migration below that heals projects created
+     * before media went to Storage.
+     */
+    const promoteMediaToStorage = (
+        noteId: string,
+        mediaId: string,
+        field: 'images' | 'documents',
+        blob: Blob,
+        extension: string,
+    ) => {
+        if (!user) return;
+        (async () => {
+            try {
+                const path = `users/${user.uid}/${field}/${noteId}_${mediaId}.${extension}`;
+                await uploadBytes(storageRef(storage, path), blob);
+                const downloadUrl = await getDownloadURL(storageRef(storage, path));
+
+                setNotes(prev => prev.map(n => {
+                    if (n.id !== noteId) return n;
+                    const updatedList = ((n as any)[field] || []).map((item: any) =>
+                        item.id === mediaId ? { ...item, url: downloadUrl } : item
+                    );
+                    const updated = { ...n, [field]: updatedList } as SongNote;
+                    setDoc(
+                        doc(db, "projects", noteId),
+                        { [field]: updatedList, updatedAt: new Date().toISOString() },
+                        { merge: true },
+                    ).catch(err => console.error(`Error persisting ${field} URL:`, err));
+                    return updated;
+                }));
+            } catch (err) {
+                // The inline preview still works in this session; only durability is
+                // lost, and the size guard keeps it from taking the lyrics down with it.
+                console.error(`Failed to upload ${field} to Storage:`, err);
+            }
+        })();
+    };
+
+    // ── Lazy media migration ──────────────────────────────────────────────────
+    // Projects created before media moved to Storage still carry base64 data
+    // URLs inside their Firestore documents, which is what originally pushed
+    // them past the 1 MiB write limit and silently ate lyric saves. Rather than
+    // a server-side migration (which would need admin credentials and a separate
+    // run), each owner's own session heals their projects in the background the
+    // first time the data is loaded: every inline blob is uploaded through the
+    // exact promoteMediaToStorage path new uploads use, and the Firestore doc
+    // shrinks as each durable URL replaces its base64. Idempotent by nature —
+    // once migrated, nothing is left to match.
+    const mediaMigrationRanRef = useRef(false);
+    useEffect(() => {
+        if (!user || !isDataLoaded || mediaMigrationRanRef.current) return;
+        mediaMigrationRanRef.current = true;
+
+        (async () => {
+            for (const note of notesRef.current) {
+                // Owners only: Storage rules scope writes to the uploader's own
+                // folder, and a collaborator migrating someone else's media would
+                // scatter it across accounts.
+                if (note.ownerId && note.ownerId !== user.uid) continue;
+
+                const pending: Array<{ id: string; field: 'images' | 'documents'; url: string; ext: string }> = [];
+                for (const img of note.images || []) {
+                    if (typeof img?.url === 'string' && img.url.startsWith('data:')) {
+                        pending.push({ id: img.id, field: 'images', url: img.url, ext: 'jpg' });
+                    }
+                }
+                for (const d of note.documents || []) {
+                    if (typeof d?.url === 'string' && d.url.startsWith('data:')) {
+                        pending.push({ id: d.id, field: 'documents', url: d.url, ext: (d.name?.split('.').pop() || 'bin').toLowerCase() });
+                    }
+                }
+
+                for (const item of pending) {
+                    try {
+                        const blob = await (await fetch(item.url)).blob();
+                        promoteMediaToStorage(note.id, item.id, item.field, blob, item.ext);
+                    } catch (err) {
+                        console.warn(`[media-migration] Skipped ${item.field}/${item.id}:`, err);
+                    }
+                    // One at a time with breathing room — this is background repair,
+                    // not a race, and it must never contend with the user's editing.
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+        })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, isDataLoaded]);
+
     const processImportFile = async (file: File, targetNoteId?: string | null): Promise<string | null> => {
         // Single funnel for every import (Add menu + drag-and-drop), so one guard here
         // covers them all. Imports land via handleUpdateNote, which is blocked anyway —
@@ -7274,52 +7372,6 @@ export default function CreatePage() {
 
         const tempUploadId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         setUploadingFiles(prev => [...prev, { id: tempUploadId, name: file.name, type: uploadType }]);
-
-        /**
-         * Moves a freshly added image or document off the project document.
-         *
-         * Base64 previews are fine in local state — they render instantly — but a
-         * Firestore document is capped at 1 MiB, so storing them there meant two
-         * images could break every subsequent save, lyrics included. Audio already
-         * used Storage for exactly this reason; this brings media in line.
-         *
-         * Runs in the background: the card is already on screen with its inline
-         * preview, and the durable URL is patched in when the upload lands.
-         */
-        const promoteMediaToStorage = (
-            noteId: string,
-            mediaId: string,
-            field: 'images' | 'documents',
-            blob: Blob,
-            extension: string,
-        ) => {
-            if (!user) return;
-            (async () => {
-                try {
-                    const path = `users/${user.uid}/${field}/${noteId}_${mediaId}.${extension}`;
-                    await uploadBytes(storageRef(storage, path), blob);
-                    const downloadUrl = await getDownloadURL(storageRef(storage, path));
-
-                    setNotes(prev => prev.map(n => {
-                        if (n.id !== noteId) return n;
-                        const updatedList = ((n as any)[field] || []).map((item: any) =>
-                            item.id === mediaId ? { ...item, url: downloadUrl } : item
-                        );
-                        const updated = { ...n, [field]: updatedList } as SongNote;
-                        setDoc(
-                            doc(db, "projects", noteId),
-                            { [field]: updatedList, updatedAt: new Date().toISOString() },
-                            { merge: true },
-                        ).catch(err => console.error(`Error persisting ${field} URL:`, err));
-                        return updated;
-                    }));
-                } catch (err) {
-                    // The inline preview still works in this session; only durability is
-                    // lost, and the size guard keeps it from taking the lyrics down with it.
-                    console.error(`Failed to upload ${field} to Storage:`, err);
-                }
-            })();
-        };
 
         const cleanupUpload = () => {
             setUploadingFiles(prev => prev.filter(f => f.id !== tempUploadId));
