@@ -34,7 +34,8 @@
     "no_results_found": "Ingen treff funnet.",
     "syllable": "stavelse",
     "syllables": "stavelser",
-    "loading": "Søker i ordboken..."
+    "loading": "Søker i ordboken...",
+    "unavailable": "Oppslag er midlertidig utilgjengelig. Prøv igjen."
   },
   "studio": {
     "open_lyrics": "Åpne sangteksten",
@@ -1002,5 +1003,9 @@
     "sent_title": "Takk",
     "sent_body": "En moderator ser på dette. Vi forteller aldri hvem som har rapportert.",
     "error": "Klarte ikke å sende rapporten. Prøv igjen."
+  },
+  "meta": {
+    "title": "Veinote – hjemmet for menneskeskapt låtskriving",
+    "description": "Ingen AI-genererte sanger. Du lager dem. Du eier dem."
   }
 }

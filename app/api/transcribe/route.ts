@@ -1,11 +1,22 @@
 import { NextResponse } from 'next/server';
 import { featureGuard } from '@/lib/featureFlags';
+import { GEMINI_AUDIO_MODELS } from '@/lib/geminiModels';
+import { requireUser } from '@/lib/apiAuth';
+import { rateLimitGuard, withGeminiRetry, quotaError, createCallBudget } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
     // Kill switch: an admin can disable this endpoint from the console
     // without a deploy (see lib/featureFlags.ts).
     const disabled = await featureGuard('transcribe');
     if (disabled) return disabled;
+
+    const auth = await requireUser(request);
+    if (auth instanceof Response) return auth;
+
+    // Audio is the most expensive input Gemini bills for, so cap how fast any one
+    // account can spend (see lib/rateLimit.ts).
+    const throttled = rateLimitGuard(request, 'transcribe', auth.uid);
+    if (throttled) return throttled;
 
     try {
         const contentType = request.headers.get('content-type') || '';
@@ -72,20 +83,30 @@ export async function POST(request: Request) {
 
         const prompt = `Transcribe the audio accurately. The spoken language is strictly ${languageName}. Do NOT translate the words to English. The transcription output must be in ${languageName} only. Do not mix English words into the transcription unless the speaker literally said an English word. Output ONLY the transcription text, nothing else. If there is no speech or only background noise, return NO_SPEECH.`;
 
-        const modelsToTry = [
-            'gemini-2.5-flash-lite',
-            'gemini-2.5-flash',
-            'gemini-3.5-flash-lite',
-        ];
+        const modelsToTry = GEMINI_AUDIO_MODELS;
 
         let transcript = '';
         let lastErrorMessage = '';
 
+        // Shared across all three models so they can't stack up past the platform's
+        // own request timeout — see createCallBudget for why that matters.
+        const budget = createCallBudget();
+
         for (const model of modelsToTry) {
+            const signal = budget.next();
+            if (!signal) {
+                lastErrorMessage = 'Transcription took too long. Please try again.';
+                console.warn('[Transcribe] Time budget spent; skipping remaining models.');
+                break;
+            }
             try {
                 const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-                const apiRes = await fetch(geminiUrl, {
+                // A 429 here is transient — even the paid tier's per-minute cap can be
+                // clipped by a burst — so back off and retry before giving up on this model.
+                const apiRes = await withGeminiRetry(async () => {
+                    const attempt = await fetch(geminiUrl, {
                     method: 'POST',
+                    signal,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [
@@ -102,9 +123,14 @@ export async function POST(request: Request) {
                             }
                         ],
                         generationConfig: {
-                            maxOutputTokens: 2000
+                            // Room for a long transcript plus the reasoning tokens a
+                            // thinking model spends first. A ceiling, not a reservation.
+                            maxOutputTokens: 4096
                         }
                     })
+                    });
+                    if (attempt.status === 429) throw quotaError('Gemini rate limited');
+                    return attempt;
                 });
 
                 if (apiRes.ok) {
@@ -123,7 +149,12 @@ export async function POST(request: Request) {
                     console.warn(`[Transcribe] ${lastErrorMessage}`);
                 }
             } catch (modelErr: any) {
-                lastErrorMessage = `Model ${model} network error: ${modelErr.message}`;
+                // A timeout is the budget cutting the attempt off, not a model failure —
+                // say so plainly rather than surfacing a raw abort message.
+                lastErrorMessage =
+                    modelErr?.name === 'TimeoutError' || modelErr?.name === 'AbortError'
+                        ? 'Transcription took too long. Please try again.'
+                        : `Model ${model} network error: ${modelErr.message}`;
                 console.warn(`[Transcribe] ${lastErrorMessage}`);
             }
         }

@@ -53,6 +53,7 @@ import { safeLocalStorageSetItem } from '@/lib/storage';
 import Tooltip from '@/components/Tooltip';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
+import { authedFetch } from '@/lib/authedFetch';
 import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, updateDoc, writeBatch, arrayRemove, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, getBlob } from 'firebase/storage';
@@ -3983,6 +3984,9 @@ export default function CreatePage() {
     const [lexiconMode, setLexiconMode] = useState<'rhyme' | 'near' | 'synonym'>('rhyme');
     const [lexiconResults, setLexiconResults] = useState<any[]>([]);
     const [lexiconLoading, setLexiconLoading] = useState(false);
+    // Distinguishes "the lookup failed" from "this word has no matches" — the two
+    // used to be indistinguishable, which hid outages behind "No matches found".
+    const [lexiconError, setLexiconError] = useState(false);
 
     // Spellcheck States
     const [spellCheckResult, setSpellCheckResult] = useState<{ correct: boolean; suggestions: string[] } | null>(null);
@@ -4233,7 +4237,7 @@ export default function CreatePage() {
                         headers['Content-Type'] = 'application/json';
                     }
 
-                    const response = await fetch(`/api/transcribe?lang=${language}`, {
+                    const response = await authedFetch(`/api/transcribe?lang=${language}`, {
                         method: 'POST',
                         headers: headers,
                         body: body,
@@ -4771,7 +4775,7 @@ export default function CreatePage() {
                                 break;
                             }
                             if (lp.text !== remotePhrases[i].text) {
-                                if (lp.id !== editingPhraseId) {
+                                if (lp.id !== editingPhraseIdRef.current) {
                                     hasContentChanges = true;
                                 }
                             }
@@ -4787,7 +4791,7 @@ export default function CreatePage() {
 
                     return prev.map(n => {
                         if (n.id === selectedNoteId) {
-                            const localLockedPhraseId = editingPhraseId;
+                            const localLockedPhraseId = editingPhraseIdRef.current;
                             const mergedPhrases = (data.phrases || []).map((remoteP: any) => {
                                 if (remoteP.id === localLockedPhraseId) {
                                     const localP = n.phrases?.find(p => p.id === localLockedPhraseId);
@@ -4811,11 +4815,32 @@ export default function CreatePage() {
         });
 
         return () => unsub();
-    }, [selectedNoteId, user, isDataLoaded, editingPhraseId]);
+        // editingPhraseId is deliberately NOT a dependency: it changes on every line
+        // focus/Enter, and re-running this effect tears down and re-creates the Firestore
+        // watch target for the project doc. That listen/unlisten churn is what trips
+        // Firestore's internal assertion 0xca9 (pendingResponses going negative). The
+        // callback reads the live value through editingPhraseIdRef instead.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedNoteId, user, isDataLoaded]);
 
 
+
+    // Latest colour resolver + roster rebuilder, held in refs so the presence subscription
+    // can read them without listing them as dependencies. `getMemberColorToken` is defined
+    // further down the component; the ref is populated during render there, and is only ever
+    // *called* from async callbacks, so it is always assigned by the time it is read.
+    const getMemberColorTokenRef = useRef<(uid: string) => string>(() => '');
+    const rebuildActiveUsersRef = useRef<(() => void) | null>(null);
 
     // 3. Presence Effect: Listen to remote presence details
+    //
+    // The colour resolver and the roster it depends on used to be dependencies of this
+    // effect. Because `setCollaborators` is handed a freshly-deserialised array on every
+    // project-doc snapshot, that array's identity changed on every save — so this effect
+    // tore down and re-created the presence watch target constantly while the user typed.
+    // The resulting listen/unlisten churn is what trips Firestore's 0xca9 assertion, so the
+    // subscription now keys only on the project it's watching and reads everything else
+    // through refs.
     useEffect(() => {
         if (!selectedNoteId || !user || !isDataLoaded) {
             setActiveRemoteUsers({});
@@ -4838,7 +4863,7 @@ export default function CreatePage() {
 
                 users[uid] = {
                     name: data.name || 'Collaborator',
-                    color: getMemberColorToken(uid),
+                    color: getMemberColorTokenRef.current(uid),
                     cursor: (data.x !== -999 && data.y !== -999) ? { x: data.x, y: data.y } : undefined,
                     activePhraseId: data.activePhraseId || null,
                     isStudioOpen: !!data.isStudioOpen,
@@ -4869,6 +4894,10 @@ export default function CreatePage() {
             });
         };
 
+        // Exposed so a roster/colour change can refresh the rendered colours without
+        // disturbing the subscription itself (see the effect directly below).
+        rebuildActiveUsersRef.current = rebuildActiveUsers;
+
         const unsub = onSnapshot(collection(db, "projects", selectedNoteId, "presence"), (snapshot) => {
             const raw: {[uid: string]: any} = {};
             snapshot.forEach(d => {
@@ -4886,8 +4915,17 @@ export default function CreatePage() {
             unsub();
             window.clearInterval(staleTimer);
             rawPresenceRef.current = {};
+            rebuildActiveUsersRef.current = null;
         };
-    }, [selectedNoteId, user, isDataLoaded, currentUserColor, collaborators, notes.find(n => n.id === selectedNoteId)?.ownerId]);
+    }, [selectedNoteId, user, isDataLoaded]);
+
+    // Colour assignment depends on the member roster, so recompute the rendered presence
+    // colours when it shifts. Deliberately separate from the subscription above: this is a
+    // cheap in-memory recompute, and folding it back into that effect's dependencies is
+    // exactly what caused the watch-target churn described there.
+    useEffect(() => {
+        rebuildActiveUsersRef.current?.();
+    }, [currentUserColor, collaborators, notes.find(n => n.id === selectedNoteId)?.ownerId]);
 
     // Heartbeat: keep our own presence doc fresh so peers can distinguish "still here" from
     // "closed the tab". Paused while the tab is hidden — a backgrounded tab shouldn't advertise
@@ -5441,6 +5479,10 @@ export default function CreatePage() {
         }
         return getCollabColor(COLLABORATOR_COLORS[Math.abs(hash) % COLLABORATOR_COLORS.length]);
     };
+
+    // Keep the presence subscription's colour resolver current without making it a
+    // dependency of that effect — see the note on the presence effect above.
+    getMemberColorTokenRef.current = getMemberColorToken;
 
     // Compute complete project collaboration members with strict alphabetical sorting
     const allCollabMembers = useMemo(() => {
@@ -6218,21 +6260,32 @@ export default function CreatePage() {
             return;
         }
         setLexiconLoading(true);
+        setLexiconError(false);
         const startTime = Date.now();
         try {
             const response = await fetch(`/api/lexicon?word=${encodeURIComponent(word.trim())}&mode=${mode}&lang=${language}`);
             const data = await response.json();
-            
+
+            // The endpoint reports an outage as a non-200 with an { error } body.
+            // Treating that as "no results" is what previously made a lexicon
+            // failure look identical to a word that simply has no rhymes.
+            if (!response.ok || !Array.isArray(data)) {
+                setLexiconResults([]);
+                setLexiconError(true);
+                return;
+            }
+
             const formatted = data.map((item: any) => ({
                 word: item.word,
                 score: item.score || 100,
                 syllables: item.syllables || item.numSyllables || 1
             }));
-            
+
             setLexiconResults(formatted);
         } catch (err) {
             console.error("Lexicon API error:", err);
             setLexiconResults([]);
+            setLexiconError(true);
         } finally {
             const elapsed = Date.now() - startTime;
             if (elapsed < 350) {
@@ -6254,7 +6307,7 @@ export default function CreatePage() {
         }
         setSpellChecking(true);
         try {
-            const response = await fetch(`/api/spellcheck?word=${encodeURIComponent(word.trim())}&lang=${language}`);
+            const response = await authedFetch(`/api/spellcheck?word=${encodeURIComponent(word.trim())}&lang=${language}`);
             if (response.ok) {
                 const data = await response.json();
                 setSpellCheckResult(data);
@@ -6272,12 +6325,15 @@ export default function CreatePage() {
     useEffect(() => {
         if (clickedWord) {
             const clean = clickedWord.toLowerCase().replace(/[^\p{L}]/gu, '');
+            // Setting the word is enough — the debounced effect below performs the
+            // lookup. Calling it here as well fired two identical requests for every
+            // word the user clicked.
             setLexiconWord(clean);
-            searchRhymeLexicon(clean, lexiconMode);
             runSpellCheck(clean);
         } else {
             setLexiconWord('');
             setLexiconResults([]);
+            setLexiconError(false);
             setSpellCheckResult(null);
         }
     }, [clickedWord, language]);
@@ -6290,6 +6346,7 @@ export default function CreatePage() {
             return () => clearTimeout(delayDebounce);
         } else {
             setLexiconResults([]);
+            setLexiconError(false);
         }
     }, [lexiconWord, lexiconMode, language]);
 
@@ -6693,7 +6750,7 @@ export default function CreatePage() {
                         if (runSpeech && !finalTranscript && durationSeconds > 1.5) {
                             try {
                                 const wavBlob = await getWavBlob(audioBlob);
-                                const response = await fetch(`/api/transcribe?lang=${language}`, {
+                                const response = await authedFetch(`/api/transcribe?lang=${language}`, {
                                     method: 'POST',
                                     body: wavBlob,
                                 });
@@ -7227,7 +7284,7 @@ export default function CreatePage() {
                             // handed to decodeAudioData) so this never disrupts the track just added.
                             (async () => {
                                 try {
-                                    const res = await fetch('/api/classify-instrument', {
+                                    const res = await authedFetch('/api/classify-instrument', {
                                         method: 'POST',
                                         headers: { 'Content-Type': file.type || 'application/octet-stream' },
                                         body: file
@@ -8245,7 +8302,7 @@ export default function CreatePage() {
             const formData = new FormData();
             formData.append('file', file);
             
-            const extractRes = await fetch('/api/extract-text', {
+            const extractRes = await authedFetch('/api/extract-text', {
                 method: 'POST',
                 body: formData
             });
@@ -8321,7 +8378,7 @@ export default function CreatePage() {
             const imgObj = (currentNote.images || []).find(i => i.id === imageId);
             if (!imgObj) throw new Error("Image object not found");
 
-            const res = await fetch('/api/transcribe-image', {
+            const res = await authedFetch('/api/transcribe-image', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -8333,7 +8390,17 @@ export default function CreatePage() {
 
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || 'Failed to scan image text');
+                // The server reports every failure it knows about as JSON with an `error`.
+                // A body we can't parse means the request died above the app — a gateway
+                // timeout or a dropped connection — so say that instead of a bare
+                // "failed", which reads as "this image is unreadable" and sends people
+                // off retrying the same photo.
+                throw new Error(
+                    errData.error ||
+                    (res.status >= 500
+                        ? 'The scan timed out before it finished. Please try again in a moment.'
+                        : 'Could not scan this image. Please try again.')
+                );
             }
 
             const data = await res.json();
@@ -9163,7 +9230,7 @@ export default function CreatePage() {
                 headers['Content-Type'] = 'application/json';
             }
 
-            const response = await fetch(`/api/transcribe?lang=${language}`, {
+            const response = await authedFetch(`/api/transcribe?lang=${language}`, {
                 method: 'POST',
                 headers: headers,
                 body: body,
@@ -11762,7 +11829,7 @@ export default function CreatePage() {
         if (audioNote.url && !audioNote.url.startsWith('blob:')) {
             (async () => {
                 try {
-                    const res = await fetch('/api/classify-instrument', {
+                    const res = await authedFetch('/api/classify-instrument', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ audioUrl: audioNote.url })
@@ -13898,7 +13965,9 @@ export default function CreatePage() {
 
                 {lexiconResults.length === 0 ? (
                     <div className="bg-stone-50 border border-stone-150 rounded-2xl p-8.5 text-center select-none">
-                        <p className="text-[16.5px] text-stone-400 font-medium">{t('lexicon.no_results')}</p>
+                        <p className="text-[16.5px] text-stone-400 font-medium">
+                            {lexiconError ? t('lexicon.unavailable') : t('lexicon.no_results')}
+                        </p>
                     </div>
                 ) : (
                     <ScrollableWithCue className="flex flex-col gap-5 max-h-[268px] overflow-y-auto mt-1.5 pr-1 no-scrollbar">
@@ -16577,7 +16646,7 @@ export default function CreatePage() {
                                     </div>
                                 ) : lexiconResults.length === 0 ? (
                                     <div className="text-center py-8 text-sm font-medium text-stone-400 select-none">
-                                        {t('lexicon.no_results_found')}
+                                        {lexiconError ? t('lexicon.unavailable') : t('lexicon.no_results_found')}
                                     </div>
                                 ) : (
                                     <ScrollableWithCue className="flex flex-col gap-4 max-h-[180px] overflow-y-auto pr-1 no-scrollbar">

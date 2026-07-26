@@ -7,7 +7,13 @@ import { auth } from "@/lib/firebase";
  */
 export async function authedFetch(input: string, init: RequestInit = {}): Promise<Response> {
     const headers = new Headers(init.headers);
-    if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    // Only a string body is assumed to be JSON. Binary bodies (Blob/ArrayBuffer for
+    // audio uploads) and FormData must keep the Content-Type the browser derives —
+    // FormData needs its multipart boundary, and mislabelling audio as JSON makes
+    // the receiving route try to parse it as JSON.
+    if (typeof init.body === "string" && !headers.has("Content-Type")) {
+        headers.set("Content-Type", "application/json");
+    }
 
     const current = auth.currentUser;
     if (current) {

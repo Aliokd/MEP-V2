@@ -8,6 +8,7 @@ interface LessonContentProps {
         id: string;
         title: string;
         videoUrl: string;
+        posterUrl?: string;
     };
     isActive?: boolean;
     onProgressUpdate?: (progress: number) => void;
@@ -81,8 +82,9 @@ export default function LessonContent({
                     key={lesson.videoUrl}
                     src={lesson.videoUrl}
                     controls
+                    preload="auto"
+                    poster={lesson.posterUrl}
                     className="w-full h-full object-cover"
-                    poster="/assets/images/video-poster.jpg"
                     onTimeUpdate={handleTimeUpdate}
                     onPlay={() => setHasStarted(true)}
                     onEnded={onVideoEnd}

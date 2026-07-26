@@ -1,8 +1,10 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Globe } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import Tooltip from '@/components/Tooltip';
+import { isLocalizedPath, localizePath, splitLocale, type Language } from '@/lib/i18n';
 
 type Props = {
     iconOnly?: boolean;
@@ -22,6 +24,20 @@ export default function LanguageSwitcher({
     const { language, setLanguage, t } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const pathname = usePathname();
+    const router = useRouter();
+
+    // Public pages carry the locale in the URL (/no, /sv), so switching there has
+    // to navigate as well as update state. Platform pages just switch in place.
+    const handleSelect = (lang: Language) => {
+        setLanguage(lang);
+        setIsOpen(false);
+
+        const { path } = splitLocale(pathname || '/');
+        if (isLocalizedPath(path)) {
+            router.push(localizePath(path, lang));
+        }
+    };
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -100,10 +116,7 @@ export default function LanguageSwitcher({
                     {languages.map((lang) => (
                         <button
                             key={lang.code}
-                            onClick={() => {
-                                setLanguage(lang.code as any);
-                                setIsOpen(false);
-                            }}
+                            onClick={() => handleSelect(lang.code as Language)}
                             className={`flex items-center gap-2.5 px-3.5 py-2.5 w-full text-left hover:bg-stone-50 transition-colors cursor-pointer text-stone-650 hover:text-stone-900 normal-case ${
                                 language === lang.code ? 'font-bold bg-stone-100 text-stone-900' : 'font-medium'
                             }`}

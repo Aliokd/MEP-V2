@@ -1,8 +1,61 @@
 import { NextResponse } from 'next/server';
 import { featureGuard } from '@/lib/featureFlags';
+import { lookup, normalizeWord, type LexiconMode, type LexiconLang } from '@/lib/lexicon';
 
-// Server-side in-memory cache for multilingual lexicon queries
-const lexiconCache = new Map<string, any>();
+/**
+ * Rhyme / near-rhyme / synonym lookups.
+ *
+ * English goes to Datamuse (free, native English, no key). Norwegian and Swedish
+ * are answered from local indexes — see lib/lexicon. Both paths are keyless, so
+ * there is no shared quota to exhaust and no per-user variation in what works.
+ */
+
+// Datamuse is a free public API and English results never change, so a small
+// in-process cache is worth having. It is only ever a latency optimisation:
+// a cold instance still answers correctly, it just pays the round trip.
+const englishCache = new Map<string, unknown[]>();
+const ENGLISH_CACHE_MAX = 500;
+
+const NORDIC_CHARS = /[åäöæøÅÄÖÆØ]/;
+const NORWEGIAN_MARKERS = /[æøÆØ]/;
+const NORDIC_STOPWORDS = /^(och|jeg|det|att|som|til|på|vi|med|eller|men|mig|dig|sig|oss|dere|dem|vår|min|din|sin|hans|hennes|dette|mycket|tack|herre|gud|kärlek|himmel|land|norge|sverige|bra|hej|hei|takk)$/i;
+const NORWEGIAN_STOPWORDS = /^(jeg|deg|meg|sig|dere|til|hei|takk)$/i;
+
+function resolveLanguage(requested: string, word: string): 'en' | LexiconLang {
+    if (requested === 'sv' || requested === 'no') return requested;
+    // A Swedish or Norwegian word typed while the UI is in English should still
+    // find rhymes rather than being handed to an English-only corpus.
+    if (requested === 'en' && (NORDIC_CHARS.test(word) || NORDIC_STOPWORDS.test(word))) {
+        return NORWEGIAN_MARKERS.test(word) || NORWEGIAN_STOPWORDS.test(word) ? 'no' : 'sv';
+    }
+    return 'en';
+}
+
+async function fetchEnglish(word: string, mode: LexiconMode) {
+    const relation = mode === 'near' ? 'rel_nry' : mode === 'synonym' ? 'ml' : 'rel_rhy';
+    const cacheKey = `${relation}:${word}`;
+
+    const cached = englishCache.get(cacheKey);
+    if (cached) return cached;
+
+    const res = await fetch(
+        `https://api.datamuse.com/words?${relation}=${encodeURIComponent(word)}&max=40`,
+    );
+    if (!res.ok) throw new Error(`Datamuse returned ${res.status}`);
+
+    const data = await res.json();
+    const formatted = (data as any[]).map(item => ({
+        word: item.word,
+        syllables: item.numSyllables || 1,
+        score: item.score || 100,
+    }));
+
+    if (englishCache.size >= ENGLISH_CACHE_MAX) {
+        englishCache.delete(englishCache.keys().next().value as string);
+    }
+    englishCache.set(cacheKey, formatted);
+    return formatted;
+}
 
 export async function GET(request: Request) {
     // Kill switch: an admin can disable this endpoint from the console
@@ -10,140 +63,30 @@ export async function GET(request: Request) {
     const disabled = await featureGuard('lexicon');
     if (disabled) return disabled;
 
-  try {
     const { searchParams } = new URL(request.url);
-    const word = searchParams.get('word');
-    const mode = searchParams.get('mode') || 'rhyme'; // 'rhyme' | 'near' | 'synonym'
-    let lang = searchParams.get('lang') || 'en'; // 'en' | 'no' | 'sv'
+    const rawWord = searchParams.get('word') || '';
+    const rawMode = searchParams.get('mode') || 'rhyme';
+    const mode: LexiconMode =
+        rawMode === 'near' || rawMode === 'synonym' ? rawMode : 'rhyme';
 
-    if (!word || !word.trim()) {
-      return NextResponse.json([]);
-    }
+    const word = normalizeWord(rawWord);
+    if (word.length < 2) return NextResponse.json([]);
 
-    const cleanWord = word.trim().toLowerCase();
+    const lang = resolveLanguage(searchParams.get('lang') || 'en', word);
 
-    // Auto-detect Swedish or Norwegian if lang is English but the word contains Nordic characters or is a known Scandinavian word
-    const hasNordicChars = /[åäöæøÅÄÖÆØ]/.test(cleanWord);
-    const isNordicStopword = /\b(och|jeg|det|att|som|til|på|vi|med|eller|men|mig|dig|sig|oss|dere|dem|vår|min|din|sin|hans|hennes|dette|dene|mycket|tack|herre|gud|kärlek|himmel|land|norge|sverige|bra|hej|hei|takk)\b/i.test(cleanWord);
-
-    if (lang === 'en' && (hasNordicChars || isNordicStopword)) {
-      const isNorwegian = /[æøÆØ]/.test(cleanWord) || /\b(jeg|deg|meg|sig|dere|til|hei|takk)\b/i.test(cleanWord);
-      lang = isNorwegian ? 'no' : 'sv';
-    }
-
-    const cacheKey = `${lang}:${mode}:${cleanWord}`;
-
-    // 1. Check in-memory cache first (delivers sub-millisecond response for repeat requests)
-    if (lexiconCache.has(cacheKey)) {
-      return NextResponse.json(lexiconCache.get(cacheKey));
-    }
-
-    // 2. English queries: Pass-through to Datamuse API (fast, free, native English)
-    if (lang === 'en') {
-      let relParam = 'rel_rhy';
-      if (mode === 'near') relParam = 'rel_nry';
-      if (mode === 'synonym') relParam = 'ml';
-
-      try {
-        const res = await fetch(`https://api.datamuse.com/words?${relParam}=${encodeURIComponent(cleanWord)}&max=40`);
-        if (!res.ok) {
-          throw new Error(`Datamuse returned status ${res.status}`);
+    try {
+        if (lang === 'en') {
+            return NextResponse.json(await fetchEnglish(word, mode));
         }
-        const data = await res.json();
-        const formattedData = data.map((item: any) => ({
-          word: item.word,
-          syllables: item.numSyllables || 1,
-          score: item.score || 100
-        }));
-        // Store in cache
-        lexiconCache.set(cacheKey, formattedData);
-        return NextResponse.json(formattedData);
-      } catch (err) {
-        console.error("Error fetching English lexicon from Datamuse:", err);
-        return NextResponse.json([]);
-      }
+        return NextResponse.json(await lookup(word, mode, lang));
+    } catch (error: any) {
+        // Deliberately NOT an empty 200. This used to return [], which the UI
+        // rendered as "No matches found" — making an outage indistinguishable
+        // from a word that genuinely has no rhymes, and effectively invisible.
+        console.error(`[Lexicon] ${lang}/${mode} lookup failed for "${word}":`, error);
+        return NextResponse.json(
+            { error: 'Lexicon lookup is temporarily unavailable. Please try again.' },
+            { status: 502 },
+        );
     }
-
-    // 3. Swedish and Norwegian queries: Optimized AI-Powered Lexicon Endpoint
-    const apiKey = process.env.GEMINI_API_KEY;
-    console.log(`[Lexicon API] Querying word: "${cleanWord}", mode: "${mode}", lang: "${lang}". Key present: ${!!apiKey}`);
-    if (!apiKey) {
-      console.warn("GEMINI_API_KEY is not configured. Multilingual lexicon results will be empty.");
-      return NextResponse.json([]);
-    }
-
-    const languageName = lang === 'sv' ? 'Swedish' : 'Norwegian';
-    let instructions = '';
-
-    if (mode === 'rhyme') {
-      instructions = `Find up to 25 words that perfectly rhyme with "${cleanWord}" in ${languageName}. Perfect rhymes must share the identical vowel and consonant sound starting from the last stressed syllable (e.g. Swedish "himmel" and "vimmel", Norwegian "stein" and "bein"). Every single returned word MUST be a real, valid word in the ${languageName} language. Do NOT include any English words under any circumstances.`;
-    } else if (mode === 'near') {
-      instructions = `Find up to 25 words that are near-rhymes, slant rhymes, or share assonance/consonance with "${cleanWord}" in ${languageName} (e.g. words that sound musically similar but might not be perfect rhymes, like Swedish "hjärta" and "smärta" or slant matches). Every single returned word MUST be a real, valid word in the ${languageName} language. Do NOT include any English words under any circumstances.`;
-    } else {
-      instructions = `Find up to 25 synonyms or semantically closely related words for "${cleanWord}" in ${languageName}. Every single returned word MUST be a real, valid word in the ${languageName} language. Do NOT include any English words under any circumstances.`;
-    }
-
-    const prompt = `Analyze the ${languageName} word: "${cleanWord}". ${instructions}`;
-
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${apiKey}`;
-
-    const aiResponse = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: prompt }
-            ]
-          }
-        ],
-        systemInstruction: {
-          parts: [
-            {
-              text: `You are a professional songwriting assistant. Analyze the requested word in ${languageName} and find matching rhymes, near-rhymes, or synonyms. Keep replies strictly as JSON arrays of objects conforming to the requested schema. No markdown formatting, no code block wrap.
-Schema: [ { "word": "matching_word", "syllables": syllable_count_integer, "score": score_integer_from_1_to_1000 } ]
-
-CRITICAL RULES:
-1. Every word in the output JSON array MUST be a real, correctly spelled word in the ${languageName} language.
-2. STRICTLY EXCLUDE ALL ENGLISH WORDS. Do not include English words in the results even as secondary options.
-3. Sort results by score in descending order and ensure syllables represent the exact count.`
-            }
-          ]
-        },
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.15,
-          maxOutputTokens: 2000
-        }
-      })
-    });
-
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error(`[Lexicon API] Gemini API error: ${aiResponse.status} - ${errText}`);
-      throw new Error(`Gemini API returned status ${aiResponse.status}: ${errText}`);
-    }
-
-    const resultData = await aiResponse.json();
-    const textResponse = resultData.candidates?.[0]?.content?.parts?.[0]?.text;
-    console.log(`[Lexicon API] Gemini raw response: ${textResponse}`);
-
-    if (!textResponse) {
-      throw new Error("Empty response from Gemini API");
-    }
-
-    const parsedResults = JSON.parse(textResponse.trim());
-    
-    // Store in cache
-    lexiconCache.set(cacheKey, parsedResults);
-    
-    return NextResponse.json(parsedResults);
-
-  } catch (error: any) {
-    console.error("Lexicon API Endpoint error:", error);
-    return NextResponse.json([]);
-  }
 }

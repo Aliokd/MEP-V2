@@ -34,7 +34,8 @@
     "no_results_found": "Inga matchningar hittades.",
     "syllable": "stavelse",
     "syllables": "stavelser",
-    "loading": "Söker i ordboken..."
+    "loading": "Söker i ordboken...",
+    "unavailable": "Uppslag är tillfälligt otillgängligt. Försök igen."
   },
   "studio": {
     "open_lyrics": "Öppna låttexten",
@@ -1002,5 +1003,9 @@
     "sent_title": "Tack",
     "sent_body": "En moderator granskar det här. Vi berättar aldrig vem som har rapporterat.",
     "error": "Det gick inte att skicka rapporten. Försök igen."
+  },
+  "meta": {
+    "title": "Veinote – hemmet för mänskligt låtskrivande",
+    "description": "Inga AI-genererade låtar. Du skapar dem. Du äger dem."
   }
 }

@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 import { featureGuard } from '@/lib/featureFlags';
+import { GEMINI_VISION_MODELS } from '@/lib/geminiModels';
+import { requireUser } from '@/lib/apiAuth';
+import { rateLimitGuard, withGeminiRetry, quotaError, createCallBudget } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
     // Kill switch: an admin can disable this endpoint from the console
     // without a deploy (see lib/featureFlags.ts).
     const disabled = await featureGuard('transcribe_image');
     if (disabled) return disabled;
+
+    const auth = await requireUser(request);
+    if (auth instanceof Response) return auth;
+
+    // Billed per call — cap how fast any one account can spend (see lib/rateLimit.ts).
+    const throttled = rateLimitGuard(request, 'transcribe-image', auth.uid);
+    if (throttled) return throttled;
 
     try {
         let imageUrl = '';
@@ -69,22 +79,33 @@ Preserve exact line breaks and paragraph structure.
 Do NOT correct spelling, do NOT translate, and do NOT add markdown wrappers or conversational intro/outro text.
 If the image has NO text or lyrics on it at all, output EXACTLY: NO_TEXT`;
 
-        const modelsToTry = [
-            'gemini-2.5-flash-lite',
-            'gemini-2.5-flash',
-            'gemini-3.5-flash-lite',
-        ];
+        const modelsToTry = GEMINI_VISION_MODELS;
 
         let extractedText: string | null = null;
         let anyModelResponded = false;
         let isQuotaError = false;
+        let timedOut = false;
         let lastErrorText = '';
 
+        // Shared across all three models so they can't stack up past the platform's
+        // own request timeout — see createCallBudget for why that matters.
+        const budget = createCallBudget();
+
         for (const model of modelsToTry) {
+            const signal = budget.next();
+            if (!signal) {
+                timedOut = true;
+                console.warn('[Image OCR] Time budget spent; skipping remaining models.');
+                break;
+            }
             try {
                 const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-                const response = await fetch(geminiUrl, {
+                // A 429 here is transient — even the paid tier's per-minute cap can be
+                // clipped by a burst — so back off and retry before giving up on this model.
+                const response = await withGeminiRetry(async () => {
+                    const attempt = await fetch(geminiUrl, {
                     method: 'POST',
+                    signal,
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -105,9 +126,14 @@ If the image has NO text or lyrics on it at all, output EXACTLY: NO_TEXT`;
                             }
                         ],
                         generationConfig: {
-                            maxOutputTokens: 2048
+                            // Room for a full page of transcribed text plus the reasoning
+                            // tokens a thinking model spends first. A ceiling, not a reservation.
+                            maxOutputTokens: 4096
                         }
                     })
+                    });
+                    if (attempt.status === 429) throw quotaError('Gemini rate limited');
+                    return attempt;
                 });
 
                 if (response.ok) {
@@ -131,7 +157,14 @@ If the image has NO text or lyrics on it at all, output EXACTLY: NO_TEXT`;
                     console.warn(`[Image OCR] Model ${model} returned ${response.status}, attempting fallback model...`);
                 }
             } catch (err: any) {
-                console.warn(`[Image OCR] Failed model ${model}:`, err);
+                // TimeoutError/AbortError means the budget cut this attempt off, not
+                // that the model rejected the image — worth telling the user apart.
+                if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+                    timedOut = true;
+                    console.warn(`[Image OCR] Model ${model} timed out.`);
+                } else {
+                    console.warn(`[Image OCR] Failed model ${model}:`, err);
+                }
             }
         }
 
@@ -149,6 +182,15 @@ If the image has NO text or lyrics on it at all, output EXACTLY: NO_TEXT`;
                 error: 'AI scanning quota temporarily exceeded. Please try again in a few moments.',
                 isQuotaError: true
             }, { status: 429 });
+        }
+
+        if (timedOut) {
+            // Answered by us, in JSON, rather than letting the platform kill the
+            // request and hand the client an unparseable gateway error.
+            return NextResponse.json({
+                error: 'Scanning took too long. Please try again — a smaller or clearer photo usually helps.',
+                isTimeout: true
+            }, { status: 504 });
         }
 
         throw new Error(`All OCR models failed. ${lastErrorText}`);

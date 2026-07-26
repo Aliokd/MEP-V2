@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { featureGuard } from '@/lib/featureFlags';
+import { GEMINI_AUDIO_MODELS } from '@/lib/geminiModels';
+import { requireUser } from '@/lib/apiAuth';
+import { rateLimitGuard } from '@/lib/rateLimit';
 
 const ALLOWED_INSTRUMENTS = ['guitar', 'piano', 'drums', 'vocals', 'synth', 'custom'] as const;
 type Instrument = typeof ALLOWED_INSTRUMENTS[number];
@@ -27,6 +30,18 @@ export async function POST(request: Request) {
     // without a deploy (see lib/featureFlags.ts).
     const disabled = await featureGuard('classify_instrument');
     if (disabled) return disabled;
+
+    // Billed per call, so it is authenticated and capped like the other AI routes.
+    // Both rejections return the usual 'custom' fallback rather than an error status,
+    // to keep the "never blocks the caller" contract described above.
+    const auth = await requireUser(request);
+    if (auth instanceof Response) {
+        return NextResponse.json({ instrument: 'custom' as Instrument });
+    }
+
+    if (rateLimitGuard(request, 'classify-instrument', auth.uid)) {
+        return NextResponse.json({ instrument: 'custom' as Instrument });
+    }
 
     try {
         const contentType = request.headers.get('content-type') || '';
@@ -67,7 +82,7 @@ Use "vocals" for singing or speech, "synth" for electronic/synthesized instrumen
         // Same fallback chain as the other Gemini routes in this app (transcribe, transcribe-image) —
         // here it's for model *availability* (a given model id can be deprecated/unavailable for a
         // given key/project) rather than accuracy escalation.
-        const modelsToTry = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.5-flash-lite'];
+        const modelsToTry = GEMINI_AUDIO_MODELS;
 
         for (const model of modelsToTry) {
             try {
@@ -94,7 +109,12 @@ Use "vocals" for singing or speech, "synth" for electronic/synthesized instrumen
                         generationConfig: {
                             responseMimeType: 'application/json',
                             temperature: 0.1,
-                            maxOutputTokens: 100
+                            // Headroom for reasoning tokens, not just the tiny JSON answer:
+                            // gemini-2.5-flash spends 60-95 tokens thinking before it emits
+                            // anything, so a 100-token cap made it return truncated garbage
+                            // (finishReason MAX_TOKENS) and silently fall through to 'custom'.
+                            // This is a ceiling, not a reservation — unused tokens cost nothing.
+                            maxOutputTokens: 512
                         }
                     })
                 });

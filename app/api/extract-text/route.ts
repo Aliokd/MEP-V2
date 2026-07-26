@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { featureGuard } from '@/lib/featureFlags';
+import { GEMINI_VISION_MODELS } from '@/lib/geminiModels';
+import { requireUser } from '@/lib/apiAuth';
+import { rateLimitGuard, createCallBudget } from '@/lib/rateLimit';
 
 async function extractPdfTextViaGemini(buffer: Buffer): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -18,22 +21,29 @@ If the PDF has no extractable text at all, output EXACTLY: NO_TEXT`;
   // too old to reliably handle PDFs from real-world producers) proved unreliable in this exact
   // deployment. Routing through Gemini instead — same approach already proven reliable for
   // image OCR — avoids the local-parser/bundler problem entirely.
-  const modelsToTry = [
-    'gemini-2.5-flash-lite',
-    'gemini-2.5-flash',
-    'gemini-3.5-flash-lite',
-  ];
+  const modelsToTry = GEMINI_VISION_MODELS;
 
   let extractedText: string | null = null;
   let anyModelResponded = false;
   let isQuotaError = false;
+  let timedOut = false;
   let lastErrorText = '';
 
+  // Shared across all three models so they can't stack up past the platform's own
+  // request timeout — see createCallBudget for why that matters.
+  const budget = createCallBudget();
+
   for (const model of modelsToTry) {
+    const signal = budget.next();
+    if (!signal) {
+      timedOut = true;
+      break;
+    }
     try {
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const response = await fetch(geminiUrl, {
         method: 'POST',
+        signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [
@@ -63,6 +73,7 @@ If the PDF has no extractable text at all, output EXACTLY: NO_TEXT`;
         if (response.status === 429) isQuotaError = true;
       }
     } catch (err: any) {
+      if (err?.name === 'TimeoutError' || err?.name === 'AbortError') timedOut = true;
       lastErrorText = err.message || String(err);
     }
   }
@@ -70,6 +81,7 @@ If the PDF has no extractable text at all, output EXACTLY: NO_TEXT`;
   if (extractedText !== null) return extractedText;
   if (anyModelResponded) return ''; // every model agreed there's no text — a normal result
   if (isQuotaError) throw new Error('AI extraction quota temporarily exceeded. Please try again in a few moments.');
+  if (timedOut) throw new Error('Reading this document took too long. Please try again, or use a smaller file.');
   throw new Error(`PDF extraction failed. ${lastErrorText}`);
 }
 
@@ -78,6 +90,13 @@ export async function POST(request: Request) {
     // without a deploy (see lib/featureFlags.ts).
     const disabled = await featureGuard('extract_text');
     if (disabled) return disabled;
+
+    const auth = await requireUser(request);
+    if (auth instanceof Response) return auth;
+
+    // PDFs go to Gemini — cap how fast any one account can spend (see lib/rateLimit.ts).
+    const throttled = rateLimitGuard(request, 'extract-text', auth.uid);
+    if (throttled) return throttled;
 
   try {
     const formData = await request.formData();

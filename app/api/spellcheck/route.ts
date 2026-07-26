@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { featureGuard } from '@/lib/featureFlags';
+import { GEMINI_TEXT_MODELS } from '@/lib/geminiModels';
+import { requireUser } from '@/lib/apiAuth';
+import { rateLimitGuard } from '@/lib/rateLimit';
 
 // Simple cache to store spellcheck results
 const spellcheckCache = new Map<string, any>();
@@ -9,6 +12,14 @@ export async function GET(request: Request) {
     // without a deploy (see lib/featureFlags.ts).
     const disabled = await featureGuard('spellcheck');
     if (disabled) return disabled;
+
+    const auth = await requireUser(request);
+    if (auth instanceof Response) return auth;
+
+    // Fires on every word click, so the loosest ceiling of the AI routes — but
+    // still a ceiling (see lib/rateLimit.ts).
+    const throttled = rateLimitGuard(request, 'spellcheck', auth.uid);
+    if (throttled) return throttled;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -41,7 +52,9 @@ Return only valid JSON matching the schema, with no markdown code blocks or wrap
 
     const prompt = `Word to check: "${cleanWord}" in ${languageName}.`;
     
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${apiKey}`;
+    // Pinned via the shared chain rather than a `-latest` alias — see lib/geminiModels.ts
+    // for why predictable cost matters more here than automatic migration.
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TEXT_MODELS[0]}:generateContent?key=${apiKey}`;
 
     const aiResponse = await fetch(geminiUrl, {
       method: 'POST',
@@ -64,7 +77,10 @@ Return only valid JSON matching the schema, with no markdown code blocks or wrap
         generationConfig: {
           responseMimeType: 'application/json',
           temperature: 0.1,
-          maxOutputTokens: 300
+          // Headroom for reasoning tokens on top of the JSON answer — thinking models
+          // burn output budget before emitting text, and 300 left almost none spare.
+          // A ceiling, not a reservation: unused tokens cost nothing.
+          maxOutputTokens: 1024
         }
       })
     });

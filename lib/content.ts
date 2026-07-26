@@ -38,6 +38,7 @@ export interface LearnLesson {
     title: LocalizedText;
     summary?: LocalizedText;
     videoUrl: string;
+    posterUrl?: string | null;
     midiDataUrl?: string | null;
     durationSeconds: number;
     order: number;

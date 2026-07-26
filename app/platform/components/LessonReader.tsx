@@ -7,13 +7,14 @@ import { useLanguage } from '@/context/LanguageContext';
 interface ReaderChapter {
     id: string;
     title: string;
-    lessons: { id: string; title: string; videoUrl?: string }[];
+    lessons: { id: string; title: string; videoUrl?: string; posterUrl?: string | null }[];
 }
 
 interface FlatLesson {
     id: string;
     title: string;
     videoUrl?: string;
+    posterUrl?: string | null;
     chapterTitle: string;
 }
 
@@ -85,6 +86,7 @@ export default function LessonReader({ chapters, onComplete, onBackToLanding }: 
                             id: currentLesson.id,
                             title: currentLesson.title,
                             videoUrl: currentLesson.videoUrl || '',
+                            posterUrl: currentLesson.posterUrl || undefined,
                         }}
                         isActive
                         onVideoEnd={goNext}

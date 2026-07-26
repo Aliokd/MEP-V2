@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
-import { Idea, IdeaCategory, LYRICS_IDEAS_BY_LANGUAGE } from '../data/ideas';
+import { Idea, IdeaCategory, LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE } from '../data/ideas';
 import { fetchIdeas } from '@/lib/contentClient';
 import { pickLocale, type IdeaDoc } from '@/lib/content';
 
@@ -64,7 +64,10 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                 whyItHelps: pickLocale(idea.whyItHelps, language) || undefined,
                 example: pickLocale(idea.example, language) || undefined,
             }))
-            : LYRICS_IDEAS_BY_LANGUAGE[language] ?? LYRICS_IDEAS_BY_LANGUAGE.en;
+            : [
+                ...(LYRICS_IDEAS_BY_LANGUAGE[language] ?? LYRICS_IDEAS_BY_LANGUAGE.en),
+                ...(MELODY_IDEAS_BY_LANGUAGE[language] ?? MELODY_IDEAS_BY_LANGUAGE.en),
+              ];
 
         // Categories with no authored ideas yet stand in with placeholders.
         const emptyCategories = (['melody', 'chords', 'vibe'] as IdeaCategory[])

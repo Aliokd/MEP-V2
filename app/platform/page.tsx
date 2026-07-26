@@ -106,6 +106,7 @@ export default function PlatformPage() {
                     id: lesson.id,
                     title: pickLocale(lesson.title, language),
                     videoUrl: lesson.videoUrl,
+                    posterUrl: lesson.posterUrl ?? null,
                     midiDataUrl: lesson.midiDataUrl ?? null,
                     durationSeconds: lesson.durationSeconds,
                     order: lesson.order,

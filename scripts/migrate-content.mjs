@@ -63,29 +63,32 @@ async function upsert(collection, id, data) {
 }
 
 async function migrateIdeas() {
-    const { LYRICS_IDEAS_BY_LANGUAGE } = await loadTs("app/platform/data/ideas.ts");
+    const { LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE } = await loadTs("app/platform/data/ideas.ts");
 
-    // The three language arrays share ids (lyrics-1 … lyrics-38), so they merge
-    // into one document per idea carrying all three languages.
+    // Each category's three language arrays share ids (lyrics-1 … lyrics-38,
+    // melody-1 … melody-40), so they merge into one document per idea carrying
+    // all three languages.
     const byId = new Map();
-    for (const [locale, ideas] of Object.entries(LYRICS_IDEAS_BY_LANGUAGE)) {
-        ideas.forEach((idea, index) => {
-            const entry = byId.get(idea.id) || {
-                id: idea.id,
-                category: idea.category,
-                order: index,
-                status: "published",
-                title: {},
-                description: {},
-                whyItHelps: {},
-                example: {},
-            };
-            entry.title[locale] = idea.title;
-            entry.description[locale] = idea.description;
-            if (idea.whyItHelps) entry.whyItHelps[locale] = idea.whyItHelps;
-            if (idea.example) entry.example[locale] = idea.example;
-            byId.set(idea.id, entry);
-        });
+    for (const byLanguage of [LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE]) {
+        for (const [locale, ideas] of Object.entries(byLanguage)) {
+            ideas.forEach((idea, index) => {
+                const entry = byId.get(idea.id) || {
+                    id: idea.id,
+                    category: idea.category,
+                    order: index,
+                    status: "published",
+                    title: {},
+                    description: {},
+                    whyItHelps: {},
+                    example: {},
+                };
+                entry.title[locale] = idea.title;
+                entry.description[locale] = idea.description;
+                if (idea.whyItHelps) entry.whyItHelps[locale] = idea.whyItHelps;
+                if (idea.example) entry.example[locale] = idea.example;
+                byId.set(idea.id, entry);
+            });
+        }
     }
 
     for (const idea of byId.values()) {

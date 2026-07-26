@@ -34,7 +34,8 @@
     "no_results_found": "No matches found.",
     "syllable": "syllable",
     "syllables": "syllables",
-    "loading": "Searching dictionary..."
+    "loading": "Searching dictionary...",
+    "unavailable": "Lookup is temporarily unavailable. Please try again."
   },
   "studio": {
     "open_lyrics": "Open Lyrics",
@@ -1002,5 +1003,9 @@
     "sent_title": "Thank you",
     "sent_body": "A moderator will review this. We never tell the other person who reported them.",
     "error": "Couldn't send the report. Please try again."
+  },
+  "meta": {
+    "title": "Veinote - The home of human songwriting",
+    "description": "No AI-generated songs. You create them. You own them."
   }
 }
