@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { authedFetch } from '@/lib/authedFetch';
 
 interface SupportModalProps {
     isOpen: boolean;
@@ -14,7 +13,7 @@ interface SupportModalProps {
 
 export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
     const { user } = useAuth();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     
     const [subject, setSubject] = useState('');
     const [message, setMessage] = useState('');
@@ -47,31 +46,18 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
         setStatus({ type: '', message: '' });
 
         try {
-            const ticketData = {
-                userId: user?.uid || 'anonymous',
-                userName: user?.displayName || 'Anonymous User',
-                userEmail: user?.email || 'no-email@veinote.com',
-                subject: subject.trim(),
-                message: message.trim(),
-                createdAt: serverTimestamp(),
-                status: 'open'
-            };
-
-            // 1. Write the support ticket to Firestore as a backup log
-            await addDoc(collection(db, "support_tickets"), ticketData);
-
-            // 2. Call our API route to email the ticket to support@veinote.com
-            const response = await fetch('/api/support', {
+            // The route stores the ticket with the Admin SDK and emails support.
+            // It used to be written from here, but Firestore rules have no client
+            // write path to `support_tickets`, so every one of those writes was denied.
+            const response = await authedFetch('/api/support', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({
-                    userId: ticketData.userId,
-                    userName: ticketData.userName,
-                    userEmail: ticketData.userEmail,
-                    subject: ticketData.subject,
-                    message: ticketData.message
+                    userId: user?.uid || 'anonymous',
+                    userName: user?.displayName || 'Anonymous User',
+                    userEmail: user?.email || 'no-email@veinote.com',
+                    subject: subject.trim(),
+                    message: message.trim(),
+                    locale: language,
                 }),
             });
 

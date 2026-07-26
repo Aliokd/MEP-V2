@@ -9,84 +9,82 @@ import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, signInW
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/userProfile';
-import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
+import Tooltip from '@/components/Tooltip';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import IntroCarousel from './components/IntroCarousel';
+import PaywallPlans from './components/PaywallPlans';
 
 const STEPS = {
+    INTRO: 'intro',
     QUIZ: 'quiz',
     HYPE: 'hype',
     AUTH: 'auth',
     PAYWALL: 'paywall'
 };
 
+// Only the stable ids and answer values live here — every visible label is
+// looked up under `onboarding.questions.<id>` in the locale files.
 const QUESTIONS = [
     {
         id: 'songwriter_type',
-        question: "What describes you best?",
         options: [
-            { label: "The Lyricist: Words come first.", value: "lyricist" },
-            { label: "The Melodist: I hear melodies before lyrics.", value: "melodist" },
-            { label: "The Producer: I build songs through sound and rhythm.", value: "producer" },
-            { label: "The Storyteller: I want to express emotions and experiences.", value: "storyteller" },
-            { label: "The Explorer: I’m still discovering my style.", value: "explorer" }
+            { value: "lyricist" },
+            { value: "melodist" },
+            { value: "producer" },
+            { value: "storyteller" },
+            { value: "explorer" }
         ]
     },
     {
         id: 'struggle',
-        question: "What is your biggest struggle?",
         options: [
-            { label: "I start songs but never finish them.", value: "unfinished" },
-            { label: "I can write lyrics, but melodies feel weak.", value: "weak_melodies" },
-            { label: "I have ideas, but no structure.", value: "no_structure" },
-            { label: "Everything sounds too similar.", value: "too_similar" },
-            { label: "I overthink and lose inspiration.", value: "overthink" }
+            { value: "unfinished" },
+            { value: "weak_melodies" },
+            { value: "no_structure" },
+            { value: "too_similar" },
+            { value: "overthink" }
         ]
     },
     {
         id: 'dream_outcome',
-        question: "What do you want most from songwriting?",
         options: [
-            { label: "Finish songs I’m proud of.", value: "finish_songs" },
-            { label: "Develop my own unique sound.", value: "unique_sound" },
-            { label: "Write songs that move people emotionally.", value: "move_people" },
-            { label: "Release music professionally.", value: "release_music" },
-            { label: "Become more creative and fearless.", value: "creative_fearless" }
+            { value: "finish_songs" },
+            { value: "unique_sound" },
+            { value: "move_people" },
+            { value: "release_music" },
+            { value: "creative_fearless" }
         ]
     },
     {
         id: 'emotional_inspiration',
-        question: "Which feeling pulls you the most?",
         isVisual: true,
         options: [
-            { label: "Melancholic & emotional", value: "melancholic", color: "blue" },
-            { label: "Energetic & uplifting", value: "energetic", color: "gold" },
-            { label: "Cinematic & dreamy", value: "cinematic", color: "purple" },
-            { label: "Dark & raw", value: "dark", color: "red" },
-            { label: "Intimate & acoustic", value: "intimate", color: "gold" }
+            { value: "melancholic", color: "blue" },
+            { value: "energetic", color: "gold" },
+            { value: "cinematic", color: "purple" },
+            { value: "dark", color: "red" },
+            { value: "intimate", color: "gold" }
         ]
     },
     {
         id: 'creation_method',
-        question: "How do songs usually begin for you?",
         options: [
-            { label: "A lyric or phrase", value: "lyric_phrase" },
-            { label: "A melody in my head", value: "melody_head" },
-            { label: "Chords on guitar or piano", value: "chords" },
-            { label: "A beat or production idea", value: "beat_production" },
-            { label: "Pure improvisation", value: "improvisation" }
+            { value: "lyric_phrase" },
+            { value: "melody_head" },
+            { value: "chords" },
+            { value: "beat_production" },
+            { value: "improvisation" }
         ]
     }
 ];
 
 export default function OnboardingPage() {
-    return (
-        <LanguageProvider>
-            <OnboardingPageInner />
-        </LanguageProvider>
-    );
+    return <OnboardingPageInner />;
 }
 
 function OnboardingPageInner() {
-    const [currentStep, setCurrentStep] = useState(STEPS.QUIZ);
+    const [currentStep, setCurrentStep] = useState(STEPS.INTRO);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -101,22 +99,32 @@ function OnboardingPageInner() {
     const [emailShowError, setEmailShowError] = useState(false);
 
     const router = useRouter();
-    const { language } = useLanguage();
+    const { language, t } = useLanguage();
 
     const handleAuthError = (err: any) => {
         console.error('Google Sign-Up error details:', err);
         if (err.code === 'auth/operation-not-allowed') {
-            setError('Google Sign-In is not enabled. Please enable Google as a sign-in provider in your Firebase Console under Authentication > Sign-in method.');
+            setError(t('auth_errors.google_not_enabled'));
         } else if (err.code === 'auth/unauthorized-domain') {
-            setError(`This domain (${window.location.hostname}) is not authorized for Firebase Authentication. Please add it to the Authorized Domains list in your Firebase Console.`);
+            setError(t('auth_errors.unauthorized_domain'));
         } else if (err.code === 'auth/popup-blocked') {
-            setError('Sign-up popup was blocked by your browser. Please allow popups for this site, or try again.');
+            setError(t('auth_errors.popup_blocked'));
         } else if (err.code === 'auth/popup-closed-by-user') {
-            setError('Sign-up popup was closed before completing. Please try again.');
+            setError(t('auth_errors.popup_closed'));
         } else {
-            setError(err.message || 'Failed to sign up with Google.');
+            setError(t('auth_errors.google_failed'));
         }
     };
+
+    // `?step=paywall` lets an already-signed-up user be sent straight to the plans
+    // (e.g. from the in-platform Max upgrade prompt) instead of replaying the quiz.
+    // Only this one step is addressable — the others assume state built up on the
+    // way there and would land the user on a half-filled form. Applied after mount
+    // rather than in the initial state so SSR and hydration agree on the markup.
+    useEffect(() => {
+        const step = new URLSearchParams(window.location.search).get('step');
+        if (step === STEPS.PAYWALL) setCurrentStep(STEPS.PAYWALL);
+    }, []);
 
     useEffect(() => {
         const checkRedirectResult = async () => {
@@ -246,11 +254,11 @@ function OnboardingPageInner() {
         e.preventDefault();
         setError('');
         if (!email || !password) {
-            setError('Please enter your email and password.');
+            setError(t('onboarding.errors.enter_credentials'));
             return;
         }
         if (password.length < 6) {
-            setError('Password must be at least 6 characters long.');
+            setError(t('onboarding.errors.password_short'));
             return;
         }
         
@@ -276,9 +284,9 @@ function OnboardingPageInner() {
         } catch (err: any) {
             console.error('Sign-up error:', err);
             if (err.code === 'auth/email-already-in-use') {
-                setError('This email address is already in use. Please sign in instead.');
+                setError(t('onboarding.errors.email_in_use'));
             } else {
-                setError(err.message || 'Failed to create account. Please check your network or try again.');
+                setError(t('onboarding.errors.signup_failed'));
             }
         } finally {
             setIsLoading(false);
@@ -287,9 +295,14 @@ function OnboardingPageInner() {
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-start md:justify-center px-6 pt-28 pb-12 md:py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">
+            {/* Language selector */}
+            <div className="absolute top-8 right-6 md:top-12 md:right-10 z-50">
+                <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
+            </div>
+
             {/* Header / Logo */}
-            <div className="absolute top-8 left-0 right-0 flex justify-center md:top-12 z-50">
-                <Link href="/" className="hover:opacity-80 transition-opacity">
+            <div className="absolute top-8 left-0 right-0 flex justify-center md:top-12 z-40 pointer-events-none">
+                <Link href="/" className="hover:opacity-80 transition-opacity pointer-events-auto">
                     <svg width="151" height="39" viewBox="0 0 151 39" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[120px] md:w-[151px] h-auto">
                         <path d="M26.8756 9.80365C27.7045 8.52842 28.0552 7.52417 27.9276 6.79091C27.832 6.05765 27.4016 5.51568 26.6365 5.16499C25.8713 4.8143 24.8671 4.59113 23.6237 4.49549L23.8628 3.53906C24.1816 3.57094 24.7555 3.60282 25.5844 3.6347C26.4452 3.6347 27.3538 3.65064 28.3102 3.68252C29.2985 3.68252 30.0796 3.68252 30.6535 3.68252C31.323 3.68252 31.9606 3.66658 32.5663 3.6347C33.172 3.60282 33.73 3.57094 34.2401 3.53906L34.0009 4.49549C33.2358 4.71865 32.5344 5.02152 31.8968 5.40409C31.2911 5.75478 30.6535 6.3127 29.984 7.07784C29.3145 7.8111 28.5493 8.84723 27.6885 10.1862L9.85119 37.6357C9.24545 37.5719 8.63972 37.54 8.03398 37.54C7.46012 37.54 6.87033 37.5719 6.26459 37.6357L2.48671 7.55605C2.35918 6.40834 2.02444 5.62726 1.48246 5.21281C0.940486 4.76647 0.446332 4.52737 0 4.49549L0.239107 3.53906C1.16365 3.57094 2.35918 3.60282 3.8257 3.6347C5.32411 3.66658 6.80657 3.68252 8.27309 3.68252C9.99465 3.68252 11.5728 3.66658 13.0074 3.6347C14.4739 3.60282 15.6694 3.57094 16.594 3.53906L16.3549 4.49549C15.3347 4.52737 14.5217 4.65489 13.916 4.87806C13.3103 5.10122 12.8958 5.48379 12.6726 6.02577C12.4814 6.56774 12.4335 7.39665 12.5292 8.51248L14.8246 29.6017L12.6726 31.6102L26.8756 9.80365Z" fill="#363636"/>
                         <path d="M134.341 27.212C135.521 26.7019 136.653 26.1281 137.737 25.4905C138.821 24.821 139.777 24.1036 140.606 23.3385C141.849 22.1589 142.869 20.804 143.666 19.2737C144.463 17.7115 144.862 16.0378 144.862 14.2525C144.862 13.7105 144.798 13.3438 144.671 13.1526C144.543 12.9613 144.352 12.8656 144.097 12.8656C143.427 12.8656 142.694 13.2323 141.897 13.9655C141.1 14.6669 140.319 15.6233 139.554 16.8348C138.789 18.0144 138.087 19.3693 137.45 20.8996C136.844 22.398 136.35 23.9602 135.967 25.5861C135.585 27.1801 135.393 28.7423 135.393 30.2726C135.393 32.0898 135.744 33.3172 136.445 33.9548C137.179 34.5925 138.119 34.9113 139.267 34.9113C140 34.9113 141.004 34.6562 142.28 34.1461C143.555 33.6041 144.814 32.6477 146.058 31.2768L146.823 31.6594C146.153 32.7115 145.26 33.7317 144.145 34.72C143.029 35.7083 141.722 36.5212 140.223 37.1589C138.725 37.7646 137.067 38.0675 135.25 38.0675C133.783 38.0675 132.444 37.8124 131.233 37.3023C130.053 36.7922 129.113 36.043 128.411 35.0547C127.71 34.0345 127.359 32.7912 127.359 31.3247C127.359 29.5393 127.646 27.7381 128.22 25.9209C128.794 24.1036 129.607 22.3661 130.659 20.7083C131.711 19.0186 132.97 17.5202 134.437 16.2131C135.935 14.906 137.577 13.8699 139.363 13.1047C141.148 12.3396 143.077 11.957 145.149 11.957C146.679 11.957 147.97 12.2918 149.022 12.9613C150.074 13.5989 150.601 14.6031 150.601 15.974C150.601 17.1855 150.266 18.3332 149.596 19.4172C148.927 20.4692 148.018 21.4416 146.87 22.3343C145.755 23.2269 144.479 24.0239 143.045 24.7253C141.642 25.4267 140.191 26.0324 138.693 26.5425C137.195 27.0526 135.728 27.4511 134.293 27.7381L134.341 27.212Z" fill="#363636"/>
@@ -302,8 +315,16 @@ function OnboardingPageInner() {
                 </Link>
             </div>
 
-            <main className="w-full max-w-2xl relative z-10">
+            {/* The paywall lays two plans side by side, so it needs more room than the quiz steps. */}
+            <main className={`w-full relative z-10 ${currentStep === STEPS.PAYWALL ? 'max-w-4xl' : 'max-w-2xl'}`}>
                 <AnimatePresence mode="wait">
+                    {currentStep === STEPS.INTRO && (
+                        // The key has to live here — AnimatePresence only sees the
+                        // element it receives, so without it the exit never resolves
+                        // and the quiz never mounts.
+                        <IntroCarousel key="intro" onComplete={() => setCurrentStep(STEPS.QUIZ)} />
+                    )}
+
                     {currentStep === STEPS.QUIZ && (
                         <motion.div
                             key={`q-${currentQuestionIndex}`}
@@ -315,13 +336,15 @@ function OnboardingPageInner() {
                             <div className="space-y-8">
                                 <div className="flex items-center justify-between w-4/5 mx-auto gap-4">
                                     {currentQuestionIndex > 0 ? (
-                                        <button
-                                            onClick={handleBack}
-                                            className="text-stone-600 hover:text-stone-900 bg-white/40 hover:bg-white border border-stone-300 hover:border-stone-400 transition-all p-2 rounded-full flex items-center justify-center shadow-sm shrink-0"
-                                            title="Go back"
-                                        >
-                                            <ArrowLeft size={16} />
-                                        </button>
+                                        <Tooltip label={t('onboarding.go_back')}>
+                                            <button
+                                                onClick={handleBack}
+                                                aria-label={t('onboarding.go_back')}
+                                                className="text-stone-600 hover:text-stone-900 bg-white/40 hover:bg-white border border-stone-300 hover:border-stone-400 transition-all p-2 rounded-full flex items-center justify-center shadow-sm shrink-0"
+                                            >
+                                                <ArrowLeft size={16} />
+                                            </button>
+                                        </Tooltip>
                                     ) : (
                                         <div className="w-[34px]" />
                                     )}
@@ -337,7 +360,7 @@ function OnboardingPageInner() {
                                 </div>
                                 <div className="text-center">
                                     <h2 className="text-4xl md:text-[3.25rem] font-sans font-light tracking-tight text-[#363636] leading-[1.1]">
-                                        {currentQuestion.question}
+                                        {t(`onboarding.questions.${currentQuestion.id}.question`)}
                                     </h2>
                                 </div>
                             </div>
@@ -359,7 +382,7 @@ function OnboardingPageInner() {
                                             <span className={`text-[18px] md:text-[21px] font-sans font-medium transition-colors duration-300 ${
                                                 selectedOption === option.value ? 'text-stone-950' : 'text-stone-800 group-hover:text-stone-950'
                                             }`}>
-                                                {option.label}
+                                                {t(`onboarding.questions.${currentQuestion.id}.options.${option.value}`)}
                                             </span>
                                             <ChevronRight className={`transition-all duration-500 shrink-0 ${selectedOption === option.value ? 'text-stone-950 translate-x-0 opacity-100' : 'text-stone-600 -translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'}`} size={18} />
                                         </div>
@@ -381,8 +404,8 @@ function OnboardingPageInner() {
                             className="space-y-8"
                         >
                             <div className="text-center space-y-2">
-                                <h2 className="text-4xl md:text-[3.25rem] font-sans font-light tracking-tight text-stone-900 leading-[1.1]">Secure your path</h2>
-                                <p className="text-stone-700/80 text-[15px] font-medium">Create your credentials to continue your songwriting journey.</p>
+                                <h2 className="text-4xl md:text-[3.25rem] font-sans font-light tracking-tight text-stone-900 leading-[1.1]">{t('onboarding.auth.title')}</h2>
+                                <p className="text-stone-700/80 text-[15px] font-medium">{t('onboarding.auth.subtitle')}</p>
                             </div>
 
                             <form onSubmit={handleSignUp} className="bg-[#EFF0E7] p-8 md:p-10 border border-stone-200/60 rounded-[28px] space-y-6 shadow-[0_8px_30px_rgba(0,0,0,0.015)]">
@@ -398,7 +421,7 @@ function OnboardingPageInner() {
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="Email Address"
+                                        placeholder={t('onboarding.auth.email_placeholder')}
                                         className="w-full bg-white border border-stone-200 rounded-[20px] py-5 px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-xl font-medium placeholder:text-stone-500"
                                         disabled={isLoading}
                                     />
@@ -407,7 +430,7 @@ function OnboardingPageInner() {
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="Password"
+                                        placeholder={t('onboarding.auth.password_placeholder')}
                                         className="w-full bg-white border border-stone-200 rounded-[20px] py-5 px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-xl font-medium placeholder:text-stone-500"
                                         disabled={isLoading}
                                     />
@@ -417,13 +440,13 @@ function OnboardingPageInner() {
                                     disabled={isLoading}
                                     className="w-full py-5 bg-[#86BE7F] hover:opacity-95 text-stone-900 text-xl font-semibold rounded-[20px] transition-all mt-6 flex items-center justify-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.01)] disabled:opacity-75 disabled:cursor-not-allowed"
                                 >
-                                    {isLoading ? 'Creating account...' : 'Continue'}
+                                    {isLoading ? t('onboarding.auth.creating') : t('onboarding.auth.continue')}
                                     <ArrowRight className="w-5 h-5 stroke-[2.5px]" />
                                 </button>
 
                                 <div className="mt-6 flex items-center gap-4">
                                     <div className="h-px bg-stone-300/40 flex-grow" />
-                                    <span className="text-xs text-stone-500 font-medium">or</span>
+                                    <span className="text-xs text-stone-500 font-medium">{t('onboarding.auth.or')}</span>
                                     <div className="h-px bg-stone-300/40 flex-grow" />
                                 </div>
 
@@ -439,14 +462,14 @@ function OnboardingPageInner() {
                                         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
                                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                                     </svg>
-                                    Create with Google
+                                    {t('onboarding.auth.google')}
                                 </button>
                             </form>
                         </motion.div>
                     )}
 
                     {currentStep === STEPS.PAYWALL && (
-                        <PaywallSection />
+                        <PaywallPlans key="paywall" />
                     )}
                 </AnimatePresence>
             </main>
@@ -455,12 +478,9 @@ function OnboardingPageInner() {
 }
 
 function HypeSection({ onComplete }: { onComplete: () => void }) {
+    const { t, tList } = useLanguage();
     const [animationStep, setAnimationStep] = useState(0);
-    const messages = [
-        "Analyzing answers...",
-        "Removing boring theory...",
-        "Prioritizing Visual Learning..."
-    ];
+    const messages = tList<string>('onboarding.hype.messages');
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -499,12 +519,12 @@ function HypeSection({ onComplete }: { onComplete: () => void }) {
                             animate={{ opacity: 1, scale: 1 }}
                             className="space-y-4"
                         >
-                            <h2 className="text-sm font-sans text-stone-500 tracking-[0.3em] uppercase mb-4 block">The Verdict</h2>
+                            <h2 className="text-sm font-sans text-stone-500 tracking-[0.3em] mb-4 block">{t('onboarding.hype.verdict_label')}</h2>
                             <h1 className="text-4xl md:text-[3.5rem] font-sans font-light text-stone-900 leading-[1.1]">
-                                "You are a <span className="italic">Visual Learner.</span>"
+                                "{t('onboarding.hype.verdict_title_prefix')} <span className="italic">{t('onboarding.hype.verdict_title_emphasis')}</span>"
                             </h1>
                             <p className="text-lg text-stone-700/80 font-medium max-w-lg mx-auto font-sans mt-4">
-                                You don't need more drills. You need to see the music.
+                                {t('onboarding.hype.verdict_desc')}
                             </p>
                         </motion.div>
                     )}
@@ -528,65 +548,3 @@ function HypeSection({ onComplete }: { onComplete: () => void }) {
     );
 }
 
-function PaywallSection() {
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center space-y-12"
-        >
-            <div className="space-y-4">
-                <h1 className="text-4xl md:text-[3.25rem] font-sans font-light text-stone-900 leading-[1.1]">Start your transformation.</h1>
-                <p className="text-stone-700/80 text-[15px] font-medium mt-2">
-                    Try the full platform risk-free. Cancel anytime.
-                </p>
-            </div>
-
-            <div className="max-w-md mx-auto relative group">
-                <div className="relative bg-white border border-stone-200 p-10 rounded-[32px] shadow-[0_12px_45px_rgba(0,0,0,0.02)] space-y-8">
-                    <div className="space-y-2">
-                        <div className="inline-block px-4 py-1.5 bg-[#FFF35F] text-stone-900 text-[11px] font-bold uppercase tracking-widest rounded-full mb-4">
-                            Most Popular
-                        </div>
-                        <h3 className="text-3xl font-sans font-light text-stone-900">7-day free trial</h3>
-                        <div className="flex items-baseline justify-center gap-1">
-                            <span className="text-5xl font-sans font-bold text-stone-900">$29</span>
-                            <span className="text-stone-500 text-sm font-sans uppercase tracking-widest">/month</span>
-                        </div>
-                    </div>
-
-                    <ul className="space-y-4 text-left">
-                        {[
-                            { text: "The \"Visual Music\" Engine", icon: <Wand2 size={18} /> },
-                            { text: "Step-by-Step Curriculum", icon: <Check size={18} /> },
-                            { text: "The \"Money-Back\" Guarantee", icon: <ShieldCheck size={18} /> }
-                        ].map((item, i) => (
-                            <li key={i} className="flex gap-4 text-[#363636]/80 font-sans font-medium text-[15px] items-center">
-                                <span className="text-[#86BE7F]">{item.icon}</span>
-                                {item.text}
-                            </li>
-                        ))}
-                    </ul>
-
-                    <div className="space-y-4">
-                        <Link
-                                    href="/platform/create"
-                                    className="w-full py-5 bg-[#86BE7F] hover:opacity-95 text-stone-900 text-xl font-semibold rounded-[20px] transition-all flex items-center justify-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
-                                >
-                                    <CreditCard className="w-5 h-5 stroke-[2.5px]" />
-                                    Start free trial
-                                </Link>
-                        <div className="space-y-1">
-                            <p className="text-[11px] text-stone-500 uppercase tracking-widest">
-                                No charge today.
-                            </p>
-                            <p className="text-[11px] text-stone-700 uppercase tracking-widest font-semibold">
-                                Reminder sent 2 days before trial ends.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </motion.div>
-    );
-}

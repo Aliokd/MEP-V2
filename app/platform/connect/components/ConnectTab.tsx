@@ -7,6 +7,9 @@ import { useLanguage } from '@/context/LanguageContext';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, Plus, Check, ArrowUpRight, LayoutGrid, ThumbsUp, Repeat, Send, Loader2, Play, Pause } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ProSongwritersPanel from './ProSongwritersPanel';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import ReportDialog from '@/components/ReportDialog';
 
 // ==========================================
 // TYPES DEFINITIONS
@@ -27,6 +30,8 @@ interface Comment {
 
 interface Post {
   id: string;
+  /** Firebase uid of the author. Firestore rules gate edit/delete on this. */
+  authorId?: string | null;
   author: string;
   avatarFallback: string;
   time: string;
@@ -43,6 +48,9 @@ interface Post {
   reposted: boolean;
   repostedBy?: string[];
   createdAt?: number;
+  /** Set by the moderation console. Hidden posts stay visible to their author only. */
+  hidden?: boolean;
+  moderationReason?: string | null;
 }
 
 // ==========================================
@@ -139,6 +147,7 @@ interface PostCardProps {
   onClickActive: () => void;
   onPauseToggle: () => void;
   currentUserDisplayName: string;
+  currentUserId: string | null;
   editingPostId: string | null;
   editingText: string;
   activeMenuPostId: string | null;
@@ -151,6 +160,7 @@ interface PostCardProps {
   onCommentDelete: (pid: string, cid: string) => void;
   onStartEdit: (post: Post) => void;
   onDeletePost: (id: string) => void;
+  onReport: (post: Post) => void;
   onMenuToggle: (id: string | null) => void;
   onEditingTextChange: (val: string) => void;
   onSaveEdit: (id: string) => void;
@@ -169,6 +179,7 @@ function ConnectPostCard({
   onClickActive,
   onPauseToggle,
   currentUserDisplayName,
+  currentUserId,
   editingPostId,
   editingText,
   activeMenuPostId,
@@ -181,6 +192,7 @@ function ConnectPostCard({
   onCommentDelete,
   onStartEdit,
   onDeletePost,
+  onReport,
   onMenuToggle,
   onEditingTextChange,
   onSaveEdit,
@@ -826,7 +838,13 @@ function ConnectPostCard({
                     transition={{ duration: 0.1 }}
                     className="absolute right-0 bottom-8 bg-white border border-stone-200/60 rounded-xl shadow-md py-1.5 w-32 z-30"
                   >
-                    {post.author.includes(currentUserDisplayName) || post.author === currentUserDisplayName ? (
+                    {/* Ownership is the uid, not the display name — Firestore rules
+                        gate edit/delete on authorId, so a name match would offer
+                        actions the server rejects. Legacy posts written before
+                        authorId existed still fall back to the name comparison. */}
+                    {(post.authorId
+                      ? post.authorId === currentUserId
+                      : post.author.includes(currentUserDisplayName) || post.author === currentUserDisplayName) ? (
                       <>
                         <button
                           onClick={(e) => { e.stopPropagation(); onStartEdit(post); }}
@@ -852,7 +870,7 @@ function ConnectPostCard({
                           {t('connect.share_link')}
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); alert("Post reported."); onMenuToggle(null); }}
+                          onClick={(e) => { e.stopPropagation(); onReport(post); onMenuToggle(null); }}
                           className="w-full text-left px-4 py-2 text-xs font-medium text-red-650 hover:bg-stone-50 flex items-center gap-2"
                         >
                           {t('connect.report_post')}
@@ -1211,6 +1229,89 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
 }
 
 // ==========================================
+// SUBCOMPONENT: CONNECT LOADING SKELETON
+// ==========================================
+function ConnectSkeleton() {
+  return (
+    <div className="w-full max-w-[1000px] mx-auto py-4 px-4 font-sans mb-12 animate-pulse select-none">
+      {/* 1. Create Section Link Card */}
+      <div className="w-full bg-[#F6F6F0] border border-stone-200/50 rounded-[20px] p-6 mb-8">
+        <div className="flex items-center justify-between">
+          <div className="h-5 w-44 bg-stone-300/30 rounded-full" />
+          <div className="w-5 h-5 bg-stone-300/30 rounded-full" />
+        </div>
+      </div>
+
+      {/* 2. Connect row — songwriters box and PRO banner as peers, matching the
+             loaded layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8 md:items-stretch">
+        <div className="min-w-0 bg-[#F6F6F0] border border-stone-200/50 rounded-[24px] py-6 px-0">
+          <div className="h-5 w-56 bg-stone-300/30 rounded-full mb-5 mx-6" />
+          <div className="flex gap-4 overflow-hidden px-6">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className="min-w-[185px] max-w-[185px] min-h-[165px] bg-white border border-stone-200/60 rounded-[22px] p-5 flex flex-col justify-between relative shrink-0"
+              >
+                <div className="h-5 w-28 bg-stone-300/30 rounded-full" />
+                <div className="absolute bottom-4 right-4 w-5 h-5 bg-stone-300/30 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="min-w-0 flex">
+          <div className="flex-1 min-h-[213px] rounded-[24px] bg-stone-300/25" />
+        </div>
+      </div>
+
+      {/* 3. Recent Creations */}
+      <div className="h-5 w-40 bg-stone-300/30 rounded-full mb-6" />
+
+      <div className="flex flex-col gap-12 w-full">
+        {[...Array(2)].map((_, i) => (
+          <div
+            key={i}
+            className="bg-white border border-stone-200/60 rounded-[24px] min-h-[220px] p-6 flex flex-col justify-between"
+          >
+            {/* Header: project name + author, tag pill */}
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex flex-col gap-2">
+                <div className="h-5 w-52 bg-stone-300/30 rounded-full" />
+                <div className="h-3.5 w-32 bg-stone-200/40 rounded-full" />
+              </div>
+              <div className="h-6 w-28 bg-[#F6F6F0] rounded-full" />
+            </div>
+
+            {/* Lyrics block */}
+            <div className="flex flex-col gap-4 py-2 mb-4">
+              <div className="h-8 sm:h-10 md:h-12 w-3/4 bg-stone-200/40 rounded-full" />
+              <div className="h-8 sm:h-10 md:h-12 w-2/3 bg-stone-200/25 rounded-full" />
+              <div className="h-8 sm:h-10 md:h-12 w-1/2 bg-stone-200/15 rounded-full" />
+            </div>
+
+            {/* Footer actions */}
+            <div className="flex items-center justify-between mt-2 pt-4 border-t border-stone-100/50">
+              <div className="flex gap-6 items-center">
+                {[...Array(3)].map((_, j) => (
+                  <div key={j} className="flex items-center gap-2">
+                    <div className="w-[17px] h-[17px] bg-stone-300/30 rounded-full" />
+                    <div className="h-3 w-4 bg-stone-200/40 rounded-full" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-3.5 h-3.5 bg-stone-300/30 rounded-full" />
+                <div className="h-7 w-24 bg-stone-200/40 rounded-full" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
 // MAIN EXPORT COMPONENT: CONNECT TAB
 // ==========================================
 export default function ConnectTab() {
@@ -1323,6 +1424,7 @@ export default function ConnectTab() {
   ];
 
   const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [postText, setPostText] = useState('');
   const [attachedFile, setAttachedFile] = useState<Attachment | null>(null);
   const [currentFilter, setCurrentFilter] = useState<'all' | 'text' | 'media'>('all');
@@ -1331,8 +1433,17 @@ export default function ConnectTab() {
 
   // Edit / Delete / Menu Actions State
   const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
+  const [reportingPost, setReportingPost] = useState<Post | null>(null);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
+
+  // Replaces native window.confirm() for delete actions below.
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: (() => void) | null;
+  }>({ isOpen: false, title: '', message: '', onConfirm: null });
 
   // Comment Thread State
   const [expandedCommentPostId, setExpandedCommentPostId] = useState<string | null>(null);
@@ -1506,9 +1617,13 @@ export default function ConnectTab() {
     const postsRef = collection(db, 'connect_posts');
     const q = query(postsRef);
 
+    // Safety net so a stalled connection can't leave the skeleton up forever
+    const timeoutId = setTimeout(() => setIsLoadingPosts(false), 8000);
+
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (snapshot.empty) {
-        // Seed database if empty
+        // Seed database if empty. Stay in the loading state — writing the seed
+        // triggers another snapshot, which is the one that resolves the skeleton.
         const batch = [];
         for (let i = 0; i < defaultPosts.length; i++) {
           const defaultPost = defaultPosts[i];
@@ -1516,6 +1631,12 @@ export default function ConnectTab() {
           batch.push(
             setDoc(docRef, {
               id: defaultPost.id,
+              // Firestore rules require authorId == uid on create, so the seeder
+              // stamps the signed-in user. `isSeed` lets the moderation console
+              // tell demo content apart from real posts.
+              authorId: user?.uid || null,
+              isSeed: true,
+              hidden: false,
               author: defaultPost.author,
               avatarFallback: defaultPost.avatarFallback,
               time: defaultPost.time,
@@ -1532,13 +1653,26 @@ export default function ConnectTab() {
             })
           );
         }
-        await Promise.all(batch);
+        try {
+          await Promise.all(batch);
+        } catch (err) {
+          console.error("Error seeding connect posts:", err);
+          clearTimeout(timeoutId);
+          setIsLoadingPosts(false);
+        }
       } else {
         const loadedPosts: Post[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
+          // A moderator-hidden post stays readable to its author (so they can see
+          // the outcome), but it never appears in anyone else's feed.
+          if (data.hidden === true && data.authorId !== user?.uid) return;
+
           loadedPosts.push({
             id: docSnap.id,
+            authorId: data.authorId || null,
+            hidden: data.hidden === true,
+            moderationReason: data.moderationReason || null,
             author: data.author,
             avatarFallback: data.avatarFallback,
             time: data.time || 'Just now',
@@ -1560,10 +1694,19 @@ export default function ConnectTab() {
         // Sort posts client-side by createdAt descending
         loadedPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         setPosts(loadedPosts);
+        clearTimeout(timeoutId);
+        setIsLoadingPosts(false);
       }
+    }, (err) => {
+      console.error("Error subscribing to connect posts:", err);
+      clearTimeout(timeoutId);
+      setIsLoadingPosts(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, [user]);
 
   const getFileIcon = (type: string) => {
@@ -1679,16 +1822,20 @@ export default function ConnectTab() {
   };
 
   // Delete Post
-  const handleDeletePost = async (postId: string) => {
-    const confirmDelete = window.confirm(t('connect.delete_post_confirm'));
-    if (confirmDelete) {
-      try {
-        await deleteDoc(doc(db, 'connect_posts', postId));
-        setActiveMenuPostId(null);
-      } catch (err) {
-        console.error("Error deleting post:", err);
+  const handleDeletePost = (postId: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Post?',
+      message: t('connect.delete_post_confirm'),
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'connect_posts', postId));
+          setActiveMenuPostId(null);
+        } catch (err) {
+          console.error("Error deleting post:", err);
+        }
       }
-    }
+    });
   };
 
   // Toggle Kudos (Liking)
@@ -1782,22 +1929,26 @@ export default function ConnectTab() {
   };
 
   // Delete Comment
-  const handleDeleteComment = async (postId: string, commentId: string) => {
-    const confirmDelete = window.confirm(t('connect.delete_comment_confirm'));
-    if (confirmDelete) {
-      const postToUpdate = posts.find(p => p.id === postId);
-      if (!postToUpdate) return;
+  const handleDeleteComment = (postId: string, commentId: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Comment?',
+      message: t('connect.delete_comment_confirm'),
+      onConfirm: async () => {
+        const postToUpdate = posts.find(p => p.id === postId);
+        if (!postToUpdate) return;
 
-      const updatedComments = (postToUpdate.comments || []).filter(c => c.id !== commentId);
+        const updatedComments = (postToUpdate.comments || []).filter(c => c.id !== commentId);
 
-      try {
-        await updateDoc(doc(db, 'connect_posts', postId), {
-          comments: updatedComments
-        });
-      } catch (err) {
-        console.error("Error deleting comment:", err);
+        try {
+          await updateDoc(doc(db, 'connect_posts', postId), {
+            comments: updatedComments
+          });
+        } catch (err) {
+          console.error("Error deleting comment:", err);
+        }
       }
-    }
+    });
   };
 
   const filteredPosts = posts.filter(post => {
@@ -1808,6 +1959,8 @@ export default function ConnectTab() {
   });
 
   const currentUserDisplayName = user?.displayName || user?.email?.split('@')[0] || 'Me';
+
+  if (isLoadingPosts) return <ConnectSkeleton />;
 
   return (
     <div className="w-full max-w-[1000px] mx-auto py-4 px-4 font-sans mb-12">
@@ -1825,12 +1978,15 @@ export default function ConnectTab() {
         </div>
       </a>
 
-      {/* 2. Connect with Songwriters Box */}
-      <div className="bg-[#F6F6F0] border border-stone-200/50 rounded-[24px] py-6 px-0 mb-8 select-none">
+      {/* 2. Connect row — two peers side by side, not one box holding both: the
+             songwriters container on the left, the PRO banner standing on the page
+             background on the right. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8 select-none md:items-stretch">
+        <div className="min-w-0 bg-[#F6F6F0] border border-stone-200/50 rounded-[24px] py-6 px-0">
         <h3 className="text-[20px] font-sans font-medium tracking-tight text-stone-850 mb-5 px-6">
           {t('connect.connect_with_songwriters')}
         </h3>
-        <div 
+        <div
           ref={songwritersScrollRef}
           onMouseDown={handleSongwritersMouseDown}
           onMouseMove={handleSongwritersMouseMove}
@@ -1878,6 +2034,15 @@ export default function ConnectTab() {
             </div>
           ))}
         </div>
+        </div>
+
+        {/* Right half — PRO songwriters, Max tier. No section heading and no light
+            container: the banner is its own surface, sitting directly on the page
+            beside the songwriters box. `flex` lets it stretch to match that box's
+            height, which the grid has already equalised. */}
+        <div className="min-w-0 flex">
+          <ProSongwritersPanel />
+        </div>
       </div>
 
       {/* 3. Recent Creations Title */}
@@ -1922,6 +2087,7 @@ export default function ConnectTab() {
                 }}
                 onPauseToggle={() => handlePauseToggle(post.id)}
                 currentUserDisplayName={currentUserDisplayName}
+                currentUserId={user?.uid || null}
                 editingPostId={editingPostId}
                 editingText={editingText}
                 activeMenuPostId={activeMenuPostId}
@@ -1934,6 +2100,7 @@ export default function ConnectTab() {
                 onCommentDelete={handleDeleteComment}
                 onStartEdit={handleStartEdit}
                 onDeletePost={handleDeletePost}
+                onReport={setReportingPost}
                 onMenuToggle={setActiveMenuPostId}
                 onEditingTextChange={setEditingText}
                 onSaveEdit={handleSaveEdit}
@@ -1956,6 +2123,26 @@ export default function ConnectTab() {
           />
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        destructive
+        onConfirm={() => {
+          confirmDialog.onConfirm?.();
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        }}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      <ReportDialog
+        isOpen={reportingPost !== null}
+        onClose={() => setReportingPost(null)}
+        targetType="post"
+        targetId={reportingPost?.id || ''}
+        targetLabel={reportingPost ? `${reportingPost.author} — ${reportingPost.projectName}` : undefined}
+      />
     </div>
   );
 }

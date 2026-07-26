@@ -53,6 +53,11 @@ test-results/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 
+# Raw lesson video sources — compress and upload via scripts/upload-lesson-video.mjs
+# to Firebase Storage instead of committing heavy footage to the repo.
+public/videos/Master fundamentals/
+*.compressed.mp4
+
 
 
 

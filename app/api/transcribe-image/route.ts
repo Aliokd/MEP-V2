@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
+import { featureGuard } from '@/lib/featureFlags';
 
 export async function POST(request: Request) {
+    // Kill switch: an admin can disable this endpoint from the console
+    // without a deploy (see lib/featureFlags.ts).
+    const disabled = await featureGuard('transcribe_image');
+    if (disabled) return disabled;
+
     try {
         let imageUrl = '';
         let mimeType = 'image/jpeg';

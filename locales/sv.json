@@ -2,15 +2,20 @@
   "common": {
     "save": "Spara",
     "saving": "Sparar",
-    "cancel": "Avbyt",
+    "cancel": "Avbryt",
     "close": "Stäng",
     "confirm": "Bekräfta",
     "back": "Tillbaka",
-    "next": "Nästa"
+    "next": "Nästa",
+    "undo": "Ångra",
+    "redo": "Gör om",
+    "complete": "Slutför",
+    "completing": "Slutför...",
+    "saved": "Sparat"
   },
   "navigation": {
     "create": "Skapa",
-    "learn": "Lär",
+    "learn": "Lär dig",
     "practice": "Öva",
     "connect": "Community",
     "settings": "Inställningar",
@@ -20,7 +25,7 @@
     "my_profile": "Min profil"
   },
   "lexicon": {
-    "title": "Rimlexikon & Synonymer",
+    "title": "Rimlexikon och synonymer",
     "placeholder": "Skriv eller klicka på ett ord...",
     "perfect_rhyme": "Perfekt rim",
     "near_rhyme": "Nära rim",
@@ -32,29 +37,43 @@
     "loading": "Söker i ordboken..."
   },
   "studio": {
-    "open_lyrics": "Öppna text",
-    "close_lyrics": "Stäng text",
-    "lyrics_sidebar": "Lyrics",
-    "empty_lyrics": "Dina låttexter kommer att visas här allt eftersom du skriver.",
+    "open_lyrics": "Öppna låttexten",
+    "close_lyrics": "Stäng låttexten",
+    "lyrics_sidebar": "Låttext",
+    "empty_lyrics": "Din låttext visas här allt eftersom du skriver den.",
     "overwrite_title": "Skriv över",
-    "record_again": "Spela in igen"
+    "record_again": "Spela in igen",
+    "rec": "REC",
+    "recording": "Spelar in",
+    "play_pause": "Spela upp / Pausa",
+    "metronome_on": "På",
+    "play_metronome": "Spela upp metronom",
+    "track_options": "Spåralternativ",
+    "drag_to_reorder": "Dra för att ändra ordning",
+    "custom_instrument": "Anpassad...",
+    "studio_badge": "Studio",
+    "reopen_in_studio": "Öppna igen i Demo Studio",
+    "add_to_studio": "Lägg till i Demo Studio"
   },
   "canvas": {
     "tuner": "Stämapparat",
     "tap_tempo": "Hitta tempo",
     "inspiration": "Inspiration",
     "rhyme_lexicon": "Rimlexikon",
-    "demo_studio": "Demo studio",
+    "demo_studio": "Demo Studio",
     "create_song": "Skapa låt",
-    "wired_headphones_banner_text": "För bästa timing, använd trådbundna hörlurar. Bluetooth kan orsaka inspelningsfördröjning.",
+    "wired_headphones_banner_text": "Använd trådbundna hörlurar för en inspelning med hög kvalitet och låg fördröjning",
     "wired_headphones_more_tips": "Fler tips",
-    "wired_headphones_close": "Stäng"
+    "wired_headphones_close": "Stäng",
+    "creative_tools": "Kreativa verktyg",
+    "demo_studio_tooltip": "Spela in och mixa din låt",
+    "inspirations_tooltip": "Få idéer när du kör fast"
   },
   "inspiration": {
     "cards": {
       "releasing_regret": {
-        "title": "Att släppa ånger",
-        "category": "Släpp",
+        "title": "Att släppa taget om ångern",
+        "category": "Frigörelse",
         "q0": "Vad är ett minne från ditt förflutna som fortfarande känns tungt?",
         "q1": "Hur skulle det kännas att äntligen släppa det?",
         "q2": "Vad håller du fast vid som inte längre hjälper dig?",
@@ -62,9 +81,9 @@
         "q4": "Vilken sorts musik känns som lättnad?"
       },
       "finding_stillness": {
-        "title": "Hitta lugn",
+        "title": "Att hitta lugn",
         "category": "Lugn",
-        "q0": "Vad gör att ditt sinne känns upptaget just nu?",
+        "q0": "Vad gör att tankarna snurrar just nu?",
         "q1": "Hur skulle det kännas om allt blev tyst för en stund?",
         "q2": "Hur känns lugn för dig?",
         "q3": "Skriv en rad om ett tyst ögonblick.",
@@ -72,10 +91,10 @@
       },
       "growth_after_pain": {
         "title": "Att bli starkare",
-        "category": "Tillväxt",
+        "category": "Växande",
         "q0": "Vilken svår tid i ditt liv förändrade dig mest?",
-        "q1": "Vad är ett sätt du har vuxit sedan dess?",
-        "q2": "Hur lärde den svåra tiden dig något?",
+        "q1": "På vilket sätt har du vuxit sedan dess?",
+        "q2": "Vad lärde den svåra tiden dig till slut?",
         "q3": "Skriv en rad som jämför din styrka med något som växer tillbaka.",
         "q4": "Vilken rytm känns som att långsamt bli starkare?"
       },
@@ -90,7 +109,7 @@
       },
       "grief_and_honoring": {
         "title": "Att hedra en förlust",
-        "category": "Läkande",
+        "category": "Läkning",
         "q0": "Vad eller vem saknar du just nu?",
         "q1": "Vad är ett bra minne kopplat till detta?",
         "q2": "Hur skulle det kännas att låta lite av den sorgen mjukna?",
@@ -101,16 +120,16 @@
         "title": "Att möta rädsla",
         "category": "Mod",
         "q0": "Vad är något du är rädd för att göra, men ändå vill göra?",
-        "q1": "Vad är det värsta som kan hända om du försökte?",
+        "q1": "Vad är det värsta som skulle kunna hända om du försökte?",
         "q2": "Hur skulle det kännas på andra sidan den rädslan?",
         "q3": "Skriv en rad om att förvandla rädsla till mod.",
-        "q4": "Vilket ögonblick i en sång känns som ett stort, modigt hopp?"
+        "q4": "Vilket ögonblick i en låt känns som ett stort, modigt språng?"
       },
       "self_compassion": {
         "title": "Att vara snäll mot dig själv",
         "category": "Tröst",
         "q0": "Var har du varit hård mot dig själv på sistone?",
-        "q1": "Vad skulle du säga till en vän som gick igenom samma sak?",
+        "q1": "Vad skulle du säga till en vän som går igenom samma sak?",
         "q2": "Hur känns det att äntligen ge dig själv en paus?",
         "q3": "Skriv en mild rad bara till dig själv.",
         "q4": "Vilken sorts ljud känns tröstande, som en varm kram?"
@@ -128,7 +147,7 @@
         "title": "Att lita på din timing",
         "category": "Tålamod",
         "q0": "Vad skyndar du på som kanske behöver mer tid?",
-        "q1": "Vad har väntan gett dig av gott i livet?",
+        "q1": "Vilka bra saker har kommit av att vänta, i ditt liv?",
         "q2": "Vad hjälper dig växa, även om du inte kan se det än?",
         "q3": "Skriv en rad om att växa i din egen takt.",
         "q4": "Vilken långsam rytm känns tålmodig för dig?"
@@ -174,33 +193,33 @@
         "category": "Gemenskap",
         "q0": "När känner du dig mest ensam?",
         "q1": "Vem önskar du förstod det du går igenom?",
-        "q2": "Hur känns det att veta att någon annan också känt detta?",
-        "q3": "Skriv en rad om att sträcka ut din hand till någon.",
+        "q2": "Hur känns det att veta att någon annan också har känt så här?",
+        "q3": "Skriv en rad om att sträcka ut en hand till någon.",
         "q4": "Vilken harmoni — två röster tillsammans — känns som gemenskap för dig?"
       },
       "accepting_change": {
         "title": "Att acceptera förändring",
         "category": "Acceptans",
         "q0": "Vilken förändring i ditt liv kämpar du emot just nu?",
-        "q1": "Vad kan denna förändring lära dig?",
+        "q1": "Vad kan den här förändringen lära dig?",
         "q2": "Hur skulle det kännas att följa med den, istället för att kämpa emot?",
         "q3": "Skriv en rad om att låta livet förändra dig.",
         "q4": "Vilken sorts rytmbyte känns som förändring?"
       },
       "releasing_anger": {
         "title": "Att släppa ut ilska",
-        "category": "Släpp",
+        "category": "Frigörelse",
         "q0": "Vad har gjort dig arg eller frustrerad på sistone?",
         "q1": "Vad finns under ilskan — smärta, rädsla, något annat?",
         "q2": "Hur skulle det kännas att äntligen släppa ut den ilskan?",
         "q3": "Skriv en stark rad som säger vad du verkligen känner.",
-        "q4": "Vilket ögonblick i en sång känns som en befrielse — högt, sen lugnt?"
+        "q4": "Vilket ögonblick i en låt känns som en befrielse — högt, sedan lugnt?"
       },
       "new_beginnings": {
-        "title": "Nya början",
+        "title": "En ny början",
         "category": "Hopp",
         "q0": "Vad är en sak du vill börja om med?",
-        "q1": "Hur skulle idag se ut med en ren start?",
+        "q1": "Hur skulle i dag se ut med en ren start?",
         "q2": "Vad är det första lilla steget du skulle kunna ta?",
         "q3": "Skriv en hoppfull rad om en ny början.",
         "q4": "Vilket ackord eller ton känns som starten på något bra?"
@@ -218,7 +237,7 @@
         "title": "Att minnas hur man leker",
         "category": "Lek",
         "q0": "Vad älskade du att göra som barn, innan livet blev allvarligt?",
-        "q1": "Vad skulle du skapa idag om du inte var rädd för att göra fel?",
+        "q1": "Vad skulle du skapa i dag om du inte var rädd för att göra fel?",
         "q2": "Vad skulle du vilja säga till ditt yngre jag?",
         "q3": "Skriv en lekfull rad som får dig att le.",
         "q4": "Vilken melodi känns lätt och lekfull för dig?"
@@ -226,7 +245,7 @@
       "quiet_strength": {
         "title": "Tyst styrka",
         "category": "Styrka",
-        "q0": "Vad är en svår tid du hållit ut genom, i tysthet?",
+        "q0": "Vilken svår tid har du tagit dig igenom, i tysthet?",
         "q1": "Hur fortsätter du när saker blir tuffa?",
         "q2": "Hur ser din styrka ut när ingen tittar?",
         "q3": "Skriv en rad om att vara stark på ett tyst sätt.",
@@ -235,7 +254,8 @@
     },
     "back": "tillbaka",
     "next": "nästa",
-    "add_to_canvas": "Lägg till canvas"
+    "add_to_canvas": "Lägg till på canvasen",
+    "no_response": "Inget svar än"
   },
   "collab": {
     "invite_title": "Bjud in någon att samarbeta med dig i det här projektet",
@@ -244,26 +264,34 @@
     "to_collaborate_on": "att samarbeta på",
     "accept": "Acceptera",
     "decline": "Avböj",
-    "email_placeholder": "Ange samarbetspartners e-post",
+    "email_placeholder": "Ange samarbetspartnerns e-postadress",
     "inviting": "Bjuder in...",
     "invite": "Bjud in",
     "whos_in": "Vilka är med?",
-    "me": "Mig",
+    "me": "Jag",
     "owner": "Ägare",
     "confirm_close_title": "Är du säker på att du vill avsluta samarbetet?",
     "confirm_remove_collab_title": "Är du säker på att du vill ta bort samarbetspartnern?",
-    "remove_collab_desc": "Detta kommer att ta bort samarbetspartnern från detta projekt. De kommer inte längre att ha tillgång till det.",
+    "remove_collab_desc": "Samarbetspartnern tas bort från projektet och har då inte längre tillgång till det.",
     "confirm_leave_collab_title": "Är du säker på att du vill lämna samarbetet?",
-    "leave_collab_desc": "Detta kommer att ta bort dig från detta projekt. Du kommer att förlora tillgången till det.",
-    "decline_desc": "Detta kommer att avböja inbjudan och ta bort projektet från din canvas.",
-    "close_desc": "Detta kommer att koppla bort projektets realtidssamarbete. Om du är en samarbetspartner kommer du att lämna detta projekt.",
+    "leave_collab_desc": "Du tas bort från projektet och förlorar tillgången till det.",
+    "decline_desc": "Inbjudan avböjs och projektet tas bort från din canvas.",
+    "close_desc": "Projektets realtidssamarbete kopplas bort. Är du samarbetspartner lämnar du projektet.",
     "invited_you_banner": "bjöd in dig till samarbete",
     "join": "Gå med",
-    "collab": "Samarbeta",
-    "collab_title": "Samarbeta i detta projekt",
+    "collab": "Samarbete",
+    "collab_title": "Samarbeta med andra musiker",
     "publish": "Publicera",
     "publishing": "Publicerar",
-    "check_in_connect": "Kolla i Connect"
+    "check_in_connect": "Kolla i Connect",
+    "publish_tooltip": "Publicera",
+    "publish_tooltip_shared": "Se din låt i communityn",
+    "unlock_tooltip": "Lås upp",
+    "lock_hold_hint": "Tryck för att låsa",
+    "unlock_hold_hint": "Tryck för att låsa upp",
+    "lock_locked_toast": "Projektet är låst — endast visning för alla",
+    "lock_unlocked_toast": "Projektet är upplåst — alla kan redigera igen",
+    "lock_banner": "Låst av ägaren — endast visning"
   },
   "workspace": {
     "my_projects": "Mina projekt",
@@ -271,7 +299,7 @@
     "no_personal_projects": "Inga personliga projekt hittades.",
     "no_collab_projects": "Inga samarbetsprojekt hittades.",
     "no_projects_found": "Inga projekt hittades.",
-    "search_placeholder": "Sök i projekt...",
+    "search_placeholder": "Sök bland projekt...",
     "title": "Projekt",
     "create_project": "Skapa nytt projekt",
     "untitled_note": "Namnlös låt",
@@ -286,11 +314,11 @@
   },
   "learn": {
     "access_restricted": "Begränsad åtkomst",
-    "access_restricted_desc": "Vänligen logga in för att få tillgång till dina rörelser och fortsätta din mästarresa.",
+    "access_restricted_desc": "Logga in för att komma åt dina satser och fortsätta din resa mot mästerskap.",
     "signin": "Logga in",
     "completed": "Slutförd",
     "in_progress": "Pågår",
-    "movement_lessons": "Rörelselektioner",
+    "movement_lessons": "Satslektioner",
     "select_lesson": "Välj en lektion för att se innehåll",
     "back": "Tillbaka",
     "next": "Nästa",
@@ -300,11 +328,11 @@
     "video_not_supported": "Din webbläsare stöder inte videotaggen.",
     "master_fundamentals": "Bemästra grunderna",
     "deep_dive": "Fördjupning",
-    "coming_next_year": "Kommer nästa år",
+    "coming_soon": "Kommer snart",
     "deep_dive_desc": "Mer avancerade musiklektioner är på väg. Kom tillbaka snart.",
     "bank_of_ideas": "Idébank",
-    "bank_of_ideas_desc": "Utvalda idéer och genvägar är på väg.",
-    "bank_of_ideas_tooltip": "De här tipsen är inte regler.\nDe är enkla sätt att hjälpa dig komma igång, utforska och förbättra din text.\nAnvänd det som känns användbart.\nHoppa över det som inte passar.\nDet finns inget enda rätt sätt att skriva en låt på.",
+    "bank_of_ideas_desc": "Utvalda idéer och genvägar som hjälper dig skriva låtar.",
+    "bank_of_ideas_tooltip": "De här tipsen är inte regler.\nDe är enkla sätt att komma i gång, utforska och förbättra din text.\nAnvänd det som känns användbart.\nHoppa över det som inte passar.\nDet finns inget enda rätt sätt att skriva en låt på.",
     "back_to_overview": "Tillbaka till översikten",
     "no_lessons_yet": "Nya lektioner är på väg.",
     "placeholder_intro": "Lektionsanteckningar för det här kapitlet kommer snart. Använd videon tillsammans med dessa platshållaranteckningar för att känna på det nya upplägget under tiden.",
@@ -327,11 +355,20 @@
   },
   "connect": {
     "create_your_song": "Skapa din låt",
-    "connect_with_songwriters": "Anslut med låtskrivare",
+    "connect_with_songwriters": "Kom i kontakt med låtskrivare",
+    "pro": {
+      "title": "Kom i kontakt med proffsen",
+      "max_badge": "Max",
+      "locked_desc": "Ingår i Max. Uppgradera för att jobba direkt med professionella låtskrivare.",
+      "unlocked_desc": "Vi tar in professionella låtskrivare nu — du får veta först.",
+      "modal_title": "Kom i kontakt med professionella låtskrivare",
+      "modal_subtitle": "Direktkontakt med professionella låtskrivare ingår i Max.",
+      "modal_cta": "Uppgradera till Max"
+    },
     "hrs_active": "timmar aktiv",
     "projects": "projekt",
-    "recent_creations": "Senaste skapelser",
-    "no_posts_found": "Inga inlägg hittades i denna kategori. Bli den första att dela!",
+    "recent_creations": "Senaste skapelserna",
+    "no_posts_found": "Inga inlägg hittades i den här kategorin. Bli först med att dela!",
     "edit_post": "Redigera inlägg",
     "delete_post": "Ta bort inlägg",
     "share_link": "Dela länk",
@@ -342,13 +379,13 @@
     "post_comment": "Posta",
     "duplicate": "Duplicera",
     "duplicating": "Duplicerar...",
-    "duplicated_success": "Duplicerad framgångsrikt! Kolla nu",
-    "close_canvas": "Stäng canvas",
+    "duplicated_success": "Kopian är klar! Kolla in den",
+    "close_canvas": "Stäng canvasen",
     "delete_post_confirm": "Är du säker på att du vill ta bort detta inlägg?",
     "delete_comment_confirm": "Är du säker på att du vill ta bort denna kommentar?",
     "shared_new_lyric": "Delade en ny textkonstellation från arbetsytan.",
     "project_canvas": "Projektcanvas",
-    "cowriting_badge": "Samarbetsskrivande med Info",
+    "cowriting_badge": "Samskrivning med Info",
     "just_now": "Just nu",
     "untitled_song": "Namnlös låt"
   },
@@ -379,21 +416,23 @@
     "guitar_tuning": "Gitarrstämning",
     "recording_status": "Spelar in...",
     "sending_status": "Skickar...",
-    "send_to_canvas": "Skicka till canvas",
-    "export_options": "Exporteringsalternativ",
+    "send_to_canvas": "Skicka till canvasen",
+    "export_options": "Exportalternativ",
     "export_wav": "Exportera mix (.wav)",
     "export_mp3": "Exportera mix (.mp3)",
-    "hide_lyrics": "Dölj Lyrics",
-    "show_lyrics": "Visa Lyrics",
+    "hide_lyrics": "Dölj låttexten",
+    "show_lyrics": "Visa låttexten",
     "project_name": "Projektnamn",
-    "type_lyrics_placeholder": "Skriv dina låttexter...",
-    "or_start_inspiration": "eller starta med en inspiration",
+    "type_lyrics_placeholder": "Skriv din låttext...",
+    "or_start_inspiration": "eller börja med en inspiration",
     "drag_and_drop_files": "Dra och släpp dina filer",
     "upload_existing_files": "Importera befintliga filer",
     "inspiration_audio": "en befintlig låt, röstmemo eller beat",
-    "inspiration_photo": "ett foto av dina handskrivna texter",
-    "inspiration_doc": "en PDF, textfil eller ett Word-dokument med dina texter",
-    "drop_files_here": "Släpp dina filer här"
+    "inspiration_photo": "ett foto av din handskrivna låttext",
+    "inspiration_doc": "en PDF, textfil eller ett Word-dokument med din låttext",
+    "drop_files_here": "Släpp dina filer här",
+    "file_too_large_audio": "Den ljudfilen är lite för stor — prova en under 30MB",
+    "file_too_large": "Den filen är lite för stor — prova en under 3MB"
   },
   "progress": {
     "title": "Dina framsteg",
@@ -401,34 +440,36 @@
     "subtitle": "Slutför alla 3 målen för att nå Nivå 2",
     "mind_power_label": "Mental styrka",
     "mind_power_title_line1": "Låtskrivare",
-    "mind_power_title_line2": "Mental Styrka",
-    "mind_power_desc": "Låtskrivare Mental Styrka mäter tiden du lägger på att tänka och skapa låtar. Ditt sinne är en muskel. Ju mer du använder det, desto starkare blir det.",
-    "focus_timer": "Fokustimer",
+    "mind_power_title_line2": "Mental styrka",
+    "mind_power_desc": "Mental styrka mäter tiden du lägger på att tänka på och skapa låtar. Hjärnan är en muskel. Ju mer du använder den, desto starkare blir den.",
+    "focus_timer": "Fokustid",
     "section_progress": "Framsteg",
     "community": "Community",
     "projects_unit": "delat",
     "create": "Skapa",
-    "learn": "Lär",
+    "learn": "Lär dig",
     "practice": "Öva",
     "words": "ord",
     "min_rec": "min inspelning",
     "goal_prefix": "Mål:",
-    "words_written": "ord skrivna",
-    "chapters_checked": "kapitel avklarade",
-    "chapters_learned": "kapitel inlärda",
-    "min_practiced": "min övade",
+    "words_written": "skrivna ord",
+    "chapters_checked": "avklarade kapitel",
+    "chapters_learned": "inlärda kapitel",
+    "min_practiced": "min övat",
     "min_of_practice": "min övning",
     "proverbs": [
-      "Kom ihåg, små handlinger gör framsteg",
+      "Kom ihåg: små handlingar ger framsteg",
       "Varje rad du skriver tar dig närmare ditt mästerverk.",
-      "Konsistens er nyckeln till att låsa opp ditt kreativa geni.",
+      "Uthållighet är nyckeln till att låsa upp ditt kreativa geni.",
       "Bra låtar skrivs inte, de skrivs om.",
       "Ett enda ord kan väcka en hel symfoni.",
       "Små steg i låtskrivande leder till gigantiska kliv i melodi.",
       "Du bygger ditt arv, en textrad i taget.",
-      "Fortsätt att hälla din själ i duken; det lönar sig.",
-      "Att skapa konst kräver tålmodiat, och du gör det jättebra."
-    ]
+      "Fortsätt att lägga hela din själ i canvasen – det lönar sig.",
+      "Att skapa konst kräver tålamod, och du gör det jättebra."
+    ],
+    "progress_saved": "Sparar framsteg ...",
+    "songs_completed": "Låtar slutförda"
   },
   "profile": {
     "title": "Profil & inställningar",
@@ -440,13 +481,13 @@
     "save_details": "Spara uppgifter",
     "verify_title": "Bekräfta din nya e-postadress",
     "verify_sent": "Vi har skickat en bekräftelselänk till",
-    "verify_sent_end": ". Vänligen godkänn ändringen i din e-postklient för att bekräfta den.",
+    "verify_sent_end": ". Godkänn ändringen i din e-postklient för att bekräfta den.",
     "open_gmail": "Öppna Gmail",
     "simulate_click": "Simulera klick på bekräftelselänk",
     "cancel": "Avbryt",
     "success_title": "Bekräftelse slutförd",
     "success_desc": "Din e-postadress har uppdaterats till",
-    "returning_platform": ". Återvänder till plattformen...",
+    "returning_platform": ". Skickar dig tillbaka till plattformen...",
     "preferences": "Inställningar",
     "notifications_title": "E-postaviseringar",
     "notifications_desc": "Få uppdateringar om nya moduler och masterclass-evenemang.",
@@ -458,13 +499,13 @@
     "upgrade_to_max": "Uppgradera till Max",
     "need_assistance": "Behöver du hjälp?",
     "contact_concierge": "Kontakta support",
-    "error_update_email": "Det gick inte att uppdatera e-post. Vänligen logga in igen."
+    "error_update_email": "Det gick inte att uppdatera e-postadressen. Logga in igen och försök på nytt."
   },
   "email": {
     "welcome": {
       "subject": "Välkommen till Veinote, {{name}}",
       "greeting": "Hej {{name}},",
-      "body_1": "Välkommen till Veinote. Du har just öppnat ett utrymme byggt för en sak: att slutföra låtar du är stolt över.",
+      "body_1": "Välkommen till Veinote. Du har just öppnat en plats byggd för en enda sak: att göra klart låtar du är stolt över.",
       "body_2": "Din canvas är redo när du är det — texter, melodianteckningar och idéer i ett och samma flöde.",
       "cta": "Öppna din canvas",
       "signoff": "Vi ses därinne,",
@@ -472,11 +513,11 @@
     }
   },
   "practice": {
-    "master_song_structure": "Bemästra sångstruktur",
+    "master_song_structure": "Bemästra låtstruktur",
     "composing_verses": "Komponera verser",
     "melody_harmony": "Melodi & harmoni",
     "advanced_structures": "Avancerade strukturer",
-    "free_hand_session": "Frihandssession",
+    "free_hand_session": "Frihandsövning",
     "level_beginner": "Nybörjare",
     "level_intermediate": "Mellannivå",
     "level_advanced": "Avancerad",
@@ -484,12 +525,13 @@
     "progress": "Framsteg",
     "your_score": "Ditt resultat",
     "level": "Nivå",
+    "time_spent": "Tid spenderad",
     "choose_theme": "Välj ett tema",
     "select_theme_desc": "Välj det känslomässiga ankaret för dina verser",
     "theme": "Tema",
     "nouns": "Substantiv",
-    "link_nouns_verbs": "Koppla substantiv med verb",
-    "link_desc": "Koppla substantiv med verb 1 och 1 (ordningen spelar ingen roll)",
+    "link_nouns_verbs": "Koppla ihop substantiv och verb",
+    "link_desc": "Koppla ihop substantiv och verb, ett par i taget (ordningen spelar ingen roll)",
     "status": "Status",
     "complete_sentences": "Slutför meningarna",
     "example": "Exempel",
@@ -500,21 +542,21 @@
     "example_noun": "snö",
     "example_verb": "fallande",
     "example_winter": "på vintern",
-    "enter_noun": "Skriv in substantiv...",
-    "enter_verb": "Skriv in verb...",
-    "next_movement": "Nästa rörelse",
-    "input_required": "Inmatning krävs",
+    "enter_noun": "Skriv ett substantiv...",
+    "enter_verb": "Skriv ett verb...",
+    "next_movement": "Nästa sats",
+    "input_required": "Du måste fylla i något",
     "edit": "Redigera",
-    "type_5_nouns": "Skriv in 5 substantiv",
-    "type_5_verbs": "Skriv in 5 verb",
+    "type_5_nouns": "Skriv 5 substantiv",
+    "type_5_verbs": "Skriv 5 verb",
     "fill_more_prefix": "Fyll i",
     "fill_more_suffix": "till",
     "step_1_header": "Steg 01 — Tema",
-    "step_2_header": "Steg 02 — Kladda substantiv",
-    "step_3_header": "Steg 03 — Kladda verb",
+    "step_2_header": "Steg 02 — Skissa substantiv",
+    "step_3_header": "Steg 03 — Skissa verb",
     "step_4_header": "Steg 04 — Koppling",
     "step_5_header": "Steg 05 — Komposition",
-    "step_6_header": "Steg 06 — Uppenbarelse",
+    "step_6_header": "Steg 06 — Avslöjandet",
     "step": "Steg",
     "of": "av",
     "audio_unavailable": "Ljudströmmen är inte tillgänglig",
@@ -523,7 +565,7 @@
     "try_again": "Försök igen"
   },
   "curriculum": {
-    "foundation": "Fundament",
+    "foundation": "Grund",
     "resonance_of_silence": "Resonans av tystnad",
     "harmonic_architecture": "Harmonisk arkitektur",
     "rhythmic_geometry": "Rytmisk geometri",
@@ -535,11 +577,11 @@
     "melodic_counterpoint": "Melodisk kontrapunkt",
     "spectral_dynamics": "Spektral dynamik",
     "final_movement": "Den sista satsen",
-    "mastery_plateau": "Mästerplatå",
+    "mastery_plateau": "Mästerskapsplatå",
     "infinite_echo": "Oändligt eko",
     "introduction_to_theory": "Introduktion till teori",
     "technical_proficiency": "Teknisk skicklighet",
-    "emotional_expression": "Känslomässigt uttrykk"
+    "emotional_expression": "Känslomässigt uttryck"
   },
   "instruments": {
     "guitar": "Gitarr",
@@ -559,7 +601,7 @@
     "technique_title": "Teknik",
     "equipment_title": "Utrustning",
     "env_tip_1": "Hitta ett tyst rum med matta (undvik eko)",
-    "env_tip_2": "Stäng fönster och stäng av bakgrundsfläktar/AC",
+    "env_tip_2": "Stäng fönstren och slå av fläktar/AC",
     "tech_tip_1": "Placera mikrofonen 10-15 cm från munnen",
     "tech_tip_2": "Ställ in nivån så att topparna inte klipper (undvik röd zon)",
     "equip_tip_1": "Använd trådbundna hörlurar (nödvändigt för synkronisering)",
@@ -576,13 +618,13 @@
     "tip_mic_title": "Välj rätt mikrofon",
     "tip_mic_desc": "Innan du spelar in, se till att Demo Studio använder den mikrofon du vill spela in med.",
     "tip_quiet_title": "Spela in i ett tyst utrymme",
-    "tip_quiet_desc": "Bakgrundsljud och rums-eko blir en del av din inspelning. Ett tyst rum med gardiner, möbler eller andra mjuka ytor låter vanligtvis bättre.",
+    "tip_quiet_desc": "Bakgrundsljud och rumseko blir en del av din inspelning. Ett tyst rum med gardiner, möbler eller andra mjuka ytor låter oftast bättre.",
     "tip_pos_title": "Placera mikrofonen noggrant",
-    "tip_pos_desc": "Håll dig tillräckligt nära för att få ett rent ljud, men inte så nära att inspelningen blir förvrängd.",
+    "tip_pos_desc": "Håll dig tillräckligt nära för att få ett tydligt ljud, men inte så nära att inspelningen blir förvrängd.",
     "tip_apps_title": "Stäng onödiga appar",
     "tip_apps_desc": "Att stänga andra ljud-, video- eller webbläsarapplikationer kan förbättra prestandan och minska avbrott.",
-    "recommended_setup": "Rekommenderad konfiguration",
-    "recommended_setup_sub": "För en enkel och pålitlig inspelningskonfiguration rekommenderar vi:",
+    "recommended_setup": "Rekommenderat upplägg",
+    "recommended_setup_sub": "För ett enkelt och pålitligt inspelningsupplägg rekommenderar vi:",
     "rec_item_device": "En dator, surfplatta eller telefon",
     "rec_item_headphones": "Trådbundna hörlurar",
     "rec_item_mic": "En inbyggd eller extern mikrofon",
@@ -591,7 +633,7 @@
     "higher_quality_note": "För inspelningar med högre kvalitet kan du använda ett ljudkort med en mikrofon eller ett instrument anslutet till det.",
     "about_bluetooth": "Om Bluetooth",
     "about_bluetooth_desc": "Bluetooth-hörlurar är användbara för att lyssna, men de rekommenderas inte under inspelning. Bluetooth introducerar latens (fördröjning), vilket innebär att du kan höra ljudet något senare än du spelar eller sjunger.",
-    "got_it": "Uppfattat"
+    "got_it": "Jag förstår"
   },
   "support": {
     "title": "Kontakta support",
@@ -605,16 +647,292 @@
   "feedback_modal": {
     "title": "Din feedback gör Veinote bättre för alla.",
     "subject_placeholder": "Ämne / Vad gäller det?",
-    "message_placeholder": "Skriv din feedback eller idéer här...",
+    "message_placeholder": "Skriv din feedback eller dina idéer här...",
     "send": "Skicka feedback",
     "sending": "Skickar...",
     "success": "Din feedback har skickats. Tack!",
-    "error": "Det gick inte att skicka feedback. Kontrollera din anslutning och försök igen.",
-    "attachment_label": "Bilaga (Valfritt)",
+    "error": "Det gick inte att skicka din feedback. Kontrollera din anslutning och försök igen.",
+    "attachment_label": "Bilaga (valfritt)",
     "upload_placeholder": "Bifoga en bild, video eller PDF",
     "uploading_file": "Laddar upp bilaga...",
     "size_limit_error": "Filstorleken överskrider gränsen på 3 MB. Välj en mindre fil.",
-    "max_size_hint": "Maxstorlek: 3MB"
+    "max_size_hint": "Maxstorlek: 3 MB"
+  },
+  "language": {
+    "change": "Byt språk"
+  },
+  "home": {
+    "nav": {
+      "qa": "Frågor",
+      "signin": "Logga in",
+      "join": "Gå med nu"
+    },
+    "hero": {
+      "title_1": "Hela din",
+      "title_2": "låtskrivarresa.",
+      "title_3": "",
+      "description": "Från din allra första textidé till en färdig låt. Veinote samlar kraftfulla kreativa verktyg, vägledning från erfarna låtskrivare, praktiska övningar och en gemenskap som peppar dig medan du utvecklar ditt hantverk."
+    },
+    "urgency": {
+      "title": "Bli en av de första",
+      "spots_line_1": "Bara 13 platser kvar",
+      "spots_line_2": "innan tidig tillgång stänger."
+    },
+    "banner": {
+      "text": "Här är varför 92 % av alla musiker aldrig gör klart sina låtar.",
+      "cta": "Läs mer"
+    },
+    "blobs": {
+      "and": "och..."
+    },
+    "founder": {
+      "title_1": "Lär av",
+      "title_2": "erfarna proffs",
+      "role": "Medgrundare • singer-songwriter • producent",
+      "credential": "Platinasäljande låtskrivare, bland de 2 % bästa i världen",
+      "bio_1": "Med över 30 år som låtskrivare och mer än 250 släppta låtar är Peter med och utvecklar lektionerna, övningarna och de kreativa ramverken som följer dig genom hela Veinote.",
+      "bio_2": "Hans karriär rymmer listframgångar, internationella släpp, platinasäljande projekt och decennier som låtskrivare, producent, artist och pedagog."
+    },
+    "ai": {
+      "title": "... och intuitiva verktyg"
+    },
+    "faq": {
+      "title": "Frågor och svar",
+      "items": [
+        {
+          "question": "Måste jag kunna musikteori för att skriva en låt?",
+          "answer": "Nej. Många kända låtskrivare skriver på gehör och känsla. Veinote hjälper dig att göra dina musikaliska idéer till färdiga låtar, helt utan musikutbildning."
+        },
+        {
+          "question": "Vad kommer först, texten eller melodin?",
+          "answer": "Det finns inget rätt sätt! Vissa börjar med en melodi, andra med texten. Veinote fungerar med båda och gör det enkelt att få ihop ord och musik."
+        },
+        {
+          "question": "Mina texter känns bara klyschiga. Hur fixar jag det?",
+          "answer": "Texter blir som mest klyschiga när du beskriver känslorna för direkt. Veinote hjälper dig att visa i stället för att berätta, med förslag på detaljer och mönster som får dina låtar att kännas äkta."
+        },
+        {
+          "question": "Hur lång tid bör det ta att skriva en låt?",
+          "answer": "En låt kan ta 15 minuter eller flera månader. Våra verktyg är byggda för att du ska komma i gång direkt och göra klart dina låtar på timmar, inte veckor."
+        }
+      ]
+    },
+    "footer": {
+      "established": "Grundat 2026",
+      "about": "Om oss",
+      "privacy": "Integritet",
+      "designed": "Skapat av människor med kärlek, i Stockholm.",
+      "tagline_1": "Upptäck nya idéer, bygg dina färdigheter och bli en del av en växande gemenskap av låtskrivare.",
+      "tagline_2": "Lär. Skapa. Öva. Dela."
+    },
+    "redirecting": "Skickar dig vidare till plattformen..."
+  },
+  "onboarding": {
+    "go_back": "Gå tillbaka",
+    "intro": {
+      "next": "Nästa",
+      "get_started": "Kom igång",
+      "slides": {
+        "psychology": {
+          "title": "Psykologin bakom skrivande och framsteg"
+        },
+        "modern_way": {
+          "title": "Lär dig låtskrivande på det moderna sättet"
+        },
+        "tools": {
+          "title": "Alla verktyg du behöver för att skapa låtar"
+        },
+        "collab": {
+          "title": "Samarbeta live med andra låtskrivare i projekt"
+        },
+        "publish": {
+          "title": "Publicera dina låtar och få feedback"
+        },
+        "own": {
+          "title": "Du äger dina låtar"
+        }
+      }
+    },
+    "questions": {
+      "songwriter_type": {
+        "question": "Vad beskriver dig bäst?",
+        "options": {
+          "lyricist": "Textförfattaren: Orden kommer först.",
+          "melodist": "Melodiskaparen: Jag hör melodier före text.",
+          "producer": "Producenten: Jag bygger låtar med ljud och rytm.",
+          "storyteller": "Berättaren: Jag vill uttrycka känslor och upplevelser.",
+          "explorer": "Utforskaren: Jag letar fortfarande efter min stil."
+        }
+      },
+      "struggle": {
+        "question": "Vad kämpar du mest med?",
+        "options": {
+          "unfinished": "Jag börjar på låtar men gör aldrig klart dem.",
+          "weak_melodies": "Jag kan skriva text, men melodierna känns svaga.",
+          "no_structure": "Jag har idéer, men ingen struktur.",
+          "too_similar": "Allt låter för likt.",
+          "overthink": "Jag tänker för mycket och tappar inspirationen."
+        }
+      },
+      "dream_outcome": {
+        "question": "Vad vill du helst få ut av låtskrivandet?",
+        "options": {
+          "finish_songs": "Göra klart låtar jag är stolt över.",
+          "unique_sound": "Utveckla mitt eget sound.",
+          "move_people": "Skriva låtar som berör människor.",
+          "release_music": "Släppa musik professionellt.",
+          "creative_fearless": "Bli mer kreativ och orädd."
+        }
+      },
+      "emotional_inspiration": {
+        "question": "Vilken känsla drar dig mest?",
+        "options": {
+          "melancholic": "Melankoliskt och känslosamt",
+          "energetic": "Energiskt och peppande",
+          "cinematic": "Filmiskt och drömskt",
+          "dark": "Mörkt och rått",
+          "intimate": "Nära och akustiskt"
+        }
+      },
+      "creation_method": {
+        "question": "Hur brukar en låt börja för dig?",
+        "options": {
+          "lyric_phrase": "En textrad eller en fras",
+          "melody_head": "En melodi i huvudet",
+          "chords": "Ackord på gitarr eller piano",
+          "beat_production": "En beat eller en produktionsidé",
+          "improvisation": "Ren improvisation"
+        }
+      }
+    },
+    "hype": {
+      "messages": [
+        "Analyserar dina svar...",
+        "Rensar bort tråkig teori...",
+        "Prioriterar visuellt lärande..."
+      ],
+      "verdict_label": "Slutsatsen",
+      "verdict_title_prefix": "Du är en",
+      "verdict_title_emphasis": "visuell typ.",
+      "verdict_desc": "Du behöver inte fler övningar. Du behöver se musiken."
+    },
+    "auth": {
+      "title": "Säkra din plats",
+      "subtitle": "Skapa din inloggning för att fortsätta din låtskrivarresa.",
+      "email_placeholder": "E-postadress",
+      "password_placeholder": "Lösenord",
+      "creating": "Skapar konto...",
+      "continue": "Fortsätt",
+      "or": "eller",
+      "google": "Skapa med Google"
+    },
+    "paywall": {
+      "title": "Starta din förvandling.",
+      "subtitle": "3 dagars premiumåtkomst, gratis. Vi påminner dig innan den tar slut.",
+      "billing": {
+        "yearly": "Årsvis",
+        "monthly": "Månadsvis",
+        "save_badge": "Spara {pct} %",
+        "billed_yearly": "per månad, faktureras årsvis",
+        "billed_monthly": "per månad, faktureras månadsvis"
+      },
+      "recommended": "Rekommenderas",
+      "benefits_label": "Det här får du",
+      "features_label": "Funktioner",
+      "max_intro": "Allt i Pro, plus",
+      "coming_soon": "Kommer snart",
+      "plans": {
+        "pro": {
+          "name": "Pro",
+          "benefits": {
+            "fundamentals": "Bemästra grunderna",
+            "rhyme_lexicon": "Ta dina texter längre med rimlexikonet",
+            "production": "Låtproduktion från början till slut",
+            "mind_power": "Följ ditt tänkande och öva på plattformen, med terapi och produktivitet inbyggt",
+            "community": "Väx tillsammans med andra låtskrivare"
+          },
+          "soon": {
+            "stockholm_events": "Delta på Veinote-event i Stockholm"
+          },
+          "features": {
+            "canvas": "Canvas med full kontroll på inspelning och text",
+            "tools": "Gitarrstämmare, rimlexikon och tap tempo",
+            "collab": "Samarbeta med andra i samma projekt",
+            "demo_studio": "Demostudio – spela in direkt från laptopen",
+            "guided_writing": "Guidat skrivande, läkning genom skrivande och delning, inspirationer",
+            "files_backup": "Full filhantering och backup med lokal nedladdning",
+            "limits": "Begränsat antal filer och ljudinspelningar",
+            "sharing": "Dela dina låtar med andra låtskrivare"
+          }
+        },
+        "max": {
+          "name": "Max",
+          "benefits": {
+            "capacity": "Mer kapacitet – fler filer, mer inspelning, fler samarbetspartners",
+            "premium_songwriters": "Direkt tillgång till premiumlåtskrivare",
+            "pro_collab": "Möjligheter till professionella samarbeten",
+            "group_discussions": "Premium gruppdiskussioner – fråga vad som helst, få riktiga svar",
+            "books": "Böcker och hela paketet"
+          },
+          "soon": {},
+          "features": {}
+        }
+      },
+      "guarantee": "30 dagars pengarna-tillbaka-garanti",
+      "refund_policy": "Återbetalningspolicy",
+      "cta": "Testa för 0,00 $",
+      "opening_checkout": "Öppnar betalning...",
+      "checkout_error": "Vi kunde inte öppna betalningen. Försök igen.",
+      "no_charge": "Ingen betalning i dag.",
+      "reminder": "Vi mejlar dig innan din provperiod tar slut."
+    },
+    "errors": {
+      "enter_credentials": "Fyll i e-postadress och lösenord.",
+      "password_short": "Lösenordet måste vara minst 6 tecken.",
+      "email_in_use": "E-postadressen används redan. Logga in i stället.",
+      "signup_failed": "Det gick inte att skapa kontot. Kontrollera din anslutning och försök igen."
+    }
+  },
+  "signin": {
+    "title": "Redo att skriva?",
+    "subtitle": "Logga in för att fortsätta din låtskrivarresa.",
+    "email_placeholder": "E-postadress",
+    "password_placeholder": "Lösenord",
+    "forgot_password": "Glömt lösenordet?",
+    "signing_in": "Loggar in...",
+    "sign_in": "Logga in",
+    "or": "eller",
+    "google": "Fortsätt med Google",
+    "new_to_veinote": "Ny på Veinote?",
+    "join": "Gå med",
+    "reset_title": "Återställ ditt lösenord",
+    "reset_desc": "Fyll i din e-postadress så skickar vi en återställningslänk.",
+    "reset_spam_note": "Obs: Kolla skräpposten om länken inte dyker upp.",
+    "sending_link": "Skickar länk...",
+    "send_reset_link": "Skicka länk",
+    "back_to_signin": "Tillbaka till inloggningen",
+    "check_email": "Kolla din e-post",
+    "sent_desc_prefix": "Vi har skickat en återställningslänk till",
+    "sent_desc_suffix": ". Klicka på länken i mejlet för att välja ett nytt lösenord.",
+    "sent_spam_prefix": "Om du inte ser mejlet inom ett par minuter, kolla i",
+    "sent_spam_or": "eller",
+    "sent_spam_junk": "Skräppost",
+    "sent_spam_spam": "Spam",
+    "sent_spam_suffix": "-mappen.",
+    "errors": {
+      "enter_credentials": "Fyll i e-postadress och lösenord.",
+      "enter_email": "Fyll i din e-postadress.",
+      "invalid_credentials": "Fel e-postadress eller lösenord. Försök igen.",
+      "signin_failed": "Det gick inte att logga in. Försök igen.",
+      "reset_failed": "Det gick inte att skicka återställningsmejlet. Försök igen."
+    }
+  },
+  "auth_errors": {
+    "google_not_enabled": "Google-inloggning är inte aktiverad för den här sidan än. Prova ett annat sätt att logga in.",
+    "unauthorized_domain": "Den här domänen är inte godkänd för inloggning. Kontakta supporten.",
+    "popup_blocked": "Inloggningsfönstret blockerades av din webbläsare. Tillåt popup-fönster för den här sidan och försök igen.",
+    "popup_closed": "Inloggningsfönstret stängdes innan du var klar. Försök igen.",
+    "google_failed": "Det gick inte att logga in med Google. Försök igen."
   },
   "onboarding_tour": {
     "skip": "Hoppa över",
@@ -623,7 +941,7 @@
     "done": "Klar",
     "platform": {
       "mind_power_title": "Följ din Mind Power",
-      "mind_power_desc": "Den här raden fylls på när du skriver, spelar in, övar och delar. Det är ditt samlade skrivmomentum.",
+      "mind_power_desc": "Den här mätaren fylls på när du skriver, spelar in, övar och delar. Den visar ditt samlade momentum som låtskrivare.",
       "fundamentals_title": "Börja med grunderna",
       "fundamentals_desc": "Korta lektioner som bygger din låtskrivargrund, ett kapitel i taget.",
       "ideas_title": "Fastnat? Kolla idébanken",
@@ -632,16 +950,57 @@
       "create_nav_desc": "Gå till Create när du vill börja på en ny låt."
     },
     "create": {
-      "canvas_title": "Din textduk",
+      "canvas_title": "Din textcanvas",
       "canvas_desc": "Dubbelklicka var som helst för att börja skriva en rad. Dra in ljud, bilder eller dokument för att placera dem direkt i flödet.",
       "record_title": "Spela in idéer direkt",
-      "record_desc": "Fånga en melodi eller ett röstmemo när som helst — det blir ett kort på din duk.",
+      "record_desc": "Fånga en melodi eller ett röstmemo när som helst — det blir ett kort på din canvas.",
       "tools_title": "Kreativa verktyg",
       "tools_desc": "Öppna verktygspanelen för rimförslag, uppladdningar och mer.",
-      "studio_title": "Demostudio",
-      "studio_desc": "Lägg dina inspelningar i lager till en fullständig demomix när du är redo.",
+      "studio_title": "Demo Studio",
+      "studio_desc": "Lägg dina inspelningar i lager till en färdig demomix när du är redo.",
       "inspirations_title": "Behöver du inspiration?",
-      "inspirations_desc": "Få förslag och idéer utan att lämna duken."
+      "inspirations_desc": "Få förslag och idéer utan att lämna canvasen."
     }
+  },
+  "card": {
+    "document_attachment": "Bifogat dokument",
+    "extract_text": "Hämta text från dokumentet",
+    "delete_document_block": "Ta bort dokumentkortet",
+    "document_name_placeholder": "Namn på dokumentet...",
+    "scan": "Skanna",
+    "delete_document": "Ta bort dokumentet",
+    "delete_image": "Ta bort bilden",
+    "rename_recording": "Byt namn på inspelningen",
+    "name": "Namn",
+    "transcribing": "Transkriberar...",
+    "transcribing_audio": "Transkriberar ljudet...",
+    "transcribe_recording": "Transkribera inspelningen",
+    "delete_recording": "Ta bort inspelningen",
+    "dismiss": "Stäng",
+    "play": "Spela upp",
+    "pause": "Pausa",
+    "drag_hint": "Dra för att justera, dubbelklicka för att nollställa"
+  },
+  "audio": {
+    "no_lyrics_found": "Hittade ingen låttext i den här inspelningen."
+  },
+  "report": {
+    "title": "Rapportera det här",
+    "subtitle": "Berätta vad som är fel, så tittar en moderator på det.",
+    "reason_spam": "Spam eller bedrägeri",
+    "reason_harassment": "Trakasserier eller mobbning",
+    "reason_hate": "Hatiskt innehåll",
+    "reason_sexual": "Sexuellt innehåll",
+    "reason_self_harm": "Självskada eller självmord",
+    "reason_violence": "Våld eller hot",
+    "reason_copyright": "Upphovsrätt – det här är någon annans verk",
+    "reason_impersonation": "Utger sig för att vara någon annan",
+    "reason_other": "Något annat",
+    "note_placeholder": "Är det något mer vi bör veta? (valfritt)",
+    "privacy_note": "Ditt namn visas aldrig för den du rapporterar.",
+    "submit": "Skicka rapport",
+    "sent_title": "Tack",
+    "sent_body": "En moderator granskar det här. Vi berättar aldrig vem som har rapporterat.",
+    "error": "Det gick inte att skicka rapporten. Försök igen."
   }
 }

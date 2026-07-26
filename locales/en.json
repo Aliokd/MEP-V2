@@ -6,7 +6,12 @@
     "close": "Close",
     "confirm": "Confirm",
     "back": "Back",
-    "next": "Next"
+    "next": "Next",
+    "undo": "Undo",
+    "redo": "Redo",
+    "complete": "Complete",
+    "completing": "Completing",
+    "saved": "Saved"
   },
   "navigation": {
     "create": "Create",
@@ -37,7 +42,18 @@
     "lyrics_sidebar": "Lyrics",
     "empty_lyrics": "Your canvas lyrics will show up here as you write them.",
     "overwrite_title": "Overwrite",
-    "record_again": "Recording Again"
+    "record_again": "Recording Again",
+    "rec": "REC",
+    "recording": "Recording",
+    "play_pause": "Play / Pause",
+    "metronome_on": "On",
+    "play_metronome": "Play metronome",
+    "track_options": "Track options",
+    "drag_to_reorder": "Drag to reorder",
+    "custom_instrument": "Custom...",
+    "studio_badge": "Studio",
+    "reopen_in_studio": "Reopen in Demo Studio",
+    "add_to_studio": "Add to Demo Studio"
   },
   "canvas": {
     "tuner": "Guitar tuner",
@@ -48,7 +64,10 @@
     "create_song": "Create song",
     "wired_headphones_banner_text": "Use wired headphones for a high-quality low-latency recording session",
     "wired_headphones_more_tips": "More tips",
-    "wired_headphones_close": "Close"
+    "wired_headphones_close": "Close",
+    "creative_tools": "Creative tools",
+    "demo_studio_tooltip": "Record and mix your song",
+    "inspirations_tooltip": "Get ideas when you're stuck"
   },
   "inspiration": {
     "cards": {
@@ -235,7 +254,8 @@
     },
     "back": "back",
     "next": "next",
-    "add_to_canvas": "Add to canvas"
+    "add_to_canvas": "Add to canvas",
+    "no_response": "No answer yet"
   },
   "collab": {
     "invite_title": "Invite someone to collaborate with you in this project",
@@ -260,10 +280,18 @@
     "invited_you_banner": "invited you for collab",
     "join": "Join",
     "collab": "Collab",
-    "collab_title": "Collaborate on this project",
+    "collab_title": "Collaborate with other musicians",
     "publish": "Publish",
     "publishing": "Publishing",
-    "check_in_connect": "Check in Connect"
+    "check_in_connect": "Check in Connect",
+    "publish_tooltip": "Publish",
+    "publish_tooltip_shared": "Check your song in community",
+    "unlock_tooltip": "Unlock",
+    "lock_hold_hint": "Press to lock",
+    "unlock_hold_hint": "Press to unlock",
+    "lock_locked_toast": "Project locked — view only for everyone",
+    "lock_unlocked_toast": "Project unlocked — everyone can edit again",
+    "lock_banner": "Locked by the owner — view only"
   },
   "workspace": {
     "my_projects": "My Projects",
@@ -275,8 +303,8 @@
     "title": "Projects",
     "create_project": "Create new project",
     "untitled_note": "Untitled Song",
-    "delete_note": "Delete Note",
-    "duplicate_note": "Duplicate Note",
+    "delete_note": "Delete Project",
+    "duplicate_note": "Duplicate Project",
     "copy_suffix": "Copy",
     "sort_label": "Sort",
     "sort_newest": "Newest first",
@@ -300,10 +328,10 @@
     "video_not_supported": "Your browser does not support the video tag.",
     "master_fundamentals": "Master Fundamentals",
     "deep_dive": "Deep dive",
-    "coming_next_year": "Coming next year",
+    "coming_soon": "Coming soon",
     "deep_dive_desc": "More advanced music lessons are on their way. Check back soon.",
     "bank_of_ideas": "Bank of ideas",
-    "bank_of_ideas_desc": "Curated ideas and shortcuts are on their way.",
+    "bank_of_ideas_desc": "Curated ideas and shortcuts to help you write songs.",
     "bank_of_ideas_tooltip": "These tips are not rules.\nThey are simple ways to help you start, explore, and improve your lyrics.\nUse what feels useful.\nSkip what does not fit.\nThere is no single right way to write a song.",
     "back_to_overview": "Back to overview",
     "no_lessons_yet": "New lessons are on their way.",
@@ -328,6 +356,15 @@
   "connect": {
     "create_your_song": "Create your song",
     "connect_with_songwriters": "Connect with Songwriters",
+    "pro": {
+      "title": "Connect with PROs",
+      "max_badge": "Max",
+      "locked_desc": "Available on Max. Upgrade to work directly with professional songwriters.",
+      "unlocked_desc": "We're onboarding professional songwriters now — you'll be first to know.",
+      "modal_title": "Connect with professional songwriters",
+      "modal_subtitle": "Direct access to pro songwriters is part of the Max plan.",
+      "modal_cta": "Upgrade to Max"
+    },
     "hrs_active": "hrs active",
     "projects": "projects",
     "recent_creations": "Recent creations",
@@ -393,7 +430,9 @@
     "inspiration_audio": "an existing song, voice memo or beat",
     "inspiration_photo": "a photo of your handwritten lyrics",
     "inspiration_doc": "a PDF, text file or Word document of your lyrics",
-    "drop_files_here": "Drop your files here"
+    "drop_files_here": "Drop your files here",
+    "file_too_large_audio": "That audio is a bit too big — try one under 30MB",
+    "file_too_large": "That file is a bit too big — try one under 3MB"
   },
   "progress": {
     "title": "Your progress",
@@ -428,7 +467,9 @@
       "You are building your legacy, one lyric at a time.",
       "Keep pouring your soul into the canvas; it is paying off.",
       "Crafting art requires patience, and you are doing great."
-    ]
+    ],
+    "progress_saved": "Saving progress ...",
+    "songs_completed": "Songs completed"
   },
   "profile": {
     "title": "Profile & settings",
@@ -484,6 +525,7 @@
     "progress": "Progress",
     "your_score": "Your score",
     "level": "Level",
+    "time_spent": "Time spent",
     "choose_theme": "Choose a Theme",
     "select_theme_desc": "Select the emotional anchor for your verses",
     "theme": "Theme",
@@ -616,6 +658,282 @@
     "size_limit_error": "File size exceeds the 3MB limit. Please select a smaller file.",
     "max_size_hint": "Max size: 3MB"
   },
+  "language": {
+    "change": "Change language"
+  },
+  "home": {
+    "nav": {
+      "qa": "Q&A",
+      "signin": "Sign in",
+      "join": "Join now"
+    },
+    "hero": {
+      "title_1": "The complete",
+      "title_2": "songwriting",
+      "title_3": "journey.",
+      "description": "From your first lyric idea to a finished song, Veinote combines powerful creative tools, expert guidance, practical exercises, and a supportive community designed to help songwriters grow and develop their craft."
+    },
+    "urgency": {
+      "title": "Join the early founders",
+      "spots_line_1": "Only 13 spots left",
+      "spots_line_2": "before early access closes."
+    },
+    "banner": {
+      "text": "Here's why 92% of musicians never finish their songs.",
+      "cta": "Learn more"
+    },
+    "blobs": {
+      "and": "and..."
+    },
+    "founder": {
+      "title_1": "Learn from",
+      "title_2": "experienced professionals",
+      "role": "Co-founder • singer-songwriter • producer",
+      "credential": "Platinum-selling and top 2% songwriter worldwide",
+      "bio_1": "With more than 30 years of songwriting experience and over 250 released songs, Peter helps develop the lessons, exercises, and creative frameworks that guide songwriters throughout Veinote.",
+      "bio_2": "His career includes chart success, international releases, platinum-selling projects, and decades of experience as a songwriter, producer, performer, and educator."
+    },
+    "ai": {
+      "title": "... and intuitive tools"
+    },
+    "faq": {
+      "title": "Q&A",
+      "items": [
+        {
+          "question": "Do I need to know music theory to write a song?",
+          "answer": "No. Many famous songwriters write by ear and emotion. Veinote helps turn your musical ideas into finished songs, with no music degree needed."
+        },
+        {
+          "question": "What comes first: the lyrics or the melody?",
+          "answer": "There is no right way! Some start with a melody, others start with lyrics. Veinote works with both, helping you easily combine words and music."
+        },
+        {
+          "question": "My lyrics feel \"cheesy.\" How do I fix them?",
+          "answer": "Lyrics feel cheesiest when you describe feelings too directly. Veinote helps you show rather than tell, suggesting details and patterns to make your songs feel real."
+        },
+        {
+          "question": "How long should it take to write a song?",
+          "answer": "A song can take 15 minutes or several months. Our tools are built to help you get started right away and finish your songs in hours, not weeks."
+        }
+      ]
+    },
+    "footer": {
+      "established": "Established in 2026",
+      "about": "About",
+      "privacy": "Privacy",
+      "designed": "Designed by humans with love, in Stockholm.",
+      "tagline_1": "Discover new ideas, build your skills, and become part of a growing community of songwriters.",
+      "tagline_2": "Learn. Create. Practice. Connect."
+    },
+    "redirecting": "Redirecting to platform..."
+  },
+  "onboarding": {
+    "go_back": "Go back",
+    "intro": {
+      "next": "Next",
+      "get_started": "Get started",
+      "slides": {
+        "psychology": {
+          "title": "Psychology in writing and progress"
+        },
+        "modern_way": {
+          "title": "Learn songwriting the modern way"
+        },
+        "tools": {
+          "title": "All tools you need to create songs"
+        },
+        "collab": {
+          "title": "Live collab with other songwriters on projects"
+        },
+        "publish": {
+          "title": "Publish your songs and get feedback"
+        },
+        "own": {
+          "title": "Own your songs"
+        }
+      }
+    },
+    "questions": {
+      "songwriter_type": {
+        "question": "What describes you best?",
+        "options": {
+          "lyricist": "The Lyricist: Words come first.",
+          "melodist": "The Melodist: I hear melodies before lyrics.",
+          "producer": "The Producer: I build songs through sound and rhythm.",
+          "storyteller": "The Storyteller: I want to express emotions and experiences.",
+          "explorer": "The Explorer: I'm still discovering my style."
+        }
+      },
+      "struggle": {
+        "question": "What is your biggest struggle?",
+        "options": {
+          "unfinished": "I start songs but never finish them.",
+          "weak_melodies": "I can write lyrics, but melodies feel weak.",
+          "no_structure": "I have ideas, but no structure.",
+          "too_similar": "Everything sounds too similar.",
+          "overthink": "I overthink and lose inspiration."
+        }
+      },
+      "dream_outcome": {
+        "question": "What do you want most from songwriting?",
+        "options": {
+          "finish_songs": "Finish songs I'm proud of.",
+          "unique_sound": "Develop my own unique sound.",
+          "move_people": "Write songs that move people emotionally.",
+          "release_music": "Release music professionally.",
+          "creative_fearless": "Become more creative and fearless."
+        }
+      },
+      "emotional_inspiration": {
+        "question": "Which feeling pulls you the most?",
+        "options": {
+          "melancholic": "Melancholic & emotional",
+          "energetic": "Energetic & uplifting",
+          "cinematic": "Cinematic & dreamy",
+          "dark": "Dark & raw",
+          "intimate": "Intimate & acoustic"
+        }
+      },
+      "creation_method": {
+        "question": "How do songs usually begin for you?",
+        "options": {
+          "lyric_phrase": "A lyric or phrase",
+          "melody_head": "A melody in my head",
+          "chords": "Chords on guitar or piano",
+          "beat_production": "A beat or production idea",
+          "improvisation": "Pure improvisation"
+        }
+      }
+    },
+    "hype": {
+      "messages": [
+        "Analyzing answers...",
+        "Removing boring theory...",
+        "Prioritizing visual learning..."
+      ],
+      "verdict_label": "The Verdict",
+      "verdict_title_prefix": "You are a",
+      "verdict_title_emphasis": "Visual Learner.",
+      "verdict_desc": "You don't need more drills. You need to see the music."
+    },
+    "auth": {
+      "title": "Secure your path",
+      "subtitle": "Create your credentials to continue your songwriting journey.",
+      "email_placeholder": "Email Address",
+      "password_placeholder": "Password",
+      "creating": "Creating account...",
+      "continue": "Continue",
+      "or": "or",
+      "google": "Create with Google"
+    },
+    "paywall": {
+      "title": "Start your transformation.",
+      "subtitle": "3 days of premium access, free. We'll remind you before it ends.",
+      "billing": {
+        "yearly": "Yearly",
+        "monthly": "Monthly",
+        "save_badge": "Save {pct}%",
+        "billed_yearly": "per month, billed yearly",
+        "billed_monthly": "per month, billed monthly"
+      },
+      "recommended": "Recommended",
+      "benefits_label": "What you get",
+      "features_label": "Features",
+      "max_intro": "Everything in Pro, plus",
+      "coming_soon": "Coming soon",
+      "plans": {
+        "pro": {
+          "name": "Pro",
+          "benefits": {
+            "fundamentals": "Master the fundamentals",
+            "rhyme_lexicon": "Take your lyrics further with the rhyme lexicon",
+            "production": "End-to-end song production",
+            "mind_power": "Track your thinking and practise on the platform, with therapy and productivity built in",
+            "community": "Grow alongside other songwriters"
+          },
+          "soon": {
+            "stockholm_events": "Attend Veinote events in Stockholm"
+          },
+          "features": {
+            "canvas": "Canvas with end-to-end recording and lyrics control",
+            "tools": "Guitar tuner, rhyme lexicon and tap tempo",
+            "collab": "Collaborate with others in the same project",
+            "demo_studio": "Demo studio — record straight from your laptop",
+            "guided_writing": "Guided writing, healing through writing and sharing, inspirations",
+            "files_backup": "Full file management and backup with local download",
+            "limits": "Limited files and audio recording",
+            "sharing": "Share your songs with other songwriters"
+          }
+        },
+        "max": {
+          "name": "Max",
+          "benefits": {
+            "capacity": "More capacity — more files, more recording, more collaborators",
+            "premium_songwriters": "Direct access to premium songwriters",
+            "pro_collab": "Pro collaboration opportunities",
+            "group_discussions": "Premium group discussions — ask anything, get real answers",
+            "books": "Books and the full package"
+          },
+          "soon": {},
+          "features": {}
+        }
+      },
+      "guarantee": "30-day money-back guarantee",
+      "refund_policy": "Refund policy",
+      "cta": "Try for $0.00",
+      "opening_checkout": "Opening checkout...",
+      "checkout_error": "We couldn't open the checkout. Please try again.",
+      "no_charge": "No charge today.",
+      "reminder": "We'll email you before your free trial ends."
+    },
+    "errors": {
+      "enter_credentials": "Please enter your email and password.",
+      "password_short": "Password must be at least 6 characters long.",
+      "email_in_use": "This email address is already in use. Please sign in instead.",
+      "signup_failed": "Failed to create account. Please check your network or try again."
+    }
+  },
+  "signin": {
+    "title": "Ready to write?",
+    "subtitle": "Sign in to continue your songwriting journey.",
+    "email_placeholder": "Email Address",
+    "password_placeholder": "Password",
+    "forgot_password": "Forgot password?",
+    "signing_in": "Signing in...",
+    "sign_in": "Sign in",
+    "or": "or",
+    "google": "Continue with Google",
+    "new_to_veinote": "New to Veinote?",
+    "join": "Join now",
+    "reset_title": "Reset your password",
+    "reset_desc": "Enter your email and we'll send you a recovery link.",
+    "reset_spam_note": "Note: Please check your spam folder if the recovery link doesn't arrive.",
+    "sending_link": "Sending link...",
+    "send_reset_link": "Send reset link",
+    "back_to_signin": "Back to sign in",
+    "check_email": "Check your email",
+    "sent_desc_prefix": "We sent a password reset link to",
+    "sent_desc_suffix": ". Click the link in your email to reset your password.",
+    "sent_spam_prefix": "If you don't see the email within a couple of minutes, please check your",
+    "sent_spam_or": "or",
+    "sent_spam_junk": "Junk",
+    "sent_spam_spam": "Spam",
+    "sent_spam_suffix": " folder.",
+    "errors": {
+      "enter_credentials": "Please enter your email and password.",
+      "enter_email": "Please enter your email address.",
+      "invalid_credentials": "Invalid email or password. Please try again.",
+      "signin_failed": "Failed to sign in. Please try again.",
+      "reset_failed": "Failed to send password reset email. Please try again."
+    }
+  },
+  "auth_errors": {
+    "google_not_enabled": "Google sign-in is not enabled for this site yet. Please try another sign-in method.",
+    "unauthorized_domain": "This domain is not authorized for sign-in. Please contact support.",
+    "popup_blocked": "The sign-in window was blocked by your browser. Please allow pop-ups for this site and try again.",
+    "popup_closed": "The sign-in window was closed before you finished. Please try again.",
+    "google_failed": "Failed to sign in with Google. Please try again."
+  },
   "onboarding_tour": {
     "skip": "Skip",
     "back": "Back",
@@ -643,5 +961,46 @@
       "inspirations_title": "Need inspiration?",
       "inspirations_desc": "Get prompts and ideas without leaving the canvas."
     }
+  },
+  "card": {
+    "document_attachment": "Document Attachment",
+    "extract_text": "Extract text from document",
+    "delete_document_block": "Delete document block",
+    "document_name_placeholder": "Document name...",
+    "scan": "Scan",
+    "delete_document": "Delete document",
+    "delete_image": "Delete image",
+    "rename_recording": "Rename recording",
+    "name": "Name",
+    "transcribing": "Transcribing...",
+    "transcribing_audio": "Transcribing audio...",
+    "transcribe_recording": "Transcribe recording",
+    "delete_recording": "Delete recording",
+    "dismiss": "Dismiss",
+    "play": "Play",
+    "pause": "Pause",
+    "drag_hint": "Drag to adjust, double-click to reset"
+  },
+  "audio": {
+    "no_lyrics_found": "No spoken lyrics found in this recording."
+  },
+  "report": {
+    "title": "Report this",
+    "subtitle": "Tell us what's wrong and a moderator will look at it.",
+    "reason_spam": "Spam or scam",
+    "reason_harassment": "Harassment or bullying",
+    "reason_hate": "Hate speech",
+    "reason_sexual": "Sexual content",
+    "reason_self_harm": "Self-harm or suicide",
+    "reason_violence": "Violence or threats",
+    "reason_copyright": "Copyright — this is someone else's work",
+    "reason_impersonation": "Pretending to be someone else",
+    "reason_other": "Something else",
+    "note_placeholder": "Anything else we should know? (optional)",
+    "privacy_note": "Your name is never shown to the person you're reporting.",
+    "submit": "Send report",
+    "sent_title": "Thank you",
+    "sent_body": "A moderator will review this. We never tell the other person who reported them.",
+    "error": "Couldn't send the report. Please try again."
   }
 }

@@ -5,12 +5,13 @@ import SupportModal from './components/SupportModal';
 import FeedbackModal from './components/FeedbackModal';
 import MindPowerPanel from './components/MindPowerPanel';
 import { useAuth } from '@/context/AuthContext';
-import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { TreePine, Menu, User, Play, Pause, X, RotateCcw, Brain, ChevronRight } from 'lucide-react';
 import Logo from '@/components/Logo';
+import Tooltip from '@/components/Tooltip';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getCountFromServer } from 'firebase/firestore';
 
@@ -85,6 +86,7 @@ function PlatformLayoutInner({
     // Create section sub-metrics
     const [wordsTyped, setWordsTyped] = useState(0);
     const [recordingMinutes, setRecordingMinutes] = useState(0);
+    const [songsCompleted, setSongsCompleted] = useState(0);
 
     // Practice section sub-metrics
     const [practiceMinutes, setPracticeMinutes] = useState(0);
@@ -102,8 +104,28 @@ function PlatformLayoutInner({
     const [activeQuote, setActiveQuote] = useState('Remember, small actions makes progress');
     const [showConfettiOverlay, setShowConfettiOverlay] = useState(false);
     const [showProgressGlow, setShowProgressGlow] = useState(false);
-    const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    // Complete/Publish glows run at 2s to stay in step with the canvas + button gradients;
+    // the daily milestone glow keeps its longer 3.4s celebration.
+    const [isQuickGlow, setIsQuickGlow] = useState(false);
     const glowTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // The Mind Power / "Progress saved..." label-swap keeps both strings mounted (for the
+    // slide transform), which by default reserves width for whichever is wider regardless
+    // of which is actually showing. Measure both and size the wrapper to just the active
+    // one instead, so the pill doesn't sit wider than its current content needs.
+    const mobileLabelRef = useRef<HTMLSpanElement>(null);
+    const mobileSavedLabelRef = useRef<HTMLSpanElement>(null);
+    const [mobileLabelWidth, setMobileLabelWidth] = useState<number | undefined>(undefined);
+    const desktopLabelRef = useRef<HTMLSpanElement>(null);
+    const desktopSavedLabelRef = useRef<HTMLSpanElement>(null);
+    const [desktopLabelWidth, setDesktopLabelWidth] = useState<number | undefined>(undefined);
+
+    useEffect(() => {
+        const mobileEl = isQuickGlow ? mobileSavedLabelRef.current : mobileLabelRef.current;
+        const desktopEl = isQuickGlow ? desktopSavedLabelRef.current : desktopLabelRef.current;
+        if (mobileEl) setMobileLabelWidth(mobileEl.scrollWidth);
+        if (desktopEl) setDesktopLabelWidth(desktopEl.scrollWidth);
+    });
 
     const recalculateProgress = () => {
         // Learn: how many lessons checked (no cap)
@@ -120,6 +142,12 @@ function PlatformLayoutInner({
         // Practice: minutes spent on Practice page (no cap)
         const practiceSeconds = parseInt(localStorage.getItem('mep-practice-seconds') || '0');
         const pracMins = parseFloat((practiceSeconds / 60).toFixed(1));
+
+        // Distinct songs the user has pressed Complete on — surfaced in the panel so the
+        // celebration has a concrete number behind it.
+        let songsDone = 0;
+        try { songsDone = (JSON.parse(localStorage.getItem('mep-completed-songs') || '[]') as string[]).length; } catch {}
+        setSongsCompleted(songsDone);
 
         setCompletedLessonsCount(lCount);
         setWordsTyped(words);
@@ -206,18 +234,20 @@ function PlatformLayoutInner({
             }
             
             if (shouldAutoPop) {
-                // Show tooltip automatically
-                setShowTooltip(true);
-                if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
-                tooltipTimeoutRef.current = setTimeout(() => {
-                    setShowTooltip(false);
-                }, 6000);
+                // The glow ring alone is enough of a progress hint — don't force the panel open,
+                // let the user click in to see details.
 
                 // Trigger the achievement glow border on every progress update
                 setShowProgressGlow(true);
                 if (glowTimeoutRef.current) clearTimeout(glowTimeoutRef.current);
                 glowTimeoutRef.current = setTimeout(() => {
                     setShowProgressGlow(false);
+                    // This timer shares glowTimeoutRef with handleCelebrate below — if this
+                    // milestone timeout ends up being the one left standing (it can win the
+                    // race depending on dispatch order), it must also clear isQuickGlow, or
+                    // the label gets stuck on "Saving progress..." with nothing left to flip
+                    // it back to "Mind Power".
+                    setIsQuickGlow(false);
                 }, 3400);
 
                 // Confetti overlay trigger
@@ -229,10 +259,27 @@ function PlatformLayoutInner({
             }
         };
 
+        // Fired by Complete/Publish in the Create canvas. Unlike the progress event above,
+        // this always glows — it's immediate feedback for the action just taken, not a
+        // once-a-day milestone celebration.
+        const handleCelebrate = () => {
+            recalculateProgress();
+            setIsQuickGlow(true);
+            setShowProgressGlow(true);
+            if (glowTimeoutRef.current) clearTimeout(glowTimeoutRef.current);
+            // Matches .mind-power-glow-ring--quick's 2s animation-duration — it was previously
+            // left mounted 1.6s after the ring visually finished, reading as sluggish.
+            glowTimeoutRef.current = setTimeout(() => {
+                setShowProgressGlow(false);
+                setIsQuickGlow(false);
+            }, 2000);
+        };
+
         window.addEventListener('songwriting-progress-updated', handleProgressUpdate);
+        window.addEventListener('veinote-celebrate', handleCelebrate);
         return () => {
             window.removeEventListener('songwriting-progress-updated', handleProgressUpdate);
-            if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+            window.removeEventListener('veinote-celebrate', handleCelebrate);
             if (glowTimeoutRef.current) clearTimeout(glowTimeoutRef.current);
         };
     }, []);
@@ -440,15 +487,39 @@ function PlatformLayoutInner({
                     pathname?.startsWith('/platform/create') ? 'bg-[#F5F4EE] border-none mb-0' : 'bg-[#E4E4DF] border-b border-stone-250/10 mb-4'
                 }`}>
                     <div className="relative flex flex-col items-center w-full" ref={popupRef}>
-                        {showProgressGlow && <div className="mind-power-glow-ring" />}
+                        {showProgressGlow && <div className={`mind-power-glow-ring ${isQuickGlow ? "mind-power-glow-ring--quick" : ""}`} />}
                         <div
                             onClick={() => setShowTooltip(!showTooltip)}
                             data-tour="mind-power"
-                            className="relative flex items-center gap-3 w-full bg-white/50 border border-stone-200/40 px-5 py-3 rounded-[20px] select-none cursor-pointer transition-all active:scale-[0.99] shadow-2xs font-sans text-xs text-stone-500 font-medium normal-case"
+                            className="relative flex items-center w-full bg-white/50 border border-stone-200/40 px-5 py-3 rounded-[20px] select-none cursor-pointer transition-all active:scale-[0.99] shadow-2xs font-sans text-xs text-stone-500 font-medium normal-case"
                         >
+                            <div className="flex items-center gap-3">
                             <Brain size={16} className="text-stone-600 shrink-0" strokeWidth={1.5} />
-                            <span className="font-semibold text-stone-600 shrink-0">{t('progress.mind_power_label')}</span>
-                            <div className="flex-1 h-2.5 bg-stone-200/70 rounded-full overflow-hidden relative">
+                            {/* Label swaps to "Progress saved" on a Complete, then slides back.
+                                The movement is the point: it pulls the eye to Mind Power so the
+                                canvas action visibly lands somewhere. */}
+                            <span
+                                className="relative block h-5 overflow-hidden shrink-0 leading-5 mr-1 transition-[width] duration-300 ease-out"
+                                style={{ width: mobileLabelWidth }}
+                                aria-live="polite"
+                            >
+                                <span
+                                    ref={mobileLabelRef}
+                                    className="block font-medium text-stone-600 whitespace-nowrap leading-5 transition-transform duration-500 ease-out"
+                                    style={{ transform: isQuickGlow ? 'translateY(-20px)' : 'translateY(0)' }}
+                                >
+                                    {t('progress.mind_power_label')}
+                                </span>
+                                <span
+                                    ref={mobileSavedLabelRef}
+                                    className="block font-medium text-[#5f8f58] whitespace-nowrap leading-5 transition-transform duration-500 ease-out"
+                                    style={{ transform: isQuickGlow ? 'translateY(-20px)' : 'translateY(0)' }}
+                                >
+                                    {t('progress.progress_saved')}
+                                </span>
+                            </span>
+                            </div>
+                            <div className="flex-1 h-2 bg-stone-200/70 rounded-full overflow-hidden relative">
                                 <div
                                     className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out"
                                     style={{ width: `${levelProgress}%` }}
@@ -458,13 +529,14 @@ function PlatformLayoutInner({
 
                         {/* Mind Power panel — appears below the progress pill */}
                         {showTooltip && (
-                            <div className="absolute top-12 left-1/2 -translate-x-1/2 animate-in fade-in slide-in-from-top-1.5 duration-200 z-50">
+                            <div className="absolute top-12 left-1/2 mind-power-panel-enter z-50">
                                 <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#F5F4EE] border-l border-t border-stone-200/70 rotate-45 z-10" />
                                 <FocusMindPowerPanel
                                     t={t}
                                     progressLevel={progressLevel}
                                     levelProgress={levelProgress}
                                     wordsTyped={wordsTyped}
+                                    songsCompleted={songsCompleted}
                                     recordingMinutes={recordingMinutes}
                                     wordsGoal={L1_WORDS}
                                     completedLessonsCount={completedLessonsCount}
@@ -488,15 +560,39 @@ function PlatformLayoutInner({
                     {/* Centered navigation items: Progress Bar Capsule & Tooltip */}
                     <div className="flex items-center gap-3 font-medium">
                         <div className="relative flex flex-col items-center" ref={popupRef}>
-                            {showProgressGlow && <div className="mind-power-glow-ring" />}
+                            {showProgressGlow && <div className={`mind-power-glow-ring ${isQuickGlow ? "mind-power-glow-ring--quick" : ""}`} />}
                             <div
                                 onClick={() => setShowTooltip(!showTooltip)}
                                 data-tour="mind-power"
-                                className="relative flex items-center gap-3 bg-white/50 hover:bg-white/70 border border-stone-200/80 px-6 py-3 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-sm text-stone-650 font-bold normal-case tracking-normal"
+                                className="relative flex items-center bg-white/50 hover:bg-white/70 border border-stone-200/80 px-6 py-3 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-sm text-stone-650 font-bold normal-case tracking-normal"
                             >
+                                <div className="flex items-center gap-3">
                                 <Brain size={19} className="text-stone-600 shrink-0" strokeWidth={1.5} />
-                                <span className="font-semibold text-stone-600">{t('progress.mind_power_label')}</span>
-                                <div className="w-28 h-3.5 bg-stone-200/70 rounded-full overflow-hidden relative">
+                            {/* Label swaps to "Progress saved" on a Complete, then slides back.
+                                The movement is the point: it pulls the eye to Mind Power so the
+                                canvas action visibly lands somewhere. */}
+                            <span
+                                className="relative block h-5 overflow-hidden shrink-0 leading-5 mr-1 transition-[width] duration-300 ease-out"
+                                style={{ width: desktopLabelWidth }}
+                                aria-live="polite"
+                            >
+                                <span
+                                    ref={desktopLabelRef}
+                                    className="block font-medium text-stone-600 whitespace-nowrap leading-5 transition-transform duration-500 ease-out"
+                                    style={{ transform: isQuickGlow ? 'translateY(-20px)' : 'translateY(0)' }}
+                                >
+                                    {t('progress.mind_power_label')}
+                                </span>
+                                <span
+                                    ref={desktopSavedLabelRef}
+                                    className="block font-medium text-[#5f8f58] whitespace-nowrap leading-5 transition-transform duration-500 ease-out"
+                                    style={{ transform: isQuickGlow ? 'translateY(-20px)' : 'translateY(0)' }}
+                                >
+                                    {t('progress.progress_saved')}
+                                </span>
+                            </span>
+                                </div>
+                                <div className="w-28 h-2.5 bg-stone-200/70 rounded-full overflow-hidden relative">
                                     <div
                                         className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out"
                                         style={{ width: `${levelProgress}%` }}
@@ -506,13 +602,14 @@ function PlatformLayoutInner({
                             
                             {/* Mind Power panel — appears below the progress pill */}
                             {showTooltip && (
-                                <div className="absolute top-14 left-1/2 -translate-x-1/2 animate-in fade-in slide-in-from-top-1.5 duration-200 z-50">
+                                <div className="absolute top-14 left-1/2 mind-power-panel-enter z-50">
                                     <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#F5F4EE] border-l border-t border-stone-200/70 rotate-45 z-10" />
                                     <FocusMindPowerPanel
                                         t={t}
                                         progressLevel={progressLevel}
                                         levelProgress={levelProgress}
                                         wordsTyped={wordsTyped}
+                                    songsCompleted={songsCompleted}
                                         recordingMinutes={recordingMinutes}
                                         wordsGoal={L1_WORDS}
                                         completedLessonsCount={completedLessonsCount}
@@ -586,24 +683,25 @@ function PlatformLayoutInner({
                         />
                         
                         {!isPlaying && !hasEnded && (
-                            <div 
+                            <div
                                 onClick={togglePlay}
-                                className="absolute inset-0 flex items-center justify-center bg-white cursor-pointer group transition-all duration-300 z-10"
+                                className="absolute inset-0 flex items-center justify-center bg-black/10 cursor-pointer group transition-all duration-300 z-10"
                             >
-                                <Play className="w-24 h-24 md:w-32 md:h-32 fill-stone-200 text-stone-200 stroke-none group-hover:scale-105 transition-all duration-300" />
+                                <Play className="w-24 h-24 md:w-32 md:h-32 fill-white/90 text-white/90 stroke-none drop-shadow-lg group-hover:scale-105 transition-all duration-300" />
                             </div>
                         )}
 
                         {hasEnded && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-20 p-8 text-center animate-in fade-in duration-300">
-                                <button
-                                    onClick={handleReplay}
-                                    className="p-4 text-stone-600 hover:text-stone-900 hover:bg-stone-50 rounded-full transition-all cursor-pointer active:scale-95 flex items-center justify-center mb-6 border border-stone-150 bg-stone-50/50 shadow-xs"
-                                    aria-label="Replay video"
-                                    title="Replay video"
-                                >
-                                    <RotateCcw className="w-8 h-8 stroke-[1.5]" />
-                                </button>
+                                <Tooltip label="Replay video">
+                                    <button
+                                        onClick={handleReplay}
+                                        className="p-4 text-stone-600 hover:text-stone-900 hover:bg-stone-50 rounded-full transition-all cursor-pointer active:scale-95 flex items-center justify-center mb-6 border border-stone-150 bg-stone-50/50 shadow-xs"
+                                        aria-label="Replay video"
+                                    >
+                                        <RotateCcw className="w-8 h-8 stroke-[1.5]" />
+                                    </button>
+                                </Tooltip>
                                 
                                 <button
                                     onClick={handleCloseWelcomeModal}
@@ -625,9 +723,5 @@ export default function PlatformLayout({
 }: {
     children: React.ReactNode;
 }) {
-    return (
-        <LanguageProvider>
-            <PlatformLayoutInner>{children}</PlatformLayoutInner>
-        </LanguageProvider>
-    );
+    return <PlatformLayoutInner>{children}</PlatformLayoutInner>;
 }

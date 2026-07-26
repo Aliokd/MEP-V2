@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { featureGuard } from '@/lib/featureFlags';
 
 const ALLOWED_INSTRUMENTS = ['guitar', 'piano', 'drums', 'vocals', 'synth', 'custom'] as const;
 type Instrument = typeof ALLOWED_INSTRUMENTS[number];
@@ -22,6 +23,11 @@ function detectMimeType(buffer: Buffer, contentTypeHeader: string): string {
 // (missing/invalid API key, network error, an unparseable model response) falls back to the
 // generic 'custom' instrument rather than surfacing an error to the caller.
 export async function POST(request: Request) {
+    // Kill switch: an admin can disable this endpoint from the console
+    // without a deploy (see lib/featureFlags.ts).
+    const disabled = await featureGuard('classify_instrument');
+    if (disabled) return disabled;
+
     try {
         const contentType = request.headers.get('content-type') || '';
         let rawBuffer: ArrayBuffer | null = null;

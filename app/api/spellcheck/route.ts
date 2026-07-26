@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
+import { featureGuard } from '@/lib/featureFlags';
 
 // Simple cache to store spellcheck results
 const spellcheckCache = new Map<string, any>();
 
 export async function GET(request: Request) {
+    // Kill switch: an admin can disable this endpoint from the console
+    // without a deploy (see lib/featureFlags.ts).
+    const disabled = await featureGuard('spellcheck');
+    if (disabled) return disabled;
+
   try {
     const { searchParams } = new URL(request.url);
     const word = searchParams.get('word');

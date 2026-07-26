@@ -5,12 +5,28 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
     "./app/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
       colors: {
         charcoal: "#0a0a0a",
         alabaster: "#F0F0F0",
+        // Veinote Admin surface ramp. Scoped to app/admin/** — the platform stays
+        // on its light stone/#FAF9F5 palette and is unaffected by these.
+        ink: {
+          950: "#0B0B0C", // page background
+          900: "#0E0E0F", // sidebar
+          850: "#141416", // panel
+          800: "#17181A", // raised panel / row hover
+          700: "#1E1F22", // input, active row
+          600: "#26282C", // border
+          500: "#3A3D42", // strong border, disabled text
+          400: "#6B7078", // muted text
+          300: "#9AA0A8", // secondary text
+          200: "#C9CDD2", // body text
+          100: "#E8E8E6", // primary text
+        },
         gold: {
           50: '#FAF7F2',
           100: '#F2E9D4',

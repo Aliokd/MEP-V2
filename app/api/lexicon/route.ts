@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
+import { featureGuard } from '@/lib/featureFlags';
 
 // Server-side in-memory cache for multilingual lexicon queries
 const lexiconCache = new Map<string, any>();
 
 export async function GET(request: Request) {
+    // Kill switch: an admin can disable this endpoint from the console
+    // without a deploy (see lib/featureFlags.ts).
+    const disabled = await featureGuard('lexicon');
+    if (disabled) return disabled;
+
   try {
     const { searchParams } = new URL(request.url);
     const word = searchParams.get('word');

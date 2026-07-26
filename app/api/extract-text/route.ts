@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { featureGuard } from '@/lib/featureFlags';
 
 async function extractPdfTextViaGemini(buffer: Buffer): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -73,6 +74,11 @@ If the PDF has no extractable text at all, output EXACTLY: NO_TEXT`;
 }
 
 export async function POST(request: Request) {
+    // Kill switch: an admin can disable this endpoint from the console
+    // without a deploy (see lib/featureFlags.ts).
+    const disabled = await featureGuard('extract_text');
+    if (disabled) return disabled;
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;

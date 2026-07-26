@@ -9,7 +9,8 @@ import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { useLanguage } from '@/context/LanguageContext';
-import LanguageSwitcher from './LanguageSwitcher';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import Tooltip from '@/components/Tooltip';
 
 interface MaestroSidebarProps {
     isMobileOpen?: boolean;
@@ -144,45 +145,49 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                 const isActive = pathname === item.href;
                                 const Icon = item.icon;
                                 return (
-                                    <Link key={item.label} href={item.href} onClick={onClose} className="block w-full" data-tour={item.href === '/platform/create' ? 'nav-create' : undefined}>
-                                        <div className={`
-                                            flex items-center justify-center py-3 w-full rounded-[12px] transition-all group cursor-pointer
-                                            ${isActive 
-                                                ? 'bg-white text-stone-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40' 
-                                                : 'text-stone-500 hover:text-stone-800 hover:bg-white/30'
-                                            }
-                                        `}>
-                                            <Icon 
-                                                size={18} 
-                                                className={`${isActive ? 'text-stone-800' : 'text-stone-500 group-hover:text-stone-700'} stroke-[2.2] shrink-0`} 
-                                            />
-                                        </div>
-                                    </Link>
+                                    <Tooltip key={item.label} label={item.label} side="right">
+                                        <Link href={item.href} onClick={onClose} className="block w-full" data-tour={item.href === '/platform/create' ? 'nav-create' : undefined}>
+                                            <div className={`
+                                                flex items-center justify-center py-3 w-full rounded-[12px] transition-all group cursor-pointer
+                                                ${isActive
+                                                    ? 'bg-white text-stone-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40'
+                                                    : 'text-stone-500 hover:text-stone-800 hover:bg-white/30'
+                                                }
+                                            `}>
+                                                <Icon
+                                                    size={18}
+                                                    className={`${isActive ? 'text-stone-800' : 'text-stone-500 group-hover:text-stone-700'} stroke-[2.2] shrink-0`}
+                                                />
+                                            </div>
+                                        </Link>
+                                    </Tooltip>
                                 );
                             })}
                         </nav>
 
                         {/* Bottom Actions — icon-only equivalents of the expanded view's language/feedback/logout */}
                         <div className="flex flex-col items-center gap-2 w-full mt-auto pt-6">
-                            <LanguageSwitcher iconOnly />
-                            <button
-                                onClick={onFeedbackClick}
-                                aria-label={t('navigation.feedback')}
-                                title={t('navigation.feedback')}
-                                className="flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" className="w-[16px] h-[16px]">
-                                    <path d="M170,112a6,6,0,0,1-6,6H96a6,6,0,0,1,0-12h68A6,6,0,0,1,170,112Zm-6,26H96a6,6,0,0,0,0,12h68a6,6,0,0,0,0-12Zm66-14a98.11,98.11,0,0,1-98,98H48a14,14,0,0,1-14-14V124a98,98,0,0,1,196,0Zm-12,0a86,86,0,0,0-172,0v84a2,2,0,0,0,2,2h84A86.1,86.1,0,0,0,218,124Z"></path>
-                                </svg>
-                            </button>
-                            <button
-                                onClick={handleSignOut}
-                                aria-label={t('navigation.logout')}
-                                title={t('navigation.logout')}
-                                className="flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
-                            >
-                                <LogOut size={16} className="stroke-[2.2]" />
-                            </button>
+                            <LanguageSwitcher iconOnly tooltipSide="right" />
+                            <Tooltip label={t('navigation.feedback')} side="right">
+                                <button
+                                    onClick={onFeedbackClick}
+                                    aria-label={t('navigation.feedback')}
+                                    className="flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" className="w-[16px] h-[16px]">
+                                        <path d="M170,112a6,6,0,0,1-6,6H96a6,6,0,0,1,0-12h68A6,6,0,0,1,170,112Zm-6,26H96a6,6,0,0,0,0,12h68a6,6,0,0,0,0-12Zm66-14a98.11,98.11,0,0,1-98,98H48a14,14,0,0,1-14-14V124a98,98,0,0,1,196,0Zm-12,0a86,86,0,0,0-172,0v84a2,2,0,0,0,2,2h84A86.1,86.1,0,0,0,218,124Z"></path>
+                                    </svg>
+                                </button>
+                            </Tooltip>
+                            <Tooltip label={t('navigation.logout')} side="right">
+                                <button
+                                    onClick={handleSignOut}
+                                    aria-label={t('navigation.logout')}
+                                    className="flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
+                                >
+                                    <LogOut size={16} className="stroke-[2.2]" />
+                                </button>
+                            </Tooltip>
                         </div>
                     </div>
                 ) : (

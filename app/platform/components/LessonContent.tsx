@@ -21,15 +21,22 @@ export default function LessonContent({
     onVideoEnd,
 }: LessonContentProps) {
     const { t } = useLanguage();
-    const [isPlaying, setIsPlaying] = React.useState(false);
+    // Tracks whether playback has ever started for this lesson — the custom
+    // play overlay only covers the initial poster state, not every pause, so
+    // native controls (scrubbing, volume, fullscreen) stay reachable once started.
+    const [hasStarted, setHasStarted] = React.useState(false);
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const isInitialMount = React.useRef(true);
+
+    // Reset to the poster state whenever the lesson changes
+    React.useEffect(() => {
+        setHasStarted(false);
+    }, [lesson.id]);
 
     // Pause video immediately when chapter is collapsed/inactive
     React.useEffect(() => {
         if (!isActive && videoRef.current) {
             videoRef.current.pause();
-            setIsPlaying(false);
         }
     }, [isActive]);
 
@@ -41,7 +48,7 @@ export default function LessonContent({
         }
         if (isActive && videoRef.current) {
             videoRef.current.play().then(() => {
-                setIsPlaying(true);
+                setHasStarted(true);
             }).catch(err => {
                 console.log("Autoplay prevented:", err);
             });
@@ -59,7 +66,7 @@ export default function LessonContent({
     const handlePlayOverlayClick = () => {
         if (videoRef.current) {
             videoRef.current.play().then(() => {
-                setIsPlaying(true);
+                setHasStarted(true);
             }).catch(err => {
                 console.error("Video play error:", err);
             });
@@ -73,12 +80,11 @@ export default function LessonContent({
                     ref={videoRef}
                     key={lesson.videoUrl}
                     src={lesson.videoUrl}
-                    controls={isPlaying}
+                    controls
                     className="w-full h-full object-cover"
                     poster="/assets/images/video-poster.jpg"
                     onTimeUpdate={handleTimeUpdate}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
+                    onPlay={() => setHasStarted(true)}
                     onEnded={onVideoEnd}
                 >
                     {t('learn.video_not_supported')}
@@ -89,8 +95,8 @@ export default function LessonContent({
                 </div>
             )}
 
-            {/* Custom Minimalist Play Overlay */}
-            {lesson.videoUrl && !isPlaying && (
+            {/* Custom Minimalist Play Overlay — poster state only, doesn't reappear on pause */}
+            {lesson.videoUrl && !hasStarted && (
                 <div 
                     onClick={handlePlayOverlayClick}
                     className="absolute inset-0 bg-stone-900/10 backdrop-blur-xs flex items-center justify-center cursor-pointer transition-all duration-300 hover:bg-stone-900/25 z-10"

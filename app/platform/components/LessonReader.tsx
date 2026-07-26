@@ -73,44 +73,23 @@ export default function LessonReader({ chapters, onComplete, onBackToLanding }: 
             </button>
 
             <div className="w-full bg-white border border-stone-300/85 rounded-[20px] p-8 flex flex-col gap-8 shadow-[0_4px_20px_rgba(0,0,0,0.015)]">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-sm text-stone-400 font-sans">{currentLesson.chapterTitle}</span>
-                        <h1 className="text-3xl font-sans font-light text-stone-900">{currentLesson.title}</h1>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-stone-400 font-sans select-none pt-1 shrink-0">
-                        <button
-                            onClick={goNext}
-                            disabled={atEnd}
-                            className="hover:text-stone-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                        >
-                            {t('learn.next')}
-                        </button>
-                        <span className="text-stone-300">{'<>'}</span>
-                        <button
-                            onClick={goBack}
-                            disabled={atStart}
-                            className="hover:text-stone-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                        >
-                            {t('learn.back')}
-                        </button>
-                    </div>
+                <div className="flex flex-col gap-1">
+                    <span className="text-sm text-stone-400 font-sans">{currentLesson.chapterTitle}</span>
+                    <h1 className="text-3xl font-sans font-light text-stone-900">{currentLesson.title}</h1>
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-8 items-start">
-                    <div className="w-full md:w-[36%] shrink-0">
-                        <LessonContent
-                            key={currentLesson.id}
-                            lesson={{
-                                id: currentLesson.id,
-                                title: currentLesson.title,
-                                videoUrl: currentLesson.videoUrl || '',
-                            }}
-                            isActive
-                            onVideoEnd={goNext}
-                        />
-                    </div>
-                    <div className="w-full md:w-[64%] text-sm text-stone-700 leading-relaxed font-sans space-y-4">
+                <div className="flex flex-col gap-8">
+                    <LessonContent
+                        key={currentLesson.id}
+                        lesson={{
+                            id: currentLesson.id,
+                            title: currentLesson.title,
+                            videoUrl: currentLesson.videoUrl || '',
+                        }}
+                        isActive
+                        onVideoEnd={goNext}
+                    />
+                    <div className="w-full text-sm text-stone-700 leading-relaxed font-sans space-y-4">
                         <p>{t('learn.placeholder_intro')}</p>
                         <ul className="list-disc pl-5 space-y-2">
                             <li>{t('learn.placeholder_point_1')}</li>
@@ -118,6 +97,23 @@ export default function LessonReader({ chapters, onComplete, onBackToLanding }: 
                             <li>{t('learn.placeholder_point_3')}</li>
                         </ul>
                     </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 border-t border-stone-200/60 pt-6">
+                    <button
+                        onClick={goBack}
+                        disabled={atStart}
+                        className="px-6 py-3 bg-stone-200/70 hover:bg-stone-300/70 text-stone-700 text-sm font-semibold rounded-full transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                    >
+                        {t('learn.back')}
+                    </button>
+                    <button
+                        onClick={goNext}
+                        disabled={atEnd}
+                        className="px-6 py-3 bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] text-sm font-semibold rounded-full transition-all shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none cursor-pointer"
+                    >
+                        {t('learn.next')}
+                    </button>
                 </div>
             </div>
         </div>

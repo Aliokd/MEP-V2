@@ -17,6 +17,8 @@
     "@chordbook/tuner": "^0.0.3",
     "@google-cloud/speech": "^7.3.2",
     "@mep/dataconnect": "file:lib/dataconnect-generated",
+    "@paddle/paddle-js": "^1.6.4",
+    "@paddle/paddle-node-sdk": "^3.8.0",
     "@types/markdown-it": "^14.1.2",
     "@types/matter-js": "^0.20.2",
     "acorn": "^8.16.0",

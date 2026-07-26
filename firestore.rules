@@ -1,15 +1,80 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // User Profiles
-    match /users/{userId} {
-      // Read stays open to any authenticated user: collabUtils.ts looks up other users'
-      // docs by uid for collaborator name/avatar display in shared projects.
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+
+    // ---------------------------------------------------------------------
+    // Shared helpers
+    // ---------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Song Projects & Collaboration
+    // Admin role comes from a custom claim mirrored off admins/{uid} by
+    // syncAdminClaim() in lib/admin/auth.ts. Claims avoid a document read on
+    // every rule evaluation; the server re-checks the admins/{uid} doc on every
+    // /api/admin/* call, so a stale claim can never outrank the doc.
+    function adminRole() {
+      return request.auth.token.get("adminRole", "");
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.get("admin", false) == true;
+    }
+    function hasRole(roles) {
+      return isAdmin() && adminRole() in roles;
+    }
+    function isModerator() {
+      return hasRole(["superadmin", "moderator"]);
+    }
+    function isEditor() {
+      return hasRole(["superadmin", "editor"]);
+    }
+    function isSupport() {
+      return hasRole(["superadmin", "support", "moderator"]);
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ---------------------------------------------------------------------
+    // Admin identities and the audit log
+    // ---------------------------------------------------------------------
+    // Admins may see the roster (the console lists it); nobody writes it from a
+    // client. Grants and revokes go through /api/admin/roles, which uses the
+    // Admin SDK and bypasses these rules.
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Append-only, and only from the server. No client may write, and no one —
+    // superadmin included — may edit or erase history.
+    match /admin_audit_log/{entryId} {
+      allow read: if hasRole(["superadmin", "moderator"]);
+      allow create, update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // User profiles
+    // ---------------------------------------------------------------------
+    match /users/{userId} {
+      // NOTE: read stays open to any signed-in user because collabUtils.ts looks
+      // up other users' docs by uid to show collaborator names/avatars in shared
+      // projects. That also exposes `email` and `billing` to any signed-in user —
+      // Firestore has no field-level read control, so closing this properly means
+      // splitting public profile fields into a `publicProfiles/{uid}` mirror.
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // A user owns their profile, but must not be able to grant themselves a
+      // paid tier or lift a sanction — those fields are server-written only.
+      allow update: if isSignedIn() && request.auth.uid == userId &&
+        !changedKeys().hasAny(["tier", "billing", "sanction", "suspendedUntil", "bannedAt"]);
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Song projects & collaboration
+    // ---------------------------------------------------------------------
     match /projects/{projectId} {
       function isOwner(data) {
         return data.ownerId == request.auth.uid;
@@ -31,39 +96,100 @@ service cloud.firestore {
       // invitation doc is flipped to "accepted" (see handleAcceptInvite in create/page.tsx),
       // so at write time they aren't an owner/collaborator yet — only that one field may change.
       function isAcceptingOwnInvite() {
-        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(["collaborators"]) &&
+        return changedKeys().hasOnly(["collaborators"]) &&
           request.resource.data.collaborators.size() == resource.data.get("collaborators", []).size() + 1 &&
           request.auth.uid in request.resource.data.collaborators &&
           isInvited();
       }
 
-      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow read: if request.auth != null && (isMember(resource.data) || isInvited());
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      // Moderators can read a project only when it has been reported — reviewing a
+      // flagged song requires seeing it. Private unreported work stays private.
+      allow read: if isSignedIn() && (
+        isMember(resource.data) ||
+        isInvited() ||
+        (isModerator() && resource.data.get("reportCount", 0) > 0)
+      );
       // Cap total project membership at 5 (owner + 4 collaborators).
       // MAX_COLLABORATORS lives in app/platform/create/collabUtils.ts — keep the literal below in sync.
-      allow update: if request.auth != null &&
+      allow update: if isSignedIn() &&
         (isMember(resource.data) || isAcceptingOwnInvite()) &&
         (
           !("collaborators" in request.resource.data) ||
           request.resource.data.collaborators.size() <= resource.data.get("collaborators", []).size() ||
           request.resource.data.collaborators.size() <= 4
         );
-      allow delete: if request.auth != null && isOwner(resource.data);
+      allow delete: if isSignedIn() && isOwner(resource.data);
 
-      // Sub-collection for signaling WebRTC handshake messages
-      match /signaling/{signalId} {
-        allow read, write: if request.auth != null &&
-          isMember(get(/databases/$(database)/documents/projects/$(projectId)).data);
+      function isProjectMember() {
+        return isMember(get(/databases/$(database)/documents/projects/$(projectId)).data);
       }
 
-      // Sub-collection for real-time user presence updates
+      // WebRTC handshake messages (offer / answer / ICE), addressed from one member to another.
+      // Only readable by the addressee, and only writable in your own name — previously this was
+      // an unvalidated blanket read/write over an unbounded subcollection.
+      match /signaling/{signalId} {
+        // The owner is additionally allowed through so project-delete cleanup
+        // (deleteProjectSubcollections) can list and clear leftover handshake docs.
+        allow read, delete: if isSignedIn() && isProjectMember() &&
+          (resource.data.to == request.auth.uid ||
+           resource.data.from == request.auth.uid ||
+           isOwner(get(/databases/$(database)/documents/projects/$(projectId)).data));
+        allow create: if isSignedIn() && isProjectMember() &&
+          request.resource.data.from == request.auth.uid &&
+          request.resource.data.to is string &&
+          request.resource.data.type in ["offer", "answer", "ice"] &&
+          request.resource.data.payload is string &&
+          request.resource.data.payload.size() < 20000;
+        allow update: if false; // signals are write-once then consumed
+      }
+
+      // Roster of who is currently on the voice call.
+      match /callParticipants/{userId} {
+        allow read: if isSignedIn() && isProjectMember();
+        allow write: if isSignedIn() && isProjectMember() && request.auth.uid == userId;
+      }
+
+      // Comment bubbles anchored to the project (a phrase id, or null for project-level).
+      match /comments/{commentId} {
+        allow read: if isSignedIn() && isProjectMember();
+        allow create: if isSignedIn() && isProjectMember() &&
+          request.resource.data.authorUid == request.auth.uid &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 &&
+          request.resource.data.text.size() <= 1000 &&
+          request.resource.data.resolved == false;
+        // Any member may resolve a comment (resolving is a shared editorial action), but the
+        // authored content itself is immutable — text, author and creation time can't be rewritten.
+        allow update: if isSignedIn() && isProjectMember() &&
+          request.resource.data.text == resource.data.text &&
+          request.resource.data.authorUid == resource.data.authorUid &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.anchorId == resource.data.anchorId;
+        // Only the author can delete their own comment; project deletion cleanup is done by the
+        // owner, who is covered by the author check for their own comments.
+        allow delete: if isSignedIn() && isProjectMember() &&
+          (resource.data.authorUid == request.auth.uid ||
+           isOwner(get(/databases/$(database)/documents/projects/$(projectId)).data));
+      }
+
+      // Real-time presence. Scoped so a member can only write their OWN presence doc —
+      // previously any member could overwrite anyone's, which matters now that presence
+      // heartbeats decide who is shown as online.
       match /presence/{userId} {
-        allow read, write: if request.auth != null &&
-          isMember(get(/databases/$(database)/documents/projects/$(projectId)).data);
+        allow read: if isSignedIn() && isProjectMember();
+        allow write: if isSignedIn() && isProjectMember() && request.auth.uid == userId;
+        // The owner additionally clears other members' presence when ending a collaboration,
+        // removing a collaborator, or deleting the project (see handleCloseCollaboration /
+        // handleRemoveCollaborator / deleteProjectSubcollections).
+        allow delete: if isSignedIn() &&
+          isOwner(get(/databases/$(database)/documents/projects/$(projectId)).data);
       }
     }
 
-    // Collaboration Invitations
+    // ---------------------------------------------------------------------
+    // Collaboration invitations
+    // ---------------------------------------------------------------------
     match /invitations/{inviteId} {
       function isSenderOrInvitee(data) {
         return data.senderId == request.auth.uid ||
@@ -71,21 +197,182 @@ service cloud.firestore {
           (data.inviteeId == "" && data.inviteeEmail == request.auth.token.email);
       }
 
-      allow read, update, delete: if request.auth != null && isSenderOrInvitee(resource.data);
-      allow create: if request.auth != null &&
+      allow read, update, delete: if isSignedIn() && isSenderOrInvitee(resource.data);
+      allow create: if isSignedIn() &&
         (request.resource.data.senderId == request.auth.uid || request.resource.data.inviteeId == request.auth.uid);
     }
 
-    // Community / Connect Posts
+    // ---------------------------------------------------------------------
+    // Community feed (Connect)
+    // ---------------------------------------------------------------------
     match /connect_posts/{postId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      // Fields any signed-in reader may touch on someone else's post: the
+      // engagement counters. Everything else is the author's or a moderator's.
+      function engagementOnly() {
+        return changedKeys().hasOnly(["kudos", "likedBy", "reposts", "repostedBy", "comments"]);
+      }
+      function isAuthor() {
+        return isSignedIn() && resource.data.get("authorId", "") == request.auth.uid;
+      }
+      // Author edits: content fields only. `hidden` and `moderation` are set by
+      // the moderation console, and an author must not be able to unhide themself.
+      function authorEditable() {
+        return changedKeys().hasOnly([
+          "lyrics", "body", "projectName", "attachment", "audioNotes",
+          "kudos", "likedBy", "reposts", "repostedBy", "comments", "editedAt"
+        ]);
+      }
+
+      // The feed lives behind the auth-gated /platform shell — it was previously
+      // world-readable, which allowed anonymous scraping of every post.
+      //
+      // Deliberately NOT conditioned on a `hidden` field: ConnectTab subscribes to
+      // the whole collection unfiltered, and Firestore fails an entire list query
+      // when any document in the result set fails the rule — one hidden post would
+      // take the feed down for everyone. Hiding therefore *moves* the document to
+      // `moderated_posts` (see /api/admin/moderation) rather than flagging it.
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+
+      allow update: if isModerator() ||
+        (isAuthor() && authorEditable()) ||
+        (isSignedIn() && engagementOnly());
+
+      allow delete: if isAuthor() || isModerator();
     }
 
-    // User Feedback Submissions
+    // Where hidden/removed posts go. Out of the feed collection entirely, so the
+    // unfiltered feed listener never sees them; the author can still read their
+    // own to see the decision and its stated reason.
+    match /moderated_posts/{postId} {
+      allow read: if isModerator() || (isSignedIn() && resource.data.get("authorId", "") == request.auth.uid);
+      allow write: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Reports on posts, comments, shared songs and profiles
+    // ---------------------------------------------------------------------
+    match /reports/{reportId} {
+      // Filing goes through /api/reports with the Admin SDK: one write can't
+      // update the report, the per-target aggregate and the target's counter
+      // atomically from a client, and dedup/escalation must not be client-side.
+      allow read: if isModerator() ||
+        (isSignedIn() && resource.data.reporterId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // Per-target aggregate the moderation queue reads: one row per reported
+    // thing, however many people reported it.
+    match /report_targets/{targetKey} {
+      allow read: if isModerator();
+      allow write: if false;
+    }
+
+    // Moderation decisions and sanctions — server-written, moderator-readable.
+    match /moderation_actions/{actionId} {
+      allow read: if isModerator();
+      allow write: if false;
+    }
+    match /user_sanctions/{sanctionId} {
+      // A sanctioned user must be able to see their own sanction and its reason.
+      allow read: if isModerator() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if false;
+    }
+    // Appeals: the sanctioned user files, moderators resolve server-side.
+    match /appeals/{appealId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isModerator() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Feedback & support
+    // ---------------------------------------------------------------------
+    // Previously `read, update, delete: if request.auth != null`, which let any
+    // signed-in user read, edit or erase every other user's feedback — including
+    // their email address and message body. Both collections are now written by
+    // the server (Admin SDK) and readable only by the sender or the support team.
     match /user_feedback/{feedbackId} {
-      allow create: if request.auth != null;
-      allow read, update, delete: if request.auth != null;
+      allow read: if isSupport() || (isSignedIn() && resource.data.get("userId", "") == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    match /support_tickets/{ticketId} {
+      allow read: if isSupport() || (isSignedIn() && resource.data.get("userId", "") == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // Internal notes on an inbox thread never reach the user who wrote in.
+    match /user_feedback/{feedbackId}/internal_notes/{noteId} {
+      allow read: if isSupport();
+      allow write: if false;
+    }
+    match /support_tickets/{ticketId}/internal_notes/{noteId} {
+      allow read: if isSupport();
+      allow write: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Published content (Learn, Bank of Ideas, Practice)
+    // ---------------------------------------------------------------------
+    // Readers see published rows only; editors see drafts. All writes go through
+    // /api/admin/content so publishing is versioned and audited.
+    //
+    // Because these rules depend on the document's `status`, every non-editor
+    // client query MUST carry where("status", "==", "published") — an unfiltered
+    // list fails outright as soon as one draft exists.
+    function isPublished() {
+      return resource.data.get("status", "draft") == "published";
+    }
+
+    match /learn_chapters/{chapterId} {
+      allow read: if isSignedIn() && (isPublished() || isEditor());
+      allow write: if false;
+    }
+    match /learn_lessons/{lessonId} {
+      allow read: if isSignedIn() && (isPublished() || isEditor());
+      allow write: if false;
+
+      match /maestro_notes/{noteId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
+    }
+    match /ideas/{ideaId} {
+      allow read: if isSignedIn() && (isPublished() || isEditor());
+      allow write: if false;
+    }
+    match /practice_songs/{songId} {
+      allow read: if isSignedIn() && (isPublished() || isEditor());
+      allow write: if false;
+    }
+    match /content_versions/{versionId} {
+      allow read: if isEditor();
+      allow write: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Announcements, feature flags, config
+    // ---------------------------------------------------------------------
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn() && (isPublished() || isEditor());
+      allow write: if false;
+    }
+    match /feature_flags/{flagId} {
+      // Every client reads flags to know whether an AI endpoint is switched on.
+      allow read: if true;
+      allow write: if false;
+    }
+    match /platform_config/{configId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Rolled-up counters for the Overview dashboard, written by server jobs.
+    match /admin_metrics/{metricId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
   }
 }

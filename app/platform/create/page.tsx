@@ -7,6 +7,28 @@ const getFirstInitial = (nameOrEmail?: string) => {
     return clean[0].toUpperCase();
 };
 
+// Compact "how long ago" label for comment timestamps.
+const formatRelativeTime = (ms: number) => {
+    if (!ms) return '';
+    const diff = Date.now() - ms;
+    if (diff < 60_000) return 'just now';
+    const mins = Math.floor(diff / 60_000);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(ms).toLocaleDateString();
+};
+
+// Presence liveness. Firestore has no onDisconnect (that's Realtime Database), so a presence
+// doc would otherwise survive a tab close forever and every collaborator would look permanently
+// online. Each client refreshes its own `updatedAt` on a heartbeat; readers treat a doc whose
+// heartbeat is older than PRESENCE_STALE_MS as gone.
+const PRESENCE_HEARTBEAT_MS = 25000;
+const PRESENCE_STALE_MS = 60000;
+const PRESENCE_RECHECK_MS = 15000;
+
 const getCollabColor = (colorNameOrHex?: string) => {
     if (!colorNameOrHex) return '#A1B5EE';
     if (colorNameOrHex.startsWith('#')) return colorNameOrHex;
@@ -24,10 +46,11 @@ const getCollabColor = (colorNameOrHex?: string) => {
     }
 };
 
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { safeLocalStorageSetItem } from '@/lib/storage';
+import Tooltip from '@/components/Tooltip';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/lib/firebase';
@@ -39,8 +62,16 @@ import {
     removeCollaboratorFromProject,
     getCollaboratorProfiles,
     calculateContributionsPercentage,
-    MAX_COLLABORATORS
+    MAX_COLLABORATORS,
+    MAX_COMMENT_LENGTH,
+    subscribeToProjectComments,
+    addProjectComment,
+    resolveProjectComment,
+    deleteProjectComment,
+    deleteProjectSubcollections,
+    type ProjectComment
 } from './collabUtils';
+import { useVoiceCall } from './useVoiceCall';
 import { 
     Folder, 
     FileText, 
@@ -84,6 +115,7 @@ import {
     RefreshCw,
     Upload,
     ArrowRight,
+    ArrowUp,
     ArrowDown,
     Undo2,
     Redo2,
@@ -94,7 +126,13 @@ import {
     Download,
     Image as ImageIcon,
     Copy,
-    ArrowUpDown
+    ArrowUpDown,
+    Unlock,
+    Lock,
+    MessageCircle,
+    Phone,
+    PhoneOff,
+    MicOff
 } from 'lucide-react';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -452,6 +490,8 @@ interface SongNote {
     forceHistoryPush?: boolean;
     ownerId?: string;
     collaborators?: string[];
+    /** Owner-only view lock. When true the canvas is read-only for everyone, owner included. */
+    isLocked?: boolean;
     location?: string;
     images?: { id: string; url: string; name: string; phraseId?: string | null }[];
     documents?: { id: string; url: string; name: string; type: string; size?: number; phraseId?: string | null }[];
@@ -491,19 +531,6 @@ function FolderIllustration({ folderId }: { folderId: string }) {
                         <stop offset="1" stopColor="#F8F8F4"/>
                     </linearGradient>
                 </defs>
-            </svg>
-        </div>
-    );
-}
-
-// Visual File Card Illustration Component
-function FileIllustration() {
-    return (
-        <div className="w-full aspect-[212/173] bg-white border border-stone-200/60 rounded-[20px] shadow-xs flex items-center justify-center relative overflow-hidden transition-all duration-300 group-hover:shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
-            <svg width="42" height="42" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="text-stone-300 group-hover:text-stone-400 group-hover:scale-105 transition-all duration-300">
-                <path d="M9 18V5l12-2v13" />
-                <circle cx="6" cy="18" r="3" />
-                <circle cx="18" cy="16" r="3" />
             </svg>
         </div>
     );
@@ -594,9 +621,92 @@ function mergeLocalAndRemotePhrases(localPhrases: Phrase[], remotePhrases: Phras
     return merged;
 }
 
+// A comment marker that rests as a plain colored dot (or a small overlapping stack of
+// dots, one per collaborator who's replied) and only reveals its icon/count on hover, so
+// an open thread doesn't clutter the canvas until someone looks for it. Clicking (at any
+// size) opens the full thread. Widths are fixed pixel targets rather than `w-auto`, since
+// CSS can't transition to auto and this codebase's other hover-reveals (e.g. the
+// verse-group badge buttons) follow the same fixed-target pattern.
+function CommentDotMarker({
+    count,
+    tints,
+    onOpen,
+    label,
+    className = '',
+}: {
+    count: number;
+    tints?: string[];
+    onOpen: () => void;
+    label: string;
+    className?: string;
+}) {
+    const authorTints = tints && tints.length > 0 ? tints : ['#A1B5EE'];
+    if (!count || count <= 0) return null;
+
+    // One voice keeps the original dot-that-reveals-an-icon treatment.
+    if (authorTints.length === 1) {
+        return (
+            <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onOpen(); }}
+                onDoubleClick={(e) => e.stopPropagation()}
+                title={label}
+                className={`group/commentdot flex items-center shrink-0 rounded-full cursor-pointer select-none active:scale-95 overflow-hidden transition-all duration-200 bg-transparent hover:bg-white border border-transparent hover:border-stone-200/80 hover:shadow-md w-2.5 h-2.5 hover:w-[46px] hover:h-5 hover:pl-0.5 hover:pr-2 ${className}`}
+            >
+                <span
+                    className="rounded-full shrink-0 flex items-center justify-center transition-all duration-200 w-2.5 h-2.5 group-hover/commentdot:w-4 group-hover/commentdot:h-4"
+                    style={{ backgroundColor: authorTints[0] }}
+                >
+                    <MessageCircle
+                        size={10}
+                        className="text-stone-900 stroke-[2.5] opacity-0 scale-0 group-hover/commentdot:opacity-100 group-hover/commentdot:scale-100 transition-all duration-150 delay-75"
+                    />
+                </span>
+                <span className="ml-1 text-[10px] font-bold text-stone-600 tabular-nums opacity-0 group-hover/commentdot:opacity-100 transition-opacity duration-150 delay-100 whitespace-nowrap">
+                    {count}
+                </span>
+            </button>
+        );
+    }
+
+    // Multiple voices: the stack itself already reads as "a conversation is happening
+    // here", so it skips the icon and just reveals the total reply count on hover.
+    const visible = authorTints.slice(0, 3);
+    const overflow = authorTints.length - visible.length;
+    return (
+        <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onOpen(); }}
+            onDoubleClick={(e) => e.stopPropagation()}
+            title={label}
+            className={`group/commentdot flex items-center shrink-0 rounded-full cursor-pointer select-none active:scale-95 overflow-hidden transition-all duration-200 bg-transparent hover:bg-white border border-transparent hover:border-stone-200/80 hover:shadow-md h-5 hover:pl-0.5 hover:pr-2 ${className}`}
+        >
+            <span className="flex items-center -space-x-1 shrink-0">
+                {visible.map((tint, i) => (
+                    <span
+                        key={i}
+                        className="rounded-full ring-2 ring-[#F5F4EE] shrink-0 transition-all duration-200 w-2.5 h-2.5 group-hover/commentdot:w-3.5 group-hover/commentdot:h-3.5"
+                        style={{ backgroundColor: tint, zIndex: visible.length - i }}
+                    />
+                ))}
+                {overflow > 0 && (
+                    <span
+                        className="w-2.5 h-2.5 group-hover/commentdot:w-3.5 group-hover/commentdot:h-3.5 rounded-full bg-stone-300 ring-2 ring-[#F5F4EE] flex items-center justify-center shrink-0 transition-all duration-200"
+                    >
+                        <span className="text-[6px] font-bold text-stone-700 leading-none">+{overflow}</span>
+                    </span>
+                )}
+            </span>
+            <span className="ml-0 group-hover/commentdot:ml-1.5 max-w-0 group-hover/commentdot:max-w-[24px] overflow-hidden text-[10px] font-bold text-stone-600 tabular-nums opacity-0 group-hover/commentdot:opacity-100 transition-all duration-150 delay-100 whitespace-nowrap">
+                {count}
+            </span>
+        </button>
+    );
+}
+
 // Draggable Phrase row rendering individual words for songwriting suggestions
 // Draggable Phrase row rendering individual words for songwriting suggestions
-const PhraseRow = React.memo(function PhraseRow({ 
+const PhraseRow = React.memo(function PhraseRow({
     phrase, 
     draggedPhraseId, 
     draggedPhraseIdRef,
@@ -646,7 +756,11 @@ const PhraseRow = React.memo(function PhraseRow({
     draggedImageId,
     draggedImageIdRef,
     draggedDocId,
-    draggedDocIdRef
+    draggedDocIdRef,
+    commentCount,
+    commentTints,
+    onOpenComments,
+    isCommentTarget
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
@@ -698,13 +812,25 @@ const PhraseRow = React.memo(function PhraseRow({
     draggedImageIdRef?: React.RefObject<string | null>;
     draggedDocId?: string | null;
     draggedDocIdRef?: React.RefObject<string | null>;
+    // Passed as primitives rather than the comment array so React.memo keeps working —
+    // a fresh array identity every render would defeat it on every keystroke.
+    commentCount?: number;
+    commentTints?: string[];
+    onOpenComments?: (phraseId: string) => void;
+    // True while this line's comment thread is open, so it stays visibly selected underneath the bubble.
+    isCommentTarget?: boolean;
 }) {
+    const { t } = useLanguage();
     const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isTouchDraggingRef = useRef(false);
     const startXRef = useRef(0);
     const startYRef = useRef(0);
     const touchStartTimeRef = useRef(0);
     const lastTapTimeRef = useRef<number>(0);
+    // Distinguishes "held still" from "held and dragged". Long-press already arms drag-to-reorder,
+    // so a stationary hold — which would otherwise just drop the line back where it started — is
+    // what opens comments on touch devices.
+    const hasTouchMovedRef = useRef(false);
     
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -825,32 +951,21 @@ const PhraseRow = React.memo(function PhraseRow({
     }
 
     const wordsList = phrase.text.split(/(\s+)/);
-    const isLockedByRemote = !!(phrase as any).lockedBy && !isCurrentlyEditing;
-    const lockingUser = isLockedByRemote && activeRemoteUsers && (phrase as any).lockedBy ? activeRemoteUsers[(phrase as any).lockedBy] : null;
+    // `lockedBy` is persisted on the phrase, so it outlives the session that set it. Treat a line
+    // as locked only while the person holding the lock is actually present — otherwise a leftover
+    // lock from an ended collaboration keeps claiming "is typing" for a solo writer, and (worse)
+    // keeps that line permanently uneditable and undraggable. Presence going stale now releases it.
+    const lockedByUid: string | undefined = (phrase as any).lockedBy || undefined;
+    const lockingUser = lockedByUid && activeRemoteUsers ? activeRemoteUsers[lockedByUid] : null;
+    const isLockedByRemote = !!lockedByUid && !!lockingUser && !isCurrentlyEditing;
     const lockerName = lockingUser ? lockingUser.name : 'Collaborator';
     const lockerColor = lockingUser ? lockingUser.color : 'rose';
 
-    const colorClasses = {
-        rose: 'border-rose-300 bg-rose-50/15 text-rose-800',
-        emerald: 'border-emerald-300 bg-emerald-50/15 text-emerald-800',
-        amber: 'border-amber-300 bg-amber-50/15 text-amber-800',
-        violet: 'border-violet-300 bg-violet-50/15 text-violet-800',
-        cyan: 'border-cyan-300 bg-cyan-50/15 text-cyan-800',
-        fuchsia: 'border-fuchsia-300 bg-fuchsia-50/15 text-fuchsia-800',
-        indigo: 'border-indigo-300 bg-indigo-50/15 text-indigo-800'
-    };
-    const lockerClass = isLockedByRemote ? (colorClasses[lockerColor as keyof typeof colorClasses] || colorClasses.rose) : '';
-
-    const badgeColorClasses = {
-        rose: 'bg-rose-500',
-        emerald: 'bg-emerald-500',
-        amber: 'bg-amber-500',
-        violet: 'bg-violet-500',
-        cyan: 'bg-cyan-500',
-        fuchsia: 'bg-fuchsia-500',
-        indigo: 'bg-indigo-500'
-    };
-    const badgeBg = isLockedByRemote ? (badgeColorClasses[lockerColor as keyof typeof badgeColorClasses] || badgeColorClasses.rose) : '';
+    // `lockingUser.color` is a hex token from getMemberColorToken (the same value that tints this
+    // person's cursor), so resolve it directly rather than looking it up in a name-keyed class map —
+    // that map never matched a hex and silently fell back to rose, which is why every collaborator's
+    // "typing" badge rendered red regardless of their actual colour.
+    const lockerHex = getCollabColor(lockerColor);
     
     return (
         <div 
@@ -1080,7 +1195,8 @@ const PhraseRow = React.memo(function PhraseRow({
                 startYRef.current = touch.clientY;
                 touchStartTimeRef.current = Date.now();
                 isTouchDraggingRef.current = false;
-                
+                hasTouchMovedRef.current = false;
+
                 touchTimeoutRef.current = setTimeout(() => {
                     isTouchDraggingRef.current = true;
                     setDraggedPhraseId(phrase.id);
@@ -1095,6 +1211,9 @@ const PhraseRow = React.memo(function PhraseRow({
             onTouchMove={(e) => {
                 if (isCurrentlyEditing || isLockedByRemote) return;
                 const touch = e.touches[0];
+                if (Math.abs(touch.clientX - startXRef.current) > 15 || Math.abs(touch.clientY - startYRef.current) > 15) {
+                    hasTouchMovedRef.current = true;
+                }
                 if (!isTouchDraggingRef.current) {
                     const diffX = Math.abs(touch.clientX - startXRef.current);
                     const diffY = Math.abs(touch.clientY - startYRef.current);
@@ -1157,9 +1276,23 @@ const PhraseRow = React.memo(function PhraseRow({
                 
                 if (isTouchDraggingRef.current) {
                     isTouchDraggingRef.current = false;
-                    
+
+                    // Held in place and released: the drag would have been a no-op drop, so treat
+                    // it as the touch equivalent of right-clicking and open comments instead.
+                    if (!hasTouchMovedRef.current && onOpenComments) {
+                        setDraggedPhraseId(null);
+                        if (draggedPhraseIdRef) draggedPhraseIdRef.current = null;
+                        setDragOverPhraseId(null);
+                        setDropPosition(null);
+                        if (setDragOverGroupId) setDragOverGroupId(null);
+                        if (setDragOverBlockId) setDragOverBlockId(null);
+                        if (setBlockDropPosition) setBlockDropPosition(null);
+                        onOpenComments(phrase.id);
+                        return;
+                    }
+
                     const touch = e.changedTouches[0];
-                    
+
                     const targetPhraseRow = getElementUnderTouch(touch.clientX, touch.clientY, '.phrase-row-container');
                     const targetGroupRow = getElementUnderTouch(touch.clientX, touch.clientY, '.verse-group-container');
                     const targetBlockWrapper = getElementUnderTouch(touch.clientX, touch.clientY, '.block-wrapper');
@@ -1225,14 +1358,37 @@ const PhraseRow = React.memo(function PhraseRow({
                     onStartEditing(phrase.id);
                 }
             }}
+            onContextMenu={(e) => {
+                // Right-click anywhere on a line to comment on it — available whether or not the
+                // project is currently shared, so notes can be left before anyone is invited.
+                if (!onOpenComments) return;
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenComments(phrase.id);
+            }}
             className="phrase-row-container flex flex-col w-full relative transition-all duration-200 animate-in fade-in"
             data-phrase-id={phrase.id}
         >
             {isLockedByRemote && (
-                <div className={`absolute left-1/2 -translate-x-1/2 -top-3.5 select-none pointer-events-none text-white text-[9px] font-extrabold tracking-widest uppercase px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm z-40 ${badgeBg}`}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                    <span>{lockerName} Typing</span>
+                <div
+                    className="absolute left-1/2 -translate-x-1/2 -top-3 select-none pointer-events-none text-stone-900 text-[10px] font-medium px-2.5 py-0.5 rounded-full shadow-sm z-40 whitespace-nowrap"
+                    style={{ backgroundColor: lockerHex }}
+                >
+                    {lockerName} is typing
                 </div>
+            )}
+
+            {/* Comment bubble pinned to this line. Sits at the right gutter (outside the centered
+                max-w-4xl text column) so it never overlaps lyrics, and stays dimmed until hover
+                to keep the canvas quiet. */}
+            {onOpenComments && (
+                <CommentDotMarker
+                    count={commentCount || 0}
+                    tints={commentTints}
+                    onOpen={() => onOpenComments(phrase.id)}
+                    label={`${commentCount} comment${commentCount === 1 ? '' : 's'} on this line`}
+                    className="absolute right-1 md:right-3 top-1/2 -translate-y-1/2 z-40"
+                />
             )}
             
             {dragOverPhraseId === phrase.id && dropPosition === 'top' && !hasAudioNote && (
@@ -1246,19 +1402,11 @@ const PhraseRow = React.memo(function PhraseRow({
                 <div className="w-full max-w-2xl mx-auto px-4 py-2 select-none">
                     <div className="flex items-center justify-between bg-stone-50 border border-stone-200/80 rounded-2xl p-4 shadow-3xs group/doc">
                         <div className="flex items-center gap-3.5">
-                            {(() => {
-                                const fn = phrase.text.toLowerCase();
-                                let bg = 'bg-stone-100 text-stone-500';
-                                if (fn.endsWith('.pdf')) bg = 'bg-red-50 text-red-500';
-                                else if (fn.endsWith('.doc') || fn.endsWith('.docx')) bg = 'bg-blue-50 text-blue-500';
-                                else if (fn.endsWith('.txt') || fn.endsWith('.md')) bg = 'bg-emerald-50 text-emerald-600';
-                                
-                                return (
-                                    <div className={`p-2.5 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
-                                        <FileText size={22} />
-                                    </div>
-                                );
-                            })()}
+                            {/* Neutral file icon — file type is already spelled out in the meta line,
+                                so per-format colour coding just added noise against the grey UI. */}
+                            <div className="p-2.5 rounded-xl bg-stone-100 text-stone-600 flex items-center justify-center shrink-0">
+                                <FileText size={22} />
+                            </div>
                             
                             <div className="flex flex-col text-left">
                                 <span className="text-[14.5px] font-semibold text-stone-850 font-sans leading-tight">
@@ -1276,38 +1424,42 @@ const PhraseRow = React.memo(function PhraseRow({
                             </span>
                             
                             {onTranscribeDocBlock && (
-                                <button
-                                    type="button"
-                                    disabled={transcribingDocId !== null}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        const docId = phrase.id.replace('p-docheader-', '');
-                                        onTranscribeDocBlock(docId, phrase.id);
-                                    }}
-                                    className="w-7 h-7 rounded-full bg-stone-100 hover:bg-emerald-50 hover:text-emerald-600 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none disabled:opacity-35"
-                                    title="Extract text from document"
-                                >
-                                    {transcribingDocId === phrase.id.replace('p-docheader-', '') ? (
-                                        <div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <RefreshCw size={13} />
-                                    )}
-                                </button>
+                                <Tooltip label={t('card.extract_text')}>
+                                    <button
+                                        type="button"
+                                        disabled={transcribingDocId !== null}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const docId = phrase.id.replace('p-docheader-', '');
+                                            onTranscribeDocBlock(docId, phrase.id);
+                                        }}
+                                        aria-label={t('card.extract_text')}
+                                        className="w-7 h-7 rounded-full bg-stone-100 hover:bg-emerald-50 hover:text-emerald-600 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none disabled:opacity-35"
+                                    >
+                                        {transcribingDocId === phrase.id.replace('p-docheader-', '') ? (
+                                            <div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <RefreshCw size={13} />
+                                        )}
+                                    </button>
+                                </Tooltip>
                             )}
 
                             {onDeleteDocBlock && (
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        const docId = phrase.id.replace('p-docheader-', '');
-                                        onDeleteDocBlock(docId, phrase.id);
-                                    }}
-                                    className="w-7 h-7 rounded-full bg-stone-100 hover:bg-red-50 hover:text-red-500 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none"
-                                    title="Delete Document Block"
-                                >
-                                    <Trash2 size={13} />
-                                </button>
+                                <Tooltip label={t('card.delete_document_block')}>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const docId = phrase.id.replace('p-docheader-', '');
+                                            onDeleteDocBlock(docId, phrase.id);
+                                        }}
+                                        aria-label={t('card.delete_document_block')}
+                                        className="w-7 h-7 rounded-full bg-stone-100 hover:bg-red-50 hover:text-red-500 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none"
+                                    >
+                                        <Trash2 size={13} />
+                                    </button>
+                                </Tooltip>
                             )}
                         </div>
                     </div>
@@ -1353,12 +1505,16 @@ const PhraseRow = React.memo(function PhraseRow({
                     />
                 </div>
             ) : (
-                <div 
+                <div
                     className={`
                         phrase-row-text text-[30px] md:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-[2px] px-4 rounded-[12px] transition-all duration-200 w-full border border-transparent
-                        ${isLockedByRemote ? `cursor-not-allowed border-dashed opacity-70 ${lockerClass}` : 'cursor-grab active:cursor-grabbing hover:border-stone-200/50 hover:bg-stone-50/30 group/line'}
+                        ${isLockedByRemote ? 'cursor-not-allowed border-dashed opacity-70' : 'cursor-grab active:cursor-grabbing hover:border-stone-200/50 hover:bg-stone-50/30 group/line'}
                         ${draggedPhraseId === phrase.id ? 'opacity-30' : ''}
+                        ${isCommentTarget ? 'bg-stone-100/80 border-stone-300/80 shadow-[0_0_0_3px_rgba(120,113,108,0.07)]' : ''}
                     `}
+                    // Tint the locked line with the same collaborator colour as their cursor and
+                    // badge, instead of the name-keyed class map that always resolved to rose.
+                    style={isLockedByRemote ? { borderColor: lockerHex } : undefined}
                 >
                     {wordsList.length === 1 && wordsList[0].trim() === '' && dragOverWordIndex?.phraseId === phrase.id && dragOverWordIndex?.wordIndex === -1 ? (
                         <span className="inline-block border-2 border-dashed border-indigo-400/80 bg-indigo-50/10 text-indigo-500 rounded-[12px] px-6 py-1 text-lg font-normal animate-pulse select-none mx-auto w-fit">
@@ -1663,6 +1819,7 @@ interface DocumentCapsuleCardProps {
 }
 
 function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDragStart, onDragEnd }: DocumentCapsuleCardProps) {
+    const { t } = useLanguage();
     const formatSize = (bytes?: number) => {
         if (!bytes) return doc.type.toUpperCase();
         if (bytes < 1024) return `${doc.type.toUpperCase()} • ${bytes} B`;
@@ -1676,8 +1833,8 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDr
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             className={`bg-white border border-stone-200/80 rounded-full px-5 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3.5 z-30 transition-all select-none max-w-full my-2 mx-auto ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
-            {/* Red File Icon */}
-            <div className="p-1 rounded-md text-red-500 flex items-center justify-center shrink-0">
+            {/* File icon — neutral, matching the Scan/meta/delete tones on this card */}
+            <div className="p-1 rounded-md text-stone-600 flex items-center justify-center shrink-0">
                 <FileText size={17} className="stroke-[2.2]" />
             </div>
 
@@ -1686,7 +1843,7 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDr
                 type="text"
                 value={doc.name || ''}
                 onChange={(e) => onRename(e.target.value)}
-                placeholder="Document name..."
+                placeholder={t('card.document_name_placeholder')}
                 style={{ width: `${Math.max(8, (doc.name || '').length)}ch` }}
                 className="bg-transparent border-none outline-none font-bold text-[14px] text-stone-900 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors max-w-[180px] sm:max-w-[240px] truncate"
             />
@@ -1718,14 +1875,16 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDr
             <div className="h-4 w-px bg-stone-200 shrink-0" />
 
             {/* Delete Button */}
-            <button
-                type="button"
-                onClick={onDelete}
-                className="text-stone-400 hover:text-red-500 transition-colors p-1 cursor-pointer shrink-0"
-                title="Delete document"
-            >
-                <Trash2 size={14} />
-            </button>
+            <Tooltip label={t('card.delete_document')}>
+                <button
+                    type="button"
+                    onClick={onDelete}
+                    aria-label={t('card.delete_document')}
+                    className="text-stone-400 hover:text-red-500 transition-colors p-1 cursor-pointer shrink-0"
+                >
+                    <Trash2 size={14} />
+                </button>
+            </Tooltip>
         </div>
     );
 }
@@ -1742,6 +1901,7 @@ interface ImageCapsuleCardProps {
 }
 
 function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanning, onDragStart, onDragEnd }: ImageCapsuleCardProps) {
+    const { t } = useLanguage();
     return (
         <div
             draggable={!!onDragStart}
@@ -1797,14 +1957,16 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
                 <div className="h-4 w-px bg-stone-200 shrink-0 mx-1" />
 
                 {/* Delete Button */}
-                <button
-                    type="button"
-                    onClick={onDelete}
-                    className="text-stone-400 hover:text-red-500 transition-colors p-1 cursor-pointer shrink-0"
-                    title="Delete image"
-                >
-                    <Trash2 size={14} />
-                </button>
+                <Tooltip label={t('card.delete_image')}>
+                    <button
+                        type="button"
+                        onClick={onDelete}
+                        aria-label={t('card.delete_image')}
+                        className="text-stone-400 hover:text-red-500 transition-colors p-1 cursor-pointer shrink-0"
+                    >
+                        <Trash2 size={14} />
+                    </button>
+                </Tooltip>
             </div>
         </div>
     );
@@ -1898,6 +2060,7 @@ function AudioCapsulePlayer({
     dragOverGroupIdRef,
     dragOverPhraseIdRef
 }: AudioCapsulePlayerProps) {
+    const { t } = useLanguage();
     const [isPlaying, setIsPlaying] = useState(false);
     const [playbackTime, setPlaybackTime] = useState(0);
     const [playbackDuration, setPlaybackDuration] = useState(() => {
@@ -2190,32 +2353,38 @@ function AudioCapsulePlayer({
                         </span>
                     )}
                     {!!audioNote.stemTracks?.length && onReopenInStudio && (
-                        <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); onReopenInStudio(); }}
-                            className="text-indigo-500 hover:text-indigo-700 transition-colors cursor-pointer shrink-0"
-                            title="Reopen in Demo Studio"
-                        >
-                            <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
-                        </button>
+                        <Tooltip label={t('studio.reopen_in_studio')}>
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onReopenInStudio(); }}
+                                aria-label={t('studio.reopen_in_studio')}
+                                className="text-indigo-500 hover:text-indigo-700 transition-colors cursor-pointer shrink-0"
+                            >
+                                <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
+                            </button>
+                        </Tooltip>
                     )}
                     {!audioNote.stemTracks?.length && onAddAsStudioTrack && (
-                        <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); onAddAsStudioTrack(); }}
-                            className="text-indigo-500 hover:text-indigo-700 transition-colors cursor-pointer shrink-0"
-                            title="Add to Demo Studio"
-                        >
-                            <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
-                        </button>
+                        <Tooltip label={t('studio.add_to_studio')}>
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onAddAsStudioTrack(); }}
+                                aria-label={t('studio.add_to_studio')}
+                                className="text-indigo-500 hover:text-indigo-700 transition-colors cursor-pointer shrink-0"
+                            >
+                                <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
+                            </button>
+                        </Tooltip>
                     )}
-                    <input
-                        type="text" value={audioNote.title || ''} placeholder="Name"
-                        disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
-                        style={{ width: `${Math.max(5, (audioNote.title || '').length)}ch` }}
-                        className="bg-transparent border-none outline-none font-bold text-[9px] text-stone-700 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[40px] max-w-[100px] truncate"
-                        title="Rename recording"
-                    />
+                    <Tooltip label={t('card.rename_recording')}>
+                        <input
+                            type="text" value={audioNote.title || ''} placeholder={t('card.name')}
+                            disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
+                            style={{ width: `${Math.max(5, (audioNote.title || '').length)}ch` }}
+                            aria-label={t('card.rename_recording')}
+                            className="bg-transparent border-none outline-none font-bold text-[9px] text-stone-700 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[40px] max-w-[100px] truncate"
+                        />
+                    </Tooltip>
                 </div>
 
                 <div className="h-2.5 w-px bg-stone-200 shrink-0" />
@@ -2225,7 +2394,7 @@ function AudioCapsulePlayer({
                         <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]" />
                         <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.15s]" />
                         <span className="w-1 h-1 rounded-full bg-emerald-500 inline-block animate-bounce" />
-                        <span>Transcribing...</span>
+                        <span>{t('card.transcribing')}</span>
                     </div>
                 ) : (
                     <>
@@ -2252,20 +2421,26 @@ function AudioCapsulePlayer({
                 {/* Transcribe */}
                 {onTranscribe && (
                     <><div className="h-2.5 w-px bg-stone-200 shrink-0" />
-                    <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onTranscribe(); }}
-                        className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-35" title="Transcribe recording">
-                        <RefreshCw className="w-2.5 h-2.5" strokeWidth={2.2} />
-                    </button></>
+                    <Tooltip label={t('card.transcribe_recording')}>
+                        <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onTranscribe(); }}
+                            aria-label={t('card.transcribe_recording')}
+                            className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-35">
+                            <RefreshCw className="w-2.5 h-2.5" strokeWidth={2.2} />
+                        </button>
+                    </Tooltip></>
                 )}
 
                 {/* Delete */}
                 <div className="h-2.5 w-px bg-stone-200 shrink-0" />
-                <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                    className="text-stone-404 hover:text-red-500 transition-colors cursor-pointer disabled:opacity-35" title="Delete recording">
-                    <svg className="w-2.5 h-2.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
+                <Tooltip label={t('card.delete_recording')}>
+                    <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                        aria-label={t('card.delete_recording')}
+                        className="text-stone-404 hover:text-red-500 transition-colors cursor-pointer disabled:opacity-35">
+                        <svg className="w-2.5 h-2.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </Tooltip>
             </div>
         );
     }
@@ -2289,32 +2464,38 @@ function AudioCapsulePlayer({
                     </span>
                 )}
                 {!!audioNote.stemTracks?.length && onReopenInStudio && (
-                    <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); onReopenInStudio(); }}
-                        className="w-5 h-5 flex items-center justify-center rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
-                        title="Reopen in Demo Studio"
-                    >
-                        <ArrowUpRight className="w-3 h-3" strokeWidth={2.5} />
-                    </button>
+                    <Tooltip label={t('studio.reopen_in_studio')}>
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onReopenInStudio(); }}
+                            aria-label={t('studio.reopen_in_studio')}
+                            className="w-5 h-5 flex items-center justify-center rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
+                        >
+                            <ArrowUpRight className="w-3 h-3" strokeWidth={2.5} />
+                        </button>
+                    </Tooltip>
                 )}
                 {!audioNote.stemTracks?.length && onAddAsStudioTrack && (
-                    <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); onAddAsStudioTrack(); }}
-                        className="w-5 h-5 flex items-center justify-center rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
-                        title="Add to Demo Studio"
-                    >
-                        <ArrowUpRight className="w-3 h-3" strokeWidth={2.5} />
-                    </button>
+                    <Tooltip label={t('studio.add_to_studio')}>
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onAddAsStudioTrack(); }}
+                            aria-label={t('studio.add_to_studio')}
+                            className="w-5 h-5 flex items-center justify-center rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
+                        >
+                            <ArrowUpRight className="w-3 h-3" strokeWidth={2.5} />
+                        </button>
+                    </Tooltip>
                 )}
-                <input
-                    type="text" value={audioNote.title || ''} placeholder="Name"
-                    disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
-                    style={{ width: `${Math.max(6, (audioNote.title || '').length)}ch` }}
-                    className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[50px] max-w-[150px] md:max-w-[200px] truncate"
-                    title="Rename recording"
-                />
+                <Tooltip label={t('card.rename_recording')}>
+                    <input
+                        type="text" value={audioNote.title || ''} placeholder={t('card.name')}
+                        disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
+                        style={{ width: `${Math.max(6, (audioNote.title || '').length)}ch` }}
+                        aria-label={t('card.rename_recording')}
+                        className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[50px] max-w-[150px] md:max-w-[200px] truncate"
+                    />
+                </Tooltip>
             </div>
 
             <div className="h-4 w-px bg-stone-200 shrink-0" />
@@ -2324,7 +2505,7 @@ function AudioCapsulePlayer({
                     <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.3s]" />
                     <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.15s]" />
                     <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce" />
-                    <span>Transcribing audio...</span>
+                    <span>{t('card.transcribing_audio')}</span>
                 </div>
             ) : (
                 <>
@@ -2332,8 +2513,8 @@ function AudioCapsulePlayer({
                     <button onClick={togglePlayback}
                         className="flex items-center gap-1.5 text-stone-600 hover:text-stone-900 transition-colors cursor-pointer text-xs font-semibold shrink-0">
                         {isPlaying
-                            ? <><svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg><span className="hidden sm:inline">Pause</span></>
-                            : <><svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span className="hidden sm:inline">Play</span></>
+                            ? <><svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg><span className="hidden sm:inline">{t('card.pause')}</span></>
+                            : <><svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span className="hidden sm:inline">{t('card.play')}</span></>
                         }
                     </button>
 
@@ -2352,22 +2533,28 @@ function AudioCapsulePlayer({
             {/* Transcribe */}
             {onTranscribe && (
                 <><div className="h-4 w-px bg-stone-200 shrink-0" />
-                <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onTranscribe(); }}
-                    className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer shrink-0 disabled:opacity-35" title="Transcribe recording">
-                    <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} />
-                </button></>
+                <Tooltip label={t('card.transcribe_recording')}>
+                    <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onTranscribe(); }}
+                        aria-label={t('card.transcribe_recording')}
+                        className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer shrink-0 disabled:opacity-35">
+                        <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} />
+                    </button>
+                </Tooltip></>
             )}
 
             {/* Delete */}
             <div className="h-4 w-px bg-stone-200 shrink-0" />
-            <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="text-stone-404 hover:text-red-500 transition-colors cursor-pointer shrink-0 disabled:opacity-35" title="Delete recording">
-                <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    <line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
-                </svg>
-            </button>
+            <Tooltip label={t('card.delete_recording')}>
+                <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                    aria-label={t('card.delete_recording')}
+                    className="text-stone-404 hover:text-red-500 transition-colors cursor-pointer shrink-0 disabled:opacity-35">
+                    <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        <line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+                    </svg>
+                </button>
+            </Tooltip>
         </div>
     );
 }
@@ -2378,6 +2565,7 @@ interface JoinedPillProps {
 }
 
 function JoinedPill({ name, onDismiss }: JoinedPillProps) {
+    const { t } = useLanguage();
     useEffect(() => {
         const timer = setTimeout(() => {
             onDismiss();
@@ -2392,14 +2580,16 @@ function JoinedPill({ name, onDismiss }: JoinedPillProps) {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             <span>{name} has joined</span>
-            <button
-                type="button"
-                onClick={onDismiss}
-                className="w-6 h-6 hover:bg-emerald-100 flex items-center justify-center text-emerald-500 hover:text-emerald-700 rounded-full transition-all active:scale-90 shrink-0 cursor-pointer outline-none ml-1"
-                title="Dismiss"
-            >
-                <X size={13} className="stroke-[2.5]" />
-            </button>
+            <Tooltip label={t('card.dismiss')}>
+                <button
+                    type="button"
+                    onClick={onDismiss}
+                    aria-label={t('card.dismiss')}
+                    className="w-6 h-6 hover:bg-emerald-100 flex items-center justify-center text-emerald-500 hover:text-emerald-700 rounded-full transition-all active:scale-90 shrink-0 cursor-pointer outline-none ml-1"
+                >
+                    <X size={13} className="stroke-[2.5]" />
+                </button>
+            </Tooltip>
         </div>
     );
 }
@@ -2565,6 +2755,7 @@ const StudioKnob = ({
     defaultValue: number; 
     onChange: (val: number) => void;
 }) => {
+    const { t } = useLanguage();
     const [isDragging, setIsDragging] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
 
@@ -2596,14 +2787,16 @@ const StudioKnob = ({
     const percent = (value - min) / (max - min);
     const angle = -135 + percent * 270;
 
+    // No Tooltip on this knob: it already renders its own value bubble on hover
+    // (below), so a second floating hint would stack on top of it.
     return (
-        <div 
+        <div
             onMouseDown={handleMouseDown}
             onDoubleClick={() => onChange(defaultValue)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
+            aria-label={t('card.drag_hint')}
             className="relative w-11 h-11 rounded-full bg-white hover:bg-stone-50 active:scale-95 transition-all shadow-[0_2.5px_6px_rgba(0,0,0,0.07)] cursor-ns-resize flex items-center justify-center border-2 border-stone-200/80"
-            title="Drag vertically to adjust. Double click to reset."
         >
             <div 
                 className="absolute w-[1.5px] h-[16px] bg-stone-600 rounded-full origin-bottom"
@@ -2618,6 +2811,42 @@ const StudioKnob = ({
             {(isHovered || isDragging) && (
                 <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 bg-stone-900 text-white text-[11px] font-bold px-2 py-1 rounded-full shadow-lg select-none pointer-events-none animate-in fade-in duration-150 z-50 whitespace-nowrap">
                     {Math.round(value)}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Wraps a scrollable list and shows a bottom fade + bouncing chevron whenever there's
+// more content below the fold — these lists use `no-scrollbar`, so without this there's
+// no cue at all that the word list continues past what's visible.
+const ScrollableWithCue = ({ className, children }: { className: string; children: React.ReactNode }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [hasMoreBelow, setHasMoreBelow] = useState(false);
+
+    const checkScroll = () => {
+        const el = scrollRef.current;
+        if (!el) return;
+        setHasMoreBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+    };
+
+    useEffect(() => {
+        checkScroll();
+        const el = scrollRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver(checkScroll);
+        ro.observe(el);
+        return () => ro.disconnect();
+    });
+
+    return (
+        <div className="relative">
+            <div ref={scrollRef} onScroll={checkScroll} className={className}>
+                {children}
+            </div>
+            {hasMoreBelow && (
+                <div className="absolute bottom-0 inset-x-0 h-7 bg-gradient-to-t from-white to-transparent pointer-events-none flex items-end justify-center">
+                    <ChevronDown size={14} className="text-stone-400 animate-bounce" />
                 </div>
             )}
         </div>
@@ -2768,6 +2997,9 @@ export default function CreatePage() {
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     const [detailsLocation, setDetailsLocation] = useState<string>('');
     const [shareStatus, setShareStatus] = useState<'idle' | 'sharing' | 'shared'>('idle');
+    // True for a beat right as sharing succeeds — plays the Publish arrow's "sent" launch-up
+    // animation before the resting arrow settles back in from below.
+    const [isPublishLaunching, setIsPublishLaunching] = useState(false);
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
     const [renameGroupName, setRenameGroupName] = useState<string>('');
     const [isAddMenuSticky, setIsAddMenuSticky] = useState<boolean>(false);
@@ -2779,8 +3011,11 @@ export default function CreatePage() {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const key = user ? `veinote-selected-note-id-${user.uid}` : 'veinote-selected-note-id';
-            const stored = localStorage.getItem(key);
+            // Fall back to the unscoped key so users who only have the legacy value
+            // (written before the uid-scoped key existed) still get their project restored.
+            const stored = user
+                ? (localStorage.getItem(`veinote-selected-note-id-${user.uid}`) || localStorage.getItem('veinote-selected-note-id'))
+                : localStorage.getItem('veinote-selected-note-id');
             if (stored) {
                 setSelectedNoteId(stored);
             }
@@ -2808,6 +3043,15 @@ export default function CreatePage() {
             lastHistoryStateRef.current = null;
         }
         lastHistoryPushTimeRef.current = 0;
+
+        // Complete and Publish are per-project gestures — without this, switching to (or
+        // creating) a different project kept showing the previous project's "already
+        // completed" / "already published" look, even though this project was neither.
+        setCompletedSnapshot(active ? (active.content || '') : null);
+        setShareStatus('idle');
+        setIsPublishLaunching(false);
+        setShowSaveGlow(false);
+        setShowPublishGlow(false);
     }, [selectedNoteId]);
 
     // Track active session creation time (accumulate seconds spent in Create tab)
@@ -2866,12 +3110,93 @@ export default function CreatePage() {
     const [lastSavedContent, setLastSavedContent] = useState<string>('');
     const [savedFlash, setSavedFlash] = useState(false); // Brief "Saved ✓" animation on SAVE button
     const [isSavingNote, setIsSavingNote] = useState(false);
+    // Complete runs as three beats: idle button → gradient "Completing…" → the button
+    // unmounts and a "Saved" banner takes its slot, then the button comes back.
+    const [showSavedBanner, setShowSavedBanner] = useState(false);
+    // Content as it stood at the last Complete. While the canvas still matches this, the
+    // control is hidden — pressing it again would be a no-op.
+    const [completedSnapshot, setCompletedSnapshot] = useState<string | null>(null);
+    const COMPLETING_MS = 1600;
+    const SAVED_BANNER_MS = 2400;
+    const savedBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const completingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => {
+        if (savedBannerTimerRef.current) clearTimeout(savedBannerTimerRef.current);
+        if (completingTimerRef.current) clearTimeout(completingTimerRef.current);
+    }, []);
+    // Long-press-to-lock: holding the control for LOCK_HOLD_MS commits the toggle.
+    // Deliberate friction so a stray click can't flip a shared project to read-only.
+    // The sweep itself is pure CSS (.lock-hold-ring) — this only mounts/unmounts it.
+    const LOCK_HOLD_MS = 1000;
+    const [isHoldingLock, setIsHoldingLock] = useState(false);
+    const lockHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lockHoldFiredRef = useRef(false);
+
+    // Celebration choreography (ms from click) — deliberately unhurried so each beat
+    // (button, then Publish, then Mind Power) reads as its own distinct moment instead
+    // of blurring together.
+    const BEAT_BUTTON_MS = 900;           // button mesh stirs, then fades
+    const BEAT_PUBLISH_DELAY_MS = 700;    // Publish picks up as the button leaves
+    const BEAT_PUBLISH_MS = 1300;
+    const BEAT_MINDPOWER_DELAY_MS = 1600; // Mind Power lands last
+    const [showPublishGlow, setShowPublishGlow] = useState(false);
+    const [publishGlowKey, setPublishGlowKey] = useState(0);
+    const publishGlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const mindPowerBeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => {
+        if (publishGlowTimerRef.current) clearTimeout(publishGlowTimerRef.current);
+        if (mindPowerBeatTimerRef.current) clearTimeout(mindPowerBeatTimerRef.current);
+    }, []);
+    const [showSaveGlow, setShowSaveGlow] = useState(false);
+    const [saveGlowKey, setSaveGlowKey] = useState(0);
+    const saveGlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => { if (saveGlowTimerRef.current) clearTimeout(saveGlowTimerRef.current); }, []);
+
+    useEffect(() => {
+        if (shareStatus !== 'shared') return;
+        setIsPublishLaunching(true);
+        const timer = setTimeout(() => setIsPublishLaunching(false), 450);
+        return () => clearTimeout(timer);
+    }, [shareStatus]);
+
+    // Shared "that worked" celebration — the mesh gradient on the acting button plus the
+    // travelling ring around the canvas. Used by both Complete and Publish so the two
+    // moments feel like the same gesture. The key bump remounts the layers, so firing it
+    // again restarts the animation rather than riding out the previous one.
+    const triggerCelebrationGlow = () => {
+        setSaveGlowKey(k => k + 1);
+        setShowSaveGlow(true);
+        if (saveGlowTimerRef.current) clearTimeout(saveGlowTimerRef.current);
+        saveGlowTimerRef.current = setTimeout(() => setShowSaveGlow(false), 2000);
+        setPublishGlowKey(k => k + 1);
+        setShowPublishGlow(true);
+        if (publishGlowTimerRef.current) clearTimeout(publishGlowTimerRef.current);
+        publishGlowTimerRef.current = setTimeout(() => setShowPublishGlow(false), 2000);
+    };
 
     // Real-Time Collaboration States
     const [isCollaborative, setIsCollaborative] = useState(false);
     const [collaborators, setCollaborators] = useState<string[]>([]);
     const [collaboratorProfiles, setCollaboratorProfiles] = useState<{[uid: string]: { name: string; email: string }}>({});
     const [activeRemoteUsers, setActiveRemoteUsers] = useState<{[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null; isStudioOpen?: boolean; activeStudioTrackId?: string | null; activeStudioTrackName?: string | null; isStudioRecording?: boolean }}>({});
+    // Last raw presence docs from Firestore, kept so the staleness filter can re-run on a timer
+    // (a departed collaborator sends no further snapshots to trigger a rebuild).
+    const rawPresenceRef = useRef<{[uid: string]: any}>({});
+
+    // ── Collaboration comments ───────────────────────────────────────────────────────────────
+    const [projectComments, setProjectComments] = useState<ProjectComment[]>([]);
+    // Which thread is open: a phrase id for a line-anchored bubble, '__project__' for the
+    // project-level thread, or null for closed.
+    const [openCommentThread, setOpenCommentThread] = useState<string | null>(null);
+    // Viewport rect of the line/section the open thread belongs to, so the bubble can sit directly
+    // beneath it. Recomputed on scroll/resize while a thread is open.
+    const [commentAnchorRect, setCommentAnchorRect] = useState<{ top: number; bottom: number; left: number; width: number } | null>(null);
+    const [commentDraft, setCommentDraft] = useState('');
+    const [isPostingComment, setIsPostingComment] = useState(false);
+    // Timestamp of the newest comment this user has seen, per project. Drives the unread dot only,
+    // so localStorage is proportionate here — a dedicated Firestore doc would add a collection,
+    // rules and a listener just to make a dot follow you across devices.
+    const [commentsLastReadAt, setCommentsLastReadAt] = useState<number>(0);
     const [showShareModal, setShowShareModal] = useState(false);
     const [pendingInvites, setPendingInvites] = useState<any[]>([]);
     const [previewInviteId, setPreviewInviteId] = useState<string | null>(null);
@@ -3212,6 +3537,10 @@ export default function CreatePage() {
     const [showStudioLyrics, setShowStudioLyrics] = useState<boolean>(false);
     const [isSendingToCanvas, setIsSendingToCanvas] = useState<boolean>(false);
     const [activeTrackDropdownId, setActiveTrackDropdownId] = useState<number | null>(null);
+    // The instrument picker escapes the Demo Studio card's overflow-y-auto (needed to keep the
+    // panel margined instead of full-height) by positioning against the viewport, computed from
+    // the trigger button's location instead of relying on `position: absolute` inside the card.
+    const [trackDropdownAnchor, setTrackDropdownAnchor] = useState<{ top: number; left: number } | null>(null);
     const [editingTrackNameId, setEditingTrackNameId] = useState<number | null>(null);
     const [trackNameInputText, setTrackNameInputText] = useState('');
     const [activePublishMenu, setActivePublishMenu] = useState(false);
@@ -3460,11 +3789,15 @@ export default function CreatePage() {
     // Sync local studioTracks changes to Firestore with a debounce to prevent write throttling
     useEffect(() => {
         if (!selectedNoteId || !user || !isDataLoaded) return;
-        
+
         const projectDocRef = doc(db, "projects", selectedNoteId);
         
         const timer = setTimeout(async () => {
             try {
+                // Backstop for the project lock: even if some studio control mutates tracks
+                // locally, a locked project must never persist that change. Read from the ref
+                // because isCanvasReadOnly is derived further down the component than this effect.
+                if (notesRef.current.find(n => n.id === selectedNoteId)?.isLocked) return;
                 // Read from the ref (latest value) rather than the closed-over `studioTracks` —
                 // otherwise a debounce timer scheduled before a track's upload finished can fire
                 // afterward with a stale snapshot and null out the just-uploaded real URL.
@@ -3781,13 +4114,59 @@ export default function CreatePage() {
 
     const handleCheckmarkSaveClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (isSavingNote) return;
-        
+        if (isSavingNote || showSavedBanner) return;
+
         setIsSavingNote(true);
-        setTimeout(() => {
+
+        // Complete and Publish are separate gestures — completing again (e.g. after
+        // editing an already-published song) shouldn't leave Publish looking done from
+        // a previous, now-stale, publish.
+        setShareStatus('idle');
+        setIsPublishLaunching(false);
+
+        // Staggered celebration, rather than everything flashing at once: the eye gets
+        // handed from the button, to Publish, to Mind Power — so the user can actually
+        // follow that finishing a song fed their progress.
+        // Beat 1 — the button's own mesh stirs, then it fades out.
+        setSaveGlowKey(k => k + 1);
+        setShowSaveGlow(true);
+        if (saveGlowTimerRef.current) clearTimeout(saveGlowTimerRef.current);
+        saveGlowTimerRef.current = setTimeout(() => setShowSaveGlow(false), BEAT_BUTTON_MS);
+
+        // Beat 2 — Publish picks it up as the button leaves.
+        if (publishGlowTimerRef.current) clearTimeout(publishGlowTimerRef.current);
+        publishGlowTimerRef.current = setTimeout(() => {
+            setPublishGlowKey(k => k + 1);
+            setShowPublishGlow(true);
+            publishGlowTimerRef.current = setTimeout(() => setShowPublishGlow(false), BEAT_PUBLISH_MS);
+        }, BEAT_PUBLISH_DELAY_MS);
+
+        // Beat 3 — Mind Power last, so it reads as the destination.
+        if (mindPowerBeatTimerRef.current) clearTimeout(mindPowerBeatTimerRef.current);
+        mindPowerBeatTimerRef.current = setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('veinote-celebrate'));
+        }, BEAT_MINDPOWER_DELAY_MS);
+
+        if (completingTimerRef.current) clearTimeout(completingTimerRef.current);
+        completingTimerRef.current = setTimeout(() => {
             handleSaveNote(e);
             setIsSavingNote(false);
-        }, 800);
+            // No confirmation chip — the button simply leaves. The cascade that follows
+            // is the confirmation.
+            // Remember what was completed. The control stays hidden until the canvas
+            // actually differs from this again, so a finished song doesn't keep offering
+            // a button that would do nothing.
+            setCompletedSnapshot(notesRef.current.find(n => n.id === selectedNoteId)?.content ?? '');
+
+            // Count distinct songs completed (not presses), so the Mind Power panel can
+            // explain what the celebration was actually for.
+            try {
+                const done: string[] = JSON.parse(localStorage.getItem('mep-completed-songs') || '[]');
+                if (selectedNoteId && !done.includes(selectedNoteId)) {
+                    safeLocalStorageSetItem('mep-completed-songs', JSON.stringify([...done, selectedNoteId]));
+                }
+            } catch { /* counter is cosmetic — never block completing on it */ }
+        }, COMPLETING_MS);
     };
 
     const handlePillPlay = () => {
@@ -3880,7 +4259,7 @@ export default function CreatePage() {
             handleUpdateNote(selectedNoteId, {
                 content: finalContent,
                 phrases: updatedPhrases,
-                title: activeNote.title || 'Untitled Note',
+                title: activeNote.title || 'Untitled Project',
                 isAudioOnly: false
             });
             setIsEditing(true);
@@ -3986,18 +4365,37 @@ export default function CreatePage() {
                                     // Sync this back to Firestore in the background to ensure consistency.
                                     const docRef = doc(db, "projects", remoteNote.id);
                                     setDoc(docRef, {
-                                        title: cachedNote.title || 'Untitled Note',
+                                        title: cachedNote.title || 'Untitled Project',
                                         content: cachedNote.content || '',
                                         phrases: cachedNote.phrases || [],
                                         audioNotes: cachedNote.audioNotes || [],
                                         verses: cachedNote.verses || [],
+                                        // Media must ride along too — otherwise recovering newer local
+                                        // text would silently strand images/documents out of Firestore.
+                                        images: (cachedNote.images || []).map((img: any) => ({
+                                            id: img.id,
+                                            url: img.url || '',
+                                            name: img.name || '',
+                                            phraseId: img.phraseId || null
+                                        })),
+                                        documents: (cachedNote.documents || []).map((d: any) => ({
+                                            id: d.id,
+                                            url: d.url || '',
+                                            name: d.name || '',
+                                            type: d.type || 'other',
+                                            size: d.size || 0,
+                                            phraseId: d.phraseId || null
+                                        })),
                                         updatedAt: new Date().toISOString()
                                     }, { merge: true }).catch(console.error);
  
                                     return {
                                         ...cachedNote,
                                         ownerId: remoteNote.ownerId,
-                                        collaborators: remoteNote.collaborators || []
+                                        collaborators: remoteNote.collaborators || [],
+                                        // Lock is owner-authoritative and lives on the server — never let a
+                                        // stale local cache resurrect an old lock/unlock state for a collaborator.
+                                        isLocked: remoteNote.isLocked || false
                                     };
                                 }
                             }
@@ -4016,7 +4414,9 @@ export default function CreatePage() {
  
                         if (finalNotes.length > 0) {
                             setSelectedNoteId(prev => {
-                                const storedId = prev || localStorage.getItem(`veinote-selected-note-id-${user.uid}`);
+                                const storedId = prev
+                                    || localStorage.getItem(`veinote-selected-note-id-${user.uid}`)
+                                    || localStorage.getItem('veinote-selected-note-id');
                                 if (storedId && finalNotes.some(n => n.id === storedId)) {
                                     return storedId;
                                 }
@@ -4204,13 +4604,23 @@ export default function CreatePage() {
 
     useEffect(() => {
         if (isDataLoaded && isSelectionInitialized) {
+            // Mirror to the uid-scoped key too: the restore paths (initial mount and the
+            // Firestore-merge callback) both read `veinote-selected-note-id-<uid>` when a
+            // user is logged in. Without this write that key never exists, so refreshing
+            // dropped the open project and landed the user back on a blank canvas.
             if (selectedNoteId) {
                 safeLocalStorageSetItem('veinote-selected-note-id', selectedNoteId);
+                if (user) {
+                    safeLocalStorageSetItem(`veinote-selected-note-id-${user.uid}`, selectedNoteId);
+                }
             } else {
                 localStorage.removeItem('veinote-selected-note-id');
+                if (user) {
+                    localStorage.removeItem(`veinote-selected-note-id-${user.uid}`);
+                }
             }
         }
-    }, [selectedNoteId, isDataLoaded, isSelectionInitialized]);
+    }, [selectedNoteId, isDataLoaded, isSelectionInitialized, user]);
 
     // Auto-open project if query parameter noteId is present
     useEffect(() => {
@@ -4412,32 +4822,126 @@ export default function CreatePage() {
             return;
         }
 
-        const unsub = onSnapshot(collection(db, "projects", selectedNoteId, "presence"), (snapshot) => {
+        // Raw docs are kept aside so staleness can be re-evaluated on a timer. Without that, a
+        // collaborator who closes their tab produces no further snapshots and would linger in the
+        // roster indefinitely — the filter has to be able to run without new data arriving.
+        const rebuildActiveUsers = () => {
             const users: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null; isStudioOpen?: boolean; activeStudioTrackId?: string | null; activeStudioTrackName?: string | null; isStudioRecording?: boolean }} = {};
-            
-            snapshot.forEach(d => {
-                if (d.id !== user.uid) {
-                    const data = d.data();
-                    users[d.id] = {
-                        name: data.name || 'Collaborator',
-                        color: getMemberColorToken(d.id),
-                        cursor: (data.x !== -999 && data.y !== -999) ? { x: data.x, y: data.y } : undefined,
-                        activePhraseId: data.activePhraseId || null,
-                        isStudioOpen: !!data.isStudioOpen,
-                        activeStudioTrackId: data.activeStudioTrackId || null,
-                        activeStudioTrackName: data.activeStudioTrackName || null,
-                        isStudioRecording: !!data.isStudioRecording
-                    };
-                }
+            const now = Date.now();
+
+            Object.keys(rawPresenceRef.current).forEach(uid => {
+                const data = rawPresenceRef.current[uid];
+                const beat = data.updatedAt ? Date.parse(data.updatedAt) : NaN;
+                // Treat an unparseable/missing heartbeat as live: presence docs written before this
+                // feature existed shouldn't make existing collaborators vanish.
+                if (!isNaN(beat) && now - beat > PRESENCE_STALE_MS) return;
+
+                users[uid] = {
+                    name: data.name || 'Collaborator',
+                    color: getMemberColorToken(uid),
+                    cursor: (data.x !== -999 && data.y !== -999) ? { x: data.x, y: data.y } : undefined,
+                    activePhraseId: data.activePhraseId || null,
+                    isStudioOpen: !!data.isStudioOpen,
+                    activeStudioTrackId: data.activeStudioTrackId || null,
+                    activeStudioTrackName: data.activeStudioTrackName || null,
+                    isStudioRecording: !!data.isStudioRecording
+                };
             });
-            
-            setActiveRemoteUsers(users);
+
+            setActiveRemoteUsers(prev => {
+                // Avoid a state write (and the re-render cascade it triggers on every consumer of
+                // activeRemoteUsers) when the recheck timer finds nothing has actually changed.
+                const prevKeys = Object.keys(prev);
+                const nextKeys = Object.keys(users);
+                if (prevKeys.length === nextKeys.length && nextKeys.every(k => prev[k] &&
+                    prev[k].name === users[k].name &&
+                    prev[k].cursor?.x === users[k].cursor?.x &&
+                    prev[k].cursor?.y === users[k].cursor?.y &&
+                    prev[k].activePhraseId === users[k].activePhraseId &&
+                    prev[k].isStudioOpen === users[k].isStudioOpen &&
+                    prev[k].activeStudioTrackId === users[k].activeStudioTrackId &&
+                    prev[k].activeStudioTrackName === users[k].activeStudioTrackName &&
+                    prev[k].isStudioRecording === users[k].isStudioRecording
+                )) {
+                    return prev;
+                }
+                return users;
+            });
+        };
+
+        const unsub = onSnapshot(collection(db, "projects", selectedNoteId, "presence"), (snapshot) => {
+            const raw: {[uid: string]: any} = {};
+            snapshot.forEach(d => {
+                if (d.id !== user.uid) raw[d.id] = d.data();
+            });
+            rawPresenceRef.current = raw;
+            rebuildActiveUsers();
         }, (err) => {
             console.warn("Presence snapshot error (normal for unsynced local projects):", err.message);
         });
 
-        return () => unsub();
+        const staleTimer = window.setInterval(rebuildActiveUsers, PRESENCE_RECHECK_MS);
+
+        return () => {
+            unsub();
+            window.clearInterval(staleTimer);
+            rawPresenceRef.current = {};
+        };
     }, [selectedNoteId, user, isDataLoaded, currentUserColor, collaborators, notes.find(n => n.id === selectedNoteId)?.ownerId]);
+
+    // Heartbeat: keep our own presence doc fresh so peers can distinguish "still here" from
+    // "closed the tab". Paused while the tab is hidden — a backgrounded tab shouldn't advertise
+    // an active collaborator, and it stops the write firing on throttled background timers.
+    useEffect(() => {
+        if (!selectedNoteId || !user || !isDataLoaded) return;
+
+        const presenceRef = doc(db, "projects", selectedNoteId, "presence", user.uid);
+        const beat = () => {
+            if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+            setDoc(presenceRef, { updatedAt: new Date().toISOString() }, { merge: true })
+                .catch(() => {});
+        };
+
+        beat();
+        const heartbeat = window.setInterval(beat, PRESENCE_HEARTBEAT_MS);
+        document.addEventListener('visibilitychange', beat);
+
+        // Best-effort teardown so collaborators see us leave immediately rather than waiting out
+        // the stale window. Unreliable by nature (the page may be killed first), which is exactly
+        // why the staleness filter above is the real mechanism rather than this.
+        const handlePageHide = () => {
+            deleteDoc(presenceRef).catch(() => {});
+        };
+        window.addEventListener('pagehide', handlePageHide);
+
+        return () => {
+            window.clearInterval(heartbeat);
+            document.removeEventListener('visibilitychange', beat);
+            window.removeEventListener('pagehide', handlePageHide);
+        };
+    }, [selectedNoteId, user, isDataLoaded]);
+
+    // Live comment bubbles for the open project.
+    useEffect(() => {
+        if (!selectedNoteId || !user || !isDataLoaded) {
+            setProjectComments([]);
+            return;
+        }
+        const unsub = subscribeToProjectComments(selectedNoteId, setProjectComments);
+        return () => unsub();
+    }, [selectedNoteId, user, isDataLoaded]);
+
+    // Reset per-project comment UI state and load this project's last-read marker.
+    useEffect(() => {
+        setOpenCommentThread(null);
+        setCommentDraft('');
+        if (!selectedNoteId) {
+            setCommentsLastReadAt(0);
+            return;
+        }
+        const stored = parseInt(localStorage.getItem(`mep-comments-read-${selectedNoteId}`) || '0', 10);
+        setCommentsLastReadAt(isNaN(stored) ? 0 : stored);
+    }, [selectedNoteId]);
 
     // Sync Studio Presence to Firestore
     useEffect(() => {
@@ -4903,6 +5407,15 @@ export default function CreatePage() {
 
     const activeNote = notes.find(n => n.id === selectedNoteId) || null;
 
+    // Project lock — owner-only control that makes the canvas view-only for EVERYONE
+    // (the owner included) until the owner unlocks it again.
+    // A project with no ownerId is a purely local/solo note, so the local user owns it.
+    const isProjectOwner = !!activeNote && (!activeNote.ownerId || activeNote.ownerId === user?.uid);
+    const isCanvasLocked = !!activeNote?.isLocked;
+    // Single flag every mutation path checks. Preview (pending invite) and lock both
+    // mean "look, don't touch", so they share one guard.
+    const isCanvasReadOnly = isCanvasPreview || isCanvasLocked;
+
     // Single unified 100% deterministic color token helper across all components & browsers
     const getMemberColorToken = (targetUid: string) => {
         if (!targetUid) return getCollabColor(COLLABORATOR_COLORS[0]);
@@ -5061,10 +5574,159 @@ export default function CreatePage() {
     }, [activeInspirationIndex]);
     const activeNoteCollabList = activeNote?.collaborators || [];
     const isActiveCollab = !!(selectedNoteId && (
-        collaborators.length > 0 || 
-        activeNoteCollabList.length > 0 || 
+        collaborators.length > 0 ||
+        activeNoteCollabList.length > 0 ||
         (activeNote && activeNote.ownerId && activeNote.ownerId !== user?.uid)
     ));
+
+    // ── Voice call ───────────────────────────────────────────────────────────────────────────
+    // `isRecording` covers both capture paths (the canvas recorder and Demo Studio) — either one
+    // must suspend the call, since both route through the same speakers/microphone.
+    const {
+        isCallActive,
+        isConnecting: isCallConnecting,
+        isMuted: isCallMuted,
+        participants: callParticipants,
+        isHuddleRunning,
+        huddleOthers,
+        joinCall,
+        leaveCall,
+        toggleMute: toggleCallMute
+    } = useVoiceCall({
+        projectId: selectedNoteId,
+        userId: user?.uid || null,
+        userName: user?.displayName || user?.email?.split('@')[0] || 'Collaborator',
+        isRecording: isRecording || studioState === 'recording',
+        onNotify: triggerStudioNotification
+    });
+
+    // ── Comment derivations ──────────────────────────────────────────────────────────────────
+    // Gate on "this is a shared project", not "someone is online right now": a comment left for
+    // you yesterday must still be reachable when you're working alone today. Comments that already
+    // exist always keep the UI available, so a thread can never become unreachable.
+    const showCommentsUI = isActiveCollab || projectComments.length > 0;
+
+    const openComments = useMemo(
+        () => projectComments.filter(c => !c.resolved),
+        [projectComments]
+    );
+
+    // Unresolved comments grouped by the phrase they're pinned to (project-level ones excluded).
+    const commentsByAnchor = useMemo(() => {
+        const map: { [anchorId: string]: ProjectComment[] } = {};
+        openComments.forEach(c => {
+            if (!c.anchorId) return;
+            (map[c.anchorId] = map[c.anchorId] || []).push(c);
+        });
+        // Oldest first within a thread so it reads as a conversation.
+        Object.keys(map).forEach(k => map[k].sort((a, b) => a.createdAt - b.createdAt));
+        return map;
+    }, [openComments]);
+
+    const projectLevelComments = useMemo(
+        () => openComments.filter(c => !c.anchorId).sort((a, b) => a.createdAt - b.createdAt),
+        [openComments]
+    );
+
+    // Only somebody else's comments can be "unread" — your own never nag you.
+    const hasUnreadComments = useMemo(
+        () => openComments.some(c => c.authorUid !== user?.uid && c.createdAt > commentsLastReadAt),
+        [openComments, commentsLastReadAt, user?.uid]
+    );
+
+    // Measures the commented line/section so the bubble can be anchored under it. Works for both
+    // anchor kinds — a phrase id or a verse-group id — since both are carried as data attributes.
+    const measureCommentAnchor = (anchorId: string | null) => {
+        if (!anchorId || anchorId === '__project__' || typeof document === 'undefined') {
+            setCommentAnchorRect(null);
+            return;
+        }
+        const escaped = (window as any).CSS?.escape ? CSS.escape(anchorId) : anchorId.replace(/"/g, '\\"');
+        const el = document.querySelector(`[data-phrase-id="${escaped}"], [data-group-id="${escaped}"]`);
+        if (!el) {
+            setCommentAnchorRect(null);
+            return;
+        }
+        const r = el.getBoundingClientRect();
+        setCommentAnchorRect({ top: r.top, bottom: r.bottom, left: r.left, width: r.width });
+    };
+
+    // Stable identity so PhraseRow's React.memo isn't defeated by a new callback each render.
+    const handleOpenCommentThread = useCallback((anchorId: string) => {
+        setOpenCommentThread(anchorId);
+        setCommentDraft('');
+        measureCommentAnchor(anchorId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Keep the bubble glued to its line while the canvas moves underneath it.
+    useEffect(() => {
+        if (!openCommentThread || openCommentThread === '__project__') return;
+        const reposition = () => measureCommentAnchor(openCommentThread);
+        window.addEventListener('scroll', reposition, true);
+        window.addEventListener('resize', reposition);
+        return () => {
+            window.removeEventListener('scroll', reposition, true);
+            window.removeEventListener('resize', reposition);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [openCommentThread]);
+
+    // Per-line marker data (count + one colour per unique commenter, oldest first),
+    // precomputed so each PhraseRow gets plain primitives.
+    const commentMarkers = useMemo(() => {
+        const map: { [anchorId: string]: { count: number; tints: string[] } } = {};
+        Object.keys(commentsByAnchor).forEach(anchorId => {
+            const list = commentsByAnchor[anchorId];
+            const seenAuthors = new Set<string>();
+            const tints: string[] = [];
+            list.forEach(c => {
+                if (!seenAuthors.has(c.authorUid)) {
+                    seenAuthors.add(c.authorUid);
+                    tints.push(getMemberColorToken(c.authorUid));
+                }
+            });
+            map[anchorId] = { count: list.length, tints };
+        });
+        return map;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [commentsByAnchor, allCollabMembers]);
+
+    const markCommentsRead = () => {
+        if (!selectedNoteId) return;
+        const newest = openComments.reduce((max, c) => Math.max(max, c.createdAt), 0);
+        if (newest <= commentsLastReadAt) return;
+        setCommentsLastReadAt(newest);
+        safeLocalStorageSetItem(`mep-comments-read-${selectedNoteId}`, String(newest));
+    };
+
+    const handlePostComment = async (anchorId: string | null) => {
+        const text = commentDraft.trim();
+        if (!text || !selectedNoteId || !user || isPostingComment) return;
+        setIsPostingComment(true);
+        const ok = await addProjectComment(selectedNoteId, {
+            authorUid: user.uid,
+            authorName: user.displayName || user.email?.split('@')[0] || 'Collaborator',
+            text,
+            anchorId
+        });
+        setIsPostingComment(false);
+        if (ok) {
+            setCommentDraft('');
+        } else {
+            triggerStudioNotification('Could not post the comment. Please try again.', 'rose');
+        }
+    };
+
+    const handleResolveComment = async (commentId: string) => {
+        if (!selectedNoteId || !user) return;
+        await resolveProjectComment(selectedNoteId, commentId, user.uid);
+    };
+
+    const handleDeleteComment = async (commentId: string) => {
+        if (!selectedNoteId) return;
+        await deleteProjectComment(selectedNoteId, commentId);
+    };
 
     // Ensure we have a unified list of audio notes, migrating legacy audioUrl if needed
     const activeAudioNotes = activeNote 
@@ -5717,6 +6379,13 @@ export default function CreatePage() {
     // VOICE RECORDING & AUDIO VISUALIZER LOGIC
     // ----------------------------------------------------
     const startRecording = async (forceNew = false) => {
+        // Recording ultimately persists through handleUpdateNote, which is blocked while
+        // read-only. Stopping here avoids letting someone record a take that would then
+        // silently fail to attach.
+        if (isCanvasReadOnly) {
+            triggerStudioNotification(t('collab.lock_banner'), 'amber');
+            return;
+        }
         forceNewRecordingRef.current = forceNew;
         const startingNoteId = selectedNoteIdRef.current;
         setLastAwardedContent('');
@@ -6483,6 +7152,13 @@ export default function CreatePage() {
     }, [selectedNoteId, activeNote, isMounted]);
 
     const processImportFile = async (file: File, targetNoteId?: string | null): Promise<string | null> => {
+        // Single funnel for every import (Add menu + drag-and-drop), so one guard here
+        // covers them all. Imports land via handleUpdateNote, which is blocked anyway —
+        // stopping up front avoids uploading/compressing a file that could never attach.
+        if (isCanvasReadOnly) {
+            triggerStudioNotification(t('collab.lock_banner'), 'amber');
+            return null;
+        }
         const fileName = file.name.toLowerCase();
         const effectiveNoteId = targetNoteId !== undefined ? targetNoteId : selectedNoteId;
 
@@ -6497,12 +7173,12 @@ export default function CreatePage() {
         // Apply type-specific size limits
         if (uploadType === 'audio') {
             if (file.size > 30 * 1024 * 1024) {
-                triggerStudioNotification('Audio file size exceeds the 30MB limit.', 'rose');
+                triggerStudioNotification(t('creative.file_too_large_audio'), 'amber');
                 return null;
             }
         } else {
             if (file.size > 3 * 1024 * 1024) {
-                triggerStudioNotification('File size exceeds the 3MB limit.', 'rose');
+                triggerStudioNotification(t('creative.file_too_large'), 'amber');
                 return null;
             }
         }
@@ -6918,6 +7594,8 @@ export default function CreatePage() {
         const types = e.dataTransfer.types;
         const isFilesDrag = types ? Array.from(types).includes('Files') : false;
         if (!isFilesDrag) return;
+        // Don't invite a drop we're going to refuse.
+        if (isCanvasReadOnly) return;
 
         dragCounterRef.current++;
         if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
@@ -6955,6 +7633,10 @@ export default function CreatePage() {
         const types = e.dataTransfer.types;
         const isFilesDrag = types ? Array.from(types).includes('Files') : false;
         if (!isFilesDrag) return;
+        if (isCanvasReadOnly) {
+            triggerStudioNotification(t('collab.lock_banner'), 'amber');
+            return;
+        }
 
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             const files = Array.from(e.dataTransfer.files);
@@ -7050,6 +7732,7 @@ export default function CreatePage() {
         }
 
         setShareStatus('sharing');
+        const shareStartedAt = Date.now();
 
         const displayName = user?.displayName || user?.email?.split('@')[0] || 'Songwriter';
         const initials = displayName
@@ -7071,6 +7754,10 @@ export default function CreatePage() {
         const postId = 'post-shared-' + Date.now();
         const newPost = {
             id: postId,
+            // Required by the connect_posts create rule (`authorId == request.auth.uid`) and by
+            // ConnectTab's own edit/delete/hidden checks. Without it every publish from Create was
+            // rejected by security rules.
+            authorId: user?.uid || null,
             author: displayName,
             avatarFallback: initials || 'SW',
             time: 'Just now',
@@ -7100,19 +7787,42 @@ export default function CreatePage() {
         };
 
         try {
-            await setDoc(doc(db, 'connect_posts', postId), newPost);
-            setShareStatus('shared');
+            // A Firestore write only settles once the server acknowledges it, so an unreachable
+            // backend leaves this promise pending indefinitely — which used to strand the button
+            // on "Publishing" with no way out. Bound the wait so the UI always resolves.
+            await Promise.race([
+                setDoc(doc(db, 'connect_posts', postId), newPost),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Publish timed out waiting for the server')), 12000)
+                )
+            ]);
         } catch (err) {
             console.error("Error sharing post to Firestore:", err);
-            // Fallback storage
+            // Keep a local copy so the work isn't lost, but don't claim success — previously this
+            // fell through to the "shared" state, telling the user a post had gone live when it
+            // only existed in their own browser.
             const saved = localStorage.getItem('mep-connect-posts-v4');
             let currentPosts = [];
             if (saved) {
                 try { currentPosts = JSON.parse(saved); } catch (e) {}
             }
             safeLocalStorageSetItem('mep-connect-posts-v4', JSON.stringify([newPost, ...currentPosts]));
-            setShareStatus('shared');
+
+            setShareStatus('idle');
+            triggerStudioNotification("Couldn't publish to the community. Please try again.", 'rose');
+            return;
         }
+
+        // Keep the loading ring visible for a perceptible moment even on a fast
+        // network — flashing straight from idle to shared reads as broken, not fast.
+        const MIN_SHARING_MS = 1500;
+        const elapsed = Date.now() - shareStartedAt;
+        if (elapsed < MIN_SHARING_MS) {
+            await new Promise(resolve => setTimeout(resolve, MIN_SHARING_MS - elapsed));
+        }
+
+        setShareStatus('shared');
+        triggerCelebrationGlow();
     };
     const pushToUndoHistory = (
         content: string, 
@@ -7263,7 +7973,7 @@ export default function CreatePage() {
     };
 
     const handleUpdateNote = (id: string, updates: Partial<SongNote>) => {
-        if (isCanvasPreview) return;
+        if (isCanvasReadOnly) return;
         
         const currentNote = notes.find(n => n.id === id);
         if (currentNote) {
@@ -7340,11 +8050,12 @@ export default function CreatePage() {
 
                     setDoc(docRef, {
                         id: updatedNote.id,
-                        title: updatedNote.title || 'Untitled Note',
+                        title: updatedNote.title || 'Untitled Project',
                         content: updatedNote.content || '',
                         folderId: null,
                         isAudioOnly: updatedNote.isAudioOnly || false,
                         isTitleLocked: updatedNote.isTitleLocked || false,
+                        isLocked: updatedNote.isLocked || false,
                         verses: updatedNote.verses || [],
                         phrases: cleanPhrases,
                         audioNotes: cleanAudio,
@@ -7977,7 +8688,7 @@ export default function CreatePage() {
     };
 
     const handleStartEditing = async (phraseId: string) => {
-        if (isCanvasPreview) return;
+        if (isCanvasReadOnly) return;
         setEditingPhraseId(phraseId);
         setCursorSelectionOffset(null);
 
@@ -8042,7 +8753,7 @@ export default function CreatePage() {
             handleUpdateNote(selectedNoteId, {
                 phrases: updatedPhrases,
                 content: newContent,
-                title: activeNote.title || 'Untitled Note'
+                title: activeNote.title || 'Untitled Project'
             });
             
             setEditingPhraseId(nextPhraseId);
@@ -8054,7 +8765,7 @@ export default function CreatePage() {
                     await updateDoc(doc(db, "projects", selectedNoteId), {
                         phrases: updatedPhrases,
                         content: newContent,
-                        title: activeNote.title || 'Untitled Note',
+                        title: activeNote.title || 'Untitled Project',
                         updatedAt: new Date().toISOString()
                     });
                 } catch (err) {
@@ -8106,7 +8817,7 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: sanitizedPhrases,
             content: newContent,
-            title: activeNote.title || 'Untitled Note'
+            title: activeNote.title || 'Untitled Project'
         });
         
         setEditingPhraseId(previousPhrase.id);
@@ -8210,7 +8921,7 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: sanitizedPhrases,
             content: newContent,
-            title: activeNote.title || 'Untitled Note'
+            title: activeNote.title || 'Untitled Project'
         });
     };
 
@@ -8275,7 +8986,7 @@ export default function CreatePage() {
             handleUpdateNote(selectedNoteId, {
                 phrases: sanitizedPhrases,
                 content: newContent,
-                title: activeNote.title || 'Untitled Note'
+                title: activeNote.title || 'Untitled Project'
             });
             return;
         }
@@ -8312,7 +9023,7 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: sanitizedPhrases,
             content: newContent,
-            title: activeNote.title || 'Untitled Note'
+            title: activeNote.title || 'Untitled Project'
         });
     };
 
@@ -8366,7 +9077,7 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: sanitizedPhrases,
             content: newContent,
-            title: activeNote.title || 'Untitled Note'
+            title: activeNote.title || 'Untitled Project'
         });
     };
 
@@ -8389,12 +9100,12 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: updatedPhrases,
             content: newContent,
-            title: activeNote.title || 'Untitled Note'
+            title: activeNote.title || 'Untitled Project'
         });
     };
 
     const handleAddNewPhrase = (groupId: string | null = null) => {
-        if (isCanvasPreview) return;
+        if (isCanvasReadOnly) return;
         if (!selectedNoteId || !activeNote) return;
         const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
             ? activeNote.phrases
@@ -8611,8 +9322,8 @@ export default function CreatePage() {
     const handleDeleteNote = (id: string, e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
         requestConfirm({
-            title: 'Delete Note?',
-            message: 'Are you sure you want to delete this note?',
+            title: 'Delete Project?',
+            message: 'Are you sure you want to delete this project?',
             destructive: true,
             onConfirm: () => {
                 setNotes(prev => prev.filter(n => n.id !== id));
@@ -8621,10 +9332,81 @@ export default function CreatePage() {
                     setIsEditing(false);
                 }
                 if (user) {
-                    deleteDoc(doc(db, "projects", id)).catch(err => console.error("Error deleting project in Firestore:", err));
+                    // Firestore does not cascade-delete subcollections, so the project's comments,
+                    // presence and signalling docs would otherwise be orphaned forever. Clear them
+                    // first, then remove the parent document.
+                    deleteProjectSubcollections(id)
+                        .catch(() => {})
+                        .finally(() => {
+                            deleteDoc(doc(db, "projects", id)).catch(err => console.error("Error deleting project in Firestore:", err));
+                        });
                 }
             }
         });
+    };
+
+    // Deliberately does NOT route through handleUpdateNote: that funnel is blocked by
+    // isCanvasReadOnly, and unlocking necessarily happens while the canvas is locked.
+    // Owner-only — collaborators never get this control.
+    const cancelLockHold = () => {
+        if (lockHoldTimerRef.current !== null) {
+            clearTimeout(lockHoldTimerRef.current);
+            lockHoldTimerRef.current = null;
+        }
+        setIsHoldingLock(false);
+    };
+
+    const startLockHold = () => {
+        if (!isProjectOwner) return;
+        cancelLockHold();
+        lockHoldFiredRef.current = false;
+        setIsHoldingLock(true);
+
+        // The commit is timer-driven, not frame-driven: animation frames are throttled
+        // (or stop entirely) when the tab isn't being painted, which would otherwise leave
+        // a held button that silently never completes.
+        lockHoldTimerRef.current = setTimeout(() => {
+            if (!lockHoldFiredRef.current) {
+                lockHoldFiredRef.current = true;
+                handleToggleProjectLock();
+            }
+            cancelLockHold();
+        }, LOCK_HOLD_MS);
+    };
+
+    useEffect(() => () => {
+        if (lockHoldTimerRef.current !== null) clearTimeout(lockHoldTimerRef.current);
+    }, []);
+
+    const handleToggleProjectLock = () => {
+        if (!selectedNoteId || !activeNote) return;
+        if (!isProjectOwner) return;
+
+        const nextLocked = !activeNote.isLocked;
+        const timestamp = new Date().toISOString();
+
+        setNotes(prev => prev.map(n => (
+            n.id === selectedNoteId ? { ...n, isLocked: nextLocked, updatedAt: timestamp } : n
+        )));
+
+        // Leaving a phrase mid-edit while locking would strand an editing surface
+        // (and a collab lock) on a canvas nobody can type into.
+        if (nextLocked) {
+            setEditingPhraseId(null);
+            setIsEditingTitle(false);
+        }
+
+        if (user) {
+            updateDoc(doc(db, "projects", selectedNoteId), {
+                isLocked: nextLocked,
+                updatedAt: timestamp
+            }).catch(err => console.error("Error updating project lock in Firestore:", err));
+        }
+
+        triggerStudioNotification(
+            nextLocked ? t('collab.lock_locked_toast') : t('collab.lock_unlocked_toast'),
+            nextLocked ? 'amber' : 'emerald'
+        );
     };
 
     const handleDuplicateNote = (id: string, e?: React.MouseEvent) => {
@@ -8883,7 +9665,7 @@ export default function CreatePage() {
         e.stopPropagation();
         requestConfirm({
             title: 'Delete Folder?',
-            message: 'Are you sure you want to delete this folder? Notes inside will be kept uncategorized.',
+            message: 'Are you sure you want to delete this folder? Projects inside will be kept uncategorized.',
             destructive: true,
             onConfirm: () => {
                 setFolders(prev => prev.filter(f => f.id !== folderId));
@@ -9112,12 +9894,61 @@ export default function CreatePage() {
     };
 
 
+    // ─── Auto-save ────────────────────────────────────────────────────────────
+    // Edits already reach Firestore/localStorage on every keystroke via handleUpdateNote;
+    // what used to require a click was the *checkpoint* (lastSavedContent), plus the
+    // structural tidy-up. Committing that on a debounce means a project is never sitting
+    // in a state the user believes is unsaved.
+    //
+    // Deliberately does NOT reuse handleSaveNote: that also clears undo/redo (hostile
+    // mid-typing) and awards progress bonuses (which would then fire on a timer).
+    const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        if (!selectedNoteId || !activeNote) return;
+        if (isCanvasReadOnly) return;
+        if (isSavingNote) return;
+        if (activeNote.content === lastSavedContent) return;
+
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = setTimeout(() => {
+            const contentAtSave = activeNote.content;
+            const finalPhrases = cleanupAndEnsurePlaceholders(activeNote.phrases || [], activeNote.verses || []);
+            handleUpdateNote(selectedNoteId, {
+                phrases: finalPhrases,
+                verses: activeNote.verses || []
+            });
+            setLastSavedContent(contentAtSave);
+        }, 1500);
+
+        return () => {
+            if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        };
+    }, [activeNote?.content, selectedNoteId, isCanvasReadOnly, isSavingNote, lastSavedContent]);
+
+    // Flush a pending auto-save if the tab is hidden or closed mid-debounce.
+    useEffect(() => {
+        const flush = () => {
+            if (!autoSaveTimerRef.current) return;
+            if (!selectedNoteId || !activeNote || isCanvasReadOnly) return;
+            clearTimeout(autoSaveTimerRef.current);
+            autoSaveTimerRef.current = null;
+            setLastSavedContent(activeNote.content);
+        };
+        const onVisibility = () => { if (document.visibilityState === 'hidden') flush(); };
+        window.addEventListener('pagehide', flush);
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            window.removeEventListener('pagehide', flush);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, [selectedNoteId, activeNote, isCanvasReadOnly]);
+
     const handleRevertChanges = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (selectedNoteId && activeNote) {
             requestConfirm({
                 title: 'Revert Changes?',
-                message: 'Are you sure you want to revert all unsaved changes for this note?',
+                message: 'Are you sure you want to revert all unsaved changes for this project?',
                 destructive: true,
                 confirmLabel: 'Revert',
                 onConfirm: () => {
@@ -9685,7 +10516,7 @@ export default function CreatePage() {
             handleUpdateNote(selectedNoteId, {
                 phrases: updatedPhrases,
                 content: newContent,
-                title: activeNote.title || 'Untitled Note',
+                title: activeNote.title || 'Untitled Project',
                 forceHistoryPush: true
             });
         }
@@ -9735,7 +10566,7 @@ export default function CreatePage() {
             handleUpdateNote(selectedNoteId, {
                 phrases: updatedPhrases,
                 content: newContent,
-                title: activeNote.title || 'Untitled Note',
+                title: activeNote.title || 'Untitled Project',
                 forceHistoryPush: true
             });
             
@@ -9889,7 +10720,7 @@ export default function CreatePage() {
         const showBottom = dragOverPhraseId === phrase.id && dropPosition === 'bottom';
 
         const onCardDragOver = (e: React.DragEvent) => {
-            if (isCanvasPreview) return;
+            if (isCanvasReadOnly) return;
             const dt = e.dataTransfer.types;
             const relevant = dt.includes('text/audio-note-id') || dt.includes('text/image-id') || dt.includes('text/document-id') || dt.includes('text/plain');
             if (!relevant) return;
@@ -9902,7 +10733,7 @@ export default function CreatePage() {
         };
 
         const onCardDrop = (e: React.DragEvent) => {
-            if (isCanvasPreview) return;
+            if (isCanvasReadOnly) return;
             e.preventDefault();
             e.stopPropagation();
             const pos: 'top' | 'bottom' = (dropPosition === 'top' || dropPosition === 'bottom') ? dropPosition : 'bottom';
@@ -9947,7 +10778,7 @@ export default function CreatePage() {
                             onScan={() => handleScanImage(img.id)}
                             onPreview={() => setPreviewImageUrl(img.url)}
                             isScanning={scanningImageId === img.id}
-                            onDragStart={isCanvasPreview ? undefined : (e) => handleImageDragStart(e, img.id)}
+                            onDragStart={isCanvasReadOnly ? undefined : (e) => handleImageDragStart(e, img.id)}
                             onDragEnd={handleImageDragEnd}
                         />
                     );
@@ -9961,7 +10792,7 @@ export default function CreatePage() {
                             onDelete={() => handleDeleteDocBlock(dcard.id, phrase.id)}
                             onScan={() => handleTranscribeDocument(dcard.id, phrase.id)}
                             isScanning={transcribingDocId === dcard.id}
-                            onDragStart={isCanvasPreview ? undefined : (e) => handleDocDragStart(e, dcard.id)}
+                            onDragStart={isCanvasReadOnly ? undefined : (e) => handleDocDragStart(e, dcard.id)}
                             onDragEnd={handleDocDragEnd}
                         />
                     );
@@ -10177,6 +11008,12 @@ export default function CreatePage() {
     };
 
     const startStudioRecording = async () => {
+        // Studio takes are written back onto the project, so a locked project blocks
+        // them the same as canvas recording.
+        if (isCanvasReadOnly) {
+            triggerStudioNotification(t('collab.lock_banner'), 'amber');
+            return;
+        }
         const collaboratorOnTrack = Object.values(activeRemoteUsers)
             .find(u => u.isStudioOpen && u.activeStudioTrackId !== null && u.activeStudioTrackId !== undefined && String(u.activeStudioTrackId) === String(activeRecordingTrackId));
         if (collaboratorOnTrack && collaboratorOnTrack.isStudioRecording) {
@@ -10811,6 +11648,10 @@ export default function CreatePage() {
     };
 
     const handleClearTrack = (trackId: number) => {
+        if (isCanvasReadOnly) {
+            triggerStudioNotification(t('collab.lock_banner'), 'amber');
+            return;
+        }
         requestConfirm({
             title: 'Delete Recording?',
             message: "Are you sure you want to delete this track's recording?",
@@ -10938,6 +11779,10 @@ export default function CreatePage() {
     };
 
     const handleAddTrack = () => {
+        if (isCanvasReadOnly) {
+            triggerStudioNotification(t('collab.lock_banner'), 'amber');
+            return;
+        }
         if (studioTracks.length >= 4) return;
         const nextId = Date.now();
         const newTrack: StudioTrack = {
@@ -10995,6 +11840,10 @@ export default function CreatePage() {
     };
 
     const handleDeleteTrack = (trackId: number) => {
+        if (isCanvasReadOnly) {
+            triggerStudioNotification(t('collab.lock_banner'), 'amber');
+            return;
+        }
         requestConfirm({
             title: 'Delete Track?',
             message: 'Are you sure you want to delete this track?',
@@ -11366,16 +12215,6 @@ export default function CreatePage() {
                         </div>
                     );
                 })}
-                {/* Custom Studio Notification Toast */}
-                {studioNotification.isOpen && (
-                    <div className="absolute top-[-16px] left-1/2 -translate-x-1/2 bg-stone-900 text-stone-100 px-5 py-2.5 rounded-full flex items-center gap-2.5 shadow-lg border border-stone-800 text-[13px] font-sans font-medium tracking-wide animate-in fade-in slide-in-from-top-3 duration-250 z-[100] whitespace-nowrap">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-                        </span>
-                        <span>{studioNotification.message}</span>
-                    </div>
-                )}
                 {/* Studio Header containing Title & Info Button */}
                 <div className="flex items-center justify-between w-full mb-6 sm:mb-8 px-1">
                     <div className="flex items-center gap-3 min-w-0">
@@ -11387,27 +12226,29 @@ export default function CreatePage() {
                         {remoteUsersInStudio.length > 0 && (
                             <div className="inline-flex items-center ml-2.5 select-none shrink-0 relative">
                                 {allUsersInStudio.map((u, i) => (
-                                    <div 
-                                        key={u.uid}
-                                        className="w-8 h-8 aspect-square rounded-full flex items-center justify-center font-normal text-[14px] text-stone-900 border-[2.5px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] capitalize shrink-0 transition-all -ml-2 first:ml-0 cursor-pointer animate-in fade-in duration-200"
-                                        style={{ backgroundColor: u.color, zIndex: 20 - i }}
-                                        title={u.isMe ? `You (${u.name})` : u.name}
-                                    >
-                                        {getFirstInitial(u.name)}
-                                    </div>
+                                    <Tooltip key={u.uid} label={u.isMe ? `You (${u.name})` : u.name}>
+                                        <div
+                                            className="w-8 h-8 aspect-square rounded-full flex items-center justify-center font-normal text-[14px] text-stone-900 border-[2.5px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] capitalize shrink-0 transition-all -ml-2 first:ml-0 cursor-pointer animate-in fade-in duration-200"
+                                            style={{ backgroundColor: u.color, zIndex: 20 - i }}
+                                        >
+                                            {getFirstInitial(u.name)}
+                                        </div>
+                                    </Tooltip>
                                 ))}
                             </div>
                         )}
                     </div>
                     
-                    <button
-                        onClick={() => setShowWiredHeadphonesBanner(true)}
-                        className="w-9 h-9 rounded-full bg-stone-50 hover:bg-stone-100 border border-stone-200/80 shadow-xs flex items-center justify-center text-stone-400 hover:text-stone-600 transition-all active:scale-95 cursor-pointer"
-                        title={t('studio_guide.title') || 'Studio Guide'}
-                        type="button"
-                    >
-                        <Info size={18} className="stroke-[2.2]" />
-                    </button>
+                    <Tooltip label={t('studio_guide.title') || 'Studio Guide'}>
+                        <button
+                            onClick={() => setShowWiredHeadphonesBanner(true)}
+                            aria-label={t('studio_guide.title') || 'Studio Guide'}
+                            className="w-9 h-9 rounded-full bg-stone-50 hover:bg-stone-100 border border-stone-200/80 shadow-xs flex items-center justify-center text-stone-400 hover:text-stone-600 transition-all active:scale-95 cursor-pointer"
+                            type="button"
+                        >
+                            <Info size={18} className="stroke-[2.2]" />
+                        </button>
+                    </Tooltip>
                 </div>
 
                 <div className="contents">
@@ -11529,13 +12370,14 @@ export default function CreatePage() {
                                 >
                                     {/* Left Floating Avatar Circle Badge */}
                                     {trackActiveUser && (
-                                        <div 
-                                            className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center font-bold text-[12px] text-white shadow-md border-2 border-white z-30 select-none uppercase transition-transform hover:scale-110"
-                                            style={{ backgroundColor: trackBorderColor || '#818CF8', color: '#1C1917' }}
-                                            title={`${trackActiveUser.name} is on this track`}
-                                        >
-                                            {userInitial}
-                                        </div>
+                                        <Tooltip label={`${trackActiveUser.name} is on this track`}>
+                                            <div
+                                                className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center font-bold text-[12px] text-white shadow-md border-2 border-white z-30 select-none uppercase transition-transform hover:scale-110"
+                                                style={{ backgroundColor: trackBorderColor || '#818CF8', color: '#1C1917' }}
+                                            >
+                                                {userInitial}
+                                            </div>
+                                        </Tooltip>
                                     )}
 
 
@@ -11546,7 +12388,7 @@ export default function CreatePage() {
                                         onTouchStart={() => setDraggableTrackId(track.id)}
                                         onTouchEnd={() => setDraggableTrackId(null)}
                                         className="w-5 flex items-center justify-center text-stone-300 hover:text-stone-500 cursor-grab active:cursor-grabbing shrink-0 transition-all opacity-0 group-hover:opacity-100 duration-150"
-                                        title="Drag to reorder"
+                                        aria-label={t('studio.drag_to_reorder')}
                                     >
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4.5 h-4.5">
                                             <circle cx="9" cy="5" r="1.25" fill="currentColor" />
@@ -11560,14 +12402,24 @@ export default function CreatePage() {
 
                                     {/* Selector Capsule */}
                                     <div className="relative">
-                                        <div 
+                                        <div
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 if (isCollabRecording) {
                                                     triggerStudioNotification(`${collaboratorOnTrack.name} is currently recording on this track!`);
                                                     return;
                                                 }
-                                                setActiveTrackDropdownId(activeTrackDropdownId === track.id ? null : track.id);
+                                                if (activeTrackDropdownId === track.id) {
+                                                    setActiveTrackDropdownId(null);
+                                                } else {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    const dropdownWidth = 320;
+                                                    setTrackDropdownAnchor({
+                                                        top: rect.bottom + 6,
+                                                        left: Math.min(rect.left, window.innerWidth - dropdownWidth - 16)
+                                                    });
+                                                    setActiveTrackDropdownId(track.id);
+                                                }
                                             }}
                                             className="bg-[#F9F8F6] hover:bg-[#F3F1ED] rounded-full border border-stone-200/40 pl-3.5 pr-0 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)] cursor-pointer select-none w-32 sm:w-36 md:w-40 lg:w-44 h-11 shrink-0 transition-all hover:shadow-[0_2px_6px_rgba(0,0,0,0.04)] active:scale-98 relative overflow-hidden"
                                         >
@@ -11587,7 +12439,7 @@ export default function CreatePage() {
                                                         onMouseDown={(e) => e.stopPropagation()}
                                                         autoFocus={track.name === 'Custom'}
                                                         className="bg-transparent border-none text-[13px] md:text-[14px] text-stone-700 font-extrabold focus:outline-none focus:ring-0 p-0 w-full min-w-0 font-sans"
-                                                        placeholder="Custom..."
+                                                        placeholder={t('studio.custom_instrument')}
                                                     />
                                                 ) : (
                                                     <span className={`text-[13px] md:text-[14px] truncate leading-none transition-colors ${
@@ -11621,9 +12473,17 @@ export default function CreatePage() {
                                                 </div>
                                             )}
                                         </div>
-                                        {/* Instrument Selection Grid Pop-up (Figma Pixel-Perfect Stack) */}
-                                        {activeTrackDropdownId === track.id && (
-                                            <div className="absolute top-12.5 left-0 w-[320px] bg-white border border-stone-200/80 rounded-[36px] shadow-[0_15px_50px_rgba(0,0,0,0.12)] p-6 z-50 animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col gap-3.5 pointer-events-auto">
+                                        {/* Instrument Selection Grid Pop-up (Figma Pixel-Perfect Stack) — portaled to
+                                            document.body so it isn't clipped by the Demo Studio card's overflow-y-auto,
+                                            and positioned against the real viewport instead of `position: absolute`
+                                            since an ancestor's transform would otherwise hijack `position: fixed` too. */}
+                                        {activeTrackDropdownId === track.id && trackDropdownAnchor && createPortal(
+                                            <>
+                                                <div className="fixed inset-0 z-[59]" onClick={() => setActiveTrackDropdownId(null)} />
+                                                <div
+                                                    className="fixed w-[min(320px,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto no-scrollbar bg-white border border-stone-200/80 rounded-[36px] shadow-[0_15px_50px_rgba(0,0,0,0.12)] p-6 z-[60] animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col gap-3.5 pointer-events-auto"
+                                                    style={{ top: trackDropdownAnchor.top, left: trackDropdownAnchor.left }}
+                                                >
                                                 {(() => {
                                                     const standardOptions = ['vocals', 'drums', 'piano', 'guitar', 'synth'] as const;
                                                     const isCustomSelected = track.type === 'custom';
@@ -11712,7 +12572,9 @@ export default function CreatePage() {
                                                         </>
                                                     );
                                                 })()}
-                                            </div>
+                                                </div>
+                                            </>,
+                                            document.body
                                         )}
                                     </div>
 
@@ -11866,37 +12728,40 @@ export default function CreatePage() {
                                         (studioState === 'playing' || studioState === 'recording') ? 'w-[70px]' : 'w-8'
                                     }`}>
                                         {(studioState === 'playing' || studioState === 'recording') && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleToggleTrackMute(track.id);
-                                                }}
-                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] ${
-                                                    track.muted 
-                                                        ? 'bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600' 
-                                                        : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750'
-                                                }`}
-                                                type="button"
-                                                title={track.muted ? "Unsilence Track" : "Silence Track"}
-                                            >
-                                                {track.muted ? (
-                                                    <VolumeX size={15} className="stroke-[2.5]" />
-                                                ) : (
-                                                    <Volume2 size={15} className="stroke-[2.5]" />
-                                                )}
-                                            </button>
+                                            <Tooltip label={track.muted ? "Unsilence track" : "Silence track"}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleToggleTrackMute(track.id);
+                                                    }}
+                                                    aria-label={track.muted ? "Unsilence track" : "Silence track"}
+                                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] ${
+                                                        track.muted
+                                                            ? 'bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600'
+                                                            : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750'
+                                                    }`}
+                                                    type="button"
+                                                >
+                                                    {track.muted ? (
+                                                        <VolumeX size={15} className="stroke-[2.5]" />
+                                                    ) : (
+                                                        <Volume2 size={15} className="stroke-[2.5]" />
+                                                    )}
+                                                </button>
+                                            </Tooltip>
                                         )}
 
                                         <div className="relative track-menu-container">
+                                            <Tooltip label={t('studio.track_options')} disabled={activeTrackMenuId === track.id}>
                                             <button
                                                 onClick={(e) => handleTrackMenuClick(e, track.id)}
+                                                aria-label={t('studio.track_options')}
                                                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] focus:outline-none outline-none ${
                                                     activeTrackMenuId === track.id
                                                         ? 'bg-stone-200 text-stone-750'
                                                         : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750'
                                                 }`}
                                                 type="button"
-                                                title="Track Options"
                                             >
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
                                                     <circle cx="12" cy="12" r="1.5" fill="currentColor" />
@@ -11904,6 +12769,7 @@ export default function CreatePage() {
                                                     <circle cx="5" cy="12" r="1.5" fill="currentColor" />
                                                 </svg>
                                             </button>
+                                            </Tooltip>
                                         
                                             {activeTrackMenuId === track.id && (
                                                 <div className="absolute right-0 top-9 w-32 bg-white border border-stone-200/80 rounded-[14px] shadow-[0_8px_25px_rgba(0,0,0,0.06)] p-1 z-40 animate-in fade-in slide-in-from-top-1 duration-150 pointer-events-auto">
@@ -11927,7 +12793,7 @@ export default function CreatePage() {
                         })}
                         
                         {/* Add track button following track card */}
-                        {studioTracks.length < 4 && (
+                        {studioTracks.length < 4 && !isCanvasReadOnly && (
                             <div className="h-15 sm:h-16 w-full shrink-0 flex items-center justify-center">
                                 <button
                                     onClick={handleAddTrack}
@@ -11949,7 +12815,11 @@ export default function CreatePage() {
                 {/* Bottom Control Bar */}
                 <div className="flex flex-col gap-3 pt-4 mt-2 w-full">
                     {/* Level 1: Metronome, Guitar Tuner, and Timeline Seeker Capsule */}
-                    <div className="flex w-full items-center gap-3 px-4 h-10 select-none overflow-x-auto no-scrollbar">
+                    {/* pt-10 (rather than a fixed h-10 with no vertical room) gives the pills' box-shadows
+                        room to render AND the metronome knob's hover/drag value tooltip (which pops up
+                        ~34px above the knob) room to clear the top edge — overflow-x-auto implicitly clips
+                        overflow-y too, and with too little buffer both were getting cropped. */}
+                    <div className="flex w-full items-center gap-3 px-4 pt-10 pb-3 select-none overflow-x-auto no-scrollbar">
                         {/* Left side: Instrument and Utility pills aligned with tracks left column */}
                         <div className="w-[412px] sm:w-[428px] md:w-[444px] lg:w-[460px] xl:w-[500px] shrink-0 flex items-center gap-2.5">
                             {/* Metronome Volume Control */}
@@ -11999,7 +12869,7 @@ export default function CreatePage() {
                                                 className="h-8 bg-stone-900 hover:bg-stone-850 text-white text-[11px] font-bold px-3 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
                                                 type="button"
                                             >
-                                                Play metronome
+                                                {t('studio.play_metronome')}
                                             </button>
 
                                             {/* White Tap Tempo Button next to it */}
@@ -12036,7 +12906,7 @@ export default function CreatePage() {
                                     <>
                                         <div className="w-2 h-2 rounded-full bg-[#82C39B] shrink-0 animate-pulse" />
                                         <span className="text-[12px] font-sans font-extrabold whitespace-nowrap tracking-tight">
-                                            On • {metronomeBpm} BPM
+                                            {t('studio.metronome_on')} • {metronomeBpm} BPM
                                         </span>
                                     </>
                                 ) : (
@@ -12098,18 +12968,19 @@ export default function CreatePage() {
                             </div>
 
                             {/* Direct Monitor Pill (Icon only, circular) */}
-                            <div 
-                                onClick={() => setIsDirectMonitorEnabled(prev => !prev)}
-                                className={`w-10 h-10 border rounded-full flex items-center justify-center select-none shrink-0 transition-all duration-300 ease-in-out cursor-pointer active:scale-[0.98]
-                                    ${isDirectMonitorEnabled 
-                                        ? 'bg-white border-stone-200 text-emerald-500 shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:bg-stone-50' 
-                                        : 'bg-stone-100/70 border-stone-250/20 text-stone-500 hover:bg-stone-100'
-                                    }
-                                `}
-                                title={isDirectMonitorEnabled ? "Direct Monitoring: ON" : "Direct Monitoring: OFF"}
-                            >
-                                <Headphones size={16} className={isDirectMonitorEnabled ? 'text-emerald-500 animate-pulse' : 'text-stone-500'} />
-                            </div>
+                            <Tooltip label={isDirectMonitorEnabled ? 'Direct monitoring: on' : 'Direct monitoring: off'}>
+                                <div
+                                    onClick={() => setIsDirectMonitorEnabled(prev => !prev)}
+                                    className={`w-10 h-10 border rounded-full flex items-center justify-center select-none shrink-0 transition-all duration-300 ease-in-out cursor-pointer active:scale-[0.98]
+                                        ${isDirectMonitorEnabled
+                                            ? 'bg-white border-stone-200 text-emerald-500 shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:bg-stone-50'
+                                            : 'bg-stone-100/70 border-stone-250/20 text-stone-500 hover:bg-stone-100'
+                                        }
+                                    `}
+                                >
+                                    <Headphones size={16} className={isDirectMonitorEnabled ? 'text-emerald-500 animate-pulse' : 'text-stone-500'} />
+                                </div>
+                            </Tooltip>
                         </div>
 
                         {/* Right side: Timeline Seeker Capsule containing the actual time ruler */}
@@ -12175,7 +13046,7 @@ export default function CreatePage() {
                                         <Square size={12} className="fill-[#FF4040] text-[#FF4040] shrink-0 z-10" />
                                     </div>
                                     <span className="z-10 text-[#FF4040] font-bold">
-                                        Recording <span className="font-normal">{formatTime(studioPlayhead)}</span>
+                                        {t('studio.recording')} <span className="font-normal">{formatTime(studioPlayhead)}</span>
                                     </span>
                                 </button>
                             ) : (
@@ -12184,7 +13055,7 @@ export default function CreatePage() {
                                     className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-[#FF4040] rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2"
                                 >
                                     <div className="w-3 h-3 bg-[#FF4040] rounded-full shrink-0" />
-                                    REC
+                                    {t('studio.rec')}
                                 </button>
                             )}
                              {/* Play / Pause Button */}
@@ -12206,7 +13077,7 @@ export default function CreatePage() {
                                         <path d="M8 5v14l11-7z" />
                                     )}
                                 </svg>
-                                Play / Pause
+                                {t('studio.play_pause')}
                             </button>
                         </div>
 
@@ -12228,14 +13099,16 @@ export default function CreatePage() {
                                     )}
                                 </button>
 
-                                <button
-                                    onClick={() => setActivePublishMenu(!activePublishMenu)}
-                                    className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer"
-                                    type="button"
-                                    title={t('creative.export_options')}
-                                >
-                                    <MoreVertical size={20} className="text-stone-600" />
-                                </button>
+                                <Tooltip label={t('creative.export_options')} disabled={activePublishMenu}>
+                                    <button
+                                        onClick={() => setActivePublishMenu(!activePublishMenu)}
+                                        aria-label={t('creative.export_options')}
+                                        className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer"
+                                        type="button"
+                                    >
+                                        <MoreVertical size={20} className="text-stone-600" />
+                                    </button>
+                                </Tooltip>
 
                                 {activePublishMenu && (
                                     <div className="absolute bottom-14 right-0 w-48 bg-white border border-stone-200/80 rounded-[18px] shadow-[0_10px_35px_rgba(0,0,0,0.08)] py-2.5 z-40 animate-in fade-in slide-in-from-bottom-2 duration-150">
@@ -13028,7 +13901,7 @@ export default function CreatePage() {
                         <p className="text-[16.5px] text-stone-400 font-medium">{t('lexicon.no_results')}</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-5 max-h-[268px] overflow-y-auto mt-1.5 pr-1 no-scrollbar">
+                    <ScrollableWithCue className="flex flex-col gap-5 max-h-[268px] overflow-y-auto mt-1.5 pr-1 no-scrollbar">
                         {Object.keys(groupedBySyllables).map(sylKey => {
                             const syl = parseInt(sylKey);
                             const words = groupedBySyllables[syl];
@@ -13039,24 +13912,25 @@ export default function CreatePage() {
                                     </span>
                                     <div className="flex flex-wrap gap-2">
                                         {words.map((item, idx) => (
+                                            <Tooltip key={idx} label="Click to insert and copy">
                                             <button
-                                                key={idx}
                                                 onClick={() => {
                                                     insertTextAtCursor(item.word + ' ');
                                                     navigator.clipboard.writeText(item.word).catch(console.error);
                                                 }}
                                                 className="px-3.5 py-1.5 bg-stone-50 hover:bg-stone-900 border border-stone-200 hover:border-stone-900 rounded-xl text-[16.5px] font-semibold text-stone-800 hover:text-white transition-all cursor-pointer shadow-2xs active:scale-95"
-                                                title="Click to insert and copy"
+                                                aria-label="Click to insert and copy"
                                                 type="button"
                                             >
                                                 {item.word}
                                             </button>
+                                            </Tooltip>
                                         ))}
                                     </div>
                                 </div>
                             );
                         })}
-                    </div>
+                    </ScrollableWithCue>
                 )}
             </div>
         );
@@ -13692,41 +14566,61 @@ export default function CreatePage() {
     const renderProjectCard = (note: SongNote) => {
         const isSelected = selectedNoteId === note.id;
         return (
-            <div 
+            <div
                 key={note.id}
                 onClick={() => setSelectedNoteId(note.id)}
                 draggable
                 onDragStart={(e) => handleDragStart(e, note.id)}
                 className={`
-                    group cursor-pointer flex flex-col gap-4 relative transition-all duration-300 rounded-[24px] md:rounded-[32px] p-4 md:p-6 border border-transparent select-none min-h-[170px] justify-between
-                    hover:bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:border-stone-200/40 active:cursor-grabbing
-                    ${isSelected ? 'bg-white shadow-[0_8px_30px_rgba(0,0,0,0.03)] border-stone-200/40' : ''}
+                    group cursor-pointer flex flex-col items-center gap-3 px-5 py-6 rounded-[18px] border border-stone-200/10 transition-all duration-200 active:scale-[0.99] active:cursor-grabbing select-none min-h-[220px]
+                    ${isSelected ? 'bg-white shadow-[0_4px_15px_rgba(0,0,0,0.015)] border-stone-200/30' : 'bg-white/40 hover:bg-white/70 hover:border-stone-200/25'}
                 `}
             >
-                <FileIllustration />
-                
-                <div className="flex flex-col gap-0.5 text-center mt-1">
-                    <span className="font-bold text-[14px] text-stone-800 group-hover:text-stone-955 truncate transition-colors">
-                        {getTranslatedTitle(note.title) || t('workspace.untitled_note')}
-                    </span>
+                {/* Title */}
+                <span className={`w-full text-center font-sans text-[14px] transition-colors truncate ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-850'}`}>
+                    {getTranslatedTitle(note.title) || t('workspace.untitled_note')}
+                </span>
+
+                {/* Music icon */}
+                <div className="flex-1 flex items-center justify-center">
+                    <svg
+                        width="52"
+                        height="52"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={`transition-all duration-200 ${isSelected ? 'text-stone-400' : 'text-stone-300 group-hover:text-stone-400'}`}
+                    >
+                        <path d="M9 18V5l12-2v13" />
+                        <circle cx="6" cy="18" r="3" />
+                        <circle cx="18" cy="16" r="3" />
+                    </svg>
                 </div>
-                
-                {/* Duplicate / Delete Note */}
-                <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
-                    <button
-                        onClick={(e) => handleDuplicateNote(note.id, e)}
-                        className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
-                        title={t('workspace.duplicate_note')}
-                    >
-                        <Copy size={12} />
-                    </button>
-                    <button
-                        onClick={(e) => handleDeleteNote(note.id, e)}
-                        className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
-                        title={t('workspace.delete_note')}
-                    >
-                        <Trash2 size={12} />
-                    </button>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <Tooltip label={t('workspace.duplicate_note')}>
+                        <button
+                            onClick={(e) => handleDuplicateNote(note.id, e)}
+                            aria-label={t('workspace.duplicate_note')}
+                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
+                        >
+                            <Copy size={13} />
+                        </button>
+                    </Tooltip>
+                    <Tooltip label={t('workspace.delete_note')}>
+                        <button
+                            onClick={(e) => handleDeleteNote(note.id, e)}
+                            aria-label={t('workspace.delete_note')}
+                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
+                        >
+                            <Trash2 size={13} />
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
         );
@@ -13741,7 +14635,7 @@ export default function CreatePage() {
                 draggable
                 onDragStart={(e) => handleDragStart(e, note.id)}
                 className={`
-                    group cursor-pointer flex items-center justify-between px-6 py-4 rounded-[16px] border border-stone-200/10 transition-all duration-200 active:scale-[0.99] select-none
+                    group cursor-pointer flex items-center justify-between px-6 py-6 rounded-[18px] border border-stone-200/10 transition-all duration-200 active:scale-[0.99] select-none
                     ${isSelected ? 'bg-white shadow-[0_4px_15px_rgba(0,0,0,0.015)] border-stone-200/30' : 'bg-white/40 hover:bg-white/70 hover:border-stone-200/25'}
                 `}
             >
@@ -13750,20 +14644,24 @@ export default function CreatePage() {
                 </span>
                 
                 <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
-                    <button
-                        onClick={(e) => handleDuplicateNote(note.id, e)}
-                        className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
-                        title={t('workspace.duplicate_note')}
-                    >
-                        <Copy size={13} />
-                    </button>
-                    <button
-                        onClick={(e) => handleDeleteNote(note.id, e)}
-                        className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
-                        title={t('workspace.delete_note')}
-                    >
-                        <Trash2 size={13} />
-                    </button>
+                    <Tooltip label={t('workspace.duplicate_note')}>
+                        <button
+                            onClick={(e) => handleDuplicateNote(note.id, e)}
+                            aria-label={t('workspace.duplicate_note')}
+                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
+                        >
+                            <Copy size={13} />
+                        </button>
+                    </Tooltip>
+                    <Tooltip label={t('workspace.delete_note')}>
+                        <button
+                            onClick={(e) => handleDeleteNote(note.id, e)}
+                            aria-label={t('workspace.delete_note')}
+                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
+                        >
+                            <Trash2 size={13} />
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
         );
@@ -13775,6 +14673,34 @@ export default function CreatePage() {
         <div className="w-full flex flex-col gap-0 md:gap-10 text-stone-900 font-sans min-h-[calc(100dvh-12rem)] pt-0 pb-10 md:py-2">
             
             
+            {/* Notification toast — same dark pill language as Tooltip, and the status dot now
+                follows the colour the caller asks for (it was hard-coded rose, so informational
+                messages like the project lock rendered with an alarm dot).
+                Rendered at the component root rather than inside renderDemoStudio: every canvas-side
+                caller (locked imports, blocked recording) was firing into a toast that only existed
+                while the Demo Studio panel was mounted, so those messages were never seen. */}
+            {studioNotification.isOpen && (() => {
+                const dot = ({
+                    emerald: { ping: 'bg-emerald-400', core: 'bg-emerald-500' },
+                    amber: { ping: 'bg-[#EDFF8E]', core: 'bg-[#DCEE7A]' },
+                    rose: { ping: 'bg-rose-400', core: 'bg-rose-500' },
+                } as Record<string, { ping: string; core: string }>)[studioNotification.color]
+                    || { ping: 'bg-rose-400', core: 'bg-rose-500' };
+
+                return (
+                    <div
+                        role="status"
+                        className="fixed top-6 left-1/2 -translate-x-1/2 bg-stone-900 text-white px-4 py-2 rounded-full flex items-center gap-2 shadow-lg text-[12px] font-sans font-medium animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150 z-[200] whitespace-nowrap max-w-[320px] pointer-events-none"
+                    >
+                        <span className="relative flex h-1.5 w-1.5 shrink-0">
+                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${dot.ping} opacity-75`} />
+                            <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${dot.core}`} />
+                        </span>
+                        <span className="truncate">{studioNotification.message}</span>
+                    </div>
+                );
+            })()}
+
             {/* Touch drag ghost overlay for mobile drag-and-drop */}
             {(() => {
                 const ghostLabel = draggedPhraseId
@@ -13915,9 +14841,22 @@ export default function CreatePage() {
                         handleMovePhraseToGroup(phraseId, null);
                     }
                 }}
-                className="bg-white border border-stone-200/60 shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative cursor-text justify-between w-full"
+                className={`bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
+                    isCanvasLocked
+                        ? 'border-2 border-[#EDFF8E] shadow-[0_0_0_4px_rgba(237,255,142,0.35),0_12px_40px_rgba(0,0,0,0.03)] cursor-default'
+                        : 'border border-stone-200/60 cursor-text'
+                }`}
             >
+                {/* Saved! — travelling gradient ring, mirrors the Mind Power achievement glow */}
+                {showSaveGlow && <div key={saveGlowKey} className="canvas-save-glow-ring" />}
 
+                {/* Locked notice — so collaborators know why the canvas won't accept edits */}
+                {isCanvasLocked && (
+                    <div className="w-full flex items-center justify-center gap-2 mb-3 px-4 py-2 bg-[#EDFF8E] border border-[#DCEE7A] text-stone-600 rounded-full text-[13px] font-sans font-medium select-none animate-in fade-in duration-200">
+                        <Lock size={14} className="stroke-[2] shrink-0" />
+                        <span>{t('collab.lock_banner')}</span>
+                    </div>
+                )}
 
                 {/* 1b. Canvas Header (Title and Ellipsis Menu) */}
                 <div 
@@ -13929,15 +14868,19 @@ export default function CreatePage() {
                     onTouchStart={(e) => e.stopPropagation()}
                     onTouchEnd={(e) => e.stopPropagation()}
                 >
-                    <div className="flex-1 min-w-0 flex items-center justify-start gap-3 md:gap-4 group relative">
+                    <div className="flex-1 min-w-0 flex items-center justify-start gap-2 group relative">
                         <input
                             key="project-title-input"
                             id="project-title-input"
                             type="text"
                             value={isRecording ? recordingTitle : (isEditingTitle ? localTitleText : (activeNote ? getTranslatedTitle(activeNote.title) : ''))}
                             placeholder={t('creative.project_name')}
-                            readOnly={isCanvasPreview}
+                            readOnly={isCanvasReadOnly}
                             onFocus={() => {
+                                // A readOnly input can still take focus, which used to flip the
+                                // title into "editing" on a locked project — showing the save
+                                // check for an edit that could never be made.
+                                if (isCanvasReadOnly) return;
                                 setIsEditingTitle(true);
                                 setLocalTitleText(activeNote ? activeNote.title : '');
                             }}
@@ -13959,30 +14902,44 @@ export default function CreatePage() {
                                     setLocalTitleText(e.target.value);
                                 }
                             }}
-                            className="bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-400 placeholder:text-stone-300 focus:text-stone-900 transition-colors cursor-text select-text w-full min-w-0"
+                            className={`bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-400 placeholder:text-stone-300 transition-colors min-w-0 shrink ${isCanvasReadOnly ? "cursor-default select-none pointer-events-none" : "cursor-text select-text focus:text-stone-900"}`}
                             style={{
+                                // Size to the text rather than filling the row, so the save check
+                                // and the BPM pill sit right beside the title instead of being
+                                // pushed out to the far edge of the header. `ch` is the width of
+                                // "0", which overshoots for a proportional face, so scale it down
+                                // rather than padding it out — that slack is what opened the gap.
+                                width: `${Math.min(
+                                    42,
+                                    Math.max(
+                                        8,
+                                        ((isRecording ? recordingTitle : (isEditingTitle ? localTitleText : (activeNote ? getTranslatedTitle(activeNote.title) : ''))) || t('creative.project_name') || '').length * 0.92
+                                    )
+                                )}ch`,
                                 maxWidth: isEditingTitle ? 'calc(100% - 150px)' : 'calc(100% - 80px)'
                             }}
                             onClick={(e) => e.stopPropagation()}
                         />
-                        {isEditingTitle && !isRecording && (
-                            <button
-                                type="button"
-                                onMouseDown={(e) => {
-                                    // Prevent input blur before click event fires
-                                    e.preventDefault();
-                                }}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSaveTitle();
-                                }}
-                                className="w-8 h-8 bg-white border border-stone-200 shadow-[0_3px_12px_rgba(0,0,0,0.08)] rounded-full text-emerald-600 hover:text-emerald-700 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center shrink-0"
-                                title="Save project name"
-                            >
-                                <Check size={16} className="stroke-[3px]" />
-                            </button>
+                        {isEditingTitle && !isRecording && !isCanvasReadOnly && (
+                            <Tooltip label="Save project name">
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        // Prevent input blur before click event fires
+                                        e.preventDefault();
+                                    }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSaveTitle();
+                                    }}
+                                    aria-label="Save project name"
+                                    className="w-8 h-8 bg-white border border-stone-200 shadow-[0_3px_12px_rgba(0,0,0,0.08)] rounded-full text-emerald-600 hover:text-emerald-700 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                                >
+                                    <Check size={16} className="stroke-[3px]" />
+                                </button>
+                            </Tooltip>
                         )}
-                        <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 bg-stone-100 text-stone-600 border border-stone-200 rounded-full px-3 py-1 text-[11px] font-medium tracking-wide flex items-center gap-1.5 pointer-events-none shadow-3xs select-none shrink-0 ml-[1%]">
+                        <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 bg-stone-100 text-stone-600 border border-stone-200 rounded-full px-3 py-1 text-[11px] font-medium tracking-wide flex items-center gap-1.5 pointer-events-none shadow-3xs select-none shrink-0">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             <span>
                                 {metronomeBpm} BPM
@@ -13996,10 +14953,11 @@ export default function CreatePage() {
                         {/* Unified Collab Button (Active / Passive States) */}
                         {!isCanvasPreview && (
                             isActiveCollab ? (
-                                <div 
+                                /* No tooltip on the pill itself — it already reads "Collab", and a
+                                   parent tooltip would stay open while hovering the avatars inside it. */
+                                <div
                                     onClick={() => setShowShareModal(true)}
                                     className="relative flex items-center gap-2 pl-3.5 pr-1.5 py-1.5 bg-emerald-50 border border-emerald-200/65 text-emerald-800 hover:bg-emerald-100/80 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs select-none shrink-0 animate-fade-in"
-                                    title="View collaboration details"
                                 >
                                     <span className="relative flex h-1.5 w-1.5 shrink-0 mr-0.5">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -14014,52 +14972,63 @@ export default function CreatePage() {
                                                 const displayName = member.name.startsWith('Me (') ? member.name.slice(4, -1) : member.name;
                                                 const initial = getFirstInitial(displayName);
                                                 return (
-                                                    <div 
-                                                        key={member.uid} 
-                                                        className={`w-8 h-8 aspect-square rounded-full flex items-center justify-center font-normal text-[13.5px] text-stone-900 border-[2.5px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.14)] capitalize shrink-0 transition-all -ml-2.5 first:ml-0 cursor-pointer ${
-                                                            member.isActive ? 'opacity-100 ring-2 ring-emerald-400/40' : 'opacity-70'
-                                                        }`}
-                                                        style={{ 
-                                                            backgroundColor: member.color,
-                                                            zIndex: 15 - i
-                                                        }}
-                                                        title={`${member.name}${member.isActive ? ' (Online)' : ' (Offline)'}`}
+                                                    <Tooltip
+                                                        key={member.uid}
+                                                        label={`${member.name}${member.isActive ? ' (Online)' : ' (Offline)'}`}
                                                     >
-                                                        {initial}
-                                                    </div>
+                                                        <div
+                                                            className={`w-8 h-8 aspect-square rounded-full flex items-center justify-center font-normal text-[13.5px] text-stone-900 border-[2.5px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.14)] capitalize shrink-0 transition-all -ml-2.5 first:ml-0 cursor-pointer ${
+                                                                member.isActive ? 'opacity-100 ring-2 ring-emerald-400/40' : 'opacity-70'
+                                                            }`}
+                                                            style={{
+                                                                backgroundColor: member.color,
+                                                                zIndex: 15 - i
+                                                            }}
+                                                        >
+                                                            {initial}
+                                                        </div>
+                                                    </Tooltip>
                                                 );
                                             })}
                                         </div>
                                     )}
 
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setConfirmCloseCollab({
-                                                isOpen: true,
-                                                type: 'close_collab',
-                                                projectId: selectedNoteId
-                                            });
-                                        }}
-                                        className="w-7 h-7 hover:bg-emerald-100 flex items-center justify-center text-emerald-500/65 hover:text-emerald-850 rounded-full transition-all active:scale-90 shrink-0 cursor-pointer outline-none ml-1"
-                                        title="End collaboration"
-                                    >
-                                        <X size={15} className="stroke-[2.5]" />
-                                    </button>
+                                    <Tooltip label="End collaboration">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setConfirmCloseCollab({
+                                                    isOpen: true,
+                                                    type: 'close_collab',
+                                                    projectId: selectedNoteId
+                                                });
+                                            }}
+                                            aria-label="End collaboration"
+                                            className="w-7 h-7 hover:bg-emerald-100 flex items-center justify-center text-emerald-500/65 hover:text-emerald-850 rounded-full transition-all active:scale-90 shrink-0 cursor-pointer outline-none ml-1"
+                                        >
+                                            <X size={15} className="stroke-[2.5]" />
+                                        </button>
+                                    </Tooltip>
                                 </div>
                             ) : (
-                                <button 
+                                <Tooltip side="bottom" label={t('collab.collab_title')}>
+                                <button
                                     onClick={async (e) => {
                                         e.stopPropagation();
                                         if (!selectedNoteId) {
                                             const newNoteId = `n-${Date.now()}`;
                                             const newPhraseId = `p-${Math.random().toString(36).substring(2, 9)}`;
-                                            const timestamp = new Date().toISOString();
-                                            
+                                            const _now = new Date();
+                                            const timestamp = _now.toISOString();
+                                            // Same "Project - DD/MM/YYYY HH:MM" default as handleCreateNote —
+                                            // an empty title here used to get persisted as "Untitled Note".
+                                            const _dateStr = _now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                            const _timeStr = _now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
                                             const newNote: SongNote = {
                                                 id: newNoteId,
-                                                title: '',
+                                                title: `${t('creative.project')} - ${_dateStr} ${_timeStr}`,
                                                 content: '',
                                                 folderId: null,
                                                 updatedAt: timestamp,
@@ -14086,49 +15055,177 @@ export default function CreatePage() {
                                         setShowShareModal(true);
                                     }}
                                     className="relative flex items-center gap-2 px-5 py-1.5 bg-stone-100/65 hover:bg-stone-200/50 text-stone-700 hover:text-stone-900 border border-stone-200/40 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in"
-                                    title={t('collab.collab_title')}
                                 >
                                     <Users size={18} className="stroke-[1.6]" />
                                     <span>{t('collab.collab')}</span>
                                 </button>
+                                </Tooltip>
                             )
                         )}
 
-                        {/* Publish to Community button */}
+                        {/* "Join the huddle" invite — shown to members who aren't in a huddle that's
+                            already running. Starting one lives in the Collab popup; this is only the
+                            nudge for everyone else. */}
+                        {!isCanvasPreview && selectedNoteId && showCommentsUI && !isCallActive && isHuddleRunning && (
+                            <Tooltip side="bottom" label={`${huddleOthers.map(p => p.name).join(', ')} in a huddle`}>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); joinCall(); }}
+                                    aria-label="Join the huddle"
+                                    className="relative flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/65 text-emerald-800 hover:bg-emerald-100/80 text-[13px] font-sans font-semibold transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in"
+                                >
+                                    <span className="relative flex h-1.5 w-1.5 shrink-0">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                                    </span>
+                                    <span className="whitespace-nowrap">Join huddle</span>
+                                </button>
+                            </Tooltip>
+                        )}
+
+                        {/* In-call strip: who's on, mute, and a clear "paused while recording"
+                            state. Only mounted during a call so it costs nothing the rest of the time. */}
+                        {!isCanvasPreview && isCallActive && (
+                            <div className={`flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-full border shrink-0 select-none animate-fade-in transition-colors ${
+                                (isRecording || studioState === 'recording')
+                                    ? 'bg-amber-50 border-amber-200/70'
+                                    : 'bg-emerald-50 border-emerald-200/65'
+                            }`}>
+                                {(isRecording || studioState === 'recording') ? (
+                                    <span className="text-[11px] font-semibold text-amber-700 px-1 whitespace-nowrap">
+                                        Huddle paused
+                                    </span>
+                                ) : (
+                                    <span className="relative flex h-1.5 w-1.5 shrink-0 ml-0.5">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                                    </span>
+                                )}
+
+                                {callParticipants.length > 0 && (
+                                    <div className="inline-flex items-center ml-0.5 shrink-0">
+                                        {callParticipants.slice(0, 4).map((p, i) => (
+                                            <Tooltip key={p.uid} label={`${p.name} is in the huddle`}>
+                                                <div
+                                                    className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold text-stone-900 border-2 border-white shadow-sm capitalize shrink-0 -ml-1.5 first:ml-0"
+                                                    style={{ backgroundColor: getMemberColorToken(p.uid), zIndex: 10 - i }}
+                                                >
+                                                    {getFirstInitial(p.name)}
+                                                </div>
+                                            </Tooltip>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <Tooltip label={isCallMuted ? 'Unmute' : 'Mute'}>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); toggleCallMute(); }}
+                                        aria-label={isCallMuted ? 'Unmute microphone' : 'Mute microphone'}
+                                        disabled={isRecording || studioState === 'recording'}
+                                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0 disabled:opacity-40 disabled:pointer-events-none ${
+                                            isCallMuted
+                                                ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                                                : 'hover:bg-emerald-100 text-emerald-700'
+                                        }`}
+                                    >
+                                        {isCallMuted ? <MicOff size={13} className="stroke-[2.2]" /> : <Mic size={13} className="stroke-[2.2]" />}
+                                    </button>
+                                </Tooltip>
+                            </div>
+                        )}
+
+                        {/* Publish to Community — icon only, the tooltip carries the explanation */}
                         {!isCanvasPreview && selectedNoteId && activeNote && (
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleShareToCommunity();
-                                }}
-                                disabled={shareStatus === 'sharing'}
-                                className={`relative flex items-center gap-2 px-5 py-1.5 border rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in
-                                    ${shareStatus === 'idle'
-                                        ? 'bg-stone-100/65 border-stone-200/40 text-stone-700 hover:bg-stone-200/50 hover:text-stone-900'
-                                        : 'bg-emerald-600 border-emerald-600 text-stone-900 hover:bg-emerald-700 hover:border-emerald-700'
+                            <>
+                                <Tooltip
+                                    side="bottom"
+                                    label={
+                                        shareStatus === 'shared' ? t('collab.publish_tooltip_shared')
+                                        : shareStatus === 'sharing' ? t('collab.publishing')
+                                        : t('collab.publish_tooltip')
                                     }
-                                `}
-                                title={shareStatus === 'shared' ? 'Go to community Connect feed' : 'Publish this song to Connect community feed'}
-                            >
-                                {shareStatus === 'idle' && (
-                                    <>
-                                        <Upload size={18} className="stroke-[1.6]" />
-                                        <span>{t('collab.publish')}</span>
-                                    </>
+                                >
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleShareToCommunity();
+                                        }}
+                                        disabled={shareStatus === 'sharing'}
+                                        aria-label={
+                                            shareStatus === 'shared' ? t('collab.publish_tooltip_shared')
+                                            : shareStatus === 'sharing' ? t('collab.publishing')
+                                            : t('collab.publish_tooltip')
+                                        }
+                                        className={`relative flex items-center justify-center w-10 h-10 border rounded-full transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none
+                                            ${shareStatus === 'shared' && !isPublishLaunching
+                                                ? 'bg-emerald-600 border-emerald-600 text-stone-900 hover:bg-emerald-700 hover:border-emerald-700'
+                                                : 'bg-stone-100/65 border-stone-200/40 text-stone-700 hover:bg-stone-200/50 hover:text-stone-900'
+                                            }
+                                        `}
+                                    >
+                                        {/* Indeterminate mesh-gradient loading ring while the post is being written —
+                                            deliberately rendered outside the clipped span below so its -3px inset
+                                            can extend past the button's own edge instead of getting cut off. */}
+                                        {shareStatus === 'sharing' && <span className="publish-loading-ring" aria-hidden="true" />}
+                                        <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+                                            {/* Same mesh gradient as Complete, so publishing lands as the same gesture —
+                                                but never at the same time as the loading ring above (e.g. Complete's own
+                                                celebration can fire while a separate publish is still mid-flight); only
+                                                one gradient layer should ever be visible on this button at once. */}
+                                            {showPublishGlow && shareStatus !== 'sharing' && <span key={publishGlowKey} className="save-gradient-fill" aria-hidden="true" />}
+                                        </span>
+                                        {/* A single arrow-up throughout: idle, a gentle bounce while sending, then a
+                                            one-beat launch up-and-out the instant it lands, settling back in from
+                                            below — the same up/below language as the Save→Publish→Mind Power cascade. */}
+                                        <span className="relative z-10 flex items-center justify-center overflow-hidden">
+                                            {isPublishLaunching ? (
+                                                <ArrowUp key="launch" size={18} className="stroke-[1.6] publish-arrow-launch" />
+                                            ) : (
+                                                // No motion while sharing — the spinning ring already reads as
+                                                // "in progress"; the arrow only moves at the actual moment it's
+                                                // done, straight up via .publish-arrow-launch above.
+                                                <ArrowUp
+                                                    key={shareStatus}
+                                                    size={18}
+                                                    className={`stroke-[1.6] ${shareStatus === 'sharing' ? '' : 'publish-arrow-enter'}`}
+                                                />
+                                            )}
+                                        </span>
+                                    </button>
+                                </Tooltip>
+
+                                {/* Owner-only project lock. Hold for 1s to toggle — the ring fills as you hold. */}
+                                {isProjectOwner && (
+                                    <Tooltip
+                                        side="bottom"
+                                        label={isCanvasLocked ? t('collab.unlock_hold_hint') : t('collab.lock_hold_hint')}
+                                        disabled={isHoldingLock}
+                                    >
+                                        <button
+                                            onMouseDown={(e) => { e.preventDefault(); startLockHold(); }}
+                                            onMouseUp={cancelLockHold}
+                                            onMouseLeave={cancelLockHold}
+                                            onTouchStart={(e) => { e.preventDefault(); startLockHold(); }}
+                                            onTouchEnd={cancelLockHold}
+                                            onTouchCancel={cancelLockHold}
+                                            onClick={(e) => e.stopPropagation()}
+                                            aria-label={isCanvasLocked ? t('collab.unlock_hold_hint') : t('collab.lock_hold_hint')}
+                                            aria-pressed={isCanvasLocked}
+                                            className={`relative flex items-center justify-center w-10 h-10 border rounded-full transition-colors cursor-pointer shadow-3xs shrink-0 select-none animate-fade-in ${
+                                                isCanvasLocked
+                                                    ? 'bg-[#EDFF8E] border-[#DCEE7A] text-stone-600 hover:bg-[#E4F87E]'
+                                                    : 'bg-stone-100/65 hover:bg-stone-200/50 text-stone-700 hover:text-stone-900 border-stone-200/40'
+                                            }`}
+                                        >
+                                            {/* Hold progress — CSS-driven lime sweep (see .lock-hold-ring) */}
+                                            {isHoldingLock && <span aria-hidden="true" className="lock-hold-ring" />}
+                                            {isCanvasLocked
+                                                ? <Lock size={18} className="stroke-[1.6]" />
+                                                : <Unlock size={18} className="stroke-[1.6]" />}
+                                        </button>
+                                    </Tooltip>
                                 )}
-                                {shareStatus === 'sharing' && (
-                                    <>
-                                        <Loader2 size={18} className="animate-spin stroke-[1.6]" />
-                                        <span>{t('collab.publishing')}</span>
-                                    </>
-                                )}
-                                {shareStatus === 'shared' && (
-                                    <>
-                                        <span>{t('collab.check_in_connect')}</span>
-                                        <ArrowRight size={18} className="stroke-[1.6]" />
-                                    </>
-                                )}
-                            </button>
+                            </>
                         )}
 
                         {/* Inline "joined" pill — appears next to Collaborate button, auto-dismisses */}
@@ -14142,20 +15239,22 @@ export default function CreatePage() {
                         {/* Ellipsis Dropdown Menu Options */}
                         {!isCanvasPreview && (
                             <div className="relative">
-                                <button 
+                                <Tooltip label="Options" side="bottom" disabled={showCanvasMenu}>
+                                <button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setShowCanvasMenu(!showCanvasMenu);
                                     }}
+                                    aria-label="Options"
                                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
-                                        showCanvasMenu 
-                                            ? 'bg-stone-200 text-stone-800' 
+                                        showCanvasMenu
+                                            ? 'bg-stone-200 text-stone-800'
                                             : 'hover:bg-stone-100/80 text-stone-500 hover:text-stone-800'
                                     }`}
-                                    title="Options"
                                 >
                                     <MoreVertical size={18} />
                                 </button>
+                                </Tooltip>
 
                                 {showCanvasMenu && (
                                     <>
@@ -14270,11 +15369,11 @@ export default function CreatePage() {
                         {/* Drag and Drop Hover Overlay */}
                         {isDraggingOverCanvas && (
                             <div className="absolute inset-0 bg-stone-50/80 backdrop-blur-[2px] border-2 border-dashed border-stone-300 rounded-[24px] z-[50] flex flex-col items-center justify-center gap-3 animate-in fade-in duration-200 pointer-events-none select-none">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" viewBox="0 0 256 256" className="text-stone-400 animate-bounce">
-                                    <path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66-93.66a8,8,0,0,0-11.32,0l-40,40a8,8,0,0,0,11.32,11.32L112,75.31V152a8,8,0,0,0,16,0V75.31l29.66,29.67a8,8,0,0,0,11.32-11.32Z"></path>
-                                </svg>
+                                {/* Still multimedia icon — the old bouncing arrow drew attention to
+                                    itself rather than to the drop target. */}
+                                <ImageIcon size={40} className="text-stone-400" strokeWidth={1.5} />
                                 <span className="font-sans text-[20px] font-medium text-stone-600">
-                                    {t('creative.drop_files_here') || 'Drop files here'}
+                                    {t('creative.drop_files_here')}
                                 </span>
                             </div>
                         )}
@@ -14323,21 +15422,21 @@ export default function CreatePage() {
                                 )}
 
                                 
-                                {/* Read-only lock in preview mode — no blur, no tint, just blocks all interaction */}
-                                <div className={`relative ${isCanvasPreview ? 'select-none' : ''}`}>
-                                    {isCanvasPreview && (
+                                {/* Read-only shield — used for invite previews AND owner-locked projects */}
+                                <div className={`relative ${isCanvasReadOnly ? 'select-none' : ''}`}>
+                                    {isCanvasReadOnly && (
                                         <div
                                             className="absolute inset-0 z-20"
-                                            style={{ pointerEvents: 'all', cursor: 'default' }}
+                                            style={{ pointerEvents: 'all', cursor: isCanvasLocked ? 'not-allowed' : 'default' }}
                                         />
                                     )}
-                                    <div className={isCanvasPreview ? 'pointer-events-none' : ''}>
+                                    <div className={isCanvasReadOnly ? 'pointer-events-none' : ''}>
                                 {renderBlocks.length === 0 ? (
-                                    <div 
+                                    <div
                                         className="flex-grow flex-1 flex flex-col items-center justify-center py-16 text-stone-300/80 italic text-center select-none cursor-pointer text-lg font-light hover:text-stone-400 transition-colors"
-                                        onDoubleClick={() => handleAddNewPhrase()}
+                                        onClick={() => handleAddNewPhrase()}
                                     >
-                                        Double click to write a line, or use buttons below to add a section.
+                                        Click to write a line, or use buttons below to add a section.
                                     </div>
                                 ) : (
                                     renderBlocks.map((block, bIdx) => {
@@ -14585,10 +15684,21 @@ export default function CreatePage() {
                                                                     e.stopPropagation();
                                                                     handleAddNewPhrase(block.groupId);
                                                                 }}
+                                                                onContextMenu={(e) => {
+                                                                    // Right-click the section itself (the padding around its lines)
+                                                                    // to comment on the whole chorus/verse. Right-clicking a line
+                                                                    // inside it stops propagation, so that still comments on the line.
+                                                                    if (!block.groupId) return;
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    handleOpenCommentThread(block.groupId);
+                                                                }}
                                                                 className={`verse-group-container border border-dashed rounded-[20px] p-5 pt-8 pb-5 relative flex flex-col gap-1.5 min-h-[90px] transition-all duration-300 cursor-grab active:cursor-grabbing group/verse-group ${
-                                                                    isDragOverThisGroup 
-                                                                        ? 'border-black bg-stone-100/50 shadow-[0_4px_20px_rgba(0,0,0,0.03)] scale-[1.005]' 
-                                                                        : 'border-stone-300/85 bg-stone-50/20 hover:border-stone-400'
+                                                                    isDragOverThisGroup
+                                                                        ? 'border-black bg-stone-100/50 shadow-[0_4px_20px_rgba(0,0,0,0.03)] scale-[1.005]'
+                                                                        : openCommentThread === block.groupId
+                                                                            ? 'border-stone-400/80 bg-stone-100/60 shadow-[0_0_0_3px_rgba(120,113,108,0.07)]'
+                                                                            : 'border-stone-300/85 bg-stone-50/20 hover:border-stone-400'
                                                                 } ${
                                                                     draggedGroupId === block.groupId ? 'opacity-30' : ''
                                                                 }`}
@@ -14637,17 +15747,19 @@ export default function CreatePage() {
                                                                     ) : (
                                                                         <div className="group/badge bg-white border border-stone-200/60 text-stone-700 px-3.5 py-0.5 text-[11.5px] font-semibold rounded-full select-none flex items-center shadow-[0_2px_8px_rgba(0,0,0,0.05)] h-[25px] w-fit transition-all duration-300 hover:shadow-[0_2px_12px_rgba(0,0,0,0.08)] pointer-events-auto cursor-default z-30 gap-0 hover:gap-2">
                                                                             {/* Current group name text */}
-                                                                            <span 
+                                                                            <Tooltip label="Click to rename">
+                                                                            <span
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     setEditingGroupId(block.groupId);
                                                                                     setRenameGroupName(block.groupName || '');
                                                                                 }}
                                                                                 className="cursor-pointer hover:text-stone-900 transition-colors shrink-0"
-                                                                                title="Click to rename"
+                                                                                aria-label="Click to rename"
                                                                             >
                                                                                 {formatGroupName(block.groupName)}
                                                                             </span>
+                                                                            </Tooltip>
 
                                                                             {/* Divider visible only when hovered */}
                                                                             <div className="w-0 overflow-hidden opacity-0 group-hover/badge:w-[1px] group-hover/badge:opacity-100 group-hover/badge:mx-1.5 transition-all duration-300 shrink-0">
@@ -14655,17 +15767,19 @@ export default function CreatePage() {
                                                                             </div>
 
                                                                             {/* Rename Button (Pencil Icon) */}
-                                                                            <button 
+                                                                            <Tooltip label="Rename region">
+                                                                            <button
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     setEditingGroupId(block.groupId);
                                                                                     setRenameGroupName(block.groupName || '');
                                                                                 }}
                                                                                 className="w-0 overflow-hidden opacity-0 group-hover/badge:w-4 group-hover/badge:opacity-100 transition-all duration-300 hover:text-stone-850 text-stone-400 hover:scale-110 active:scale-95 cursor-pointer flex items-center justify-center shrink-0 pointer-events-auto p-0 bg-transparent border-none outline-none"
-                                                                                title="Rename Region"
+                                                                                aria-label="Rename region"
                                                                             >
                                                                                 <Pencil size={11} className="stroke-[2.5]" />
                                                                             </button>
+                                                                            </Tooltip>
 
                                                                             {/* Divider before delete */}
                                                                             <div className="w-0 overflow-hidden opacity-0 group-hover/badge:w-[1px] group-hover/badge:opacity-100 group-hover/badge:mx-1.5 transition-all duration-300 shrink-0">
@@ -14673,16 +15787,18 @@ export default function CreatePage() {
                                                                             </div>
 
                                                                             {/* Delete button */}
-                                                                            <button 
+                                                                            <Tooltip label="Delete region">
+                                                                            <button
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     handleDeleteVerseGroup(block.groupId!);
                                                                                 }}
                                                                                 className="w-0 overflow-hidden opacity-0 group-hover/badge:w-4 group-hover/badge:opacity-100 transition-all duration-300 hover:text-red-500 text-stone-400 hover:scale-110 active:scale-95 font-bold cursor-pointer text-[13px] leading-none shrink-0 flex items-center justify-center h-3.5 pointer-events-auto p-0 bg-transparent border-none outline-none"
-                                                                                title="Delete Region"
+                                                                                aria-label="Delete region"
                                                                             >
                                                                                 ×
                                                                             </button>
+                                                                            </Tooltip>
                                                                         </div>
                                                                     )}
 
@@ -14712,7 +15828,21 @@ export default function CreatePage() {
                                                                         />
                                                                     ))}
                                                                 </div>
-                                                                
+
+                                                                {block.groupId && (
+                                                                    <CommentDotMarker
+                                                                        count={commentMarkers[block.groupId]?.count || 0}
+                                                                        tints={commentMarkers[block.groupId]?.tints}
+                                                                        onOpen={() => handleOpenCommentThread(block.groupId!)}
+                                                                        label={`${commentMarkers[block.groupId]?.count || 0} comment${(commentMarkers[block.groupId]?.count || 0) === 1 ? '' : 's'} on this section`}
+                                                                        // Line dots sit inset by the group's own p-5 (20px) padding, since they're
+                                                                        // rendered inside that padded flow; this marker is a direct child of the
+                                                                        // box, unaffected by that padding, so it needs the extra 20px added back
+                                                                        // in to land on the same vertical rail as the line dots above it.
+                                                                        className="absolute right-6 md:right-8 top-1/2 -translate-y-1/2 z-30"
+                                                                    />
+                                                                )}
+
                                                                 {block.phrases.filter(p => !p.id.startsWith('placeholder-')).length === 0 ? (
                                                                     isGroupTranscribing ? (
                                                                         <LyricLinesSkeleton />
@@ -14783,6 +15913,10 @@ export default function CreatePage() {
                                                                                             draggedImageIdRef={draggedImageIdRef}
                                                                                             draggedDocId={draggedDocId}
                                                                                             draggedDocIdRef={draggedDocIdRef}
+                                                                                            commentCount={commentMarkers[phrase.id]?.count || 0}
+                                                                                            commentTints={commentMarkers[phrase.id]?.tints}
+                                                                                            onOpenComments={handleOpenCommentThread}
+                                                                                            isCommentTarget={openCommentThread === phrase.id}
                                                                                         />
                                                                                     )}
                                                                                 </div>
@@ -15047,6 +16181,10 @@ export default function CreatePage() {
                                                                         draggedImageIdRef={draggedImageIdRef}
                                                                         draggedDocId={draggedDocId}
                                                                         draggedDocIdRef={draggedDocIdRef}
+                                                                        commentCount={commentMarkers[phrase.id]?.count || 0}
+                                                                        commentTints={commentMarkers[phrase.id]?.tints}
+                                                                        onOpenComments={handleOpenCommentThread}
+                                                                        isCommentTarget={openCommentThread === phrase.id}
                                                                     />
                                                                 )}
                                                             </div>
@@ -15083,7 +16221,8 @@ export default function CreatePage() {
                                 )}
 
                                 {/* Centered Add Section Trigger with Hover Expansion (sections + import) — one continuous box, three lines */}
-                                <div className="flex items-center justify-center mt-8 pb-2 w-full select-none relative z-50">
+                                {/* Hidden while a drag is over the canvas so the dotted drop target reads clean */}
+                                <div className={`flex items-center justify-center mt-8 pb-2 w-full select-none relative z-50 ${isCanvasReadOnly || isDraggingOverCanvas ? 'hidden' : ''}`}>
                                      <div className="group/add-menu relative py-3 px-6 pointer-events-auto flex items-center justify-center">
                                          {/* Invisible spacer: reserves the trigger's collapsed footprint in normal flow */}
                                          <div className="h-9 px-5 flex items-center justify-center gap-1.5 font-sans font-bold text-[13px] opacity-0 pointer-events-none shrink-0 whitespace-nowrap" aria-hidden="true">
@@ -15441,7 +16580,7 @@ export default function CreatePage() {
                                         {t('lexicon.no_results_found')}
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col gap-4 max-h-[180px] overflow-y-auto pr-1 no-scrollbar">
+                                    <ScrollableWithCue className="flex flex-col gap-4 max-h-[180px] overflow-y-auto pr-1 no-scrollbar">
                                         {(() => {
                                             const groupedBySyllables: Record<number, typeof lexiconResults> = {};
                                             lexiconResults.forEach(item => {
@@ -15462,20 +16601,20 @@ export default function CreatePage() {
                                                             {words.map((item, idx) => {
                                                                 const score = getCompatibilityScore(item.word, contentVal);
                                                                 return (
+                                                                    <Tooltip key={idx} label={`Click to select ${item.word}`}>
                                                                     <button
-                                                                        key={idx}
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             handleSelectSuggestion(item.word);
                                                                         }}
                                                                         className="group flex items-center gap-2 px-5 py-2.5 bg-white/90 hover:bg-emerald-600 border border-stone-300/40 hover:border-emerald-600 rounded-[14px] transition-all cursor-pointer shadow-2xs"
-                                                                        title={`Click to select ${item.word}`}
                                                                         type="button"
                                                                     >
                                                                         <span className="text-[14px] font-medium text-stone-800 group-hover:text-white transition-colors">
                                                                             {item.word}
                                                                         </span>
                                                                     </button>
+                                                                    </Tooltip>
                                                                 );
                                                             })}
                                                         </div>
@@ -15483,7 +16622,7 @@ export default function CreatePage() {
                                                 );
                                             });
                                         })()}
-                                    </div>
+                                    </ScrollableWithCue>
                                 )}
                             </div>
                         </div>
@@ -15518,9 +16657,15 @@ export default function CreatePage() {
                     className={`flex select-none z-20 justify-center transition-all duration-300 ${
                         (isMobile && (editingPhraseId !== null || isFocused))
                             ? "fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2 justify-center"
+                            // Sticky (not just mt-auto) so the controls stay reachable on the
+                            // viewport's bottom edge on a long canvas — mt-auto alone only pins
+                            // them to the bottom of the card's own box, which can grow taller
+                            // than the screen and scroll the toolbar out of view entirely.
                             : isNoteBlank
-                                ? "px-2 md:px-8 mt-auto pb-2 md:pb-8"
-                                : "px-2 md:px-8 mt-auto pb-4"
+                                ? "px-2 md:px-8 mt-auto pb-2 md:pb-8 sticky bottom-0 bg-white/90 backdrop-blur-md"
+                                // Extra breathing room on a written-in canvas: the toolbar sits
+                                // right against the card's bottom edge otherwise.
+                                : "px-2 md:px-8 mt-auto pb-8 md:pb-12 sticky bottom-0 bg-white/90 backdrop-blur-md"
                     }`}
                     style={(isMobile && (editingPhraseId !== null || isFocused)) ? {
                         bottom: 'auto',
@@ -15533,63 +16678,86 @@ export default function CreatePage() {
                         {/* Undo / Redo action buttons (shown only when there are unsaved steps in history) */}
                         {(undoStack.length > 0 || redoStack.length > 0) && (
                             <div className="flex items-center gap-1 bg-white border border-stone-200/50 p-1.5 rounded-full shadow-2xs pointer-events-auto">
+                                <Tooltip label={t('common.undo') || 'Undo'} side="top" disabled={undoStack.length === 0 || isCanvasLocked}>
                                 <button
                                     onClick={handleUndo}
-                                    disabled={undoStack.length === 0}
+                                    disabled={undoStack.length === 0 || isCanvasLocked}
                                     className={`p-2 rounded-full transition-all duration-150 flex items-center justify-center select-none ${
-                                        undoStack.length === 0
+                                        undoStack.length === 0 || isCanvasLocked
                                             ? 'text-stone-300 opacity-40 pointer-events-none'
                                             : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100 cursor-pointer active:scale-90'
                                     }`}
-                                    title="Undo last change"
+                                    aria-label="Undo last change"
                                 >
                                     <Undo2 size={18} className="stroke-[2.5]" />
                                 </button>
+                                </Tooltip>
+                                <Tooltip label={t('common.redo') || 'Redo'} side="top" disabled={redoStack.length === 0 || isCanvasLocked}>
                                 <button
                                     onClick={handleRedo}
-                                    disabled={redoStack.length === 0}
+                                    disabled={redoStack.length === 0 || isCanvasLocked}
                                     className={`p-2 rounded-full transition-all duration-150 flex items-center justify-center select-none ${
-                                        redoStack.length === 0
+                                        redoStack.length === 0 || isCanvasLocked
                                             ? 'text-stone-300 opacity-40 pointer-events-none'
                                             : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100 cursor-pointer active:scale-90'
                                     }`}
-                                    title="Redo next change"
+                                    aria-label="Redo next change"
                                 >
                                     <Redo2 size={18} className="stroke-[2.5]" />
                                 </button>
+                                </Tooltip>
                             </div>
                         )}
 
                         {/* Primary actions capsule */}
                         <div className="flex items-center gap-3.5 bg-white border border-stone-200/60 p-3 rounded-full shadow-[0_16px_48px_rgba(0,0,0,0.08)] w-fit pointer-events-auto">
-                            {/* ✓ SAVE button — always visible during active collab, otherwise only when content differs */}
-                            {activeNote && (activeNote.content !== lastSavedContent || isActiveCollab || isSavingNote) && (
+                            {/* ✓ COMPLETE button — content auto-saves, so this is no longer a "save or
+                                lose it" action; it stays available as the deliberate "I'm done" beat
+                                that fires the celebration and awards progress. */}
+            {/* No post-click confirmation chip: the button just leaves, and the
+                                Publish → Mind Power cascade carries the confirmation instead. */}
+                            {activeNote && !isCanvasReadOnly
+                                && (isSavingNote || activeNote.content !== completedSnapshot) && (
+                                <Tooltip label={isActiveCollab ? 'Complete and save to Collab Projects' : t('common.complete')}>
                                 <button
+                                    // The phrase editor is usually still focused when the user reaches
+                                    // for Complete. Without this, mousedown blurs it → handleStopEditing
+                                    // re-renders the canvas mid-gesture → the click never lands, so the
+                                    // first press appeared to do nothing and only the second worked.
+                                    onMouseDown={(e) => e.preventDefault()}
                                     onClick={handleCheckmarkSaveClick}
                                     disabled={isSavingNote}
-                                    className={`h-14 px-7 flex items-center gap-3 rounded-full border font-sans font-extrabold text-[15.5px] tracking-wider transition-all duration-200 cursor-pointer active:scale-95 shadow-3xs select-none ${
-                                        isSavingNote
-                                            ? 'border-emerald-500 bg-emerald-500 text-stone-900 scale-95'
-                                            : isActiveCollab && activeNote.content === lastSavedContent
-                                                ? 'border-stone-200/50 bg-white text-stone-400 hover:bg-stone-50'
-                                                : 'border-emerald-500/30 bg-[#F5FBF7] text-emerald-600 hover:bg-[#EBF7F0] hover:border-emerald-500/50'
-                                    }`}
-                                    title={isActiveCollab ? 'Save to Collab Projects' : 'Save'}
+                                    aria-label={isSavingNote ? t('common.completing') : t('common.complete')}
+                                    className="relative overflow-hidden w-[54px] h-[54px] flex items-center justify-center rounded-full border border-stone-200/60 bg-white shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer select-none active:scale-95"
+                                    style={{
+                                        // Inline rather than Tailwind classes: conditional utilities
+                                        // built into a template string aren't always generated by JIT.
+                                        transition: 'opacity 500ms ease-out, transform 500ms ease-out',
+                                        opacity: isSavingNote ? 0 : 1,
+                                        transform: isSavingNote ? 'scale(0.9)' : 'scale(1)',
+                                        pointerEvents: isSavingNote ? 'none' : 'auto',
+                                    }}
                                 >
-                                    {isSavingNote ? (
-                                        <Loader2 size={20} className="stroke-[3] animate-spin text-stone-900" />
-                                    ) : (
-                                        <Check size={20} className={`stroke-[3] ${
-                                            isActiveCollab && activeNote.content === lastSavedContent
-                                                ? 'text-stone-400' 
-                                                : 'text-emerald-600'
-                                        }`} />
-                                    )}
-                                    <span>{isSavingNote ? t('common.saving') : t('common.save')}</span>
+                                    {/* Resting mesh — makes the control feel alive before it's pressed */}
+                                    <span className="save-gradient-idle" aria-hidden="true" />
+
+                                    {/* Celebration sweep layers on top, in step with the canvas ring */}
+                                    {showSaveGlow && <span key={saveGlowKey} className="save-gradient-fill" aria-hidden="true" />}
+
+                                    <span className="relative z-10 flex items-center justify-center">
+                                        {isSavingNote
+                                            ? <Loader2 size={24} className="animate-spin text-stone-800" />
+                                            : <Check size={26} className="text-stone-900 stroke-[2.5]" />}
+                                    </span>
                                 </button>
+                                </Tooltip>
                             )}
 
-                            {/* REC capsule button — Figma design */}
+                            {/* REC capsule button — hidden entirely while previewing someone else's
+                                pending invite (nothing to explain there). While locked it stays
+                                visible-but-disabled instead, since the lock icon itself is the
+                                explanation for why it can't be pressed. */}
+                            <Tooltip label={t('collab.lock_banner')} side="top" disabled={!isCanvasLocked || isRecording}>
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -15603,10 +16771,14 @@ export default function CreatePage() {
                                     }
                                 }}
                                 data-tour="create-record"
-                                className={`h-[54px] px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border whitespace-nowrap ${
-                                    isRecording
-                                        ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
-                                        : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
+                                hidden={isCanvasPreview && !isRecording}
+                                disabled={isCanvasLocked && !isRecording}
+                                className={`h-[54px] px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 border whitespace-nowrap ${
+                                    isCanvasLocked && !isRecording
+                                        ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
+                                        : isRecording
+                                            ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer active:scale-95'
+                                            : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer active:scale-95'
                                 }`}
                             >
                                 {isRecording ? (
@@ -15625,21 +16797,26 @@ export default function CreatePage() {
                                         {/* Static red dot */}
                                         <div className="w-3 h-3 bg-[#FF4040] rounded-full shrink-0" />
                                         <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '15px', color: '#FF4040', letterSpacing: '0.02em' }} className="whitespace-nowrap">
-                                            REC
+                                            {t('studio.rec')}
                                         </span>
                                     </>
                                 )}
                             </button>
+                            </Tooltip>
 
+                            <Tooltip label={isCanvasLocked ? t('collab.lock_banner') : (t('canvas.creative_tools') || 'Creative tools')} side="top">
                             <button
                                 onClick={handleToolsToggle}
                                 data-tour="create-tools"
-                                className={`w-[54px] h-[54px] flex items-center justify-center rounded-full transition-all duration-200 active:scale-95 cursor-pointer border ${
-                                    showToolsPanel && activeToolTab !== 'inspiration'
-                                        ? 'bg-[#F2F2F2] border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
-                                        : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
+                                disabled={isCanvasLocked}
+                                className={`w-[54px] h-[54px] flex items-center justify-center rounded-full transition-all duration-200 active:scale-95 border ${
+                                    isCanvasLocked
+                                        ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
+                                        : showToolsPanel && activeToolTab !== 'inspiration'
+                                            ? 'bg-[#F2F2F2] border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer'
+                                            : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer'
                                 }`}
-                                title="Creative Tools"
+                                aria-label="Creative Tools"
                                 type="button"
                             >
                                 {/* Figma camera icon */}
@@ -15647,8 +16824,10 @@ export default function CreatePage() {
                                     <path d="M31.4959 9.28033H24.4654V7.87423C24.4654 7.05381 24.1395 6.26699 23.5594 5.68686C22.9793 5.10673 22.1924 4.78082 21.372 4.78082H14.6228C13.8023 4.78082 13.0155 5.10673 12.4354 5.68686C11.8553 6.26699 11.5293 7.05381 11.5293 7.87423V9.28033H4.49886C3.97677 9.28033 3.47607 9.48772 3.1069 9.8569C2.73772 10.2261 2.53033 10.7268 2.53033 11.2489V26.9971C2.53033 27.5192 2.73772 28.0199 3.1069 28.3891C3.47607 28.7583 3.97677 28.9657 4.49886 28.9657H31.4959C32.018 28.9657 32.5187 28.7583 32.8879 28.3891C33.257 28.0199 33.4644 27.5192 33.4644 26.9971V11.2489C33.4644 10.7268 33.257 10.2261 32.8879 9.8569C32.5187 9.48772 32.018 9.28033 31.4959 9.28033ZM13.2167 7.87423C13.2167 7.50131 13.3648 7.14366 13.6285 6.87997C13.8922 6.61628 14.2498 6.46813 14.6228 6.46813H21.372C21.7449 6.46813 22.1026 6.61628 22.3663 6.87997C22.63 7.14366 22.7781 7.50131 22.7781 7.87423V9.28033H13.2167V7.87423ZM4.49886 10.9676H31.4959C31.5705 10.9676 31.642 10.9973 31.6948 11.05C31.7475 11.1027 31.7771 11.1743 31.7771 11.2489V16.0296H26.7152V14.6235C26.7152 14.3997 26.6263 14.1852 26.4681 14.0269C26.3099 13.8687 26.0953 13.7798 25.8715 13.7798C25.6478 13.7798 25.4332 13.8687 25.275 14.0269C25.1167 14.1852 25.0279 14.3997 25.0279 14.6235V16.0296H10.9669V14.6235C10.9669 14.3997 10.878 14.1852 10.7198 14.0269C10.5616 13.8687 10.347 13.7798 10.1232 13.7798C9.89949 13.7798 9.68491 13.8687 9.52669 14.0269C9.36847 14.1852 9.27959 14.3997 9.27959 14.6235V16.0296H4.21764V11.2489C4.21764 11.1743 4.24727 11.1027 4.30001 11.05C4.35275 10.9973 4.42428 10.9676 4.49886 10.9676ZM31.4959 27.2784H4.49886C4.42428 27.2784 4.35275 27.2487 4.30001 27.196C4.24727 27.1432 4.21764 27.0717 4.21764 26.9971V17.7169H9.27959V19.123C9.27959 19.3468 9.36847 19.5613 9.52669 19.7196C9.68491 19.8778 9.89949 19.9667 10.1232 19.9667C10.347 19.9667 10.5616 19.8778 10.7198 19.7196C10.878 19.5613 10.9669 19.3468 10.9669 19.123V17.7169H25.0279V19.123C25.0279 19.3468 25.1167 19.5613 25.275 19.7196C25.4332 19.8778 25.6478 19.9667 25.8715 19.9667C26.0953 19.9667 26.3099 19.8778 26.4681 19.7196C26.6263 19.5613 26.7152 19.3468 26.7152 19.123V17.7169H31.7771V26.9971C31.7771 27.0717 31.7475 27.1432 31.6948 27.196C31.642 27.2487 31.5705 27.2784 31.4959 27.2784Z" fill="#4B4B4B"/>
                                 </svg>
                             </button>
+                            </Tooltip>
 
                             {/* Demo Studio pill button — Figma design */}
+                            <Tooltip label={t('canvas.demo_studio_tooltip') || 'Record and mix your song'} side="top">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -15661,7 +16840,7 @@ export default function CreatePage() {
                                         ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
                                         : 'bg-white border-stone-200/50 hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]'
                                 }`}
-                                title="Demo Studio"
+                                aria-label="Demo Studio"
                                 type="button"
                             >
                                 {/* Music note icon from Figma */}
@@ -15670,17 +16849,22 @@ export default function CreatePage() {
                                 </svg>
                                 <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px', color: '#656565' }} className="hidden lg:inline">Demo studio</span>
                             </button>
+                            </Tooltip>
 
                             {/* Inspirations pill button — Figma design */}
+                            <Tooltip label={isCanvasLocked ? t('collab.lock_banner') : (t('canvas.inspirations_tooltip') || 'Get ideas when you\'re stuck')} side="top">
                             <button
                                 onClick={handleInspirationToggle}
                                 data-tour="create-inspirations"
-                                className={`h-[54px] px-3.5 lg:px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border ${
-                                    showToolsPanel && activeToolTab === 'inspiration'
-                                        ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
-                                        : 'bg-white border-stone-200/50 hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]'
+                                disabled={isCanvasLocked}
+                                className={`h-[54px] px-3.5 lg:px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 active:scale-95 border ${
+                                    isCanvasLocked
+                                        ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
+                                        : showToolsPanel && activeToolTab === 'inspiration'
+                                            ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer'
+                                            : 'bg-white border-stone-200/50 hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer'
                                 }`}
-                                title="Inspirations"
+                                aria-label="Inspirations"
                                 type="button"
                             >
                                 {/* Inspirations icon from Figma */}
@@ -15689,6 +16873,7 @@ export default function CreatePage() {
                                 </svg>
                                 <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px', color: '#656565' }} className="hidden lg:inline">Inspirations</span>
                             </button>
+                            </Tooltip>
                         </div>
                     </div>
                 </div>
@@ -15760,15 +16945,16 @@ export default function CreatePage() {
 
                     {/* Sort Dropdown */}
                     <div className="relative shrink-0">
+                        <Tooltip label={t('workspace.sort_label') || 'Sort'} disabled={isSortMenuOpen}>
                         <button
                             type="button"
                             onClick={() => setIsSortMenuOpen(prev => !prev)}
+                            aria-label={t('workspace.sort_label') || 'Sort'}
                             className={`flex items-center gap-2 border px-3.5 rounded-[14px] h-[44px] text-[13px] font-sans font-medium transition-all cursor-pointer select-none ${
                                 isSortMenuOpen
                                     ? 'bg-white border-stone-400/80 text-stone-800'
                                     : 'bg-stone-100/70 hover:bg-stone-200/60 border-stone-200/60 text-stone-600'
                             }`}
-                            title={t('workspace.sort_label') || 'Sort'}
                         >
                             <ArrowUpDown size={14} />
                             <span className="hidden sm:inline whitespace-nowrap">
@@ -15778,6 +16964,7 @@ export default function CreatePage() {
                                 {projectSortOption === 'za' && (t('workspace.sort_za') || 'Z → A')}
                             </span>
                         </button>
+                        </Tooltip>
 
                         {isSortMenuOpen && (
                             <>
@@ -15807,30 +16994,34 @@ export default function CreatePage() {
 
                     {/* Grid / List Style Toggle */}
                     <div className="flex items-center bg-stone-100/70 p-1 rounded-[14px] border border-stone-200/60 select-none shrink-0 h-[44px]">
-                        <button
-                            type="button"
-                            onClick={() => setProjectViewStyle('grid')}
-                            className={`px-3.5 rounded-[10px] flex items-center justify-center transition-all cursor-pointer h-full ${
-                                projectViewStyle === 'grid'
-                                    ? 'bg-white shadow-3xs text-stone-800'
-                                    : 'text-stone-400 hover:text-stone-600'
-                            }`}
-                            title="Grid View"
-                        >
-                            <LayoutGrid size={15} />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setProjectViewStyle('list')}
-                            className={`px-3.5 rounded-[10px] flex items-center justify-center transition-all cursor-pointer h-full ${
-                                projectViewStyle === 'list'
-                                    ? 'bg-white shadow-3xs text-stone-800'
-                                    : 'text-stone-400 hover:text-stone-600'
-                            }`}
-                            title="List View"
-                        >
-                            <List size={15} />
-                        </button>
+                        <Tooltip label="Grid view">
+                            <button
+                                type="button"
+                                onClick={() => setProjectViewStyle('grid')}
+                                aria-label="Grid view"
+                                className={`px-3.5 rounded-[10px] flex items-center justify-center transition-all cursor-pointer h-full ${
+                                    projectViewStyle === 'grid'
+                                        ? 'bg-white shadow-3xs text-stone-800'
+                                        : 'text-stone-400 hover:text-stone-600'
+                                }`}
+                            >
+                                <LayoutGrid size={15} />
+                            </button>
+                        </Tooltip>
+                        <Tooltip label="List view">
+                            <button
+                                type="button"
+                                onClick={() => setProjectViewStyle('list')}
+                                aria-label="List view"
+                                className={`px-3.5 rounded-[10px] flex items-center justify-center transition-all cursor-pointer h-full ${
+                                    projectViewStyle === 'list'
+                                        ? 'bg-white shadow-3xs text-stone-800'
+                                        : 'text-stone-400 hover:text-stone-600'
+                                }`}
+                            >
+                                <List size={15} />
+                            </button>
+                        </Tooltip>
                     </div>
                 </div>
                 <div className="flex flex-col gap-6">
@@ -15868,7 +17059,7 @@ export default function CreatePage() {
                                 </div>
                             ) : (
                                 projectViewStyle === 'grid' ? (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 p-1">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 p-1">
                                         {myProjects.map(renderProjectCard)}
                                     </div>
                                 ) : (
@@ -15914,7 +17105,7 @@ export default function CreatePage() {
                                 </div>
                             ) : (
                                 projectViewStyle === 'grid' ? (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 p-1">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 p-1">
                                         {collabProjects.map(renderProjectCard)}
                                     </div>
                                 ) : (
@@ -15933,10 +17124,154 @@ export default function CreatePage() {
                         <p className="text-sm text-stone-400 italic">{t('workspace.no_projects_found')}</p>
                     </div>
                 )}
+            {/* Comment thread panel — right-docked on desktop, bottom sheet on mobile.
+                z-[70] deliberately: above the creative tools panel (z-[60]) but below modals
+                (z-[100]) and the toast (z-[200]). */}
+            {openCommentThread && selectedNoteId && createPortal(
+                (() => {
+                    const isProjectThread = openCommentThread === '__project__';
+                    const threadComments = isProjectThread
+                        ? projectLevelComments
+                        : (commentsByAnchor[openCommentThread] || []);
+                    // Desktop placement: sit under the line/section, centred on it and clamped to the
+                    // viewport. If there isn't room below (commenting on the last line of a song),
+                    // flip above the anchor rather than running off the bottom of the screen.
+                    const PANEL_W = 380;
+                    const MIN_PANEL_H = 240;
+                    let desktopStyle: React.CSSProperties = { top: '96px', right: '24px' };
+                    if (commentAnchorRect) {
+                        const spaceBelow = window.innerHeight - commentAnchorRect.bottom - 20;
+                        const spaceAbove = commentAnchorRect.top - 20;
+                        const left = Math.max(12, Math.min(
+                            commentAnchorRect.left + commentAnchorRect.width / 2 - PANEL_W / 2,
+                            window.innerWidth - PANEL_W - 12
+                        ));
+                        desktopStyle = spaceBelow >= MIN_PANEL_H || spaceBelow >= spaceAbove
+                            ? { top: `${commentAnchorRect.bottom + 10}px`, left: `${left}px`, maxHeight: `${Math.max(MIN_PANEL_H, Math.min(460, spaceBelow))}px` }
+                            : { bottom: `${window.innerHeight - commentAnchorRect.top + 10}px`, left: `${left}px`, maxHeight: `${Math.max(MIN_PANEL_H, Math.min(460, spaceAbove))}px` };
+                    }
+
+                    return (
+                        <>
+                            {/* Click-away scrim. Transparent — this is a quiet side panel, not a
+                                modal, so it shouldn't dim the work being discussed. */}
+                            <div
+                                className="fixed inset-0 z-[69]"
+                                onClick={() => setOpenCommentThread(null)}
+                            />
+                            <div
+                                className={`fixed z-[70] bg-white border border-stone-200/80 shadow-[0_20px_60px_rgba(0,0,0,0.12)] flex flex-col animate-in duration-200 rounded-[24px] ${
+                                    isMobile
+                                        ? 'left-3 right-3 fade-in slide-in-from-bottom-4 max-h-[60vh]'
+                                        : 'w-[380px] fade-in slide-in-from-top-2'
+                                }`}
+                                style={isMobile
+                                    // Sit above the action dock, which itself becomes keyboard-anchored
+                                    // while a phrase is being edited.
+                                    ? { bottom: `${(visualViewportBottom || 0) + 16}px` }
+                                    : desktopStyle}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {/* No header, no empty state — an empty thread is just the input, and
+                                    the highlighted line already says what's being commented on.
+                                    Click-away (the scrim above) closes it. */}
+                                {threadComments.length > 0 && (
+                                <div className="flex-1 min-h-0 overflow-y-auto custom-canvas-scrollbar px-5 pt-4 pb-2 flex flex-col gap-4">
+                                    {threadComments.map(c => (
+                                        <div key={c.id} className="flex items-start gap-2.5 group/comment">
+                                            <div
+                                                className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-semibold text-stone-900 shrink-0 select-none capitalize"
+                                                style={{ backgroundColor: getMemberColorToken(c.authorUid) }}
+                                                title={c.authorName}
+                                            >
+                                                {getFirstInitial(c.authorName)}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="text-[12.5px] font-semibold text-stone-700 truncate">
+                                                        {c.authorUid === user?.uid ? 'You' : c.authorName}
+                                                    </span>
+                                                    <span className="text-[10.5px] text-stone-400 shrink-0">
+                                                        {formatRelativeTime(c.createdAt)}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[13.5px] text-stone-700 leading-relaxed whitespace-pre-wrap break-words mt-0.5">
+                                                    {c.text}
+                                                </p>
+                                                <div className="flex items-center gap-3 mt-1.5 opacity-0 group-hover/comment:opacity-100 transition-opacity">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleResolveComment(c.id)}
+                                                        className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 cursor-pointer"
+                                                    >
+                                                        Resolve
+                                                    </button>
+                                                    {c.authorUid === user?.uid && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteComment(c.id)}
+                                                            className="text-[11px] font-semibold text-stone-400 hover:text-red-500 cursor-pointer"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                )}
+
+                                {/* Composer: just the field and an arrow to send. */}
+                                <div className={`shrink-0 p-2.5 ${threadComments.length > 0 ? 'border-t border-stone-100' : ''}`}>
+                                    <div className="relative flex items-center">
+                                        <textarea
+                                            value={commentDraft}
+                                            autoFocus
+                                            onChange={(e) => setCommentDraft(e.target.value.slice(0, MAX_COMMENT_LENGTH))}
+                                            onKeyDown={(e) => {
+                                                // Enter sends, Shift+Enter for a newline.
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handlePostComment(isProjectThread ? null : openCommentThread);
+                                                }
+                                            }}
+                                            rows={1}
+                                            placeholder="Leave comment"
+                                            className="w-full resize-none bg-stone-50 border border-stone-200 rounded-full pl-4 pr-12 py-2.5 text-[13.5px] font-sans text-stone-800 placeholder:text-stone-400 outline-none focus:bg-white focus:border-stone-300 transition-all no-scrollbar leading-snug"
+                                        />
+                                        <button
+                                            type="button"
+                                            disabled={!commentDraft.trim() || isPostingComment}
+                                            onClick={() => handlePostComment(isProjectThread ? null : openCommentThread)}
+                                            aria-label="Send comment"
+                                            className="absolute right-1.5 w-8 h-8 rounded-full bg-[#87b884] hover:bg-[#7cb378] text-[#1c331a] flex items-center justify-center transition-all cursor-pointer active:scale-90 disabled:opacity-30 disabled:pointer-events-none"
+                                        >
+                                            {isPostingComment
+                                                ? <Loader2 size={14} className="animate-spin" />
+                                                : <ArrowRight size={15} className="stroke-[2.4]" />}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    );
+                })(),
+                document.body
+            )}
+
             {/* Real-Time Collaboration Share Modal Overlay */}
             {showShareModal && createPortal(
-                <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <form 
+                <div
+                    className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    // Click-away to dismiss, matching the Close button. The form below already
+                    // stopped propagation for this, but the backdrop handler was never wired up.
+                    onClick={() => {
+                        setShowShareModal(false);
+                        setInviteStatus({ type: '', message: '' });
+                    }}
+                >
+                    <form
                         onSubmit={handleInviteCollaborator}
                         className="bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-8 animate-in zoom-in-95 duration-200 relative max-h-[90vh] overflow-y-auto no-scrollbar"
                         onClick={(e) => e.stopPropagation()}
@@ -16018,6 +17353,46 @@ export default function CreatePage() {
                             </p>
                         )}
 
+                        {/* Huddle — a live voice room for everyone on the project. Starting one
+                            puts a "Join huddle" prompt in front of every other member. */}
+                        {selectedNoteId && (
+                            <div className="flex items-center justify-between gap-4 pt-6 border-t border-stone-100">
+                                <div className="min-w-0">
+                                    <h4 className="text-[14px] font-sans font-medium text-stone-600">Huddle</h4>
+                                    <p className="text-[12px] text-stone-400 font-medium mt-0.5">
+                                        {isCallActive
+                                            ? (huddleOthers.length > 0
+                                                ? `You and ${huddleOthers.map(p => p.name).join(', ')}`
+                                                : 'Waiting for others to join…')
+                                            : isHuddleRunning
+                                                ? `${huddleOthers.map(p => p.name).join(', ')} ${huddleOthers.length === 1 ? 'is' : 'are'} in a huddle`
+                                                : 'Talk to everyone on this project'}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isCallActive) {
+                                            leaveCall();
+                                        } else {
+                                            joinCall();
+                                        }
+                                    }}
+                                    disabled={isCallConnecting}
+                                    className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-full text-[14px] font-sans font-semibold transition-all cursor-pointer active:scale-95 shadow-sm disabled:opacity-60 disabled:pointer-events-none ${
+                                        isCallActive
+                                            ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+                                            : 'bg-[#87b884] text-[#1c331a] hover:bg-[#7cb378] shadow-[#87b884]/20'
+                                    }`}
+                                >
+                                    {isCallActive
+                                        ? <><PhoneOff size={15} className="stroke-[2.2]" /> Leave</>
+                                        : <><Phone size={15} className="stroke-[2.2]" /> {isCallConnecting ? 'Connecting…' : isHuddleRunning ? 'Join huddle' : 'Start huddle'}</>}
+                                </button>
+                            </div>
+                        )}
+
                         {/* Access/Collaborators List */}
                         {selectedNoteId && (
                             <div className="flex flex-col gap-3 pt-6 border-t border-stone-100">
@@ -16039,6 +17414,7 @@ export default function CreatePage() {
                                             <div key={collabUid} className={`flex items-center gap-1.5 bg-stone-50 border border-stone-200/60 rounded-full py-1.5 ${canRemove ? 'pl-4 pr-2' : 'px-4'}`}>
                                                 <span className="text-sm font-sans font-medium text-stone-700">{profile.name}</span>
                                                 {canRemove && (
+                                                    <Tooltip label={activeNote?.ownerId === user?.uid ? `Remove ${profile.name}` : 'Leave project'}>
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {
@@ -16061,11 +17437,12 @@ export default function CreatePage() {
                                                                 });
                                                             }
                                                         }}
+                                                        aria-label={activeNote?.ownerId === user?.uid ? `Remove ${profile.name}` : 'Leave project'}
                                                         className="w-6 h-6 rounded-full hover:bg-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-700 transition-all active:scale-90 shrink-0 cursor-pointer"
-                                                        title={activeNote?.ownerId === user?.uid ? `Remove ${profile.name}` : "Leave project"}
                                                     >
                                                         <X size={13} className="stroke-[2.5]" />
                                                     </button>
+                                                    </Tooltip>
                                                 )}
                                             </div>
                                         );

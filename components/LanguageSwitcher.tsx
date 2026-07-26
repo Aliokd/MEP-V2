@@ -2,9 +2,24 @@
 import { useState, useEffect, useRef } from 'react';
 import { Globe } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import Tooltip from '@/components/Tooltip';
 
-export default function LanguageSwitcher({ iconOnly = false }: { iconOnly?: boolean }) {
-    const { language, setLanguage } = useLanguage();
+type Props = {
+    iconOnly?: boolean;
+    tooltipSide?: 'top' | 'bottom' | 'left' | 'right';
+    /** Which way the dropdown opens. The platform sidebar sits at the bottom, so it opens up. */
+    direction?: 'up' | 'down';
+    /** "app" matches the platform chrome, "marketing" matches the public pages. */
+    variant?: 'app' | 'marketing';
+};
+
+export default function LanguageSwitcher({
+    iconOnly = false,
+    tooltipSide = 'top',
+    direction = 'up',
+    variant = 'app',
+}: Props) {
+    const { language, setLanguage, t } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -53,23 +68,34 @@ export default function LanguageSwitcher({ iconOnly = false }: { iconOnly?: bool
         return null;
     };
 
+    const triggerClasses = variant === 'marketing'
+        ? (iconOnly
+            ? "flex items-center justify-center w-9 h-9 rounded-full bg-white/50 hover:bg-white/85 border border-stone-300/40 text-stone-700 hover:text-stone-950 transition-all select-none cursor-pointer"
+            : "flex items-center gap-1.5 bg-white/50 hover:bg-white/85 border border-stone-300/40 text-stone-700 hover:text-stone-950 transition-all text-left rounded-[12px] px-3 py-1.5 font-medium uppercase select-none cursor-pointer")
+        : (iconOnly
+            ? "flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-700 hover:text-stone-950 transition-all select-none cursor-pointer"
+            : "flex items-center gap-1.5 bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-700 hover:text-stone-950 transition-all text-left rounded-[10px] px-3.5 py-2 font-medium uppercase select-none cursor-pointer");
+
     return (
         <div className="relative inline-block font-sans text-[13px] tracking-wider" ref={dropdownRef}>
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                aria-label="Change language"
-                className={iconOnly
-                    ? "flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-700 hover:text-stone-950 transition-all select-none cursor-pointer"
-                    : "flex items-center gap-1.5 bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-700 hover:text-stone-950 transition-all text-left rounded-[10px] px-3.5 py-2 font-medium uppercase select-none cursor-pointer"
-                }
-            >
-                {renderFlagIcon(currentLang.code, true)}
-                {!iconOnly && <span>{currentLang.label}</span>}
-            </button>
+            <Tooltip label={t('language.change')} side={tooltipSide} disabled={!iconOnly || isOpen}>
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    aria-label={t('language.change')}
+                    className={triggerClasses}
+                >
+                    {renderFlagIcon(currentLang.code, true)}
+                    {!iconOnly && <span>{currentLang.label}</span>}
+                </button>
+            </Tooltip>
 
             {isOpen && (
-                <div className={`absolute bottom-full mb-2 w-32 bg-white border border-stone-200/85 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.06)] py-1.5 z-[999] flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-1 duration-150 ${
-                    iconOnly ? 'left-1/2 -translate-x-1/2' : 'left-0'
+                <div className={`absolute w-32 bg-white border border-stone-200/85 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.06)] py-1.5 z-[999] flex flex-col gap-0.5 animate-in fade-in duration-150 ${
+                    direction === 'down'
+                        ? 'top-full mt-2 slide-in-from-top-1'
+                        : 'bottom-full mb-2 slide-in-from-bottom-1'
+                } ${
+                    iconOnly ? 'left-1/2 -translate-x-1/2' : (variant === 'marketing' ? 'right-0' : 'left-0')
                 }`}>
                     {languages.map((lang) => (
                         <button

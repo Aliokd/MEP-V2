@@ -7,6 +7,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getUserConstellation, ConstellationData } from '@/app/actions/lesson-actions';
 import { useLanguage } from '@/context/LanguageContext';
+import { fetchCurriculum } from '@/lib/contentClient';
+import { pickLocale, type LearnChapter, type LearnLesson } from '@/lib/content';
 import LearnLanding from './components/LearnLanding';
 import LessonReader from './components/LessonReader';
 import BankOfIdeas from './components/BankOfIdeas';
@@ -14,10 +16,25 @@ import DeepDive from './components/DeepDive';
 
 export default function PlatformPage() {
     const { user, loading: authLoading } = useAuth();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const router = useRouter();
     const [data, setData] = useState<ConstellationData | null>(null);
     const [view, setView] = useState<'landing' | 'reader' | 'ideas' | 'deepDive'>('landing');
+    const [cms, setCms] = useState<(LearnChapter & { lessons: LearnLesson[] })[] | null>(null);
+
+    // The curriculum is authored in the admin CMS. Data Connect stays as the
+    // source for lesson *progress* and as the fallback for the lesson list until
+    // the content migration has been run.
+    useEffect(() => {
+        let cancelled = false;
+        fetchCurriculum()
+            .then(chapters => { if (!cancelled) setCms(chapters); })
+            .catch(err => {
+                console.warn("Falling back to Data Connect curriculum:", err);
+                if (!cancelled) setCms([]);
+            });
+        return () => { cancelled = true; };
+    }, []);
 
     useEffect(() => {
         if (user) {
@@ -79,6 +96,23 @@ export default function PlatformPage() {
     };
 
     const chapters = useMemo(() => {
+        // CMS content wins when there is any, and it is already localized —
+        // no need for the title-matching translation lookup below.
+        if (cms && cms.length > 0) {
+            return cms.map(chapter => ({
+                id: chapter.id,
+                title: pickLocale(chapter.title, language),
+                lessons: chapter.lessons.map(lesson => ({
+                    id: lesson.id,
+                    title: pickLocale(lesson.title, language),
+                    videoUrl: lesson.videoUrl,
+                    midiDataUrl: lesson.midiDataUrl ?? null,
+                    durationSeconds: lesson.durationSeconds,
+                    order: lesson.order,
+                })),
+            }));
+        }
+
         if (!data) return [];
 
         return data.movements.map(m => {
@@ -96,7 +130,7 @@ export default function PlatformPage() {
                 }))
             };
         });
-    }, [data, t]);
+    }, [cms, data, language, t]);
 
     if (authLoading || !data) return (
         <div className="w-full max-w-6xl mx-auto mt-0 mb-20 flex flex-col gap-4 animate-pulse">

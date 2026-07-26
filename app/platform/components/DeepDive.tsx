@@ -26,8 +26,8 @@ export default function DeepDive({ onBackToLanding }: DeepDiveProps) {
             </div>
 
             <div className="w-full flex-1 min-h-[300px] bg-white border border-stone-300/85 rounded-[20px] p-8 flex flex-col items-center justify-center gap-3 text-center shadow-[0_4px_20px_rgba(0,0,0,0.015)]">
-                <span className="text-sm font-sans font-semibold text-red-500 tracking-wide">
-                    {t('learn.coming_next_year')}
+                <span className="text-sm font-sans font-semibold text-yellow-600 tracking-wide">
+                    {t('learn.coming_soon')}
                 </span>
                 <p className="text-stone-500 text-sm font-medium max-w-md">
                     {t('learn.deep_dive_desc')}

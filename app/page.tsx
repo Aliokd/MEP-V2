@@ -8,8 +8,11 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useLanguage } from "@/context/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const TopNav = () => {
+    const { t } = useLanguage();
     const [isScrolled, setIsScrolled] = useState(false);
 
     useEffect(() => {
@@ -40,19 +43,21 @@ const TopNav = () => {
 
             {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-10 text-[15px] text-[#363636]">
-                <Link href="#qa" className="hover:text-black transition-colors font-medium">Q&A</Link>
+                <Link href="#qa" className="hover:text-black transition-colors font-medium">{t('home.nav.qa')}</Link>
                 <div className="flex items-center gap-6">
-                    <Link href="/signin" className="hover:text-black transition-colors font-medium">Sign in</Link>
-                    <Link href="/onboarding" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">Join now</Link>
+                    <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
+                    <Link href="/signin" className="hover:text-black transition-colors font-medium">{t('home.nav.signin')}</Link>
+                    <Link href="/onboarding" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.join')}</Link>
                 </div>
             </div>
 
             {/* Mobile Nav */}
-            <div className="flex items-center gap-6 text-[15px] text-[#363636] md:hidden">
-                <Link href="#qa" className="hover:text-black transition-colors font-medium">Q&A</Link>
-                <div className="flex items-center gap-4">
-                    <Link href="/signin" className="hover:text-black transition-colors font-medium">Sign in</Link>
-                    <Link href="/onboarding" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-3 py-1 rounded-[12px] font-semibold text-xs transition-all">Join now</Link>
+            <div className="flex items-center gap-4 text-[15px] text-[#363636] md:hidden">
+                <Link href="#qa" className="hover:text-black transition-colors font-medium">{t('home.nav.qa')}</Link>
+                <LanguageSwitcher variant="marketing" direction="down" iconOnly tooltipSide="bottom" />
+                <div className="flex items-center gap-3">
+                    <Link href="/signin" className="hover:text-black transition-colors font-medium">{t('home.nav.signin')}</Link>
+                    <Link href="/onboarding" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-3 py-1 rounded-[12px] font-semibold text-xs transition-all">{t('home.nav.join')}</Link>
                 </div>
             </div>
         </nav>
@@ -60,24 +65,37 @@ const TopNav = () => {
 };
 
 const HeroSection = () => {
+    const { t } = useLanguage();
+
+    // Some languages fit the headline into two parts instead of three, so blank
+    // segments are dropped rather than rendered as an empty line on mobile.
+    const titleParts = [
+        { text: t('home.hero.title_1'), bold: false },
+        { text: t('home.hero.title_2'), bold: true },
+        { text: t('home.hero.title_3'), bold: false },
+    ].filter(part => part.text.trim().length > 0);
+
     return (
         <section className="relative min-h-0 md:min-h-[90vh] bg-[#E6E3DB] pt-32 pb-0 md:pb-16 flex flex-col items-center overflow-hidden">
             <TopNav />
             <div className="w-full px-6 md:px-[10%] flex flex-col md:flex-row justify-between items-start mb-16 relative z-20">
                 <h1 className="text-5xl md:text-[5.5rem] font-sans text-stone-800 leading-[1.05] tracking-tight">
-                    <span className="block md:inline">The complete</span>{' '}
-                    <span className="block md:inline font-bold text-stone-900">songwriting</span>{' '}
-                    <span className="block md:inline">journey.</span>
+                    {titleParts.map((part, i) => (
+                        <span key={i}>
+                            <span className={`block md:inline ${part.bold ? 'font-bold text-stone-900' : ''}`}>{part.text}</span>
+                            {i < titleParts.length - 1 && ' '}
+                        </span>
+                    ))}
                 </h1>
                 <div className="flex flex-col items-start mt-8 md:mt-0 max-w-[350px]">
                     <p className="text-[14px] md:text-[15px] text-stone-600 mb-6 text-left leading-relaxed font-normal">
-                        From your first lyric idea to a finished song, Veinote combines powerful creative tools, expert guidance, practical exercises, and a supportive community designed to help songwriters grow and develop their craft.
+                        {t('home.hero.description')}
                     </p>
-                    <Link 
-                        href="/onboarding" 
+                    <Link
+                        href="/onboarding"
                         className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-xl font-semibold transition-all inline-flex items-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] select-none"
                     >
-                        <span>Join now</span>
+                        <span>{t('home.nav.join')}</span>
                         <ArrowRight className="w-5 h-5 stroke-[2.5px]" />
                     </Link>
                 </div>
@@ -104,31 +122,37 @@ const HeroSection = () => {
     );
 };
 
-const YellowBanner = () => (
-    <Link 
-        href="https://www.forskning.no/kunstig-intelligens-musikk-partner/derfor-sliter-musikere-med-a-fullfore-latene-sine/2636211"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="bg-[#FFF35F] w-full py-4 md:py-6 lg:py-8 px-6 flex justify-center items-center text-center group transition-all hover:brightness-95 cursor-pointer"
-    >
-        <p className="text-[17px] md:text-[22px] lg:text-[26px] font-medium text-stone-900 flex items-center justify-center gap-2 flex-wrap">
-            Here's why 92% of musicians never finish their songs. 
-            <span className="font-semibold flex items-center ml-1">
-                <span className="underline decoration-[1.5px] underline-offset-4 group-hover:opacity-70 transition-opacity">Learn more</span> 
-                <ArrowUpRight className="w-5 h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 ml-0.5 stroke-[2px] group-hover:opacity-70 transition-opacity" />
-            </span>
-        </p>
-    </Link>
-);
+const YellowBanner = () => {
+    const { t } = useLanguage();
+
+    return (
+        <Link
+            href="https://www.forskning.no/kunstig-intelligens-musikk-partner/derfor-sliter-musikere-med-a-fullfore-latene-sine/2636211"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-[#FFF35F] w-full py-4 md:py-6 lg:py-8 px-6 flex justify-center items-center text-center group transition-all hover:brightness-95 cursor-pointer"
+        >
+            <p className="text-[17px] md:text-[22px] lg:text-[26px] font-medium text-stone-900 flex items-center justify-center gap-2 flex-wrap">
+                {t('home.banner.text')}
+                <span className="font-semibold flex items-center ml-1">
+                    <span className="underline decoration-[1.5px] underline-offset-4 group-hover:opacity-70 transition-opacity">{t('home.banner.cta')}</span>
+                    <ArrowUpRight className="w-5 h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 ml-0.5 stroke-[2px] group-hover:opacity-70 transition-opacity" />
+                </span>
+            </p>
+        </Link>
+    );
+};
 
 const BlobsSection = () => {
+    const { t } = useLanguage();
+
     return (
         <section className="bg-[#E6E3DB] pb-0 flex flex-col items-center overflow-hidden">
             <div className="text-center mb-0 relative w-full flex flex-col items-center">
                 <div className="w-full">
                     <img src="/assets/Up.png" alt="My song Finished" className="w-full h-auto block" />
                 </div>
-                <span className="font-sans font-extralight text-5xl md:text-7xl lg:text-8xl text-stone-500 -mt-[3.5%] tracking-wide px-6 z-10 relative">and...</span>
+                <span className="font-sans font-extralight text-5xl md:text-7xl lg:text-8xl text-stone-500 -mt-[3.5%] tracking-wide px-6 z-10 relative">{t('home.blobs.and')}</span>
             </div>
 
             <motion.div 
@@ -145,6 +169,7 @@ const BlobsSection = () => {
 };
 
 const UrgencySection = () => {
+    const { t } = useLanguage();
     const [count, setCount] = useState(0);
     const [barWidth, setBarWidth] = useState(0);
     const [hasAnimated, setHasAnimated] = useState(false);
@@ -204,7 +229,7 @@ const UrgencySection = () => {
             <div className="w-full max-w-3xl relative z-20 flex flex-col items-center">
                 {/* Title */}
                 <h2 className="text-5xl md:text-[4.5rem] lg:text-[5rem] font-sans tracking-tight text-stone-900 font-light mb-6 md:mb-8 leading-[1.05]">
-                    Join the early founders
+                    {t('home.urgency.title')}
                 </h2>
 
                 {/* Animated progress bar */}
@@ -228,7 +253,7 @@ const UrgencySection = () => {
 
                 {/* Urgency Description */}
                 <p className="text-stone-700 text-[15px] md:text-[17px] font-medium max-w-md mb-10 leading-relaxed">
-                    Only 13 spots left<br className="hidden md:block" /> before early access closes.
+                    {t('home.urgency.spots_line_1')}<br className="hidden md:block" /> {t('home.urgency.spots_line_2')}
                 </p>
 
                 {/* CTA Button */}
@@ -236,7 +261,7 @@ const UrgencySection = () => {
                     href="/onboarding"
                     className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-xl font-semibold transition-all inline-flex items-center gap-3 select-none"
                 >
-                    <span>Join now</span>
+                    <span>{t('home.nav.join')}</span>
                     <ArrowRight className="w-5 h-5 stroke-[2.5px]" />
                 </Link>
             </div>
@@ -246,6 +271,7 @@ const UrgencySection = () => {
 
 
 const DarkSection = () => {
+    const { t } = useLanguage();
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
@@ -304,8 +330,8 @@ const DarkSection = () => {
             {/* Content Container */}
             <div className="relative z-20 max-w-3xl flex flex-col items-start justify-center flex-grow">
                 <h2 className="text-5xl md:text-[5.5rem] font-sans leading-[1.05] tracking-tight mb-12 md:mb-16">
-                    <span className="font-normal text-white/90">Learn from</span> <br />
-                    <span className="font-semibold text-white">experienced professionals</span>
+                    <span className="font-normal text-white/90">{t('home.founder.title_1')}</span> <br />
+                    <span className="font-semibold text-white">{t('home.founder.title_2')}</span>
                 </h2>
 
                 <div className="flex flex-col items-start pl-2 md:pl-4">
@@ -328,7 +354,7 @@ const DarkSection = () => {
                     {/* Subtitle */}
                     <div className="mt-1.5">
                         <span className="text-sm md:text-base text-white/60 italic font-normal">
-                            Co-founder • singer-songwriter • producer
+                            {t('home.founder.role')}
                         </span>
                     </div>
 
@@ -337,7 +363,7 @@ const DarkSection = () => {
                         <li className="flex items-center gap-2.5">
                             <span className="w-1.5 h-1.5 bg-[#86BE7F] rounded-full shrink-0" />
                             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                                <span>Platinum-selling and top 2% songwriter worldwide</span>
+                                <span>{t('home.founder.credential')}</span>
                                 <div className="flex items-center bg-white/5 border border-white/10 px-2 py-0.5 rounded-full backdrop-blur-sm shrink-0">
                                     <img 
                                         src="/assets/muso_badge.png" 
@@ -354,12 +380,8 @@ const DarkSection = () => {
 
                     {/* Paragraph */}
                     <div className="space-y-4 max-w-[380px] text-sm md:text-base text-white/70 font-normal leading-relaxed mb-6 text-left">
-                        <p>
-                            With more than 30 years of songwriting experience and over 250 released songs, Peter helps develop the lessons, exercises, and creative frameworks that guide songwriters throughout Veinote.
-                        </p>
-                        <p>
-                            His career includes chart success, international releases, platinum-selling projects, and decades of experience as a songwriter, producer, performer, and educator.
-                        </p>
+                        <p>{t('home.founder.bio_1')}</p>
+                        <p>{t('home.founder.bio_2')}</p>
                     </div>
 
                     {/* Cursive Signature */}
@@ -381,6 +403,8 @@ const DarkSection = () => {
 };
 
 const AISection = () => {
+    const { t } = useLanguage();
+
     return (
         <section className="bg-[#D7D8CD] pt-20 md:pt-28 pb-0 flex flex-col items-center relative overflow-hidden">
             {/* Top Right Sticky Asset */}
@@ -394,7 +418,7 @@ const AISection = () => {
             <div className="w-full px-6 md:px-[10%] relative z-10 flex flex-col items-start">
                 {/* Left-Aligned Headline */}
                 <h2 className="text-5xl md:text-[5.5rem] font-sans leading-[1.05] tracking-tight text-stone-800 mb-12 md:mb-16">
-                    ... and intuitive tools
+                    {t('home.ai.title')}
                 </h2>
             </div>
 
@@ -415,32 +439,16 @@ const AISection = () => {
 };
 
 const FAQSection = () => {
+    const { t, tList } = useLanguage();
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-    const faqs = [
-        {
-            question: "Do I need to know music theory to write a song?",
-            answer: "No. Many famous songwriters write by ear and emotion. Veinote helps turn your musical ideas into finished songs, with no music degree needed."
-        },
-        {
-            question: "What comes first: the lyrics or the melody?",
-            answer: "There is no right way! Some start with a melody, others start with lyrics. Veinote works with both, helping you easily combine words and music."
-        },
-        {
-            question: "My lyrics feel \"cheesy.\" How do I fix them?",
-            answer: "Lyrics feel cheesiest when you describe feelings too directly. Veinote helps you show rather than tell, suggesting details and patterns to make your songs feel real."
-        },
-        {
-            question: "How long should it take to write a song?",
-            answer: "A song can take 15 minutes or several months. Our tools are built to help you get started right away and finish your songs in hours, not weeks."
-        }
-    ];
+    const faqs = tList<{ question: string; answer: string }>('home.faq.items');
 
     return (
         <section id="qa" className="bg-[#EFF0E7] py-24 md:py-32 px-6 flex flex-col items-center">
             {/* Centered Large Title */}
             <h2 className="text-4xl md:text-[3.25rem] font-sans tracking-tight text-[#363636] text-center mb-16 md:mb-24">
-                Q&A
+                {t('home.faq.title')}
             </h2>
 
             {/* Accordion Container */}
@@ -483,6 +491,8 @@ const FAQSection = () => {
 };
 
 const NewFooter = () => {
+    const { t } = useLanguage();
+
     return (
         <footer className="relative w-full h-[80vh] min-h-[550px] md:h-screen md:min-h-[700px] flex flex-col justify-between overflow-hidden bg-[#D3D6CB]">
             {/* Background Image */}
@@ -500,15 +510,15 @@ const NewFooter = () => {
             <div className="relative z-10 w-full px-6 md:px-[10%] pt-8 md:pt-12 flex justify-between items-center">
                 {/* Top Left Links */}
                 <div className="flex items-center gap-6 text-[15px] text-[#363636] font-medium">
-                    <span>Established in 2026</span>
+                    <span>{t('home.footer.established')}</span>
                 </div>
 
                 {/* Top Right Links */}
                 <div className="flex items-center gap-6 text-[15px] text-[#363636]">
-                    <Link href="/about" className="font-medium hover:text-black transition-colors">About</Link>
-                    <Link href="/privacy" className="font-medium hover:text-black transition-colors">Privacy</Link>
-                    <Link href="#qa" className="font-medium hover:text-black transition-colors">Q&A</Link>
-                    <Link href="/onboarding" className="font-bold hover:text-black transition-colors">Join now</Link>
+                    <Link href="/about" className="font-medium hover:text-black transition-colors">{t('home.footer.about')}</Link>
+                    <Link href="/privacy" className="font-medium hover:text-black transition-colors">{t('home.footer.privacy')}</Link>
+                    <Link href="#qa" className="font-medium hover:text-black transition-colors">{t('home.nav.qa')}</Link>
+                    <Link href="/onboarding" className="font-bold hover:text-black transition-colors">{t('home.nav.join')}</Link>
                 </div>
             </div>
 
@@ -524,16 +534,16 @@ const NewFooter = () => {
                 {/* Designed by Humans with Love */}
                 <div className="flex items-center gap-2 text-[14px] md:text-[15px] text-[#363636] font-medium tracking-tight bg-white/30 backdrop-blur-lg border border-white/40 px-5 py-2.5 rounded-full shadow-sm">
                     <Heart className="w-4 h-4 fill-[#363636] stroke-none inline shrink-0" />
-                    <span>Designed by humans with love, in Stockholm.</span>
+                    <span>{t('home.footer.designed')}</span>
                 </div>
 
                 {/* Additional footer text */}
                 <div className="mt-8 text-xs md:text-[13px] text-[#363636]/80 max-w-md mx-auto space-y-3">
                     <p className="font-normal leading-relaxed">
-                        Discover new ideas, build your skills, and become part of a growing community of songwriters.
+                        {t('home.footer.tagline_1')}
                     </p>
                     <p className="font-medium text-[#363636] leading-relaxed">
-                        Learn. Create. Practice. Connect.
+                        {t('home.footer.tagline_2')}
                     </p>
                 </div>
             </div>
@@ -542,6 +552,7 @@ const NewFooter = () => {
 };
 
 export default function HomePage() {
+    const { t } = useLanguage();
     const router = useRouter();
     const [isRedirecting, setIsRedirecting] = useState(false);
 
@@ -560,7 +571,7 @@ export default function HomePage() {
             <div className="flex items-center justify-center min-h-screen bg-[#E6E3DB]">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-8 h-8 border-2 border-stone-850 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-stone-600 text-sm font-medium tracking-wide">Redirecting to platform...</span>
+                    <span className="text-stone-600 text-sm font-medium tracking-wide">{t('home.redirecting')}</span>
                 </div>
             </div>
         );

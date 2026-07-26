@@ -1,17 +1,22 @@
 import { db, auth } from "@/lib/firebase";
-import { 
-    doc, 
-    setDoc, 
-    getDoc, 
-    collection, 
-    query, 
-    where, 
-    getDocs, 
-    updateDoc, 
-    arrayUnion, 
-    arrayRemove, 
+import {
+    doc,
+    setDoc,
+    getDoc,
+    collection,
+    query,
+    where,
+    orderBy,
+    limit,
+    onSnapshot,
+    addDoc,
+    deleteDoc,
+    getDocs,
+    updateDoc,
+    arrayRemove,
     serverTimestamp,
-    writeBatch
+    writeBatch,
+    Timestamp
 } from "firebase/firestore";
 
 // Total project membership cap, owner included.
@@ -284,6 +289,163 @@ export function calculateContributionsPercentage(project: CollaborativeProject):
         const score = (w1 * charRatio) + (w2 * lineRatio) + (w3 * recRatio);
         percentages[uid] = Math.round(score * 100);
     });
-    
+
     return percentages;
+}
+
+/* ------------------------------------------------------------------------------------------
+ * Project comments
+ *
+ * Comment bubbles anchored to the work itself — `anchorId` is a phrase id when the comment sits
+ * on a lyric line, or null for a project-level note.
+ *
+ * These live in the `projects/{id}/comments` SUBcollection, never on the project document. The
+ * whole project (lyrics, phrases, audioNotes carrying stemTracks, studioTracks) is a single doc
+ * that every collaborator has an onSnapshot on, so anything stored there re-pushes the entire
+ * project payload to every client on every write.
+ * ---------------------------------------------------------------------------------------- */
+
+export const MAX_COMMENT_LENGTH = 1000;
+
+export interface ProjectComment {
+    id: string;
+    authorUid: string;
+    authorName: string;
+    text: string;
+    anchorId: string | null;
+    createdAt: number;
+    resolved: boolean;
+    resolvedBy?: string | null;
+    resolvedAt?: number | null;
+}
+
+const toMillis = (value: any): number => {
+    if (!value) return 0;
+    if (value instanceof Timestamp) return value.toMillis();
+    if (typeof value?.toMillis === 'function') return value.toMillis();
+    if (typeof value === 'number') return value;
+    return 0;
+};
+
+/**
+ * Live subscription to a project's unresolved-and-resolved comments (newest first, capped).
+ * Returns an unsubscribe function.
+ */
+export function subscribeToProjectComments(
+    projectId: string,
+    onChange: (comments: ProjectComment[]) => void,
+    onError?: (err: Error) => void
+): () => void {
+    const q = query(
+        collection(db, "projects", projectId, "comments"),
+        orderBy("createdAt", "desc"),
+        limit(200)
+    );
+
+    return onSnapshot(q, (snapshot) => {
+        const comments: ProjectComment[] = snapshot.docs.map(d => {
+            const data = d.data();
+            return {
+                id: d.id,
+                authorUid: data.authorUid || '',
+                authorName: data.authorName || 'Collaborator',
+                text: data.text || '',
+                anchorId: data.anchorId ?? null,
+                // serverTimestamp() reads back null on the author's own client until the write is
+                // acknowledged — fall back so an optimistic comment still sorts sensibly.
+                createdAt: toMillis(data.createdAt) || Date.now(),
+                resolved: !!data.resolved,
+                resolvedBy: data.resolvedBy ?? null,
+                resolvedAt: toMillis(data.resolvedAt) || null
+            };
+        });
+        onChange(comments);
+    }, (err) => {
+        console.warn("Comments snapshot error:", err.message);
+        if (onError) onError(err);
+    });
+}
+
+export async function addProjectComment(
+    projectId: string,
+    params: { authorUid: string; authorName: string; text: string; anchorId?: string | null }
+): Promise<boolean> {
+    const text = (params.text || '').trim();
+    if (!text) return false;
+
+    try {
+        await addDoc(collection(db, "projects", projectId, "comments"), {
+            authorUid: params.authorUid,
+            authorName: params.authorName || 'Collaborator',
+            text: text.slice(0, MAX_COMMENT_LENGTH),
+            anchorId: params.anchorId ?? null,
+            createdAt: serverTimestamp(),
+            resolved: false,
+            resolvedBy: null,
+            resolvedAt: null
+        });
+        return true;
+    } catch (err) {
+        console.error("Error adding comment:", err);
+        return false;
+    }
+}
+
+/** Resolving is how a comment is dismissed — it keeps the canvas clean without destroying context. */
+export async function resolveProjectComment(
+    projectId: string,
+    commentId: string,
+    resolverUid: string
+): Promise<boolean> {
+    try {
+        await updateDoc(doc(db, "projects", projectId, "comments", commentId), {
+            resolved: true,
+            resolvedBy: resolverUid,
+            resolvedAt: serverTimestamp()
+        });
+        return true;
+    } catch (err) {
+        console.error("Error resolving comment:", err);
+        return false;
+    }
+}
+
+export async function deleteProjectComment(projectId: string, commentId: string): Promise<boolean> {
+    try {
+        await deleteDoc(doc(db, "projects", projectId, "comments", commentId));
+        return true;
+    } catch (err) {
+        console.error("Error deleting comment:", err);
+        return false;
+    }
+}
+
+/**
+ * Best-effort cleanup of a project's comment + presence subcollections.
+ *
+ * Firestore does NOT cascade-delete subcollections when the parent document is removed, so
+ * without this every deleted project leaves its comments and presence docs orphaned forever.
+ * Called before deleting the project doc itself.
+ */
+export async function deleteProjectSubcollections(projectId: string): Promise<void> {
+    for (const sub of ["comments", "presence", "signaling"]) {
+        try {
+            const snap = await getDocs(collection(db, "projects", projectId, sub));
+            // Firestore caps a batch at 500 writes.
+            let batch = writeBatch(db);
+            let pending = 0;
+            for (const d of snap.docs) {
+                batch.delete(d.ref);
+                pending++;
+                if (pending === 500) {
+                    await batch.commit();
+                    batch = writeBatch(db);
+                    pending = 0;
+                }
+            }
+            if (pending > 0) await batch.commit();
+        } catch (err) {
+            console.warn(`Cleanup of ${sub} subcollection skipped:`, err);
+        }
+    }
 }

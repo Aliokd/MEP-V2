@@ -4,9 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { storage } from '@/lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL, UploadTask } from 'firebase/storage';
+import { authedFetch } from '@/lib/authedFetch';
 
 interface FeedbackModalProps {
     isOpen: boolean;
@@ -15,7 +15,7 @@ interface FeedbackModalProps {
 
 export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     const { user } = useAuth();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     
     const [subject, setSubject] = useState('');
     const [message, setMessage] = useState('');
@@ -156,12 +156,10 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         setStatus({ type: '', message: '' });
 
         try {
-            // Call API route to email and save the feedback.
-            const response = await fetch('/api/feedback', {
+            // Call API route to email and save the feedback. The ID token goes along
+            // so the server can verify the identity rather than trusting the uid below.
+            const response = await authedFetch('/api/feedback', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({
                     userId: user?.uid || 'anonymous',
                     userName: user?.displayName || 'Anonymous User',
@@ -169,7 +167,8 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                     subject: subject.trim(),
                     message: message.trim(),
                     attachmentUrl: uploadedUrl,
-                    attachmentName: uploadedName
+                    attachmentName: uploadedName,
+                    locale: language,
                 }),
             });
 

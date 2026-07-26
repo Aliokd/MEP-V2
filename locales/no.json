@@ -6,10 +6,15 @@
     "close": "Lukk",
     "confirm": "Bekreft",
     "back": "Tilbake",
-    "next": "Neste"
+    "next": "Neste",
+    "undo": "Angre",
+    "redo": "Gjør om",
+    "complete": "Fullfør",
+    "completing": "Fullfører",
+    "saved": "Lagret"
   },
   "navigation": {
-    "create": "Skap",
+    "create": "Lag",
     "learn": "Lær",
     "practice": "Øv",
     "connect": "Community",
@@ -20,41 +25,55 @@
     "my_profile": "Min profil"
   },
   "lexicon": {
-    "title": "Rimleksikon og Synonymer",
+    "title": "Rimleksikon og synonymer",
     "placeholder": "Skriv eller klikk på et ord...",
     "perfect_rhyme": "Perfekt rim",
-    "near_rhyme": "Nesten-rim",
+    "near_rhyme": "Nestenrim",
     "synonym": "Synonymer",
     "no_results": "Skriv et ord for å søke etter rim eller synonymer.",
     "no_results_found": "Ingen treff funnet.",
     "syllable": "stavelse",
     "syllables": "stavelser",
-    "loading": "Søker i ordbok..."
+    "loading": "Søker i ordboken..."
   },
   "studio": {
-    "open_lyrics": "Åpne tekst",
-    "close_lyrics": "Lukk tekst",
-    "lyrics_sidebar": "Lyrics",
+    "open_lyrics": "Åpne sangteksten",
+    "close_lyrics": "Lukk sangteksten",
+    "lyrics_sidebar": "Sangtekst",
     "empty_lyrics": "Sangteksten din vil vises her etter hvert som du skriver.",
     "overwrite_title": "Overskriv",
-    "record_again": "Spill inn på nytt"
+    "record_again": "Spill inn på nytt",
+    "rec": "REC",
+    "recording": "Spiller inn",
+    "play_pause": "Spill av / Pause",
+    "metronome_on": "På",
+    "play_metronome": "Spill av metronom",
+    "track_options": "Sporvalg",
+    "drag_to_reorder": "Dra for å endre rekkefølge",
+    "custom_instrument": "Egendefinert...",
+    "studio_badge": "Studio",
+    "reopen_in_studio": "Åpne igjen i Demo Studio",
+    "add_to_studio": "Legg til i Demo Studio"
   },
   "canvas": {
-    "tuner": "Stemmeprogram",
+    "tuner": "Gitarstemmer",
     "tap_tempo": "Finn tempo",
     "inspiration": "Inspirasjon",
     "rhyme_lexicon": "Rimleksikon",
-    "demo_studio": "Demo studio",
+    "demo_studio": "Demo Studio",
     "create_song": "Lag sang",
-    "wired_headphones_banner_text": "For best timing, bruk kablede hodetelefoner. Bluetooth kan forårsake opptaksforsinkelse.",
+    "wired_headphones_banner_text": "Bruk hodetelefoner med ledning for et opptak med høy kvalitet og lav forsinkelse",
     "wired_headphones_more_tips": "Flere tips",
-    "wired_headphones_close": "Lukk"
+    "wired_headphones_close": "Lukk",
+    "creative_tools": "Kreative verktøy",
+    "demo_studio_tooltip": "Ta opp og miks sangen din",
+    "inspirations_tooltip": "Få ideer når du står fast"
   },
   "inspiration": {
     "cards": {
       "releasing_regret": {
-        "title": "Å slippe anger",
-        "category": "Slipp",
+        "title": "Å slippe taket i angeren",
+        "category": "Frigjøring",
         "q0": "Hva er ett minne fra fortiden som fortsatt føles tungt?",
         "q1": "Hvordan ville det føles å endelig slippe det?",
         "q2": "Hva holder du fast i som ikke hjelper deg lenger?",
@@ -62,9 +81,9 @@
         "q4": "Hva slags musikk føles som lettelse?"
       },
       "finding_stillness": {
-        "title": "Finne ro",
+        "title": "Å finne ro",
         "category": "Ro",
-        "q0": "Hva gjør at hodet ditt føles travelt akkurat nå?",
+        "q0": "Hva er det som får tankene dine til å kjøre akkurat nå?",
         "q1": "Hvordan ville det føles om alt ble stille et øyeblikk?",
         "q2": "Hvordan føles ro for deg?",
         "q3": "Skriv én linje om et stille øyeblikk.",
@@ -73,9 +92,9 @@
       "growth_after_pain": {
         "title": "Å bli sterkere",
         "category": "Vekst",
-        "q0": "Hvilken vanskelig tid har forandret deg mest?",
-        "q1": "Hva er én måte du har vokst siden da?",
-        "q2": "Hvordan lærte den vanskelige tiden deg noe?",
+        "q0": "Hvilken vanskelig tid i livet ditt har forandret deg mest?",
+        "q1": "På hvilken måte har du vokst siden da?",
+        "q2": "Hva endte den vanskelige tiden opp med å lære deg?",
         "q3": "Skriv én linje som sammenligner styrken din med noe som vokser tilbake.",
         "q4": "Hvilken rytme føles som å sakte bli sterkere?"
       },
@@ -90,27 +109,27 @@
       },
       "grief_and_honoring": {
         "title": "Å hedre et tap",
-        "category": "Helbredelse",
+        "category": "Heling",
         "q0": "Hva eller hvem savner du akkurat nå?",
         "q1": "Hva er ett godt minne knyttet til dette?",
         "q2": "Hvordan ville det føles å la litt av den sorgen mykne?",
         "q3": "Skriv én linje som hedrer det du mistet.",
-        "q4": "Hvilken melodi føles som helbredelse for deg?"
+        "q4": "Hvilken melodi føles som heling for deg?"
       },
       "overcoming_fear": {
         "title": "Å møte frykt",
         "category": "Mot",
         "q0": "Hva er noe du er redd for å gjøre, men vil gjøre likevel?",
-        "q1": "Hva er det verste som kan skje hvis du prøvde?",
+        "q1": "Hva er det verste som kunne skjedd hvis du prøvde?",
         "q2": "Hvordan ville det føles på den andre siden av den frykten?",
         "q3": "Skriv én linje om å gjøre frykt om til mot.",
         "q4": "Hvilket øyeblikk i en sang føles som et stort, modig sprang?"
       },
       "self_compassion": {
         "title": "Å være snill mot deg selv",
-        "category": "Komfort",
+        "category": "Trøst",
         "q0": "Hvor har du vært hard mot deg selv i det siste?",
-        "q1": "Hva ville du sagt til en venn som opplevde det samme?",
+        "q1": "Hva ville du sagt til en venn som opplever det samme?",
         "q2": "Hvordan føles det å endelig gi deg selv en pause?",
         "q3": "Skriv én mild linje bare til deg selv.",
         "q4": "Hva slags lyd føles trøstende, som en varm klem?"
@@ -120,15 +139,15 @@
         "category": "Stemme",
         "q0": "Hva har du holdt tilbake fra å si?",
         "q1": "Hvordan ville det føles å endelig si det høyt?",
-        "q2": "Hvem vil du aller mest at skal høre dette?",
+        "q2": "Hvem er det du aller mest vil at skal høre dette?",
         "q3": "Skriv én linje som sier det du har vært redd for å si.",
         "q4": "Hva slags lyd føles høy og kraftfull?"
       },
       "patience_and_timing": {
-        "title": "Å stole på tidspunktet ditt",
+        "title": "Å stole på timingen din",
         "category": "Tålmodighet",
         "q0": "Hva skynder du deg med som kanskje trenger mer tid?",
-        "q1": "Hva har ventingen gitt deg av godt i livet?",
+        "q1": "Hvilke gode ting har kommet av å vente, i livet ditt?",
         "q2": "Hva hjelper deg å vokse, selv om du ikke kan se det ennå?",
         "q3": "Skriv én linje om å vokse i ditt eget tempo.",
         "q4": "Hvilken sakte rytme føles tålmodig for deg?"
@@ -147,7 +166,7 @@
         "category": "Håp",
         "q0": "Hva gjør at ting føles mørkt for deg akkurat nå?",
         "q1": "Hva er én liten god ting du fortsatt kan se?",
-        "q2": "Hva hjelper deg å fortsette når ting føles vanskelig?",
+        "q2": "Hva hjelper deg å fortsette når ting føles vanskelige?",
         "q3": "Skriv én linje om å finne lys i et vanskelig øyeblikk.",
         "q4": "Hvilken lyd føles håpefull, selv når den er stille?"
       },
@@ -162,12 +181,12 @@
       },
       "staying_grounded": {
         "title": "Å holde seg jordet",
-        "category": "Jordet",
-        "q0": "Hva gjør at du føler deg spredt eller overveldet akkurat nå?",
+        "category": "Jordnær",
+        "q0": "Hva gjør at du føler deg splittet eller overveldet akkurat nå?",
         "q1": "Hva hjelper deg å føle deg stødig når livet føles overveldende?",
         "q2": "Hva er én ting du er takknemlig for akkurat nå?",
         "q3": "Skriv én linje om å føle deg trygg og stødig.",
-        "q4": "Hvilken dyp, jevn lyd føles jordende for deg?"
+        "q4": "Hvilken dyp, jevn lyd får deg til å føle deg jordnær?"
       },
       "feeling_connected": {
         "title": "Å føle seg mindre alene",
@@ -175,7 +194,7 @@
         "q0": "Når føler du deg mest alene?",
         "q1": "Hvem skulle du ønske forsto det du går gjennom?",
         "q2": "Hvordan føles det å vite at noen andre også har kjent på dette?",
-        "q3": "Skriv én linje om å strekke ut hånden til noen.",
+        "q3": "Skriv én linje om å rekke ut en hånd til noen.",
         "q4": "Hvilken harmoni — to stemmer sammen — føles som tilhørighet for deg?"
       },
       "accepting_change": {
@@ -189,7 +208,7 @@
       },
       "releasing_anger": {
         "title": "Å slippe ut sinne",
-        "category": "Slipp",
+        "category": "Frigjøring",
         "q0": "Hva har gjort deg sint eller frustrert i det siste?",
         "q1": "Hva ligger under sinnet — smerte, frykt, noe annet?",
         "q2": "Hvordan ville det føles å endelig slippe ut det sinnet?",
@@ -226,7 +245,7 @@
       "quiet_strength": {
         "title": "Stille styrke",
         "category": "Styrke",
-        "q0": "Hva er en vanskelig tid du har holdt ut gjennom, i stillhet?",
+        "q0": "Hvilken vanskelig tid har du stått i, helt i stillhet?",
         "q1": "Hvordan fortsetter du når ting blir tøft?",
         "q2": "Hvordan ser styrken din ut når ingen ser på?",
         "q3": "Skriv én linje om å være sterk på en stille måte.",
@@ -235,7 +254,8 @@
     },
     "back": "tilbake",
     "next": "neste",
-    "add_to_canvas": "Legg til lerret"
+    "add_to_canvas": "Legg til på canvasen",
+    "no_response": "Ikke besvart ennå"
   },
   "collab": {
     "invite_title": "Inviter noen til å samarbeide med deg på dette prosjektet",
@@ -252,18 +272,26 @@
     "owner": "Eier",
     "confirm_close_title": "Er du sikker på at du vil avslutte samarbeidet?",
     "confirm_remove_collab_title": "Er du sikker på at du vil fjerne samarbeidspartneren?",
-    "remove_collab_desc": "Dette vil fjerne samarbeidspartnerne fra dette prosjektet. De vil ikke lenger ha tilgang til det.",
+    "remove_collab_desc": "Samarbeidspartneren blir fjernet fra prosjektet og mister tilgangen til det.",
     "confirm_leave_collab_title": "Er du sikker på at du vil forlate samarbeidet?",
-    "leave_collab_desc": "Dette vil fjerne deg fra dette prosjektet. Du vil miste tilgangen til det.",
-    "decline_desc": "Dette vil avslå invitasjonen og fjerne prosjektet fra lerretet ditt.",
-    "close_desc": "Dette vil koble fra prosjektets sanntidssamarbeid. Hvis du er en samarbeidspartner, vil du forlate dette prosjektet.",
+    "leave_collab_desc": "Du blir fjernet fra prosjektet og mister tilgangen til det.",
+    "decline_desc": "Invitasjonen blir avslått, og prosjektet fjernes fra canvasen din.",
+    "close_desc": "Sanntidssamarbeidet i prosjektet kobles fra. Er du samarbeidspartner, forlater du prosjektet.",
     "invited_you_banner": "inviterte deg til samarbeid",
     "join": "Bli med",
     "collab": "Samarbeid",
-    "collab_title": "Samarbeid på dette prosjektet",
+    "collab_title": "Samarbeid med andre musikere",
     "publish": "Publiser",
     "publishing": "Publiserer",
-    "check_in_connect": "Sjekk i Connect"
+    "check_in_connect": "Sjekk i Connect",
+    "publish_tooltip": "Publiser",
+    "publish_tooltip_shared": "Se sangen din i fellesskapet",
+    "unlock_tooltip": "Lås opp",
+    "lock_hold_hint": "Trykk for å låse",
+    "unlock_hold_hint": "Trykk for å låse opp",
+    "lock_locked_toast": "Prosjektet er låst — kun visning for alle",
+    "lock_unlocked_toast": "Prosjektet er låst opp — alle kan redigere igjen",
+    "lock_banner": "Låst av eieren — kun visning"
   },
   "workspace": {
     "my_projects": "Mine prosjekter",
@@ -274,7 +302,7 @@
     "search_placeholder": "Søk i prosjekter...",
     "title": "Prosjekter",
     "create_project": "Opprett nytt prosjekt",
-    "untitled_note": "Uten tittel",
+    "untitled_note": "Sang uten tittel",
     "delete_note": "Slett sang",
     "duplicate_note": "Dupliser sang",
     "copy_suffix": "Kopi",
@@ -286,11 +314,11 @@
   },
   "learn": {
     "access_restricted": "Begrenset tilgang",
-    "access_restricted_desc": "Vennligst logg inn for å få tilgang til dine bevegelser og fortsette din mestringsreise.",
+    "access_restricted_desc": "Logg inn for å få tilgang til satsene dine og fortsette reisen mot mestring.",
     "signin": "Logg inn",
     "completed": "Fullført",
     "in_progress": "I gang",
-    "movement_lessons": "Bevegelsesleksjoner",
+    "movement_lessons": "Satsleksjoner",
     "select_lesson": "Velg en leksjon for å se innhold",
     "back": "Tilbake",
     "next": "Neste",
@@ -300,10 +328,10 @@
     "video_not_supported": "Nettleseren din støtter ikke videotaggen.",
     "master_fundamentals": "Mestre grunnleggende ferdigheter",
     "deep_dive": "Dypdykk",
-    "coming_next_year": "Kommer neste år",
+    "coming_soon": "Kommer snart",
     "deep_dive_desc": "Mer avanserte musikkleksjoner er på vei. Kom tilbake snart.",
     "bank_of_ideas": "Idébank",
-    "bank_of_ideas_desc": "Utvalgte ideer og snarveier kommer snart.",
+    "bank_of_ideas_desc": "Utvalgte ideer og snarveier som hjelper deg å skrive sanger.",
     "bank_of_ideas_tooltip": "Disse tipsene er ikke regler.\nDe er enkle måter å hjelpe deg i gang, utforske og forbedre teksten din.\nBruk det som føles nyttig.\nHopp over det som ikke passer.\nDet finnes ikke én riktig måte å skrive en sang på.",
     "back_to_overview": "Tilbake til oversikten",
     "no_lessons_yet": "Nye leksjoner kommer snart.",
@@ -327,10 +355,19 @@
   },
   "connect": {
     "create_your_song": "Skap sangen din",
-    "connect_with_songwriters": "Koble til låtskrivere",
+    "connect_with_songwriters": "Kom i kontakt med låtskrivere",
+    "pro": {
+      "title": "Kom i kontakt med proffene",
+      "max_badge": "Max",
+      "locked_desc": "Tilgjengelig med Max. Oppgrader for å jobbe direkte med profesjonelle låtskrivere.",
+      "unlocked_desc": "Vi henter inn profesjonelle låtskrivere nå — du får beskjed først.",
+      "modal_title": "Kom i kontakt med profesjonelle låtskrivere",
+      "modal_subtitle": "Direkte tilgang til profesjonelle låtskrivere er en del av Max.",
+      "modal_cta": "Oppgrader til Max"
+    },
     "hrs_active": "timer aktiv",
     "projects": "prosjekter",
-    "recent_creations": "Nylige kreasjoner",
+    "recent_creations": "Siste kreasjoner",
     "no_posts_found": "Ingen innlegg funnet i denne kategorien. Bli den første til å dele!",
     "edit_post": "Rediger innlegg",
     "delete_post": "Slett innlegg",
@@ -342,15 +379,15 @@
     "post_comment": "Send",
     "duplicate": "Dupliser",
     "duplicating": "Dupliserer...",
-    "duplicated_success": "Duplisert vellykket! Sjekk nå",
-    "close_canvas": "Lukk lerret",
+    "duplicated_success": "Kopien er klar! Sjekk den ut",
+    "close_canvas": "Lukk canvasen",
     "delete_post_confirm": "Er du sikker på at du vil slette dette innlegget?",
     "delete_comment_confirm": "Er du sikker på at du vil slette denne kommentaren?",
     "shared_new_lyric": "Delte en ny tekstkonstellasjon fra arbeidsområdet.",
-    "project_canvas": "Prosjektlerret",
+    "project_canvas": "Prosjekt-canvas",
     "cowriting_badge": "Samskriving med Info",
     "just_now": "Akkurat nå",
-    "untitled_song": "Uten tittel"
+    "untitled_song": "Sang uten tittel"
   },
   "creative": {
     "new_project": "Nytt prosjekt",
@@ -362,7 +399,7 @@
     "chorus": "Refreng",
     "verse": "Vers",
     "bridge": "Bro",
-    "prechorus": "Pre-refreng",
+    "prechorus": "Førrefreng",
     "intro": "Intro",
     "outro": "Outro",
     "solo": "Solo",
@@ -379,21 +416,23 @@
     "guitar_tuning": "Gitarstemming",
     "recording_status": "Spiller inn...",
     "sending_status": "Sender...",
-    "send_to_canvas": "Send til lerret",
-    "export_options": "Eksporteringsalternativer",
+    "send_to_canvas": "Send til canvasen",
+    "export_options": "Eksportvalg",
     "export_wav": "Eksporter miks (.wav)",
     "export_mp3": "Eksporter miks (.mp3)",
-    "hide_lyrics": "Skjul Lyrics",
-    "show_lyrics": "Vis Lyrics",
+    "hide_lyrics": "Skjul sangteksten",
+    "show_lyrics": "Vis sangteksten",
     "project_name": "Prosjektnavn",
     "type_lyrics_placeholder": "Skriv sangteksten din...",
     "or_start_inspiration": "eller start med en inspirasjon",
     "drag_and_drop_files": "Dra og slipp filene dine",
     "upload_existing_files": "Importer eksisterende filer",
     "inspiration_audio": "en eksisterende sang, et talememo eller en beat",
-    "inspiration_photo": "et bilde av de håndskrevne tekstene dine",
-    "inspiration_doc": "en PDF, tekstfil eller et Word-dokument med tekstene dine",
-    "drop_files_here": "Slipp filene dine her"
+    "inspiration_photo": "et bilde av den håndskrevne teksten din",
+    "inspiration_doc": "en PDF, tekstfil eller et Word-dokument med sangteksten din",
+    "drop_files_here": "Slipp filene dine her",
+    "file_too_large_audio": "Den lydfilen er litt for stor — prøv én under 30MB",
+    "file_too_large": "Den filen er litt for stor — prøv én under 3MB"
   },
   "progress": {
     "title": "Fremgangen din",
@@ -401,34 +440,36 @@
     "subtitle": "Fullfør alle 3 målene for å nå Nivå 2",
     "mind_power_label": "Mental styrke",
     "mind_power_title_line1": "Låtskriver",
-    "mind_power_title_line2": "Mental Styrke",
-    "mind_power_desc": "Låtskriver Mental Styrke måler tiden du bruker på å tenke og skape sanger. Sinnet ditt er en muskel. Jo mer du bruker det, desto sterkere blir det.",
-    "focus_timer": "Fokustimer",
+    "mind_power_title_line2": "Mental styrke",
+    "mind_power_desc": "Mental styrke måler tiden du bruker på å tenke på og skape sanger. Hjernen din er en muskel. Jo mer du bruker den, desto sterkere blir den.",
+    "focus_timer": "Fokustid",
     "section_progress": "Fremgang",
     "community": "Community",
     "projects_unit": "delt",
-    "create": "Skap",
+    "create": "Lag",
     "learn": "Lær",
     "practice": "Øv",
     "words": "ord",
     "min_rec": "min opptak",
     "goal_prefix": "Mål:",
     "words_written": "ord skrevet",
-    "chapters_checked": "kapitler fullført",
-    "chapters_learned": "kapitler lært",
+    "chapters_checked": "fullførte kapitler",
+    "chapters_learned": "lærte kapitler",
     "min_practiced": "min øvd",
     "min_of_practice": "min øving",
     "proverbs": [
-      "Husk, små handlinger gir fremgang",
-      "Hver linje skrevet bringer deg nærmere mesterverket ditt.",
-      "Konsistens er nøkkelen til å låse opp ditt kreative geni.",
+      "Husk: små handlinger gir fremgang",
+      "Hver linje du skriver bringer deg nærmere mesterverket ditt.",
+      "Utholdenhet er nøkkelen til å låse opp ditt kreative geni.",
       "Gode sanger blir ikke skrevet, de blir omskrevet.",
       "Et enkelt ord kan tenne en hel symfoni.",
       "Små skritt i låtskriving fører til kjempesprang i melodi.",
-      "Du bygger din arv, en tekstlinje om gangen.",
-      "Fortsett å øse sjelen din ut på lerretet; det lønner seg.",
+      "Du bygger arven din, én tekstlinje om gangen.",
+      "Fortsett å legge hele sjelen din i canvasen – det lønner seg.",
       "Å skape kunst krever tålmodighet, og du gjør det kjempebra."
-    ]
+    ],
+    "progress_saved": "Lagrer fremgang ...",
+    "songs_completed": "Sanger fullført"
   },
   "profile": {
     "title": "Profil og innstillinger",
@@ -440,16 +481,16 @@
     "save_details": "Lagre detaljer",
     "verify_title": "Bekreft din nye e-postadresse",
     "verify_sent": "Vi har sendt en bekreftelseslenke til",
-    "verify_sent_end": ". Vennligst godkjenn endringen i e-postklienten din for å bekrefte den.",
+    "verify_sent_end": ". Godkjenn endringen i e-postklienten din for å bekrefte den.",
     "open_gmail": "Åpne Gmail",
     "simulate_click": "Simuler klikk på bekreftelseslenke",
     "cancel": "Avbryt",
     "success_title": "Bekreftelse fullført",
     "success_desc": "E-postadressen din har blitt oppdatert til",
-    "returning_platform": ". Returnerer til plattformen...",
+    "returning_platform": ". Sender deg tilbake til plattformen...",
     "preferences": "Preferanser",
     "notifications_title": "E-postvarsler",
-    "notifications_desc": "Motta oppdateringer om nye moduler og mesterklassearrangementer.",
+    "notifications_desc": "Få oppdateringer om nye moduler og masterclass-arrangementer.",
     "public_profile_title": "Offentlig profil",
     "public_profile_desc": "La andre studenter se fremgangen din i konstellasjonen.",
     "current_plan": "Gjeldende abonnement",
@@ -458,15 +499,15 @@
     "upgrade_to_max": "Oppgrader til Max",
     "need_assistance": "Trenger du hjelp?",
     "contact_concierge": "Kontakt support",
-    "error_update_email": "Kunne ikke oppdatere e-post. Vennligst prøv å logge inn på nytt."
+    "error_update_email": "Kunne ikke oppdatere e-postadressen. Logg inn på nytt og prøv igjen."
   },
   "email": {
     "welcome": {
       "subject": "Velkommen til Veinote, {{name}}",
       "greeting": "Hei {{name}},",
-      "body_1": "Velkommen til Veinote. Du har nettopp åpnet et rom bygget for én ting: å fullføre sanger du er stolt av.",
-      "body_2": "Lerretet ditt er klart når du er det — tekster, melodinotater og idéer, alt i én flyt.",
-      "cta": "Åpne lerretet ditt",
+      "body_1": "Velkommen til Veinote. Du har nettopp åpnet et sted bygget for én ting: å fullføre sanger du er stolt av.",
+      "body_2": "Canvasen din er klar når du er det — tekster, melodinotater og ideer, alt i én flyt.",
+      "cta": "Åpne canvasen din",
       "signoff": "Vi sees der inne,",
       "team": "Veinote-teamet"
     }
@@ -484,12 +525,13 @@
     "progress": "Fremgang",
     "your_score": "Din poengsum",
     "level": "Nivå",
+    "time_spent": "Tid brukt",
     "choose_theme": "Velg et tema",
     "select_theme_desc": "Velg det følelsesmessige ankeret for versene dine",
     "theme": "Tema",
     "nouns": "Substantiv",
-    "link_nouns_verbs": "Koble substantiv med verb",
-    "link_desc": "Koble substantiv med verb 1 etter 1 (rekkefølge har ingen betydning)",
+    "link_nouns_verbs": "Koble sammen substantiv og verb",
+    "link_desc": "Koble sammen substantiv og verb, ett par om gangen (rekkefølgen spiller ingen rolle)",
     "status": "Status",
     "complete_sentences": "Fullfør setningene",
     "example": "Eksempel",
@@ -500,21 +542,21 @@
     "example_noun": "snø",
     "example_verb": "fallende",
     "example_winter": "om vinteren",
-    "enter_noun": "Skriv inn substantiv...",
-    "enter_verb": "Skriv inn verb...",
-    "next_movement": "Neste bevegelse",
-    "input_required": "Inndata påkrevd",
+    "enter_noun": "Skriv et substantiv...",
+    "enter_verb": "Skriv et verb...",
+    "next_movement": "Neste sats",
+    "input_required": "Du må fylle inn noe",
     "edit": "Rediger",
-    "type_5_nouns": "Skriv inn 5 substantiv",
-    "type_5_verbs": "Skriv inn 5 verb",
+    "type_5_nouns": "Skriv 5 substantiv",
+    "type_5_verbs": "Skriv 5 verb",
     "fill_more_prefix": "Fyll inn",
     "fill_more_suffix": "til",
     "step_1_header": "Trinn 01 — Tema",
-    "step_2_header": "Trinn 02 — Kladd substantiv",
-    "step_3_header": "Trinn 03 — Kladd verb",
+    "step_2_header": "Trinn 02 — Skisser substantiv",
+    "step_3_header": "Trinn 03 — Skisser verb",
     "step_4_header": "Trinn 04 — Kobling",
     "step_5_header": "Trinn 05 — Komposisjon",
-    "step_6_header": "Trinn 06 — Åpenbaring",
+    "step_6_header": "Trinn 06 — Avsløringen",
     "step": "Trinn",
     "of": "av",
     "audio_unavailable": "Lydstrøm utilgjengelig",
@@ -523,7 +565,7 @@
     "try_again": "Prøv igjen"
   },
   "curriculum": {
-    "foundation": "Fundament",
+    "foundation": "Grunnlag",
     "resonance_of_silence": "Resonans av stillhet",
     "harmonic_architecture": "Harmonisk arkitektur",
     "rhythmic_geometry": "Rytmisk geometri",
@@ -534,7 +576,7 @@
     "atmospheric_tension": "Atmosfærisk spenning",
     "melodic_counterpoint": "Melodisk kontrapunkt",
     "spectral_dynamics": "Spektral dynamikk",
-    "final_movement": "Den siste bevegelsen",
+    "final_movement": "Den siste satsen",
     "mastery_plateau": "Mestringsplatå",
     "infinite_echo": "Uendelig ekko",
     "introduction_to_theory": "Introduksjon til teori",
@@ -561,7 +603,7 @@
     "env_tip_1": "Finn et rolig rom med teppe (unngå ekko)",
     "env_tip_2": "Lukk vinduer og slå av bakgrunnsvifter/AC",
     "tech_tip_1": "Plasser mikrofonen 10-15 cm fra munnen din",
-    "tech_tip_2": "Still inn nivået slik at topper ikke klipper (unngå rød sone)",
+    "tech_tip_2": "Still inn nivået slik at toppene ikke klipper (unngå rød sone)",
     "equip_tip_1": "Bruk hodetelefoner med ledning (avgjørende for synkronisering)",
     "equip_tip_2": "Velg en USB/XLR-kondensatormikrofon av høy kvalitet"
   },
@@ -578,7 +620,7 @@
     "tip_quiet_title": "Spill inn i et rolig rom",
     "tip_quiet_desc": "Bakgrunnsstøy og romklang vil bli en del av opptaket ditt. Et rolig rom med gardiner, møbler eller andre myke overflater høres vanligvis bedre ut.",
     "tip_pos_title": "Plasser mikrofonen forsiktig",
-    "tip_pos_desc": "Hold deg nær nok til å få en klar lyd, men ikke så nær at opptaket blir verken vrengt eller forvrengt.",
+    "tip_pos_desc": "Hold deg nær nok til å få en klar lyd, men ikke så nær at opptaket blir forvrengt.",
     "tip_apps_title": "Lukk unødvendige apper",
     "tip_apps_desc": "Å lukke andre lyd-, video- eller nettleserprogrammer kan forbedre ytelsen og redusere avbrudd.",
     "recommended_setup": "Anbefalt oppsett",
@@ -590,8 +632,8 @@
     "rec_item_internet": "En stabil internettforbindelse",
     "higher_quality_note": "For opptak med høyere kvalitet kan du bruke et lydkort med en mikrofon eller et instrument koblet til.",
     "about_bluetooth": "Om Bluetooth",
-    "about_bluetooth_desc": "Bluetooth-hodetelefoner er nyttige for å lytte, men de anbefales ikke under opptak. Bluetooth introduserar forsinkelse (latens), som betyr at du kan høre lyden litt senere enn du spiller eller synger.",
-    "got_it": "Oppfattet"
+    "about_bluetooth_desc": "Bluetooth-hodetelefoner er fine å lytte med, men de anbefales ikke under opptak. Bluetooth gir forsinkelse (latens), som betyr at du kan høre lyden litt senere enn du spiller eller synger.",
+    "got_it": "Skjønner"
   },
   "support": {
     "title": "Kontakt support",
@@ -599,22 +641,298 @@
     "message_placeholder": "Skriv din melding eller klage her...",
     "send": "Send melding",
     "sending": "Sender...",
-    "success": "Meldingen din har blitt sendt! Vi kommer tilbake til deg om kort tid.",
-    "error": "Kunne ikke sende meldingen. Vennligst sjekk tilkoblingen din og prøv igjen."
+    "success": "Meldingen din er sendt! Vi kommer tilbake til deg om kort tid.",
+    "error": "Kunne ikke sende meldingen. Sjekk internettforbindelsen din og prøv igjen."
   },
   "feedback_modal": {
     "title": "Din tilbakemelding gjør Veinote bedre for alle.",
     "subject_placeholder": "Emne / Hva gjelder det?",
-    "message_placeholder": "Skriv din tilbakemelding eller ideer her...",
+    "message_placeholder": "Skriv tilbakemeldingen din eller ideene dine her...",
     "send": "Send tilbakemelding",
     "sending": "Sender...",
-    "success": "Din tilbakemelding har blitt sendt. Takk!",
-    "error": "Kunne ikke sende tilbakemelding. Vennligst sjekk tilkoblingen og prøv igjen.",
-    "attachment_label": "Vedlegg (Valgfritt)",
+    "success": "Tilbakemeldingen din er sendt. Takk!",
+    "error": "Kunne ikke sende tilbakemeldingen. Sjekk internettforbindelsen din og prøv igjen.",
+    "attachment_label": "Vedlegg (valgfritt)",
     "upload_placeholder": "Legg ved et bilde, video eller PDF",
     "uploading_file": "Laster opp vedlegg...",
-    "size_limit_error": "Filstørrelsen overskrider grensen på 3 MB. Vennligst velg en mindre fil.",
-    "max_size_hint": "Maks størrelse: 3MB"
+    "size_limit_error": "Filen er større enn grensen på 3 MB. Velg en mindre fil.",
+    "max_size_hint": "Maks størrelse: 3 MB"
+  },
+  "language": {
+    "change": "Bytt språk"
+  },
+  "home": {
+    "nav": {
+      "qa": "Spørsmål",
+      "signin": "Logg inn",
+      "join": "Bli med"
+    },
+    "hero": {
+      "title_1": "Hele din",
+      "title_2": "låtskriverreise.",
+      "title_3": "",
+      "description": "Fra den aller første tekstidéen til en ferdig låt. Veinote samler kraftige kreative verktøy, veiledning fra erfarne låtskrivere, praktiske øvelser og et fellesskap som heier på deg mens du utvikler håndverket ditt."
+    },
+    "urgency": {
+      "title": "Bli med blant de første",
+      "spots_line_1": "Kun 13 plasser igjen",
+      "spots_line_2": "før tidlig tilgang stenger."
+    },
+    "banner": {
+      "text": "Her er grunnen til at 92 % av musikere aldri fullfører låtene sine.",
+      "cta": "Les mer"
+    },
+    "blobs": {
+      "and": "og..."
+    },
+    "founder": {
+      "title_1": "Lær av",
+      "title_2": "erfarne fagfolk",
+      "role": "Medgründer • singer-songwriter • produsent",
+      "credential": "Platinaselgende låtskriver, blant de 2 % beste i verden",
+      "bio_1": "Med over 30 år som låtskriver og mer enn 250 utgitte låter er Peter med på å utvikle leksjonene, øvelsene og de kreative rammeverkene som følger deg gjennom hele Veinote.",
+      "bio_2": "Karrieren hans rommer listeplasseringer, internasjonale utgivelser, platinaselgende prosjekter og flere tiår som låtskriver, produsent, artist og pedagog."
+    },
+    "ai": {
+      "title": "... og intuitive verktøy"
+    },
+    "faq": {
+      "title": "Spørsmål og svar",
+      "items": [
+        {
+          "question": "Må jeg kunne musikkteori for å skrive en låt?",
+          "answer": "Nei. Mange kjente låtskrivere skriver på gehør og følelse. Veinote hjelper deg å gjøre de musikalske ideene dine om til ferdige låter, helt uten musikkutdanning."
+        },
+        {
+          "question": "Hva kommer først, teksten eller melodien?",
+          "answer": "Det finnes ingen fasit! Noen starter med en melodi, andre med teksten. Veinote fungerer med begge deler og gjør det enkelt å sette sammen ord og musikk."
+        },
+        {
+          "question": "Tekstene mine blir bare klissete. Hva gjør jeg?",
+          "answer": "Tekster blir gjerne klissete når du beskriver følelsene for direkte. Veinote hjelper deg å vise i stedet for å fortelle, med forslag til detaljer og mønstre som gjør låtene dine ekte."
+        },
+        {
+          "question": "Hvor lang tid bør det ta å skrive en låt?",
+          "answer": "En låt kan ta 15 minutter eller flere måneder. Verktøyene våre er laget for at du skal komme i gang med én gang og bli ferdig med låtene dine på timer, ikke uker."
+        }
+      ]
+    },
+    "footer": {
+      "established": "Etablert i 2026",
+      "about": "Om oss",
+      "privacy": "Personvern",
+      "designed": "Laget av mennesker med kjærlighet, i Stockholm.",
+      "tagline_1": "Oppdag nye ideer, bygg ferdighetene dine og bli en del av et voksende fellesskap av låtskrivere.",
+      "tagline_2": "Lær. Skap. Øv. Del."
+    },
+    "redirecting": "Sender deg videre til plattformen..."
+  },
+  "onboarding": {
+    "go_back": "Gå tilbake",
+    "intro": {
+      "next": "Neste",
+      "get_started": "Kom i gang",
+      "slides": {
+        "psychology": {
+          "title": "Psykologien bak skriving og fremgang"
+        },
+        "modern_way": {
+          "title": "Lær låtskriving på den moderne måten"
+        },
+        "tools": {
+          "title": "Alle verktøyene du trenger for å lage sanger"
+        },
+        "collab": {
+          "title": "Samarbeid live med andre låtskrivere på prosjekter"
+        },
+        "publish": {
+          "title": "Publiser sangene dine og få tilbakemeldinger"
+        },
+        "own": {
+          "title": "Du eier sangene dine"
+        }
+      }
+    },
+    "questions": {
+      "songwriter_type": {
+        "question": "Hva beskriver deg best?",
+        "options": {
+          "lyricist": "Tekstforfatteren: Ordene kommer først.",
+          "melodist": "Melodikeren: Jeg hører melodier før tekst.",
+          "producer": "Produsenten: Jeg bygger låter med lyd og rytme.",
+          "storyteller": "Historiefortelleren: Jeg vil uttrykke følelser og opplevelser.",
+          "explorer": "Utforskeren: Jeg leter fortsatt etter stilen min."
+        }
+      },
+      "struggle": {
+        "question": "Hva sliter du mest med?",
+        "options": {
+          "unfinished": "Jeg starter på låter, men fullfører dem aldri.",
+          "weak_melodies": "Jeg får til tekstene, men melodiene blir svake.",
+          "no_structure": "Jeg har ideer, men ingen struktur.",
+          "too_similar": "Alt høres for likt ut.",
+          "overthink": "Jeg overtenker og mister inspirasjonen."
+        }
+      },
+      "dream_outcome": {
+        "question": "Hva vil du helst få ut av låtskrivingen?",
+        "options": {
+          "finish_songs": "Fullføre låter jeg er stolt av.",
+          "unique_sound": "Utvikle mitt eget uttrykk.",
+          "move_people": "Skrive låter som berører folk.",
+          "release_music": "Gi ut musikk profesjonelt.",
+          "creative_fearless": "Bli mer kreativ og modig."
+        }
+      },
+      "emotional_inspiration": {
+        "question": "Hvilken følelse trekker deg mest?",
+        "options": {
+          "melancholic": "Melankolsk og følelsesladd",
+          "energetic": "Energisk og oppløftende",
+          "cinematic": "Filmatisk og drømmende",
+          "dark": "Mørkt og rått",
+          "intimate": "Nært og akustisk"
+        }
+      },
+      "creation_method": {
+        "question": "Hvordan starter en låt vanligvis for deg?",
+        "options": {
+          "lyric_phrase": "En tekstlinje eller en setning",
+          "melody_head": "En melodi i hodet",
+          "chords": "Akkorder på gitar eller piano",
+          "beat_production": "En beat eller en produksjonsidé",
+          "improvisation": "Ren improvisasjon"
+        }
+      }
+    },
+    "hype": {
+      "messages": [
+        "Analyserer svarene dine...",
+        "Fjerner kjedelig teori...",
+        "Prioriterer visuell læring..."
+      ],
+      "verdict_label": "Konklusjonen",
+      "verdict_title_prefix": "Du er en",
+      "verdict_title_emphasis": "visuell type.",
+      "verdict_desc": "Du trenger ikke flere øvelser. Du trenger å se musikken."
+    },
+    "auth": {
+      "title": "Sikre plassen din",
+      "subtitle": "Opprett innloggingen din for å fortsette låtskriverreisen.",
+      "email_placeholder": "E-postadresse",
+      "password_placeholder": "Passord",
+      "creating": "Oppretter konto...",
+      "continue": "Fortsett",
+      "or": "eller",
+      "google": "Opprett med Google"
+    },
+    "paywall": {
+      "title": "Start forvandlingen.",
+      "subtitle": "3 dager med premiumtilgang, gratis. Vi minner deg på før den tar slutt.",
+      "billing": {
+        "yearly": "Årlig",
+        "monthly": "Månedlig",
+        "save_badge": "Spar {pct} %",
+        "billed_yearly": "per måned, fakturert årlig",
+        "billed_monthly": "per måned, fakturert månedlig"
+      },
+      "recommended": "Anbefalt",
+      "benefits_label": "Dette får du",
+      "features_label": "Funksjoner",
+      "max_intro": "Alt i Pro, pluss",
+      "coming_soon": "Kommer snart",
+      "plans": {
+        "pro": {
+          "name": "Pro",
+          "benefits": {
+            "fundamentals": "Mestre det grunnleggende",
+            "rhyme_lexicon": "Ta tekstene dine videre med rimleksikonet",
+            "production": "Sangproduksjon fra start til slutt",
+            "mind_power": "Følg tankene dine og øv på plattformen, med terapi og produktivitet innebygd",
+            "community": "Voks sammen med andre låtskrivere"
+          },
+          "soon": {
+            "stockholm_events": "Delta på Veinote-arrangementer i Stockholm"
+          },
+          "features": {
+            "canvas": "Canvas med full kontroll på opptak og tekst",
+            "tools": "Gitarstemmer, rimleksikon og tap tempo",
+            "collab": "Samarbeid med andre i samme prosjekt",
+            "demo_studio": "Demostudio – ta opp rett fra laptopen",
+            "guided_writing": "Veiledet skriving, healing gjennom skriving og deling, inspirasjoner",
+            "files_backup": "Full filhåndtering og sikkerhetskopi med lokal nedlasting",
+            "limits": "Begrenset antall filer og lydopptak",
+            "sharing": "Del sangene dine med andre låtskrivere"
+          }
+        },
+        "max": {
+          "name": "Max",
+          "benefits": {
+            "capacity": "Mer kapasitet – flere filer, mer opptak, flere samarbeidspartnere",
+            "premium_songwriters": "Direkte tilgang til premium-låtskrivere",
+            "pro_collab": "Muligheter for profesjonelt samarbeid",
+            "group_discussions": "Premium gruppediskusjoner – spør om hva som helst, få ekte svar",
+            "books": "Bøker og hele pakken"
+          },
+          "soon": {},
+          "features": {}
+        }
+      },
+      "guarantee": "30 dagers pengene-tilbake-garanti",
+      "refund_policy": "Refusjonsvilkår",
+      "cta": "Prøv for 0,00 $",
+      "opening_checkout": "Åpner betaling...",
+      "checkout_error": "Vi fikk ikke åpnet betalingen. Prøv igjen.",
+      "no_charge": "Ingen betaling i dag.",
+      "reminder": "Vi sender deg en e-post før prøveperioden tar slutt."
+    },
+    "errors": {
+      "enter_credentials": "Skriv inn e-postadresse og passord.",
+      "password_short": "Passordet må være minst 6 tegn.",
+      "email_in_use": "Denne e-postadressen er allerede i bruk. Logg inn i stedet.",
+      "signup_failed": "Kunne ikke opprette konto. Sjekk nettforbindelsen din og prøv igjen."
+    }
+  },
+  "signin": {
+    "title": "Klar til å skrive?",
+    "subtitle": "Logg inn for å fortsette låtskriverreisen.",
+    "email_placeholder": "E-postadresse",
+    "password_placeholder": "Passord",
+    "forgot_password": "Glemt passord?",
+    "signing_in": "Logger inn...",
+    "sign_in": "Logg inn",
+    "or": "eller",
+    "google": "Fortsett med Google",
+    "new_to_veinote": "Ny på Veinote?",
+    "join": "Bli med",
+    "reset_title": "Tilbakestill passordet",
+    "reset_desc": "Skriv inn e-postadressen din, så sender vi deg en lenke.",
+    "reset_spam_note": "Merk: Sjekk søppelpostmappen hvis lenken ikke dukker opp.",
+    "sending_link": "Sender lenke...",
+    "send_reset_link": "Send lenke",
+    "back_to_signin": "Tilbake til innlogging",
+    "check_email": "Sjekk e-posten din",
+    "sent_desc_prefix": "Vi har sendt en lenke for å tilbakestille passordet til",
+    "sent_desc_suffix": ". Klikk på lenken i e-posten for å velge et nytt passord.",
+    "sent_spam_prefix": "Hvis du ikke ser e-posten i løpet av et par minutter, sjekk",
+    "sent_spam_or": "eller",
+    "sent_spam_junk": "Søppelpost",
+    "sent_spam_spam": "Spam",
+    "sent_spam_suffix": "-mappen.",
+    "errors": {
+      "enter_credentials": "Skriv inn e-postadresse og passord.",
+      "enter_email": "Skriv inn e-postadressen din.",
+      "invalid_credentials": "Feil e-postadresse eller passord. Prøv igjen.",
+      "signin_failed": "Kunne ikke logge inn. Prøv igjen.",
+      "reset_failed": "Kunne ikke sende e-post for tilbakestilling. Prøv igjen."
+    }
+  },
+  "auth_errors": {
+    "google_not_enabled": "Google-innlogging er ikke aktivert for dette nettstedet ennå. Prøv en annen innloggingsmåte.",
+    "unauthorized_domain": "Dette domenet er ikke godkjent for innlogging. Ta kontakt med support.",
+    "popup_blocked": "Innloggingsvinduet ble blokkert av nettleseren. Tillat popup-vinduer for dette nettstedet og prøv igjen.",
+    "popup_closed": "Innloggingsvinduet ble lukket før du var ferdig. Prøv igjen.",
+    "google_failed": "Kunne ikke logge inn med Google. Prøv igjen."
   },
   "onboarding_tour": {
     "skip": "Hopp over",
@@ -623,25 +941,66 @@
     "done": "Ferdig",
     "platform": {
       "mind_power_title": "Følg med på Mind Power",
-      "mind_power_desc": "Denne linjen fylles opp etter hvert som du skriver, spiller inn, øver og deler. Det er ditt samlede fremdriftsmål.",
+      "mind_power_desc": "Denne måleren fylles opp etter hvert som du skriver, spiller inn, øver og deler. Den viser det samlede momentumet ditt som låtskriver.",
       "fundamentals_title": "Start med grunnlaget",
-      "fundamentals_desc": "Korte leksjoner som bygger ditt sangskrivergrunnlag, ett kapittel om gangen.",
+      "fundamentals_desc": "Korte leksjoner som bygger låtskrivergrunnlaget ditt, ett kapittel om gangen.",
       "ideas_title": "Sitter du fast? Sjekk idébanken",
-      "ideas_desc": "Et bibliotek med idéer og snarveier når du trenger inspirasjon.",
+      "ideas_desc": "Et bibliotek med ideer og snarveier når du trenger inspirasjon.",
       "create_nav_title": "Klar til å skrive?",
       "create_nav_desc": "Gå til Create når du vil starte en ny sang."
     },
     "create": {
-      "canvas_title": "Ditt tekst-lerret",
+      "canvas_title": "Tekst-canvasen din",
       "canvas_desc": "Dobbeltklikk hvor som helst for å begynne å skrive en linje. Dra inn lyd, bilder eller dokumenter for å plassere dem rett i flyten.",
-      "record_title": "Spill inn idéer på sparket",
-      "record_desc": "Fang en melodi eller talememo når som helst — den blir et kort på lerretet ditt.",
+      "record_title": "Spill inn ideer på sparket",
+      "record_desc": "Fang en melodi eller et talememo når som helst — det blir et kort på canvasen din.",
       "tools_title": "Kreative verktøy",
       "tools_desc": "Åpne verktøypanelet for rimforslag, opplastinger og mer.",
-      "studio_title": "Demo-studio",
+      "studio_title": "Demo Studio",
       "studio_desc": "Legg opptakene dine sammen til en full demomiks når du er klar.",
       "inspirations_title": "Trenger du inspirasjon?",
-      "inspirations_desc": "Få forslag og idéer uten å forlate lerretet."
+      "inspirations_desc": "Få forslag og ideer uten å forlate canvasen."
     }
+  },
+  "card": {
+    "document_attachment": "Vedlagt dokument",
+    "extract_text": "Hent ut tekst fra dokumentet",
+    "delete_document_block": "Slett dokumentkortet",
+    "document_name_placeholder": "Navn på dokumentet...",
+    "scan": "Skann",
+    "delete_document": "Slett dokumentet",
+    "delete_image": "Slett bildet",
+    "rename_recording": "Gi opptaket nytt navn",
+    "name": "Navn",
+    "transcribing": "Transkriberer...",
+    "transcribing_audio": "Transkriberer lyden...",
+    "transcribe_recording": "Transkriber opptaket",
+    "delete_recording": "Slett opptaket",
+    "dismiss": "Lukk",
+    "play": "Spill av",
+    "pause": "Pause",
+    "drag_hint": "Dra for å justere, dobbeltklikk for å nullstille"
+  },
+  "audio": {
+    "no_lyrics_found": "Fant ingen sangtekst i dette opptaket."
+  },
+  "report": {
+    "title": "Rapporter dette",
+    "subtitle": "Fortell oss hva som er galt, så ser en moderator på det.",
+    "reason_spam": "Spam eller svindel",
+    "reason_harassment": "Trakassering eller mobbing",
+    "reason_hate": "Hatefulle ytringer",
+    "reason_sexual": "Seksuelt innhold",
+    "reason_self_harm": "Selvskading eller selvmord",
+    "reason_violence": "Vold eller trusler",
+    "reason_copyright": "Opphavsrett – dette er andres arbeid",
+    "reason_impersonation": "Utgir seg for å være en annen",
+    "reason_other": "Noe annet",
+    "note_placeholder": "Er det noe mer vi bør vite? (valgfritt)",
+    "privacy_note": "Navnet ditt vises aldri til den du rapporterer.",
+    "submit": "Send rapport",
+    "sent_title": "Takk",
+    "sent_body": "En moderator ser på dette. Vi forteller aldri hvem som har rapportert.",
+    "error": "Klarte ikke å sende rapporten. Prøv igjen."
   }
 }

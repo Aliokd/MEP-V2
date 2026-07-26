@@ -2,12 +2,15 @@
 
 import { AuthProvider } from "./AuthContext";
 import { ThemeProvider } from "./ThemeContext";
+import { LanguageProvider } from "./LanguageContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
     return (
         <AuthProvider>
             <ThemeProvider>
-                {children}
+                <LanguageProvider>
+                    {children}
+                </LanguageProvider>
             </ThemeProvider>
         </AuthProvider>
     );

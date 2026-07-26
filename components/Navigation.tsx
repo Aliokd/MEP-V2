@@ -28,9 +28,10 @@ const Navigation = () => {
     };
 
     const isPlatform = pathname?.startsWith('/platform');
+    const isAdmin = pathname?.startsWith('/admin');
     const isOnboarding = pathname === '/onboarding';
     const isHome = pathname === '/';
-    if (isPlatform || isOnboarding || isHome) return null; // Hide for platform, onboarding, or home
+    if (isPlatform || isAdmin || isOnboarding || isHome) return null; // Hide for platform, admin, onboarding, or home
 
     const isAuthPage = pathname === '/signin' || pathname === '/reset-password';
 

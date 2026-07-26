@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
+import { featureGuard } from '@/lib/featureFlags';
 
 export async function POST(request: Request) {
+    // Kill switch: an admin can disable this endpoint from the console
+    // without a deploy (see lib/featureFlags.ts).
+    const disabled = await featureGuard('transcribe');
+    if (disabled) return disabled;
+
     try {
         const contentType = request.headers.get('content-type') || '';
         let rawBuffer: ArrayBuffer | null = null;

@@ -263,3 +263,176 @@ input:-webkit-autofill:active {
     mask-composite: exclude;
     animation: mind-power-glow 3.4s ease-out forwards;
 }
+
+/* Canvas "saved" celebration — same travelling multicolour border as the Mind Power
+   ring, but shaped to the writing-canvas card instead of a pill. */
+.canvas-save-glow-ring {
+    position: absolute;
+    inset: -3px;
+    border-radius: 0;
+    padding: 2.5px;
+    pointer-events: none;
+    z-index: 40;
+    background: linear-gradient(90deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
+    background-size: 220% 100%;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: mind-power-glow 2s ease-out forwards;
+}
+@media (min-width: 768px) {
+    /* card is md:rounded-[32px]; +3px inset keeps the ring concentric */
+    .canvas-save-glow-ring { border-radius: 35px; }
+}
+
+/* Lock hold progress ring.
+   Driven entirely by CSS: registering the angle as a custom property lets the
+   conic-gradient sweep be animated by the compositor. The previous version stepped
+   the angle from a requestAnimationFrame loop through React state, which re-rendered
+   the whole canvas ~60x/second and stuttered under load. */
+@property --lock-hold-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+@keyframes lock-hold-sweep {
+    from { --lock-hold-angle: 0deg; }
+    to   { --lock-hold-angle: 360deg; }
+}
+.lock-hold-ring {
+    position: absolute;
+    inset: -3px;
+    border-radius: 9999px;
+    pointer-events: none;
+    /* Faint track underneath so the lime arc stays legible on a light button. */
+    background:
+        conic-gradient(#EDFF8E var(--lock-hold-angle), rgba(120, 113, 108, 0.18) 0deg);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+    animation: lock-hold-sweep 1s linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+    .lock-hold-ring { animation-duration: 1ms; }
+}
+
+/* Resting mesh on the Complete button — same palette as the celebration, held static
+   and dialled back so the control reads as inviting without competing with the canvas.
+   On click the animated .save-gradient-fill layers on top of this. */
+.save-gradient-idle {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    pointer-events: none;
+    opacity: 0.5;
+    background:
+        radial-gradient(60% 130% at 18% 28%, rgba(142, 201, 240, 0.85) 0%, rgba(142, 201, 240, 0) 62%),
+        radial-gradient(58% 130% at 48% 76%, rgba(183, 157, 240, 0.85) 0%, rgba(183, 157, 240, 0) 62%),
+        radial-gradient(58% 130% at 78% 32%, rgba(240, 168, 201, 0.85) 0%, rgba(240, 168, 201, 0) 62%),
+        linear-gradient(90deg, #86BE7F 0%, #8ec9f0 35%, #b79df0 65%, #f0a8c9 100%);
+    background-size: 160% 100%;
+    background-position: 50% 50%;
+    transition: opacity 200ms ease-out;
+}
+button:hover > .save-gradient-idle { opacity: 0.72; }
+
+/* Quick variant of the Mind Power ring, so a Complete-triggered glow runs for the same
+   2s as the button/canvas gradients instead of the 3.4s daily-milestone celebration. */
+.mind-power-glow-ring--quick { animation-duration: 2s; }
+
+/* Save button celebration fill — a colourful mesh that pans across the button.
+   Deliberately driven by the *same* `mind-power-glow` keyframes and duration as
+   .canvas-save-glow-ring, and mounted at the same instant, so the movement inside
+   the button and the movement around the canvas outline stay in lockstep. */
+.save-gradient-fill {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    pointer-events: none;
+    background:
+        radial-gradient(60% 130% at 18% 28%, rgba(142, 201, 240, 0.95) 0%, rgba(142, 201, 240, 0) 62%),
+        radial-gradient(58% 130% at 48% 76%, rgba(183, 157, 240, 0.95) 0%, rgba(183, 157, 240, 0) 62%),
+        radial-gradient(58% 130% at 78% 32%, rgba(240, 168, 201, 0.95) 0%, rgba(240, 168, 201, 0) 62%),
+        linear-gradient(90deg, #86BE7F 0%, #8ec9f0 35%, #b79df0 65%, #f0a8c9 100%);
+    background-size: 220% 100%;
+    animation: mind-power-glow 2s ease-out forwards;
+}
+
+/* Reduced motion: drop the travelling gradient but still give the confirmation.
+   (Collapsing the duration instead would snap to the final keyframe, which is
+   opacity:0 — i.e. no feedback at all.) The ring is unmounted on a timer in JS. */
+@media (prefers-reduced-motion: reduce) {
+    .mind-power-glow-ring,
+    .canvas-save-glow-ring,
+    .save-gradient-fill {
+        animation: none;
+        opacity: 1;
+        background: #86BE7F;
+    }
+}
+
+/* Plain hand-rolled keyframes — this project's tailwind.config.js has no plugins
+   registered, so the `animate-in`/`fade-in`/`slide-in-from-*` utility classes used
+   elsewhere in this codebase don't actually generate any CSS and are silent no-ops.
+   Anything that needs to actually move goes here instead. */
+
+/* Publish button arrow: launches up and out the instant sharing succeeds. */
+@keyframes publish-arrow-launch {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-12px); }
+}
+.publish-arrow-launch {
+    animation: publish-arrow-launch 450ms ease-in forwards;
+}
+
+/* ...then the resting arrow settles back in from below. */
+@keyframes publish-arrow-enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.publish-arrow-enter {
+    animation: publish-arrow-enter 300ms ease-out forwards;
+}
+
+/* Mind Power panel: rises up from below the trigger pill instead of dropping down,
+   matching the same up/below movement language as the Publish arrow above. Includes
+   its own -50% X centering since it fully owns `transform` on this element (an
+   accompanying Tailwind -translate-x-1/2 utility would fight the animated Y value).
+   `forwards` is required here, not just cosmetic: without it the browser reverts to
+   no transform at all once the animation ends, dropping the -50% centering and
+   leaving the panel permanently shifted half its own width to the right. */
+@keyframes mind-power-panel-enter {
+    from { opacity: 0; transform: translate(-50%, 8px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+.mind-power-panel-enter {
+    animation: mind-power-panel-enter 200ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .publish-arrow-launch,
+    .publish-arrow-enter,
+    .mind-power-panel-enter {
+        animation-duration: 1ms;
+    }
+}
+
+/* Publish button: indeterminate loading ring while the post is being written to
+   Firestore — the same mesh gradient palette as the rest of the celebration, spun
+   into a continuous ring rather than a fixed-progress sweep since we don't know how
+   long the write will take. */
+@keyframes publish-loading-ring-spin {
+    to { transform: rotate(360deg); }
+}
+.publish-loading-ring {
+    position: absolute;
+    inset: -3px;
+    border-radius: 9999px;
+    pointer-events: none;
+    background: conic-gradient(from 0deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+    animation: publish-loading-ring-spin 900ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .publish-loading-ring { animation-duration: 3s; }
+}

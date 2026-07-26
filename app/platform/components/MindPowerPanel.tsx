@@ -6,6 +6,7 @@ interface MindPowerPanelProps {
     progressLevel: number;
     levelProgress: number;
     wordsTyped: number;
+    songsCompleted: number;
     recordingMinutes: number;
     wordsGoal: number;
     completedLessonsCount: number;
@@ -54,6 +55,7 @@ export default function MindPowerPanel({
     progressLevel,
     levelProgress,
     wordsTyped,
+    songsCompleted,
     recordingMinutes,
     wordsGoal,
     completedLessonsCount,
@@ -118,7 +120,7 @@ export default function MindPowerPanel({
                 <div className="flex flex-col items-center gap-1.5 text-center">
                     <span className="text-[9px] font-semibold text-stone-600 uppercase tracking-wide">{t('progress.create')}</span>
                     <ProgressRing percent={Math.round((wordsTyped / wordsGoal) * 100)} />
-                    <span className="text-[9px] text-stone-500 leading-tight">{wordsTyped} {t('progress.words')}<br />{recordingMinutes} {t('progress.min_rec')}</span>
+                    <span className="text-[9px] text-stone-500 leading-tight">{wordsTyped} {t('progress.words')}<br />{recordingMinutes} {t('progress.min_rec')}<br />{songsCompleted} {t('progress.songs_completed')}</span>
                 </div>
                 <div className="flex flex-col items-center gap-1.5 text-center">
                     <span className="text-[9px] font-semibold text-stone-600 uppercase tracking-wide">{t('progress.learn')}</span>

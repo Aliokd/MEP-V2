@@ -12,9 +12,23 @@ interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: (keyPath: string) => string;
+  tList: <T = any>(keyPath: string) => T[];
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+// Walks a dot-notation path ("navigation.create") through a translation bundle.
+const resolve = (bundle: any, keys: string[]): any => {
+  let result = bundle;
+  for (const key of keys) {
+    if (result && result[key] !== undefined) {
+      result = result[key];
+    } else {
+      return undefined;
+    }
+  }
+  return result;
+};
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>('en');
@@ -37,28 +51,30 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Helper function to resolve dot-notation strings, e.g. "navigation.create"
-  const t = useCallback((keyPath: string): string => {
-    if (!mounted) return keyPath;
+  // Before mount we render English so the server and the first client paint
+  // agree; the saved language takes over on the very next render.
+  const activeLanguage = mounted ? language : 'en';
 
+  const lookup = useCallback((keyPath: string): any => {
     const keys = keyPath.split('.');
-    let result = translations[language];
-    for (const key of keys) {
-      if (result && result[key] !== undefined) {
-        result = result[key];
-      } else {
-        // Fallback to English
-        let fallback = translations['en'];
-        for (const fKey of keys) {
-          fallback = fallback?.[fKey];
-        }
-        return typeof fallback === 'string' ? fallback : keyPath;
-      }
-    }
-    return typeof result === 'string' ? result : keyPath;
-  }, [language, mounted]);
+    const value = resolve(translations[activeLanguage], keys);
+    return value !== undefined ? value : resolve(translations['en'], keys);
+  }, [activeLanguage]);
 
-  const value = useMemo(() => ({ language, setLanguage, t }), [language, setLanguage, t]);
+  const t = useCallback((keyPath: string): string => {
+    const value = lookup(keyPath);
+    return typeof value === 'string' ? value : keyPath;
+  }, [lookup]);
+
+  const tList = useCallback(<T,>(keyPath: string): T[] => {
+    const value = lookup(keyPath);
+    return Array.isArray(value) ? value : [];
+  }, [lookup]);
+
+  const value = useMemo(
+    () => ({ language: activeLanguage, setLanguage, t, tList }),
+    [activeLanguage, setLanguage, t, tList]
+  );
 
   return (
     <LanguageContext.Provider value={value}>

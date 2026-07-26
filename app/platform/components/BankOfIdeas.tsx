@@ -4,6 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import { Idea, IdeaCategory, LYRICS_IDEAS_BY_LANGUAGE } from '../data/ideas';
+import { fetchIdeas } from '@/lib/contentClient';
+import { pickLocale, type IdeaDoc } from '@/lib/content';
 
 const CATEGORIES: { id: 'all' | IdeaCategory; labelKey: string }[] = [
     { id: 'all', labelKey: 'learn.ideas_tab_all' },
@@ -24,6 +26,21 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     const [isSearchOpen, setIsSearchOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [activeCategory, setActiveCategory] = React.useState<'all' | IdeaCategory>('all');
+    const [cmsIdeas, setCmsIdeas] = React.useState<IdeaDoc[] | null>(null);
+
+    // Ideas are edited in the admin CMS. Until the content migration has been
+    // committed the collection is empty, so the bundled copy in data/ideas.ts
+    // stays as the fallback rather than showing an empty Bank of Ideas.
+    React.useEffect(() => {
+        let cancelled = false;
+        fetchIdeas()
+            .then(ideas => { if (!cancelled) setCmsIdeas(ideas); })
+            .catch(err => {
+                console.warn('Falling back to bundled ideas:', err);
+                if (!cancelled) setCmsIdeas([]);
+            });
+        return () => { cancelled = true; };
+    }, []);
 
     const toggleLike = (id: string) => {
         setLikedIds(prev => {
@@ -37,10 +54,22 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
         });
     };
 
-    // Melody/Chords/Vibe don't have real content yet — stand in with placeholders.
     const allIdeas: Idea[] = React.useMemo(() => {
-        const lyricsIdeas = LYRICS_IDEAS_BY_LANGUAGE[language] ?? LYRICS_IDEAS_BY_LANGUAGE.en;
-        const otherCategoryPlaceholders: Idea[] = (['melody', 'chords', 'vibe'] as IdeaCategory[]).flatMap(category =>
+        const authored: Idea[] = cmsIdeas && cmsIdeas.length > 0
+            ? cmsIdeas.map(idea => ({
+                id: idea.id,
+                category: idea.category,
+                title: pickLocale(idea.title, language),
+                description: pickLocale(idea.description, language),
+                whyItHelps: pickLocale(idea.whyItHelps, language) || undefined,
+                example: pickLocale(idea.example, language) || undefined,
+            }))
+            : LYRICS_IDEAS_BY_LANGUAGE[language] ?? LYRICS_IDEAS_BY_LANGUAGE.en;
+
+        // Categories with no authored ideas yet stand in with placeholders.
+        const emptyCategories = (['melody', 'chords', 'vibe'] as IdeaCategory[])
+            .filter(category => !authored.some(idea => idea.category === category));
+        const placeholders: Idea[] = emptyCategories.flatMap(category =>
             Array.from({ length: 2 }).map((_, i) => ({
                 id: `${category}-placeholder-${i + 1}`,
                 category,
@@ -48,8 +77,8 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                 description: t('learn.ideas_placeholder_description'),
             }))
         );
-        return [...lyricsIdeas, ...otherCategoryPlaceholders];
-    }, [language, t]);
+        return [...authored, ...placeholders];
+    }, [cmsIdeas, language, t]);
 
     const visibleIdeas = allIdeas
         .filter(idea => activeCategory === 'all' || idea.category === activeCategory)

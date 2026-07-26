@@ -5,6 +5,7 @@ import { Check, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { Song, Word, LyricSection } from '../data/songs';
 import SongCard from './SongCard';
+import Tooltip from '@/components/Tooltip';
 
 interface LyricsPlayerProps {
     song: Song;
@@ -274,9 +275,9 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
                 <p className="text-stone-500 text-xs mb-6 text-center">{t('practice.localhost_warning')}</p>
                 <button
                     onClick={() => window.location.reload()}
-                    className="px-6 py-2.5 bg-stone-900 text-[#FAF9F5] hover:opacity-90 rounded-full text-xs uppercase tracking-widest transition-colors font-semibold shadow-sm"
+                    className="px-6 py-2.5 bg-stone-900 text-[#FAF9F5] hover:opacity-90 rounded-full text-sm font-medium transition-colors"
                 >
-                    Retry Connection
+                    Retry connection
                 </button>
             </div>
         );
@@ -286,7 +287,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
         return (
             <div className="w-full h-[250px] flex flex-col items-center justify-center border border-stone-200/50 rounded-[24px] bg-white/30">
                 <div className="w-8 h-8 border-t-2 border-stone-900 rounded-full animate-spin mb-3" />
-                <p className="text-stone-500 font-sans text-xs tracking-wider uppercase font-medium">{t('practice.tuning')}</p>
+                <p className="text-stone-500 font-sans text-sm">{t('practice.tuning')}</p>
             </div>
         );
     }
@@ -295,18 +296,20 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
         <div className="w-full flex flex-col gap-10">
             
             {/* Header Detail Row: Back arrow, selected SongCard, and Waveform Player side-by-side */}
-            <div className="w-full flex items-center gap-4 md:gap-6 max-w-4xl mx-auto select-none overflow-visible">
+            <div className="w-full flex items-center gap-4 md:gap-6 max-w-6xl mx-auto select-none overflow-visible">
                 {/* Back Arrow Button */}
-                <button 
-                    onClick={onBack}
-                    className="w-10 h-10 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-600 hover:text-stone-900 shadow-2xs shrink-0 cursor-pointer"
-                    title="Back to Song List"
-                >
-                    <ArrowLeft size={18} className="stroke-[2.2]" />
-                </button>
+                <Tooltip label="Back to song list">
+                    <button
+                        onClick={onBack}
+                        aria-label="Back to song list"
+                        className="w-10 h-10 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-600 hover:text-stone-900 shadow-2xs shrink-0 cursor-pointer"
+                    >
+                        <ArrowLeft size={18} className="stroke-[2.2]" />
+                    </button>
+                </Tooltip>
 
                 {/* Selected Song Card */}
-                <div className="shrink-0">
+                <div className="shrink-0 w-[110px]">
                     <SongCard
                         song={song}
                         index={songIndex}
@@ -317,11 +320,11 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
                 </div>
 
                 {/* Waveform Player on the right */}
-                <div className="flex-1 mt-6 bg-white border border-stone-200/50 rounded-[20px] p-4 shadow-[0_4px_24px_rgba(0,0,0,0.01)] flex items-center gap-3.5 h-[90px]">
+                <div className="flex-1 bg-white border border-stone-200 rounded-[20px] p-4 flex items-center gap-3.5 h-[90px]">
                     {/* Play/Pause Button */}
                     <button 
                         onClick={onTogglePlay}
-                        className="w-10 h-10 shrink-0 rounded-full bg-stone-900 flex items-center justify-center text-[#FAF9F5] hover:bg-stone-850 active:scale-95 transition-all shadow-sm cursor-pointer"
+                        className="w-10 h-10 shrink-0 rounded-full bg-stone-900 flex items-center justify-center text-[#FAF9F5] hover:bg-stone-800 active:scale-95 transition-all cursor-pointer"
                         aria-label={isPlaying ? "Pause" : "Play"}
                     >
                         {isPlaying ? (
@@ -372,7 +375,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
             </div>
 
             {/* Target Slots for Song Structure Drag & Drop */}
-            <div className="w-full max-w-4xl mx-auto flex flex-col gap-8 mt-4 select-none">
+            <div className="w-full max-w-6xl mx-auto flex flex-col gap-8 mt-4 select-none">
                 {song.lyrics.map((section, idx) => {
                     const assignedIdx = assignments[idx];
                     const isCorrect = assignedIdx === idx;
@@ -398,11 +401,11 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
                             }}
                             className={`
                                 relative w-full border rounded-[16px] transition-all duration-300 py-8 min-h-[95px] flex items-center justify-center cursor-pointer
-                                ${isCorrect 
-                                    ? 'bg-[#EAF7E8]/25 border-[#86BE7F] shadow-sm' 
+                                ${isCorrect
+                                    ? 'bg-[#EAF7E8]/30 border-[#86BE7F]'
                                     : isIncorrect
-                                        ? 'bg-[#FEF3C7]/15 border-[#F59E0B] shadow-sm'
-                                        : 'bg-white/40 border-stone-200 border-dashed hover:border-stone-400 hover:bg-white/60'
+                                        ? 'bg-[#FEF3C7]/20 border-[#F59E0B]'
+                                        : 'bg-white/50 border-stone-200 border-dashed hover:border-stone-400 hover:bg-white'
                                 }
                                 ${isShake ? 'animate-shake' : ''}
                             `}
@@ -416,7 +419,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
 
                             {isIncorrect && (
                                 <div className="absolute -top-3.5 left-6 bg-white border border-[#F59E0B] rounded-[4px] px-3.5 py-0.5 text-xs text-[#D97706] font-serif italic shadow-2xs flex items-center gap-1.5 font-bold">
-                                    {label} <span className="text-[9px] font-sans font-bold uppercase tracking-wider ml-1">{t('practice.try_again')}</span>
+                                    {label} <span className="text-xs font-sans font-medium ml-1">{t('practice.try_again')}</span>
                                 </div>
                             )}
 
@@ -439,16 +442,18 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
 
                             {/* Reset Button for Mismatched Slots */}
                             {isIncorrect && (
-                                <button 
-                                    onClick={(e) => {
-                                        e.stopPropagation(); // Avoid triggering parent slot click
-                                        handleRemove(idx);
-                                    }}
-                                    className="absolute top-3.5 right-4 w-6 h-6 rounded-full bg-amber-50 hover:bg-amber-100 flex items-center justify-center text-amber-700 hover:text-amber-900 active:scale-90 transition-all font-sans text-[10px] font-bold shadow-2xs border border-amber-200/50"
-                                    title="Clear Selection"
-                                >
-                                    ✕
-                                </button>
+                                <Tooltip label="Clear selection">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation(); // Avoid triggering parent slot click
+                                            handleRemove(idx);
+                                        }}
+                                        aria-label="Clear selection"
+                                        className="absolute top-3.5 right-4 w-6 h-6 rounded-full bg-amber-50 hover:bg-amber-100 flex items-center justify-center text-amber-700 hover:text-amber-900 active:scale-90 transition-all font-sans text-[10px] font-bold shadow-2xs border border-amber-200/50"
+                                    >
+                                        ✕
+                                    </button>
+                                </Tooltip>
                             )}
                         </div>
                     );
@@ -456,7 +461,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
             </div>
 
             {/* Draggable Lyric Blocks */}
-            <div className="w-full max-w-4xl mx-auto border-t border-stone-200/50 pt-10 mt-6 flex flex-col gap-10">
+            <div className="w-full max-w-6xl mx-auto border-t border-stone-200 pt-10 mt-6 flex flex-col gap-10">
                 {shuffledSections.map(({ section, originalIdx }) => {
                     const isAssigned = Object.values(assignments).includes(originalIdx);
                     if (isAssigned) return null; // Hide correctly or incorrectly placed blocks from list
@@ -480,8 +485,8 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
                             className={`
                                 p-6 rounded-[20px] border transition-all duration-300 text-center select-text cursor-grab active:cursor-grabbing
                                 ${isSelected
-                                    ? 'bg-[#EFF0E7]/60 border-stone-500 shadow-xs'
-                                    : 'bg-white/30 border-stone-200/60 hover:bg-white hover:border-stone-400 hover:shadow-[0_8px_24px_rgba(0,0,0,0.03)] hover:scale-[1.005]'
+                                    ? 'bg-stone-50 border-stone-500'
+                                    : 'bg-white border-stone-200 hover:border-stone-400'
                                 }
                             `}
                         >
@@ -495,7 +500,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
                             </div>
                             
                             {/* Help tooltip hint */}
-                            <div className="text-[8px] uppercase tracking-widest text-stone-400 mt-4 font-semibold select-none">
+                            <div className="text-xs text-stone-400 mt-4 select-none">
                                 {isSelected ? 'Click the correct target box above to place' : 'Drag this section or click to select'}
                             </div>
                         </div>
