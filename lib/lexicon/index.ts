@@ -16,7 +16,7 @@ import 'server-only';
  */
 
 export type LexiconMode = 'rhyme' | 'near' | 'synonym';
-export type LexiconLang = 'sv' | 'no';
+export type LexiconLang = 'sv' | 'no' | 'en';
 
 export interface LexiconEntry {
     word: string;
@@ -30,6 +30,19 @@ interface LexiconData {
     /** vowel skeleton of the last two syllables -> whole words. */
     near: Record<string, string[]>;
     syn: Record<string, string[]>;
+    /** English only: word -> syllable count, from its CMUdict pronunciation. */
+    syllables?: Record<string, number>;
+}
+
+/**
+ * English buckets are keyed by phonemes rather than spelling, so a query word's
+ * key can't be derived from its letters. Rather than ship a second copy of
+ * CMUdict just to look one up, the reverse map is built from the buckets
+ * themselves on first use — same data, no extra bytes.
+ */
+interface EnglishIndex {
+    rhymeKeyOf: Map<string, string>;
+    nearKeyOf: Map<string, string>;
 }
 
 const VOWELS = 'aeiouyåäöæø';
@@ -39,15 +52,32 @@ const MAX_RESULTS = 40;
 // per server instance and then reused. Loads are memoised by promise so that
 // concurrent first requests don't each kick off their own parse.
 const loaders: Partial<Record<LexiconLang, Promise<LexiconData>>> = {};
+const englishIndexes = new WeakMap<LexiconData, EnglishIndex>();
 
 function load(lang: LexiconLang): Promise<LexiconData> {
     if (!loaders[lang]) {
-        loaders[lang] = (lang === 'sv'
-            ? import('./data/sv.json')
-            : import('./data/no.json')
+        loaders[lang] = (
+            lang === 'sv' ? import('./data/sv.json')
+            : lang === 'no' ? import('./data/no.json')
+            : import('./data/en.json')
         ).then(mod => (mod.default ?? mod) as unknown as LexiconData);
     }
     return loaders[lang]!;
+}
+
+function englishIndex(data: LexiconData): EnglishIndex {
+    let index = englishIndexes.get(data);
+    if (index) return index;
+
+    index = { rhymeKeyOf: new Map(), nearKeyOf: new Map() };
+    for (const [key, words] of Object.entries(data.rhyme)) {
+        for (const word of words) if (!index.rhymeKeyOf.has(word)) index.rhymeKeyOf.set(word, key);
+    }
+    for (const [key, words] of Object.entries(data.near)) {
+        for (const word of words) if (!index.nearKeyOf.has(word)) index.nearKeyOf.set(word, key);
+    }
+    englishIndexes.set(data, index);
+    return index;
 }
 
 export function normalizeWord(word: string): string {
@@ -84,12 +114,50 @@ function assonanceKey(word: string): string | null {
 /** Buckets arrive already ordered best-first, so score is derived from position.
  *  The shape matches what Datamuse returns for English so the client can treat
  *  every language identically. */
-function toEntries(words: string[]): LexiconEntry[] {
+function toEntries(words: string[], data?: LexiconData): LexiconEntry[] {
     return words.slice(0, MAX_RESULTS).map((word, i) => ({
         word,
-        syllables: countSyllables(word),
+        // English syllable counts come from CMUdict, since counting vowel letters
+        // gets English wrong ("rhythm" has none, "queue" has four).
+        syllables: data?.syllables?.[word] ?? countSyllables(word),
         score: 1000 - i * 5,
     }));
+}
+
+/**
+ * Candidate base forms for an inflected English word, best guess first.
+ *
+ * Deliberately a handful of suffix rules rather than a real morphological
+ * analyser: the cost of a wrong guess is one failed map lookup, and every
+ * candidate is checked against the dictionary before use, so nothing invented
+ * can reach the user.
+ */
+function baseForms(word: string): string[] {
+    const candidates: string[] = [];
+    const add = (form: string) => {
+        if (form.length >= 2 && !candidates.includes(form)) candidates.push(form);
+    };
+
+    if (word.endsWith('ies')) add(word.slice(0, -3) + 'y');
+    if (word.endsWith('ied')) add(word.slice(0, -3) + 'y');
+    if (word.endsWith('es')) add(word.slice(0, -2));
+    if (word.endsWith('s') && !word.endsWith('ss')) add(word.slice(0, -1));
+    if (word.endsWith('ing')) {
+        add(word.slice(0, -3));
+        add(word.slice(0, -3) + 'e');
+    }
+    if (word.endsWith('ed')) {
+        add(word.slice(0, -2));
+        add(word.slice(0, -1));
+    }
+    if (word.endsWith('ly')) add(word.slice(0, -2));
+    // Doubled consonant before the suffix: "running" -> "run", "stopped" -> "stop".
+    for (const stem of [...candidates]) {
+        if (stem.length >= 3 && stem[stem.length - 1] === stem[stem.length - 2]) {
+            add(stem.slice(0, -1));
+        }
+    }
+    return candidates;
 }
 
 export async function lookup(
@@ -103,7 +171,36 @@ export async function lookup(
     const data = await load(lang);
 
     if (mode === 'synonym') {
-        return toEntries(data.syn[word] ?? []);
+        const direct = data.syn[word];
+        if (direct) return toEntries(direct, data);
+        // WordNet indexes lemmas, not inflections, so "lets" and "dreaming" find
+        // nothing on their own. Songwriters click whatever form is in the line, so
+        // fall back to the plausible base forms rather than returning empty.
+        for (const candidate of baseForms(word)) {
+            const found = data.syn[candidate];
+            if (found) return toEntries(found, data);
+        }
+        return [];
+    }
+
+    // English is keyed by pronunciation, so it resolves its key by lookup rather
+    // than by inspecting the spelling — "though", "through" and "tough" share an
+    // ending and rhyme with none of each other.
+    if (lang === 'en') {
+        const index = englishIndex(data);
+        if (mode === 'rhyme') {
+            const key = index.rhymeKeyOf.get(word);
+            if (!key) return [];
+            return toEntries((data.rhyme[key] ?? []).filter(w => w !== word), data);
+        }
+        const nearKey = index.nearKeyOf.get(word);
+        if (!nearKey) return [];
+        const perfectKey = index.rhymeKeyOf.get(word);
+        const perfect = new Set(perfectKey ? data.rhyme[perfectKey] ?? [] : []);
+        return toEntries(
+            (data.near[nearKey] ?? []).filter(w => w !== word && !perfect.has(w)),
+            data,
+        );
     }
 
     if (mode === 'rhyme') {

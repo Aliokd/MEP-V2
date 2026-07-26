@@ -89,26 +89,16 @@ export async function GET(request: Request) {
         );
     }
 
-    // Non-Google egress. A Cloud Function's outbound networking is not a laptop's,
-    // and English rhymes depend entirely on this host being reachable.
-    checks.push(
-        await timed('datamuse_reachable', async () => {
-            const res = await fetch('https://api.datamuse.com/words?rel_rhy=test&max=1', {
-                signal: AbortSignal.timeout(10_000),
-            });
-            if (!res.ok) throw new Error(`Datamuse returned HTTP ${res.status}`);
-            return 'reachable';
-        }),
-    );
-
-    // The Nordic indexes are multi-megabyte JSON imports; if the bundle is missing
+    // The lexicon indexes are multi-megabyte JSON imports; if the bundle is missing
     // them or the function runs out of memory parsing them, it surfaces here rather
-    // than as an unexplained failure mid-lookup.
-    for (const lang of ['sv', 'no'] as const) {
+    // than as an unexplained failure mid-lookup. All three are local — the lexicon
+    // no longer depends on any third-party API.
+    const probes = { sv: 'hjärta', no: 'hjerte', en: 'heart' } as const;
+    for (const lang of ['sv', 'no', 'en'] as const) {
         checks.push(
             await timed(`lexicon_data_${lang}`, async () => {
                 const { lookup } = await import('@/lib/lexicon');
-                const probe = lang === 'sv' ? 'hjärta' : 'hjerte';
+                const probe = probes[lang];
                 const results = await lookup(probe, 'rhyme', lang);
                 if (results.length === 0) throw new Error(`loaded but no rhymes for "${probe}"`);
                 return `loaded, ${results.length} rhymes for "${probe}"`;

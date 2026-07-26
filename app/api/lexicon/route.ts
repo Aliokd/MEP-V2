@@ -5,16 +5,17 @@ import { lookup, normalizeWord, type LexiconMode, type LexiconLang } from '@/lib
 /**
  * Rhyme / near-rhyme / synonym lookups.
  *
- * English goes to Datamuse (free, native English, no key). Norwegian and Swedish
- * are answered from local indexes — see lib/lexicon. Both paths are keyless, so
- * there is no shared quota to exhaust and no per-user variation in what works.
+ * All three languages are answered from local indexes — see lib/lexicon. Nothing
+ * here calls out to a third party, so there is no quota to exhaust, no key to
+ * expire, and no dependency that behaves differently from a server than it does
+ * from a laptop.
+ *
+ * English previously used Datamuse, a free keyless public API. It worked in
+ * development and failed in production, most likely throttled by shared Cloud
+ * Function egress IPs — a failure mode that cannot be fixed from this side. The
+ * local index is built from the same underlying data Datamuse uses (CMUdict),
+ * plus WordNet for synonyms.
  */
-
-// Datamuse is a free public API and English results never change, so a small
-// in-process cache is worth having. It is only ever a latency optimisation:
-// a cold instance still answers correctly, it just pays the round trip.
-const englishCache = new Map<string, unknown[]>();
-const ENGLISH_CACHE_MAX = 500;
 
 const NORDIC_CHARS = /[åäöæøÅÄÖÆØ]/;
 const NORWEGIAN_MARKERS = /[æøÆØ]/;
@@ -29,32 +30,6 @@ function resolveLanguage(requested: string, word: string): 'en' | LexiconLang {
         return NORWEGIAN_MARKERS.test(word) || NORWEGIAN_STOPWORDS.test(word) ? 'no' : 'sv';
     }
     return 'en';
-}
-
-async function fetchEnglish(word: string, mode: LexiconMode) {
-    const relation = mode === 'near' ? 'rel_nry' : mode === 'synonym' ? 'ml' : 'rel_rhy';
-    const cacheKey = `${relation}:${word}`;
-
-    const cached = englishCache.get(cacheKey);
-    if (cached) return cached;
-
-    const res = await fetch(
-        `https://api.datamuse.com/words?${relation}=${encodeURIComponent(word)}&max=40`,
-    );
-    if (!res.ok) throw new Error(`Datamuse returned ${res.status}`);
-
-    const data = await res.json();
-    const formatted = (data as any[]).map(item => ({
-        word: item.word,
-        syllables: item.numSyllables || 1,
-        score: item.score || 100,
-    }));
-
-    if (englishCache.size >= ENGLISH_CACHE_MAX) {
-        englishCache.delete(englishCache.keys().next().value as string);
-    }
-    englishCache.set(cacheKey, formatted);
-    return formatted;
 }
 
 export async function GET(request: Request) {
@@ -75,9 +50,6 @@ export async function GET(request: Request) {
     const lang = resolveLanguage(searchParams.get('lang') || 'en', word);
 
     try {
-        if (lang === 'en') {
-            return NextResponse.json(await fetchEnglish(word, mode));
-        }
         return NextResponse.json(await lookup(word, mode, lang));
     } catch (error: any) {
         // Deliberately NOT an empty 200. This used to return [], which the UI
@@ -85,7 +57,15 @@ export async function GET(request: Request) {
         // from a word that genuinely has no rhymes, and effectively invisible.
         console.error(`[Lexicon] ${lang}/${mode} lookup failed for "${word}":`, error);
         return NextResponse.json(
-            { error: 'Lexicon lookup is temporarily unavailable. Please try again.' },
+            {
+                error: 'Lexicon lookup is temporarily unavailable. Please try again.',
+                // The upstream reason, so a failure can be diagnosed from the network
+                // tab without needing server log access. Carries no secrets — only
+                // which dependency failed and how.
+                cause: String(error?.message || error).slice(0, 200),
+                lang,
+                mode,
+            },
             { status: 502 },
         );
     }
