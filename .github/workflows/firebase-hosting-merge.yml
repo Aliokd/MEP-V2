@@ -59,3 +59,28 @@ jobs:
             echo "::error file=.github,line=1::Firebase deploy failed. Logs: $LOG_URL"
             exit 1
           fi
+      # A deploy that ships is not a deploy that works. Twice in one day the
+      # pipeline went green while every AI route in production was down — first a
+      # bundler-specific module alias, then an admin-app registration that only
+      # exists inside the Hosting harness. Both were invisible to every local
+      # check by nature, and both were caught days late by customers instead of
+      # minutes late by CI. /api/health/ai probes each dependency from inside the
+      # deployed function and returns 503 unless everything passes; gating the
+      # workflow on it turns any recurrence of this entire class into a red X on
+      # the commit that caused it.
+      - name: Verify production health after deploy
+        run: |
+          echo "Waiting for the new revision to serve..."
+          for i in $(seq 1 10); do
+            sleep 20
+            STATUS=$(curl -s -o health.json -w "%{http_code}" --max-time 60 https://mep-v2.web.app/api/health/ai || echo 000)
+            echo "Attempt $i: HTTP $STATUS"
+            cat health.json 2>/dev/null || true
+            echo ""
+            if [ "$STATUS" = "200" ]; then
+              echo "::notice::Production health check passed."
+              exit 0
+            fi
+          done
+          echo "::error::Production is UNHEALTHY after this deploy. The failing check is named in the JSON above."
+          exit 1
