@@ -7,11 +7,19 @@ import Logo from './Logo';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
+import { splitLocale, localizePath } from '@/lib/i18n';
+import { useLanguage } from '@/context/LanguageContext';
 
 const Navigation = () => {
     const [isScrolled, setIsScrolled] = useState(false);
-    const pathname = usePathname();
+    // usePathname() reflects the visible URL (e.g. "/no"), not the rewritten
+    // route, so every comparison below needs the locale prefix stripped first —
+    // otherwise this nav fails to hide itself on localized pages and stacks on
+    // top of that page's own nav.
+    const rawPathname = usePathname();
+    const { path: pathname } = splitLocale(rawPathname || '/');
     const { user } = useAuth();
+    const { language } = useLanguage();
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -41,10 +49,16 @@ const Navigation = () => {
             : "py-8 px-6 md:px-[10%] bg-transparent"
     }`;
 
+    // Keep whatever language the visitor is reading in when they follow a nav
+    // link, instead of dropping them back onto the English URL.
+    const homeHref = localizePath('/', language);
+    const signinHref = localizePath('/signin', language);
+    const onboardingHref = localizePath('/onboarding', language);
+
     if (isAuthPage) {
         return (
             <nav className={`${navClasses} flex items-center justify-center font-sans`}>
-                <Link href="/" className="hover:opacity-80 transition-opacity">
+                <Link href={homeHref} className="hover:opacity-80 transition-opacity">
                     <Logo size="lg" />
                 </Link>
             </nav>
@@ -53,12 +67,12 @@ const Navigation = () => {
 
     return (
         <nav className={`${navClasses} flex items-center justify-between font-sans`}>
-            <Link href="/" className="hover:opacity-80 transition-opacity">
+            <Link href={homeHref} className="hover:opacity-80 transition-opacity">
                 <Logo size="lg" />
             </Link>
 
             <div className="flex items-center gap-10 text-[15px] text-[#363636]">
-                <Link href="/#qa" className="hover:text-black transition-colors font-medium">Q&A</Link>
+                <Link href={`${homeHref}#qa`} className="hover:text-black transition-colors font-medium">Q&A</Link>
                 {user ? (
                     <div className="flex items-center gap-6">
                         <Link href="/platform" className="font-bold hover:text-black transition-colors">
@@ -73,8 +87,8 @@ const Navigation = () => {
                     </div>
                 ) : (
                     <div className="flex items-center gap-6">
-                        <Link href="/signin" className="hover:text-black transition-colors font-medium">Sign in</Link>
-                        <Link href="/onboarding" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">Join now</Link>
+                        <Link href={signinHref} className="hover:text-black transition-colors font-medium">Sign in</Link>
+                        <Link href={onboardingHref} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">Join now</Link>
                     </div>
                 )}
             </div>

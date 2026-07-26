@@ -116,8 +116,15 @@ export async function GET(request: Request) {
     const clientProjectId = 'mep-v2';
     checks.push(
         await timed('gemini_project_id_match', async () => {
-            const { getApp } = await import('firebase-admin/app');
-            const resolvedProjectId = getApp().options.projectId;
+            // Read the project through our own admin module, never via a direct
+            // getApp() on 'firebase-admin/app'. The direct call had an ordering bug
+            // (nothing had initialized the default app yet on a cold instance) and,
+            // on deployed Hosting, the frameworks harness registers its own named
+            // app — both made this check throw for reasons that had nothing to do
+            // with a project mismatch. Going through the module guarantees our app
+            // exists and that we're reading the same registry every route uses.
+            const { adminApp } = await import('@/lib/firebaseAdmin');
+            const resolvedProjectId = adminApp.options.projectId;
             if (resolvedProjectId !== clientProjectId) {
                 throw new Error(
                     `Admin SDK resolved projectId "${resolvedProjectId}", but the client app uses "${clientProjectId}". ` +
