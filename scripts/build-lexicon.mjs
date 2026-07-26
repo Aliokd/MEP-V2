@@ -47,6 +47,16 @@ function assonanceKey(word) {
     return vowels.slice(-2).join('-');
 }
 
+/** Real Swedish/Norwegian words of one or two letters worth offering as rhymes.
+ *  Everything else that short in the Hunspell expansions is an abbreviation or
+ *  affix fragment ("ig", "us"), which shortest-first ranking would otherwise put
+ *  at the very top of every rhyme list. */
+const NORDIC_SHORT_WORDS = new Set([
+    'bo', 'ro', 'gå', 'må', 'nå', 'så', 'se', 'le', 'ny', 'nu', 'ju', 'du',
+    'vi', 'ni', 'de', 'ha', 'ge', 'gi', 'be', 'ta', 'tå', 'rå', 'ku', 'by',
+    'sy', 'dø', 'ö', 'å', 'ø', 'öl', 'øl', 'ur', 'os', 'is', 'el', 'ek',
+]);
+
 async function expandWordList(pkg) {
     const aff = join(ROOT, 'node_modules', pkg, 'index.aff');
     const dic = join(ROOT, 'node_modules', pkg, 'index.dic');
@@ -55,7 +65,9 @@ async function expandWordList(pkg) {
     const words = new Set();
     for (const raw of reader.iterateWords()) {
         const word = String(raw).trim().toLowerCase();
-        if (WORD_RE.test(word)) words.add(word);
+        if (!WORD_RE.test(word)) continue;
+        if (word.length <= 2 && !NORDIC_SHORT_WORDS.has(word)) continue;
+        words.add(word);
     }
     return words;
 }
@@ -286,28 +298,64 @@ function wordNetVocabulary(dictPath) {
 function parseWordNet(dictPath) {
     const map = new Map();
 
+    const mergeCluster = (words) => {
+        for (const word of words) {
+            const bucket = map.get(word) || new Set();
+            words.forEach(other => { if (other !== word) bucket.add(other); });
+            map.set(word, bucket);
+        }
+    };
+
+    /** offset lex_filenum ss_type w_cnt (word lex_id)... p_cnt (ptr)... */
+    const parseSynset = (fields) => {
+        const wordCount = parseInt(fields[3], 16);
+        if (!Number.isFinite(wordCount) || wordCount < 1) return null;
+        const words = [];
+        for (let i = 0; i < wordCount; i++) {
+            const word = fields[4 + i * 2]?.toLowerCase();
+            if (word && !word.includes('_') && WORD_RE.test(word) && !SYNONYM_BLOCKLIST.has(word)) {
+                words.push(word);
+            }
+        }
+        // Pointers follow the words: count, then symbol/offset/pos/source-target quads.
+        const pointerBase = 4 + wordCount * 2;
+        const pointerCount = parseInt(fields[pointerBase], 10) || 0;
+        const similarTo = [];
+        for (let i = 0; i < pointerCount; i++) {
+            const symbol = fields[pointerBase + 1 + i * 4];
+            if (symbol === '&') similarTo.push(fields[pointerBase + 2 + i * 4]);
+        }
+        return { offset: fields[0], words, similarTo };
+    };
+
     for (const pos of ['noun', 'verb', 'adj', 'adv']) {
         const text = readFileSync(join(dictPath, `data.${pos}`), 'latin1');
+        const synsets = [];
         for (const line of text.split('\n')) {
             if (!line || line.startsWith('  ')) continue; // licence header
-            const fields = line.split(' ');
-            // offset lex_filenum ss_type w_cnt (word lex_id)...
-            const wordCount = parseInt(fields[3], 16);
-            if (!Number.isFinite(wordCount) || wordCount < 2) continue;
+            const synset = parseSynset(line.split(' '));
+            if (synset) synsets.push(synset);
+        }
 
-            const words = [];
-            for (let i = 0; i < wordCount; i++) {
-                const word = fields[4 + i * 2]?.toLowerCase();
-                if (word && !word.includes('_') && WORD_RE.test(word) && !SYNONYM_BLOCKLIST.has(word)) {
-                    words.push(word);
+        // Words sharing a synset are synonyms of each other.
+        for (const { words } of synsets) {
+            if (words.length >= 2) mergeCluster(words);
+        }
+
+        // Adjectives keep most of their synonyms in *satellite* synsets attached by
+        // "&" (similar-to) pointers, not in the head synset itself — "beautiful"
+        // sits alone in its synset with "gorgeous", "lovely" etc. linked as
+        // satellites. Same-synset-only parsing left common adjectives with no
+        // synonyms at all, so the cluster here is head + satellites combined.
+        if (pos === 'adj') {
+            const byOffset = new Map(synsets.map(s => [s.offset, s]));
+            for (const synset of synsets) {
+                if (synset.similarTo.length === 0) continue;
+                const cluster = new Set(synset.words);
+                for (const target of synset.similarTo) {
+                    byOffset.get(target)?.words.forEach(w => cluster.add(w));
                 }
-            }
-            if (words.length < 2) continue;
-
-            for (const word of words) {
-                const bucket = map.get(word) || new Set();
-                words.forEach(other => { if (other !== word) bucket.add(other); });
-                map.set(word, bucket);
+                if (cluster.size >= 2) mergeCluster([...cluster]);
             }
         }
     }

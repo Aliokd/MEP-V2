@@ -125,32 +125,55 @@ function toEntries(words: string[], data?: LexiconData): LexiconEntry[] {
 }
 
 /**
- * Candidate base forms for an inflected English word, best guess first.
+ * Candidate base forms for an inflected word, best guess first, per language.
  *
  * Deliberately a handful of suffix rules rather than a real morphological
  * analyser: the cost of a wrong guess is one failed map lookup, and every
  * candidate is checked against the dictionary before use, so nothing invented
  * can reach the user.
+ *
+ * The Nordic rules exist because the thesauri index lemmas while songwriters
+ * click whatever form is in the lyric — "hjärtat" (definite), "drømmer"
+ * (present) — and English-only stripping left those returning nothing.
  */
-function baseForms(word: string): string[] {
+function baseForms(word: string, lang: LexiconLang): string[] {
     const candidates: string[] = [];
     const add = (form: string) => {
-        if (form.length >= 2 && !candidates.includes(form)) candidates.push(form);
+        if (form.length >= 2 && form !== word && !candidates.includes(form)) candidates.push(form);
     };
 
-    if (word.endsWith('ies')) add(word.slice(0, -3) + 'y');
-    if (word.endsWith('ied')) add(word.slice(0, -3) + 'y');
-    if (word.endsWith('es')) add(word.slice(0, -2));
-    if (word.endsWith('s') && !word.endsWith('ss')) add(word.slice(0, -1));
-    if (word.endsWith('ing')) {
-        add(word.slice(0, -3));
-        add(word.slice(0, -3) + 'e');
+    if (lang === 'en') {
+        if (word.endsWith('ies')) add(word.slice(0, -3) + 'y');
+        if (word.endsWith('ied')) add(word.slice(0, -3) + 'y');
+        if (word.endsWith('es')) add(word.slice(0, -2));
+        if (word.endsWith('s') && !word.endsWith('ss')) add(word.slice(0, -1));
+        if (word.endsWith('ing')) {
+            add(word.slice(0, -3));
+            add(word.slice(0, -3) + 'e');
+        }
+        if (word.endsWith('ed')) {
+            add(word.slice(0, -2));
+            add(word.slice(0, -1));
+        }
+        if (word.endsWith('ly')) add(word.slice(0, -2));
+    } else {
+        // Swedish/Norwegian nominal and verbal endings, longest first so
+        // "hjärtat" tries "hjärta" before "hjärtat"-minus-one-letter noise.
+        // Both languages share most of these; wrong guesses are filtered by
+        // the dictionary check at the call site.
+        const suffixes = lang === 'sv'
+            ? ['heterna', 'heten', 'arna', 'erna', 'orna', 'ande', 'ende', 'ade', 'na', 'en', 'et', 'ar', 'er', 'or', 'at', 'a', 't', 's', 'n']
+            : ['hetene', 'heten', 'ene', 'ane', 'ende', 'te', 'en', 'et', 'er', 'a', 'e', 't', 's'];
+        for (const suffix of suffixes) {
+            if (word.length - suffix.length >= 3 && word.endsWith(suffix)) {
+                const stem = word.slice(0, -suffix.length);
+                add(stem);
+                // Restore a stripped final vowel: "hjärtat" -> "hjärta", "drømmer" -> "drømme".
+                add(stem + (lang === 'sv' ? 'a' : 'e'));
+            }
+        }
     }
-    if (word.endsWith('ed')) {
-        add(word.slice(0, -2));
-        add(word.slice(0, -1));
-    }
-    if (word.endsWith('ly')) add(word.slice(0, -2));
+
     // Doubled consonant before the suffix: "running" -> "run", "stopped" -> "stop".
     for (const stem of [...candidates]) {
         if (stem.length >= 3 && stem[stem.length - 1] === stem[stem.length - 2]) {
@@ -176,7 +199,7 @@ export async function lookup(
         // WordNet indexes lemmas, not inflections, so "lets" and "dreaming" find
         // nothing on their own. Songwriters click whatever form is in the line, so
         // fall back to the plausible base forms rather than returning empty.
-        for (const candidate of baseForms(word)) {
+        for (const candidate of baseForms(word, lang)) {
             const found = data.syn[candidate];
             if (found) return toEntries(found, data);
         }
