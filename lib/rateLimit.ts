@@ -39,6 +39,9 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
     'extract-text': { limit: 24, windowMs: 60_000 },
     'classify-instrument': { limit: 24, windowMs: 60_000 },
     spellcheck: { limit: 90, windowMs: 60_000 },
+    // Unauthenticated by design (see app/api/health/ai), so it gets the tightest
+    // ceiling of all — enough to debug with, not enough to prod upstreams for free.
+    health: { limit: 10, windowMs: 60_000 },
 };
 
 // Bounded so a flood of distinct clients can't grow this without limit.
