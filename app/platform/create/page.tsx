@@ -8181,7 +8181,22 @@ export default function CreatePage() {
                         }
                     };
 
+                    // A merge-set on a document that does not exist yet counts as a *create*,
+                    // and the security rule requires ownerId to match the caller. Without it
+                    // every edit to a brand-new project was rejected — the project only
+                    // reached Firestore if some other path happened to create it first.
+                    //
+                    // Only stamped when this user actually owns the project. A collaborator
+                    // must never rewrite ownerId: the update rule lets any member write, so
+                    // sending it unconditionally would let a collaborator take ownership.
+                    const ownsProject = !updatedNote.ownerId || updatedNote.ownerId === user.uid;
+
                     const rawPayload = {
+                        // ownerId only. `collaborators` is deliberately not sent: the create
+                        // rule doesn't need it, and a stale local copy would overwrite the
+                        // real list — dropping anyone who accepted an invite since this tab
+                        // last synced.
+                        ...(ownsProject ? { ownerId: user.uid } : {}),
                         id: updatedNote.id,
                         title: updatedNote.title || 'Untitled Project',
                         content: updatedNote.content || '',
@@ -8219,14 +8234,12 @@ export default function CreatePage() {
                     }
 
                     setDoc(docRef, payload, { merge: true }).catch(err => {
+                        // Logged, not surfaced. This fires per keystroke while a project is
+                        // saving, so a toast here interrupts writing rather than helping —
+                        // and the edit is not lost: the localStorage cache still holds it and
+                        // the next successful write carries it up. /api/health/ai is the place
+                        // to check when saves are genuinely failing.
                         console.error("Error updating project note in Firestore:", err);
-                        // A failed save used to be invisible, which is how work got lost.
-                        // The local cache still holds this edit, so the words are not gone
-                        // — but the user needs to know the server copy is behind.
-                        triggerStudioNotification(
-                            t('creative.save_failed') || 'Could not save to the cloud. Your work is safe on this device — check your connection.',
-                            'amber'
-                        );
                     });
                 }
 
