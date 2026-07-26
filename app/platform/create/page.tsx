@@ -9351,7 +9351,11 @@ export default function CreatePage() {
                 const transcriptText = (data.text || "").trim();
                 
                 if (!transcriptText) {
-                    alert(t('audio.no_lyrics_found') || "No spoken lyrics found in this recording.");
+                    // Empty text with an error attached means the transcription FAILED
+                    // (timeout, upstream trouble) — not that the recording is silent.
+                    // "No spoken lyrics found" for a failure sends the user hunting for a
+                    // problem in their own recording that isn't there.
+                    alert(data.error || t('audio.no_lyrics_found') || "No spoken lyrics found in this recording.");
                 }
                 let line1 = "";
                 let line2 = "";

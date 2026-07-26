@@ -90,7 +90,15 @@ export async function POST(request: Request) {
 
         // Shared across all three models so they can't stack up past the platform's
         // own request timeout — see createCallBudget for why that matters.
-        const budget = createCallBudget();
+        // Minutes of audio take far longer to transcribe than a page takes to OCR, and
+        // non-English speech regularly needs the second model too (the first returns
+        // NO_SPEECH more often on Norwegian/Swedish). Under the default 45s/20s budget
+        // that second attempt collided with the platform's request timeout, so the
+        // gateway killed the request mid-flight and the user saw a contentless
+        // "Transcription failed" — the exact failure the budget exists to prevent.
+        // 100s total / 45s per attempt fits two real attempts inside the function's
+        // 120s ceiling (firebase.json frameworksBackend.timeoutSeconds) with headroom.
+        const budget = createCallBudget(100_000, 45_000);
 
         for (const model of modelsToTry) {
             const signal = budget.next();
