@@ -6364,6 +6364,13 @@ export default function CreatePage() {
 
     useEffect(() => {
         if (lexiconWord.trim()) {
+            // Enter the loading state immediately, not when the request finally fires.
+            // For the 300ms the debounce is waiting, the panel had no results and was
+            // not "loading" either, so it rendered "No matches found" — for a word that
+            // does have matches — and then replaced it. Every word click and every tab
+            // switch flashed a wrong answer before the right one.
+            setLexiconLoading(true);
+            setLexiconError(false);
             const delayDebounce = setTimeout(() => {
                 searchRhymeLexicon(lexiconWord, lexiconMode);
             }, 300);
@@ -6371,6 +6378,7 @@ export default function CreatePage() {
         } else {
             setLexiconResults([]);
             setLexiconError(false);
+            setLexiconLoading(false);
         }
     }, [lexiconWord, lexiconMode, language]);
 
@@ -14075,7 +14083,18 @@ export default function CreatePage() {
                     </select>
                 </form>
 
-                {lexiconResults.length === 0 ? (
+                {lexiconLoading ? (
+                    /* Skeleton while a lookup is pending, so an in-flight search never
+                       renders as "no results" and then corrects itself. */
+                    <div className="bg-stone-50 border border-stone-150 rounded-2xl p-6 flex flex-col gap-3 select-none">
+                        <div className="w-20 h-3.5 bg-stone-200/80 rounded-md animate-pulse" />
+                        <div className="flex flex-wrap gap-2">
+                            <div className="w-24 h-[38px] bg-gradient-to-r from-stone-100 via-stone-200/40 to-stone-100 rounded-[14px] animate-pulse" />
+                            <div className="w-20 h-[38px] bg-gradient-to-r from-stone-100 via-stone-200/40 to-stone-100 rounded-[14px] animate-pulse" />
+                            <div className="w-28 h-[38px] bg-gradient-to-r from-stone-100 via-stone-200/40 to-stone-100 rounded-[14px] animate-pulse" />
+                        </div>
+                    </div>
+                ) : lexiconResults.length === 0 ? (
                     <div className="bg-stone-50 border border-stone-150 rounded-2xl p-8.5 text-center select-none">
                         <p className="text-[16.5px] text-stone-400 font-medium">
                             {lexiconError ? t('lexicon.unavailable') : t('lexicon.no_results')}
