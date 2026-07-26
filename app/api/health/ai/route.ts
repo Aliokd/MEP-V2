@@ -106,6 +106,31 @@ export async function GET(request: Request) {
         );
     }
 
+    // A garbage token only proves the verifier *runs* — it fails the same way
+    // regardless of which project the Admin SDK is configured for, so it cannot
+    // catch a project mismatch. verifyIdToken checks a real token's `aud` claim
+    // against exactly this project ID; if App Hosting's runtime environment
+    // resolves a different one than the client SDK uses, every genuine user
+    // token gets rejected as "invalid" while a fake one is rejected identically
+    // — which is why this needs its own check rather than reusing the one below.
+    const clientProjectId = 'mep-v2';
+    checks.push(
+        await timed('gemini_project_id_match', async () => {
+            const { getApp } = await import('firebase-admin/app');
+            const resolvedProjectId = getApp().options.projectId;
+            if (resolvedProjectId !== clientProjectId) {
+                throw new Error(
+                    `Admin SDK resolved projectId "${resolvedProjectId}", but the client app uses "${clientProjectId}". ` +
+                    `Every real user token will be rejected as invalid. ` +
+                    `env: FIREBASE_PROJECT_ID=${process.env.FIREBASE_PROJECT_ID ?? '(unset)'} ` +
+                    `GCLOUD_PROJECT=${process.env.GCLOUD_PROJECT ?? '(unset)'} ` +
+                    `GOOGLE_CLOUD_PROJECT=${process.env.GOOGLE_CLOUD_PROJECT ?? '(unset)'}`
+                );
+            }
+            return `projectId "${resolvedProjectId}" matches the client app`;
+        }),
+    );
+
     // Token verification needs Google's public certs. If this host cannot fetch
     // them, every authenticated AI route returns 401 no matter what the client does.
     checks.push(

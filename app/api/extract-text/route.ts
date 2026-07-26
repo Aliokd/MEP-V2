@@ -99,14 +99,50 @@ export async function POST(request: Request) {
     if (throttled) return throttled;
 
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    let buffer: Buffer;
+    let fileName: string;
+
+    const contentType = request.headers.get('content-type') || '';
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData();
+      const file = formData.get('file') as File;
+      if (!file) {
+        return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+      }
+      buffer = Buffer.from(await file.arrayBuffer());
+      fileName = file.name.toLowerCase();
+    } else {
+      // Card documents can be a base64 data URL (not yet uploaded) or an https
+      // Storage URL (already promoted) — see promoteMediaToStorage in
+      // app/platform/create/page.tsx. The client used to decode data URLs itself
+      // and only ever sent bytes, which meant a client-side crash the moment a
+      // card's url became https mid-session: it does not carry a base64 payload
+      // to decode. Handling both forms server-side, the same way
+      // /api/transcribe-image already does for images, removes that failure mode
+      // entirely rather than asking the client to track which shape its own data
+      // is in.
+      const body = await request.json().catch(() => ({}));
+      const documentUrl: string = body.documentUrl || '';
+      fileName = String(body.fileName || 'document').toLowerCase();
+
+      if (documentUrl.startsWith('data:')) {
+        const match = documentUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.*)$/);
+        if (!match) {
+          return NextResponse.json({ error: 'Invalid data URL format' }, { status: 400 });
+        }
+        buffer = Buffer.from(match[2], 'base64');
+      } else if (documentUrl.startsWith('http://') || documentUrl.startsWith('https://')) {
+        const fileRes = await fetch(documentUrl);
+        if (!fileRes.ok) {
+          return NextResponse.json({ error: `Failed to fetch document: HTTP ${fileRes.status}` }, { status: 502 });
+        }
+        buffer = Buffer.from(await fileRes.arrayBuffer());
+      } else {
+        return NextResponse.json({ error: 'No document provided' }, { status: 400 });
+      }
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const fileName = file.name.toLowerCase();
     let extractedText = '';
 
     if (fileName.endsWith('.pdf')) {

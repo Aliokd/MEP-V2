@@ -8404,31 +8404,22 @@ export default function CreatePage() {
             
             const docObj = (currentNote.documents || []).find(d => d.id === docId);
             if (!docObj) throw new Error("Document object not found in project");
-            
-            // Helper to convert Data URL (Base64) back to File
-            const dataURLtoFile = (dataurl: string, filename: string) => {
-                const arr = dataurl.split(',');
-                const mime = arr[0].match(/:(.*?);/)![1];
-                const bstr = atob(arr[1]);
-                let n = bstr.length;
-                const u8arr = new Uint8Array(n);
-                while (n--) {
-                    u8arr[n] = bstr.charCodeAt(n);
-                }
-                return new File([u8arr], filename, { type: mime });
-            };
-            
-            const file = dataURLtoFile(docObj.url, docObj.name);
-            const formData = new FormData();
-            formData.append('file', file);
-            
+
+            // The card's url can be a base64 data URL (not yet uploaded) or an https
+            // Storage URL (already promoted by promoteMediaToStorage, in the
+            // background, at any point after the card was added) — decoding it here
+            // as if it were always base64 crashed the moment that promotion landed,
+            // since an https URL has no base64 payload to decode. The server now
+            // accepts either form directly, the same way /api/transcribe-image
+            // already does for images, so the client just forwards whatever it has.
             const extractRes = await authedFetch('/api/extract-text', {
                 method: 'POST',
-                body: formData
+                body: JSON.stringify({ documentUrl: docObj.url, fileName: docObj.name })
             });
-            
+
             if (!extractRes.ok) {
-                throw new Error('Failed to extract text from file');
+                const errData = await extractRes.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to extract text from file');
             }
             
             const extractData = await extractRes.json();
@@ -9466,8 +9457,13 @@ export default function CreatePage() {
                     isAudioOnly: false
                 });
             } else {
-                console.error('Server transcription failed status:', response.status);
-                alert("Transcription failed. Please try again.");
+                // Surface the server's actual reason (e.g. "Sign in to use this
+                // feature.") instead of a fixed string — a generic "try again" on an
+                // auth failure sends someone retrying the exact same recording
+                // forever, since retrying changes nothing about why it failed.
+                const errData = await response.json().catch(() => ({}));
+                console.error('Server transcription failed status:', response.status, errData);
+                alert(errData.error || "Transcription failed. Please try again.");
             }
         } catch (e) {
             console.error("Failed to transcribe audio note:", e);
