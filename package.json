@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "start http://localhost:3000/platform/create && next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",

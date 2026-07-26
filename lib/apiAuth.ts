@@ -1,6 +1,5 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebaseAdmin';
 
 /**
  * Firebase ID token verification for the paid AI endpoints.
@@ -40,6 +39,11 @@ export async function requireUser(request: Request): Promise<AuthedUser | Respon
     if (!match) return unauthorized('Sign in to use this feature.');
 
     try {
+        // Imported here, not at module scope: a top-level import that fails to
+        // resolve throws while the module loads, taking down every route that
+        // imports this one with an unexplained 500. Loading it inside the try
+        // turns that into an honest error the caller can act on.
+        const { adminAuth } = await import('@/lib/firebaseAdmin');
         const decoded = await adminAuth.verifyIdToken(match[1]);
         return { uid: decoded.uid };
     } catch (error: any) {

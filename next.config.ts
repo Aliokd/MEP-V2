@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
+    /**
+     * Declared for clarity; firebase-admin is auto-externalised anyway. The actual
+     * fix for the production failure was switching the build to webpack — see the
+     * note on the "build" script in package.json.
+     */
+    serverExternalPackages: ['firebase-admin'],
 };
 
 export default nextConfig;

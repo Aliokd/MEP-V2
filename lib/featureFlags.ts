@@ -1,5 +1,4 @@
 import "server-only";
-import { adminDb } from "@/lib/firebaseAdmin";
 
 /**
  * Server-side kill switches for the AI endpoints.
@@ -30,6 +29,14 @@ async function loadFlags(): Promise<Record<string, boolean>> {
     if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.values;
 
     try {
+        // Imported here rather than at module scope on purpose. A top-level import
+        // that fails to resolve throws while the *module* loads, which no try/catch
+        // in this file can catch — it takes down every route that imports this one.
+        // That is exactly what happened in production when firebase-admin was
+        // bundled instead of externalised: every AI route returned a bare 500 while
+        // working fine locally. Loading it here means even a broken admin SDK
+        // degrades to "flag unset", which is the fail-open behaviour intended below.
+        const { adminDb } = await import("@/lib/firebaseAdmin");
         const snap = await adminDb.collection("feature_flags").get();
         const values: Record<string, boolean> = {};
         snap.docs.forEach((doc) => {
