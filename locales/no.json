@@ -292,7 +292,8 @@
     "unlock_hold_hint": "Trykk for å låse opp",
     "lock_locked_toast": "Prosjektet er låst — kun visning for alle",
     "lock_unlocked_toast": "Prosjektet er låst opp — alle kan redigere igjen",
-    "lock_banner": "Låst av eieren — kun visning"
+    "lock_banner": "Låst av eieren — kun visning",
+    "locked": "Låst"
   },
   "workspace": {
     "my_projects": "Mine prosjekter",
@@ -433,7 +434,8 @@
     "inspiration_doc": "en PDF, tekstfil eller et Word-dokument med sangteksten din",
     "drop_files_here": "Slipp filene dine her",
     "file_too_large_audio": "Den lydfilen er litt for stor — prøv én under 30MB",
-    "file_too_large": "Den filen er litt for stor — prøv én under 3MB"
+    "file_too_large": "Den filen er litt for stor — prøv én under 3MB",
+    "save_failed": "Kunne ikke lagre til skyen. Arbeidet ditt er trygt på denne enheten — sjekk tilkoblingen."
   },
   "progress": {
     "title": "Fremgangen din",

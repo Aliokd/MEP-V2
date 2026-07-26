@@ -292,7 +292,8 @@
     "unlock_hold_hint": "Press to unlock",
     "lock_locked_toast": "Project locked — view only for everyone",
     "lock_unlocked_toast": "Project unlocked — everyone can edit again",
-    "lock_banner": "Locked by the owner — view only"
+    "lock_banner": "Locked by the owner — view only",
+    "locked": "Locked"
   },
   "workspace": {
     "my_projects": "My Projects",
@@ -433,7 +434,8 @@
     "inspiration_doc": "a PDF, text file or Word document of your lyrics",
     "drop_files_here": "Drop your files here",
     "file_too_large_audio": "That audio is a bit too big — try one under 30MB",
-    "file_too_large": "That file is a bit too big — try one under 3MB"
+    "file_too_large": "That file is a bit too big — try one under 3MB",
+    "save_failed": "Could not save to the cloud. Your work is safe on this device — check your connection."
   },
   "progress": {
     "title": "Your progress",

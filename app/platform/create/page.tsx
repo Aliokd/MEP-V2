@@ -50,6 +50,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallba
 import { createPortal } from 'react-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { safeLocalStorageSetItem } from '@/lib/storage';
+import { fitToFirestore } from '@/lib/projectPayload';
 import Tooltip from '@/components/Tooltip';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
@@ -4595,13 +4596,36 @@ export default function CreatePage() {
     useEffect(() => {
         if (isDataLoaded) {
             const serialized = JSON.stringify(notes);
-            safeLocalStorageSetItem('veinote-create-notes', serialized);
+            const stored = safeLocalStorageSetItem('veinote-create-notes', serialized);
             // Also cache under the uid-scoped key — readCachedNotes(user.uid) (used to recover
             // unsaved edits on reload/merge with Firestore) only ever reads that key, so without
             // this write a logged-in user's most recent edits are unrecoverable if the Firestore
             // write hasn't finished propagating by the time the page reloads.
             if (user) {
                 safeLocalStorageSetItem(`veinote-create-notes-${user.uid}`, serialized);
+            }
+
+            // Inline base64 media can exceed the ~5 MB localStorage quota on its own, and
+            // safeLocalStorageSetItem fails quietly when it does. That left the recovery
+            // cache empty at exactly the moment it was needed. Retry without the media so
+            // the words survive a refresh even when the previews cannot.
+            if (!stored) {
+                const withoutMedia = JSON.stringify(
+                    notes.map(note => ({
+                        ...note,
+                        images: (note.images || []).map((img: any) =>
+                            typeof img?.url === 'string' && img.url.startsWith('data:')
+                                ? { ...img, url: '' } : img),
+                        documents: (note.documents || []).map((d: any) =>
+                            typeof d?.url === 'string' && d.url.startsWith('data:')
+                                ? { ...d, url: '' } : d),
+                    }))
+                );
+                const fallbackStored = safeLocalStorageSetItem('veinote-create-notes', withoutMedia);
+                if (user) safeLocalStorageSetItem(`veinote-create-notes-${user.uid}`, withoutMedia);
+                if (!fallbackStored) {
+                    console.error('[Create] Could not cache notes locally even without media.');
+                }
             }
         }
     }, [notes, isDataLoaded, user]);
@@ -7243,6 +7267,52 @@ export default function CreatePage() {
         const tempUploadId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         setUploadingFiles(prev => [...prev, { id: tempUploadId, name: file.name, type: uploadType }]);
 
+        /**
+         * Moves a freshly added image or document off the project document.
+         *
+         * Base64 previews are fine in local state — they render instantly — but a
+         * Firestore document is capped at 1 MiB, so storing them there meant two
+         * images could break every subsequent save, lyrics included. Audio already
+         * used Storage for exactly this reason; this brings media in line.
+         *
+         * Runs in the background: the card is already on screen with its inline
+         * preview, and the durable URL is patched in when the upload lands.
+         */
+        const promoteMediaToStorage = (
+            noteId: string,
+            mediaId: string,
+            field: 'images' | 'documents',
+            blob: Blob,
+            extension: string,
+        ) => {
+            if (!user) return;
+            (async () => {
+                try {
+                    const path = `users/${user.uid}/${field}/${noteId}_${mediaId}.${extension}`;
+                    await uploadBytes(storageRef(storage, path), blob);
+                    const downloadUrl = await getDownloadURL(storageRef(storage, path));
+
+                    setNotes(prev => prev.map(n => {
+                        if (n.id !== noteId) return n;
+                        const updatedList = ((n as any)[field] || []).map((item: any) =>
+                            item.id === mediaId ? { ...item, url: downloadUrl } : item
+                        );
+                        const updated = { ...n, [field]: updatedList } as SongNote;
+                        setDoc(
+                            doc(db, "projects", noteId),
+                            { [field]: updatedList, updatedAt: new Date().toISOString() },
+                            { merge: true },
+                        ).catch(err => console.error(`Error persisting ${field} URL:`, err));
+                        return updated;
+                    }));
+                } catch (err) {
+                    // The inline preview still works in this session; only durability is
+                    // lost, and the size guard keeps it from taking the lyrics down with it.
+                    console.error(`Failed to upload ${field} to Storage:`, err);
+                }
+            })();
+        };
+
         const cleanupUpload = () => {
             setUploadingFiles(prev => prev.filter(f => f.id !== tempUploadId));
         };
@@ -7447,11 +7517,13 @@ export default function CreatePage() {
         } else if (uploadType === 'image') {
             try {
                 const compressedBase64 = await compressAndGetBase64(file);
+                // Generated out here so the background Storage upload can address this
+                // exact image once state has been updated.
+                const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                 if (effectiveNoteId) {
                     setNotes(prev => prev.map(n => {
                         if (n.id === effectiveNoteId) {
                             const existingImages = n.images || [];
-                            const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                             const dedicatedPhraseId = `p-image-${nextImageId}`;
                             const newImage = {
                                 id: nextImageId,
@@ -7485,11 +7557,12 @@ export default function CreatePage() {
                         }
                         return n;
                     }));
+                    // Move the bytes to Storage so the project document stays small.
+                    promoteMediaToStorage(effectiveNoteId, nextImageId, 'images', file, 'jpg');
                     cleanupUpload();
                     return effectiveNoteId;
                 } else {
                     const newNoteId = `n-${Date.now()}`;
-                    const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                     const dedicatedPhraseId = `p-image-${nextImageId}`;
                     const newImage = {
                         id: nextImageId,
@@ -7524,6 +7597,7 @@ export default function CreatePage() {
                             collaborators: []
                         }).catch(err => console.error("Error creating project in Firestore:", err));
                     }
+                    promoteMediaToStorage(newNoteId, nextImageId, 'images', file, 'jpg');
                     cleanupUpload();
                     return newNoteId;
                 }
@@ -7590,6 +7664,7 @@ export default function CreatePage() {
                                     }
                                     return n;
                                 }));
+                                promoteMediaToStorage(effectiveNoteId, docId, 'documents', file, (fileName.split('.').pop() || 'bin'));
                                 cleanupUpload();
                                 resolve(effectiveNoteId);
                             } else {
@@ -7621,6 +7696,7 @@ export default function CreatePage() {
                                         collaborators: []
                                     }).catch(err => console.error("Error creating project in Firestore:", err));
                                 }
+                                promoteMediaToStorage(newNoteId, docId, 'documents', file, (fileName.split('.').pop() || 'bin'));
                                 cleanupUpload();
                                 resolve(newNoteId);
                             }
@@ -8105,7 +8181,7 @@ export default function CreatePage() {
                         }
                     };
 
-                    setDoc(docRef, {
+                    const rawPayload = {
                         id: updatedNote.id,
                         title: updatedNote.title || 'Untitled Project',
                         content: updatedNote.content || '',
@@ -8128,7 +8204,30 @@ export default function CreatePage() {
                             phraseId: d.phraseId || null
                         })),
                         updatedAt: new Date().toISOString()
-                    }, { merge: true }).catch(err => console.warn("Error updating project note in Firestore:", err));
+                    };
+
+                    // Firestore rejects documents over 1 MiB, and inline base64 media can
+                    // push a project past that. Until this change the rejection was only
+                    // logged, so the user's lyrics stopped saving without any sign of it.
+                    // Drop media previews before words: an image can be re-fetched from
+                    // Storage, a verse cannot be re-typed from nothing.
+                    const { payload, strippedMedia, bytes } = fitToFirestore(rawPayload);
+                    if (strippedMedia > 0) {
+                        console.warn(
+                            `[Project ${id}] Payload was ${bytes} bytes; dropped ${strippedMedia} inline media blob(s) so the lyrics could save.`
+                        );
+                    }
+
+                    setDoc(docRef, payload, { merge: true }).catch(err => {
+                        console.error("Error updating project note in Firestore:", err);
+                        // A failed save used to be invisible, which is how work got lost.
+                        // The local cache still holds this edit, so the words are not gone
+                        // — but the user needs to know the server copy is behind.
+                        triggerStudioNotification(
+                            t('creative.save_failed') || 'Could not save to the cloud. Your work is safe on this device — check your connection.',
+                            'amber'
+                        );
+                    });
                 }
 
                 return updatedNote;
@@ -14634,6 +14733,7 @@ export default function CreatePage() {
 
     const renderProjectCard = (note: SongNote) => {
         const isSelected = selectedNoteId === note.id;
+        const isLocked = !!note.isLocked;
         return (
             <div
                 key={note.id}
@@ -14641,12 +14741,20 @@ export default function CreatePage() {
                 draggable
                 onDragStart={(e) => handleDragStart(e, note.id)}
                 className={`
-                    group cursor-pointer flex flex-col items-center gap-3 px-5 py-6 rounded-[18px] border border-stone-200/10 transition-all duration-200 active:scale-[0.99] active:cursor-grabbing select-none min-h-[220px]
-                    ${isSelected ? 'bg-white shadow-[0_4px_15px_rgba(0,0,0,0.015)] border-stone-200/30' : 'bg-white/40 hover:bg-white/70 hover:border-stone-200/25'}
+                    group cursor-pointer flex flex-col items-center gap-3 px-5 py-6 rounded-[18px] border transition-all duration-200 active:scale-[0.99] active:cursor-grabbing select-none min-h-[220px]
+                    ${isLocked
+                        ? 'bg-white/40 border-[#DCEE7A] hover:bg-white/70'
+                        : isSelected
+                            ? 'bg-white shadow-[0_4px_15px_rgba(0,0,0,0.015)] border-stone-200/30'
+                            : 'bg-white/40 border-stone-200/10 hover:bg-white/70 hover:border-stone-200/25'}
                 `}
             >
-                {/* Title */}
-                <span className={`w-full text-center font-sans text-[14px] transition-colors truncate ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-850'}`}>
+                {/* Title — a locked project carries the same lime marker as the canvas,
+                    so the state is recognisable before opening it. */}
+                <span className={`w-full text-center font-sans text-[14px] transition-colors truncate flex items-center justify-center gap-1.5 ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-850'}`}>
+                    {isLocked && (
+                        <Lock size={12} className="text-stone-500 shrink-0" strokeWidth={2} aria-label={t('collab.locked')} />
+                    )}
                     {getTranslatedTitle(note.title) || t('workspace.untitled_note')}
                 </span>
 
@@ -14697,6 +14805,7 @@ export default function CreatePage() {
 
     const renderProjectListCard = (note: SongNote) => {
         const isSelected = selectedNoteId === note.id;
+        const isLocked = !!note.isLocked;
         return (
             <div
                 key={note.id}
@@ -14704,11 +14813,20 @@ export default function CreatePage() {
                 draggable
                 onDragStart={(e) => handleDragStart(e, note.id)}
                 className={`
-                    group cursor-pointer flex items-center justify-between px-6 py-6 rounded-[18px] border border-stone-200/10 transition-all duration-200 active:scale-[0.99] select-none
-                    ${isSelected ? 'bg-white shadow-[0_4px_15px_rgba(0,0,0,0.015)] border-stone-200/30' : 'bg-white/40 hover:bg-white/70 hover:border-stone-200/25'}
+                    group cursor-pointer flex items-center justify-between px-6 py-6 rounded-[18px] border transition-all duration-200 active:scale-[0.99] select-none
+                    ${isLocked
+                        ? 'bg-white/40 border-[#DCEE7A] hover:bg-white/70'
+                        : isSelected
+                            ? 'bg-white shadow-[0_4px_15px_rgba(0,0,0,0.015)] border-stone-200/30'
+                            : 'bg-white/40 border-stone-200/10 hover:bg-white/70 hover:border-stone-200/25'}
                 `}
             >
-                <span className={`font-sans text-[14px] transition-colors truncate ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-850'}`}>
+                {/* Same lime outline and lock glyph the canvas uses, so the state reads
+                    identically in both places. */}
+                <span className={`font-sans text-[14px] transition-colors truncate flex items-center gap-1.5 ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-850'}`}>
+                    {isLocked && (
+                        <Lock size={12} className="text-stone-500 shrink-0" strokeWidth={2} aria-label={t('collab.locked')} />
+                    )}
                     {getTranslatedTitle(note.title) || t('workspace.untitled_note')}
                 </span>
                 

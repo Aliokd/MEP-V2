@@ -292,7 +292,8 @@
     "unlock_hold_hint": "Tryck för att låsa upp",
     "lock_locked_toast": "Projektet är låst — endast visning för alla",
     "lock_unlocked_toast": "Projektet är upplåst — alla kan redigera igen",
-    "lock_banner": "Låst av ägaren — endast visning"
+    "lock_banner": "Låst av ägaren — endast visning",
+    "locked": "Låst"
   },
   "workspace": {
     "my_projects": "Mina projekt",
@@ -433,7 +434,8 @@
     "inspiration_doc": "en PDF, textfil eller ett Word-dokument med din låttext",
     "drop_files_here": "Släpp dina filer här",
     "file_too_large_audio": "Den ljudfilen är lite för stor — prova en under 30MB",
-    "file_too_large": "Den filen är lite för stor — prova en under 3MB"
+    "file_too_large": "Den filen är lite för stor — prova en under 3MB",
+    "save_failed": "Kunde inte spara till molnet. Ditt arbete är tryggt på den här enheten — kontrollera anslutningen."
   },
   "progress": {
     "title": "Dina framsteg",
