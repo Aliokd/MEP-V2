@@ -31,6 +31,7 @@ export interface ContentItem {
     category?: string;
     chapterId?: string;
     videoUrl?: string;
+    posterUrl?: string | null;
     durationSeconds?: number;
     artist?: string;
     audioUrl?: string;

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Compresses a lesson video for web delivery and uploads it to Firebase Storage
- * under a public-read path, then prints the URL to paste into the admin CMS's
- * "Video URL" field (Learn lesson editor).
+ * Compresses a lesson video for web delivery, extracts its first frame as a
+ * poster thumbnail, and uploads both to Firebase Storage under a public-read
+ * path — then prints the URLs to paste into the admin CMS's "Video URL" /
+ * "Poster URL" fields (Learn lesson editor).
  *
  *   node scripts/upload-lesson-video.mjs <input-file> <lesson-slug> [--skip-upload] [--skip-compress]
  *
@@ -14,13 +15,18 @@
  *
  * --skip-compress uploads <input-file> as-is — use this to upload a file that
  * was already compressed by a previous --skip-upload run, without re-encoding.
+ * The poster is still (re-)extracted from it either way.
  *
  * What it does:
  *   1. Re-encodes the input to a web-optimized H.264/AAC mp4 (720p cap, faststart)
- *   2. Uploads the result to content/lessons/{lesson-slug}.mp4 in the default bucket
- *   3. Sets a far-future Cache-Control header (the filename is the cache key —
- *      use a new slug if you need to replace a video that's already published,
- *      so cached copies don't serve stale content)
+ *   2. Extracts the first frame as a JPEG poster (this became standard practice
+ *      after the "Song structure" lesson shipped without one and showed a blank
+ *      grey box until playback started — every lesson video should have one)
+ *   3. Uploads both to content/lessons/ in the default bucket:
+ *      {lesson-slug}.mp4 and {lesson-slug}-poster.jpg
+ *   4. Sets a far-future Cache-Control header on both (the filename is the
+ *      cache key — use a new slug if you need to replace a video that's
+ *      already published, so cached copies don't serve stale content)
  */
 import { initializeApp, applicationDefault, getApps } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
@@ -74,11 +80,16 @@ async function compress(input, output) {
     ]);
 }
 
+async function extractPoster(input, output) {
+    await runFfmpeg(["-y", "-i", input, "-vframes", "1", "-q:v", "3", output]);
+}
+
 const inputSize = (await stat(inputPath)).size;
 console.log(`Input:  ${inputPath} (${formatMB(inputSize)})`);
 
 const workDir = await mkdtemp(path.join(tmpdir(), "veinote-video-"));
 const outputPath = path.join(workDir, `${slug}.mp4`);
+const posterPath = path.join(workDir, `${slug}-poster.jpg`);
 
 if (skipCompress) {
     console.log("--skip-compress set — uploading input as-is.");
@@ -91,11 +102,16 @@ if (skipCompress) {
 const outputSize = (await stat(outputPath)).size;
 console.log(`Output: ${outputPath} (${formatMB(outputSize)}, ${Math.round((1 - outputSize / inputSize) * 100)}% smaller)`);
 
+console.log("Extracting poster frame…");
+await extractPoster(outputPath, posterPath);
+
 if (skipUpload) {
-    const previewPath = path.join(path.dirname(inputPath), `${slug}.compressed.mp4`);
-    await copyFile(outputPath, previewPath);
+    const previewVideoPath = path.join(path.dirname(inputPath), `${slug}.compressed.mp4`);
+    const previewPosterPath = path.join(path.dirname(inputPath), `${slug}-poster.jpg`);
+    await copyFile(outputPath, previewVideoPath);
+    await copyFile(posterPath, previewPosterPath);
     await rm(workDir, { recursive: true, force: true });
-    console.log(`\n--skip-upload set — compressed file left at ${previewPath} for review.`);
+    console.log(`\n--skip-upload set — left for review:\n  ${previewVideoPath}\n  ${previewPosterPath}`);
     process.exit(0);
 }
 
@@ -108,21 +124,27 @@ if (getApps().length === 0) {
 }
 
 const bucket = getStorage().bucket();
-const destination = `content/lessons/${slug}.mp4`;
+const videoDestination = `content/lessons/${slug}.mp4`;
+const posterDestination = `content/lessons/${slug}-poster.jpg`;
 
-console.log(`Uploading to gs://${bucket.name}/${destination} …`);
+console.log(`Uploading to gs://${bucket.name}/${videoDestination} …`);
 await bucket.upload(outputPath, {
-    destination,
-    metadata: {
-        contentType: "video/mp4",
-        cacheControl: "public, max-age=31536000, immutable",
-    },
+    destination: videoDestination,
+    metadata: { contentType: "video/mp4", cacheControl: "public, max-age=31536000, immutable" },
+});
+
+console.log(`Uploading to gs://${bucket.name}/${posterDestination} …`);
+await bucket.upload(posterPath, {
+    destination: posterDestination,
+    metadata: { contentType: "image/jpeg", cacheControl: "public, max-age=31536000, immutable" },
 });
 
 await rm(workDir, { recursive: true, force: true });
 
-const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(destination)}?alt=media`;
-console.log("\nDone. Paste this into the lesson's Video URL field in the admin CMS:\n");
-console.log(publicUrl);
+const videoUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(videoDestination)}?alt=media`;
+const posterUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(posterDestination)}?alt=media`;
+console.log("\nDone. Paste these into the lesson's fields in the admin CMS:\n");
+console.log(`Video URL:  ${videoUrl}`);
+console.log(`Poster URL: ${posterUrl}`);
 
 process.exit(0);

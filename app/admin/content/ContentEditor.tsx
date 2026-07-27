@@ -178,6 +178,11 @@ export default function ContentEditor({
                             <Field label="Chapter id" value={draft.chapterId || ""} onChange={(v) => setField("chapterId", v)} />
                             <Field label="Video URL" value={draft.videoUrl || ""} onChange={(v) => setField("videoUrl", v)} />
                             <Field
+                                label="Poster URL"
+                                value={draft.posterUrl || ""}
+                                onChange={(v) => setField("posterUrl", v)}
+                            />
+                            <Field
                                 label="Duration (seconds)"
                                 value={String(draft.durationSeconds ?? "")}
                                 onChange={(v) => setField("durationSeconds", Number(v) || 0)}
