@@ -92,13 +92,20 @@ export async function POST(request: Request) {
         // own request timeout — see createCallBudget for why that matters.
         // Minutes of audio take far longer to transcribe than a page takes to OCR, and
         // non-English speech regularly needs the second model too (the first returns
-        // NO_SPEECH more often on Norwegian/Swedish). Under the default 45s/20s budget
-        // that second attempt collided with the platform's request timeout, so the
-        // gateway killed the request mid-flight and the user saw a contentless
-        // "Transcription failed" — the exact failure the budget exists to prevent.
-        // 100s total / 45s per attempt fits two real attempts inside the function's
-        // 120s ceiling (firebase.json frameworksBackend.timeoutSeconds) with headroom.
-        const budget = createCallBudget(100_000, 45_000);
+        // NO_SPEECH more often on Norwegian/Swedish), so per-attempt time matters.
+        //
+        // HARD CEILING — read before raising these: requests reach this function
+        // through Firebase Hosting's CDN, whose backend rewrites time out at ~60
+        // seconds no matter what frameworksBackend.timeoutSeconds says. A previous
+        // fix set this budget to 100s trusting the function's 120s ceiling; the
+        // function then reliably outlived the edge cutoff, the CDN answered with
+        // its own non-JSON error page, and every long transcription surfaced as a
+        // contentless "Transcription failed" — the exact failure the budget exists
+        // to prevent. The entire request (upload included, which shares the same
+        // 60s window) must finish inside it: 40s total leaves upload headroom, and
+        // 32s per attempt buys one genuinely long attempt plus a short fallback
+        // rather than two truncated ones.
+        const budget = createCallBudget(40_000, 32_000);
 
         for (const model of modelsToTry) {
             const signal = budget.next();
@@ -167,7 +174,25 @@ export async function POST(request: Request) {
             }
         }
 
-        return NextResponse.json({ text: transcript, error: transcript ? null : lastErrorMessage });
+        if (transcript) {
+            return NextResponse.json({ text: transcript, error: null });
+        }
+        // Distinguish "the models genuinely heard no speech" (an answer — 200 with
+        // empty text, the client says so) from "the attempt failed" (an error — the
+        // client must show the reason, not pretend the recording was silent).
+        // Both used to come back as 200, so a timeout read as "no lyrics found".
+        if (lastErrorMessage) {
+            return NextResponse.json(
+                {
+                    text: '',
+                    error: lastErrorMessage.startsWith('Transcription took too long')
+                        ? 'This recording is too long to transcribe in one go. Try a shorter clip.'
+                        : lastErrorMessage,
+                },
+                { status: 504 },
+            );
+        }
+        return NextResponse.json({ text: '', error: null });
     } catch (error: any) {
         console.error('Transcription API error:', error);
         return NextResponse.json({ text: '', error: error.message }, { status: 500 });

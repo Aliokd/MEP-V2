@@ -1707,6 +1707,39 @@ function downmixToMono(audioBuffer: AudioBuffer, audioCtx: AudioContext | Offlin
     return monoBuffer;
 }
 
+/**
+ * Prepares audio for /api/transcribe, preferring the original bytes.
+ *
+ * The old path transcoded EVERYTHING to 16kHz WAV first. That made sense for
+ * odd formats, but for the common ones (mp3/m4a/webm/ogg — which Gemini accepts
+ * natively, and the server already sniffs by magic bytes) it meant decoding a
+ * whole song in the browser and then uploading uncompressed PCM — several times
+ * the original's size. Upload time comes out of the same ~60s Hosting-CDN window
+ * the Gemini call itself must fit in, so an inflated payload was eating the very
+ * seconds long recordings needed to transcribe. Recognised containers are now
+ * sent as-is; only unrecognised ones fall back to the WAV transcode.
+ */
+async function toTranscribeAudioPayload(audioBlob: Blob): Promise<{ body: Blob; contentType: string }> {
+    try {
+        const head = new Uint8Array(await audioBlob.slice(0, 12).arrayBuffer());
+        const hex = Array.from(head, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+        let type: string | null = null;
+        if (hex.startsWith('1A45DFA3')) type = 'audio/webm';
+        else if (hex.startsWith('52494646')) type = 'audio/wav';
+        else if (hex.startsWith('494433') || hex.startsWith('FFF')) type = 'audio/mp3';
+        // ....ftyp = m4a/mp4. Labelled audio/aac rather than audio/mp4: Gemini's
+        // supported-audio list has AAC but not the mp4 container label, and an m4a
+        // is AAC in an mp4 wrapper. If a particular file is still rejected, the
+        // route now returns the real reason instead of a silent failure.
+        else if (hex.slice(8, 16) === '66747970') type = 'audio/aac';
+        else if (String.fromCharCode(...head.slice(0, 4)) === 'OggS') type = 'audio/ogg';
+        if (type) return { body: audioBlob, contentType: type };
+    } catch {
+        // Sniffing failed — fall through to the transcode below.
+    }
+    return { body: await getWavBlob(audioBlob), contentType: 'audio/wav' };
+}
+
 async function getWavBlob(audioBlob: Blob): Promise<Blob> {
     const arrayBuffer = await audioBlob.arrayBuffer();
     const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
@@ -4237,8 +4270,9 @@ export default function CreatePage() {
                     }
 
                     if (fetchedBlob) {
-                        body = await getWavBlob(fetchedBlob);
-                        headers['Content-Type'] = 'application/octet-stream';
+                        const payload = await toTranscribeAudioPayload(fetchedBlob);
+                        body = payload.body;
+                        headers['Content-Type'] = payload.contentType;
                     } else {
                         body = JSON.stringify({ audioUrl: activeNote.audioUrl });
                         headers['Content-Type'] = 'application/json';
@@ -9392,8 +9426,9 @@ export default function CreatePage() {
             }
 
             if (fetchedBlob) {
-                body = await getWavBlob(fetchedBlob);
-                headers['Content-Type'] = 'application/octet-stream';
+                const payload = await toTranscribeAudioPayload(fetchedBlob);
+                body = payload.body;
+                headers['Content-Type'] = payload.contentType;
             } else {
                 body = JSON.stringify({ audioUrl });
                 headers['Content-Type'] = 'application/json';
@@ -12500,7 +12535,12 @@ export default function CreatePage() {
                     {/* Main Studio Sequencer Area */}
                         <div className="w-full flex flex-col gap-6 select-none animate-in fade-in zoom-in-95 duration-250 relative min-h-[20vh] sm:min-h-[24vh] lg:min-h-[28vh]">
                     {/* Unified Sequencer Panel Grid Area */}
-                    <div className="flex flex-col w-full relative gap-6 overflow-x-auto no-scrollbar">
+                    {/* `overflow-x-auto` (for scrolling the wide sequencer) also clips anything
+                        outside the box — which cut the collaborator badges that hang at -left-3.5
+                        clean in half. Grow the clip box 1rem to the left and push the content back
+                        by the same amount: content alignment and the right edge are unchanged, the
+                        badges simply now fall inside the clipping region. */}
+                    <div className="flex flex-col w-[calc(100%+1rem)] -ml-4 pl-4 relative gap-6 overflow-x-auto no-scrollbar">
                     {/* Headers Row */}
                     <div className="hidden lg:flex items-center gap-3 select-none h-8 px-4">
                         <div className="w-5 shrink-0" /> {/* reorder handle gap */}
