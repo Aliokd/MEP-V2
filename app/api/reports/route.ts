@@ -28,7 +28,9 @@ export async function POST(request: Request) {
     let reporterUid: string;
     let reporterEmail: string | null;
     try {
-        const decoded = await adminAuth.verifyIdToken(token);
+        // checkRevoked so a blocked account can't keep filing reports on the
+        // hour its last-issued token still has left.
+        const decoded = await adminAuth.verifyIdToken(token, true);
         reporterUid = decoded.uid;
         reporterEmail = decoded.email || null;
     } catch {

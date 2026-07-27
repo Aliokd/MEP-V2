@@ -54,7 +54,7 @@ const Navigation = () => {
     // link, instead of dropping them back onto the English URL.
     const homeHref = localizePath('/', language);
     const signinHref = localizePath('/signin', language);
-    const onboardingHref = localizePath('/onboarding', language);
+    const waitlistHref = localizePath('/waitlist', language);
 
     if (isAuthPage) {
         return (
@@ -90,7 +90,7 @@ const Navigation = () => {
                 ) : (
                     <div className="flex items-center gap-6">
                         <Link href={signinHref} className="hover:text-black transition-colors font-medium">{t('signin.sign_in')}</Link>
-                        <Link href={onboardingHref} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.join')}</Link>
+                        <Link href={`${waitlistHref}?from=nav`} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.waitlist')}</Link>
                     </div>
                 )}
             </div>

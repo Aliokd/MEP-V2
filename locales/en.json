@@ -689,7 +689,9 @@
     "nav": {
       "qa": "Q&A",
       "signin": "Sign in",
-      "join": "Join now"
+      "join": "Join now",
+      "waitlist": "Join the waitlist",
+      "waitlist_short": "Waitlist"
     },
     "hero": {
       "title_1": "The complete",
@@ -948,7 +950,33 @@
       "enter_email": "Please enter your email address.",
       "invalid_credentials": "Invalid email or password. Please try again.",
       "signin_failed": "Failed to sign in. Please try again.",
-      "reset_failed": "Failed to send password reset email. Please try again."
+      "reset_failed": "Failed to send password reset email. Please try again.",
+      "account_blocked": "This account has been blocked. Email support@veinote.com if you think this is a mistake."
+    }
+  },
+  "account_blocked": {
+    "title": "Your account has been blocked",
+    "body": "Access to Veinote has been turned off for this account. Nothing you've written has been deleted — your songs are still here if the block is lifted.",
+    "contact_support": "Contact support",
+    "back_home": "Back to the home page"
+  },
+  "waitlist": {
+    "title": "Join the waitlist",
+    "subtitle": "Veinote is still in private testing. Leave your email and you'll be among the first ones in.",
+    "email_placeholder": "Email Address",
+    "cta": "Join the waitlist",
+    "joining": "Adding you...",
+    "privacy_note": "We'll only use your address to tell you when Veinote opens. No newsletters, and we never pass it on.",
+    "have_account": "Already have an account?",
+    "done_title": "You're on the list",
+    "done_subtitle": "Thanks for wanting in early.",
+    "done_body_prefix": "We've saved",
+    "done_body_suffix": " — we'll email you the moment Veinote opens its doors.",
+    "back_home": "Back to the home page",
+    "errors": {
+      "enter_email": "Please enter your email address.",
+      "invalid_email": "That doesn't look like a valid email address.",
+      "failed": "Something went wrong. Please try again in a moment."
     }
   },
   "auth_errors": {

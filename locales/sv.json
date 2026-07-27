@@ -689,7 +689,9 @@
     "nav": {
       "qa": "Frågor",
       "signin": "Logga in",
-      "join": "Gå med nu"
+      "join": "Gå med nu",
+      "waitlist": "Ställ dig i kön",
+      "waitlist_short": "Väntelista"
     },
     "hero": {
       "title_1": "Hela din",
@@ -948,7 +950,33 @@
       "enter_email": "Fyll i din e-postadress.",
       "invalid_credentials": "Fel e-postadress eller lösenord. Försök igen.",
       "signin_failed": "Det gick inte att logga in. Försök igen.",
-      "reset_failed": "Det gick inte att skicka återställningsmejlet. Försök igen."
+      "reset_failed": "Det gick inte att skicka återställningsmejlet. Försök igen.",
+      "account_blocked": "Det här kontot är spärrat. Mejla support@veinote.com om du tror att det är ett misstag."
+    }
+  },
+  "account_blocked": {
+    "title": "Ditt konto är spärrat",
+    "body": "Åtkomsten till Veinote är avstängd för det här kontot. Inget du har skrivit är borttaget – dina låtar finns kvar om spärren hävs.",
+    "contact_support": "Kontakta supporten",
+    "back_home": "Tillbaka till startsidan"
+  },
+  "waitlist": {
+    "title": "Ställ dig i kön",
+    "subtitle": "Veinote är fortfarande i sluten testning. Lämna din e-postadress så är du bland de första som släpps in.",
+    "email_placeholder": "E-postadress",
+    "cta": "Ställ mig i kön",
+    "joining": "Lägger till dig ...",
+    "privacy_note": "Vi använder din adress bara för att höra av oss när Veinote öppnar. Inga nyhetsbrev, och vi lämnar den aldrig vidare.",
+    "have_account": "Har du redan ett konto?",
+    "done_title": "Du står i kön",
+    "done_subtitle": "Tack för att du vill vara med tidigt.",
+    "done_body_prefix": "Vi har sparat",
+    "done_body_suffix": " – vi mejlar dig så snart Veinote öppnar dörrarna.",
+    "back_home": "Tillbaka till startsidan",
+    "errors": {
+      "enter_email": "Fyll i din e-postadress.",
+      "invalid_email": "Det där ser inte ut som en giltig e-postadress.",
+      "failed": "Något gick fel. Försök igen om en stund."
     }
   },
   "auth_errors": {

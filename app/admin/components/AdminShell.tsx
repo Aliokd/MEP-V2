@@ -8,7 +8,7 @@ import { auth } from "@/lib/firebase";
 import { useAdmin } from "@/context/AdminContext";
 import { ROLE_LABELS, type AdminPermission } from "@/lib/admin/roles";
 import {
-    LayoutDashboard, Inbox, Users, Flag, MessagesSquare, BookOpen,
+    LayoutDashboard, Inbox, Users, Flag, MessagesSquare, BookOpen, ClipboardList,
     Megaphone, BarChart3, CreditCard, SlidersHorizontal, ScrollText,
     Shield, LogOut, Menu, X, ExternalLink,
 } from "lucide-react";
@@ -34,6 +34,7 @@ const NAV: NavGroup[] = [
             { href: "/admin/inbox", label: "Inbox", icon: Inbox, permission: "inbox.read" },
             { href: "/admin/reports", label: "Reports", icon: Flag, permission: "reports.read" },
             { href: "/admin/community", label: "Community", icon: MessagesSquare, permission: "community.read" },
+            { href: "/admin/waitlist", label: "Waitlist", icon: ClipboardList, permission: "waitlist.read" },
         ],
     },
     {

@@ -27,6 +27,7 @@ export const LOCALIZED_PATHS = [
     '/privacy',
     '/signin',
     '/onboarding',
+    '/waitlist',
     '/reset-password',
 ] as const;
 

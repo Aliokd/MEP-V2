@@ -269,6 +269,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---------------------------------------------------------------------
+    // Pre-launch waitlist
+    // ---------------------------------------------------------------------
+    // Written only by /api/waitlist through the Admin SDK, which bypasses these
+    // rules. Client writes stay closed even though the endpoint is public: a
+    // direct client write would skip the validation, the rate limit and the
+    // notification. Reads are closed to everyone — the console reads it through
+    // /api/admin/waitlist, so a list of strangers' email addresses is never
+    // exposed to a browser holding an ordinary token.
+    match /waitlist/{entryId} {
+      allow read, write: if false;
+    }
+
     // Moderation decisions and sanctions — server-written, moderator-readable.
     match /moderation_actions/{actionId} {
       allow read: if isModerator();

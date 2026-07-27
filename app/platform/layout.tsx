@@ -9,7 +9,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { TreePine, Menu, User, Play, Pause, X, RotateCcw, Brain, ChevronRight } from 'lucide-react';
+import { TreePine, Menu, User, Play, Pause, X, RotateCcw, Brain, ChevronRight, ShieldOff } from 'lucide-react';
 import Logo from '@/components/Logo';
 import Tooltip from '@/components/Tooltip';
 import { db } from '@/lib/firebase';
@@ -62,12 +62,45 @@ function FocusMindPowerPanel(props: Omit<React.ComponentProps<typeof MindPowerPa
     );
 }
 
+/**
+ * Shown instead of the app when the account has been disabled in Firebase Auth —
+ * by a sanction or by hand in the console. The session is already gone by the time
+ * this renders; this exists so being blocked doesn't look like a broken login.
+ */
+function AccountBlockedScreen({ t }: { t: (key: string) => string }) {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-[#E4E4DF] p-6 font-sans text-stone-900">
+            <div className="bg-white rounded-[32px] p-8 md:p-10 max-w-md w-full shadow-[0_24px_60px_rgba(0,0,0,0.08)] flex flex-col items-center text-center gap-6">
+                <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center text-stone-500">
+                    <ShieldOff size={28} strokeWidth={1.5} />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <h1 className="text-2xl font-bold text-stone-850">{t('account_blocked.title')}</h1>
+                    <p className="text-sm text-stone-500 leading-relaxed">{t('account_blocked.body')}</p>
+                </div>
+
+                <a
+                    href="mailto:support@veinote.com"
+                    className="w-full py-4 bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] text-base font-semibold rounded-[16px] transition-all shadow-md hover:shadow-lg shadow-[#87b884]/20 active:scale-[0.98] flex items-center justify-center"
+                >
+                    {t('account_blocked.contact_support')}
+                </a>
+
+                <Link href="/" className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
+                    {t('account_blocked.back_home')}
+                </Link>
+            </div>
+        </div>
+    );
+}
+
 function PlatformLayoutInner({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const { user, loading } = useAuth();
+    const { user, loading, blocked } = useAuth();
     const { t } = useLanguage();
     const router = useRouter();
     const pathname = usePathname();
@@ -296,11 +329,13 @@ function PlatformLayoutInner({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    // A blocked account is signed out too, but must not be bounced to /signin —
+    // that reads as a session glitch and they'd just try again. They get told.
     useEffect(() => {
-        if (!loading && !user) {
+        if (!loading && !user && !blocked) {
             router.push('/signin');
         }
-    }, [user, loading, router]);
+    }, [user, loading, blocked, router]);
 
     const [showWelcomeVideoModal, setShowWelcomeVideoModal] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -384,6 +419,8 @@ function PlatformLayoutInner({
             <div className="w-12 h-12 border-t-2 border-stone-900 rounded-full animate-spin" />
         </div>
     );
+
+    if (blocked) return <AccountBlockedScreen t={t} />;
 
     if (!user) return null;
 

@@ -58,12 +58,31 @@ export async function requireUser(request: Request): Promise<AuthedUser | Respon
     }
 
     try {
-        const decoded = await adminAuth.verifyIdToken(match[1]);
+        // checkRevoked: without it, verification only proves the token was signed
+        // by this project and hasn't expired — it says nothing about the account
+        // still being allowed. Disabling someone in the Firebase console leaves
+        // their existing token valid for up to an hour, during which they could
+        // keep spending money on these routes. With it, the Admin SDK also
+        // confirms the account is neither disabled nor holding a revoked token.
+        const decoded = await adminAuth.verifyIdToken(match[1], true);
         return { uid: decoded.uid };
     } catch (error: any) {
+        const code = error?.code;
+
+        // A blocked account is not a stale session, and telling them to "refresh
+        // and try again" sends them into a loop that can never succeed. 403, not
+        // 401: the identity is fine, the account is not.
+        if (code === 'auth/user-disabled' || code === 'auth/id-token-revoked') {
+            console.info('[apiAuth] Rejected blocked account:', code);
+            return NextResponse.json(
+                { error: 'This account has been blocked. Contact support@veinote.com if you think this is a mistake.', code: 'account-blocked' },
+                { status: 403 },
+            );
+        }
+
         // Expired tokens are routine — the client refreshes and retries — so this
         // is logged at info level rather than as an error.
-        console.info('[apiAuth] Rejected token:', error?.code || error?.message || error);
+        console.info('[apiAuth] Rejected token:', code || error?.message || error);
         return unauthorized('Your session has expired. Please refresh and try again.');
     }
 }

@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Music, Check, Star, Sparkles, Wand2, ShieldCheck, CreditCard, Mail, Lock, User, ArrowRight, ArrowLeft, Inbox, AlertCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/userProfile';
+import { localizePath } from '@/lib/i18n';
 import { useLanguage } from '@/context/LanguageContext';
 import Tooltip from '@/components/Tooltip';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
@@ -101,6 +102,9 @@ function OnboardingPageInner() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [emailShowError, setEmailShowError] = useState(false);
+    // 'checking' until Firebase reports whether anyone is signed in — see the
+    // pre-launch gate below.
+    const [signupGate, setSignupGate] = useState<'checking' | 'allowed' | 'redirecting'>('checking');
 
     const router = useRouter();
     const { language, t } = useLanguage();
@@ -212,6 +216,24 @@ function OnboardingPageInner() {
         };
     }, []);
 
+    // Pre-launch gate. Nobody new gets an account yet, so a visitor who lands
+    // here — an old link, a bookmark, a search result — goes to the waitlist
+    // instead of a signup form that would create a real customer.
+    //
+    // Signed-in people are let through on purpose: this same route serves
+    // `?step=paywall` for the in-platform Max upgrade, and testers already have
+    // accounts. Remove this effect to reopen public signups.
+    useEffect(() => {
+        return onAuthStateChanged(auth, (currentUser) => {
+            if (currentUser) {
+                setSignupGate('allowed');
+            } else {
+                setSignupGate('redirecting');
+                router.replace(`${localizePath('/waitlist', language)}?from=onboarding`);
+            }
+        });
+    }, [router, language]);
+
     const currentQuestion = QUESTIONS[currentQuestionIndex];
 
     const handleAnswer = (value: string, color?: string) => {
@@ -296,6 +318,16 @@ function OnboardingPageInner() {
             setIsLoading(false);
         }
     };
+
+    // Nothing of the signup flow renders until the gate above has decided, so a
+    // visitor never sees a flash of the quiz on their way to the waitlist.
+    if (signupGate !== 'allowed') {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#DCDDD4]">
+                <div className="w-10 h-10 border-t-2 border-stone-900 rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-start md:justify-center px-6 pt-28 pb-12 md:py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">

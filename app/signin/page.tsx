@@ -29,7 +29,9 @@ function SignInPageInner() {
 
     const handleAuthError = (err: any) => {
         console.error('Google Sign-In error details:', err);
-        if (err.code === 'auth/operation-not-allowed') {
+        if (err.code === 'auth/user-disabled') {
+            setError(t('signin.errors.account_blocked'));
+        } else if (err.code === 'auth/operation-not-allowed') {
             setError(t('auth_errors.google_not_enabled'));
         } else if (err.code === 'auth/unauthorized-domain') {
             setError(t('auth_errors.unauthorized_domain'));
@@ -79,7 +81,11 @@ function SignInPageInner() {
             router.push('/platform/create');
         } catch (err: any) {
             console.error('Password sign-in error:', err);
-            if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+            if (err.code === 'auth/user-disabled') {
+                // Blocked, not mistyped — "invalid email or password" would send
+                // them round the reset-password loop forever.
+                setError(t('signin.errors.account_blocked'));
+            } else if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
                 setError(t('signin.errors.invalid_credentials'));
             } else {
                 setError(t('signin.errors.signin_failed'));
@@ -331,7 +337,7 @@ function SignInPageInner() {
                     <div className="mt-8 pt-8 border-t border-stone-200/80 text-center">
                         <p className="text-sm text-stone-600 font-sans font-medium">
                             {t('signin.new_to_veinote')}{' '}
-                            <Link href="/onboarding" className="text-stone-900 transition-colors underline-offset-4 hover:underline font-bold">{t('signin.join')}</Link>
+                            <Link href="/waitlist?from=signin" className="text-stone-900 transition-colors underline-offset-4 hover:underline font-bold">{t('home.nav.waitlist')}</Link>
                         </p>
                     </div>
                 </div>

@@ -42,6 +42,11 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
     // Unauthenticated by design (see app/api/health/ai), so it gets the tightest
     // ceiling of all — enough to debug with, not enough to prod upstreams for free.
     health: { limit: 10, windowMs: 60_000 },
+    // Not an AI route, but the same guard: the waitlist is a public write that
+    // sends an email on every call, so an unbounded loop means both a Firestore
+    // write flood and an inbox flood. A person signs up once; a handful of
+    // attempts covers typos and a re-submit.
+    waitlist: { limit: 6, windowMs: 60_000 },
 };
 
 // Bounded so a flood of distinct clients can't grow this without limit.

@@ -689,7 +689,9 @@
     "nav": {
       "qa": "Spørsmål",
       "signin": "Logg inn",
-      "join": "Bli med"
+      "join": "Bli med",
+      "waitlist": "Sett deg på ventelisten",
+      "waitlist_short": "Venteliste"
     },
     "hero": {
       "title_1": "Hele din",
@@ -948,7 +950,33 @@
       "enter_email": "Skriv inn e-postadressen din.",
       "invalid_credentials": "Feil e-postadresse eller passord. Prøv igjen.",
       "signin_failed": "Kunne ikke logge inn. Prøv igjen.",
-      "reset_failed": "Kunne ikke sende e-post for tilbakestilling. Prøv igjen."
+      "reset_failed": "Kunne ikke sende e-post for tilbakestilling. Prøv igjen.",
+      "account_blocked": "Denne kontoen er sperret. Send en e-post til support@veinote.com hvis du tror det er en feil."
+    }
+  },
+  "account_blocked": {
+    "title": "Kontoen din er sperret",
+    "body": "Tilgangen til Veinote er slått av for denne kontoen. Ingenting du har skrevet er slettet – sangene dine ligger her fortsatt hvis sperren blir opphevet.",
+    "contact_support": "Kontakt support",
+    "back_home": "Tilbake til forsiden"
+  },
+  "waitlist": {
+    "title": "Sett deg på ventelisten",
+    "subtitle": "Veinote er fortsatt i lukket testing. Legg igjen e-postadressen din, så er du blant de første som slipper inn.",
+    "email_placeholder": "E-postadresse",
+    "cta": "Sett meg på listen",
+    "joining": "Legger deg til ...",
+    "privacy_note": "Vi bruker adressen din bare til å si fra når Veinote åpner. Ingen nyhetsbrev, og vi gir den aldri videre.",
+    "have_account": "Har du allerede en konto?",
+    "done_title": "Du står på listen",
+    "done_subtitle": "Takk for at du vil være med tidlig.",
+    "done_body_prefix": "Vi har lagret",
+    "done_body_suffix": " – vi sender deg en e-post så snart Veinote åpner dørene.",
+    "back_home": "Tilbake til forsiden",
+    "errors": {
+      "enter_email": "Skriv inn e-postadressen din.",
+      "invalid_email": "Dette ser ikke ut som en gyldig e-postadresse.",
+      "failed": "Noe gikk galt. Prøv igjen om litt."
     }
   },
   "auth_errors": {

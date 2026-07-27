@@ -53,6 +53,8 @@ export type AdminPermission =
     // Analytics & billing
     | "analytics.read"
     | "billing.read"
+    // Pre-launch waitlist
+    | "waitlist.read"
     // Ops
     | "ops.read"
     | "ops.write"
@@ -70,6 +72,7 @@ const SUPPORT_PERMISSIONS: AdminPermission[] = [
     "community.read",
     "content.read",
     "announcements.read",
+    "waitlist.read",
 ];
 
 const MODERATOR_PERMISSIONS: AdminPermission[] = [
@@ -90,6 +93,7 @@ const EDITOR_PERMISSIONS: AdminPermission[] = [
     "analytics.read",
     "community.read",
     "users.read",
+    "waitlist.read",
 ];
 
 const ALL_PERMISSIONS: AdminPermission[] = [
@@ -114,6 +118,7 @@ const ALL_PERMISSIONS: AdminPermission[] = [
     "announcements.send",
     "analytics.read",
     "billing.read",
+    "waitlist.read",
     "ops.read",
     "ops.write",
     "audit.read",
