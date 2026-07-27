@@ -42,7 +42,11 @@ const Navigation = () => {
     const isHome = pathname === '/';
     if (isPlatform || isAdmin || isOnboarding || isHome) return null; // Hide for platform, admin, onboarding, or home
 
-    const isAuthPage = pathname === '/signin' || pathname === '/reset-password';
+    // These pages own their own top-right language switcher and are a dead end by
+    // design — nav links back into a site you can't sign up for just add noise —
+    // so they get the centered logo and nothing else. /waitlist belongs here: with
+    // the full nav it rendered a second logo and a second switcher over the page's.
+    const isAuthPage = pathname === '/signin' || pathname === '/reset-password' || pathname === '/waitlist';
 
     const navClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 

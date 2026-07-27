@@ -8,7 +8,6 @@ import { ArrowRight, AlertCircle, Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizePath } from '@/lib/i18n';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
-import Logo from '@/components/Logo';
 
 export default function WaitlistPage() {
     return (
@@ -67,11 +66,8 @@ function WaitlistPageInner() {
 
     return (
         <div className="min-h-screen flex items-center justify-center px-6 py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">
-            <div className="absolute top-8 left-6 md:top-12 md:left-10 z-50">
-                <Link href={localizePath('/', language)} className="hover:opacity-80 transition-opacity">
-                    <Logo size="lg" />
-                </Link>
-            </div>
+            {/* No logo here — the shared Navigation renders it, centered, for this
+                page (see isAuthPage). Two of them stacked before. */}
             <div className="absolute top-8 right-6 md:top-12 md:right-10 z-50">
                 <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
             </div>
