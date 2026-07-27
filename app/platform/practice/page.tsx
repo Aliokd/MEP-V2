@@ -1,25 +1,28 @@
 "use client";
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import { useEffect } from 'react';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import PracticeTab from './components/PracticeTab';
-import Logo from '@/components/Logo';
-import Link from 'next/link';
+
+// The practice sessions are being rebuilt, so the tab is locked behind a
+// "coming soon" screen. Flip this to true to bring the existing PracticeTab
+// back — nothing else needs to change.
+const PRACTICE_ENABLED: boolean = false;
 
 export default function PracticePage() {
     const { user, loading: authLoading } = useAuth();
-    const router = useRouter();
+    const { t } = useLanguage();
 
-    // Track active session practice time (accumulate seconds spent in Practice tab)
+    // Track active session practice time (accumulate seconds spent in Practice tab).
+    // Paused while the tab is locked — a "coming soon" screen isn't practice time.
     useEffect(() => {
+        if (!PRACTICE_ENABLED) return;
         const interval = setInterval(() => {
             const storedSeconds = parseInt(localStorage.getItem('mep-practice-seconds') || '0');
             const nextSeconds = storedSeconds + 10; // add 10 seconds
             safeLocalStorageSetItem('mep-practice-seconds', nextSeconds.toString());
-            
+
             // Dispatch event to update the platform header progress calculations
             window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
         }, 10000); // every 10 seconds
@@ -34,14 +37,23 @@ export default function PracticePage() {
 
     if (!user) return null;
 
-    const handleLogout = async () => {
-        try {
-            await signOut(auth);
-            router.push('/');
-        } catch (error) {
-            console.error("Logout error:", error);
-        }
-    };
+    if (!PRACTICE_ENABLED) {
+        return (
+            <div className="w-full min-h-[60vh] flex items-center justify-center px-6 py-10">
+                <div className="flex flex-col items-center text-center gap-4 max-w-md">
+                    <h1 className="font-serif italic font-light text-3xl md:text-4xl text-stone-900">
+                        {t('practice.locked_title')}
+                    </h1>
+                    <span className="inline-block bg-stone-100 text-stone-500 rounded-full px-4 py-1.5 text-sm font-sans">
+                        {t('common.coming_soon')}
+                    </span>
+                    <p className="text-stone-500 text-sm font-sans leading-relaxed">
+                        {t('practice.locked_desc')}
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full">

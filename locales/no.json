@@ -524,6 +524,8 @@
     }
   },
   "practice": {
+    "locked_title": "Øv",
+    "locked_desc": "Vi bygger om øvingsøktene. Denne fanen er tilbake med den nye versjonen.",
     "master_song_structure": "Mestre sangstruktur",
     "composing_verses": "Komponere vers",
     "melody_harmony": "Melodi og harmoni",

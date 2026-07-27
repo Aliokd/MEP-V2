@@ -524,6 +524,8 @@
     }
   },
   "practice": {
+    "locked_title": "Practice",
+    "locked_desc": "We're rebuilding the practice sessions. This tab comes back with the new version.",
     "master_song_structure": "Master song structure",
     "composing_verses": "Composing verses",
     "melody_harmony": "Melody & harmony",

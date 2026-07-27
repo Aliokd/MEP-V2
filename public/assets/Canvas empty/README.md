@@ -8,7 +8,41 @@ illustration anchored to its bottom edge.
 | ---- | ---- | --------------- |
 | `top-loop.mp4` | Animated sky (clouds + birds) | **Yes** |
 | `Top looped.mp4` | Original export | No — source only |
-| `Bottom.png` | Static landmark illustration | **Yes** |
+| `bottom.webp` | Static landmark illustration | **Yes** |
+| `Bottom.png` | Original export | No — source only |
+
+## Why `bottom.webp` exists
+
+`Bottom.png` is 3.1 MB and arrived visibly late on a real connection. Two things
+were wrong with it: its **top 63% is fully transparent** — a large dead band
+being encoded for nothing — and PNG is a poor fit for a painterly illustration.
+Cropping that band away and encoding the remainder as WebP gives **283 KB, a 91%
+reduction**, at a quality indistinguishable from the original when checked
+side by side.
+
+```bash
+node -e "require('sharp')('Bottom.png') \
+  .extract({left:0, top:965, width:2752, height:571}) \
+  .webp({quality:82, alphaQuality:90}).toFile('bottom.webp')"
+```
+
+`top: 965` is the first row containing any non-transparent pixel. Re-derive it if
+the illustration is re-exported — do not assume it:
+
+```bash
+node -e "const s=require('sharp');(async()=>{const{data,info}=await \
+s('Bottom.png').raw().toBuffer({resolveWithObject:true});const{width,height,channels}=info;\
+for(let y=0;y<height;y++){for(let x=0;x<width;x+=4){\
+if(data[(y*width+x)*channels+3]>8){console.log('crop top =',y);return}}}})()"
+```
+
+Cropping is safe for the layout: the removed band was empty, the element is
+bottom-anchored, and the zoom scales about `bottom center`, so the artwork moves
+by a fraction of its own height regardless of how much blank space sits above it.
+
+Note PNG is *not* the smaller format here even after cropping — re-encoding the
+cropped PNG actually came out larger than the original, because PNG compresses a
+uniform transparent region extremely well. The win is WebP, not the crop alone.
 
 ## Why `top-loop.mp4` exists
 
@@ -63,7 +97,11 @@ bitrate to ~410 kbps and was a real quality regression.
   screens are invisible because the video's background and the card are both
   white. Raising this cap trades sharpness for scale; it cannot add detail the
   720p source does not have.
-- `Bottom.png` is transparent above the illustration itself, so anchoring it to
-  the bottom lets the sky show through above it at any card height.
+- The illustration is bottom-anchored and sized by its own aspect ratio, so the
+  sky shows above it at any card height.
+- Both assets are loaded eagerly (`preload="auto"` on the video,
+  `loading="eager"` + `fetchPriority="high"` on the image). They are the first
+  thing visible on an empty canvas, so the browser's default lazy heuristics
+  make them arrive noticeably late.
 - Both layers render at 50% opacity, behind everything, and are
   `pointer-events-none` so they never intercept clicks meant for the canvas.

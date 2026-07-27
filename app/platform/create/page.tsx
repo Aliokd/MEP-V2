@@ -15176,15 +15176,27 @@ export default function CreatePage() {
                             className="canvas-sky-dissolve absolute top-0 left-0 -translate-y-[15%] w-full h-auto"
                             src="/assets/Canvas%20empty/top-loop.mp4"
                         />
-                        {/* Bottom.png is mostly transparent above the illustration itself, so
-                            anchoring it to the bottom and letting it size by its own (wide)
-                            aspect ratio naturally reveals the video as sky above the landmarks,
-                            regardless of how tall the card is. It eases forward as the sky
-                            dissolves — see .canvas-land-approach in globals.css for why the pair
-                            is driven by CSS rather than the video's own playback events. */}
+                        {/* Anchored to the bottom and sized by its own aspect ratio, so the sky
+                            shows above the landmarks at any card height. It eases forward as the
+                            sky dissolves — see .canvas-land-approach in globals.css for why the
+                            pair is driven by CSS rather than the video's playback events.
+
+                            src is `bottom.webp`, not the 3.1 MB `Bottom.png` it was: the source
+                            spends its top 63% on fully transparent pixels, so that dead band is
+                            cropped away and the rest encoded as WebP — 283 KB, a 91% saving, and
+                            visually indistinguishable. Cropping does not shift anything, since
+                            the removed band was empty and the element is bottom-anchored; the
+                            zoom is likewise unaffected, as scaling about `bottom center` moves
+                            the artwork by a fraction of its own height either way.
+
+                            eager + high priority because this is the first thing on an empty
+                            canvas — the default lazy heuristics let it arrive visibly late. */}
                         <img
-                            src="/assets/Canvas%20empty/Bottom.png"
+                            src="/assets/Canvas%20empty/bottom.webp"
                             alt=""
+                            loading="eager"
+                            fetchPriority="high"
+                            decoding="async"
                             className="canvas-land-approach absolute bottom-0 left-0 w-full h-auto opacity-50"
                         />
                         {/* Warm paper grain, laid over both artwork layers rather than under
