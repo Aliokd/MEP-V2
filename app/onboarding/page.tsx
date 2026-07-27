@@ -14,6 +14,7 @@ import Tooltip from '@/components/Tooltip';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import IntroCarousel from './components/IntroCarousel';
 import PaywallPlans from './components/PaywallPlans';
+import QuestionCards from './components/QuestionCards';
 
 const STEPS = {
     INTRO: 'intro',
@@ -28,6 +29,9 @@ const STEPS = {
 const QUESTIONS = [
     {
         id: 'songwriter_type',
+        // Rendered as picture cards rather than the default option list —
+        // its labels live under `options.<value>.title` / `.desc`.
+        isCards: true,
         options: [
             { value: "lyricist" },
             { value: "melodist" },
@@ -365,6 +369,15 @@ function OnboardingPageInner() {
                                 </div>
                             </div>
 
+                            {(currentQuestion as any).isCards ? (
+                                <QuestionCards
+                                    questionId={currentQuestion.id}
+                                    options={currentQuestion.options}
+                                    selectedOption={selectedOption}
+                                    disabled={isTransitioning}
+                                    onSelect={(value) => handleAnswer(value)}
+                                />
+                            ) : (
                             <div className="grid gap-3 md:gap-5">
                                 {currentQuestion.options.map((option) => (
                                     <motion.button
@@ -389,6 +402,7 @@ function OnboardingPageInner() {
                                     </motion.button>
                                 ))}
                             </div>
+                            )}
                         </motion.div>
                     )}
 

@@ -1,47 +1,20 @@
 import './globals.css';
-import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { Providers } from '@/context/Providers';
 import Navigation from '@/components/Navigation';
 import Script from 'next/script';
-import en from '@/locales/en.json';
-import no from '@/locales/no.json';
-import sv from '@/locales/sv.json';
-import {
-    LANG_HEADER,
-    PATH_HEADER,
-    SITE_URL,
-    isLanguage,
-    isLocalizedPath,
-    localizePath,
-    type Language,
-} from '@/lib/i18n';
-
-// Middleware resolves the locale from the URL prefix; fall back to English for
-// any request that somehow bypasses it.
-async function resolveLocale(): Promise<{ language: Language; path: string; fromUrl: boolean }> {
-    const h = await headers();
-    const headerLang = h.get(LANG_HEADER);
-    const language: Language = isLanguage(headerLang) ? headerLang : 'en';
-    const path = h.get(PATH_HEADER) || '/';
-    return { language, path, fromUrl: isLocalizedPath(path) };
-}
-
-// The title and description are what show in search results, so they follow the
-// locale too — the layout is a server component and reads the bundles directly.
-const META: Record<Language, { title: string; description: string }> = {
-    en: en.meta,
-    no: no.meta,
-    sv: sv.meta,
-};
+import { resolveServerLocale } from '@/lib/server-locale';
+import { getServerT } from '@/lib/i18n-content';
+import { SITE_URL, isLocalizedPath, localizePath } from '@/lib/i18n';
 
 export async function generateMetadata(): Promise<Metadata> {
-    const { language, path } = await resolveLocale();
+    const { language, path } = await resolveServerLocale();
+    const t = getServerT(language);
     const canonical = SITE_URL + localizePath(path, language);
 
     const base: Metadata = {
-        title: META[language].title,
-        description: META[language].description,
+        title: t('meta.title'),
+        description: t('meta.description'),
         icons: { icon: '/favicon.png' },
         verification: { google: 'SSxN1LbKQDoJkun4cXEDtoKUb4dmIu_nU7Q58USxWYs' },
     };
@@ -69,7 +42,7 @@ export default async function RootLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const { language, fromUrl } = await resolveLocale();
+    const { language, fromUrl } = await resolveServerLocale();
 
     return (
         <html lang={language} suppressHydrationWarning>

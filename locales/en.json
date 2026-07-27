@@ -11,7 +11,12 @@
     "redo": "Redo",
     "complete": "Complete",
     "completing": "Completing",
-    "saved": "Saved"
+    "saved": "Saved",
+    "home": "Home",
+    "about": "About",
+    "reset": "Reset",
+    "coming_soon": "Coming soon",
+    "save_changes": "Save Changes"
   },
   "navigation": {
     "create": "Create",
@@ -22,7 +27,10 @@
     "feedback": "Share feedback",
     "support": "Support",
     "logout": "Log out",
-    "my_profile": "My profile"
+    "my_profile": "My profile",
+    "enter_platform": "Enter Platform",
+    "expand_sidebar": "Expand Sidebar",
+    "collapse_sidebar": "Collapse Sidebar"
   },
   "lexicon": {
     "title": "Rhyme Lexicon & Synonyms",
@@ -565,7 +573,18 @@
     "audio_unavailable": "Audio stream unavailable",
     "localhost_warning": "Make sure the audio stream is running on localhost.",
     "tuning": "Tuning the frequency...",
-    "try_again": "Try again"
+    "try_again": "Try again",
+    "previous_practice": "Previous Practice",
+    "next_practice": "Next Practice",
+    "previous_step": "Previous Step",
+    "next_step": "Next Step",
+    "apply_connections": "Apply connections",
+    "sentence_placeholder": "Type your sentence here...",
+    "finalize_lyrics": "Finalize lyrics",
+    "start_new_practice": "Start a new practice",
+    "retry_connection": "Retry connection",
+    "back_to_song_list": "Back to song list",
+    "clear_selection": "Clear selection"
   },
   "curriculum": {
     "foundation": "Foundation",
@@ -760,11 +779,11 @@
       "songwriter_type": {
         "question": "What describes you best?",
         "options": {
-          "lyricist": "The Lyricist: Words come first.",
-          "melodist": "The Melodist: I hear melodies before lyrics.",
-          "producer": "The Producer: I build songs through sound and rhythm.",
-          "storyteller": "The Storyteller: I want to express emotions and experiences.",
-          "explorer": "The Explorer: I'm still discovering my style."
+          "lyricist": { "title": "The Lyricist", "desc": "Words come first." },
+          "melodist": { "title": "The Melodist", "desc": "I hear melodies before lyrics." },
+          "producer": { "title": "The Producer", "desc": "I build songs through sound and rhythm." },
+          "storyteller": { "title": "The Storyteller", "desc": "I want to express emotions and experiences." },
+          "explorer": { "title": "The Explorer", "desc": "I'm still discovering my style." }
         }
       },
       "struggle": {
@@ -1009,5 +1028,105 @@
   "meta": {
     "title": "Veinote - The home of human songwriting",
     "description": "No AI-generated songs. You create them. You own them."
+  },
+  "about": {
+    "eyebrow": "About Veinote",
+    "title_1": "The home of",
+    "title_2": "human songwriting.",
+    "intro": "No AI-generated songs. You create them. You own them. Veinote combines creative tools, expert guidance, and a supportive community to help songwriters actually finish what they start.",
+    "story_title": "Why we built this",
+    "story_p1": "Most songwriters never finish their songs. Not from a lack of talent or ideas, but because the process from first lyric to finished recording has no clear path — and it's easy to lose momentum somewhere in the middle.",
+    "story_p2": "Veinote was founded in 2026 in Stockholm by a small team of songwriters and builders, including co-founder Peter Nordberg — a platinum-selling, top 2% songwriter worldwide with over 30 years of experience and 250+ released songs. His lessons, exercises, and creative frameworks guide songwriters through every stage of the platform.",
+    "story_p3": "We believe songwriting is a human craft. As AI-generated music becomes more common, we're building the opposite: tools that help you write, finish, and own songs that are genuinely yours.",
+    "pillars_title": "How Veinote works",
+    "pillars": {
+      "learn": "Bite-sized lessons and exercises that build real songwriting craft, one idea at a time.",
+      "create": "A canvas built for lyrics, melodies, voice notes, and ideas to come together in one flow.",
+      "practice": "Guided sessions that turn theory into muscle memory, so writing songs gets easier every time.",
+      "connect": "A community of songwriters sharing work, feedback, and encouragement along the way."
+    }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "effective_date": "Effective July 2026",
+    "sections": {
+      "introduction": {
+        "title": "Introduction",
+        "body": "Veinote (\"we\", \"us\", \"our\") operates veinote.com and the Veinote platform. This policy explains what information we collect, how we use it, and the choices you have. By using Veinote, you agree to the practices described here."
+      },
+      "info_we_collect": {
+        "title": "Information we collect",
+        "body": "We collect information you provide directly, such as your name, email address, and password when you create an account. We also store the content you create on Veinote — lyrics, voice recordings, images, documents, and project data — so it can be saved and shown back to you. We automatically collect basic usage data, such as which pages and features you use, to help us understand and improve the product."
+      },
+      "how_we_use": {
+        "title": "How we use your information",
+        "body": "We use your information to provide and maintain the platform, save and sync your songs and progress, respond to support requests and feedback, send account-related and product emails, and improve Veinote's features and reliability. We do not sell your personal information."
+      },
+      "your_content": {
+        "title": "Your content",
+        "body": "The lyrics, recordings, and other creative content you make in Veinote belong to you. We store it so you can access and edit it across sessions and devices, and we do not use your creative content to train AI models."
+      },
+      "cookies_analytics": {
+        "title": "Cookies & analytics",
+        "body": "We use essential cookies to keep you signed in and to remember basic preferences. We also use analytics tools, including Microsoft Clarity, to understand how the site is used so we can improve it. Analytics data is used in aggregate and is not sold to third parties."
+      },
+      "third_party": {
+        "title": "Third-party services",
+        "body": "Veinote relies on trusted third-party services to operate — including Firebase (authentication, database, and file storage) and email delivery providers for transactional messages. These providers process data on our behalf and are bound by their own privacy and security obligations."
+      },
+      "data_security": {
+        "title": "Data security",
+        "body": "We use industry-standard measures, including encrypted connections and access controls, to protect your information. No method of storage or transmission is completely secure, but we work to keep your data safe and to respond quickly if something goes wrong."
+      },
+      "data_retention": {
+        "title": "Data retention & deletion",
+        "body": "We keep your account and content for as long as your account is active. You can request deletion of your account and associated data at any time by contacting us — see below."
+      },
+      "your_rights": {
+        "title": "Your rights",
+        "body": "Depending on where you live, you may have the right to access, correct, export, or delete your personal information. To exercise any of these rights, contact us and we'll respond as quickly as we can."
+      },
+      "childrens_privacy": {
+        "title": "Children's privacy",
+        "body": "Veinote is not directed at children under 13, and we do not knowingly collect personal information from children under 13."
+      },
+      "changes": {
+        "title": "Changes to this policy",
+        "body": "We may update this policy from time to time. If we make material changes, we'll let you know by posting the updated policy here with a new effective date."
+      },
+      "contact": {
+        "title": "Contact us",
+        "body": "Questions about this policy or your data? Reach us any time at support@veinote.com."
+      }
+    }
+  },
+  "reset_password": {
+    "page_title": "Reset password",
+    "page_subtitle": "Secure your access to Veinote.",
+    "verifying": "Verifying link validity...",
+    "loading_form": "Loading form...",
+    "invalid_request": "Invalid request. The password reset code is missing.",
+    "invalid_or_expired": "This password reset link is invalid or has expired.",
+    "fill_all_fields": "Please fill in all fields.",
+    "passwords_dont_match": "Passwords do not match.",
+    "code_missing": "Reset code is missing. Please request a new link.",
+    "success_message": "Your password has been reset successfully.",
+    "redirecting": "Redirecting to sign in...",
+    "generic_error": "Failed to reset password. The link may have expired.",
+    "success_title": "Password Reset!",
+    "choose_new_password": "Choose a new password",
+    "enter_new_password_desc": "Enter your new secure password below.",
+    "new_password_placeholder": "New Password",
+    "confirm_new_password_placeholder": "Confirm New Password",
+    "resetting": "Resetting...",
+    "reset_button": "Reset Password"
+  },
+  "platform_layout": {
+    "outstanding_effort_title": "Outstanding effort!",
+    "outstanding_effort_desc": "You have achieved 100% of your songwriting progress. Your daily dedication to building visual stories and lyric concepts is paying off. Keep up this momentum!",
+    "start_next_journey": "Start next journey ➔",
+    "close_welcome_video": "Close welcome video",
+    "replay_video": "Replay video",
+    "start_now": "Start now"
   }
 }

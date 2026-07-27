@@ -172,7 +172,7 @@ export default function PracticeTab() {
                     <button 
                         onClick={handlePrevPractice}
                         className="w-9 h-9 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-500 hover:text-stone-900"
-                        aria-label="Previous Practice"
+                        aria-label={t('practice.previous_practice')}
                     >
                         <ChevronLeft size={18} className="stroke-[2.2]" />
                     </button>
@@ -234,7 +234,7 @@ export default function PracticeTab() {
                     <button 
                         onClick={handleNextPractice}
                         className="w-9 h-9 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-500 hover:text-stone-900"
-                        aria-label="Next Practice"
+                        aria-label={t('practice.next_practice')}
                     >
                         <ChevronRight size={18} className="stroke-[2.2]" />
                     </button>
@@ -336,7 +336,7 @@ export default function PracticeTab() {
                                     disabled={currentStep === 1}
                                     onClick={() => setCurrentStep(prev => prev - 1)}
                                     className="w-8 h-8 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center justify-center text-stone-500"
-                                    aria-label="Previous Step"
+                                    aria-label={t('practice.previous_step')}
                                 >
                                     <ChevronLeft size={16} className="stroke-[2.2]" />
                                 </button>
@@ -347,7 +347,7 @@ export default function PracticeTab() {
                                     disabled={currentStep === 6 || !isStepComplete(currentStep)}
                                     onClick={() => setCurrentStep(prev => prev + 1)}
                                     className="w-8 h-8 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center justify-center text-stone-500"
-                                    aria-label="Next Step"
+                                    aria-label={t('practice.next_step')}
                                 >
                                     <ChevronRight size={16} className="stroke-[2.2]" />
                                 </button>
@@ -605,7 +605,7 @@ export default function PracticeTab() {
                                                     onClick={() => { setConnections([]); setPendingNounIndex(null); }}
                                                     className="text-sm font-sans text-stone-500 hover:text-stone-900 transition-colors"
                                                 >
-                                                    Reset
+                                                    {t('common.reset')}
                                                 </button>
                                                 <button
                                                     disabled={connections.length < 5}
@@ -617,7 +617,7 @@ export default function PracticeTab() {
                                                             : 'bg-stone-100 text-stone-400 cursor-not-allowed'}
                                                     `}
                                                 >
-                                                    Apply connections
+                                                    {t('practice.apply_connections')}
                                                 </button>
                                             </div>
                                         </div>
@@ -691,7 +691,7 @@ export default function PracticeTab() {
                                                                 newSentences[idx] = e.target.value;
                                                                 setSentences(newSentences);
                                                             }}
-                                                            placeholder="Type your sentence here..."
+                                                            placeholder={t('practice.sentence_placeholder')}
                                                             className="w-full bg-transparent border-b border-stone-300 py-3.5 px-4 text-lg font-serif text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-stone-800 text-center"
                                                         />
                                                         <div className="absolute right-2 bottom-3">
@@ -718,7 +718,7 @@ export default function PracticeTab() {
                                                         ? 'bg-stone-900 text-[#FAF9F5] hover:bg-stone-800 active:scale-98'
                                                         : 'bg-stone-100 text-stone-400 cursor-not-allowed'}`}
                                             >
-                                                Finalize lyrics
+                                                {t('practice.finalize_lyrics')}
                                             </button>
                                         </div>
                                     </div>
@@ -797,7 +797,7 @@ export default function PracticeTab() {
                                                 }} 
                                                 className="px-10 py-3.5 bg-stone-900 text-[#FAF9F5] hover:bg-stone-800 rounded-full text-sm font-sans font-medium active:scale-98 transition-colors"
                                             >
-                                                Start a new practice
+                                                {t('practice.start_new_practice')}
                                             </button>
                                         </div>
                                     </div>
@@ -818,7 +818,7 @@ export default function PracticeTab() {
                             <div className="text-center space-y-3">
                                 <p className="text-stone-900 font-serif italic text-xl tracking-tight font-light">{getTranslatedPracticeName(selectedPractice)}</p>
                                 <span className="inline-block bg-stone-100 text-stone-500 rounded-full px-3 py-1 text-xs font-sans">
-                                    Coming soon
+                                    {t('common.coming_soon')}
                                 </span>
                             </div>
                         </motion.div>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { ComponentType, ReactNode } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Heart } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -169,37 +169,34 @@ export default function IntroCarousel({ onComplete }: { onComplete: () => void }
     };
 
     return (
-        // No `exit` here on purpose: the page-level AnimatePresence runs in
-        // `mode="wait"`, and an exit animation on this wrapper never resolves —
-        // the intro would fade out and hang instead of handing off to the quiz.
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="space-y-8"
         >
             <div className="rounded-[28px] border border-stone-200/70 bg-[#FAF9F5] px-6 py-10 shadow-[0_8px_30px_rgba(0,0,0,0.02)] md:px-12 md:py-14">
-                {/* Keyed on the slide id so React remounts it and the enter
-                    animation replays. Deliberately not an AnimatePresence — this
-                    sits inside the page-level `AnimatePresence mode="wait"`, and
-                    nesting one here leaves the exiting slide stuck on screen. */}
-                <motion.div
-                    key={slide.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-10"
-                >
-                    <h2 className="mx-auto max-w-md text-center text-3xl font-sans font-light leading-[1.1] tracking-tight text-[#363636] md:text-[2.75rem]">
-                        {title}
-                    </h2>
-                    <div className="h-[220px] md:h-[280px]">
-                        {slide.image ? (
-                            <img src={slide.image} alt={title} className="h-full w-full object-contain" />
-                        ) : (
-                            <slide.Art />
-                        )}
-                    </div>
-                </motion.div>
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={slide.id}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-10"
+                    >
+                        <h2 className="mx-auto max-w-md text-center text-3xl font-sans font-light leading-[1.1] tracking-tight text-[#363636] md:text-[2.75rem]">
+                            {title}
+                        </h2>
+                        <div className="h-[220px] md:h-[280px]">
+                            {slide.image ? (
+                                <img src={slide.image} alt={title} className="h-full w-full object-contain" />
+                            ) : (
+                                <slide.Art />
+                            )}
+                        </div>
+                    </motion.div>
+                </AnimatePresence>
             </div>
 
             <div className="flex flex-col-reverse items-center gap-5 sm:relative sm:flex-row sm:justify-center">

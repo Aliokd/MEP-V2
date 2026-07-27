@@ -11,7 +11,12 @@
     "redo": "Gör om",
     "complete": "Slutför",
     "completing": "Slutför...",
-    "saved": "Sparat"
+    "saved": "Sparat",
+    "home": "Hem",
+    "about": "Om oss",
+    "reset": "Återställ",
+    "coming_soon": "Kommer snart",
+    "save_changes": "Spara ändringar"
   },
   "navigation": {
     "create": "Skapa",
@@ -22,7 +27,10 @@
     "feedback": "Dela feedback",
     "support": "Hjälp & support",
     "logout": "Logga ut",
-    "my_profile": "Min profil"
+    "my_profile": "Min profil",
+    "enter_platform": "Gå till plattformen",
+    "expand_sidebar": "Visa sidopanelen",
+    "collapse_sidebar": "Dölj sidopanelen"
   },
   "lexicon": {
     "title": "Rimlexikon och synonymer",
@@ -565,7 +573,18 @@
     "audio_unavailable": "Ljudströmmen är inte tillgänglig",
     "localhost_warning": "Se till att ljudströmmen körs på localhost.",
     "tuning": "Justerar frekvensen...",
-    "try_again": "Försök igen"
+    "try_again": "Försök igen",
+    "previous_practice": "Föregående övning",
+    "next_practice": "Nästa övning",
+    "previous_step": "Föregående steg",
+    "next_step": "Nästa steg",
+    "apply_connections": "Använd kopplingarna",
+    "sentence_placeholder": "Skriv din mening här...",
+    "finalize_lyrics": "Färdigställ texten",
+    "start_new_practice": "Starta en ny övning",
+    "retry_connection": "Försök ansluta igen",
+    "back_to_song_list": "Tillbaka till låtlistan",
+    "clear_selection": "Rensa valet"
   },
   "curriculum": {
     "foundation": "Grund",
@@ -760,11 +779,11 @@
       "songwriter_type": {
         "question": "Vad beskriver dig bäst?",
         "options": {
-          "lyricist": "Textförfattaren: Orden kommer först.",
-          "melodist": "Melodiskaparen: Jag hör melodier före text.",
-          "producer": "Producenten: Jag bygger låtar med ljud och rytm.",
-          "storyteller": "Berättaren: Jag vill uttrycka känslor och upplevelser.",
-          "explorer": "Utforskaren: Jag letar fortfarande efter min stil."
+          "lyricist": { "title": "Textförfattaren", "desc": "Orden kommer först." },
+          "melodist": { "title": "Melodiskaparen", "desc": "Jag hör melodier före text." },
+          "producer": { "title": "Producenten", "desc": "Jag bygger låtar med ljud och rytm." },
+          "storyteller": { "title": "Berättaren", "desc": "Jag vill uttrycka känslor och upplevelser." },
+          "explorer": { "title": "Utforskaren", "desc": "Jag letar fortfarande efter min stil." }
         }
       },
       "struggle": {
@@ -1009,5 +1028,105 @@
   "meta": {
     "title": "Veinote – hemmet för mänskligt låtskrivande",
     "description": "Inga AI-genererade låtar. Du skapar dem. Du äger dem."
+  },
+  "about": {
+    "eyebrow": "Om Veinote",
+    "title_1": "Hemmet för",
+    "title_2": "mänskligt låtskrivande.",
+    "intro": "Inga AI-genererade låtar. Du skapar dem. Du äger dem. Veinote samlar kreativa verktyg, vägledning från erfarna låtskrivare och en stöttande gemenskap som hjälper låtskrivare att faktiskt göra klart det de börjar på.",
+    "story_title": "Varför vi byggde det här",
+    "story_p1": "De flesta låtskrivare gör aldrig klart sina låtar. Inte för att de saknar talang eller idéer, utan för att vägen från första textraden till en färdig inspelning saknar en tydlig riktning — och det är lätt att tappa fart någonstans på vägen.",
+    "story_p2": "Veinote grundades 2026 i Stockholm av ett litet team av låtskrivare och utvecklare, bland dem medgrundare Peter Nordberg — en platinasäljande låtskrivare bland de 2 % bästa i världen, med över 30 års erfarenhet och 250+ släppta låtar. Hans lektioner, övningar och kreativa ramverk vägleder låtskrivare genom hela plattformen.",
+    "story_p3": "Vi tror att låtskrivande är ett mänskligt hantverk. I takt med att AI-genererad musik blir vanligare bygger vi motsatsen: verktyg som hjälper dig att skriva, göra klart och äga låtar som verkligen är dina egna.",
+    "pillars_title": "Så fungerar Veinote",
+    "pillars": {
+      "learn": "Korta lektioner och övningar som bygger äkta låtskrivarhantverk, en idé i taget.",
+      "create": "En canvas byggd för att texter, melodier, röstanteckningar och idéer ska komma samman i ett och samma flöde.",
+      "practice": "Guidade pass som gör teori till muskelminne, så att det blir lättare att skriva låtar för varje gång.",
+      "connect": "En gemenskap av låtskrivare som delar arbete, feedback och uppmuntran längs vägen."
+    }
+  },
+  "privacy": {
+    "title": "Integritetspolicy",
+    "effective_date": "Gäller från juli 2026",
+    "sections": {
+      "introduction": {
+        "title": "Introduktion",
+        "body": "Veinote (\"vi\", \"oss\", \"vår\") driver veinote.com och Veinote-plattformen. Den här policyn förklarar vilken information vi samlar in, hur vi använder den och vilka val du har. Genom att använda Veinote godkänner du den praxis som beskrivs här."
+      },
+      "info_we_collect": {
+        "title": "Information vi samlar in",
+        "body": "Vi samlar in information du ger oss direkt, som ditt namn, din e-postadress och ditt lösenord när du skapar ett konto. Vi sparar också innehållet du skapar i Veinote — texter, ljudinspelningar, bilder, dokument och projektdata — så att det kan sparas och visas för dig igen. Vi samlar automatiskt in grundläggande användningsdata, som vilka sidor och funktioner du använder, för att förstå och förbättra produkten."
+      },
+      "how_we_use": {
+        "title": "Hur vi använder din information",
+        "body": "Vi använder din information för att tillhandahålla och driva plattformen, spara och synkronisera dina låtar och framsteg, svara på supportförfrågningar och feedback, skicka konto- och produktrelaterade mejl, och förbättra Veinotes funktioner och tillförlitlighet. Vi säljer inte dina personuppgifter."
+      },
+      "your_content": {
+        "title": "Ditt innehåll",
+        "body": "Texterna, inspelningarna och annat kreativt innehåll du skapar i Veinote tillhör dig. Vi sparar det så att du kan komma åt och redigera det över sessioner och enheter, och vi använder inte ditt kreativa innehåll för att träna AI-modeller."
+      },
+      "cookies_analytics": {
+        "title": "Cookies och analys",
+        "body": "Vi använder nödvändiga cookies för att hålla dig inloggad och komma ihåg grundläggande inställningar. Vi använder också analysverktyg, inklusive Microsoft Clarity, för att förstå hur webbplatsen används så att vi kan förbättra den. Analysdata används i aggregerad form och säljs inte till tredje part."
+      },
+      "third_party": {
+        "title": "Tredjepartstjänster",
+        "body": "Veinote förlitar sig på pålitliga tredjepartstjänster för att fungera — bland annat Firebase (autentisering, databas och fillagring) och leverantörer av e-postutskick för transaktionsmeddelanden. Dessa leverantörer behandlar data för vår räkning och är bundna av sina egna skyldigheter kring integritet och säkerhet."
+      },
+      "data_security": {
+        "title": "Datasäkerhet",
+        "body": "Vi använder branschstandardåtgärder, inklusive krypterade anslutningar och åtkomstkontroller, för att skydda din information. Ingen lagrings- eller överföringsmetod är helt säker, men vi arbetar för att hålla dina data trygga och för att reagera snabbt om något skulle gå fel."
+      },
+      "data_retention": {
+        "title": "Datalagring och radering",
+        "body": "Vi behåller ditt konto och innehåll så länge ditt konto är aktivt. Du kan när som helst begära att ditt konto och tillhörande data raderas genom att kontakta oss — se nedan."
+      },
+      "your_rights": {
+        "title": "Dina rättigheter",
+        "body": "Beroende på var du bor kan du ha rätt att få tillgång till, rätta, exportera eller radera dina personuppgifter. För att utöva någon av dessa rättigheter, kontakta oss så svarar vi så snabbt vi kan."
+      },
+      "childrens_privacy": {
+        "title": "Barns integritet",
+        "body": "Veinote riktar sig inte till barn under 13 år, och vi samlar inte medvetet in personuppgifter från barn under 13 år."
+      },
+      "changes": {
+        "title": "Ändringar av denna policy",
+        "body": "Vi kan uppdatera den här policyn då och då. Om vi gör väsentliga ändringar meddelar vi dig genom att publicera den uppdaterade policyn här med ett nytt ikraftträdandedatum."
+      },
+      "contact": {
+        "title": "Kontakta oss",
+        "body": "Frågor om den här policyn eller dina uppgifter? Nå oss när som helst på support@veinote.com."
+      }
+    }
+  },
+  "reset_password": {
+    "page_title": "Återställ lösenord",
+    "page_subtitle": "Säkra din åtkomst till Veinote.",
+    "verifying": "Kontrollerar att länken är giltig...",
+    "loading_form": "Laddar formulär...",
+    "invalid_request": "Ogiltig begäran. Koden för att återställa lösenordet saknas.",
+    "invalid_or_expired": "Den här länken för att återställa lösenordet är ogiltig eller har gått ut.",
+    "fill_all_fields": "Fyll i alla fält.",
+    "passwords_dont_match": "Lösenorden matchar inte.",
+    "code_missing": "Återställningskoden saknas. Begär en ny länk.",
+    "success_message": "Ditt lösenord har återställts.",
+    "redirecting": "Skickar dig till inloggningen...",
+    "generic_error": "Det gick inte att återställa lösenordet. Länken kan ha gått ut.",
+    "success_title": "Lösenordet är återställt!",
+    "choose_new_password": "Välj ett nytt lösenord",
+    "enter_new_password_desc": "Skriv in ditt nya, säkra lösenord nedan.",
+    "new_password_placeholder": "Nytt lösenord",
+    "confirm_new_password_placeholder": "Bekräfta nytt lösenord",
+    "resetting": "Återställer...",
+    "reset_button": "Återställ lösenord"
+  },
+  "platform_layout": {
+    "outstanding_effort_title": "Fantastisk insats!",
+    "outstanding_effort_desc": "Du har nått 100 % av dina framsteg i låtskrivandet. Din dagliga insats med att bygga visuella berättelser och textidéer lönar sig. Håll i det momentumet!",
+    "start_next_journey": "Starta nästa resa ➔",
+    "close_welcome_video": "Stäng välkomstvideon",
+    "replay_video": "Spela upp igen",
+    "start_now": "Börja nu"
   }
 }

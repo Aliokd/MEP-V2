@@ -648,13 +648,13 @@ function ConnectPostCard({
                 onClick={onCancelEdit}
                 className="px-3.5 py-1.5 border border-stone-200 rounded-full text-xs font-semibold text-stone-600 hover:bg-stone-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => onSaveEdit(post.id)}
                 className="px-4 py-1.5 bg-stone-900 hover:bg-stone-855 text-white rounded-full text-xs font-bold"
               >
-                Save Changes
+                {t('common.save_changes')}
               </button>
             </div>
           </div>

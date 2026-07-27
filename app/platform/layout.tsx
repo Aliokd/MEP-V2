@@ -409,9 +409,9 @@ function PlatformLayoutInner({
                         </div>
                         
                         <div className="flex flex-col gap-2">
-                            <h3 className="text-2xl font-bold text-stone-850">Outstanding effort!</h3>
+                            <h3 className="text-2xl font-bold text-stone-850">{t('platform_layout.outstanding_effort_title')}</h3>
                             <p className="text-sm text-stone-500 leading-normal">
-                                You have achieved 100% of your songwriting progress. Your daily dedication to building visual stories and lyric concepts is paying off. Keep up this momentum!
+                                {t('platform_layout.outstanding_effort_desc')}
                             </p>
                         </div>
                         
@@ -423,7 +423,7 @@ function PlatformLayoutInner({
                             }}
                             className="w-full py-4.5 bg-stone-900 hover:bg-stone-800 text-white rounded-[16px] text-base font-bold transition-all shadow-md cursor-pointer active:scale-95"
                         >
-                            Start next journey ➔
+                            {t('platform_layout.start_next_journey')}
                         </button>
                     </div>
                 </div>
@@ -661,7 +661,7 @@ function PlatformLayoutInner({
                     <button
                         onClick={handleCloseWelcomeModal}
                         className="fixed top-4 right-4 md:top-8 md:right-8 p-2.5 md:p-3 bg-white/80 md:bg-transparent backdrop-blur-xs md:backdrop-blur-none rounded-full text-stone-900 hover:opacity-75 transition-all duration-200 cursor-pointer active:scale-95 z-[110]"
-                        aria-label="Close welcome video"
+                        aria-label={t('platform_layout.close_welcome_video')}
                     >
                         <X className="w-6 h-6 md:w-8 md:h-8 stroke-[1.5]" />
                     </button>
@@ -693,11 +693,11 @@ function PlatformLayoutInner({
 
                         {hasEnded && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-20 p-8 text-center animate-in fade-in duration-300">
-                                <Tooltip label="Replay video">
+                                <Tooltip label={t('platform_layout.replay_video')}>
                                     <button
                                         onClick={handleReplay}
                                         className="p-4 text-stone-600 hover:text-stone-900 hover:bg-stone-50 rounded-full transition-all cursor-pointer active:scale-95 flex items-center justify-center mb-6 border border-stone-150 bg-stone-50/50 shadow-xs"
-                                        aria-label="Replay video"
+                                        aria-label={t('platform_layout.replay_video')}
                                     >
                                         <RotateCcw className="w-8 h-8 stroke-[1.5]" />
                                     </button>
@@ -707,7 +707,7 @@ function PlatformLayoutInner({
                                     onClick={handleCloseWelcomeModal}
                                     className="w-full sm:w-auto px-16 py-4 bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] text-base font-semibold rounded-full transition-all shadow-md hover:shadow-lg shadow-[#87b884]/20 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2"
                                 >
-                                    Start now
+                                    {t('platform_layout.start_now')}
                                 </button>
                             </div>
                         )}

@@ -2847,8 +2847,14 @@ const ScrollableWithCue = ({ className, children }: { className: string; childre
                 {children}
             </div>
             {hasMoreBelow && (
-                <div className="absolute bottom-0 inset-x-0 h-7 bg-gradient-to-t from-white to-transparent pointer-events-none flex items-end justify-center">
-                    <ChevronDown size={14} className="text-stone-400 animate-bounce" />
+                <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none flex items-end justify-center pb-1">
+                    {/* A bare chevron read as visual noise rather than a control — circling
+                        it in the same white-pill treatment used elsewhere in this panel
+                        (e.g. the word buttons' shadow) makes it read as a "there's more,
+                        tap to see" affordance instead. */}
+                    <div className="w-6 h-6 rounded-full bg-white border border-stone-200 shadow-[0_2px_6px_rgba(0,0,0,0.08)] flex items-center justify-center animate-bounce">
+                        <ChevronDown size={13} className="text-stone-500" strokeWidth={2.5} />
+                    </div>
                 </div>
             )}
         </div>
@@ -14153,7 +14159,11 @@ export default function CreatePage() {
                         </p>
                     </div>
                 ) : (
-                    <ScrollableWithCue className="flex flex-col gap-5 max-h-[268px] overflow-y-auto mt-1.5 pr-1 no-scrollbar">
+                    /* Tall enough to let the next syllable group's header peek in at the
+                       bottom edge rather than cutting off flush on a row boundary — the
+                       sliver of a second heading reads as "more below" on its own,
+                       before the eye even reaches the bounce cue. */
+                    <ScrollableWithCue className="flex flex-col gap-5 max-h-[320px] overflow-y-auto mt-1.5 pr-1 no-scrollbar">
                         {Object.keys(groupedBySyllables).map(sylKey => {
                             const syl = parseInt(sylKey);
                             const words = groupedBySyllables[syl];
@@ -15118,6 +15128,75 @@ export default function CreatePage() {
                         : 'border border-stone-200/60 cursor-text'
                 }`}
             >
+                {/* Empty-canvas backdrop: a looping animated sky (birds/clouds) behind a
+                    static landmark illustration anchored to the bottom edge. Only mounted
+                    for a genuinely blank project — once there's content to write over, the
+                    scene would just be noise behind it. Isolated in its own absolutely
+                    positioned, overflow-hidden wrapper rather than clipping the whole card:
+                    this card also hosts popovers/dropdowns that are positioned outside its
+                    box, and giving the card itself overflow-hidden would clip those.
+                    pointer-events-none throughout so the decoration never intercepts clicks
+                    meant for the canvas underneath it. */}
+                {isNoteBlank && (
+                    <div className="absolute inset-0 overflow-hidden rounded-none md:rounded-[32px] pointer-events-none select-none z-0">
+                        {/* Sky: spans the full card width at its natural aspect ratio. It was
+                            briefly capped at the video's native 1272px to keep it pixel-sharp,
+                            but on a wider canvas that left the clouds sliced off mid-shape at
+                            both edges — a hard vertical seam reads far worse than the softness
+                            of upscaling a 720p source, so continuity wins. Any real sharpness
+                            gain from here needs a higher-resolution export, not CSS.
+
+                            The lift uses translate-y, not a negative `top`. A percentage `top`
+                            resolves against the CARD's height, so it drifted relative to the
+                            artwork every time the width changed; a percentage translate resolves
+                            against the ELEMENT's own height, so it holds. The artwork sits from
+                            roughly 4% down the frame, which is the practical limit before the
+                            highest clouds start losing their tops.
+
+                            src is `top-loop.mp4`, a derivative of the original export with its
+                            baked-in 1-2px black edge rows cropped off and its silent audio track
+                            stripped — see public/assets/Canvas empty/README.md. Fixing the asset
+                            beat hiding the artifact in CSS, which broke on every layout change. */}
+                        <video
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            // `auto` rather than the browser default: this clip is the first
+                            // thing on an empty canvas, so buffering it eagerly is the whole
+                            // point. Paired with the file's faststart layout (moov atom moved
+                            // ahead of the media data), playback can begin on the first buffered
+                            // chunk instead of waiting for the full download — which is what
+                            // made the opening second stutter.
+                            preload="auto"
+                            // 15%: raised well above the original 4%, but short of the ~40% that
+                            // pushed roughly nine-tenths of the clouds past the card's top edge
+                            // and left only a sliver showing. The artwork occupies the top ~44%
+                            // of the frame, so this is about the limit before it stops reading.
+                            className="canvas-sky-dissolve absolute top-0 left-0 -translate-y-[15%] w-full h-auto"
+                            src="/assets/Canvas%20empty/top-loop.mp4"
+                        />
+                        {/* Bottom.png is mostly transparent above the illustration itself, so
+                            anchoring it to the bottom and letting it size by its own (wide)
+                            aspect ratio naturally reveals the video as sky above the landmarks,
+                            regardless of how tall the card is. It eases forward as the sky
+                            dissolves — see .canvas-land-approach in globals.css for why the pair
+                            is driven by CSS rather than the video's own playback events. */}
+                        <img
+                            src="/assets/Canvas%20empty/Bottom.png"
+                            alt=""
+                            className="canvas-land-approach absolute bottom-0 left-0 w-full h-auto opacity-50"
+                        />
+                        {/* Warm paper grain, laid over both artwork layers rather than under
+                            them. The video's own background is opaque white, so a grain layer
+                            underneath would simply be hidden wherever the sky covers it; on top,
+                            the same texture carries across sky, landmarks and bare canvas alike
+                            and reads as one surface. Still inside this wrapper, so it stays
+                            behind every piece of UI and never takes a click. */}
+                        <div className="canvas-grain absolute inset-0" />
+                    </div>
+                )}
+
                 {/* Saved! — travelling gradient ring, mirrors the Mind Power achievement glow */}
                 {showSaveGlow && <div key={saveGlowKey} className="canvas-save-glow-ring" />}
 
@@ -16851,7 +16930,9 @@ export default function CreatePage() {
                                         {lexiconError ? t('lexicon.unavailable') : t('lexicon.no_results_found')}
                                     </div>
                                 ) : (
-                                    <ScrollableWithCue className="flex flex-col gap-4 max-h-[180px] overflow-y-auto pr-1 no-scrollbar">
+                                    /* Same reasoning as the panel above: tall enough that the
+                                       next syllable group's header peeks in at the bottom. */
+                                    <ScrollableWithCue className="flex flex-col gap-4 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
                                         {(() => {
                                             const groupedBySyllables: Record<number, typeof lexiconResults> = {};
                                             lexiconResults.forEach(item => {
@@ -16925,18 +17006,28 @@ export default function CreatePage() {
 
                 <div
                     onClick={(e) => e.stopPropagation()}
-                    className={`flex select-none z-20 justify-center transition-all duration-300 ${
+                    // NOTE: the transition lives inside the branches, not on this shared base.
+                    // While `transition-all duration-300` sat out here it also animated
+                    // background-color and backdrop-filter, so returning to an empty canvas
+                    // spent 300ms fading a white bar out over the illustration — the toolbar's
+                    // backing visibly lingered on top of the artwork every time. The empty
+                    // state now carries no transition at all, so it simply has no background
+                    // from the first frame.
+                    className={`flex select-none z-20 justify-center ${
                         (isMobile && (editingPhraseId !== null || isFocused))
-                            ? "fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2 justify-center"
+                            ? "transition-all duration-300 fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2 justify-center"
                             // Sticky (not just mt-auto) so the controls stay reachable on the
                             // viewport's bottom edge on a long canvas — mt-auto alone only pins
                             // them to the bottom of the card's own box, which can grow taller
                             // than the screen and scroll the toolbar out of view entirely.
                             : isNoteBlank
-                                ? "px-2 md:px-8 mt-auto pb-2 md:pb-8 sticky bottom-0 bg-white/90 backdrop-blur-md"
+                                // No background and no backdrop-blur: the empty state's whole
+                                // point is the artwork, so the toolbar's own white pill buttons
+                                // float directly over it rather than behind a panel or a haze.
+                                ? "px-2 md:px-8 mt-auto pb-2 md:pb-8 sticky bottom-0"
                                 // Extra breathing room on a written-in canvas: the toolbar sits
                                 // right against the card's bottom edge otherwise.
-                                : "px-2 md:px-8 mt-auto pb-8 md:pb-12 sticky bottom-0 bg-white/90 backdrop-blur-md"
+                                : "transition-all duration-300 px-2 md:px-8 mt-auto pb-8 md:pb-12 sticky bottom-0 bg-white/90 backdrop-blur-md"
                     }`}
                     style={(isMobile && (editingPhraseId !== null || isFocused)) ? {
                         bottom: 'auto',

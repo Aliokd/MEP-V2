@@ -277,7 +277,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
                     onClick={() => window.location.reload()}
                     className="px-6 py-2.5 bg-stone-900 text-[#FAF9F5] hover:opacity-90 rounded-full text-sm font-medium transition-colors"
                 >
-                    Retry connection
+                    {t('practice.retry_connection')}
                 </button>
             </div>
         );
@@ -298,10 +298,10 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
             {/* Header Detail Row: Back arrow, selected SongCard, and Waveform Player side-by-side */}
             <div className="w-full flex items-center gap-4 md:gap-6 max-w-6xl mx-auto select-none overflow-visible">
                 {/* Back Arrow Button */}
-                <Tooltip label="Back to song list">
+                <Tooltip label={t('practice.back_to_song_list')}>
                     <button
                         onClick={onBack}
-                        aria-label="Back to song list"
+                        aria-label={t('practice.back_to_song_list')}
                         className="w-10 h-10 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-600 hover:text-stone-900 shadow-2xs shrink-0 cursor-pointer"
                     >
                         <ArrowLeft size={18} className="stroke-[2.2]" />
@@ -442,13 +442,13 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
 
                             {/* Reset Button for Mismatched Slots */}
                             {isIncorrect && (
-                                <Tooltip label="Clear selection">
+                                <Tooltip label={t('practice.clear_selection')}>
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation(); // Avoid triggering parent slot click
                                             handleRemove(idx);
                                         }}
-                                        aria-label="Clear selection"
+                                        aria-label={t('practice.clear_selection')}
                                         className="absolute top-3.5 right-4 w-6 h-6 rounded-full bg-amber-50 hover:bg-amber-100 flex items-center justify-center text-amber-700 hover:text-amber-900 active:scale-90 transition-all font-sans text-[10px] font-bold shadow-2xs border border-amber-200/50"
                                     >
                                         ✕

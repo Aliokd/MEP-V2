@@ -9,6 +9,7 @@ import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { splitLocale, localizePath } from '@/lib/i18n';
 import { useLanguage } from '@/context/LanguageContext';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const Navigation = () => {
     const [isScrolled, setIsScrolled] = useState(false);
@@ -19,7 +20,7 @@ const Navigation = () => {
     const rawPathname = usePathname();
     const { path: pathname } = splitLocale(rawPathname || '/');
     const { user } = useAuth();
-    const { language } = useLanguage();
+    const { language, t } = useLanguage();
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -72,23 +73,24 @@ const Navigation = () => {
             </Link>
 
             <div className="flex items-center gap-10 text-[15px] text-[#363636]">
-                <Link href={`${homeHref}#qa`} className="hover:text-black transition-colors font-medium">Q&A</Link>
+                <Link href={`${homeHref}#qa`} className="hover:text-black transition-colors font-medium">{t('home.nav.qa')}</Link>
+                <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
                 {user ? (
                     <div className="flex items-center gap-6">
                         <Link href="/platform" className="font-bold hover:text-black transition-colors">
-                            Enter Platform
+                            {t('navigation.enter_platform')}
                         </Link>
                         <button
                             onClick={handleLogout}
                             className="font-bold hover:text-black transition-colors cursor-pointer"
                         >
-                            Sign Out
+                            {t('navigation.logout')}
                         </button>
                     </div>
                 ) : (
                     <div className="flex items-center gap-6">
-                        <Link href={signinHref} className="hover:text-black transition-colors font-medium">Sign in</Link>
-                        <Link href={onboardingHref} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">Join now</Link>
+                        <Link href={signinHref} className="hover:text-black transition-colors font-medium">{t('signin.sign_in')}</Link>
+                        <Link href={onboardingHref} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.join')}</Link>
                     </div>
                 )}
             </div>
