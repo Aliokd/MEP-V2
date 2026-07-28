@@ -104,7 +104,10 @@ function OnboardingPageInner() {
     const [emailShowError, setEmailShowError] = useState(false);
     // 'checking' until Firebase reports whether anyone is signed in — see the
     // pre-launch gate below.
-    const [signupGate, setSignupGate] = useState<'checking' | 'allowed' | 'redirecting'>('checking');
+    // REVIEW BUILD ONLY — this tree is a throwaway worktree deployed to a
+    // Hosting preview channel so a tester can walk the flow. Production still
+    // starts at 'checking' and redirects signed-out visitors to /waitlist.
+    const [signupGate, setSignupGate] = useState<'checking' | 'allowed' | 'redirecting'>('allowed');
 
     const router = useRouter();
     const { language, t } = useLanguage();
@@ -223,15 +226,10 @@ function OnboardingPageInner() {
     // Signed-in people are let through on purpose: this same route serves
     // `?step=paywall` for the in-platform Max upgrade, and testers already have
     // accounts. Remove this effect to reopen public signups.
+    // REVIEW BUILD ONLY — the redirect is disabled here so a tester without an
+    // account can walk the flow. This effect is intact on main.
     useEffect(() => {
-        return onAuthStateChanged(auth, (currentUser) => {
-            if (currentUser) {
-                setSignupGate('allowed');
-            } else {
-                setSignupGate('redirecting');
-                router.replace(`${localizePath('/waitlist', language)}?from=onboarding`);
-            }
-        });
+        return onAuthStateChanged(auth, () => setSignupGate('allowed'));
     }, [router, language]);
 
     const currentQuestion = QUESTIONS[currentQuestionIndex];
@@ -442,7 +440,49 @@ function OnboardingPageInner() {
                         <HypeSection onComplete={() => setCurrentStep(STEPS.AUTH)} />
                     )}
 
+                    {/* REVIEW BUILD ONLY — the signup form below is replaced by a
+                        stop notice so a tester cannot create a real Firebase
+                        account or reach live Paddle checkout. Untouched on main. */}
                     {currentStep === STEPS.AUTH && (
+                        <motion.div
+                            key="auth-review"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="space-y-8"
+                        >
+                            <div className="text-center space-y-2">
+                                <h2 className="text-4xl md:text-[3.25rem] font-sans font-light tracking-tight text-stone-900 leading-[1.1]">
+                                    That&apos;s the end of the review
+                                </h2>
+                                <p className="text-stone-700/80 text-[15px] font-medium">
+                                    You&apos;ve seen the whole onboarding flow. The account step comes next in
+                                    the real product — it&apos;s switched off here, so nothing you did was saved.
+                                </p>
+                            </div>
+
+                            <div className="bg-[#EFF0E7] p-8 md:p-10 border border-stone-200/60 rounded-[28px] space-y-4 shadow-[0_8px_30px_rgba(0,0,0,0.015)] text-center">
+                                <p className="text-sm text-stone-600 leading-relaxed">
+                                    Thanks for taking a look. Send your notes back to whoever shared this link —
+                                    what felt slow, what was confusing, and anything you&apos;d cut.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setAnswers({});
+                                        setSelectedOption(null);
+                                        setSelectedColor(null);
+                                        setCurrentQuestionIndex(0);
+                                        setCurrentStep(STEPS.INTRO);
+                                    }}
+                                    className="w-full py-4 bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] text-base font-semibold rounded-[16px] transition-all shadow-md active:scale-[0.98]"
+                                >
+                                    Start over from the beginning
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {false && currentStep === STEPS.AUTH && (
                         <motion.div
                             key="auth"
                             initial={{ opacity: 0, scale: 0.95 }}
