@@ -763,13 +763,42 @@
           "title": "Psykologien bak skriving og fremgang"
         },
         "modern_way": {
-          "title": "Lær låtskriving på den moderne måten"
+          "title": "Lær låtskriving på den moderne måten",
+          "hover_titles": {
+            "master_lyrics": "Jeg mestrer tekst og vers",
+            "expanded_skills": "Jeg utvikler ferdighetene mine",
+            "deeper_expertise": "Nå et dypere kunnskapsnivå",
+            "tell_stories": "Jeg forteller historier som berører",
+            "unlocked_creativity": "Jeg frigjør kreativiteten min",
+            "ignite_imagination": "Jeg tenner fantasien min",
+            "see_life": "Jeg ser livet i tekster"
+          },
+          "labels": {
+            "master_lyrics": "Jeg mestrer\ntekst og\nvers",
+            "expanded_skills": "Jeg utvikler\nferdighetene\nmine",
+            "see_life": "Jeg ser livet\ni tekster",
+            "unlocked_creativity": "Jeg frigjør\nmin\nkreativitet",
+            "ignite_imagination": "Jeg tenner\nfantasien min",
+            "tell_stories": "Jeg\nforteller\nhistorier\nsom berører",
+            "deeper_expertise": "Nå et dypere\nkunnskapsnivå"
+          }
         },
         "tools": {
-          "title": "Alle verktøyene du trenger for å lage sanger"
+          "title": "Alle verktøyene du trenger for å lage sanger",
+          "demo": {
+            "project": "Havbris",
+            "line_1": "Går langs stranden i det blå",
+            "line_2": "kjenner varmen jeg kan nå",
+            "line_3": "og tidevannet kaller meg hjem",
+            "recording": "Refrengidé"
+          }
         },
         "collab": {
-          "title": "Samarbeid live med andre låtskrivere på prosjekter"
+          "title": "Samarbeid live med andre låtskrivere på prosjekter",
+          "demo": {
+            "title": "Sang",
+            "hint": "Live demo — prøv selv"
+          }
         },
         "publish": {
           "title": "Publiser sangene dine og få tilbakemeldinger"
@@ -783,11 +812,26 @@
       "songwriter_type": {
         "question": "Hva beskriver deg best?",
         "options": {
-          "lyricist": { "title": "Tekstforfatteren", "desc": "Ordene kommer først." },
-          "melodist": { "title": "Melodikeren", "desc": "Jeg hører melodier før tekst." },
-          "producer": { "title": "Produsenten", "desc": "Jeg bygger låter med lyd og rytme." },
-          "storyteller": { "title": "Historiefortelleren", "desc": "Jeg vil uttrykke følelser og opplevelser." },
-          "explorer": { "title": "Utforskeren", "desc": "Jeg leter fortsatt etter stilen min." }
+          "lyricist": {
+            "title": "Tekstforfatteren",
+            "desc": "Ordene kommer først."
+          },
+          "melodist": {
+            "title": "Melodikeren",
+            "desc": "Jeg hører melodier før tekst."
+          },
+          "producer": {
+            "title": "Produsenten",
+            "desc": "Jeg bygger låter med lyd og rytme."
+          },
+          "storyteller": {
+            "title": "Historiefortelleren",
+            "desc": "Jeg vil uttrykke følelser og opplevelser."
+          },
+          "explorer": {
+            "title": "Utforskeren",
+            "desc": "Jeg leter fortsatt etter stilen min."
+          }
         }
       },
       "struggle": {

@@ -763,13 +763,42 @@
           "title": "Psychology in writing and progress"
         },
         "modern_way": {
-          "title": "Learn songwriting the modern way"
+          "title": "Learn songwriting the modern way",
+          "hover_titles": {
+            "master_lyrics": "I master lyrics and verses",
+            "expanded_skills": "I expand my skills",
+            "deeper_expertise": "Reach a deeper level of expertise",
+            "tell_stories": "I tell stories that connect.",
+            "unlocked_creativity": "I unlock my creativity",
+            "ignite_imagination": "I ignite my imagination",
+            "see_life": "I see life in lyrics"
+          },
+          "labels": {
+            "master_lyrics": "I master\nlyrics and\nverses",
+            "expanded_skills": "I Expanded\nmy skills",
+            "see_life": "I see life\nin lyrics",
+            "unlocked_creativity": "I Unlocked\nmy\ncreativity",
+            "ignite_imagination": "I Ignite my\nimagination",
+            "tell_stories": "I tell\nstories\nthat\nconnect.",
+            "deeper_expertise": "Reach a deeper\nlevel of expertise"
+          }
         },
         "tools": {
-          "title": "All tools you need to create songs"
+          "title": "All tools you need to create songs",
+          "demo": {
+            "project": "Ocean Breeze",
+            "line_1": "Walking down the sandy beach",
+            "line_2": "feel the warmth within my reach",
+            "line_3": "and the tide keeps calling me home",
+            "recording": "Hook idea"
+          }
         },
         "collab": {
-          "title": "Live collab with other songwriters on projects"
+          "title": "Live collab with other songwriters on projects",
+          "demo": {
+            "title": "Song",
+            "hint": "Live demo — try it"
+          }
         },
         "publish": {
           "title": "Publish your songs and get feedback"
@@ -783,11 +812,26 @@
       "songwriter_type": {
         "question": "What describes you best?",
         "options": {
-          "lyricist": { "title": "The Lyricist", "desc": "Words come first." },
-          "melodist": { "title": "The Melodist", "desc": "I hear melodies before lyrics." },
-          "producer": { "title": "The Producer", "desc": "I build songs through sound and rhythm." },
-          "storyteller": { "title": "The Storyteller", "desc": "I want to express emotions and experiences." },
-          "explorer": { "title": "The Explorer", "desc": "I'm still discovering my style." }
+          "lyricist": {
+            "title": "The Lyricist",
+            "desc": "Words come first."
+          },
+          "melodist": {
+            "title": "The Melodist",
+            "desc": "I hear melodies before lyrics."
+          },
+          "producer": {
+            "title": "The Producer",
+            "desc": "I build songs through sound and rhythm."
+          },
+          "storyteller": {
+            "title": "The Storyteller",
+            "desc": "I want to express emotions and experiences."
+          },
+          "explorer": {
+            "title": "The Explorer",
+            "desc": "I'm still discovering my style."
+          }
         }
       },
       "struggle": {

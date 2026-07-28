@@ -763,13 +763,42 @@
           "title": "Psykologin bakom skrivande och framsteg"
         },
         "modern_way": {
-          "title": "Lär dig låtskrivande på det moderna sättet"
+          "title": "Lär dig låtskrivande på det moderna sättet",
+          "hover_titles": {
+            "master_lyrics": "Jag behärskar texter och verser",
+            "expanded_skills": "Jag utvecklar mina färdigheter",
+            "deeper_expertise": "Nå ett djupare kunnande",
+            "tell_stories": "Jag berättar historier som berör",
+            "unlocked_creativity": "Jag frigör min kreativitet",
+            "ignite_imagination": "Jag tänder min fantasi",
+            "see_life": "Jag ser livet i texter"
+          },
+          "labels": {
+            "master_lyrics": "Jag behärskar\ntexter och\nverser",
+            "expanded_skills": "Jag utvecklar\nmina\nfärdigheter",
+            "see_life": "Jag ser livet\ni texter",
+            "unlocked_creativity": "Jag frigör\nmin\nkreativitet",
+            "ignite_imagination": "Jag tänder\nmin fantasi",
+            "tell_stories": "Jag\nberättar\nhistorier\nsom berör",
+            "deeper_expertise": "Nå ett djupare\nkunnande"
+          }
         },
         "tools": {
-          "title": "Alla verktyg du behöver för att skapa låtar"
+          "title": "Alla verktyg du behöver för att skapa låtar",
+          "demo": {
+            "project": "Havsbris",
+            "line_1": "Går längs stranden i det blå",
+            "line_2": "känner värmen jag kan nå",
+            "line_3": "och tidvattnet kallar mig hem",
+            "recording": "Refrängidé"
+          }
         },
         "collab": {
-          "title": "Samarbeta live med andra låtskrivare i projekt"
+          "title": "Samarbeta live med andra låtskrivare i projekt",
+          "demo": {
+            "title": "Låt",
+            "hint": "Livedemo — testa själv"
+          }
         },
         "publish": {
           "title": "Publicera dina låtar och få feedback"
@@ -783,11 +812,26 @@
       "songwriter_type": {
         "question": "Vad beskriver dig bäst?",
         "options": {
-          "lyricist": { "title": "Textförfattaren", "desc": "Orden kommer först." },
-          "melodist": { "title": "Melodiskaparen", "desc": "Jag hör melodier före text." },
-          "producer": { "title": "Producenten", "desc": "Jag bygger låtar med ljud och rytm." },
-          "storyteller": { "title": "Berättaren", "desc": "Jag vill uttrycka känslor och upplevelser." },
-          "explorer": { "title": "Utforskaren", "desc": "Jag letar fortfarande efter min stil." }
+          "lyricist": {
+            "title": "Textförfattaren",
+            "desc": "Orden kommer först."
+          },
+          "melodist": {
+            "title": "Melodiskaparen",
+            "desc": "Jag hör melodier före text."
+          },
+          "producer": {
+            "title": "Producenten",
+            "desc": "Jag bygger låtar med ljud och rytm."
+          },
+          "storyteller": {
+            "title": "Berättaren",
+            "desc": "Jag vill uttrycka känslor och upplevelser."
+          },
+          "explorer": {
+            "title": "Utforskaren",
+            "desc": "Jag letar fortfarande efter min stil."
+          }
         }
       },
       "struggle": {

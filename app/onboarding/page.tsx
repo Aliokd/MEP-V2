@@ -104,6 +104,9 @@ export default function OnboardingPage() {
 
 function OnboardingPageInner() {
     const [currentStep, setCurrentStep] = useState(STEPS.INTRO);
+    // Whether a return to the intro should open on its last slide (backing out
+    // of the quiz) rather than the first (a fresh arrival).
+    const [introStartAtEnd, setIntroStartAtEnd] = useState(false);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -116,7 +119,6 @@ function OnboardingPageInner() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [emailShowError, setEmailShowError] = useState(false);
-
     const router = useRouter();
     const { language, t } = useLanguage();
 
@@ -209,6 +211,12 @@ function OnboardingPageInner() {
         setIsTransitioning(false);
         if (currentQuestionIndex > 0) {
             setCurrentQuestionIndex(prev => prev - 1);
+        } else {
+            // From the first question, back means the intro — landing on its
+            // last slide, so the journey reverses step for step instead of
+            // dumping the user at the start of the carousel.
+            setIntroStartAtEnd(true);
+            setCurrentStep(STEPS.INTRO);
         }
     };
 
@@ -334,14 +342,34 @@ function OnboardingPageInner() {
                 </Link>
             </div>
 
-            {/* The paywall lays two plans side by side, so it needs more room than the quiz steps. */}
-            <main className={`w-full relative z-10 ${currentStep === STEPS.PAYWALL ? 'max-w-4xl' : 'max-w-2xl'}`}>
+            {/* The paywall's two plans and the video answer cards both need more
+                room than the plain question steps. The intro carousel does too:
+                its frame is one constant box across all six slides, sized so the
+                studio demo inside it stays legible. */}
+            <main
+                className={`w-full relative z-10 ${
+                    currentStep === STEPS.INTRO ||
+                    currentStep === STEPS.PAYWALL ||
+                    (currentStep === STEPS.QUIZ && (currentQuestion as any).isCards)
+                        ? 'max-w-4xl'
+                        : 'max-w-2xl'
+                }`}
+            >
                 <AnimatePresence mode="wait">
                     {currentStep === STEPS.INTRO && (
                         // The key has to live here — AnimatePresence only sees the
                         // element it receives, so without it the exit never resolves
                         // and the quiz never mounts.
-                        <IntroCarousel key="intro" onComplete={() => setCurrentStep(STEPS.QUIZ)} />
+                        <IntroCarousel
+                            key="intro"
+                            startAtEnd={introStartAtEnd}
+                            onComplete={() => {
+                                // The next arrival at the intro is a fresh one
+                                // unless another back-out says otherwise.
+                                setIntroStartAtEnd(false);
+                                setCurrentStep(STEPS.QUIZ);
+                            }}
+                        />
                     )}
 
                     {currentStep === STEPS.QUIZ && (
@@ -354,19 +382,17 @@ function OnboardingPageInner() {
                         >
                             <div className="space-y-8">
                                 <div className="flex items-center justify-between w-4/5 mx-auto gap-4">
-                                    {currentQuestionIndex > 0 ? (
-                                        <Tooltip label={t('onboarding.go_back')}>
-                                            <button
-                                                onClick={handleBack}
-                                                aria-label={t('onboarding.go_back')}
-                                                className="text-stone-600 hover:text-stone-900 bg-white/40 hover:bg-white border border-stone-300 hover:border-stone-400 transition-all p-2 rounded-full flex items-center justify-center shadow-sm shrink-0"
-                                            >
-                                                <ArrowLeft size={16} />
-                                            </button>
-                                        </Tooltip>
-                                    ) : (
-                                        <div className="w-[34px]" />
-                                    )}
+                                    {/* Always present — on the first question it
+                                        backs out of the quiz into the intro. */}
+                                    <Tooltip label={t('onboarding.go_back')}>
+                                        <button
+                                            onClick={handleBack}
+                                            aria-label={t('onboarding.go_back')}
+                                            className="text-stone-600 hover:text-stone-900 bg-white/40 hover:bg-white border border-stone-300 hover:border-stone-400 transition-all p-2 rounded-full flex items-center justify-center shadow-sm shrink-0"
+                                        >
+                                            <ArrowLeft size={16} />
+                                        </button>
+                                    </Tooltip>
                                     <div className="flex-grow h-2 bg-[#BBBEB2]/20 rounded-full overflow-hidden relative">
                                         <motion.div
                                             initial={{ width: 0 }}
