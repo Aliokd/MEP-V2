@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Music, Check, Star, Sparkles, Wand2, ShieldCheck, CreditCard, Mail, Lock, User, ArrowRight, ArrowLeft, Inbox, AlertCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/userProfile';
@@ -24,6 +24,20 @@ const STEPS = {
     AUTH: 'auth',
     PAYWALL: 'paywall'
 };
+
+/**
+ * Pre-launch: the flow itself is public so the draft can be shared and reviewed,
+ * but the account step at the end is closed. Reviewers see every screen; nobody
+ * gets a Firebase account or reaches live Paddle checkout.
+ *
+ * This replaced a redirect that sent signed-out visitors to the waiting list —
+ * which made the draft impossible to show anyone without an account.
+ *
+ * Flip to `true` to reopen public signups. Nothing else needs changing: the
+ * original signup form is still wired up behind this flag, and `?step=paywall`
+ * (the in-platform Max upgrade) bypasses this step either way.
+ */
+const SIGNUPS_OPEN: boolean = false;
 
 // Only the stable ids and answer values live here — every visible label is
 // looked up under `onboarding.questions.<id>` in the locale files.
@@ -102,9 +116,6 @@ function OnboardingPageInner() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [emailShowError, setEmailShowError] = useState(false);
-    // 'checking' until Firebase reports whether anyone is signed in — see the
-    // pre-launch gate below.
-    const [signupGate, setSignupGate] = useState<'checking' | 'allowed' | 'redirecting'>('checking');
 
     const router = useRouter();
     const { language, t } = useLanguage();
@@ -216,24 +227,6 @@ function OnboardingPageInner() {
         };
     }, []);
 
-    // Pre-launch gate. Nobody new gets an account yet, so a visitor who lands
-    // here — an old link, a bookmark, a search result — goes to the waitlist
-    // instead of a signup form that would create a real customer.
-    //
-    // Signed-in people are let through on purpose: this same route serves
-    // `?step=paywall` for the in-platform Max upgrade, and testers already have
-    // accounts. Remove this effect to reopen public signups.
-    useEffect(() => {
-        return onAuthStateChanged(auth, (currentUser) => {
-            if (currentUser) {
-                setSignupGate('allowed');
-            } else {
-                setSignupGate('redirecting');
-                router.replace(`${localizePath('/waitlist', language)}?from=onboarding`);
-            }
-        });
-    }, [router, language]);
-
     const currentQuestion = QUESTIONS[currentQuestionIndex];
 
     const handleAnswer = (value: string, color?: string) => {
@@ -318,16 +311,6 @@ function OnboardingPageInner() {
             setIsLoading(false);
         }
     };
-
-    // Nothing of the signup flow renders until the gate above has decided, so a
-    // visitor never sees a flash of the quiz on their way to the waitlist.
-    if (signupGate !== 'allowed') {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[#DCDDD4]">
-                <div className="w-10 h-10 border-t-2 border-stone-900 rounded-full animate-spin" />
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-start md:justify-center px-6 pt-28 pb-12 md:py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">
@@ -442,7 +425,56 @@ function OnboardingPageInner() {
                         <HypeSection onComplete={() => setCurrentStep(STEPS.AUTH)} />
                     )}
 
-                    {currentStep === STEPS.AUTH && (
+                    {/* Pre-launch, the flow ends here instead of asking for an
+                        account — see SIGNUPS_OPEN. The waiting-list link is the
+                        one thing a reviewer can still act on. */}
+                    {currentStep === STEPS.AUTH && !SIGNUPS_OPEN && (
+                        <motion.div
+                            key="auth-closed"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="space-y-8"
+                        >
+                            <div className="text-center space-y-2">
+                                <h2 className="text-4xl md:text-[3.25rem] font-sans font-light tracking-tight text-stone-900 leading-[1.1]">
+                                    {t('onboarding.preview_end.title')}
+                                </h2>
+                                <p className="text-stone-700/80 text-[15px] font-medium">
+                                    {t('onboarding.preview_end.subtitle')}
+                                </p>
+                            </div>
+
+                            <div className="bg-[#EFF0E7] p-8 md:p-10 border border-stone-200/60 rounded-[28px] space-y-5 shadow-[0_8px_30px_rgba(0,0,0,0.015)] text-center">
+                                <p className="text-sm text-stone-600 leading-relaxed">
+                                    {t('onboarding.preview_end.body')}
+                                </p>
+
+                                <Link
+                                    href={`${localizePath('/waiting-list', language)}?from=onboarding`}
+                                    className="w-full py-4 bg-[#86BE7F] hover:opacity-95 text-stone-900 text-base font-semibold rounded-[16px] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                                >
+                                    {t('home.nav.waitlist')}
+                                    <ArrowRight className="w-4 h-4 stroke-[2.5px]" />
+                                </Link>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setAnswers({});
+                                        setSelectedOption(null);
+                                        setSelectedColor(null);
+                                        setCurrentQuestionIndex(0);
+                                        setCurrentStep(STEPS.INTRO);
+                                    }}
+                                    className="w-full text-sm text-stone-500 hover:text-stone-800 transition-colors font-medium"
+                                >
+                                    {t('onboarding.preview_end.restart')}
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {currentStep === STEPS.AUTH && SIGNUPS_OPEN && (
                         <motion.div
                             key="auth"
                             initial={{ opacity: 0, scale: 0.95 }}

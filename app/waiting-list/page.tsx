@@ -41,7 +41,7 @@ function WaitlistPageInner() {
 
         setIsLoading(true);
         try {
-            const res = await fetch('/api/waitlist', {
+            const res = await fetch('/api/waiting-list', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: trimmed, locale: language, source }),

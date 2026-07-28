@@ -7,7 +7,7 @@ const PAGES: { path: string; changeFrequency: 'weekly' | 'monthly' | 'yearly'; p
     { path: '/about', changeFrequency: 'monthly', priority: 0.6 },
     // Pre-launch, this is where every call to action lands — worth indexing in
     // its own right rather than only being reachable from the home page.
-    { path: '/waitlist', changeFrequency: 'monthly', priority: 0.8 },
+    { path: '/waiting-list', changeFrequency: 'monthly', priority: 0.8 },
     { path: '/privacy', changeFrequency: 'yearly', priority: 0.3 },
     { path: '/signin', changeFrequency: 'yearly', priority: 0.5 },
 ];

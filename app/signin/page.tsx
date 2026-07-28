@@ -337,7 +337,7 @@ function SignInPageInner() {
                     <div className="mt-8 pt-8 border-t border-stone-200/80 text-center">
                         <p className="text-sm text-stone-600 font-sans font-medium">
                             {t('signin.new_to_veinote')}{' '}
-                            <Link href="/waitlist?from=signin" className="text-stone-900 transition-colors underline-offset-4 hover:underline font-bold">{t('home.nav.waitlist')}</Link>
+                            <Link href="/waiting-list?from=signin" className="text-stone-900 transition-colors underline-offset-4 hover:underline font-bold">{t('home.nav.waitlist')}</Link>
                         </p>
                     </div>
                 </div>

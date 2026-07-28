@@ -30,6 +30,16 @@ export default function proxy(req: NextRequest) {
         return NextResponse.redirect(url, 301);
     }
 
+    // The waitlist page shipped at /waitlist and was renamed to /waiting-list.
+    // It was live and in the sitemap, so the old path keeps working rather than
+    // 404ing anyone who already has the link. Handled here rather than in
+    // next.config so the locale prefix survives: /no/waitlist -> /no/waiting-list.
+    if (pathname === '/waitlist' || pathname.endsWith('/waitlist')) {
+        const url = req.nextUrl.clone();
+        url.pathname = pathname.slice(0, -'/waitlist'.length) + '/waiting-list';
+        return NextResponse.redirect(url, 301);
+    }
+
     const { locale, path } = splitLocale(pathname);
 
     if (locale) {

@@ -33,7 +33,7 @@ export default async function AboutPage() {
                         {t('about.intro')}
                     </p>
                     <Link
-                        href={`${localizePath('/waitlist', language)}?from=about`}
+                        href={`${localizePath('/waiting-list', language)}?from=about`}
                         className="mt-10 bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-lg font-semibold transition-all inline-flex items-center gap-3 select-none"
                     >
                         <span>{t('home.nav.waitlist')}</span>

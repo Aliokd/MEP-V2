@@ -842,6 +842,12 @@
       "verdict_title_emphasis": "visuell type.",
       "verdict_desc": "Du trenger ikke flere øvelser. Du trenger å se musikken."
     },
+    "preview_end": {
+      "title": "Det var hele flyten",
+      "subtitle": "Nå har du sett hvert steg i oppstarten av Veinote.",
+      "body": "Vi åpner ikke for kontoer ennå – Veinote er fortsatt i lukket testing, så her stopper forhåndsvisningen. Ingenting du skrev inn ble lagret. Legg igjen e-postadressen din, så sier vi fra med en gang vi åpner.",
+      "restart": "Gå gjennom den en gang til"
+    },
     "auth": {
       "title": "Sikre plassen din",
       "subtitle": "Opprett innloggingen din for å fortsette låtskriverreisen.",

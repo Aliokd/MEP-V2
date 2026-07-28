@@ -842,6 +842,12 @@
       "verdict_title_emphasis": "visuell typ.",
       "verdict_desc": "Du behöver inte fler övningar. Du behöver se musiken."
     },
+    "preview_end": {
+      "title": "Det var hela flödet",
+      "subtitle": "Nu har du sett varje steg i Veinotes onboarding.",
+      "body": "Vi öppnar inte för konton än – Veinote är fortfarande i sluten testning, så här stannar förhandsvisningen. Inget du fyllde i sparades. Lämna din e-postadress så hör vi av oss så fort vi öppnar.",
+      "restart": "Gå igenom det en gång till"
+    },
     "auth": {
       "title": "Säkra din plats",
       "subtitle": "Skapa din inloggning för att fortsätta din låtskrivarresa.",

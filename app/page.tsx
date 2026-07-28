@@ -47,7 +47,7 @@ const TopNav = () => {
                 <div className="flex items-center gap-6">
                     <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
                     <Link href="/signin" className="hover:text-black transition-colors font-medium">{t('home.nav.signin')}</Link>
-                    <Link href="/waitlist?from=nav" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.waitlist')}</Link>
+                    <Link href="/waiting-list?from=nav" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.waitlist')}</Link>
                 </div>
             </div>
 
@@ -59,7 +59,7 @@ const TopNav = () => {
                     <Link href="/signin" className="hover:text-black transition-colors font-medium">{t('home.nav.signin')}</Link>
                     {/* Short label here — "Join the waitlist" overflows the pill beside
                         Q&A and Sign in on a narrow phone. */}
-                    <Link href="/waitlist?from=nav" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-3 py-1 rounded-[12px] font-semibold text-xs transition-all">{t('home.nav.waitlist_short')}</Link>
+                    <Link href="/waiting-list?from=nav" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-3 py-1 rounded-[12px] font-semibold text-xs transition-all">{t('home.nav.waitlist_short')}</Link>
                 </div>
             </div>
         </nav>
@@ -94,7 +94,7 @@ const HeroSection = () => {
                         {t('home.hero.description')}
                     </p>
                     <Link
-                        href="/waitlist?from=hero"
+                        href="/waiting-list?from=hero"
                         className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-xl font-semibold transition-all inline-flex items-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] select-none"
                     >
                         <span>{t('home.nav.waitlist')}</span>
@@ -260,7 +260,7 @@ const UrgencySection = () => {
 
                 {/* CTA Button */}
                 <Link
-                    href="/waitlist?from=hero"
+                    href="/waiting-list?from=hero"
                     className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-xl font-semibold transition-all inline-flex items-center gap-3 select-none"
                 >
                     <span>{t('home.nav.waitlist')}</span>
@@ -520,7 +520,7 @@ const NewFooter = () => {
                     <Link href="/about" className="font-medium hover:text-black transition-colors">{t('home.footer.about')}</Link>
                     <Link href="/privacy" className="font-medium hover:text-black transition-colors">{t('home.footer.privacy')}</Link>
                     <Link href="#qa" className="font-medium hover:text-black transition-colors">{t('home.nav.qa')}</Link>
-                    <Link href="/waitlist?from=footer" className="font-bold hover:text-black transition-colors">{t('home.nav.waitlist')}</Link>
+                    <Link href="/waiting-list?from=footer" className="font-bold hover:text-black transition-colors">{t('home.nav.waitlist')}</Link>
                 </div>
             </div>
 

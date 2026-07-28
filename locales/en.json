@@ -842,6 +842,12 @@
       "verdict_title_emphasis": "Visual Learner.",
       "verdict_desc": "You don't need more drills. You need to see the music."
     },
+    "preview_end": {
+      "title": "That's the flow",
+      "subtitle": "You've seen every step of the Veinote onboarding.",
+      "body": "Accounts aren't open yet — Veinote is still in private testing, so this is where the preview stops. Nothing you entered was saved. Leave your email and we'll tell you the moment it opens.",
+      "restart": "Go through it again"
+    },
     "auth": {
       "title": "Secure your path",
       "subtitle": "Create your credentials to continue your songwriting journey.",

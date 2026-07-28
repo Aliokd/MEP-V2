@@ -44,9 +44,9 @@ const Navigation = () => {
 
     // These pages own their own top-right language switcher and are a dead end by
     // design — nav links back into a site you can't sign up for just add noise —
-    // so they get the centered logo and nothing else. /waitlist belongs here: with
+    // so they get the centered logo and nothing else. /waiting-list belongs here: with
     // the full nav it rendered a second logo and a second switcher over the page's.
-    const isAuthPage = pathname === '/signin' || pathname === '/reset-password' || pathname === '/waitlist';
+    const isAuthPage = pathname === '/signin' || pathname === '/reset-password' || pathname === '/waiting-list';
 
     const navClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
@@ -58,7 +58,7 @@ const Navigation = () => {
     // link, instead of dropping them back onto the English URL.
     const homeHref = localizePath('/', language);
     const signinHref = localizePath('/signin', language);
-    const waitlistHref = localizePath('/waitlist', language);
+    const waitlistHref = localizePath('/waiting-list', language);
 
     if (isAuthPage) {
         return (
