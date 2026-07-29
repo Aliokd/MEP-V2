@@ -34,7 +34,7 @@ const NAV: NavGroup[] = [
             { href: "/admin/inbox", label: "Inbox", icon: Inbox, permission: "inbox.read" },
             { href: "/admin/reports", label: "Reports", icon: Flag, permission: "reports.read" },
             { href: "/admin/community", label: "Community", icon: MessagesSquare, permission: "community.read" },
-            { href: "/admin/waitlist", label: "Waitlist", icon: ClipboardList, permission: "waitlist.read" },
+            { href: "/admin/waiting-list", label: "Waiting list", icon: ClipboardList, permission: "waitlist.read" },
         ],
     },
     {

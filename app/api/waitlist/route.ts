@@ -110,7 +110,7 @@ Language: ${locale || "unknown"}
 From:     ${source}
 Position: ${position ?? "unknown"}
 ${stored ? "" : "\nWARNING: this address could NOT be written to Firestore — it exists only in this email.\n"}
-The full list is in the admin console: https://veinote.com/admin/waitlist
+The full list is in the admin console: https://veinote.com/admin/waiting-list
 
 (Reply to this email to reach them directly.)`,
         });

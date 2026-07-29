@@ -11,6 +11,14 @@ import {
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
+/** Every path that served the waitlist under its old name, public and internal. */
+const RENAMED_WAITLIST_PATHS = new Set([
+    '/waitlist',
+    '/no/waitlist',
+    '/sv/waitlist',
+    '/admin/waitlist',
+]);
+
 /** Passes the resolved locale and the un-prefixed path down to the server render. */
 function withLocaleHeaders(req: NextRequest, language: Language, path: string) {
     const headers = new Headers(req.headers);
@@ -34,9 +42,14 @@ export default function proxy(req: NextRequest) {
     // It was live and in the sitemap, so the old path keeps working rather than
     // 404ing anyone who already has the link. Handled here rather than in
     // next.config so the locale prefix survives: /no/waitlist -> /no/waiting-list.
-    if (pathname === '/waitlist' || pathname.endsWith('/waitlist')) {
+    //
+    // Listed exhaustively rather than matched on a `/waitlist` suffix. The suffix
+    // version also rewrote /admin/waitlist, which 404'd until the console's own
+    // route was renamed to match — a redirect should only fire on paths it was
+    // actually written for.
+    if (RENAMED_WAITLIST_PATHS.has(pathname)) {
         const url = req.nextUrl.clone();
-        url.pathname = pathname.slice(0, -'/waitlist'.length) + '/waiting-list';
+        url.pathname = pathname.replace(/\/waitlist$/, '/waiting-list');
         return NextResponse.redirect(url, 301);
     }
 
