@@ -760,10 +760,15 @@
       "get_started": "Kom igång",
       "slides": {
         "psychology": {
-          "title": "Psykologin bakom skrivande och framsteg"
+          "title": "Bevisat av forskningen",
+          "science": {
+            "claim_lead": "Att aktivt skapa musik",
+            "claim_stress": "engagerar hela din hjärna.",
+            "quote": "Det ger störst potential för distraktion,\nsmärtlindring, kognition, fin- och\ngrovmotorisk utveckling och uttryck."
+          }
         },
         "modern_way": {
-          "title": "Lär dig låtskrivande på det moderna sättet",
+          "title": "Vi stärker mänskliga\nlåtskrivare",
           "hover_titles": {
             "master_lyrics": "Jag behärskar texter och verser",
             "expanded_skills": "Jag utvecklar mina färdigheter",
@@ -774,41 +779,60 @@
             "see_life": "Jag ser livet i texter"
           },
           "labels": {
-            "master_lyrics": "Jag behärskar\ntexter och\nverser",
-            "expanded_skills": "Jag utvecklar\nmina\nfärdigheter",
-            "see_life": "Jag ser livet\ni texter",
-            "unlocked_creativity": "Jag frigör\nmin\nkreativitet",
-            "ignite_imagination": "Jag tänder\nmin fantasi",
-            "tell_stories": "Jag\nberättar\nhistorier\nsom berör",
+            "master_lyrics": "Behärska\nlåtskrivandets\ngrunder",
+            "expanded_skills": "Samarbete &\naffärer",
+            "see_life": "Äg och\nsläpp låtar",
+            "unlocked_creativity": "Nå din\nfulla\nmentala\nstyrka",
+            "ignite_imagination": "Mental\nterapi",
+            "tell_stories": "Berätta\nhistorier\nsom\nberör",
             "deeper_expertise": "Nå ett djupare\nkunnande"
           }
         },
         "tools": {
-          "title": "Alla verktyg du behöver för att skapa låtar",
+          "title": "Verktyg som låser upp\ndin kreativitet",
           "demo": {
-            "project": "Havsbris",
+            "project": "Mina texter",
             "line_1": "Går längs stranden i det blå",
             "line_2": "känner värmen jag kan nå",
-            "line_3": "och tidvattnet kallar mig hem",
-            "recording": "Refrängidé"
+            "line_3": "jag är din att behålla",
+            "line_4": "och jag är din att förlora",
+            "recording": "Refrängidé",
+            "photo": "Handskriven vers"
           }
         },
         "collab": {
-          "title": "Samarbeta live med andra låtskrivare i projekt",
+          "title": "Livesamarbete\nmed andra låtskrivare",
           "demo": {
             "title": "Låt",
-            "hint": "Livedemo — testa själv"
+            "hint": "Live"
           }
         },
         "publish": {
-          "title": "Publicera dina låtar och få feedback"
-        },
-        "own": {
-          "title": "Du äger dina låtar"
+          "title": "Du äger dina låtar,\ndu delar framgången",
+          "demo": {
+            "project": "Min låt",
+            "author": "Elin",
+            "badge": "Text + melodi",
+            "lines": "Jag lät radion stå på\nså huset skulle kännas vaket\nmidnatten brummar genom väggen\noch jag sjunger det jag inte kan säga"
+          }
         }
       }
     },
+    "quiz": {
+      "step_counter": "Steg {current} av {total}",
+      "skip": "Hoppa direkt till registrering",
+      "deck": {
+        "counter": "{current} av {total}",
+        "keep": "Det är jag",
+        "pass": "Inte jag"
+      }
+    },
     "questions": {
+      "goals": {
+        "add_custom": "Lägg till eget",
+        "custom_placeholder": "Skriv ditt eget och tryck enter",
+        "take_back": "Ta ut det här kortet ur lådan igen"
+      },
       "songwriter_type": {
         "question": "Vad beskriver dig bäst?",
         "options": {
@@ -835,7 +859,7 @@
         }
       },
       "struggle": {
-        "question": "Vad kämpar du mest med?",
+        "question": "Vad står i vägen?",
         "options": {
           "unfinished": "Jag börjar på låtar men gör aldrig klart dem.",
           "weak_melodies": "Jag kan skriva text, men melodierna känns svaga.",
@@ -875,32 +899,73 @@
         }
       }
     },
-    "hype": {
-      "messages": [
-        "Analyserar dina svar...",
-        "Rensar bort tråkig teori...",
-        "Prioriterar visuellt lärande..."
-      ],
-      "verdict_label": "Slutsatsen",
-      "verdict_title_prefix": "Du är en",
-      "verdict_title_emphasis": "visuell typ.",
-      "verdict_desc": "Du behöver inte fler övningar. Du behöver se musiken."
+    "analyzing": {
+      "title": "Läser igenom dina svar",
+      "subtitle": "Fem svar. Ge oss ett ögonblick med dem.",
+      "done": "Det räcker för att säga något om dig."
     },
-    "preview_end": {
-      "title": "Det var hela flödet",
-      "subtitle": "Nu har du sett varje steg i Veinotes onboarding.",
-      "body": "Vi öppnar inte för konton än – Veinote är fortfarande i sluten testning, så här stannar förhandsvisningen. Inget du fyllde i sparades. Lämna din e-postadress så hör vi av oss så fort vi öppnar.",
-      "restart": "Gå igenom det en gång till"
+    "verdict": {
+      "label": "Så här ser vi det",
+      "struggle_label": "Och det som stoppar dig",
+      "promise_label": "Hit leder det",
+      "cta": "Visa mig hur",
+      "types": {
+        "lyricist": "Du är en textförfattare.",
+        "melodist": "Du är en melodiskapare.",
+        "producer": "Du är en producent.",
+        "storyteller": "Du är en berättare.",
+        "explorer": "Du är en utforskare.",
+        "default": "Du är låtskrivare."
+      },
+      "type_notes": {
+        "lyricist": "Orden kommer först, och de måste sitta. Hellre en rad som träffar än tio som fyller ut.",
+        "melodist": "Du hör det innan du kan förklara det. Melodin kommer färdig och resten av låten får hänga med.",
+        "producer": "Du tänker i arrangemang — vad som kommer in, vad som försvinner, hur låten låter färdig.",
+        "storyteller": "Varje låt tillhör någon, och du kommer inte igång förrän du vet vem. Person före refräng.",
+        "explorer": "Du skriver för att ta reda på vad du tycker. Låten är sökandet, inte rapporten.",
+        "default": "Du skriver redan. Det du saknar är ett ställe som hänger med."
+      },
+      "struggles": {
+        "unfinished": "Du börjar fler låtar än du gör klart — inte för att idéerna saknas, utan för att de ligger utspridda i anteckningar, röstmemon och filer som aldrig möts.",
+        "weak_melodies": "Texterna sitter. Det är melodin som alltid blir tvåa, och du har inte haft någonstans att testa tjugo versioner av den högt.",
+        "no_structure": "Du har bitarna. Det som saknas är formen som gör dem till en låt i stället för en samling fina stunder.",
+        "too_similar": "Allt kommer ut som förra låten — så går det för alla som skriver ensamma, i samma rum, med samma tre ackord.",
+        "overthink": "Du tänker ihjäl en rad innan den hunnit leva. Första utkastet får aldrig vara ett första utkast.",
+        "default": "Något lägger sig mellan dig och en färdig låt."
+      },
+      "dreams": {
+        "finish_songs": "Om tre månader har du färdiga låtar du spelar upp utan att be om ursäkt först.",
+        "unique_sound": "Om tre månader hör någon åtta takter och vet att det är du.",
+        "move_people": "Om tre månader har du låten som får ett rum att tystna.",
+        "release_music": "Om tre månader har du en låt klar för release och någonstans att skicka den.",
+        "creative_fearless": "Om tre månader skriver du utan att tveka — och dåliga idéer kostar ingenting längre.",
+        "default": "Om tre månader har du låtar som är klara, inte bara påbörjade."
+      }
     },
-    "auth": {
-      "title": "Säkra din plats",
-      "subtitle": "Skapa din inloggning för att fortsätta din låtskrivarresa.",
-      "email_placeholder": "E-postadress",
-      "password_placeholder": "Lösenord",
-      "creating": "Skapar konto...",
-      "continue": "Fortsätt",
-      "or": "eller",
-      "google": "Skapa med Google"
+    "offer": {
+      "eyebrow": "Helt förutsättningslöst",
+      "title": "Vi vill att du provar Veinote gratis.",
+      "subtitle": "{days} dagar med allt. Så här går det till, steg för steg.",
+      "timeline": {
+        "today": {
+          "label": "Idag",
+          "title": "Allt låses upp. Du betalar ingenting.",
+          "desc": "Canvas, demostudio, rimlexikon, samarbete — allt, från att du är inne."
+        },
+        "reminder": {
+          "label": "Dag {day}",
+          "title": "Vi mejlar en påminnelse.",
+          "desc": "En dag innan något händer, så att provperiodens slut aldrig blir en överraskning på kontoutdraget."
+        },
+        "end": {
+          "label": "Dag {days}",
+          "title": "Abonnemanget startar — om du inte har avslutat.",
+          "desc": "Att avsluta tar två tryck och går ända in i sista stund. Inget samtal, inget formulär, ingen förklaring."
+        }
+      },
+      "cta": "Starta mina {days} gratisdagar",
+      "back": "Tillbaka",
+      "footnote": "Vi ber om kort så att provperioden kan gå rakt över i ett abonnemang om du vill. Inget dras idag."
     },
     "paywall": {
       "title": "Starta din förvandling.",
@@ -939,7 +1004,8 @@
             "files_backup": "Full filhantering och backup med lokal nedladdning",
             "limits": "Begränsat antal filer och ljudinspelningar",
             "sharing": "Dela dina låtar med andra låtskrivare"
-          }
+          },
+          "tagline": "Populärast — för dig som skriver regelbundet"
         },
         "max": {
           "name": "Max",
@@ -951,16 +1017,44 @@
             "books": "Böcker och hela paketet"
           },
           "soon": {},
-          "features": {}
+          "features": {},
+          "tagline": "För låtskrivare som lever på det"
         }
       },
       "guarantee": "30 dagars pengarna-tillbaka-garanti",
       "refund_policy": "Återbetalningspolicy",
-      "cta": "Testa för 0,00 $",
+      "cta": "Betala $0.00",
       "opening_checkout": "Öppnar betalning...",
       "checkout_error": "Vi kunde inte öppna betalningen. Försök igen.",
       "no_charge": "Ingen betalning i dag.",
-      "reminder": "Vi mejlar dig innan din provperiod tar slut."
+      "reminder": "Vi mejlar dig innan din provperiod tar slut.",
+      "today_free": "$0.00 idag",
+      "then_billed": "Betalningen startar dag {days}. Avsluta när som helst innan dess."
+    },
+    "auth": {
+      "title": "Säkra din plats",
+      "subtitle": "Skapa din inloggning för att fortsätta din låtskrivarresa.",
+      "email_placeholder": "E-postadress",
+      "password_placeholder": "Lösenord",
+      "creating": "Skapar konto...",
+      "continue": "Fortsätt",
+      "or": "eller",
+      "google": "Skapa med Google"
+    },
+    "welcome": {
+      "title": "Välkommen ombord",
+      "subtitle": "Dina {days} dagar börjar nu. Här gör de mest nytta.",
+      "steps_label": "Tre saker värda att göra först",
+      "steps": {
+        "canvas": "Öppna en canvas och få ner en vers — skriven, sjungen eller fotad från ett papper.",
+        "tools": "Testa rimlexikonet och demostudion på något du redan har halvfärdigt.",
+        "community": "Dela en låt. Feedback från en annan låtskrivare slår ännu en timme ensam med den."
+      },
+      "cta": "Öppna Veinote",
+      "prelaunch": {
+        "body": "Konton är inte öppna än — Veinote är fortfarande i sluten testning, så inget skapades och inget kort debiterades. Här slutar förhandsvisningen.",
+        "restart": "Gå igenom det igen"
+      }
     },
     "errors": {
       "enter_credentials": "Fyll i e-postadress och lösenord.",

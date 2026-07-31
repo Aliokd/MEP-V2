@@ -4,7 +4,9 @@ import { db } from "@/lib/firebase";
 import type { Language } from "@/context/LanguageContext";
 
 interface CreateUserProfileOptions {
-    answers?: Record<string, string>;
+    // One value per question, except the onboarding struggle deck, which can be
+    // answered with several.
+    answers?: Record<string, string | string[]>;
     locale?: Language;
     name?: string;
 }

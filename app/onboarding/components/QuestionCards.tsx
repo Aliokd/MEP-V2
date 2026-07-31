@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 // Compressed clips live under /public/onboarding-cards, named after the answer
@@ -41,11 +40,10 @@ interface QuestionCardsProps {
     questionId: string;
     options: { value: string }[];
     selectedOption: string | null;
-    disabled: boolean;
     onSelect: (value: string) => void;
 }
 
-export default function QuestionCards({ questionId, options, selectedOption, disabled, onSelect }: QuestionCardsProps) {
+export default function QuestionCards({ questionId, options, selectedOption, onSelect }: QuestionCardsProps) {
     const { t } = useLanguage();
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -117,6 +115,11 @@ export default function QuestionCards({ questionId, options, selectedOption, dis
         };
     }, []);
 
+    // Which card the pointer (or focus) is on. Playback is derived from this
+    // and from the answer rather than driven straight off the events, because
+    // two things now keep a clip running and only one of them is a pointer.
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
     // Cards sit on their poster frame in black and white until pointed at.
     const playClip = (index: number) => {
         const video = videoRefs.current[index];
@@ -160,10 +163,42 @@ export default function QuestionCards({ questionId, options, selectedOption, dis
         }, REVEAL_FADE_MS);
     };
 
+    /**
+     * A clip runs while its card is pointed at, and goes on running for as long
+     * as that card is the answer. The chosen card being the only one alive and
+     * in colour is what says it was chosen — there is no tick and no outline to
+     * say it instead.
+     *
+     * What's tracked here is the instruction given to each clip, not the state
+     * of the element. `video.paused` looks like the same thing and isn't: the
+     * browser pauses media on its own — a backgrounded tab, a clip reaching its
+     * end — and a card that was paused out from under us would then never be
+     * told to stop, so its poster would never come back.
+     */
+    const running = useRef<boolean[]>([]);
+
+    useEffect(() => {
+        options.forEach((option, index) => {
+            const shouldRun = hoveredIndex === index || selectedOption === option.value;
+            if (shouldRun === !!running.current[index]) return;
+
+            running.current[index] = shouldRun;
+            if (shouldRun) playClip(index);
+            else stopClip(index, option.value);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hoveredIndex, selectedOption, options]);
+
     return (
-        <div ref={containerRef} className="flex flex-wrap justify-center gap-4 md:gap-5">
+        // Tighter side to side than top to bottom: three cards in a row read as
+        // one row when the columns are close, and the vertical gap is what keeps
+        // the two rows from running together.
+        <div ref={containerRef} className="flex flex-wrap justify-center gap-x-3 gap-y-4 md:gap-y-5">
             {options.map((option, i) => {
                 const isSelected = selectedOption === option.value;
+                // Pointed at or chosen: either way the card is awake, and an
+                // awake card shows its footage at full strength.
+                const isLive = hoveredIndex === i || isSelected;
                 const offset = offsets?.[i];
 
                 // Three phases: invisible while measuring, then the pile, then
@@ -188,16 +223,16 @@ export default function QuestionCards({ questionId, options, selectedOption, dis
                         }}
                         type="button"
                         onClick={() => onSelect(option.value)}
-                        onMouseEnter={() => playClip(i)}
-                        onMouseLeave={() => stopClip(i, option.value)}
+                        onMouseEnter={() => setHoveredIndex(i)}
+                        onMouseLeave={() => setHoveredIndex((current) => (current === i ? null : current))}
                         // Keyboard users get the same reveal as pointer users.
-                        onFocus={() => playClip(i)}
-                        onBlur={() => stopClip(i, option.value)}
+                        onFocus={() => setHoveredIndex(i)}
+                        onBlur={() => setHoveredIndex((current) => (current === i ? null : current))}
                         // Not settled yet ⇒ not interactive: no hover/focus reveal,
                         // no click, and (via pointer-events-none below) no CSS
                         // :hover match either, so nothing can trigger the color/video
                         // reveal while the card is still animating into place.
-                        disabled={disabled || !settled}
+                        disabled={!settled}
                         initial={false}
                         animate={animate}
                         // No per-card delay — every card starts, moves, and lands
@@ -213,32 +248,51 @@ export default function QuestionCards({ questionId, options, selectedOption, dis
                             // the pile that happens before it.
                             if (spread) setSettled(true);
                         }}
-                        whileHover={settled ? { y: -6 } : undefined}
-                        whileTap={settled ? { scale: 0.99 } : undefined}
+                        // Nothing moves on hover. The card already answers a
+                        // pointer by starting its clip and coming into colour —
+                        // lifting it as well is a second, louder answer to the
+                        // same gesture, and it pulls the eye off the footage
+                        // that is the actual reply.
                         // Keeps the pile layered while stacked, then flat so no
                         // card sits above its neighbour in the grid.
                         style={{ zIndex: spread ? 0 : options.length - i }}
-                        className={`group w-full text-left sm:w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.834rem)] ${
-                            !settled ? 'pointer-events-none' : disabled ? 'cursor-default' : 'cursor-pointer'
+                        // Widths track the 0.75rem column gap: two gaps shared
+                        // across three cards is 0.5rem off each.
+                        className={`group w-full text-left sm:w-[calc(50%-0.375rem)] md:w-[calc(33.333%-0.5rem)] ${
+                            settled ? 'cursor-pointer' : 'pointer-events-none'
                         }`}
                     >
                         <div
-                            className={`relative aspect-[3/4] w-full overflow-hidden rounded-[26px] bg-stone-200 transition-shadow duration-300 ${
-                                isSelected
-                                    ? 'shadow-[0_18px_45px_rgba(0,0,0,0.14)] ring-2 ring-[#86BE7F]'
-                                    : 'shadow-[0_12px_34px_rgba(0,0,0,0.08)]'
-                            }`}
+                            // Half the height they used to be, at the same
+                            // width: 3:4 portrait made a grid two rows deep
+                            // that pushed the quiz controls under the fold.
+                            // Cream rather than grey behind the footage: at 55%
+                            // the card's own colour is half of what you see.
+                            // No ring when chosen, and no tick in the corner
+                            // either. The answer is the one card left running
+                            // and in colour once the pointer has gone; a green
+                            // outline around it is a second answer to a question
+                            // the picture has already answered.
+                            className="relative aspect-[3/2] w-full overflow-hidden rounded-[26px] bg-[#EFF0E7] shadow-[0_12px_34px_rgba(0,0,0,0.08)]"
                         >
                             {/* Poster is always present and always the thing that's
                                 actually visible while cold — the video only fades in
                                 once `onPlaying` confirms it's flowing smoothly, so a
-                                slow first fetch or decoder warm-up is never on screen. */}
+                                slow first fetch or decoder warm-up is never on screen.
+
+                                At rest it sits at 55% against the cream underneath,
+                                which is what holds the grid together as a block of
+                                paper rather than five bright rectangles. Awake it
+                                goes to full strength: the card you are looking at is
+                                the footage, not a picture of it. */}
                             <img
                                 src={`${MEDIA_DIR}/${option.value}.webp`}
                                 alt=""
                                 aria-hidden="true"
-                                className="absolute inset-0 h-full w-full object-cover grayscale group-hover:grayscale-0 group-focus-visible:grayscale-0"
-                                style={{ transition: COLOR_TRANSITION }}
+                                className={`absolute inset-0 h-full w-full object-cover ${
+                                    isLive ? 'opacity-100' : 'opacity-55 grayscale'
+                                }`}
+                                style={{ transition: `${COLOR_TRANSITION}, opacity 400ms ease-out` }}
                             />
 
                             <video
@@ -255,7 +309,22 @@ export default function QuestionCards({ questionId, options, selectedOption, dis
                                     e.currentTarget.currentTime = CLIP_START[option.value] ?? 0;
                                 }}
                                 onPlaying={() => handlePlaying(i)}
-                                className={`absolute inset-0 h-full w-full object-cover grayscale group-hover:grayscale-0 group-focus-visible:grayscale-0 ${
+                                // Looped by hand rather than with `loop`, which
+                                // always restarts at 0 and would drag `producer`
+                                // back through its fade-in every pass. A chosen
+                                // card has to keep running: reaching the end and
+                                // freezing on its last frame would read as the
+                                // card going still the moment you picked it.
+                                onEnded={() => {
+                                    if (!running.current[i]) return;
+                                    const video = videoRefs.current[i];
+                                    if (!video) return;
+                                    video.currentTime = CLIP_START[option.value] ?? 0;
+                                    video.play().catch(() => {});
+                                }}
+                                // Only ever visible on a card that is awake, so it
+                                // is never greyed and never held back to 55%.
+                                className={`absolute inset-0 h-full w-full object-cover ${
                                     revealed[i] ? 'opacity-100' : 'opacity-0'
                                 }`}
                                 style={{
@@ -265,8 +334,12 @@ export default function QuestionCards({ questionId, options, selectedOption, dis
 
                             {/* Progressive blur band across the top of the footage —
                                 pure optical blur, no color wash, so it reads correctly
-                                over any hue the clip happens to show. */}
-                            <div className="pointer-events-none absolute inset-x-0 top-0 h-[30%]">
+                                over any hue the clip happens to show. Given as a
+                                percentage of a card that is now half as tall, so the
+                                band still has to reach past the bottom of the
+                                description: the same words over a shorter card sit
+                                proportionally much further down it. */}
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-[62%]">
                                 {BLUR_LAYERS.map((layer) => {
                                     const mask = `linear-gradient(to bottom, #000 0%, #000 ${layer.solid}%, transparent ${layer.fade}%)`;
                                     return (
@@ -284,28 +357,38 @@ export default function QuestionCards({ questionId, options, selectedOption, dis
                                 })}
                             </div>
 
+                            {/* Black over the resting card, white over the awake
+                                one. Not a style choice: the clips are dark, and
+                                at full strength black type on them measures about
+                                1.2:1 — invisible. At rest, over footage held at
+                                55% on cream, white is the one that disappears
+                                instead. So the words swap with the picture, on
+                                the same 400ms, and the shadow comes back only
+                                when there is footage under them to be held apart
+                                from. */}
                             <div className="absolute inset-x-0 top-0 p-5 md:p-6">
                                 <h3
-                                    className="text-[24px] font-sans font-bold leading-tight tracking-tight text-white md:text-[26px]"
-                                    style={{ textShadow: '0 1px 3px rgba(0,0,0,0.35), 0 1px 16px rgba(0,0,0,0.25)' }}
+                                    className={`text-[24px] font-sans font-bold leading-tight tracking-tight transition-colors duration-[400ms] md:text-[26px] ${
+                                        isLive ? 'text-white' : 'text-[#363636]'
+                                    }`}
+                                    style={{ textShadow: isLive ? '0 1px 3px rgba(0,0,0,0.4), 0 1px 16px rgba(0,0,0,0.3)' : 'none' }}
                                 >
                                     {t(`onboarding.questions.${questionId}.options.${option.value}.title`)}
                                 </h3>
+                                {/* Full strength, both states. The picture behind
+                                    it is what fades; holding the words back to
+                                    85% as well only made them harder to read
+                                    against footage that had already dimmed. */}
                                 <p
-                                    className="mt-1 text-[16px] font-sans font-normal leading-snug text-white/90 md:text-[17px]"
-                                    style={{ textShadow: '0 1px 3px rgba(0,0,0,0.35), 0 1px 14px rgba(0,0,0,0.2)' }}
+                                    className={`mt-1 text-[16px] font-sans font-normal leading-snug transition-colors duration-[400ms] md:text-[17px] ${
+                                        isLive ? 'text-white' : 'text-[#363636]'
+                                    }`}
+                                    style={{ textShadow: isLive ? '0 1px 3px rgba(0,0,0,0.4), 0 1px 14px rgba(0,0,0,0.25)' : 'none' }}
                                 >
                                     {t(`onboarding.questions.${questionId}.options.${option.value}.desc`)}
                                 </p>
                             </div>
 
-                            <span
-                                className={`absolute bottom-4 right-4 flex h-8 w-8 items-center justify-center rounded-full shadow-md transition-all duration-300 ${
-                                    isSelected ? 'scale-100 bg-[#86BE7F] opacity-100' : 'scale-75 opacity-0'
-                                }`}
-                            >
-                                <Check size={16} className="text-white" strokeWidth={3} />
-                            </span>
                         </div>
                     </motion.button>
                 );

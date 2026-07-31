@@ -3,18 +3,15 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { AlertCircle, Check, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Check, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { useAuth } from '@/context/AuthContext';
 import {
     FALLBACK_PRICING,
     PLAN_IDS,
-    getPriceId,
-    isPlanPurchasable,
+    TRIAL_DAYS,
     type BillingPeriod as Billing,
     type PlanId,
 } from '@/lib/paddle/config';
-import { openCheckout } from '@/lib/paddle/checkout';
 
 // Prices and price ids both live in lib/paddle/config.ts — see the note there
 // on which figures are confirmed and which are still placeholders.
@@ -40,41 +37,29 @@ const PLAN_CONTENT: Record<PlanId, { benefits: string[]; soon: string[]; feature
     },
 };
 
-export default function PaywallPlans() {
-    const { t, language } = useLanguage();
-    const { user } = useAuth();
+/**
+ * The plans, and the last screen before money changes hands.
+ *
+ * Checkout itself is not run from here. The step that follows the CTA depends
+ * on state this component has no business knowing — whether the visitor has an
+ * account yet, whether Paddle is configured, whether signups are open at all —
+ * so the selection is handed up to the onboarding page and it decides. That
+ * also means `?step=paywall` (the in-platform Max upgrade, where the visitor is
+ * already signed in) and the onboarding flow can share one component.
+ */
+export default function PaywallPlans({ onBack, onCheckout, isSubmitting = false, error = '' }: {
+    /** Omitted when the paywall is reached directly via `?step=paywall`. */
+    onBack?: () => void;
+    onCheckout: (plan: PlanId, billing: Billing) => void;
+    isSubmitting?: boolean;
+    error?: string;
+}) {
+    const { t } = useLanguage();
     const [billing, setBilling] = useState<Billing>('yearly');
     const [selectedPlan, setSelectedPlan] = useState<PlanId>('pro');
-    const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
-    const [checkoutError, setCheckoutError] = useState('');
 
     const savingsBadge = t('onboarding.paywall.billing.save_badge').replace('{pct}', String(SAVINGS_PCT));
-
-    // Until Paddle credentials and price ids are set, the CTA keeps its old
-    // behaviour of dropping straight into the platform.
-    const canCheckout = isPlanPurchasable(selectedPlan, billing) && Boolean(user);
-    const priceId = getPriceId(selectedPlan, billing);
-
-    const handleCheckout = async () => {
-        if (!user || !priceId) return;
-
-        setCheckoutError('');
-        setIsOpeningCheckout(true);
-        try {
-            await openCheckout({
-                priceId,
-                uid: user.uid,
-                email: user.email,
-                locale: language,
-                successUrl: `${window.location.origin}/platform/create`,
-            });
-        } catch (err: any) {
-            console.error('Paddle checkout failed to open:', err);
-            setCheckoutError(t('onboarding.paywall.checkout_error'));
-        } finally {
-            setIsOpeningCheckout(false);
-        }
-    };
+    const fill = (key: string) => t(key).replace('{days}', String(TRIAL_DAYS));
 
     return (
         <motion.div
@@ -152,11 +137,30 @@ export default function PaywallPlans() {
                                     )}
                                 </div>
 
+                                <p className="text-[13px] font-medium text-stone-500">
+                                    {t(`onboarding.paywall.plans.${planId}.tagline`)}
+                                </p>
+
                                 <div className="flex items-baseline gap-1.5">
                                     <span className="text-4xl font-sans font-bold text-stone-900">${price}</span>
                                     <span className="text-xs font-medium text-stone-500">
                                         {t(`onboarding.paywall.billing.billed_${billing}`)}
                                     </span>
+                                </div>
+
+                                {/* What the card is actually charged today, on
+                                    the card itself rather than in the fine print
+                                    under the button — the number beside the plan
+                                    name is not the number they're agreeing to
+                                    yet, and pretending otherwise is how trials
+                                    earn their reputation. */}
+                                <div className="space-y-0.5 pt-1">
+                                    <p className="text-[13px] font-bold text-[#3f6b3a]">
+                                        {t('onboarding.paywall.today_free')}
+                                    </p>
+                                    <p className="text-[12px] font-medium leading-snug text-stone-500">
+                                        {fill('onboarding.paywall.then_billed')}
+                                    </p>
                                 </div>
                             </div>
 
@@ -220,34 +224,39 @@ export default function PaywallPlans() {
                     {t('onboarding.paywall.guarantee')}
                 </div>
 
-                {checkoutError && (
+                {error && (
                     <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-left text-xs text-red-700">
                         <AlertCircle size={16} className="shrink-0" />
-                        <span>{checkoutError}</span>
+                        <span>{error}</span>
                     </div>
                 )}
 
-                {canCheckout ? (
+                <div className="flex items-center gap-3">
+                    {onBack && (
+                        <button
+                            type="button"
+                            onClick={onBack}
+                            aria-label={t('onboarding.go_back')}
+                            className="flex shrink-0 items-center justify-center rounded-[20px] border border-stone-300 bg-white/40 p-5 text-stone-600 shadow-sm transition-all hover:border-stone-400 hover:bg-white hover:text-stone-900"
+                        >
+                            <ArrowLeft size={18} />
+                        </button>
+                    )}
+
                     <button
                         type="button"
-                        onClick={handleCheckout}
-                        disabled={isOpeningCheckout}
-                        className="flex w-full items-center justify-center gap-3 rounded-[20px] bg-[#86BE7F] py-5 text-xl font-semibold text-stone-900 shadow-[0_4px_12px_rgba(0,0,0,0.02)] transition-all hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-75"
+                        onClick={() => onCheckout(selectedPlan, billing)}
+                        disabled={isSubmitting}
+                        className="flex flex-grow items-center justify-center gap-3 rounded-[20px] bg-[#86BE7F] py-5 text-xl font-semibold text-stone-900 shadow-[0_4px_12px_rgba(0,0,0,0.02)] transition-all hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-75"
                     >
-                        {isOpeningCheckout ? t('onboarding.paywall.opening_checkout') : t('onboarding.paywall.cta')}
+                        {isSubmitting ? t('onboarding.paywall.opening_checkout') : t('onboarding.paywall.cta')}
+                        {!isSubmitting && <ArrowRight className="h-5 w-5 stroke-[2.5px]" />}
                     </button>
-                ) : (
-                    <Link
-                        href="/platform/create"
-                        className="flex w-full items-center justify-center gap-3 rounded-[20px] bg-[#86BE7F] py-5 text-xl font-semibold text-stone-900 shadow-[0_4px_12px_rgba(0,0,0,0.02)] transition-all hover:opacity-95 active:scale-[0.99]"
-                    >
-                        {t('onboarding.paywall.cta')}
-                    </Link>
-                )}
+                </div>
 
                 <div className="space-y-1">
                     <p className="text-[11px] text-stone-500">{t('onboarding.paywall.no_charge')}</p>
-                    <p className="text-[11px] font-semibold text-stone-700">{t('onboarding.paywall.reminder')}</p>
+                    <p className="text-[11px] font-semibold text-stone-700">{fill('onboarding.paywall.reminder')}</p>
                     <Link
                         href="/refund-policy"
                         className="inline-block text-[11px] text-stone-500 underline underline-offset-4 transition-colors hover:text-stone-800"

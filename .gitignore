@@ -62,3 +62,9 @@ public/videos/Master fundamentals/
 
 
 vendor/lexicon/nst/
+
+# Onboarding source masters (66MB of raw video/stills from which the webp and
+# mp4 derivatives in public/onboarding-cards are generated). Kept out of the
+# repo AND off the deployed site: everything under public/ is served publicly,
+# and only the derivatives are ever referenced by the app.
+/public/Onboarding assets/

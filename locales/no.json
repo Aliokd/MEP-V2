@@ -760,10 +760,15 @@
       "get_started": "Kom i gang",
       "slides": {
         "psychology": {
-          "title": "Psykologien bak skriving og fremgang"
+          "title": "Bevist av forskningen",
+          "science": {
+            "claim_lead": "Å aktivt lage musikk",
+            "claim_stress": "engasjerer hele hjernen din.",
+            "quote": "Det gir størst potensial for distraksjon,\nsmertelindring, kognisjon, fin- og\ngrovmotorisk utvikling og uttrykk."
+          }
         },
         "modern_way": {
-          "title": "Lær låtskriving på den moderne måten",
+          "title": "Vi styrker menneskelige\nlåtskrivere",
           "hover_titles": {
             "master_lyrics": "Jeg mestrer tekst og vers",
             "expanded_skills": "Jeg utvikler ferdighetene mine",
@@ -774,41 +779,60 @@
             "see_life": "Jeg ser livet i tekster"
           },
           "labels": {
-            "master_lyrics": "Jeg mestrer\ntekst og\nvers",
-            "expanded_skills": "Jeg utvikler\nferdighetene\nmine",
-            "see_life": "Jeg ser livet\ni tekster",
-            "unlocked_creativity": "Jeg frigjør\nmin\nkreativitet",
-            "ignite_imagination": "Jeg tenner\nfantasien min",
-            "tell_stories": "Jeg\nforteller\nhistorier\nsom berører",
+            "master_lyrics": "Mestre\nlåtskrivingens\ngrunnlag",
+            "expanded_skills": "Samarbeid &\nforretning",
+            "see_life": "Eie og\nslippe låter",
+            "unlocked_creativity": "Nå din\nfulle\nmentale\nstyrke",
+            "ignite_imagination": "Mental\nterapi",
+            "tell_stories": "Fortell\nhistorier\nsom\nberører",
             "deeper_expertise": "Nå et dypere\nkunnskapsnivå"
           }
         },
         "tools": {
-          "title": "Alle verktøyene du trenger for å lage sanger",
+          "title": "Verktøy som låser opp\nkreativiteten din",
           "demo": {
-            "project": "Havbris",
+            "project": "Tekstene mine",
             "line_1": "Går langs stranden i det blå",
             "line_2": "kjenner varmen jeg kan nå",
-            "line_3": "og tidevannet kaller meg hjem",
-            "recording": "Refrengidé"
+            "line_3": "jeg er din å beholde",
+            "line_4": "og jeg er din å miste",
+            "recording": "Refrengidé",
+            "photo": "Håndskrevet vers"
           }
         },
         "collab": {
-          "title": "Samarbeid live med andre låtskrivere på prosjekter",
+          "title": "Live-samarbeid\nmed andre låtskrivere",
           "demo": {
             "title": "Sang",
-            "hint": "Live demo — prøv selv"
+            "hint": "Live"
           }
         },
         "publish": {
-          "title": "Publiser sangene dine og få tilbakemeldinger"
-        },
-        "own": {
-          "title": "Du eier sangene dine"
+          "title": "Du eier sangene dine,\ndu deler suksessen",
+          "demo": {
+            "project": "Min låt",
+            "author": "Elin",
+            "badge": "Tekst + melodi",
+            "lines": "Jeg lot radioen stå på\nså huset skulle føles våkent\nmidnatten brummer gjennom veggen\nog jeg synger det jeg ikke får sagt"
+          }
         }
       }
     },
+    "quiz": {
+      "step_counter": "Steg {current} av {total}",
+      "skip": "Hopp rett til registrering",
+      "deck": {
+        "counter": "{current} av {total}",
+        "keep": "Det er meg",
+        "pass": "Ikke meg"
+      }
+    },
     "questions": {
+      "goals": {
+        "add_custom": "Legg til eget",
+        "custom_placeholder": "Skriv ditt eget, og trykk enter",
+        "take_back": "Ta dette kortet ut av esken igjen"
+      },
       "songwriter_type": {
         "question": "Hva beskriver deg best?",
         "options": {
@@ -835,7 +859,7 @@
         }
       },
       "struggle": {
-        "question": "Hva sliter du mest med?",
+        "question": "Hva står i veien?",
         "options": {
           "unfinished": "Jeg starter på låter, men fullfører dem aldri.",
           "weak_melodies": "Jeg får til tekstene, men melodiene blir svake.",
@@ -875,32 +899,73 @@
         }
       }
     },
-    "hype": {
-      "messages": [
-        "Analyserer svarene dine...",
-        "Fjerner kjedelig teori...",
-        "Prioriterer visuell læring..."
-      ],
-      "verdict_label": "Konklusjonen",
-      "verdict_title_prefix": "Du er en",
-      "verdict_title_emphasis": "visuell type.",
-      "verdict_desc": "Du trenger ikke flere øvelser. Du trenger å se musikken."
+    "analyzing": {
+      "title": "Leser gjennom svarene dine",
+      "subtitle": "Fem svar. Gi oss et øyeblikk med dem.",
+      "done": "Det holder for å si noe om deg."
     },
-    "preview_end": {
-      "title": "Det var hele flyten",
-      "subtitle": "Nå har du sett hvert steg i oppstarten av Veinote.",
-      "body": "Vi åpner ikke for kontoer ennå – Veinote er fortsatt i lukket testing, så her stopper forhåndsvisningen. Ingenting du skrev inn ble lagret. Legg igjen e-postadressen din, så sier vi fra med en gang vi åpner.",
-      "restart": "Gå gjennom den en gang til"
+    "verdict": {
+      "label": "Dette ser vi",
+      "struggle_label": "Og det som stopper deg",
+      "promise_label": "Hit fører det",
+      "cta": "Vis meg hvordan",
+      "types": {
+        "lyricist": "Du er en tekstforfatter.",
+        "melodist": "Du er en melodiker.",
+        "producer": "Du er en produsent.",
+        "storyteller": "Du er en historieforteller.",
+        "explorer": "Du er en utforsker.",
+        "default": "Du er låtskriver."
+      },
+      "type_notes": {
+        "lyricist": "Ordene kommer først, og de må sitte. Heller én linje som treffer enn ti som fyller plass.",
+        "melodist": "Du hører det før du kan forklare det. Melodien kommer ferdig, og resten av låta må henge med.",
+        "producer": "Du tenker i arrangement — hva som kommer inn, hva som forsvinner, hvordan låta høres ut ferdig.",
+        "storyteller": "Hver låt tilhører noen, og du kommer ikke i gang før du vet hvem. Person før refreng.",
+        "explorer": "Du skriver for å finne ut hva du mener. Låta er letingen, ikke rapporten.",
+        "default": "Du skriver allerede. Det du mangler er et sted som holder følge."
+      },
+      "struggles": {
+        "unfinished": "Du starter mer enn du fullfører — ikke fordi ideene mangler, men fordi de ligger spredt i notater, talemeldinger og filer som aldri møtes.",
+        "weak_melodies": "Tekstene sitter. Det er melodien som alltid blir nummer to, og du har ikke hatt noe sted å prøve tjue versjoner av den høyt.",
+        "no_structure": "Du har bitene. Det som mangler er formen som gjør dem til en låt i stedet for en samling gode øyeblikk.",
+        "too_similar": "Alt kommer ut som forrige låt — slik går det for alle som skriver alene, i samme rom, med de samme tre grepene.",
+        "overthink": "Du tenker en linje i hjel før den har fått leve. Førsteutkastet får aldri være et førsteutkast.",
+        "default": "Noe legger seg mellom deg og en ferdig låt."
+      },
+      "dreams": {
+        "finish_songs": "Om tre måneder har du ferdige låter du spiller for noen uten å beklage først.",
+        "unique_sound": "Om tre måneder hører noen åtte takter og vet at det er deg.",
+        "move_people": "Om tre måneder har du låta som får et rom til å bli stille.",
+        "release_music": "Om tre måneder har du en låt klar for utgivelse og et sted å sende den.",
+        "creative_fearless": "Om tre måneder skriver du uten å nøle — og de dårlige ideene koster ingenting lenger.",
+        "default": "Om tre måneder har du låter som er ferdige, ikke bare påbegynte."
+      }
     },
-    "auth": {
-      "title": "Sikre plassen din",
-      "subtitle": "Opprett innloggingen din for å fortsette låtskriverreisen.",
-      "email_placeholder": "E-postadresse",
-      "password_placeholder": "Passord",
-      "creating": "Oppretter konto...",
-      "continue": "Fortsett",
-      "or": "eller",
-      "google": "Opprett med Google"
+    "offer": {
+      "eyebrow": "Helt uforpliktende",
+      "title": "Vi vil at du skal prøve Veinote gratis.",
+      "subtitle": "{days} dager med alt. Slik går det til, punkt for punkt.",
+      "timeline": {
+        "today": {
+          "label": "I dag",
+          "title": "Alt låses opp. Du betaler ingenting.",
+          "desc": "Canvas, demostudio, rimleksikon, samarbeid — hele greia, fra du er inne."
+        },
+        "reminder": {
+          "label": "Dag {day}",
+          "title": "Vi sender deg en påminnelse.",
+          "desc": "Én dag før noe skjer, så slutten på prøveperioden aldri blir en overraskelse på kontoutskriften."
+        },
+        "end": {
+          "label": "Dag {days}",
+          "title": "Abonnementet starter — hvis du ikke har avsluttet.",
+          "desc": "Å avslutte tar to trykk og går helt inn i siste liten. Ingen telefon, ingen skjema, ingen begrunnelse."
+        }
+      },
+      "cta": "Start mine {days} gratis dager",
+      "back": "Tilbake",
+      "footnote": "Vi ber om kort slik at prøveperioden kan gå rett over i et abonnement hvis du vil. Ingenting trekkes i dag."
     },
     "paywall": {
       "title": "Start forvandlingen.",
@@ -939,7 +1004,8 @@
             "files_backup": "Full filhåndtering og sikkerhetskopi med lokal nedlasting",
             "limits": "Begrenset antall filer og lydopptak",
             "sharing": "Del sangene dine med andre låtskrivere"
-          }
+          },
+          "tagline": "Mest populær — for deg som skriver jevnlig"
         },
         "max": {
           "name": "Max",
@@ -951,16 +1017,44 @@
             "books": "Bøker og hele pakken"
           },
           "soon": {},
-          "features": {}
+          "features": {},
+          "tagline": "For låtskrivere som lever av det"
         }
       },
       "guarantee": "30 dagers pengene-tilbake-garanti",
       "refund_policy": "Refusjonsvilkår",
-      "cta": "Prøv for 0,00 $",
+      "cta": "Betal $0.00",
       "opening_checkout": "Åpner betaling...",
       "checkout_error": "Vi fikk ikke åpnet betalingen. Prøv igjen.",
       "no_charge": "Ingen betaling i dag.",
-      "reminder": "Vi sender deg en e-post før prøveperioden tar slutt."
+      "reminder": "Vi sender deg en e-post før prøveperioden tar slutt.",
+      "today_free": "$0.00 i dag",
+      "then_billed": "Betalingen starter på dag {days}. Avslutt når som helst før det."
+    },
+    "auth": {
+      "title": "Sikre plassen din",
+      "subtitle": "Opprett innloggingen din for å fortsette låtskriverreisen.",
+      "email_placeholder": "E-postadresse",
+      "password_placeholder": "Passord",
+      "creating": "Oppretter konto...",
+      "continue": "Fortsett",
+      "or": "eller",
+      "google": "Opprett med Google"
+    },
+    "welcome": {
+      "title": "Velkommen om bord",
+      "subtitle": "De {days} dagene dine starter nå. Her gjør de mest nytte.",
+      "steps_label": "Tre ting det er verdt å gjøre først",
+      "steps": {
+        "canvas": "Åpne en canvas og få ned ett vers — skrevet, sunget eller fotografert fra et ark.",
+        "tools": "Prøv rimleksikonet og demostudioet på noe du allerede har halvferdig.",
+        "community": "Del én låt. Tilbakemelding fra en annen låtskriver slår enda en time alene med den."
+      },
+      "cta": "Åpne Veinote",
+      "prelaunch": {
+        "body": "Kontoer er ikke åpne ennå — Veinote er fortsatt i lukket testing, så ingenting ble opprettet og ingen kort ble belastet. Her stopper forhåndsvisningen.",
+        "restart": "Gå gjennom det på nytt"
+      }
     },
     "errors": {
       "enter_credentials": "Skriv inn e-postadresse og passord.",

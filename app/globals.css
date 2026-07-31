@@ -197,6 +197,86 @@ input:-webkit-autofill:active {
     animation: white-laser-scan 3s ease-in-out infinite;
 }
 
+/* One-pass scan sweep for the onboarding demo's photographed page.
+   .animate-white-laser-scan travels down AND back up on a 3s infinite loop,
+   which is right for a scan you're waiting on but wrong for a scripted beat:
+   the return trip reads as the scan undoing itself, and it doubles the time
+   before the result can land. This runs once, top to bottom, over whatever
+   duration the demo gives it (set inline, matched to SCAN_RUN). */
+@keyframes demo-scan-sweep {
+    from {
+        top: -18%;
+    }
+    to {
+        top: 110%;
+    }
+}
+.demo-scan-sweep {
+    animation-name: demo-scan-sweep;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+    animation-fill-mode: forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+    .demo-scan-sweep {
+        animation: none;
+        opacity: 0;
+    }
+}
+
+/* Saved-canvas outline for the onboarding demo.
+   Same gradient and the same `mind-power-glow` timing as .canvas-save-glow-ring,
+   but it does NOT carve its own middle out with a mask. The masked version is
+   built for the real canvas card; inside the demo's scaled, clipped surface the
+   mask's 2.5px padding is scaled with everything else and the ring reads as a
+   thick cropped block instead of an outline. Here the card's own opaque white
+   simply covers the middle — it sits above this in the stacking order — leaving
+   the 3px that pokes out around the edge, which is the whole ring. */
+.demo-save-ring {
+    position: absolute;
+    /* 5px rather than the app's 3px: the demo's canvas is drawn at roughly 85%
+       scale, so a 3px outline lands under 3px on screen and reads as a stray
+       edge rather than as the canvas lighting up. The radius is the card's own
+       32px plus the inset, so the ring stays concentric with it. */
+    inset: -5px;
+    border-radius: 37px;
+    pointer-events: none;
+    background: linear-gradient(90deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
+    background-size: 220% 100%;
+    animation: mind-power-glow 2s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+    .demo-save-ring {
+        animation: none;
+        opacity: 1;
+        background: #86BE7F;
+    }
+}
+
+/* Live recording level meter — used by the onboarding canvas demo's take.
+   Each bar carries its own delay and duration inline, so the row breathes
+   unevenly the way a voice does instead of pulsing as one block. Kept in CSS
+   rather than driven from rAF because forty bars re-rendering at display rate
+   costs more than the whole rest of that slide. */
+@keyframes live-wave-bar {
+    0%, 100% {
+        transform: scaleY(0.32);
+    }
+    50% {
+        transform: scaleY(1);
+    }
+}
+.live-wave-bar {
+    transform-origin: center;
+    animation-name: live-wave-bar;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .live-wave-bar {
+        animation: none;
+    }
+}
+
 @keyframes pulse-neutral-shimmer {
     0%, 100% {
         opacity: 0.15;

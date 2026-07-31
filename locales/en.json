@@ -760,10 +760,15 @@
       "get_started": "Get started",
       "slides": {
         "psychology": {
-          "title": "Psychology in writing and progress"
+          "title": "Proven by science",
+          "science": {
+            "claim_lead": "Active music-making truly",
+            "claim_stress": "engages your entire brain.",
+            "quote": "This creates the most potential for distraction,\npain reduction, cognition, fine and gross motor\ndevelopment, and expression."
+          }
         },
         "modern_way": {
-          "title": "Learn songwriting the modern way",
+          "title": "Empowering human\nsongwriters",
           "hover_titles": {
             "master_lyrics": "I master lyrics and verses",
             "expanded_skills": "I expand my skills",
@@ -774,41 +779,60 @@
             "see_life": "I see life in lyrics"
           },
           "labels": {
-            "master_lyrics": "I master\nlyrics and\nverses",
-            "expanded_skills": "I Expanded\nmy skills",
-            "see_life": "I see life\nin lyrics",
-            "unlocked_creativity": "I Unlocked\nmy\ncreativity",
-            "ignite_imagination": "I Ignite my\nimagination",
-            "tell_stories": "I tell\nstories\nthat\nconnect.",
+            "master_lyrics": "Master\nsongwriting\nfundamentals",
+            "expanded_skills": "Collab &\nBusiness",
+            "see_life": "Own and\npublish songs",
+            "unlocked_creativity": "Reach\noptimal\nmind\npower",
+            "ignite_imagination": "Mental\ntherapy",
+            "tell_stories": "Tell\nstories\nthat\nconnect",
             "deeper_expertise": "Reach a deeper\nlevel of expertise"
           }
         },
         "tools": {
-          "title": "All tools you need to create songs",
+          "title": "Tools designed to\nunlock your creativity",
           "demo": {
-            "project": "Ocean Breeze",
+            "project": "My lyrics",
             "line_1": "Walking down the sandy beach",
             "line_2": "feel the warmth within my reach",
-            "line_3": "and the tide keeps calling me home",
-            "recording": "Hook idea"
+            "line_3": "I'm yours to keep",
+            "line_4": "and I'm yours to lose",
+            "recording": "Hook idea",
+            "photo": "Handwritten verse"
           }
         },
         "collab": {
-          "title": "Live collab with other songwriters on projects",
+          "title": "Live collab\nwith songwriters",
           "demo": {
             "title": "Song",
-            "hint": "Live demo — try it"
+            "hint": "Live"
           }
         },
         "publish": {
-          "title": "Publish your songs and get feedback"
-        },
-        "own": {
-          "title": "Own your songs"
+          "title": "Own your songs,\nshare your success",
+          "demo": {
+            "project": "My song",
+            "author": "Elin",
+            "badge": "Lyrics + melody",
+            "lines": "I left the radio on\nso the house would feel awake\nmidnight hums through the wall\nand I sing what I can't say"
+          }
         }
       }
     },
+    "quiz": {
+      "step_counter": "Step {current} of {total}",
+      "skip": "Skip to sign-up",
+      "deck": {
+        "counter": "{current} of {total}",
+        "keep": "That's me",
+        "pass": "Not me"
+      }
+    },
     "questions": {
+      "goals": {
+        "add_custom": "Add custom",
+        "custom_placeholder": "Write your own, then press Enter",
+        "take_back": "Take this card back out of the box"
+      },
       "songwriter_type": {
         "question": "What describes you best?",
         "options": {
@@ -835,7 +859,7 @@
         }
       },
       "struggle": {
-        "question": "What is your biggest struggle?",
+        "question": "What gets in the way?",
         "options": {
           "unfinished": "I start songs but never finish them.",
           "weak_melodies": "I can write lyrics, but melodies feel weak.",
@@ -875,32 +899,73 @@
         }
       }
     },
-    "hype": {
-      "messages": [
-        "Analyzing answers...",
-        "Removing boring theory...",
-        "Prioritizing visual learning..."
-      ],
-      "verdict_label": "The Verdict",
-      "verdict_title_prefix": "You are a",
-      "verdict_title_emphasis": "Visual Learner.",
-      "verdict_desc": "You don't need more drills. You need to see the music."
+    "analyzing": {
+      "title": "Reading your answers",
+      "subtitle": "Five answers. Give us a moment with them.",
+      "done": "That's enough to go on."
     },
-    "preview_end": {
-      "title": "That's the flow",
-      "subtitle": "You've seen every step of the Veinote onboarding.",
-      "body": "Accounts aren't open yet — Veinote is still in private testing, so this is where the preview stops. Nothing you entered was saved. Leave your email and we'll tell you the moment it opens.",
-      "restart": "Go through it again"
+    "verdict": {
+      "label": "Here's what we see",
+      "struggle_label": "And the part that hurts",
+      "promise_label": "Here's where this goes",
+      "cta": "Show me how",
+      "types": {
+        "lyricist": "You're a Lyricist.",
+        "melodist": "You're a Melodist.",
+        "producer": "You're a Producer.",
+        "storyteller": "You're a Storyteller.",
+        "explorer": "You're an Explorer.",
+        "default": "You're a songwriter."
+      },
+      "type_notes": {
+        "lyricist": "The words come first, and they have to be the right ones. You'd rather write one line that lands than ten that fill space.",
+        "melodist": "You hear it before you can explain it. The tune arrives whole and the rest of the song has to catch up.",
+        "producer": "You think in arrangement — what enters, what drops out, what the song sounds like finished.",
+        "storyteller": "Every song belongs to someone, and you can't start until you know who. Character before chorus.",
+        "explorer": "You write to find out what you think. The song is the search, not the report.",
+        "default": "You already write. What you need is somewhere that keeps up with you."
+      },
+      "struggles": {
+        "unfinished": "You start more than you finish — not for lack of ideas, but because they end up scattered across notes, voice memos and files that never meet.",
+        "weak_melodies": "The words are there. It's the melody that keeps coming second, and you've had nowhere to try twenty versions of it out loud.",
+        "no_structure": "You have the pieces. What's missing is the shape that turns them into a song instead of a collection of good moments.",
+        "too_similar": "Everything comes out sounding like the last one — which happens to anyone writing alone, in the same room, with the same three chords.",
+        "overthink": "You think a line to death before it's had a chance to live. The first draft never gets to be a first draft.",
+        "default": "Something keeps getting between you and a finished song."
+      },
+      "dreams": {
+        "finish_songs": "Three months from now, you have finished songs you'd play for someone without apologising first.",
+        "unique_sound": "Three months from now, someone hears eight bars and knows it's yours.",
+        "move_people": "Three months from now, you have the one song that makes a room go quiet.",
+        "release_music": "Three months from now, you have a song ready to release and somewhere to send it.",
+        "creative_fearless": "Three months from now, you write without flinching — and bad ideas stop being expensive.",
+        "default": "Three months from now, you have songs that are finished, not just started."
+      }
     },
-    "auth": {
-      "title": "Secure your path",
-      "subtitle": "Create your credentials to continue your songwriting journey.",
-      "email_placeholder": "Email Address",
-      "password_placeholder": "Password",
-      "creating": "Creating account...",
-      "continue": "Continue",
-      "or": "or",
-      "google": "Create with Google"
+    "offer": {
+      "eyebrow": "No pressure",
+      "title": "We want you to try Veinote for free.",
+      "subtitle": "{days} days of everything. Here's exactly how it goes.",
+      "timeline": {
+        "today": {
+          "label": "Today",
+          "title": "Everything unlocks. You pay nothing.",
+          "desc": "Canvas, demo studio, rhyme lexicon, collaboration — the whole thing, from the moment you are in."
+        },
+        "reminder": {
+          "label": "Day {day}",
+          "title": "We email you a reminder.",
+          "desc": "A day before anything happens, so the end of the trial is never a surprise on a statement."
+        },
+        "end": {
+          "label": "Day {days}",
+          "title": "Your plan starts — unless you've cancelled.",
+          "desc": "Cancelling takes two taps and works right up to the last minute. No call, no form, no reason needed."
+        }
+      },
+      "cta": "Start my {days} days free",
+      "back": "Back",
+      "footnote": "We ask for a card so the trial can roll straight into a plan if you want it to. Nothing is charged today."
     },
     "paywall": {
       "title": "Start your transformation.",
@@ -939,7 +1004,8 @@
             "files_backup": "Full file management and backup with local download",
             "limits": "Limited files and audio recording",
             "sharing": "Share your songs with other songwriters"
-          }
+          },
+          "tagline": "Most popular — for songwriters building the habit"
         },
         "max": {
           "name": "Max",
@@ -951,16 +1017,44 @@
             "books": "Books and the full package"
           },
           "soon": {},
-          "features": {}
+          "features": {},
+          "tagline": "For working songwriters and teams"
         }
       },
       "guarantee": "30-day money-back guarantee",
       "refund_policy": "Refund policy",
-      "cta": "Try for $0.00",
+      "cta": "Pay $0.00",
       "opening_checkout": "Opening checkout...",
       "checkout_error": "We couldn't open the checkout. Please try again.",
       "no_charge": "No charge today.",
-      "reminder": "We'll email you before your free trial ends."
+      "reminder": "We'll email you before your free trial ends.",
+      "today_free": "$0.00 today",
+      "then_billed": "Billing starts on day {days}. Cancel any time before."
+    },
+    "auth": {
+      "title": "Secure your path",
+      "subtitle": "Create your credentials to continue your songwriting journey.",
+      "email_placeholder": "Email Address",
+      "password_placeholder": "Password",
+      "creating": "Creating account...",
+      "continue": "Continue",
+      "or": "or",
+      "google": "Create with Google"
+    },
+    "welcome": {
+      "title": "Welcome onboard",
+      "subtitle": "Your {days} days start now. Here's where to point them.",
+      "steps_label": "Three things worth doing first",
+      "steps": {
+        "canvas": "Open a canvas and get one verse down — typed, sung or photographed off a page.",
+        "tools": "Try the rhyme lexicon and the demo studio on something you've already half-written.",
+        "community": "Share one song. Feedback from another songwriter beats another hour alone with it."
+      },
+      "cta": "Open Veinote",
+      "prelaunch": {
+        "body": "Accounts aren't open yet — Veinote is still in private testing, so nothing was created and no card was charged. This is where the preview ends.",
+        "restart": "Go through it again"
+      }
     },
     "errors": {
       "enter_credentials": "Please enter your email and password.",

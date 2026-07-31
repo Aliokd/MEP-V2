@@ -1,41 +1,74 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Music, Check, Star, Sparkles, Wand2, ShieldCheck, CreditCard, Mail, Lock, User, ArrowRight, ArrowLeft, Inbox, AlertCircle, X } from 'lucide-react';
+import { ChevronRight, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/userProfile';
-import { localizePath } from '@/lib/i18n';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
 import Tooltip from '@/components/Tooltip';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { getPriceId, isPlanPurchasable, type BillingPeriod, type PlanId } from '@/lib/paddle/config';
+import { openCheckout } from '@/lib/paddle/checkout';
 import IntroCarousel from './components/IntroCarousel';
 import PaywallPlans from './components/PaywallPlans';
 import QuestionCards from './components/QuestionCards';
+import SwipeDeck from './components/SwipeDeck';
+import GoalBox, { isCustom, customText } from './components/GoalBox';
+import MoodOptions from './components/MoodOptions';
+import AnalyzingAnswers from './components/AnalyzingAnswers';
+import VerdictReveal from './components/VerdictReveal';
+import TrialOffer from './components/TrialOffer';
+import WelcomeAboard from './components/WelcomeAboard';
 
+/**
+ * The flow, in order:
+ *
+ *   intro → quiz → analyzing → verdict → offer → paywall → auth → checkout → welcome
+ *
+ * The account comes last, immediately before the card: everything up to the
+ * paywall is the argument for signing up, so asking for an email earlier is
+ * asking before the case has been made. Paddle needs a uid to attach the
+ * subscription to, which is the only reason auth exists at all here.
+ *
+ * Checkout is not a step — it's Paddle's own overlay, opened over the paywall,
+ * and its successUrl lands back on `?step=welcome`.
+ */
 const STEPS = {
     INTRO: 'intro',
     QUIZ: 'quiz',
-    HYPE: 'hype',
+    ANALYZING: 'analyzing',
+    VERDICT: 'verdict',
+    OFFER: 'offer',
+    PAYWALL: 'paywall',
     AUTH: 'auth',
-    PAYWALL: 'paywall'
+    WELCOME: 'welcome',
 };
+
+// The two steps that can be linked to directly: the plans (the in-platform Max
+// upgrade sends people here) and the welcome screen (where Paddle returns after
+// a successful checkout). The rest assume state built up on the way there and
+// would land the visitor on a half-filled form.
+const ADDRESSABLE_STEPS = new Set([STEPS.PAYWALL, STEPS.WELCOME]);
 
 /**
  * Pre-launch: the flow itself is public so the draft can be shared and reviewed,
- * but the account step at the end is closed. Reviewers see every screen; nobody
- * gets a Firebase account or reaches live Paddle checkout.
+ * but the account step is closed. Reviewers walk every screen — including the
+ * offer, the plans and the welcome — while the two steps that would touch the
+ * outside world are skipped: no Firebase account is created and Paddle is never
+ * opened. `Pay $0.00` goes straight to the welcome screen, which swaps its door
+ * into the product for the waiting list.
  *
  * This replaced a redirect that sent signed-out visitors to the waiting list —
  * which made the draft impossible to show anyone without an account.
  *
  * Flip to `true` to reopen public signups. Nothing else needs changing: the
- * original signup form is still wired up behind this flag, and `?step=paywall`
- * (the in-platform Max upgrade) bypasses this step either way.
+ * signup form and the checkout call are both still wired up behind this flag.
  */
 const SIGNUPS_OPEN: boolean = false;
 
@@ -57,6 +90,10 @@ const QUESTIONS = [
     },
     {
         id: 'struggle',
+        // Dealt as a swipe deck rather than a list, and the only question that
+        // takes more than one answer: its value is an array of every struggle
+        // swiped right. See SwipeDeck.
+        isDeck: true,
         options: [
             { value: "unfinished" },
             { value: "weak_melodies" },
@@ -67,6 +104,9 @@ const QUESTIONS = [
     },
     {
         id: 'dream_outcome',
+        // Cards taken off the table and put in a box, plus any the visitor
+        // writes themselves. Takes several answers, like the deck. See GoalBox.
+        isGoals: true,
         options: [
             { value: "finish_songs" },
             { value: "unique_sound" },
@@ -77,13 +117,16 @@ const QUESTIONS = [
     },
     {
         id: 'emotional_inspiration',
+        // Picture pills — each option is a photograph of the mood it names,
+        // washed pale. The colours that used to sit here were never read by
+        // anything; the imagery lives in MoodOptions now.
         isVisual: true,
         options: [
-            { value: "melancholic", color: "blue" },
-            { value: "energetic", color: "gold" },
-            { value: "cinematic", color: "purple" },
-            { value: "dark", color: "red" },
-            { value: "intimate", color: "gold" }
+            { value: "melancholic" },
+            { value: "energetic" },
+            { value: "cinematic" },
+            { value: "dark" },
+            { value: "intimate" }
         ]
     },
     {
@@ -98,6 +141,11 @@ const QUESTIONS = [
     }
 ];
 
+// The mood question, reached by hand because its photographs are mounted from
+// the first question onward rather than only while it is the one on screen —
+// see the backdrop layer in the render.
+const MOOD_QUESTION = QUESTIONS.find((q) => (q as any).isVisual)!;
+
 export default function OnboardingPage() {
     return <OnboardingPageInner />;
 }
@@ -107,13 +155,25 @@ function OnboardingPageInner() {
     // Whether a return to the intro should open on its last slide (backing out
     // of the quiz) rather than the first (a fresh arrival).
     const [introStartAtEnd, setIntroStartAtEnd] = useState(false);
+    // Which carousel slide is showing, reported up by IntroCarousel — the
+    // painted page backdrop belongs to the first slide only.
+    const [introIndex, setIntroIndex] = useState(0);
+    // Which mood's photograph the page is wearing, reported up by MoodOptions.
+    // Null on every other question — the quiz is otherwise bare paper.
+    const [moodBackdrop, setMoodBackdrop] = useState<string | null>(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [answers, setAnswers] = useState<Record<string, string>>({});
+    // One value per question, except the deck question, which answers with
+    // every struggle that was swiped right.
+    const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
-    const [selectedColor, setSelectedColor] = useState<string | null>(null);
-    const [isTransitioning, setIsTransitioning] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    
+
+    // The plan chosen on the paywall, kept here because the account step sits
+    // between the choice and the checkout that acts on it.
+    const [checkoutChoice, setCheckoutChoice] = useState<{ plan: PlanId; billing: BillingPeriod } | null>(null);
+    const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
+    const [checkoutError, setCheckoutError] = useState('');
+
     // Firebase Auth state
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -121,6 +181,7 @@ function OnboardingPageInner() {
     const [emailShowError, setEmailShowError] = useState(false);
     const router = useRouter();
     const { language, t } = useLanguage();
+    const { user } = useAuth();
 
     const handleAuthError = (err: any) => {
         console.error('Google Sign-Up error details:', err);
@@ -137,14 +198,68 @@ function OnboardingPageInner() {
         }
     };
 
-    // `?step=paywall` lets an already-signed-up user be sent straight to the plans
-    // (e.g. from the in-platform Max upgrade prompt) instead of replaying the quiz.
-    // Only this one step is addressable — the others assume state built up on the
-    // way there and would land the user on a half-filled form. Applied after mount
-    // rather than in the initial state so SSR and hydration agree on the markup.
+    /**
+     * Hands the chosen plan to Paddle. Everything that would make that
+     * impossible — signups closed, no account, Paddle not configured, no price
+     * id for this plan — lands on the welcome screen instead, so the flow
+     * always has an ending rather than a button that does nothing.
+     *
+     * The overlay opens over the paywall, never over the account form: by the
+     * time Paddle paints, the screen behind it should be the one showing the
+     * plan being paid for.
+     */
+    const startCheckout = async (account: User | null, choice: { plan: PlanId; billing: BillingPeriod }) => {
+        const priceId = getPriceId(choice.plan, choice.billing);
+
+        if (!SIGNUPS_OPEN || !account || !priceId || !isPlanPurchasable(choice.plan, choice.billing)) {
+            setCurrentStep(STEPS.WELCOME);
+            return;
+        }
+
+        setCheckoutError('');
+        setIsOpeningCheckout(true);
+        setCurrentStep(STEPS.PAYWALL);
+        try {
+            await openCheckout({
+                priceId,
+                uid: account.uid,
+                email: account.email,
+                locale: language,
+                // Paddle owns the browser from here — this is how the flow gets
+                // its last screen back.
+                successUrl: `${window.location.origin}/onboarding?step=${STEPS.WELCOME}`,
+            });
+        } catch (err: any) {
+            console.error('Paddle checkout failed to open:', err);
+            setCheckoutError(t('onboarding.paywall.checkout_error'));
+        } finally {
+            setIsOpeningCheckout(false);
+        }
+    };
+
+    const handlePlanChosen = (plan: PlanId, billing: BillingPeriod) => {
+        const choice = { plan, billing };
+        setCheckoutChoice(choice);
+        setCheckoutError('');
+
+        // Signed out and signups open: the account is the one thing still
+        // missing before Paddle can attach a subscription to anyone.
+        if (SIGNUPS_OPEN && !user) {
+            setCurrentStep(STEPS.AUTH);
+            return;
+        }
+
+        startCheckout(user, choice);
+    };
+
+    // `?step=` lets the two addressable steps be linked to directly: the plans
+    // (from the in-platform Max upgrade prompt) and the welcome screen (where
+    // Paddle sends the browser after a successful checkout), instead of
+    // replaying the quiz. Applied after mount rather than in the initial state
+    // so SSR and hydration agree on the markup.
     useEffect(() => {
         const step = new URLSearchParams(window.location.search).get('step');
-        if (step === STEPS.PAYWALL) setCurrentStep(STEPS.PAYWALL);
+        if (step && ADDRESSABLE_STEPS.has(step)) setCurrentStep(step);
     }, []);
 
     useEffect(() => {
@@ -153,11 +268,14 @@ function OnboardingPageInner() {
                 const result = await getRedirectResult(auth);
                 if (result) {
                     setIsLoading(true);
-                    const user = result.user;
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    const signedUp = result.user;
+                    const userDoc = await getDoc(doc(db, "users", signedUp.uid));
                     if (!userDoc.exists()) {
-                        await createUserProfile(user, { answers, locale: language });
+                        await createUserProfile(signedUp, { answers, locale: language });
                     }
+                    // A redirect sign-up is a fresh page load, so whichever plan
+                    // they had picked is gone — back to the plans, where one
+                    // tap now goes straight to Paddle.
                     setCurrentStep(STEPS.PAYWALL);
                 }
             } catch (err: any) {
@@ -175,13 +293,15 @@ function OnboardingPageInner() {
         setIsLoading(true);
         try {
             const result = await signInWithPopup(auth, googleProvider);
-            const user = result.user;
+            const signedUp = result.user;
 
-            const userDoc = await getDoc(doc(db, "users", user.uid));
+            const userDoc = await getDoc(doc(db, "users", signedUp.uid));
             if (!userDoc.exists()) {
-                await createUserProfile(user, { answers, locale: language });
+                await createUserProfile(signedUp, { answers, locale: language });
             }
-            setCurrentStep(STEPS.PAYWALL);
+            // Straight on to the card — the plan was chosen a screen ago.
+            if (checkoutChoice) await startCheckout(signedUp, checkoutChoice);
+            else setCurrentStep(STEPS.PAYWALL);
         } catch (err: any) {
             console.error('Google Sign-Up error:', err);
             if (
@@ -201,14 +321,7 @@ function OnboardingPageInner() {
             setIsLoading(false);
         }
     };
-    const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    
     const handleBack = () => {
-        if (transitionTimeoutRef.current) {
-            clearTimeout(transitionTimeoutRef.current);
-            transitionTimeoutRef.current = null;
-        }
-        setIsTransitioning(false);
         if (currentQuestionIndex > 0) {
             setCurrentQuestionIndex(prev => prev - 1);
         } else {
@@ -223,25 +336,72 @@ function OnboardingPageInner() {
     useEffect(() => {
         const questionId = QUESTIONS[currentQuestionIndex]?.id;
         if (questionId) {
-            setSelectedOption(answers[questionId] || null);
+            const answer = answers[questionId];
+            // The deck's answer is a list and has no single selected option —
+            // it drives its own state and never reads this.
+            setSelectedOption(typeof answer === 'string' ? answer : null);
         }
     }, [currentQuestionIndex, answers]);
 
-    useEffect(() => {
-        return () => {
-            if (transitionTimeoutRef.current) {
-                clearTimeout(transitionTimeoutRef.current);
-            }
-        };
-    }, []);
-
     const currentQuestion = QUESTIONS[currentQuestionIndex];
 
-    const handleAnswer = (value: string, color?: string) => {
-        if (isTransitioning) return;
+    // The current question's answer as a list, whichever shape it is stored in.
+    // The goal box reads it to know what's in the box, and Next reads it to
+    // know whether the question has been answered at all — `selectedOption`
+    // alone can't say, since it stays null for the multi-answer questions.
+    const currentAnswer = answers[currentQuestion.id];
+    const currentValues = Array.isArray(currentAnswer)
+        ? currentAnswer
+        : currentAnswer
+          ? [currentAnswer]
+          : [];
 
+    // The answers resolved to the labels the visitor actually read on the way
+    // here, in question order. `songwriter_type` keeps its label one level
+    // deeper than the rest because it renders as picture cards, and the deck
+    // question contributes one line per struggle it was given.
+    const answerLabels = useMemo(
+        () =>
+            QUESTIONS.flatMap((q) => {
+                const answer = answers[q.id];
+                const values = Array.isArray(answer) ? answer : answer ? [answer] : [];
+                return values.map((value) =>
+                    // A goal the visitor wrote is already the label.
+                    isCustom(value)
+                        ? customText(value)
+                        : t(
+                              (q as any).isCards
+                                  ? `onboarding.questions.${q.id}.options.${value}.title`
+                                  : `onboarding.questions.${q.id}.options.${value}`,
+                          ),
+                );
+            }),
+        [answers, t],
+    );
+
+    const restartFlow = () => {
+        setAnswers({});
+        setSelectedOption(null);
+        setCurrentQuestionIndex(0);
+        setCheckoutChoice(null);
+        setCheckoutError('');
+        setIntroStartAtEnd(false);
+        setCurrentStep(STEPS.INTRO);
+    };
+
+    /**
+     * Records a choice — and nothing else. Answering used to advance the quiz
+     * on a 400ms timer, which can't coexist with the Next button in the
+     * controls: a step that leaves on its own gives you nothing to press. So
+     * picking an option now only selects it, and Next is what moves.
+     *
+     * The trade is one extra tap per question for the ability to look at your
+     * answer before committing to it, and to change it without going back.
+     */
+    const handleAnswer = (value: string) => {
         if (value === selectedOption) {
-            // Deselect option
+            // Tapping the chosen option again clears it — the visitor is
+            // allowed to leave a question unanswered.
             setAnswers(prev => {
                 const newAnswers = { ...prev };
                 delete newAnswers[currentQuestion.id];
@@ -253,29 +413,48 @@ function OnboardingPageInner() {
 
         setSelectedOption(value);
         setAnswers(prev => ({ ...prev, [currentQuestion.id]: value }));
-        setIsTransitioning(true);
-
-        const timeoutId = setTimeout(() => {
-            if (color) {
-                setSelectedColor(color);
-            }
-
-            if (currentQuestionIndex < QUESTIONS.length - 1) {
-                setCurrentQuestionIndex(prev => prev + 1);
-            } else {
-                if (color) {
-                    setTimeout(() => {
-                        setCurrentStep(STEPS.HYPE);
-                    }, 1000);
-                } else {
-                    setCurrentStep(STEPS.HYPE);
-                }
-            }
-            setIsTransitioning(false);
-        }, 400);
-
-        transitionTimeoutRef.current = timeoutId;
     };
+
+    const handleQuizNext = () => {
+        if (currentQuestionIndex < QUESTIONS.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+        } else {
+            setCurrentStep(STEPS.ANALYZING);
+        }
+    };
+
+    /**
+     * The two questions that take a list — the deck and the goal box — both
+     * report their whole answer on every change rather than one item at a time,
+     * so claiming a struggle and taking a card back out of the box are the same
+     * call. An empty list is a question left unanswered rather than an answer of
+     * "none": the key is dropped, so the verdict falls back to its default line
+     * instead of naming a struggle nobody claimed.
+     */
+    const handleMultiAnswer = (values: string[]) => {
+        setAnswers(prev => {
+            const next = { ...prev };
+            if (values.length) next[currentQuestion.id] = values;
+            else delete next[currentQuestion.id];
+            return next;
+        });
+    };
+
+    // Running out of cards is a commit in itself — the deck moves the quiz on
+    // without waiting to be told to. Next does the same thing early.
+    const handleDeckComplete = (values: string[]) => {
+        handleMultiAnswer(values);
+        handleQuizNext();
+    };
+
+    /**
+     * The escape hatch in the controls. It goes to the plans rather than to the
+     * account form: the account sits behind the paywall in this flow, and the
+     * screens it skips (analyzing, verdict) are built entirely out of answers
+     * this visitor has chosen not to give — playing them on an empty set would
+     * read as the product guessing.
+     */
+    const handleSkipToSignUp = () => setCurrentStep(STEPS.PAYWALL);
 
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -292,8 +471,8 @@ function OnboardingPageInner() {
         setIsLoading(true);
         try {
             const result = await createUserWithEmailAndPassword(auth, email, password);
-            const user = result.user;
-            
+            const signedUp = result.user;
+
             // Get or create display name
             const emailPrefix = email.split('@')[0];
             const defaultName = emailPrefix
@@ -301,13 +480,14 @@ function OnboardingPageInner() {
                 .map(word => word.charAt(0).toUpperCase() + word.slice(1))
                 .join(' ');
 
-            await updateProfile(user, { displayName: defaultName });
+            await updateProfile(signedUp, { displayName: defaultName });
 
             // Create Firestore user document
-            await createUserProfile(user, { answers, locale: language, name: defaultName });
+            await createUserProfile(signedUp, { answers, locale: language, name: defaultName });
 
-            // Progress to paywall
-            setCurrentStep(STEPS.PAYWALL);
+            // Straight on to the card — the plan was chosen a screen ago.
+            if (checkoutChoice) await startCheckout(signedUp, checkoutChoice);
+            else setCurrentStep(STEPS.PAYWALL);
         } catch (err: any) {
             console.error('Sign-up error:', err);
             if (err.code === 'auth/email-already-in-use') {
@@ -321,16 +501,134 @@ function OnboardingPageInner() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-start md:justify-center px-6 pt-28 pb-12 md:py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">
-            {/* Language selector */}
-            <div className="absolute top-8 right-6 md:top-12 md:right-10 z-50">
-                <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
-            </div>
+        // `overflow-x-clip` rather than `overflow-hidden`: both clip sideways,
+        // but `hidden` makes this element a scroll container, and a scroll
+        // container between the document and a `position: sticky` child is
+        // what silently stops the child from ever sticking. `clip` creates no
+        // scroll container, so the carousel's actions row can pin itself to the
+        // bottom of the viewport when the page is too short for it.
+        <div className={`min-h-screen flex flex-col items-center px-6 bg-[#DCDDD4] relative overflow-x-clip font-sans ${
+            // The questions sit at the top rather than centred. Centring left
+            // the headline stranded in the middle of the screen with a long
+            // reach up to the mark above it; anchored to the top it reads as
+            // the mark's own heading. The whole justify set is swapped rather
+            // than overridden — two `md:justify-*` utilities in one list are
+            // resolved by build order, not by this list's order.
+            currentStep === STEPS.QUIZ ? 'justify-start' : 'justify-start md:justify-center'
+        } ${
+            // Every other step floats the mark above the frame and needs the
+            // headroom to clear it. The intro carries the mark inside its own
+            // card, so that headroom is just a gap at the top of the screen.
+            // The questions need only enough to clear the mark itself.
+            currentStep === STEPS.INTRO
+                ? 'pb-3 pt-6 md:py-7'
+                : currentStep === STEPS.QUIZ
+                    ? 'pt-16 pb-10 md:pt-20 md:pb-12'
+                    : 'pt-28 pb-12 md:py-32'
+        }`}>
+            {/* The painted backdrop. `fixed` rather than absolute so it stays
+                put on a page long enough to scroll, and behind everything at
+                z-0 — the flat #DCDDD4 above is what shows through wherever the
+                image doesn't reach, and what a failed load falls back to.
+
+                It belongs to the opening screens only. Two places drop it:
+
+                — The questions. Those are a headline and a column of answer
+                  cards with nothing else to hold the eye, so a painted
+                  landscape behind them stops being atmosphere and becomes the
+                  thing you look at, with the cards floating on a picture.
+
+                — Every carousel slide after the first. From slide two on, the
+                  card itself carries a backdrop, and a painted page behind a
+                  tinted card is two pictures fighting through one border. The
+                  opening slide keeps it precisely because its card is plain
+                  cream — there, the page is the only colour on screen.
+
+                Both fall back to the flat #DCDDD4 above. */}
+            {currentStep !== STEPS.QUIZ && !(currentStep === STEPS.INTRO && introIndex > 0) && (
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
+                    style={{ backgroundImage: `url('/onboarding-cards/welcome-backdrop.webp')` }}
+                />
+            )}
+            {/* The mood question is the one exception to the rule above: the
+                questions drop the painted page, and then this question hands it
+                to the visitor. Pointing at a feeling puts that feeling's own
+                photograph behind the whole screen, full bleed, and letting go
+                falls back to the one they chose.
+
+                All five are mounted at once and crossfaded on opacity rather
+                than swapped in on hover — `opacity: 0` still fetches, so no
+                hover is ever answered with a blank frame.
+
+                Mounted from the first question rather than from the fourth, for
+                the same reason: these are full-bleed photographs and the set is
+                450KB, which is a long wait if it starts when the question
+                appears and no wait at all if it starts three questions earlier.
+                Every layer stays invisible until `moodBackdrop` names one, and
+                nothing but the mood question ever sets it.
+
+                The scrim over them is a vertical gradient: near the page's own
+                colour at the top and bottom, where the mark, the headline and
+                the controls have to stay readable, and nearly clear across the
+                middle band where the pills are and the picture should show. */}
+            {currentStep === STEPS.QUIZ && (
+                <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0">
+                    {/* Blurred on purpose, and that is also the answer to the
+                        resolution: the sources are ~960px wide, so stretched
+                        across a full screen they were always going to be soft.
+                        Soft by accident reads as a bad image; soft by decision
+                        reads as depth of field, and the mood — which is all this
+                        picture is here to carry — survives a blur intact.
+
+                        One filter on the group rather than one per layer, and
+                        held 64px outside the viewport on every side so the
+                        blur's own faded edge is off screen rather than
+                        vignetting the frame. A fixed inset rather than a scale:
+                        a percentage overhang thins out on a short window, and
+                        this has to clear the blur radius at every size. The
+                        scrim stays outside it — blurring a gradient does
+                        nothing, and moving one would drag its stops off the
+                        edges it is there to protect. */}
+                    <div className="absolute -inset-16 blur-[14px]">
+                        {MOOD_QUESTION.options.map((option) => (
+                            <div
+                                key={option.value}
+                                className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-700 ${
+                                    moodBackdrop === option.value ? 'opacity-100' : 'opacity-0'
+                                }`}
+                                style={{ backgroundImage: `url('/onboarding-moods/${option.value}-full.webp')` }}
+                            />
+                        ))}
+                    </div>
+                    <div
+                        className={`absolute inset-0 transition-opacity duration-700 ${
+                            moodBackdrop ? 'opacity-100' : 'opacity-0'
+                        }`}
+                        style={{
+                            background:
+                                'linear-gradient(180deg, rgba(220,221,212,0.92) 0%, rgba(220,221,212,0.62) 16%, rgba(220,221,212,0.12) 34%, rgba(220,221,212,0.12) 66%, rgba(220,221,212,0.62) 86%, rgba(220,221,212,0.92) 100%)',
+                        }}
+                    />
+                </div>
+            )}
+
+            {/* No language selector here. Nothing on this page needs switching
+                mid-flow. The locale still comes from the URL and the stored
+                preference, so a visitor who picked Norwegian on the marketing
+                site is still reading Norwegian here. Put it back when the flow
+                is worth translating into on the spot. */}
 
             {/* Header / Logo */}
-            <div className="absolute top-8 left-0 right-0 flex justify-center md:top-12 z-40 pointer-events-none">
+            {/* Small, and close to the top. It is a mark, not a headline — the
+                question underneath is the headline, and every pixel the logo
+                takes is distance between the two. */}
+            <div className={`absolute top-5 left-0 right-0 flex justify-center md:top-7 z-40 pointer-events-none ${
+                currentStep === STEPS.INTRO ? 'hidden' : ''
+            }`}>
                 <Link href="/" className="hover:opacity-80 transition-opacity pointer-events-auto">
-                    <svg width="151" height="39" viewBox="0 0 151 39" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[120px] md:w-[151px] h-auto">
+                    <svg width="151" height="39" viewBox="0 0 151 39" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[84px] md:w-[104px] h-auto">
                         <path d="M26.8756 9.80365C27.7045 8.52842 28.0552 7.52417 27.9276 6.79091C27.832 6.05765 27.4016 5.51568 26.6365 5.16499C25.8713 4.8143 24.8671 4.59113 23.6237 4.49549L23.8628 3.53906C24.1816 3.57094 24.7555 3.60282 25.5844 3.6347C26.4452 3.6347 27.3538 3.65064 28.3102 3.68252C29.2985 3.68252 30.0796 3.68252 30.6535 3.68252C31.323 3.68252 31.9606 3.66658 32.5663 3.6347C33.172 3.60282 33.73 3.57094 34.2401 3.53906L34.0009 4.49549C33.2358 4.71865 32.5344 5.02152 31.8968 5.40409C31.2911 5.75478 30.6535 6.3127 29.984 7.07784C29.3145 7.8111 28.5493 8.84723 27.6885 10.1862L9.85119 37.6357C9.24545 37.5719 8.63972 37.54 8.03398 37.54C7.46012 37.54 6.87033 37.5719 6.26459 37.6357L2.48671 7.55605C2.35918 6.40834 2.02444 5.62726 1.48246 5.21281C0.940486 4.76647 0.446332 4.52737 0 4.49549L0.239107 3.53906C1.16365 3.57094 2.35918 3.60282 3.8257 3.6347C5.32411 3.66658 6.80657 3.68252 8.27309 3.68252C9.99465 3.68252 11.5728 3.66658 13.0074 3.6347C14.4739 3.60282 15.6694 3.57094 16.594 3.53906L16.3549 4.49549C15.3347 4.52737 14.5217 4.65489 13.916 4.87806C13.3103 5.10122 12.8958 5.48379 12.6726 6.02577C12.4814 6.56774 12.4335 7.39665 12.5292 8.51248L14.8246 29.6017L12.6726 31.6102L26.8756 9.80365Z" fill="#363636"/>
                         <path d="M134.341 27.212C135.521 26.7019 136.653 26.1281 137.737 25.4905C138.821 24.821 139.777 24.1036 140.606 23.3385C141.849 22.1589 142.869 20.804 143.666 19.2737C144.463 17.7115 144.862 16.0378 144.862 14.2525C144.862 13.7105 144.798 13.3438 144.671 13.1526C144.543 12.9613 144.352 12.8656 144.097 12.8656C143.427 12.8656 142.694 13.2323 141.897 13.9655C141.1 14.6669 140.319 15.6233 139.554 16.8348C138.789 18.0144 138.087 19.3693 137.45 20.8996C136.844 22.398 136.35 23.9602 135.967 25.5861C135.585 27.1801 135.393 28.7423 135.393 30.2726C135.393 32.0898 135.744 33.3172 136.445 33.9548C137.179 34.5925 138.119 34.9113 139.267 34.9113C140 34.9113 141.004 34.6562 142.28 34.1461C143.555 33.6041 144.814 32.6477 146.058 31.2768L146.823 31.6594C146.153 32.7115 145.26 33.7317 144.145 34.72C143.029 35.7083 141.722 36.5212 140.223 37.1589C138.725 37.7646 137.067 38.0675 135.25 38.0675C133.783 38.0675 132.444 37.8124 131.233 37.3023C130.053 36.7922 129.113 36.043 128.411 35.0547C127.71 34.0345 127.359 32.7912 127.359 31.3247C127.359 29.5393 127.646 27.7381 128.22 25.9209C128.794 24.1036 129.607 22.3661 130.659 20.7083C131.711 19.0186 132.97 17.5202 134.437 16.2131C135.935 14.906 137.577 13.8699 139.363 13.1047C141.148 12.3396 143.077 11.957 145.149 11.957C146.679 11.957 147.97 12.2918 149.022 12.9613C150.074 13.5989 150.601 14.6031 150.601 15.974C150.601 17.1855 150.266 18.3332 149.596 19.4172C148.927 20.4692 148.018 21.4416 146.87 22.3343C145.755 23.2269 144.479 24.0239 143.045 24.7253C141.642 25.4267 140.191 26.0324 138.693 26.5425C137.195 27.0526 135.728 27.4511 134.293 27.7381L134.341 27.212Z" fill="#363636"/>
                         <path d="M131.023 12.626L130.879 13.5824H113.711L113.951 12.626H131.023ZM119.928 33.3326C119.705 34.0658 119.705 34.6238 119.928 35.0063C120.151 35.357 120.502 35.5324 120.98 35.5324C121.618 35.5324 122.255 35.1976 122.893 34.5281C123.563 33.8267 124.121 32.8703 124.567 31.6588L125.332 29.6503H126.241L125.332 32.3762C124.694 34.2252 123.738 35.6439 122.463 36.6323C121.219 37.5887 119.705 38.0669 117.92 38.0669C116.389 38.0669 115.21 37.7162 114.381 37.0148C113.552 36.2816 113.058 35.3251 112.898 34.1455C112.739 32.9341 112.867 31.5951 113.281 30.1286L120.359 5.5484C121.921 5.51652 123.323 5.45276 124.567 5.35712C125.81 5.26147 127.022 5.10207 128.201 4.87891L119.928 33.3326Z" fill="#363636"/>
@@ -342,27 +640,40 @@ function OnboardingPageInner() {
                 </Link>
             </div>
 
-            {/* The paywall's two plans and the video answer cards both need more
-                room than the plain question steps. The intro carousel does too:
-                its frame is one constant box across all six slides, sized so the
-                studio demo inside it stays legible. */}
+            {/* The paywall's two plans, the intro carousel and the video answer
+                cards all need more room than the plain question steps — the
+                carousel because its frame is one constant box across all six
+                slides, sized so the studio demo inside it stays legible. */}
             <main
                 className={`w-full relative z-10 ${
-                    currentStep === STEPS.INTRO ||
-                    currentStep === STEPS.PAYWALL ||
-                    (currentStep === STEPS.QUIZ && (currentQuestion as any).isCards)
+                    currentStep === STEPS.QUIZ && (currentQuestion as any).isCards
                         ? 'max-w-4xl'
-                        : 'max-w-2xl'
+                        : currentStep === STEPS.INTRO || currentStep === STEPS.PAYWALL
+                          // A fifth narrower than the 4xl it used to be. The
+                          // carousel's frame is the widest thing in the flow and
+                          // was reading as a slab; the paywall keeps 4xl because
+                          // its two plans sit side by side.
+                          ? currentStep === STEPS.INTRO
+                              ? 'max-w-[716px]'
+                              : 'max-w-4xl'
+                          : 'max-w-2xl'
                 }`}
             >
-                <AnimatePresence mode="wait">
-                    {currentStep === STEPS.INTRO && (
-                        // The key has to live here — AnimatePresence only sees the
-                        // element it receives, so without it the exit never resolves
-                        // and the quiz never mounts.
+                {/* No AnimatePresence around the flow. It ran `mode="wait"`,
+                    which held the outgoing step for its exit animation, removed
+                    it, and only then mounted the next one — so between any two
+                    steps there was a beat with nothing on screen, and the page
+                    collapsed to its padding and sprang back. The same flinch
+                    the carousel had between slides, one level up. Steps now
+                    swap in a single paint; each one still fades itself in on
+                    mount, which needs no coordination to leave. */}
+                {currentStep === STEPS.INTRO && (
                         <IntroCarousel
                             key="intro"
                             startAtEnd={introStartAtEnd}
+                            // A plain state setter, so the effect reporting the
+                            // index doesn't re-run on every render.
+                            onIndexChange={setIntroIndex}
                             onComplete={() => {
                                 // The next arrival at the intro is a fresh one
                                 // unless another back-out says otherwise.
@@ -378,36 +689,51 @@ function OnboardingPageInner() {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
-                            className="space-y-12"
+                            // The picture cards sit closer under their question
+                            // than the other answers do. They are a block of
+                            // imagery rather than a list, and the reach the
+                            // other questions need to separate a headline from
+                            // a column of text reads as a gap here.
+                            className={
+                                (currentQuestion as any).isCards || (currentQuestion as any).isGoals
+                                    ? 'space-y-7 md:space-y-8'
+                                    : 'space-y-12'
+                            }
                         >
-                            <div className="space-y-8">
-                                <div className="flex items-center justify-between w-4/5 mx-auto gap-4">
-                                    {/* Always present — on the first question it
-                                        backs out of the quiz into the intro. */}
-                                    <Tooltip label={t('onboarding.go_back')}>
-                                        <button
-                                            onClick={handleBack}
-                                            aria-label={t('onboarding.go_back')}
-                                            className="text-stone-600 hover:text-stone-900 bg-white/40 hover:bg-white border border-stone-300 hover:border-stone-400 transition-all p-2 rounded-full flex items-center justify-center shadow-sm shrink-0"
-                                        >
-                                            <ArrowLeft size={16} />
-                                        </button>
-                                    </Tooltip>
-                                    <div className="flex-grow h-2 bg-[#BBBEB2]/20 rounded-full overflow-hidden relative">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${((currentQuestionIndex + 1) / QUESTIONS.length) * 100}%` }}
-                                            transition={{ duration: 0.5, ease: "easeOut" }}
-                                            className="h-full bg-stone-900 rounded-full"
-                                        />
-                                    </div>
-                                    <div className="w-[34px]" />
-                                </div>
-                                <div className="text-center">
-                                    <h2 className="text-4xl md:text-[3.25rem] font-sans font-light tracking-tight text-[#363636] leading-[1.1]">
-                                        {t(`onboarding.questions.${currentQuestion.id}.question`)}
-                                    </h2>
-                                </div>
+                            {/* The progress bar that used to sit here is gone —
+                                the dots in the controls below say the same
+                                thing, and saying it twice on one screen made
+                                the question compete with its own chrome. */}
+                            {/* One line on anything wider than a phone, which
+                                takes two things.
+
+                                Width: the headline steps outside its column.
+                                Most questions give `main` 2xl (672px), which is
+                                the right measure for a stack of answer rows but
+                                too narrow for a 40-character question. `left-1/2`
+                                puts this box's left edge on the column's centre
+                                and the translate pulls it back by half its own
+                                width, so it stays centred while spanning wider —
+                                and it never exceeds the viewport less the page's
+                                own gutters. The answer rows below are untouched,
+                                as are the cards, deck and goals layouts, which
+                                is why this isn't done by widening `main`.
+
+                                Size: a clamp rather than breakpoint steps,
+                                because what has to hold is a property of the
+                                text, not of the viewport. The widest question in
+                                any locale ("What do you want most from
+                                songwriting?") measures 18.1px of width per 1px
+                                of font size, so at the 2.25rem cap it needs
+                                636px of the 768 available. Fixed steps would let
+                                it wrap somewhere between two breakpoints. Below
+                                ~500px it wraps to two lines, which is the right
+                                answer on a phone — the floor keeps the headline
+                                readable rather than shrinking it to fit. */}
+                            <div className="relative left-1/2 w-[min(48rem,100vw-3rem)] -translate-x-1/2 text-center">
+                                <h2 className="text-[clamp(1.5rem,3.4vw,2.25rem)] font-sans font-light tracking-tight text-[#363636] leading-[1.15]">
+                                    {t(`onboarding.questions.${currentQuestion.id}.question`)}
+                                </h2>
                             </div>
 
                             {(currentQuestion as any).isCards ? (
@@ -415,16 +741,39 @@ function OnboardingPageInner() {
                                     questionId={currentQuestion.id}
                                     options={currentQuestion.options}
                                     selectedOption={selectedOption}
-                                    disabled={isTransitioning}
                                     onSelect={(value) => handleAnswer(value)}
                                 />
+                            ) : (currentQuestion as any).isDeck ? (
+                                <SwipeDeck
+                                    questionId={currentQuestion.id}
+                                    options={currentQuestion.options}
+                                    onChange={handleMultiAnswer}
+                                    onComplete={handleDeckComplete}
+                                />
+                            ) : (currentQuestion as any).isGoals ? (
+                                <GoalBox
+                                    questionId={currentQuestion.id}
+                                    options={currentQuestion.options}
+                                    picked={currentValues}
+                                    onChange={handleMultiAnswer}
+                                />
+                            ) : (currentQuestion as any).isVisual ? (
+                                <MoodOptions
+                                    questionId={currentQuestion.id}
+                                    options={currentQuestion.options}
+                                    selectedOption={selectedOption}
+                                    onSelect={(value) => handleAnswer(value)}
+                                    onPreview={setMoodBackdrop}
+                                />
                             ) : (
-                            <div className="grid gap-3 md:gap-5">
+                            /* Its own 2xl, so widening the column for the
+                               headline above doesn't stretch the answer rows
+                               past a comfortable line length. */
+                            <div className="mx-auto grid w-full max-w-2xl gap-3 md:gap-5">
                                 {currentQuestion.options.map((option) => (
                                     <motion.button
                                         key={option.value}
-                                        onClick={() => handleAnswer(option.value, (option as any).color)}
-                                        disabled={isTransitioning}
+                                        onClick={() => handleAnswer(option.value)}
                                         whileHover={{ y: -2, scale: 1.01 }}
                                         whileTap={{ scale: 0.99 }}
                                         className={`group relative w-full px-5 md:px-8 py-5 md:py-6 text-left border transition-all duration-300 rounded-2xl overflow-hidden ${selectedOption === option.value
@@ -444,62 +793,124 @@ function OnboardingPageInner() {
                                 ))}
                             </div>
                             )}
-                        </motion.div>
-                    )}
 
-                    {currentStep === STEPS.HYPE && (
-                        <HypeSection onComplete={() => setCurrentStep(STEPS.AUTH)} />
-                    )}
+                            {/* One cluster in the middle rather than a row spread
+                                to the page's edges. Spread out, Back and Next
+                                sat at opposite ends of a 900px span and the
+                                pointer had to cross the whole screen between
+                                them; gathered up, every control is a short move
+                                from the last one.
 
-                    {/* Pre-launch, the flow ends here instead of asking for an
-                        account — see SIGNUPS_OPEN. The waiting-list link is the
-                        one thing a reviewer can still act on. */}
-                    {currentStep === STEPS.AUTH && !SIGNUPS_OPEN && (
-                        <motion.div
-                            key="auth-closed"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="space-y-8"
-                        >
-                            <div className="text-center space-y-2">
-                                <h2 className="text-4xl md:text-[3.25rem] font-sans font-light tracking-tight text-stone-900 leading-[1.1]">
-                                    {t('onboarding.preview_end.title')}
-                                </h2>
-                                <p className="text-stone-700/80 text-[15px] font-medium">
-                                    {t('onboarding.preview_end.subtitle')}
-                                </p>
-                            </div>
+                                Back is the icon alone in grey: it is the one
+                                control here nobody should be drawn to. Next
+                                carries the only fill on the screen, and is dead
+                                until the question has an answer, so the button
+                                and the state of the quiz never disagree. */}
+                            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-4 sm:gap-x-7">
+                                <Tooltip label={t('onboarding.go_back')}>
+                                    <button
+                                        type="button"
+                                        onClick={handleBack}
+                                        aria-label={t('onboarding.go_back')}
+                                        className="shrink-0 p-2 text-stone-400 transition-colors hover:text-stone-700"
+                                    >
+                                        <ArrowLeft size={20} />
+                                    </button>
+                                </Tooltip>
 
-                            <div className="bg-[#EFF0E7] p-8 md:p-10 border border-stone-200/60 rounded-[28px] space-y-5 shadow-[0_8px_30px_rgba(0,0,0,0.015)] text-center">
-                                <p className="text-sm text-stone-600 leading-relaxed">
-                                    {t('onboarding.preview_end.body')}
-                                </p>
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="text-[13px] font-medium text-stone-500">
+                                            {t('onboarding.quiz.step_counter')
+                                                .replace('{current}', String(currentQuestionIndex + 1))
+                                                .replace('{total}', String(QUESTIONS.length))}
+                                        </span>
 
-                                <Link
-                                    href={`${localizePath('/waiting-list', language)}?from=onboarding`}
-                                    className="w-full py-4 bg-[#86BE7F] hover:opacity-95 text-stone-900 text-base font-semibold rounded-[16px] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
-                                >
-                                    {t('home.nav.waitlist')}
-                                    <ArrowRight className="w-4 h-4 stroke-[2.5px]" />
-                                </Link>
+                                        {/* Read-only. Unlike the carousel's dots
+                                            these aren't jumps — a question you
+                                            haven't reached has no answer to show
+                                            and nothing to go back to. */}
+                                        {/* Black, not green — the same dots the
+                                            carousel uses, so progress reads the
+                                            same way in both halves of the flow.
+                                            Green is the colour of the one thing
+                                            to press; spending it on a progress
+                                            readout makes the Next button
+                                            compete with a row of dots. */}
+                                        <div className="flex items-center gap-1.5" aria-hidden="true">
+                                            {QUESTIONS.map((q, i) => (
+                                                <span
+                                                    key={q.id}
+                                                    className={`rounded-full transition-all duration-300 ${
+                                                        i === currentQuestionIndex
+                                                            ? 'h-2.5 w-2.5 bg-stone-900'
+                                                            : i < currentQuestionIndex
+                                                                ? 'h-1.5 w-1.5 bg-stone-900'
+                                                                : 'h-1.5 w-1.5 bg-stone-900/20'
+                                                    }`}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
 
+                                    <button
+                                        type="button"
+                                        onClick={handleSkipToSignUp}
+                                        className="text-[13px] font-semibold text-stone-900 underline-offset-4 transition-colors hover:text-stone-600 hover:underline"
+                                    >
+                                        {t('onboarding.quiz.skip')}
+                                    </button>
+                                </div>
+
+                                {/* Present on every question, including the
+                                    deck. The deck advances on its own when it
+                                    runs out of cards, but dropping the seat
+                                    there re-centred the two controls that were
+                                    left and the whole cluster shifted between
+                                    one question and the next — Back and the dots
+                                    landing somewhere new each step. Three seats
+                                    on all five questions is worth more than
+                                    saving a button nobody has to press. */}
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        setAnswers({});
-                                        setSelectedOption(null);
-                                        setSelectedColor(null);
-                                        setCurrentQuestionIndex(0);
-                                        setCurrentStep(STEPS.INTRO);
-                                    }}
-                                    className="w-full text-sm text-stone-500 hover:text-stone-800 transition-colors font-medium"
+                                    onClick={handleQuizNext}
+                                    disabled={!currentValues.length}
+                                    className="flex shrink-0 items-center gap-2 rounded-full bg-[#86BE7F] px-6 py-3.5 text-base font-semibold text-stone-900 shadow-sm transition-all hover:opacity-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-stone-300/70 disabled:text-stone-500 disabled:shadow-none sm:px-10"
                                 >
-                                    {t('onboarding.preview_end.restart')}
+                                    {t('onboarding.intro.next')}
+                                    <ArrowRight className="h-4 w-4 stroke-[2.5px]" />
                                 </button>
                             </div>
                         </motion.div>
                     )}
 
+                    {currentStep === STEPS.ANALYZING && (
+                        <AnalyzingAnswers
+                            key="analyzing"
+                            answers={answerLabels}
+                            onComplete={() => setCurrentStep(STEPS.VERDICT)}
+                        />
+                    )}
+
+                    {currentStep === STEPS.VERDICT && (
+                        <VerdictReveal
+                            key="verdict"
+                            answers={answers}
+                            onContinue={() => setCurrentStep(STEPS.OFFER)}
+                        />
+                    )}
+
+                    {currentStep === STEPS.OFFER && (
+                        <TrialOffer
+                            key="offer"
+                            onBack={() => setCurrentStep(STEPS.VERDICT)}
+                            onContinue={() => setCurrentStep(STEPS.PAYWALL)}
+                        />
+                    )}
+
+                    {/* The last thing asked for before the card. Pre-launch this
+                        step is skipped entirely rather than shown as closed —
+                        see SIGNUPS_OPEN. */}
                     {currentStep === STEPS.AUTH && SIGNUPS_OPEN && (
                         <motion.div
                             key="auth"
@@ -507,6 +918,19 @@ function OnboardingPageInner() {
                             animate={{ opacity: 1, scale: 1 }}
                             className="space-y-8"
                         >
+                            <div className="flex items-center justify-between gap-4">
+                                <Tooltip label={t('onboarding.go_back')}>
+                                    <button
+                                        onClick={() => setCurrentStep(STEPS.PAYWALL)}
+                                        aria-label={t('onboarding.go_back')}
+                                        className="text-stone-600 hover:text-stone-900 bg-white/40 hover:bg-white border border-stone-300 hover:border-stone-400 transition-all p-2 rounded-full flex items-center justify-center shadow-sm shrink-0"
+                                    >
+                                        <ArrowLeft size={16} />
+                                    </button>
+                                </Tooltip>
+                                <div className="w-[34px]" />
+                            </div>
+
                             <div className="text-center space-y-2">
                                 <h2 className="text-4xl md:text-[3.25rem] font-sans font-light tracking-tight text-stone-900 leading-[1.1]">{t('onboarding.auth.title')}</h2>
                                 <p className="text-stone-700/80 text-[15px] font-medium">{t('onboarding.auth.subtitle')}</p>
@@ -573,82 +997,21 @@ function OnboardingPageInner() {
                     )}
 
                     {currentStep === STEPS.PAYWALL && (
-                        <PaywallPlans key="paywall" />
+                        <PaywallPlans
+                            key="paywall"
+                            // No way back when the plans were linked to
+                            // directly — there is nothing behind them.
+                            onBack={checkoutChoice || answerLabels.length ? () => setCurrentStep(STEPS.OFFER) : undefined}
+                            onCheckout={handlePlanChosen}
+                            isSubmitting={isOpeningCheckout}
+                            error={checkoutError}
+                        />
                     )}
-                </AnimatePresence>
+
+                    {currentStep === STEPS.WELCOME && (
+                        <WelcomeAboard key="welcome" signupsOpen={SIGNUPS_OPEN} onRestart={restartFlow} />
+                    )}
             </main>
         </div>
     );
 }
-
-function HypeSection({ onComplete }: { onComplete: () => void }) {
-    const { t, tList } = useLanguage();
-    const [animationStep, setAnimationStep] = useState(0);
-    const messages = tList<string>('onboarding.hype.messages');
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setAnimationStep(prev => prev + 1);
-        }, 1500);
-
-        if (animationStep >= messages.length + 1) {
-            clearInterval(interval);
-            setTimeout(onComplete, 2000);
-        }
-
-        return () => clearInterval(interval);
-    }, [animationStep, onComplete]);
-
-    return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center space-y-12"
-        >
-            <div className="relative h-48 flex items-center justify-center">
-                <AnimatePresence mode="wait">
-                    {animationStep < messages.length ? (
-                        <motion.p
-                            key={animationStep}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 1.1 }}
-                            className="text-2xl text-[#363636] font-sans font-light italic"
-                        >
-                            {messages[animationStep]}
-                        </motion.p>
-                    ) : (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="space-y-4"
-                        >
-                            <h2 className="text-sm font-sans text-stone-500 tracking-[0.3em] mb-4 block">{t('onboarding.hype.verdict_label')}</h2>
-                            <h1 className="text-4xl md:text-[3.5rem] font-sans font-light text-stone-900 leading-[1.1]">
-                                "{t('onboarding.hype.verdict_title_prefix')} <span className="italic">{t('onboarding.hype.verdict_title_emphasis')}</span>"
-                            </h1>
-                            <p className="text-lg text-stone-700/80 font-medium max-w-lg mx-auto font-sans mt-4">
-                                {t('onboarding.hype.verdict_desc')}
-                            </p>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            <div className="flex justify-center gap-2">
-                {messages.map((_, i) => (
-                    <motion.div
-                        key={i}
-                        animate={{
-                            scale: animationStep === i ? [1, 1.5, 1] : 1,
-                            backgroundColor: animationStep >= i ? '#86BE7F' : '#d1d5db',
-                            opacity: animationStep >= i ? 1 : 0.2
-                        }}
-                        className="w-3 h-3 rounded-full"
-                    />
-                ))}
-            </div>
-        </motion.div>
-    );
-}
-
