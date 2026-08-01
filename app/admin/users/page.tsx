@@ -2,10 +2,11 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, RefreshCw } from "lucide-react";
+import { Search, RefreshCw, UserPlus } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, Badge, Button, Input, Select, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 import UserDetail from "./UserDetail";
+import CreateUserDialog from "./CreateUserDialog";
 
 export interface DirectoryUser {
     uid: string;
@@ -37,8 +38,9 @@ export default function UsersPage() {
 }
 
 function UserDirectory() {
-    const { adminFetch } = useAdmin();
+    const { adminFetch, can } = useAdmin();
     const searchParams = useSearchParams();
+    const [creating, setCreating] = useState(false);
 
     const [users, setUsers] = useState<DirectoryUser[] | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -85,10 +87,17 @@ function UserDirectory() {
                 title="Users"
                 description="Search by name, email or uid. Search is exact-or-prefix — Firestore has no substring index."
                 action={
-                    <Button onClick={load} disabled={refreshing} size="sm">
-                        {refreshing ? <Spinner className="w-3.5 h-3.5" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                        Refresh
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button onClick={load} disabled={refreshing} size="sm">
+                            {refreshing ? <Spinner className="w-3.5 h-3.5" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                            Refresh
+                        </Button>
+                        {can("users.create") && (
+                            <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
+                                <UserPlus className="w-3.5 h-3.5" /> New user
+                            </Button>
+                        )}
+                    </div>
                 }
             />
 
@@ -174,6 +183,10 @@ function UserDirectory() {
 
             {selectedUid && (
                 <UserDetail uid={selectedUid} onClose={() => setSelectedUid(null)} onChanged={load} />
+            )}
+
+            {creating && (
+                <CreateUserDialog onClose={() => setCreating(false)} onCreated={load} />
             )}
         </div>
     );

@@ -38,6 +38,7 @@ export type AdminPermission =
     | "reports.resolve"
     // Users
     | "users.read"
+    | "users.create"
     | "users.write"
     | "users.sanction"
     | "users.delete"
@@ -106,6 +107,9 @@ const ALL_PERMISSIONS: AdminPermission[] = [
     "reports.read",
     "reports.resolve",
     "users.read",
+    // Creating an account sets someone's initial password, so it sits with the
+    // superadmin rather than with support.
+    "users.create",
     "users.write",
     "users.sanction",
     "users.delete",
