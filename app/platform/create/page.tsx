@@ -56,7 +56,7 @@ import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { authedFetch } from '@/lib/authedFetch';
 import { db, storage } from '@/lib/firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, updateDoc, writeBatch, arrayRemove, deleteDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, updateDoc, writeBatch, arrayRemove, deleteDoc, arrayUnion, runTransaction } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, getBlob } from 'firebase/storage';
 import {
     migrateLegacyNotesToProjects,
@@ -2629,6 +2629,16 @@ function JoinedPill({ name, onDismiss }: JoinedPillProps) {
     );
 }
 
+// The uid AuthContext bound this browser's account-scoped state to (see
+// bindLocalStateToAccount). Auth resolves before the platform layout mounts its children,
+// so by the time the workspace initializers run for a signed-in user this is *their* uid —
+// seeding first paint from the unscoped legacy key is what leaked a previous account's
+// projects into a fresh account's workspace as phantom "Collab Projects".
+function getBoundAccountUid(): string | undefined {
+    if (typeof window === 'undefined') return undefined;
+    try { return localStorage.getItem('veinote-last-active-uid') || undefined; } catch { return undefined; }
+}
+
 // Helper: read notes cache from localStorage synchronously
 function readCachedNotes(uid?: string): SongNote[] {
     if (typeof window === 'undefined') return [];
@@ -3025,12 +3035,12 @@ export default function CreatePage() {
     const { user } = useAuth();
     const { language, t } = useLanguage();
 
-    // Pre-populate from cache so the workspace renders instantly on first paint.
-    // Firestore listeners will silently merge fresher data in the background.
-    const [isDataLoaded, setIsDataLoaded] = useState(() => readCachedNotes().length > 0);
+    // Pre-populate from the bound account's cache so the workspace renders instantly on
+    // first paint. Firestore listeners will silently merge fresher data in the background.
+    const [isDataLoaded, setIsDataLoaded] = useState(() => readCachedNotes(getBoundAccountUid()).length > 0);
 
-    const [folders, setFolders] = useState<SongFolder[]>(() => readCachedFolders());
-    const [notes, setNotes] = useState<SongNote[]>(() => readCachedNotes());
+    const [folders, setFolders] = useState<SongFolder[]>(() => readCachedFolders(getBoundAccountUid()));
+    const [notes, setNotes] = useState<SongNote[]>(() => readCachedNotes(getBoundAccountUid()));
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
     const [isSelectionInitialized, setIsSelectionInitialized] = useState(false);
     const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -3526,6 +3536,148 @@ export default function CreatePage() {
     useEffect(() => {
         studioTracksRef.current = studioTracks;
     }, [studioTracks]);
+
+    /* ---- Collaborative studio-track sync engine ----
+     *
+     * `studioBaselineRef` holds, per track id, the serialized form of that track as last agreed
+     * with the server (last snapshot reconciled or last write committed). Local-vs-baseline says
+     * "what did *I* change"; remote-vs-baseline says "what did *they* change". Both the incoming
+     * snapshot merge and the outgoing write are three-way merges against this baseline.
+     *
+     * This replaces the old scheme where every client wrote the whole array last-write-wins and
+     * echoed remote-applied state back 800ms later — with 3+ people in the studio those echo
+     * writes raced each other and silently reverted/deleted collaborators' takes.
+     */
+    const serializeStudioTrack = (t: StudioTrack): SavedStemTrack => ({
+        id: t.id,
+        name: t.name,
+        type: t.type,
+        volume: t.volume,
+        pan: t.pan,
+        eq: t.eq,
+        compressor: t.compressor,
+        reverb: t.reverb,
+        url: (t.url && !t.url.startsWith('blob:')) ? t.url : null,
+        muted: !!t.muted
+    });
+    const studioTrackSig = (t: any) => JSON.stringify(serializeStudioTrack(t));
+    const studioBaselineRef = useRef<Map<number, string>>(new Map());
+    // Track order as last agreed with the server, tracked separately from per-track content:
+    // a drag-reorder changes no per-id signature, only the sequence.
+    const studioBaselineOrderRef = useRef<number[]>([]);
+    const studioTrackIdsOf = (tracks: any[]) => (tracks || []).filter(Boolean).map(t => t.id);
+    const setStudioBaseline = (tracks: any[]) => {
+        const m = new Map<number, string>();
+        (tracks || []).filter(Boolean).forEach(t => m.set(t.id, studioTrackSig(t)));
+        studioBaselineRef.current = m;
+        studioBaselineOrderRef.current = studioTrackIdsOf(tracks);
+    };
+    /**
+     * Advance the baseline to the new common ancestor: only ids where local and server agree
+     * move up; ids still diverged keep their old ancestor entry (so the divergence is still
+     * recognized as pending local work or a pending remote change on the next merge).
+     */
+    const reconcileStudioBaseline = (serverTracks: any[], localTracks: any[]) => {
+        const prev = studioBaselineRef.current;
+        const next = new Map<number, string>();
+        const localById = new Map(localTracks.filter(Boolean).map(t => [t.id, t]));
+        (serverTracks || []).filter(Boolean).forEach(st => {
+            const sSig = studioTrackSig(st);
+            const lt = localById.get(st.id);
+            if (lt && studioTrackSig(lt) === sSig) {
+                next.set(st.id, sSig);
+            } else if (prev.has(st.id)) {
+                next.set(st.id, prev.get(st.id)!);
+            }
+        });
+        localTracks.filter(Boolean).forEach(lt => {
+            if (!next.has(lt.id) && !(serverTracks || []).some(st => st && st.id === lt.id) && prev.has(lt.id)) {
+                next.set(lt.id, prev.get(lt.id)!);
+            }
+        });
+        studioBaselineRef.current = next;
+        studioBaselineOrderRef.current = studioTrackIdsOf(serverTracks || []);
+    };
+    /** Reorders `tracks` in place to follow `referenceTracks`' sequence; unknown ids keep their relative order at the end. */
+    const applyStudioTrackOrder = (tracks: any[], referenceTracks: any[]) => {
+        const pos = new Map<number, number>();
+        referenceTracks.filter(Boolean).forEach((t, i) => pos.set(t.id, i));
+        tracks.sort((a, b) => {
+            const pa = pos.has(a.id) ? pos.get(a.id)! : Number.MAX_SAFE_INTEGER;
+            const pb = pos.has(b.id) ? pos.get(b.id)! : Number.MAX_SAFE_INTEGER;
+            return pa - pb;
+        });
+    };
+
+    /**
+     * Transactional, per-track merged write of the local studio session to the project doc.
+     * Tracks the local user actually changed (vs baseline) win; everything else keeps the
+     * server's version, so two collaborators recording/tweaking at once no longer erase each
+     * other. Held in a ref so effects and async callbacks always call the latest closure.
+     */
+    const persistStudioTracksRef = useRef<((projectId: string) => Promise<void>) | null>(null);
+    persistStudioTracksRef.current = async (projectId: string) => {
+        if (!user) return;
+        // Backstop for the project lock: a locked project must never persist studio changes.
+        if (notesRef.current.find(n => n.id === projectId)?.isLocked) return;
+
+        const projectDocRef = doc(db, "projects", projectId);
+        try {
+            const result: { committed: any[] | null } = { committed: null };
+            await runTransaction(db, async (tx) => {
+                result.committed = null; // transactions retry; reset per attempt
+                const snap = await tx.get(projectDocRef);
+                // The doc is created by the main note-save path; until it exists there is
+                // nothing to merge against — the next debounce carries the tracks up.
+                if (!snap.exists()) return;
+
+                const local = studioTracksRef.current.filter(Boolean);
+                const baseline = studioBaselineRef.current;
+                const remote: any[] = Array.isArray(snap.data().studioTracks)
+                    ? snap.data().studioTracks.filter(Boolean)
+                    : [];
+                const localById = new Map(local.map(t => [t.id, t] as [number, StudioTrack]));
+                const remoteIds = new Set(remote.map(t => t.id));
+
+                const merged: any[] = [];
+                remote.forEach(rt => {
+                    const lt = localById.get(rt.id);
+                    if (lt) {
+                        const base = baseline.get(rt.id);
+                        const localDirty = base === undefined || studioTrackSig(lt) !== base;
+                        merged.push(localDirty ? serializeStudioTrack(lt) : rt);
+                    } else if (!baseline.has(rt.id)) {
+                        merged.push(rt); // added by a collaborator since our baseline
+                    }
+                    // else: deleted locally, deletion not yet pushed — leave it out
+                });
+                local.forEach(lt => {
+                    if (remoteIds.has(lt.id)) return;
+                    const base = baseline.get(lt.id);
+                    // Locally added (no baseline), or deleted remotely while we changed it
+                    // (keep ours — e.g. a take recorded onto a track someone else removed).
+                    if (base === undefined || studioTrackSig(lt) !== base) {
+                        merged.push(serializeStudioTrack(lt));
+                    }
+                });
+
+                // A local drag-reorder changes only the sequence, never a per-id signature —
+                // when it's pending, our order wins for the tracks we know about.
+                const localOrderDirty = studioTrackIdsOf(local).join(',') !== studioBaselineOrderRef.current.join(',');
+                if (localOrderDirty) applyStudioTrackOrder(merged, local);
+
+                if (JSON.stringify(merged) === JSON.stringify(remote)) return; // nothing to push
+                tx.update(projectDocRef, { studioTracks: merged });
+                result.committed = merged;
+            });
+            if (result.committed) {
+                reconcileStudioBaseline(result.committed, studioTracksRef.current);
+            }
+        } catch (err) {
+            console.error("Error syncing studioTracks to Firestore:", err);
+        }
+    };
+
     const [studioState, setStudioState] = useState<'idle' | 'playing' | 'recording' | 'paused'>('idle');
     const [activeRecordingTrackId, setActiveRecordingTrackId] = useState<number>(1);
     const [uploadingFiles, setUploadingFiles] = useState<Array<{ id: string; name: string; type: 'audio' | 'image' | 'document' }>>([]);
@@ -3827,52 +3979,47 @@ export default function CreatePage() {
         };
     }, [studioTrackUrlsString]);
 
-    // Sync local studioTracks changes to Firestore with a debounce to prevent write throttling
+    // Push local studio-track edits to Firestore, debounced. Skips entirely when local state
+    // matches the sync baseline — i.e. when the change was itself remote-applied, or only an
+    // audioBuffer decode — so clients no longer echo each other's writes back at each other.
     useEffect(() => {
         if (!selectedNoteId || !user || !isDataLoaded) return;
 
-        const projectDocRef = doc(db, "projects", selectedNoteId);
-        
-        const timer = setTimeout(async () => {
-            try {
-                // Backstop for the project lock: even if some studio control mutates tracks
-                // locally, a locked project must never persist that change. Read from the ref
-                // because isCanvasReadOnly is derived further down the component than this effect.
-                if (notesRef.current.find(n => n.id === selectedNoteId)?.isLocked) return;
-                // Read from the ref (latest value) rather than the closed-over `studioTracks` —
-                // otherwise a debounce timer scheduled before a track's upload finished can fire
-                // afterward with a stale snapshot and null out the just-uploaded real URL.
-                const tracksToSave = studioTracksRef.current.map(t => ({
-                    id: t.id,
-                    name: t.name,
-                    type: t.type,
-                    volume: t.volume,
-                    pan: t.pan,
-                    eq: t.eq,
-                    compressor: t.compressor,
-                    reverb: t.reverb,
-                    url: (t.url && !t.url.startsWith('blob:')) ? t.url : null,
-                    muted: !!t.muted
-                }));
+        const local = studioTracks.filter(Boolean);
+        const baseline = studioBaselineRef.current;
+        const hasLocalChanges =
+            local.some(t => {
+                const base = baseline.get(t.id);
+                return base === undefined || studioTrackSig(t) !== base;
+            }) ||
+            // a baseline id missing locally is a pending local delete
+            Array.from(baseline.keys()).some(id => !local.some(t => t.id === id)) ||
+            // same ids, different sequence: a pending local reorder
+            studioTrackIdsOf(local).join(',') !== studioBaselineOrderRef.current.join(',');
+        if (!hasLocalChanges) return;
 
-                await updateDoc(projectDocRef, {
-                    studioTracks: tracksToSave
-                });
-            } catch (err) {
-                console.error("Error syncing studioTracks to Firestore:", err);
-            }
+        const timer = setTimeout(() => {
+            persistStudioTracksRef.current?.(selectedNoteId);
         }, 800);
 
         return () => clearTimeout(timer);
     }, [studioTracks, selectedNoteId, user, isDataLoaded]);
 
     useEffect(() => {
+        let loadedTracks: StudioTrack[] = [];
         if (selectedNoteId) {
             const currentNote = notes.find(n => n.id === selectedNoteId);
-            const savedTracks = (currentNote && (currentNote as any).studioTracks) || tracksPerNote[selectedNoteId];
+            const noteTracks = currentNote && (currentNote as any).studioTracks;
+            const savedTracks = noteTracks || tracksPerNote[selectedNoteId];
             if (savedTracks) {
                 const validTracks = savedTracks.filter(Boolean);
                 setStudioTracks(validTracks);
+                loadedTracks = validTracks;
+                // Tracks straight off the project doc ARE the server state — baseline them so the
+                // debounced sync sees nothing dirty and opening a project never writes. Tracks
+                // from the local per-note cache are unknown to the server → empty baseline, so
+                // they count as local additions and get merged up.
+                setStudioBaseline(noteTracks ? validTracks : []);
                 let maxDur = 0;
                 validTracks.forEach((t: StudioTrack) => {
                     if (t.audioBuffer) {
@@ -3881,21 +4028,28 @@ export default function CreatePage() {
                 });
                 setStudioDuration(maxDur);
             } else {
-                setStudioTracks([
+                const defaults: StudioTrack[] = [
                     { id: 1, name: 'Guitar', type: 'guitar', volume: 80, pan: 0, eq: 0, compressor: true, reverb: 40, audioBuffer: null, url: null }
-                ]);
+                ];
+                setStudioTracks(defaults);
+                loadedTracks = defaults;
+                setStudioBaseline([]);
                 setStudioDuration(0);
             }
         } else {
             setStudioTracks([
                 { id: 1, name: 'Guitar', type: 'guitar', volume: 80, pan: 0, eq: 0, compressor: true, reverb: 40, audioBuffer: null, url: null }
             ]);
+            setStudioBaseline([]);
             setStudioDuration(0);
         }
 
         studioTracksNoteIdRef.current = selectedNoteId;
         setStudioState('idle');
-        setActiveRecordingTrackId(1);
+        // Arm a track that actually exists — collaborative projects usually have no track id 1
+        // (ids are Date.now() stamps), and recording onto a nonexistent armed track used to
+        // discard the take silently.
+        setActiveRecordingTrackId(loadedTracks[0]?.id ?? 1);
         setIsStudioMetronomeOn(true);
         setStudioPlayhead(0);
         setDraggedTrackIndex(null);
@@ -4621,10 +4775,12 @@ export default function CreatePage() {
         };
     }, [user]);
 
-    // Save changes to localStorage and Firestore
+    // Save changes to localStorage and Firestore. A signed-in user's data goes ONLY in
+    // uid-scoped keys — writing it to the shared legacy keys is how one account's lyrics
+    // ended up visible to the next account (or a logged-out visitor) on the same browser.
     useEffect(() => {
         if (isDataLoaded) {
-            safeLocalStorageSetItem('veinote-create-folders', JSON.stringify(folders));
+            safeLocalStorageSetItem(user ? `veinote-create-folders-${user.uid}` : 'veinote-create-folders', JSON.stringify(folders));
             if (user) {
                 setDoc(doc(db, "users", user.uid), {
                     createFolders: folders
@@ -4636,14 +4792,10 @@ export default function CreatePage() {
     useEffect(() => {
         if (isDataLoaded) {
             const serialized = JSON.stringify(notes);
-            const stored = safeLocalStorageSetItem('veinote-create-notes', serialized);
-            // Also cache under the uid-scoped key — readCachedNotes(user.uid) (used to recover
-            // unsaved edits on reload/merge with Firestore) only ever reads that key, so without
-            // this write a logged-in user's most recent edits are unrecoverable if the Firestore
-            // write hasn't finished propagating by the time the page reloads.
-            if (user) {
-                safeLocalStorageSetItem(`veinote-create-notes-${user.uid}`, serialized);
-            }
+            // readCachedNotes(user.uid) (used to recover unsaved edits on reload/merge with
+            // Firestore) reads the uid-scoped key for signed-in users; the unscoped key only
+            // serves the logged-out demo workspace.
+            const stored = safeLocalStorageSetItem(user ? `veinote-create-notes-${user.uid}` : 'veinote-create-notes', serialized);
 
             // Inline base64 media can exceed the ~5 MB localStorage quota on its own, and
             // safeLocalStorageSetItem fails quietly when it does. That left the recovery
@@ -4661,8 +4813,7 @@ export default function CreatePage() {
                                 ? { ...d, url: '' } : d),
                     }))
                 );
-                const fallbackStored = safeLocalStorageSetItem('veinote-create-notes', withoutMedia);
-                if (user) safeLocalStorageSetItem(`veinote-create-notes-${user.uid}`, withoutMedia);
+                const fallbackStored = safeLocalStorageSetItem(user ? `veinote-create-notes-${user.uid}` : 'veinote-create-notes', withoutMedia);
                 if (!fallbackStored) {
                     console.error('[Create] Could not cache notes locally even without media.');
                 }
@@ -4672,20 +4823,15 @@ export default function CreatePage() {
 
     useEffect(() => {
         if (isDataLoaded && isSelectionInitialized) {
-            // Mirror to the uid-scoped key too: the restore paths (initial mount and the
-            // Firestore-merge callback) both read `veinote-selected-note-id-<uid>` when a
-            // user is logged in. Without this write that key never exists, so refreshing
-            // dropped the open project and landed the user back on a blank canvas.
+            // The restore paths (initial mount and the Firestore-merge callback) read
+            // `veinote-selected-note-id-<uid>` when a user is logged in; the unscoped key
+            // only serves the logged-out demo workspace. Signed-in state stays out of the
+            // shared key so it can't follow the browser to a different account.
+            const selectionKey = user ? `veinote-selected-note-id-${user.uid}` : 'veinote-selected-note-id';
             if (selectedNoteId) {
-                safeLocalStorageSetItem('veinote-selected-note-id', selectedNoteId);
-                if (user) {
-                    safeLocalStorageSetItem(`veinote-selected-note-id-${user.uid}`, selectedNoteId);
-                }
+                safeLocalStorageSetItem(selectionKey, selectedNoteId);
             } else {
-                localStorage.removeItem('veinote-selected-note-id');
-                if (user) {
-                    localStorage.removeItem(`veinote-selected-note-id-${user.uid}`);
-                }
+                localStorage.removeItem(selectionKey);
             }
         }
     }, [selectedNoteId, isDataLoaded, isSelectionInitialized, user]);
@@ -4744,68 +4890,92 @@ export default function CreatePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [previewInviteId, user]);
 
+    // A snapshot listener that errors is DEAD — Firestore does not retry it, and until now the
+    // client just logged a warning and silently stopped receiving every remote change until the
+    // user happened to switch projects or reload. These nonces let the subscription effects
+    // re-create their listener after an error, with a capped backoff so a genuinely
+    // unauthorized/local-only project doesn't retry forever.
+    const [projectSubNonce, setProjectSubNonce] = useState(0);
+    const projectSubRetryCountRef = useRef(0);
+    const [presenceSubNonce, setPresenceSubNonce] = useState(0);
+    const presenceSubRetryCountRef = useRef(0);
+
     // 1. Subscription Effect: Listen to active collaborative project in real-time
     useEffect(() => {
         if (!selectedNoteId || !user || !isDataLoaded) return;
 
         const unsub = onSnapshot(doc(db, "projects", selectedNoteId), (snapshot) => {
+            projectSubRetryCountRef.current = 0;
             if (snapshot.exists()) {
                 const data = snapshot.data();
                 setCollaborators(data.collaborators || []);
 
-                // Sync remote studioTracks if they exist and are different
+                // Three-way merge of remote studioTracks against the sync baseline. Remote
+                // additions/edits/deletions apply; anything the local user changed and hasn't
+                // pushed yet (including a just-added track or a take mid-upload) survives. The
+                // old code replaced the local list with the remote one wholesale, so a track
+                // added locally in the last 800ms — or a whole take, if a stale echo from a
+                // third collaborator landed — simply vanished.
                 if (data.studioTracks && Array.isArray(data.studioTracks)) {
-                    const remoteTracks = data.studioTracks;
-                    const localTracks = studioTracksRef.current;
-                    
-                    const isTracksIdentical = remoteTracks.length === localTracks.length &&
-                        remoteTracks.every((rt: any, i: number) => {
-                            const lt = localTracks[i];
-                            if (!lt) return false;
+                    const remoteTracks = data.studioTracks.filter(Boolean);
+                    const localTracks = studioTracksRef.current.filter(Boolean);
+                    const baseline = studioBaselineRef.current;
+                    const localById = new Map(localTracks.map(t => [t.id, t] as [number, StudioTrack]));
+                    const remoteIds = new Set(remoteTracks.map((t: any) => t.id));
 
-                            // Protect local tracks currently uploading (have a blob url)
-                            const isLocalBlob = lt.url && lt.url.startsWith('blob:');
-                            const urlMatches = isLocalBlob ? true : (lt.url === rt.url);
-
-                            return lt.id === rt.id &&
-                                lt.name === rt.name &&
-                                lt.type === rt.type &&
-                                lt.volume === rt.volume &&
-                                lt.pan === rt.pan &&
-                                lt.eq === rt.eq &&
-                                lt.compressor === rt.compressor &&
-                                lt.reverb === rt.reverb &&
-                                urlMatches &&
-                                !!lt.muted === !!rt.muted;
-                        });
-
-                    if (!isTracksIdentical) {
-                        setStudioTracks(prev => {
-                            const updated = remoteTracks.map((rt: any) => {
-                                const existing = prev.find(t => t.id === rt.id);
-                                
-                                // Preserve local track completely if it is currently uploading
-                                if (existing && existing.url && existing.url.startsWith('blob:')) {
-                                    return existing;
-                                }
-
-                                return {
+                    const mergedLocal: StudioTrack[] = [];
+                    remoteTracks.forEach((rt: any) => {
+                        const lt = localById.get(rt.id);
+                        if (lt) {
+                            const base = baseline.get(rt.id);
+                            const isLocalBlob = !!(lt.url && lt.url.startsWith('blob:'));
+                            const localDirty = base === undefined || studioTrackSig(lt) !== base;
+                            if (isLocalBlob || localDirty || studioTrackSig(rt) === studioTrackSig(lt)) {
+                                mergedLocal.push(lt); // unpushed local changes win locally; identical keeps identity
+                            } else {
+                                mergedLocal.push({
                                     ...rt,
-                                    audioBuffer: existing && existing.url === rt.url ? existing.audioBuffer : null
-                                };
-                            });
-                            
-                            // Re-calculate the max duration for the timeline ruler
-                            let maxDur = 0;
-                            updated.forEach(t => {
-                                if (t.audioBuffer) {
-                                    maxDur = Math.max(maxDur, t.audioBuffer.duration);
-                                }
-                            });
-                            setStudioDuration(maxDur);
+                                    audioBuffer: lt.url === rt.url ? lt.audioBuffer : null
+                                });
+                            }
+                        } else if (!baseline.has(rt.id)) {
+                            mergedLocal.push({ ...rt, audioBuffer: null }); // added by a collaborator
+                        }
+                        // else: deleted locally, deletion not yet pushed — keep it deleted here
+                    });
+                    localTracks.forEach(lt => {
+                        if (remoteIds.has(lt.id)) return;
+                        const base = baseline.get(lt.id);
+                        const isLocalBlob = !!(lt.url && lt.url.startsWith('blob:'));
+                        if (base === undefined || isLocalBlob || studioTrackSig(lt) !== base) {
+                            mergedLocal.push(lt); // locally added / mid-upload / edited after a remote delete
+                        }
+                        // else: deleted remotely and untouched here — let it go
+                    });
 
-                            return updated;
+                    // A pending local drag-reorder wins locally until it's pushed; otherwise the
+                    // merged list already follows the remote sequence.
+                    const localOrderDirty = studioTrackIdsOf(localTracks).join(',') !== studioBaselineOrderRef.current.join(',');
+                    if (localOrderDirty) applyStudioTrackOrder(mergedLocal, localTracks);
+
+                    reconcileStudioBaseline(remoteTracks, mergedLocal);
+
+                    const tracksChanged = mergedLocal.length !== localTracks.length ||
+                        mergedLocal.some((t, i) => t !== localTracks[i]);
+                    if (tracksChanged) {
+                        setStudioTracks(mergedLocal);
+                        // Re-calculate the max duration for the timeline ruler
+                        let maxDur = 0;
+                        mergedLocal.forEach(t => {
+                            if (t.audioBuffer) {
+                                maxDur = Math.max(maxDur, t.audioBuffer.duration);
+                            }
                         });
+                        setStudioDuration(maxDur);
+                        // If the armed track was deleted remotely, fall back to the first track.
+                        setActiveRecordingTrackId(prev =>
+                            mergedLocal.some(t => t.id === prev) ? prev : (mergedLocal[0]?.id ?? 1)
+                        );
                     }
                 }
                 setNotes(prev => {
@@ -4821,11 +4991,20 @@ export default function CreatePage() {
                     const isAudioOnlyIdentical = existingNote.isAudioOnly === data.isAudioOnly;
                     
                     const isPhrasesLengthIdentical = (existingNote.phrases || []).length === (data.phrases || []).length;
-                    const isAudioLengthIdentical = (existingNote.audioNotes || []).length === (data.audioNotes || []).length;
-                    const isImagesLengthIdentical = (existingNote.images || []).length === (data.images || []).length;
-                    const isDocumentsLengthIdentical = (existingNote.documents || []).length === (data.documents || []).length;
+                    // Content signatures, not just lengths: a rename, a re-record, or a card
+                    // moved to another line keeps the array length identical, and comparing
+                    // lengths alone made those edits invisible to every other collaborator.
+                    // Local blob: URLs (uploads in flight) are normalized away so a pending
+                    // upload doesn't read as a remote change.
+                    const stableUrl = (u: any) => (u && !String(u).startsWith('blob:')) ? u : '';
+                    const audioSigOf = (arr: any[] | undefined) => (arr || []).map((a: any) => `${a.id}:${stableUrl(a.url)}:${a.title}:${a.phraseId ?? ''}:${a.groupId ?? ''}`).join('|');
+                    const imagesSigOf = (arr: any[] | undefined) => (arr || []).map((i: any) => `${i.id}:${stableUrl(i.url)}:${i.phraseId ?? ''}`).join('|');
+                    const docsSigOf = (arr: any[] | undefined) => (arr || []).map((d: any) => `${d.id}:${stableUrl(d.url)}:${d.name ?? ''}:${d.phraseId ?? ''}`).join('|');
+                    const isAudioIdentical = audioSigOf(existingNote.audioNotes) === audioSigOf(data.audioNotes);
+                    const isImagesIdentical = imagesSigOf((existingNote as any).images) === imagesSigOf(data.images);
+                    const isDocumentsIdentical = docsSigOf((existingNote as any).documents) === docsSigOf(data.documents);
 
-                    if (isTitleIdentical && isContentIdentical && isFolderIdentical && isAudioOnlyIdentical && isPhrasesLengthIdentical && isAudioLengthIdentical && isImagesLengthIdentical && isDocumentsLengthIdentical) {
+                    if (isTitleIdentical && isContentIdentical && isFolderIdentical && isAudioOnlyIdentical && isPhrasesLengthIdentical && isAudioIdentical && isImagesIdentical && isDocumentsIdentical) {
                         const localPhrases = existingNote.phrases || [];
                         const remotePhrases = data.phrases || [];
                         
@@ -4864,10 +5043,26 @@ export default function CreatePage() {
                                 return remoteP;
                             });
 
+                            // Audio cards mid-upload only exist locally as blob: URLs — taking the
+                            // remote array wholesale would erase them until the upload's own write
+                            // lands (or forever, if it fails). Keep the local blob-backed entry.
+                            const remoteAudio: any[] = data.audioNotes || [];
+                            const localAudio: any[] = n.audioNotes || [];
+                            const mergedAudioNotes = remoteAudio.map((ra: any) => {
+                                const la = localAudio.find((a: any) => a.id === ra.id);
+                                return (la && la.url && String(la.url).startsWith('blob:')) ? la : ra;
+                            });
+                            localAudio.forEach((la: any) => {
+                                if (la.url && String(la.url).startsWith('blob:') && !remoteAudio.some((ra: any) => ra.id === la.id)) {
+                                    mergedAudioNotes.push(la);
+                                }
+                            });
+
                             return {
                                 ...n,
                                 ...data,
-                                phrases: mergedPhrases
+                                phrases: mergedPhrases,
+                                audioNotes: mergedAudioNotes
                             };
                         }
                         return n;
@@ -4876,6 +5071,10 @@ export default function CreatePage() {
             }
         }, (err) => {
             console.warn("Firestore subscription error (normal for unsynced local projects):", err.message);
+            if (projectSubRetryCountRef.current < 5) {
+                projectSubRetryCountRef.current++;
+                setTimeout(() => setProjectSubNonce(nonce => nonce + 1), 3000 * projectSubRetryCountRef.current);
+            }
         });
 
         return () => unsub();
@@ -4885,7 +5084,7 @@ export default function CreatePage() {
         // Firestore's internal assertion 0xca9 (pendingResponses going negative). The
         // callback reads the live value through editingPhraseIdRef instead.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNoteId, user, isDataLoaded]);
+    }, [selectedNoteId, user, isDataLoaded, projectSubNonce]);
 
 
 
@@ -4963,6 +5162,7 @@ export default function CreatePage() {
         rebuildActiveUsersRef.current = rebuildActiveUsers;
 
         const unsub = onSnapshot(collection(db, "projects", selectedNoteId, "presence"), (snapshot) => {
+            presenceSubRetryCountRef.current = 0;
             const raw: {[uid: string]: any} = {};
             snapshot.forEach(d => {
                 if (d.id !== user.uid) raw[d.id] = d.data();
@@ -4971,6 +5171,10 @@ export default function CreatePage() {
             rebuildActiveUsers();
         }, (err) => {
             console.warn("Presence snapshot error (normal for unsynced local projects):", err.message);
+            if (presenceSubRetryCountRef.current < 5) {
+                presenceSubRetryCountRef.current++;
+                setTimeout(() => setPresenceSubNonce(nonce => nonce + 1), 3000 * presenceSubRetryCountRef.current);
+            }
         });
 
         const staleTimer = window.setInterval(rebuildActiveUsers, PRESENCE_RECHECK_MS);
@@ -4981,7 +5185,7 @@ export default function CreatePage() {
             rawPresenceRef.current = {};
             rebuildActiveUsersRef.current = null;
         };
-    }, [selectedNoteId, user, isDataLoaded]);
+    }, [selectedNoteId, user, isDataLoaded, presenceSubNonce]);
 
     // Colour assignment depends on the member roster, so recompute the rendered presence
     // colours when it shifts. Deliberately separate from the subscription above: this is a
@@ -5089,7 +5293,11 @@ export default function CreatePage() {
         if (!selectedNoteId || !user) return;
         
         const now = Date.now();
-        if (now - lastCursorWriteRef.current < 80) return; // 80ms smooth throttle
+        // 150ms: still smooth through the cursor's 100ms CSS transition, but roughly half the
+        // Firestore write pressure of the old 80ms — sustained writes to a single doc above
+        // ~1/sec already exceed the documented soft limit, and every presence write fans out
+        // a snapshot to every collaborator.
+        if (now - lastCursorWriteRef.current < 150) return;
         lastCursorWriteRef.current = now;
 
         const targetRef = (activeToolTab === 'studio' && studioContainerRef.current) 
@@ -5276,6 +5484,12 @@ export default function CreatePage() {
                     inviteeName,
                     senderNotified: false,
                 }));
+
+            // Joining a collab is a moment — the platform layout answers this with a full
+            // moving-gradient celebration on the Mind Power pill.
+            window.dispatchEvent(new CustomEvent('veinote-collab-joined', {
+                detail: { senderName: invite.senderName, projectTitle: invite.projectTitle }
+            }));
 
             if (noteData) {
                 const fullCollabNote: SongNote = {
@@ -11417,45 +11631,43 @@ export default function CreatePage() {
                         return updated;
                     });
 
-                    // Upload recorded track to Firebase Storage and sync to Firestore immediately
+                    // Upload the take to Firebase Storage, then push it through the merged
+                    // studio-track writer so it can't clobber (or be clobbered by) another
+                    // collaborator's concurrent take.
                     (async () => {
-                        try {
-                            const targetTrackId = activeRecordingTrackId;
+                        const targetTrackId = activeRecordingTrackId;
+                        const targetNoteId = selectedNoteId;
+                        const doUpload = async () => {
                             const recId = Math.random().toString(36).substring(2, 9);
-                            const fileRef = storageRef(storage, `users/${user?.uid || 'anonymous'}/recordings/studio_${selectedNoteId}_track_${targetTrackId}_RecId_${recId}.webm`);
+                            const fileRef = storageRef(storage, `users/${user?.uid || 'anonymous'}/recordings/studio_${targetNoteId}_track_${targetTrackId}_RecId_${recId}.webm`);
                             await uploadBytes(fileRef, blob);
-                            const downloadUrl = await getDownloadURL(fileRef);
-                            
-                            // Replace local blob URL with public download URL and sync directly to Firestore
-                            setStudioTracks(prev => {
-                                const updated = prev.map(t => {
-                                    if (t.id === targetTrackId) {
-                                        return { ...t, url: downloadUrl };
-                                    }
-                                    return t;
-                                });
+                            return await getDownloadURL(fileRef);
+                        };
+                        try {
+                            let downloadUrl: string;
+                            try {
+                                downloadUrl = await doUpload();
+                            } catch (firstErr) {
+                                console.warn("Take upload failed, retrying once:", firstErr);
+                                await new Promise(resolve => setTimeout(resolve, 2000));
+                                downloadUrl = await doUpload();
+                            }
 
-                                if (selectedNoteId) {
-                                    const projectDocRef = doc(db, "projects", selectedNoteId);
-                                    const tracksToSave = updated.map(t => ({
-                                        id: t.id,
-                                        name: t.name,
-                                        type: t.type,
-                                        volume: t.volume,
-                                        pan: t.pan,
-                                        eq: t.eq,
-                                        compressor: t.compressor,
-                                        reverb: t.reverb,
-                                        url: t.url && !t.url.startsWith('blob:') ? t.url : (t.id === targetTrackId ? downloadUrl : null),
-                                        muted: !!t.muted
-                                    }));
-                                    updateDoc(projectDocRef, { studioTracks: tracksToSave }).catch(e => console.error("Error updating studioTracks doc:", e));
-                                }
-
-                                return updated;
-                            });
+                            // Replace the local blob URL with the public download URL, then sync.
+                            // The persist call is deferred a tick so studioTracksRef has caught up
+                            // with the state we just set; the debounced sync effect is the backstop.
+                            setStudioTracks(prev => prev.map(t =>
+                                t.id === targetTrackId ? { ...t, url: downloadUrl } : t
+                            ));
+                            if (targetNoteId) {
+                                setTimeout(() => persistStudioTracksRef.current?.(targetNoteId), 0);
+                            }
                         } catch (uploadErr) {
+                            // The take still plays locally from the blob URL, but it never reached
+                            // Storage — without this notice the recorder believes everyone can hear
+                            // it while collaborators see an empty track.
                             console.error("Failed to upload recorded track to storage:", uploadErr);
+                            triggerStudioNotification(t('studio.take_upload_failed'), 'rose');
                         }
                     })();
 
@@ -15034,14 +15246,18 @@ export default function CreatePage() {
                 return <TouchDragGhost label={ghostLabel} pos={touchGhostPos} />;
             })()}
             
-            {/* 1a. Top Collaboration Invitation Capsule Banner (Above Canvas Card) */}
+            {/* 1a. Top Collaboration Invitation Capsule Banner (Above Canvas Card).
+                The looping multicolour ring + real entrance animation are deliberate: invites
+                used to appear with no movement at all (the animate-in utilities are no-ops in
+                this project), which made a fresh invite easy to miss entirely. */}
             {pendingInvites.length > 0 && !isCanvasPreview && (
-                <div className="w-full flex items-center justify-center px-4 pt-1 pb-3 z-30 select-none animate-in fade-in slide-in-from-top-3 duration-300">
-                    <div 
+                <div className="w-full flex items-center justify-center px-4 pt-1 pb-3 z-30 select-none collab-banner-enter">
+                    <div
                         onClick={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className="bg-[#78B673] text-white rounded-full px-5 py-2 shadow-md flex items-center justify-between gap-5 sm:gap-7 border border-[#6FA96A] max-w-fit mx-auto transition-all"
+                        className="relative bg-[#78B673] text-white rounded-full px-5 py-2 shadow-lg flex items-center justify-between gap-5 sm:gap-7 border border-[#6FA96A] max-w-fit mx-auto transition-all"
                     >
+                        <div className="invite-glow-ring" />
                         {/* Status dot + text */}
                         <div className="flex items-center gap-2.5">
                             <span className="w-2.5 h-2.5 rounded-full bg-[#E5FE6C] animate-pulse shrink-0" />

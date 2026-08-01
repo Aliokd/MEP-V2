@@ -62,7 +62,8 @@
     "custom_instrument": "Custom...",
     "studio_badge": "Studio",
     "reopen_in_studio": "Reopen in Demo Studio",
-    "add_to_studio": "Add to Demo Studio"
+    "add_to_studio": "Add to Demo Studio",
+    "take_upload_failed": "Upload failed — your collaborators can't hear this take yet. Check your connection and record again."
   },
   "canvas": {
     "tuner": "Guitar tuner",
@@ -287,6 +288,8 @@
     "decline_desc": "This will decline the invitation and clean the project from your canvas.",
     "close_desc": "This will disconnect the project's real-time collaboration. If you are a collaborator, you will leave this project.",
     "invited_you_banner": "invited you for collab",
+    "a_collaborator": "A collaborator",
+    "view_invite": "View invite",
     "join": "Join",
     "collab": "Collab",
     "collab_title": "Collaborate with other musicians",
@@ -825,7 +828,8 @@
         "counter": "{current} of {total}",
         "keep": "That's me",
         "pass": "Not me"
-      }
+      },
+      "pick_one": "Pick one to keep going."
     },
     "questions": {
       "goals": {
@@ -902,7 +906,34 @@
     "analyzing": {
       "title": "Reading your answers",
       "subtitle": "Five answers. Give us a moment with them.",
-      "done": "That's enough to go on."
+      "done": "That's enough to go on.",
+      "testimonials": [
+        {
+          "quote": "I had four years of half-songs on my phone. I finished three of them in a month.",
+          "name": "Mara L."
+        },
+        {
+          "quote": "The first thing that ever helped without trying to write the song for me.",
+          "name": "Jonas K."
+        },
+        {
+          "quote": "I stopped waiting to feel ready and just started. That turned out to be the whole trick.",
+          "name": "Priya S."
+        }
+      ]
+    },
+    "email": {
+      "eyebrow": "Your results are ready",
+      "title": "Where should we keep them?",
+      "subtitle": "One address, and the rest of this is yours. No password to invent — you pick one later, if you ever want one.",
+      "placeholder": "you@example.com",
+      "cta": "Show me my results",
+      "submitting": "One moment…",
+      "invalid": "We'll need a full address — like you@example.com.",
+      "consent": "I agree to Veinote's {terms} and {privacy}.",
+      "consent_terms": "Terms & Conditions",
+      "consent_privacy": "Privacy Policy",
+      "consent_required": "Tick the box and we can keep going."
     },
     "verdict": {
       "label": "Here's what we see",
@@ -1030,6 +1061,17 @@
       "reminder": "We'll email you before your free trial ends.",
       "today_free": "$0.00 today",
       "then_billed": "Billing starts on day {days}. Cancel any time before."
+    },
+    "verify": {
+      "title": "One last thing",
+      "subtitle": "We sent a six-digit code to",
+      "digit_label": "Digit {n} of the code",
+      "cta": "Finish signing up",
+      "verifying": "Checking…",
+      "resend": "Didn't get it? Send it again",
+      "resend_in": "Send it again in {s}s",
+      "change_email": "Wrong address? Change it",
+      "invalid": "That code didn't match. Check the latest email and try again."
     },
     "auth": {
       "title": "Secure your path",

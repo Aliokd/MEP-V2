@@ -35,3 +35,106 @@ export function safeLocalStorageGetItem(key: string): string | null {
         return null;
     }
 }
+
+/** The uid whose account-scoped local state currently occupies this browser profile. */
+export const ACTIVE_UID_KEY = 'veinote-last-active-uid';
+
+/**
+ * Every localStorage key that belongs to an *account* rather than the device.
+ * Progress counters, onboarding/tour flags, note caches, drafts — all of it used to be
+ * written unscoped, so a second account signing in on the same browser inherited the
+ * previous account's projects (they showed up under "Collab Projects", since their
+ * ownerId differs), Mind Power progress, and an already-dismissed welcome video + tours.
+ *
+ * Device-level preferences (sidebar collapse, language) are deliberately NOT listed.
+ */
+const ACCOUNT_SCOPED_KEYS = [
+    // Legacy unscoped note/workspace caches
+    'veinote-create-notes',
+    'veinote-create-folders',
+    'veinote-selected-note-id',
+    // Mind Power progress inputs
+    'mep-create-seconds',
+    'mep-create-words-typed',
+    'mep-create-recording-seconds',
+    'mep-practice-seconds',
+    'mep-completed-lessons',
+    'mep-completed-songs',
+    'mep-completed-practices',
+    'songwriting-progress',
+    'songwriting-progress-quote',
+    'songwriting-progress-confetti',
+    'mep-last-auto-pop-first-action-date',
+    'mep-last-auto-pop-major-task-date',
+    // Onboarding / first-run surfaces — a fresh account must see these again
+    'mep-welcome-video-seen',
+    'mep-tour-platform-seen',
+    'mep-tour-create-seen',
+    'mep_studio_info_banner_shown',
+    // Session-ish account state
+    'mep-focus-timer-seconds',
+    'mep-focus-timer-running',
+    'veinote-inspiration-answers',
+    'mep-connect-posts-v4',
+];
+
+/** Prefixes for account-scoped keys with dynamic suffixes (per-project markers). */
+const ACCOUNT_SCOPED_PREFIXES = ['mep-comments-read-'];
+
+/**
+ * Call on every auth resolution. Keeps this browser's account-scoped local state bound to
+ * exactly one uid:
+ *
+ * - Same uid as last time: no-op.
+ * - First uid this browser has ever seen: adopt the legacy unscoped note/folder caches into
+ *   the uid-scoped keys (they can only belong to this user), then drop the unscoped copies.
+ * - A DIFFERENT uid: purge all account-scoped state so the new account starts from scratch —
+ *   nothing of the previous account's projects, progress, or dismissed-onboarding flags leaks.
+ *   (Their uid-scoped note caches stay put; those are isolated by key already.)
+ */
+export function bindLocalStateToAccount(uid: string): void {
+    if (typeof window === 'undefined') return;
+    try {
+        const previousUid = localStorage.getItem(ACTIVE_UID_KEY);
+        if (previousUid === uid) return;
+
+        if (previousUid === null) {
+            // Pre-namespacing browser: the unscoped note cache MAY belong to this user — but
+            // it may equally be a different account's leftovers (the exact bug this function
+            // exists to stop). Notes carry ownerId, so adopt only the ones provably this
+            // user's; ownerless demo/logged-out drafts and everything else stay behind
+            // (real data reloads from Firestore anyway). Folders are not migrated at all —
+            // the signed-in source of truth for folders is the users/{uid} doc.
+            try {
+                const legacyRaw = localStorage.getItem('veinote-create-notes');
+                if (legacyRaw !== null && localStorage.getItem(`veinote-create-notes-${uid}`) === null) {
+                    const legacyNotes = JSON.parse(legacyRaw);
+                    if (Array.isArray(legacyNotes)) {
+                        const ownNotes = legacyNotes.filter((n: any) => n && n.ownerId === uid);
+                        if (ownNotes.length > 0) {
+                            safeLocalStorageSetItem(`veinote-create-notes-${uid}`, JSON.stringify(ownNotes));
+                        }
+                    }
+                }
+            } catch { /* a corrupt legacy cache is not worth keeping */ }
+        }
+
+        ACCOUNT_SCOPED_KEYS.forEach(key => {
+            try { localStorage.removeItem(key); } catch { /* ignore */ }
+        });
+        const dynamicKeys: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && ACCOUNT_SCOPED_PREFIXES.some(prefix => key.startsWith(prefix))) {
+                dynamicKeys.push(key);
+            }
+        }
+        dynamicKeys.forEach(key => {
+            try { localStorage.removeItem(key); } catch { /* ignore */ }
+        });
+
+        safeLocalStorageSetItem(ACTIVE_UID_KEY, uid);
+    } catch (err) {
+        console.warn('[Storage] Could not bind local state to account:', err);
+    }
+}

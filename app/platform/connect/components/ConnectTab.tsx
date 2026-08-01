@@ -1087,14 +1087,17 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
       }
     }
 
-    // 2. Write to local cache fallback
+    // 2. Write to local cache fallback — the uid-scoped cache when signed in; the legacy
+    //    unscoped key otherwise (account-scoped state must never land in shared keys, or it
+    //    leaks into the next account that signs in on this browser).
     try {
-      const savedNotesRaw = localStorage.getItem('veinote-create-notes');
+      const cacheKey = user?.uid ? `veinote-create-notes-${user.uid}` : 'veinote-create-notes';
+      const savedNotesRaw = localStorage.getItem(cacheKey);
       let currentNotes = [];
       if (savedNotesRaw) {
         currentNotes = JSON.parse(savedNotesRaw);
       }
-      safeLocalStorageSetItem('veinote-create-notes', JSON.stringify([duplicatedProject, ...currentNotes]));
+      safeLocalStorageSetItem(cacheKey, JSON.stringify([duplicatedProject, ...currentNotes]));
     } catch (e) {
       console.error("Error writing duplicated project to cache fallback:", e);
     }

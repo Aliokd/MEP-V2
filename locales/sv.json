@@ -62,7 +62,8 @@
     "custom_instrument": "Anpassad...",
     "studio_badge": "Studio",
     "reopen_in_studio": "Öppna igen i Demo Studio",
-    "add_to_studio": "Lägg till i Demo Studio"
+    "add_to_studio": "Lägg till i Demo Studio",
+    "take_upload_failed": "Uppladdningen misslyckades — dina samarbetspartner kan inte höra den här tagningen ännu. Kontrollera anslutningen och spela in igen."
   },
   "canvas": {
     "tuner": "Stämapparat",
@@ -287,6 +288,8 @@
     "decline_desc": "Inbjudan avböjs och projektet tas bort från din canvas.",
     "close_desc": "Projektets realtidssamarbete kopplas bort. Är du samarbetspartner lämnar du projektet.",
     "invited_you_banner": "bjöd in dig till samarbete",
+    "a_collaborator": "En samarbetspartner",
+    "view_invite": "Visa inbjudan",
     "join": "Gå med",
     "collab": "Samarbete",
     "collab_title": "Samarbeta med andra musiker",
@@ -825,7 +828,8 @@
         "counter": "{current} av {total}",
         "keep": "Det är jag",
         "pass": "Inte jag"
-      }
+      },
+      "pick_one": "Välj ett för att gå vidare."
     },
     "questions": {
       "goals": {
@@ -902,7 +906,34 @@
     "analyzing": {
       "title": "Läser igenom dina svar",
       "subtitle": "Fem svar. Ge oss ett ögonblick med dem.",
-      "done": "Det räcker för att säga något om dig."
+      "done": "Det räcker för att säga något om dig.",
+      "testimonials": [
+        {
+          "quote": "Jag hade fyra år av halva låtar i telefonen. Jag gjorde klart tre av dem på en månad.",
+          "name": "Mara L."
+        },
+        {
+          "quote": "Det första som faktiskt hjälpte utan att försöka skriva låten åt mig.",
+          "name": "Jonas K."
+        },
+        {
+          "quote": "Jag slutade vänta på att känna mig redo och började bara. Det visade sig vara hela grejen.",
+          "name": "Priya S."
+        }
+      ]
+    },
+    "email": {
+      "eyebrow": "Ditt resultat är klart",
+      "title": "Var ska vi spara det?",
+      "subtitle": "En adress, sedan är resten din. Inget lösenord att hitta på — det väljer du senare, om du vill.",
+      "placeholder": "du@exempel.se",
+      "cta": "Visa mitt resultat",
+      "submitting": "Ett ögonblick…",
+      "invalid": "Vi behöver en fullständig adress — till exempel du@exempel.se.",
+      "consent": "Jag godkänner Veinotes {terms} och {privacy}.",
+      "consent_terms": "allmänna villkor",
+      "consent_privacy": "integritetspolicy",
+      "consent_required": "Kryssa i rutan så går vi vidare."
     },
     "verdict": {
       "label": "Så här ser vi det",
@@ -1030,6 +1061,17 @@
       "reminder": "Vi mejlar dig innan din provperiod tar slut.",
       "today_free": "$0.00 idag",
       "then_billed": "Betalningen startar dag {days}. Avsluta när som helst innan dess."
+    },
+    "verify": {
+      "title": "En sista sak",
+      "subtitle": "Vi skickade en sexsiffrig kod till",
+      "digit_label": "Siffra {n} i koden",
+      "cta": "Slutför registreringen",
+      "verifying": "Kontrollerar…",
+      "resend": "Fick du den inte? Skicka igen",
+      "resend_in": "Skicka igen om {s}s",
+      "change_email": "Fel adress? Ändra den",
+      "invalid": "Koden stämde inte. Kolla det senaste mejlet och försök igen."
     },
     "auth": {
       "title": "Säkra din plats",

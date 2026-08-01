@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { bindLocalStateToAccount } from '@/lib/storage';
 
 interface AuthContextType {
     user: User | null;
@@ -69,8 +70,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     useEffect(() => {
-        // Playwright testing mock user override
-        if (typeof window !== 'undefined') {
+        // Playwright testing mock user override — dev/test builds only. Shipping this in
+        // production let anyone with devtools open the platform UI unauthenticated (no real
+        // token, so no data access, but it also skipped account-status enforcement).
+        if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
             const mockUserJson = localStorage.getItem('playwright_mock_user');
             if (mockUserJson) {
                 try {
@@ -86,6 +89,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const unsubscribe = onAuthStateChanged(auth, (user) => {
+            // Before anything renders for this account, make sure the browser's local state
+            // belongs to it — a different previous account's cached projects, Mind Power
+            // progress, and dismissed welcome-video/tour flags must not carry over.
+            if (user) bindLocalStateToAccount(user.uid);
             setUser(user);
             // A fresh sign-in clears a previous block — if the account were still
             // disabled, Firebase would have refused the sign-in itself.

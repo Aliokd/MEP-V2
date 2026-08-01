@@ -419,6 +419,57 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
    2s as the button/canvas gradients instead of the 3.4s daily-milestone celebration. */
 .mind-power-glow-ring--quick { animation-duration: 2s; }
 
+/* Collab invite attention ring — the same travelling multicolour border as the Mind Power
+   celebration, but looping at steady opacity: an invite is a standing offer, not a one-shot
+   event, so the ring keeps moving until the invite is answered or dismissed. */
+@keyframes invite-ring-travel {
+    from { background-position: 0% 50%; }
+    to { background-position: 200% 50%; }
+}
+.invite-glow-ring {
+    position: absolute;
+    inset: -3px;
+    border-radius: 9999px;
+    padding: 2px;
+    pointer-events: none;
+    background: linear-gradient(90deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
+    background-size: 220% 100%;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: invite-ring-travel 2.6s linear infinite;
+}
+
+/* Invite banner / toast entrance — the `animate-in slide-in-from-top-*` utilities used
+   elsewhere are silent no-ops in this project (see the note further down), so the invite
+   surfaces get a real hand-rolled drop-in. */
+@keyframes collab-banner-enter {
+    from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.collab-banner-enter {
+    animation: collab-banner-enter 350ms ease-out both;
+}
+
+/* Collab-joined celebration — a full moving mesh washes across the Mind Power pill when an
+   invite is accepted (veinote-collab-joined event). Same palette and keyframes as the save
+   celebration so every "something good happened" moment shares one movement language. */
+.collab-join-gradient-fill {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+        radial-gradient(60% 130% at 18% 28%, rgba(142, 201, 240, 0.9) 0%, rgba(142, 201, 240, 0) 62%),
+        radial-gradient(58% 130% at 48% 76%, rgba(183, 157, 240, 0.9) 0%, rgba(183, 157, 240, 0) 62%),
+        radial-gradient(58% 130% at 78% 32%, rgba(240, 168, 201, 0.9) 0%, rgba(240, 168, 201, 0) 62%),
+        linear-gradient(90deg, #86BE7F 0%, #8ec9f0 35%, #b79df0 65%, #f0a8c9 100%);
+    background-size: 220% 100%;
+    animation: mind-power-glow 2.6s ease-out forwards;
+}
+/* Matching duration for the border ring mounted alongside the fill. */
+.mind-power-glow-ring--collab { animation-duration: 2.6s; }
+
 /* Save button celebration fill — a colourful mesh that pans across the button.
    Deliberately driven by the *same* `mind-power-glow` keyframes and duration as
    .canvas-save-glow-ring, and mounted at the same instant, so the movement inside
@@ -443,10 +494,15 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
 @media (prefers-reduced-motion: reduce) {
     .mind-power-glow-ring,
     .canvas-save-glow-ring,
-    .save-gradient-fill {
+    .save-gradient-fill,
+    .invite-glow-ring,
+    .collab-join-gradient-fill {
         animation: none;
         opacity: 1;
         background: #86BE7F;
+    }
+    .collab-banner-enter {
+        animation: none;
     }
 }
 
@@ -568,4 +624,28 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     background-size: 140px 140px;
     background-blend-mode: multiply;
     opacity: 0.10;
+}
+
+/* A nudge, not a rejection — used when Next is pressed on a question that has
+   no answer yet. Small and quick on purpose: the button is asking again, not
+   telling anyone off, so it moves about as far as a head shake and settles.
+   Translate only, so it composites on its own layer and never reflows the
+   controls row it sits in. */
+@keyframes nudge-shake {
+    0%, 100% { transform: translateX(0); }
+    15% { transform: translateX(-6px); }
+    30% { transform: translateX(5px); }
+    45% { transform: translateX(-4px); }
+    60% { transform: translateX(3px); }
+    75% { transform: translateX(-2px); }
+}
+.animate-nudge-shake {
+    animation: nudge-shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+/* The message still appears — it is the part that says what to do. Only the
+   movement goes, which is the part that is decoration. */
+@media (prefers-reduced-motion: reduce) {
+    .animate-nudge-shake {
+        animation: none;
+    }
 }

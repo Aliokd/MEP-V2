@@ -9,11 +9,11 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { TreePine, Menu, User, Play, Pause, X, RotateCcw, Brain, ChevronRight, ShieldOff } from 'lucide-react';
+import { TreePine, Menu, User, Play, Pause, X, RotateCcw, Brain, ChevronRight, ShieldOff, UsersRound, ArrowRight } from 'lucide-react';
 import Logo from '@/components/Logo';
 import Tooltip from '@/components/Tooltip';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getCountFromServer } from 'firebase/firestore';
+import { collection, query, where, getCountFromServer, onSnapshot } from 'firebase/firestore';
 
 // Owns the focus-timer's 1s tick locally so it doesn't force the entire
 // PlatformLayoutInner tree to re-render every second while running.
@@ -142,6 +142,60 @@ function PlatformLayoutInner({
     const [isQuickGlow, setIsQuickGlow] = useState(false);
     const glowTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    // ---- Collab invites, platform-wide ----
+    // The Create canvas has its own invite banner, but someone in Learn/Practice/Connect had
+    // no way to know an invite arrived — this listener + the toast below cover every section.
+    const [pendingCollabInvites, setPendingCollabInvites] = useState<any[]>([]);
+    // Session-scoped dismissals: closing the toast shouldn't bury the invite forever (it still
+    // lives in the Create banner), just quiet it until the next visit.
+    const [dismissedInviteIds, setDismissedInviteIds] = useState<Set<string>>(new Set());
+    // Accepting an invite fires a joy moment on the Mind Power pill: the looping ring plus a
+    // full moving-gradient wash, mounted for the length of one celebration cycle.
+    const [showCollabCelebrate, setShowCollabCelebrate] = useState(false);
+    const collabCelebrateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        if (!user) {
+            setPendingCollabInvites([]);
+            return;
+        }
+        const invitesQuery = query(
+            collection(db, "invitations"),
+            where("inviteeId", "==", user.uid),
+            where("status", "==", "pending")
+        );
+        const unsub = onSnapshot(invitesQuery, (snap) => {
+            const invites: any[] = [];
+            snap.forEach(d => invites.push({ id: d.id, ...d.data() }));
+            invites.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+            setPendingCollabInvites(invites);
+        }, (err) => console.warn("Platform invites listener error:", err.message));
+        return () => unsub();
+    }, [user]);
+
+    useEffect(() => {
+        const handleCollabJoined = () => {
+            setShowCollabCelebrate(true);
+            if (collabCelebrateTimeoutRef.current) clearTimeout(collabCelebrateTimeoutRef.current);
+            // Matches the 2.6s run of .collab-join-gradient-fill / --collab ring.
+            collabCelebrateTimeoutRef.current = setTimeout(() => setShowCollabCelebrate(false), 2600);
+        };
+        window.addEventListener('veinote-collab-joined', handleCollabJoined);
+        return () => {
+            window.removeEventListener('veinote-collab-joined', handleCollabJoined);
+            if (collabCelebrateTimeoutRef.current) clearTimeout(collabCelebrateTimeoutRef.current);
+        };
+    }, []);
+
+    // The toast only shows outside Create (the canvas banner owns it there), and only for
+    // invites not dismissed this session.
+    const visibleInviteToast = pathname?.startsWith('/platform/create')
+        ? null
+        : pendingCollabInvites.find(inv => !dismissedInviteIds.has(inv.id)) || null;
+    const extraInviteCount = visibleInviteToast
+        ? pendingCollabInvites.filter(inv => !dismissedInviteIds.has(inv.id)).length - 1
+        : 0;
+
     // The Mind Power / "Progress saved..." label-swap keeps both strings mounted (for the
     // slide transform), which by default reserves width for whichever is wider regardless
     // of which is actually showing. Measure both and size the wrapper to just the active
@@ -230,8 +284,11 @@ function PlatformLayoutInner({
         }
     }, []);
 
-    // Fetch the real Community count once the user is available
+    // Once the user is available: fetch the real Community count, and re-read the local
+    // progress inputs — on an account switch bindLocalStateToAccount has just purged the
+    // previous account's counters, and values read at mount may predate that purge.
     useEffect(() => {
+        recalculateProgress();
         fetchCommunityCount();
     }, [user]);
 
@@ -431,6 +488,48 @@ function PlatformLayoutInner({
             pathname?.startsWith('/platform/create') ? 'bg-[#FAF9F5] md:bg-[#E4E4DF]' : 'bg-[#E4E4DF]'
         }`}>
 
+            {/* Collab invite toast — visible from every section except Create (the canvas
+                banner covers that one). Keyed by invite id so a newly arriving invite replays
+                the entrance even if a previous toast was already showing. */}
+            {visibleInviteToast && (
+                <div
+                    key={visibleInviteToast.id}
+                    className="fixed top-4 left-1/2 -translate-x-1/2 z-[95] px-4 w-full sm:w-auto flex justify-center collab-banner-enter"
+                >
+                    <div className="relative bg-white rounded-full pl-4 pr-2 py-2 shadow-[0_12px_35px_rgba(0,0,0,0.14)] border border-stone-200/80 flex items-center gap-3 max-w-full">
+                        <div className="invite-glow-ring" />
+                        <div className="relative w-8 h-8 rounded-full bg-[#EAF3E8] text-[#4e7a49] flex items-center justify-center shrink-0">
+                            <UsersRound size={16} strokeWidth={2} />
+                        </div>
+                        <div className="relative flex flex-col min-w-0 mr-1">
+                            <span className="text-[13.5px] font-semibold text-stone-800 leading-tight truncate">
+                                {(visibleInviteToast.senderName || t('collab.a_collaborator'))} {t('collab.invited_you_banner')}
+                            </span>
+                            <span className="text-[12px] text-stone-500 leading-tight truncate">
+                                {(visibleInviteToast.projectTitle || t('workspace.untitled_note'))}
+                                {extraInviteCount > 0 ? ` · +${extraInviteCount}` : ''}
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => router.push('/platform/create')}
+                            className="relative bg-[#E5FE6C] hover:bg-[#EEFE7B] text-stone-950 font-semibold text-[13px] px-4 py-2 rounded-full shadow-xs transition-all cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 border-none outline-none shrink-0"
+                        >
+                            <span>{t('collab.view_invite')}</span>
+                            <ArrowRight size={14} className="stroke-[2.5]" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setDismissedInviteIds(prev => new Set(prev).add(visibleInviteToast.id))}
+                            aria-label={t('card.dismiss')}
+                            className="relative p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-all cursor-pointer shrink-0"
+                        >
+                            <X size={15} strokeWidth={2.2} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Congratulations Confetti Overlay Modal */}
             {showConfettiOverlay && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in duration-300">
@@ -525,12 +624,14 @@ function PlatformLayoutInner({
                 }`}>
                     <div className="relative flex flex-col items-center w-full" ref={popupRef}>
                         {showProgressGlow && <div className={`mind-power-glow-ring ${isQuickGlow ? "mind-power-glow-ring--quick" : ""}`} />}
+                        {showCollabCelebrate && <div className="mind-power-glow-ring mind-power-glow-ring--collab" />}
                         <div
                             onClick={() => setShowTooltip(!showTooltip)}
                             data-tour="mind-power"
                             className="relative flex items-center w-full bg-white/50 border border-stone-200/40 px-5 py-3 rounded-[20px] select-none cursor-pointer transition-all active:scale-[0.99] shadow-2xs font-sans text-xs text-stone-500 font-medium normal-case"
                         >
-                            <div className="flex items-center gap-3">
+                            {showCollabCelebrate && <div className="collab-join-gradient-fill" />}
+                            <div className="relative flex items-center gap-3">
                             <Brain size={16} className="text-stone-600 shrink-0" strokeWidth={1.5} />
                             {/* Label swaps to "Progress saved" on a Complete, then slides back.
                                 The movement is the point: it pulls the eye to Mind Power so the
@@ -598,12 +699,14 @@ function PlatformLayoutInner({
                     <div className="flex items-center gap-3 font-medium">
                         <div className="relative flex flex-col items-center" ref={popupRef}>
                             {showProgressGlow && <div className={`mind-power-glow-ring ${isQuickGlow ? "mind-power-glow-ring--quick" : ""}`} />}
+                            {showCollabCelebrate && <div className="mind-power-glow-ring mind-power-glow-ring--collab" />}
                             <div
                                 onClick={() => setShowTooltip(!showTooltip)}
                                 data-tour="mind-power"
                                 className="relative flex items-center bg-white/50 hover:bg-white/70 border border-stone-200/80 px-6 py-3 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-sm text-stone-650 font-bold normal-case tracking-normal"
                             >
-                                <div className="flex items-center gap-3">
+                                {showCollabCelebrate && <div className="collab-join-gradient-fill" />}
+                                <div className="relative flex items-center gap-3">
                                 <Brain size={19} className="text-stone-600 shrink-0" strokeWidth={1.5} />
                             {/* Label swaps to "Progress saved" on a Complete, then slides back.
                                 The movement is the point: it pulls the eye to Mind Power so the

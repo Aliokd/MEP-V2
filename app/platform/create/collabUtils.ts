@@ -428,7 +428,7 @@ export async function deleteProjectComment(projectId: string, commentId: string)
  * Called before deleting the project doc itself.
  */
 export async function deleteProjectSubcollections(projectId: string): Promise<void> {
-    for (const sub of ["comments", "presence", "signaling"]) {
+    for (const sub of ["comments", "presence", "signaling", "callParticipants"]) {
         try {
             const snap = await getDocs(collection(db, "projects", projectId, sub));
             // Firestore caps a batch at 500 writes.
