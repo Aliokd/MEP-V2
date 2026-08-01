@@ -15,6 +15,12 @@
     "build:lexicon": "node scripts/build-lexicon.mjs",
     "key:fingerprint": "node scripts/key-fingerprint.mjs"
   },
+  "browserslist": [
+    "> 0.5%",
+    "last 2 versions",
+    "safari >= 15",
+    "not dead"
+  ],
   "dependencies": {
     "@chordbook/tuner": "^0.0.3",
     "@google-cloud/speech": "^7.3.2",

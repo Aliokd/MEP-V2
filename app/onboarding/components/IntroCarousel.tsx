@@ -3632,17 +3632,37 @@ const PublishArt = () => {
 // 35 buys 36KB and starts eating the wash. A 1.2px blur takes it to 32KB, but
 // that is the whole texture gone, and the texture is what the image is. Same
 // call as the sky, for the same reason.
-// Backdrops that arrive already soft in the file, and so are barely held back
-// at all. The 30% below exists to stop an ordinary photograph competing with
-// the demo in front of it; an image that is pre-faded needs no second pass, and
-// dimming it twice only greys it out.
-const PRE_FADED_BACKDROPS = new Set(['psychology']);
-
+// The `-on-cream` derivatives are these images already composited over the
+// card's own #FCF7DE — at 30%, or 70% for science, which arrives soft in the
+// file and only needed holding back a little. They are drawn at full opacity.
+//
+// This used to be done at runtime: the raw image at `opacity-30` over the
+// cream. It rendered correctly in Chrome and near-black in Safari, where the
+// whole card went dark and the #363636 headline vanished into it while the
+// opaque white panels in front stayed right. A partial opacity promotes the
+// <img> to its own composited layer, and this one sits inside an ancestor that
+// is `overflow: hidden` with a 28px radius — WebKit has a long-standing family
+// of bugs where a composited layer clipped to a rounded rect composites against
+// black rather than against what is behind it.
+//
+// Baking the blend removes the mechanism rather than working around it: with no
+// sub-1 opacity there is no separate layer and nothing left to blend wrongly.
+// The pixels are identical to what the runtime blend produced (verified to
+// within 0.3/255), and the files got much smaller as a bonus — 395KB to 87KB,
+// because the film grain that made them expensive is most of what fading to 30%
+// was throwing away anyway.
+//
+// New filenames rather than overwriting: an opaque image is now drawn at full
+// strength, so a stale cached copy of the *un*faded original would render at
+// full contrast instead of subtly. Changing the path makes that impossible.
+//
+// Regenerate from the masters with:
+//   out = op * (src over #FCF7DE) + (1 - op) * #FCF7DE
 const SLIDE_BACKDROPS: Record<string, string> = {
-    collab: '/onboarding-cards/backdrop-collab.webp',
-    tools: '/onboarding-cards/backdrop-tools.webp',
-    publish: '/onboarding-cards/sky-backdrop.webp',
-    psychology: '/onboarding-cards/backdrop-science.webp',
+    collab: '/onboarding-cards/backdrop-collab-on-cream.webp',
+    tools: '/onboarding-cards/backdrop-tools-on-cream.webp',
+    publish: '/onboarding-cards/sky-backdrop-on-cream.webp',
+    psychology: '/onboarding-cards/backdrop-science-on-cream.webp',
 };
 
 const SLIDES: IntroSlide[] = [
@@ -3784,6 +3804,11 @@ export default function IntroCarousel({ onComplete, startAtEnd = false, onIndexC
                     vignette is also still gone, though its reason is back now
                     that the sky is: it kept the white lyric card from
                     dissolving into the clouds behind it. */}
+                {/* Full strength, never a fraction: the fade is already in the
+                    file (see SLIDE_BACKDROPS). The inactive ones are hidden at
+                    `opacity-0`, which draws nothing at all — it is only a
+                    partial opacity that makes WebKit blend a composited layer,
+                    and there is no longer one of those here. */}
                 {SLIDES.filter((s) => SLIDE_BACKDROPS[s.id]).map((s) => (
                     <img
                         key={s.id}
@@ -3791,11 +3816,7 @@ export default function IntroCarousel({ onComplete, startAtEnd = false, onIndexC
                         alt=""
                         aria-hidden="true"
                         className={`pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-center ${
-                            s.id !== slide.id
-                                ? 'opacity-0'
-                                : PRE_FADED_BACKDROPS.has(s.id)
-                                    ? 'opacity-70'
-                                    : 'opacity-30'
+                            s.id === slide.id ? 'opacity-100' : 'opacity-0'
                         }`}
                     />
                 ))}
