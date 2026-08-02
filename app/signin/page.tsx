@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { motion, useAnimationControls } from 'framer-motion';
 import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
@@ -22,6 +22,17 @@ function SignInPageInner() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
+    // A missing field is asked for by shaking it, not by writing a sentence
+    // about it. Same gesture as the onboarding quiz and email step.
+    //
+    // Driven through animation controls rather than a CSS class so it replays
+    // on the second and third press — re-adding a class an element never lost
+    // is not a change the engine replays — and so the field keeps its focus
+    // and caret, which remounting to force a replay would throw away.
+    const emailShake = useAnimationControls();
+    const passwordShake = useAnimationControls();
+    const shake = (controls: ReturnType<typeof useAnimationControls>) =>
+        controls.start({ x: [0, -6, 5, -4, 3, -2, 0], transition: { duration: 0.42, ease: [0.36, 0.07, 0.19, 0.97] } });
     const [isLoading, setIsLoading] = useState(false);
 
     const router = useRouter();
@@ -71,7 +82,9 @@ function SignInPageInner() {
         e.preventDefault();
         setError('');
         if (!email || !password) {
-            setError(t('signin.errors.enter_credentials'));
+            // Nothing to explain: the empty box is the message.
+            if (!email) shake(emailShake);
+            if (!password) shake(passwordShake);
             return;
         }
 
@@ -87,6 +100,8 @@ function SignInPageInner() {
                 setError(t('signin.errors.account_blocked'));
             } else if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
                 setError(t('signin.errors.invalid_credentials'));
+                shake(emailShake);
+                shake(passwordShake);
             } else {
                 setError(t('signin.errors.signin_failed'));
             }
@@ -99,7 +114,7 @@ function SignInPageInner() {
         e.preventDefault();
         setError('');
         if (!email) {
-            setError(t('signin.errors.enter_email'));
+            shake(emailShake);
             return;
         }
 
@@ -170,28 +185,27 @@ function SignInPageInner() {
 
                 <div className="bg-white/60 border border-stone-200/80 p-6 sm:p-10 rounded-[20px] shadow-sm backdrop-blur-md">
                     {view === 'login' && (
-                        <form onSubmit={handlePasswordSignIn} className="space-y-6">
+                        <form onSubmit={handlePasswordSignIn} noValidate className="space-y-6">
                             {error && (
-                                <div className="bg-red-500/10 border border-red-500/20 text-red-700 text-xs px-4 py-3 rounded-xl flex items-center gap-2">
-                                    <AlertCircle size={16} className="shrink-0" />
+                                <div className="flex items-center gap-2 px-1 text-[13px] font-semibold text-[#3f6b3a]">
                                     <span>{error}</span>
                                 </div>
                             )}
                             <div className="space-y-4 text-left">
+                                <motion.div animate={emailShake}>
                                 <input
                                     type="email"
-                                    required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder={t('signin.email_placeholder')}
                                     className="w-full bg-white border border-stone-200 rounded-[20px] py-3.5 px-5 md:py-5 md:px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-base md:text-xl font-medium placeholder:text-stone-500 placeholder:text-base md:placeholder:text-xl"
                                     disabled={isLoading}
                                 />
+                                </motion.div>
                                 <div className="space-y-2">
-                                    <div className="relative">
+                                    <motion.div animate={passwordShake} className="relative">
                                         <input
                                             type={showPassword ? "text" : "password"}
-                                            required
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             placeholder={t('signin.password_placeholder')}
@@ -205,7 +219,7 @@ function SignInPageInner() {
                                         >
                                             {showPassword ? <EyeOff size={20} className="w-5 h-5" /> : <Eye size={20} className="w-5 h-5" />}
                                         </button>
-                                    </div>
+                                    </motion.div>
                                     <div className="text-right">
                                         <button
                                             type="button"
@@ -240,15 +254,13 @@ function SignInPageInner() {
                                 <p className="text-stone-600 text-sm font-medium">{t('signin.reset_desc')}</p>
                             </div>
                             {error && (
-                                <div className="bg-red-500/10 border border-red-500/20 text-red-700 text-xs px-4 py-3 rounded-xl flex items-center gap-2">
-                                    <AlertCircle size={16} className="shrink-0" />
+                                <div className="flex items-center gap-2 px-1 text-[13px] font-semibold text-[#3f6b3a]">
                                     <span>{error}</span>
                                 </div>
                             )}
                              <div className="space-y-4 text-left">
                                 <input
                                     type="email"
-                                    required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder={t('signin.email_placeholder')}

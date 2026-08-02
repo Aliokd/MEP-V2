@@ -289,6 +289,8 @@
     "close_desc": "This will disconnect the project's real-time collaboration. If you are a collaborator, you will leave this project.",
     "invited_you_banner": "invited you for collab",
     "a_collaborator": "A collaborator",
+    "the_project_owner": "The project owner",
+    "removed_you_banner": "removed you from",
     "view_invite": "View invite",
     "join": "Join",
     "collab": "Collab",
@@ -763,7 +765,7 @@
       "get_started": "Get started",
       "slides": {
         "psychology": {
-          "title": "Proven by science",
+          "title": "Backed by science",
           "science": {
             "claim_lead": "Active music-making truly",
             "claim_stress": "engages your entire brain.",
@@ -784,7 +786,7 @@
           "labels": {
             "master_lyrics": "Master\nsongwriting\nfundamentals",
             "expanded_skills": "Collab &\nBusiness",
-            "see_life": "Own and\npublish songs",
+            "see_life": "Own 100%\nof your songs",
             "unlocked_creativity": "Reach\noptimal\nmind\npower",
             "ignite_imagination": "Mental\ntherapy",
             "tell_stories": "Tell\nstories\nthat\nconnect",
@@ -799,7 +801,7 @@
             "line_2": "feel the warmth within my reach",
             "line_3": "I'm yours to keep",
             "line_4": "and I'm yours to lose",
-            "recording": "Hook idea",
+            "recording": "Recording",
             "photo": "Handwritten verse"
           }
         },
@@ -825,39 +827,49 @@
       "step_counter": "Step {current} of {total}",
       "skip": "Skip to sign-up",
       "deck": {
-        "counter": "{current} of {total}",
+        "counter": "{current}/{total}",
+        "feedback_keep": {
+          "unfinished": "Our progress tracker will help",
+          "weak_melodies": "You'll find tailored tools for this",
+          "no_structure": "Veinote has amazing tips for you",
+          "too_similar": "We will help you get over this",
+          "overthink": "Never lose inspiration with our guided writing"
+        },
+        "feedback_pass": "Awesome!\nNice!\nGreat!\nPerfect!\nNoted!\nGot it!",
+        "undo": "Take back the last card",
         "keep": "That's me",
-        "pass": "Not me"
+        "pass": "Not me",
+        "own_placeholder": "Type something else ..."
       },
       "pick_one": "Pick one to keep going."
     },
     "questions": {
       "goals": {
-        "add_custom": "Add custom",
-        "custom_placeholder": "Write your own, then press Enter",
+        "add_custom": "Add my goal",
+        "custom_placeholder": "Type here",
         "take_back": "Take this card back out of the box"
       },
       "songwriter_type": {
-        "question": "What describes you best?",
+        "question": "How do you see yourself?",
         "options": {
           "lyricist": {
-            "title": "The Lyricist",
+            "title": "Lyricist",
             "desc": "Words come first."
           },
           "melodist": {
-            "title": "The Melodist",
+            "title": "Melodist",
             "desc": "I hear melodies before lyrics."
           },
           "producer": {
-            "title": "The Producer",
+            "title": "Producer",
             "desc": "I build songs through sound and rhythm."
           },
           "storyteller": {
-            "title": "The Storyteller",
+            "title": "Storyteller",
             "desc": "I want to express emotions and experiences."
           },
           "explorer": {
-            "title": "The Explorer",
+            "title": "Explorer",
             "desc": "I'm still discovering my style."
           }
         }
@@ -885,7 +897,7 @@
       "emotional_inspiration": {
         "question": "Which feeling pulls you the most?",
         "options": {
-          "melancholic": "Melancholic & emotional",
+          "melancholic": "Emotional & melancholic",
           "energetic": "Energetic & uplifting",
           "cinematic": "Cinematic & dreamy",
           "dark": "Dark & raw",
@@ -901,12 +913,13 @@
           "beat_production": "A beat or production idea",
           "improvisation": "Pure improvisation"
         }
-      }
+      },
+      "change_answer": "Change"
     },
     "analyzing": {
-      "title": "Reading your answers",
-      "subtitle": "Five answers. Give us a moment with them.",
-      "done": "That's enough to go on.",
+      "eyebrow": "We've finished analyzing",
+      "title": "We have saved your progress",
+      "cta": "Reveal results",
       "testimonials": [
         {
           "quote": "I had four years of half-songs on my phone. I finished three of them in a month.",
@@ -937,7 +950,8 @@
     },
     "verdict": {
       "label": "Here's what we see",
-      "struggle_label": "And the part that hurts",
+      "struggle_label": "What's getting in the way",
+      "fix_label": "What we do about it",
       "promise_label": "Here's where this goes",
       "cta": "Show me how",
       "types": {
@@ -957,25 +971,32 @@
         "default": "You already write. What you need is somewhere that keeps up with you."
       },
       "struggles": {
-        "unfinished": "You start more than you finish — not for lack of ideas, but because they end up scattered across notes, voice memos and files that never meet.",
-        "weak_melodies": "The words are there. It's the melody that keeps coming second, and you've had nowhere to try twenty versions of it out loud.",
-        "no_structure": "You have the pieces. What's missing is the shape that turns them into a song instead of a collection of good moments.",
-        "too_similar": "Everything comes out sounding like the last one — which happens to anyone writing alone, in the same room, with the same three chords.",
-        "overthink": "You think a line to death before it's had a chance to live. The first draft never gets to be a first draft.",
+        "unfinished": "You start songs and don't finish them. The parts end up in notes, voice memos and files you never open again.",
+        "weak_melodies": "You have the words. The melody is the part that never gets good, and you have nowhere to sing it out loud.",
+        "no_structure": "You have good pieces, but they don't add up to a song.",
+        "too_similar": "New songs keep coming out sounding like the last one.",
+        "overthink": "You rewrite the first line so many times you never reach the second.",
         "default": "Something keeps getting between you and a finished song."
       },
+      "fixes": {
+        "unfinished": "Veinote keeps one song in one place. Words, voice notes and files sit on the same canvas, so you pick it up where you left it instead of starting again.",
+        "weak_melodies": "Sing the idea straight into the demo studio, then try ten more in a few minutes. Every take is kept, so you can go back to the one that worked.",
+        "no_structure": "The canvas lays the song out in sections. You see what you have, what's missing, and where a part belongs.",
+        "too_similar": "The rhyme and word tools hand you options you wouldn't have reached for, and you can write with someone else when one head isn't enough.",
+        "overthink": "Park a line, keep writing, come back to it later. Nothing you try is lost, so a bad idea costs you nothing.",
+        "default": "Veinote keeps the whole song in one place and helps you get it finished."
+      },
       "dreams": {
-        "finish_songs": "Three months from now, you have finished songs you'd play for someone without apologising first.",
-        "unique_sound": "Three months from now, someone hears eight bars and knows it's yours.",
-        "move_people": "Three months from now, you have the one song that makes a room go quiet.",
-        "release_music": "Three months from now, you have a song ready to release and somewhere to send it.",
-        "creative_fearless": "Three months from now, you write without flinching — and bad ideas stop being expensive.",
-        "default": "Three months from now, you have songs that are finished, not just started."
+        "finish_songs": "In three months you have finished songs you'd play for someone without saying sorry first.",
+        "unique_sound": "In three months someone hears eight bars and knows it's yours.",
+        "move_people": "In three months you have the song that makes a room go quiet.",
+        "release_music": "In three months you have a song ready to release, and somewhere to send it.",
+        "creative_fearless": "In three months you try things without worrying about wasting the day.",
+        "default": "In three months you have songs that are finished, not just started."
       }
     },
     "offer": {
-      "eyebrow": "No pressure",
-      "title": "We want you to try Veinote for free.",
+      "title": "We want you to try\nVeinote for free.",
       "subtitle": "{days} days of everything. Here's exactly how it goes.",
       "timeline": {
         "today": {
@@ -1008,59 +1029,119 @@
         "billed_yearly": "per month, billed yearly",
         "billed_monthly": "per month, billed monthly"
       },
-      "recommended": "Recommended",
-      "benefits_label": "What you get",
-      "features_label": "Features",
+      "recommended": "Popular",
       "max_intro": "Everything in Pro, plus",
       "coming_soon": "Coming soon",
       "plans": {
         "pro": {
           "name": "Pro",
-          "benefits": {
-            "fundamentals": "Master the fundamentals",
-            "rhyme_lexicon": "Take your lyrics further with the rhyme lexicon",
-            "production": "End-to-end song production",
-            "mind_power": "Track your thinking and practise on the platform, with therapy and productivity built in",
-            "community": "Grow alongside other songwriters"
+          "tagline": "Most popular — for songwriters building the habit",
+          "outcome": [
+            "Become a master songwriter and take your craft to the next level",
+            "Learn by making songs, not by watching lessons",
+            "Own 100% of everything you write",
+            "Clear your head — songwriting as therapy",
+            "Be part of the community: meet other songwriters and connect"
+          ],
+          "groups": {
+            "tools": {
+              "title": "Unlock all tools",
+              "items": [
+                "Rhyme lexicon and dictionary",
+                "Guitar tuner",
+                "Tap tempo",
+                "Demo studio — record straight from your laptop",
+                "Canvas: lyrics, takes and files in one place"
+              ]
+            },
+            "materials": {
+              "title": "Material that gets you writing",
+              "items": [
+                "Master the songwriting fundamentals",
+                "Deep dives on the parts people get stuck on",
+                "The full bank of tips",
+                "The songwriting book by Peter"
+              ]
+            },
+            "community": {
+              "title": "Socialize with songwriters",
+              "items": [
+                "Write together in the same project",
+                "Meet other songwriters and connect",
+                "Keep every project organized in one place"
+              ]
+            },
+            "capacity": {
+              "title": "Capacity",
+              "items": [
+                "Up to 300 projects",
+                "5 collaborators on a project",
+                "Room for your files and recordings"
+              ]
+            }
           },
           "soon": {
             "stockholm_events": "Attend Veinote events in Stockholm"
-          },
-          "features": {
-            "canvas": "Canvas with end-to-end recording and lyrics control",
-            "tools": "Guitar tuner, rhyme lexicon and tap tempo",
-            "collab": "Collaborate with others in the same project",
-            "demo_studio": "Demo studio — record straight from your laptop",
-            "guided_writing": "Guided writing, healing through writing and sharing, inspirations",
-            "files_backup": "Full file management and backup with local download",
-            "limits": "Limited files and audio recording",
-            "sharing": "Share your songs with other songwriters"
-          },
-          "tagline": "Most popular — for songwriters building the habit"
+          }
         },
         "max": {
           "name": "Max",
-          "benefits": {
-            "capacity": "More capacity — more files, more recording, more collaborators",
-            "premium_songwriters": "Direct access to premium songwriters",
-            "pro_collab": "Pro collaboration opportunities",
-            "group_discussions": "Premium group discussions — ask anything, get real answers",
-            "books": "Books and the full package"
+          "tagline": "For working songwriters and teams",
+          "outcome": [
+            "Everything Pro gives you, with the ceilings taken off",
+            "Direct access to premium songwriters",
+            "Pro collaboration opportunities",
+            "Premium group discussions — ask anything, get real answers",
+            "Books and the full package"
+          ],
+          "groups": {
+            "tools": {
+              "title": "Unlock all tools",
+              "items": [
+                "Every tool in Pro",
+                "First access to new tools as they land"
+              ]
+            },
+            "materials": {
+              "title": "Material that gets you writing",
+              "items": [
+                "Everything in Pro",
+                "Books and the full package",
+                "Direct access to premium songwriters"
+              ]
+            },
+            "community": {
+              "title": "Socialize with songwriters",
+              "items": [
+                "Everything in Pro",
+                "Premium group discussions — ask anything, get real answers",
+                "Pro collaboration opportunities"
+              ]
+            },
+            "capacity": {
+              "title": "Capacity",
+              "items": [
+                "Unlimited projects",
+                "20 collaborators on a project",
+                "More files and more recording"
+              ]
+            }
           },
-          "soon": {},
-          "features": {},
-          "tagline": "For working songwriters and teams"
+          "soon": {}
         }
       },
-      "guarantee": "30-day money-back guarantee",
-      "refund_policy": "Refund policy",
-      "cta": "Pay $0.00",
+      "cta": "Start free",
       "opening_checkout": "Opening checkout...",
       "checkout_error": "We couldn't open the checkout. Please try again.",
       "no_charge": "No charge today.",
       "reminder": "We'll email you before your free trial ends.",
       "today_free": "$0.00 today",
-      "then_billed": "Billing starts on day {days}. Cancel any time before."
+      "then_billed": "Billing starts on day {days}. Cancel any time before.",
+      "outcome_label": "What's the outcome?",
+      "no_ads": "No ads in Veinote. Ever.",
+      "cancel_note": "Start free. Cancel any time.",
+      "see_max": "Check the Max plan",
+      "see_pro": "Back to the Pro plan"
     },
     "verify": {
       "title": "One last thing",

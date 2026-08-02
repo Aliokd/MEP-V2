@@ -62,6 +62,7 @@ import {
     migrateLegacyNotesToProjects,
     inviteCollaboratorByEmail,
     removeCollaboratorFromProject,
+    notifyCollaboratorRemoved,
     getCollaboratorProfiles,
     calculateContributionsPercentage,
     MAX_COLLABORATORS,
@@ -2588,41 +2589,6 @@ function AudioCapsulePlayer({
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                         <line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
                     </svg>
-                </button>
-            </Tooltip>
-        </div>
-    );
-}
-
-interface JoinedPillProps {
-    name: string;
-    onDismiss: () => void;
-}
-
-function JoinedPill({ name, onDismiss }: JoinedPillProps) {
-    const { t } = useLanguage();
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            onDismiss();
-        }, 4000);
-        return () => clearTimeout(timer);
-    }, [onDismiss]);
-
-    return (
-        <div className="flex items-center gap-2 pl-4 pr-1.5 py-1.5 bg-emerald-50 border border-emerald-200/70 text-emerald-800 rounded-full text-[14px] font-sans font-medium tracking-wide animate-in fade-in slide-in-from-left-3 duration-250 shadow-3xs shrink-0 select-none">
-            <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span>{name} has joined</span>
-            <Tooltip label={t('card.dismiss')}>
-                <button
-                    type="button"
-                    onClick={onDismiss}
-                    aria-label={t('card.dismiss')}
-                    className="w-6 h-6 hover:bg-emerald-100 flex items-center justify-center text-emerald-500 hover:text-emerald-700 rounded-full transition-all active:scale-90 shrink-0 cursor-pointer outline-none ml-1"
-                >
-                    <X size={13} className="stroke-[2.5]" />
                 </button>
             </Tooltip>
         </div>
@@ -5334,44 +5300,10 @@ export default function CreatePage() {
 
 
 
-    const [acceptedNotifications, setAcceptedNotifications] = useState<any[]>([]);
-
-    // Listen to invitations sent by me that were accepted but I haven't acknowledged yet
-    useEffect(() => {
-        if (!user) {
-            setAcceptedNotifications([]);
-            return;
-        }
-
-        const q = query(
-            collection(db, "invitations"),
-            where("senderId", "==", user.uid),
-            where("status", "==", "accepted"),
-            where("senderNotified", "==", false)
-        );
-
-        const unsub = onSnapshot(q, (snapshot) => {
-            const list: any[] = [];
-            snapshot.forEach(docSnap => {
-                list.push({ id: docSnap.id, ...docSnap.data() });
-            });
-            setAcceptedNotifications(list);
-        }, (err) => {
-            console.error("Error listening to accepted notifications:", err);
-        });
-
-        return () => unsub();
-    }, [user]);
-
-    const handleDismissAcceptedNotification = async (notificationId: string) => {
-        try {
-            await updateDoc(doc(db, "invitations", notificationId), {
-                senderNotified: true
-            });
-        } catch (err) {
-            console.error("Error dismissing accepted notification:", err);
-        }
-    };
+    // "X has joined" pills used to render here off an accepted-invitations listener, but the
+    // collaborator avatar circles next to the Collab chip already show membership in real
+    // time — the pills were pure noise for the owner. Invites still write senderNotified so
+    // the docs record acceptance; nothing reads the flag anymore.
 
     // 4. Invite Effect: Listen to pending invitations for this user (matched by UID)
     useEffect(() => {
@@ -5542,11 +5474,21 @@ export default function CreatePage() {
             const ownerId = projectData.ownerId;
             
             if (ownerId === user.uid) {
-                // If current user is the owner, remove all collaborators and reset presence
+                // If current user is the owner, remove all collaborators and reset presence.
+                // Snapshot the roster from the project doc rather than local state: it is the
+                // authoritative list, and everyone on it needs telling that access ended.
+                const removedUids: string[] = projectData.collaborators || collaborators;
                 await updateDoc(projectRef, {
                     collaborators: []
                 });
-                for (const collabUid of collaborators) {
+                for (const collabUid of removedUids) {
+                    await notifyCollaboratorRemoved({
+                        projectId,
+                        projectTitle: projectData.title,
+                        ownerId: user.uid,
+                        ownerName: user.displayName || user.email?.split('@')[0] || undefined,
+                        collaboratorUid: collabUid
+                    });
                     await deleteDoc(doc(db, "projects", projectId, "presence", collabUid)).catch(() => {});
                 }
                 setCollaborators([]);
@@ -5707,12 +5649,23 @@ export default function CreatePage() {
 
     const handleRemoveCollaborator = async (collaboratorUid: string) => {
         if (!selectedNoteId) return;
+        const removedFrom = notesRef.current.find(n => n.id === selectedNoteId);
         const success = await removeCollaboratorFromProject(selectedNoteId, collaboratorUid);
         if (success) {
             setCollaborators(prev => prev.filter(uid => uid !== collaboratorUid));
             const updatedProfiles = { ...collaboratorProfiles };
             delete updatedProfiles[collaboratorUid];
             setCollaboratorProfiles(updatedProfiles);
+            // Tell them why the project just disappeared from their workspace.
+            if (user) {
+                await notifyCollaboratorRemoved({
+                    projectId: selectedNoteId,
+                    projectTitle: removedFrom?.title,
+                    ownerId: user.uid,
+                    ownerName: user.displayName || user.email?.split('@')[0] || undefined,
+                    collaboratorUid
+                });
+            }
             try {
                 await deleteDoc(doc(db, "projects", selectedNoteId, "presence", collaboratorUid));
             } catch (err) {
@@ -12669,7 +12622,7 @@ export default function CreatePage() {
         const remoteUsersInStudio = allUsersInStudio.filter(u => !u.isMe);
 
         return (
-            <div ref={studioContainerRef} onMouseMove={handleMouseMove} className="w-full text-left relative pointer-events-auto">
+            <div ref={studioContainerRef} onMouseMove={handleMouseMove} className="w-full flex-1 min-h-0 flex flex-col text-left relative pointer-events-auto">
                 {/* Live Remote Cursors Layer inside Demo Studio (Matching Circle Colors Always) */}
                 {remoteUsersInStudio.map((rUser) => {
                     if (!rUser.cursor) return null;
@@ -12707,8 +12660,11 @@ export default function CreatePage() {
                         </div>
                     );
                 })}
-                {/* Studio Header containing Title & Info Button */}
-                <div className="flex items-center justify-between w-full mb-6 sm:mb-8 px-1">
+                {/* Studio Header containing Title & Info Button.
+                    shrink-0 + a tighter margin on SHORT viewports (a height query, not a width
+                    one — a 1920x800 laptop is wide but short): the header must never eat the
+                    height the track list and transport row need. */}
+                <div className="flex items-center justify-between w-full shrink-0 mb-6 sm:mb-8 [@media(max-height:820px)]:mb-3 px-1">
                     <div className="flex items-center gap-3 min-w-0">
                         <h3 className="font-sans font-medium text-stone-500 text-[22px] sm:text-[26px] tracking-tight shrink-0">
                             {t('canvas.create_song') || 'Create song'}
@@ -12744,15 +12700,22 @@ export default function CreatePage() {
                 </div>
 
                 <div className="contents">
-                    {/* Main Studio Sequencer Area */}
-                        <div className="w-full flex flex-col gap-6 select-none animate-in fade-in zoom-in-95 duration-250 relative min-h-[20vh] sm:min-h-[24vh] lg:min-h-[28vh]">
-                    {/* Unified Sequencer Panel Grid Area */}
-                    {/* `overflow-x-auto` (for scrolling the wide sequencer) also clips anything
+                    {/* Main Studio Sequencer Area.
+                        Fills the leftover card height (flex-1 min-h-0) rather than carrying a
+                        viewport-proportional min-height — a `min-h` here is what pushed the
+                        transport row off the bottom of short screens. */}
+                        <div className="w-full flex-1 min-h-0 flex flex-col gap-4 sm:gap-6 select-none animate-in fade-in zoom-in-95 duration-250 relative">
+                    {/* Unified Sequencer Panel Grid Area — the studio's single scroll region.
+                        Scrolls on both axes: horizontally for the wide sequencer, vertically for
+                        the track list when the viewport is too short to show every track. A thin
+                        scrollbar (rather than no-scrollbar) is deliberate — it's the only cue
+                        that more tracks exist below the fold. */}
+                    {/* `overflow` (for scrolling the wide sequencer) also clips anything
                         outside the box — which cut the collaborator badges that hang at -left-3.5
                         clean in half. Grow the clip box 1rem to the left and push the content back
                         by the same amount: content alignment and the right edge are unchanged, the
                         badges simply now fall inside the clipping region. */}
-                    <div className="flex flex-col w-[calc(100%+1rem)] -ml-4 pl-4 relative gap-6 overflow-x-auto no-scrollbar">
+                    <div className="flex flex-col flex-1 min-h-0 w-[calc(100%+1rem)] -ml-4 pl-4 relative gap-6 overflow-auto custom-canvas-scrollbar">
                     {/* Headers Row */}
                     <div className="hidden lg:flex items-center gap-3 select-none h-8 px-4">
                         <div className="w-5 shrink-0" /> {/* reorder handle gap */}
@@ -13306,11 +13269,11 @@ export default function CreatePage() {
 
                 </div>
 
-                {/* Flexible spacer: fills leftover height so the transport controls stay anchored to the bottom of the taller panel instead of floating right under a short track list */}
-                <div className="flex-grow" />
-
-                {/* Bottom Control Bar */}
-                <div className="flex flex-col gap-3 pt-4 mt-2 w-full">
+                {/* Bottom Control Bar — pinned. The scroll region above absorbs the leftover
+                    height (so these controls still sit at the bottom of a tall panel, as the old
+                    flex-grow spacer arranged), and shrink-0 guarantees REC / Play / Send to
+                    canvas stay on screen at any viewport height instead of scrolling away. */}
+                <div className="flex flex-col shrink-0 gap-3 pt-4 mt-2 w-full">
                     {/* Level 1: Metronome, Guitar Tuner, and Timeline Seeker Capsule */}
                     {/* pt-10 (rather than a fixed h-10 with no vertical room) gives the pills' box-shadows
                         room to render AND the metronome knob's hover/drag value tooltip (which pops up
@@ -14931,14 +14894,19 @@ export default function CreatePage() {
                         onDragStart={(e) => e.stopPropagation()}
                         onDragOver={(e) => e.stopPropagation()}
                         onDrop={(e) => e.stopPropagation()}
-                        className={`flex-grow min-w-0 bg-white border border-stone-200/80 p-4 sm:p-6 md:p-7 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all duration-300 ease-out relative z-20 overflow-y-auto no-scrollbar ${
+                        className={`flex-grow min-w-0 bg-white border border-stone-200/80 p-4 sm:p-6 md:p-7 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all duration-300 ease-out relative z-20 overflow-hidden ${
                             showStudioLyrics
                                 ? 'rounded-r-[24px] sm:rounded-r-[36px] md:rounded-r-[45px] rounded-l-none border-l-0'
                                 : 'rounded-[24px] sm:rounded-[36px] md:rounded-[45px]'
                         } gap-4 sm:gap-6`}
                     >
-                        {/* Content area */}
-                        <div className="w-full">
+                        {/* Content area.
+                            The card itself no longer scrolls: it clips, and the track list inside
+                            owns the scrolling instead. Scrolling the whole card meant that on a
+                            short viewport the transport row (REC / Play / Send to canvas) fell
+                            below the fold — and because the card was `no-scrollbar`, nothing on
+                            screen hinted that it was still down there. */}
+                        <div className="w-full flex-1 min-h-0 flex flex-col">
                             {renderDemoStudio()}
                         </div>
 
@@ -15846,14 +15814,6 @@ export default function CreatePage() {
                             </>
                         )}
 
-                        {/* Inline "joined" pill — appears next to Collaborate button, auto-dismisses */}
-                        {acceptedNotifications.map((notif) => (
-                            <JoinedPill
-                                key={notif.id}
-                                name={notif.inviteeName || notif.inviteeEmail?.split('@')[0] || 'Someone'}
-                                onDismiss={() => handleDismissAcceptedNotification(notif.id)}
-                            />
-                        ))}
                         {/* Ellipsis Dropdown Menu Options */}
                         {!isCanvasPreview && (
                             <div className="relative">

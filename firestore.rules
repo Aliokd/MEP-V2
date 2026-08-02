@@ -360,6 +360,14 @@ service cloud.firestore {
       allow read: if isSignedIn() && (isPublished() || isEditor());
       allow write: if false;
     }
+    // CMS-managed website pages (privacy, terms, …). The public site renders
+    // these server-side with the Admin SDK, so this rule only matters if a client
+    // ever reads them directly — and then only published ones.
+    match /site_pages/{pageId} {
+      allow read: if isPublished() || isEditor();
+      allow write: if false;
+    }
+
     match /content_versions/{versionId} {
       allow read: if isEditor();
       allow write: if false;

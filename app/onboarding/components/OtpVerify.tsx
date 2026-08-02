@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertCircle, Loader2, MailCheck } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { PRIMARY_BUTTON_BLOCK } from './buttonStyles';
 
 // The last step, and the one that actually finishes the signup.
 //
@@ -164,7 +165,7 @@ export default function OtpVerify({ email, isSubmitting = false, error = '', onV
                     type="button"
                     onClick={() => onVerify(code)}
                     disabled={!complete || isSubmitting}
-                    className="flex w-full items-center justify-center gap-2.5 rounded-[20px] bg-[#86BE7F] py-4 text-lg font-semibold text-stone-900 shadow-sm transition-all hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-stone-300/70 disabled:text-stone-500 disabled:shadow-none"
+                    className={`${PRIMARY_BUTTON_BLOCK} disabled:cursor-not-allowed disabled:bg-stone-300/70 disabled:text-stone-500 disabled:shadow-none`}
                 >
                     {isSubmitting && <Loader2 size={18} className="animate-spin" />}
                     {isSubmitting ? t('onboarding.verify.verifying') : t('onboarding.verify.cta')}

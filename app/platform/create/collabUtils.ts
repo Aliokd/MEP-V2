@@ -206,6 +206,56 @@ export async function removeCollaboratorFromProject(projectId: string, userId: s
 }
 
 /**
+ * Tells a collaborator they were removed from a project.
+ *
+ * Losing access is otherwise completely silent — the project just vanishes from their
+ * workspace mid-session, which reads as data loss rather than a deliberate act by the owner.
+ *
+ * Rides the `invitations` collection rather than a new one: the security rules there already
+ * say "the sender may create, the invitee may read and update", which is exactly the shape of
+ * this message. It reuses the deterministic `{projectId}_{uid}` id, so a later re-invite
+ * overwrites this doc back to status 'pending' instead of stacking duplicates.
+ *
+ * Best-effort by design: a failure here must never abort the removal itself, which has
+ * already been committed against the project document.
+ */
+export async function notifyCollaboratorRemoved(params: {
+    projectId: string;
+    projectTitle?: string;
+    ownerId: string;
+    ownerName?: string;
+    collaboratorUid: string;
+}): Promise<void> {
+    const { projectId, projectTitle, ownerId, ownerName, collaboratorUid } = params;
+    if (!projectId || !collaboratorUid || !ownerId) return;
+    try {
+        await setDoc(doc(db, "invitations", `${projectId}_${collaboratorUid}`), {
+            id: `${projectId}_${collaboratorUid}`,
+            projectId,
+            projectTitle: projectTitle || "Untitled Song",
+            senderId: ownerId,
+            senderName: ownerName || "The project owner",
+            inviteeId: collaboratorUid,
+            status: "removed",
+            removedAt: new Date().toISOString(),
+            // The removed collaborator flips this once they've seen the notice.
+            removalAcknowledged: false
+        }, { merge: true });
+    } catch (err) {
+        console.warn("Could not notify removed collaborator:", err);
+    }
+}
+
+/** Marks a removal notice as seen so it stops surfacing. Called by the removed collaborator. */
+export async function acknowledgeRemovalNotice(noticeId: string): Promise<void> {
+    try {
+        await updateDoc(doc(db, "invitations", noticeId), { removalAcknowledged: true });
+    } catch (err) {
+        console.warn("Could not acknowledge removal notice:", err);
+    }
+}
+
+/**
  * Fetches user profile info (name, photo) for collaborator list display
  */
 export async function getCollaboratorProfiles(userIds: string[]): Promise<{[uid: string]: { name: string; email: string }}> {

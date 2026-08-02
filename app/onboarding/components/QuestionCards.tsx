@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 // Compressed clips live under /public/onboarding-cards, named after the answer
@@ -23,6 +24,11 @@ const REVEAL_FADE_MS = 300;
 // Rotation only — the cards stack squarely on one another rather than scattering.
 const PILE_ROTATION = [-9, -3, 5, -5, 8];
 
+// How long the chosen card takes to grow into the full-width card, and to
+// shrink back into the grid on the way out. Shared by the animation and by
+// the z-index hold below, which has to outlast it in both directions.
+const MORPH_MS = 450;
+
 // A true progressive blur isn't a single CSS property — it's stacked
 // backdrop-filter layers, each masked to a shorter band than the last. Near the
 // top every layer applies and the blur is heaviest; by the bottom of the band
@@ -41,9 +47,25 @@ interface QuestionCardsProps {
     options: { value: string }[];
     selectedOption: string | null;
     onSelect: (value: string) => void;
+    /**
+     * A second question, asked inside the card that was chosen.
+     *
+     * Picking a type doesn't move the visitor on — the four cards not chosen
+     * leave, the chosen one takes the whole width, and the next question is
+     * asked on the face of it. Two questions in one step, and the second one
+     * arrives already framed by the answer to the first: you are not being
+     * asked how songs begin in the abstract, you are being asked as the
+     * Lyricist you just said you were.
+     */
+    nested?: {
+        questionId: string;
+        options: { value: string }[];
+        value: string | null;
+        onSelect: (value: string) => void;
+    };
 }
 
-export default function QuestionCards({ questionId, options, selectedOption, onSelect }: QuestionCardsProps) {
+export default function QuestionCards({ questionId, options, selectedOption, onSelect, nested }: QuestionCardsProps) {
     const { t } = useLanguage();
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -69,6 +91,26 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
     // card that was still moving, which read as a glitch. `settled` only goes
     // true once that motion has genuinely finished.
     const [settled, setSettled] = useState(false);
+
+    // The card that is on its way back into the grid. Raising the z-index on
+    // `isSelected` alone covers the growth but not the return: Back clears the
+    // selection immediately, so the card dropped to its ordinary layer while it
+    // was still shrinking and passed underneath its neighbours on the way home.
+    // This holds it up until the morph has finished.
+    const [collapsing, setCollapsing] = useState<string | null>(null);
+    const previousSelection = useRef<string | null>(selectedOption);
+
+    useEffect(() => {
+        const leaving = previousSelection.current;
+        previousSelection.current = selectedOption;
+        if (!leaving || selectedOption) return;
+
+        setCollapsing(leaving);
+        // Slightly longer than the morph, so the drop back down happens after
+        // the card has landed rather than on its last frame.
+        const id = setTimeout(() => setCollapsing(null), MORPH_MS + 80);
+        return () => clearTimeout(id);
+    }, [selectedOption]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -189,6 +231,116 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hoveredIndex, selectedOption, options]);
 
+    // Once a card is chosen it is the only one on screen, at full width, with
+    // the second question on its face. Rendered as its own branch rather than
+    // as a variant of the grid: the grid's whole machinery — the pile, the
+    // measured offsets, the fly-to-slot, the per-card hover — exists to get
+    // five cards into place, and none of it applies to one card standing alone.
+    const chosen = nested && selectedOption
+        ? options.find((option) => option.value === selectedOption)
+        : undefined;
+
+    if (chosen && nested) {
+        return (
+            // `layoutId` is what makes this a growth rather than a swap: the
+            // grid card and this one are the same element as far as framer is
+            // concerned, so it measures where the chosen card was, where this
+            // one lands, and animates between the two. Without it the grid
+            // would simply vanish and a full-width card appear in its place.
+            <motion.div
+                layoutId={`card-${chosen.value}`}
+                transition={{ duration: MORPH_MS / 1000, ease: [0.22, 1, 0.36, 1] }}
+                // z-30 for the duration of the growth: it starts at the
+                // chosen card's place in the grid and has to pass over its
+                // neighbours to get to full size. Without it the cards that
+                // happen to come later in source order paint on top, and the
+                // card being chosen slides underneath them.
+                className="relative z-30 flex h-full w-full flex-1"
+            >
+                {/* No shadow. Lifted off the page it read as a dialog sitting
+                    on top of the step; flat, it *is* the step. */}
+                <div className="relative flex w-full flex-col overflow-hidden rounded-[26px] bg-[#EFF0E7]">
+                    {/* The poster holds the frame until the clip is flowing,
+                        the same handoff the grid cards use. */}
+                    <img
+                        src={`${MEDIA_DIR}/${chosen.value}.webp`}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 h-full w-full object-cover"
+                    />
+                    {/* Still running. The footage is the answer they just gave,
+                        and freezing it the moment it is chosen turns a card that
+                        was alive into a photograph of one. */}
+                    <video
+                        src={`${MEDIA_DIR}/${chosen.value}.mp4`}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        preload="auto"
+                        aria-hidden="true"
+                        className="absolute inset-0 h-full w-full object-cover"
+                    />
+
+                    {/* Glass, not a white wash. The wash held the text up by
+                        painting out the picture underneath — which is most of
+                        the way to not having a video at all. Blurring what is
+                        behind the words instead leaves the movement and the
+                        colour visible while still giving the type a surface to
+                        sit on. */}
+                    <div className="relative flex flex-1 flex-col justify-center gap-7 bg-stone-950/45 p-6 backdrop-blur-xl md:p-10">
+                        {/* The name alone. The description said what the card
+                            meant while it was one of five and there was a
+                            choice to make; once chosen, it is answering a
+                            question nobody is asking any more. */}
+                        <h3 className="text-lg font-sans font-bold tracking-tight text-[#DCDDD4] md:text-[21px]">
+                            {t(`onboarding.questions.${questionId}.options.${chosen.value}.title`)}
+                        </h3>
+
+                        {/* No rule between the two. The gap already separates
+                            them, and a line across the card cut the footage in
+                            half for no gain. */}
+                        <div className="space-y-3">
+                            <p className="text-[22px] font-sans font-medium leading-snug text-[#DCDDD4] md:text-[27px]">
+                                {t(`onboarding.questions.${nested.questionId}.question`)}
+                            </p>
+
+                            {/* A list, like every other question that offers a
+                                column of answers — the pills read as tags to be
+                                collected rather than as one choice among five. */}
+                            <div className="space-y-2.5">
+                                {nested.options.map((option) => {
+                                    const picked = nested.value === option.value;
+                                    // Once something is chosen the rest step
+                                    // back to half strength. Selection here is
+                                    // carried by weight rather than colour, and
+                                    // a brighter row among four equals reads far
+                                    // less clearly than one full row among four
+                                    // faded ones.
+                                    const dimmed = Boolean(nested.value) && !picked;
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => nested.onSelect(option.value)}
+                                            aria-pressed={picked}
+                                            className={`flex w-full items-center justify-between rounded-2xl px-5 py-[22px] text-left text-[17px] font-medium text-[#DCDDD4] transition-all md:text-[19px] ${
+                                                picked ? 'bg-white/25' : 'bg-white/10 hover:bg-white/[0.18]'
+                                            } ${dimmed ? 'opacity-50 hover:opacity-100' : 'opacity-100'}`}
+                                        >
+                                            {t(`onboarding.questions.${nested.questionId}.options.${option.value}`)}
+                                            {picked && <Check size={17} className="shrink-0 stroke-[3] text-[#DCDDD4]" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        );
+    }
+
     return (
         // Tighter side to side than top to bottom: three cards in a row read as
         // one row when the columns are close, and the vertical gap is what keeps
@@ -218,6 +370,10 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                 return (
                     <motion.button
                         key={option.value}
+                        // Pairs with the expanded card, so choosing one
+                        // grows it into place instead of replacing the
+                        // grid outright.
+                        layoutId={`card-${option.value}`}
                         ref={(el) => {
                             cardRefs.current[i] = el;
                         }}
@@ -255,7 +411,7 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                         // that is the actual reply.
                         // Keeps the pile layered while stacked, then flat so no
                         // card sits above its neighbour in the grid.
-                        style={{ zIndex: spread ? 0 : options.length - i }}
+                        style={{ zIndex: isSelected || collapsing === option.value ? 30 : spread ? 0 : options.length - i }}
                         // Widths track the 0.75rem column gap: two gaps shared
                         // across three cards is 0.5rem off each.
                         className={`group w-full text-left sm:w-[calc(50%-0.375rem)] md:w-[calc(33.333%-0.5rem)] ${
@@ -280,17 +436,20 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                                 once `onPlaying` confirms it's flowing smoothly, so a
                                 slow first fetch or decoder warm-up is never on screen.
 
-                                At rest it sits at 55% against the cream underneath,
-                                which is what holds the grid together as a block of
-                                paper rather than five bright rectangles. Awake it
-                                goes to full strength: the card you are looking at is
-                                the footage, not a picture of it. */}
+                                Full opacity at rest. It used to sit at 55% over the
+                                cream, on the idea that five bright rectangles would
+                                read as noise — but held back that far the pictures
+                                stopped being pictures and the grid looked washed out
+                                rather than restrained. Greyscale alone is enough
+                                separation: the card under the pointer is the one in
+                                colour, and that reads without dimming everything
+                                else to get there. */}
                             <img
                                 src={`${MEDIA_DIR}/${option.value}.webp`}
                                 alt=""
                                 aria-hidden="true"
                                 className={`absolute inset-0 h-full w-full object-cover ${
-                                    isLive ? 'opacity-100' : 'opacity-55 grayscale'
+                                    isLive ? 'opacity-100' : 'opacity-100 grayscale'
                                 }`}
                                 style={{ transition: `${COLOR_TRANSITION}, opacity 400ms ease-out` }}
                             />
@@ -368,10 +527,8 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                                 from. */}
                             <div className="absolute inset-x-0 top-0 p-5 md:p-6">
                                 <h3
-                                    className={`text-[24px] font-sans font-bold leading-tight tracking-tight transition-colors duration-[400ms] md:text-[26px] ${
-                                        isLive ? 'text-white' : 'text-[#363636]'
-                                    }`}
-                                    style={{ textShadow: isLive ? '0 1px 3px rgba(0,0,0,0.4), 0 1px 16px rgba(0,0,0,0.3)' : 'none' }}
+                                    className="text-[24px] font-sans font-bold leading-tight tracking-tight text-[#DCDDD4] md:text-[26px]"
+                                    style={{ textShadow: '0 1px 3px rgba(0,0,0,0.45), 0 1px 16px rgba(0,0,0,0.35)' }}
                                 >
                                     {t(`onboarding.questions.${questionId}.options.${option.value}.title`)}
                                 </h3>
@@ -380,10 +537,8 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                                     85% as well only made them harder to read
                                     against footage that had already dimmed. */}
                                 <p
-                                    className={`mt-1 text-[16px] font-sans font-normal leading-snug transition-colors duration-[400ms] md:text-[17px] ${
-                                        isLive ? 'text-white' : 'text-[#363636]'
-                                    }`}
-                                    style={{ textShadow: isLive ? '0 1px 3px rgba(0,0,0,0.4), 0 1px 14px rgba(0,0,0,0.25)' : 'none' }}
+                                    className="mt-1 text-[16px] font-sans font-normal leading-snug text-[#DCDDD4]/90 md:text-[17px]"
+                                    style={{ textShadow: '0 1px 3px rgba(0,0,0,0.45), 0 1px 14px rgba(0,0,0,0.3)' }}
                                 >
                                     {t(`onboarding.questions.${questionId}.options.${option.value}.desc`)}
                                 </p>

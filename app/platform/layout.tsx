@@ -9,11 +9,12 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { TreePine, Menu, User, Play, Pause, X, RotateCcw, Brain, ChevronRight, ShieldOff, UsersRound, ArrowRight } from 'lucide-react';
+import { TreePine, Menu, User, Play, Pause, X, RotateCcw, Brain, ChevronRight, ShieldOff, UsersRound, UserMinus, ArrowRight } from 'lucide-react';
 import Logo from '@/components/Logo';
 import Tooltip from '@/components/Tooltip';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getCountFromServer, onSnapshot } from 'firebase/firestore';
+import { acknowledgeRemovalNotice } from './create/collabUtils';
 
 // Owns the focus-timer's 1s tick locally so it doesn't force the entire
 // PlatformLayoutInner tree to re-render every second while running.
@@ -195,6 +196,40 @@ function PlatformLayoutInner({
     const extraInviteCount = visibleInviteToast
         ? pendingCollabInvites.filter(inv => !dismissedInviteIds.has(inv.id)).length - 1
         : 0;
+
+    // ---- Removed-from-project notices ----
+    // Being removed is otherwise silent: the project simply vanishes from the workspace, which
+    // reads as a bug or lost work. Unlike the invite toast this shows in EVERY section
+    // including Create — there is no canvas banner for it, and the project it refers to is
+    // precisely the thing that just disappeared from that canvas.
+    const [removalNotices, setRemovalNotices] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!user) {
+            setRemovalNotices([]);
+            return;
+        }
+        // Only two equality filters, with `removalAcknowledged` filtered client-side, so this
+        // needs no composite index. The per-user result set is tiny.
+        const removalQuery = query(
+            collection(db, "invitations"),
+            where("inviteeId", "==", user.uid),
+            where("status", "==", "removed")
+        );
+        const unsub = onSnapshot(removalQuery, (snap) => {
+            const notices: any[] = [];
+            snap.forEach(d => {
+                const data = d.data();
+                if (!data.removalAcknowledged) notices.push({ id: d.id, ...data });
+            });
+            notices.sort((a, b) => (b.removedAt || '').localeCompare(a.removedAt || ''));
+            setRemovalNotices(notices);
+        }, (err) => console.warn("Removal notices listener error:", err.message));
+        return () => unsub();
+    }, [user]);
+
+    const visibleRemovalNotice = removalNotices[0] || null;
+    const extraRemovalCount = visibleRemovalNotice ? removalNotices.length - 1 : 0;
 
     // The Mind Power / "Progress saved..." label-swap keeps both strings mounted (for the
     // slide transform), which by default reserves width for whichever is wider regardless
@@ -488,45 +523,80 @@ function PlatformLayoutInner({
             pathname?.startsWith('/platform/create') ? 'bg-[#FAF9F5] md:bg-[#E4E4DF]' : 'bg-[#E4E4DF]'
         }`}>
 
-            {/* Collab invite toast — visible from every section except Create (the canvas
-                banner covers that one). Keyed by invite id so a newly arriving invite replays
-                the entrance even if a previous toast was already showing. */}
-            {visibleInviteToast && (
-                <div
-                    key={visibleInviteToast.id}
-                    className="fixed top-4 left-1/2 -translate-x-1/2 z-[95] px-4 w-full sm:w-auto flex justify-center collab-banner-enter"
-                >
-                    <div className="relative bg-white rounded-full pl-4 pr-2 py-2 shadow-[0_12px_35px_rgba(0,0,0,0.14)] border border-stone-200/80 flex items-center gap-3 max-w-full">
-                        <div className="invite-glow-ring" />
-                        <div className="relative w-8 h-8 rounded-full bg-[#EAF3E8] text-[#4e7a49] flex items-center justify-center shrink-0">
-                            <UsersRound size={16} strokeWidth={2} />
+            {/* Collab notification stack. Both toasts share one fixed column so they stack
+                rather than overlap when an invite and a removal notice land together. */}
+            {(visibleInviteToast || visibleRemovalNotice) && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[95] px-4 w-full sm:w-auto flex flex-col items-center gap-2 pointer-events-none">
+                    {/* Invite toast — every section except Create (the canvas banner covers that
+                        one). Keyed by invite id so a newly arriving invite replays the entrance
+                        even if a previous toast was already showing. */}
+                    {visibleInviteToast && (
+                        <div key={visibleInviteToast.id} className="collab-banner-enter pointer-events-auto max-w-full">
+                            <div className="relative bg-white rounded-full pl-4 pr-2 py-2 shadow-[0_12px_35px_rgba(0,0,0,0.14)] border border-stone-200/80 flex items-center gap-3 max-w-full">
+                                <div className="invite-glow-ring" />
+                                <div className="relative w-8 h-8 rounded-full bg-[#EAF3E8] text-[#4e7a49] flex items-center justify-center shrink-0">
+                                    <UsersRound size={16} strokeWidth={2} />
+                                </div>
+                                <div className="relative flex flex-col min-w-0 mr-1">
+                                    <span className="text-[13.5px] font-semibold text-stone-800 leading-tight truncate">
+                                        {(visibleInviteToast.senderName || t('collab.a_collaborator'))} {t('collab.invited_you_banner')}
+                                    </span>
+                                    <span className="text-[12px] text-stone-500 leading-tight truncate">
+                                        {(visibleInviteToast.projectTitle || t('workspace.untitled_note'))}
+                                        {extraInviteCount > 0 ? ` · +${extraInviteCount}` : ''}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => router.push('/platform/create')}
+                                    className="relative bg-[#E5FE6C] hover:bg-[#EEFE7B] text-stone-950 font-semibold text-[13px] px-4 py-2 rounded-full shadow-xs transition-all cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 border-none outline-none shrink-0"
+                                >
+                                    <span>{t('collab.view_invite')}</span>
+                                    <ArrowRight size={14} className="stroke-[2.5]" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setDismissedInviteIds(prev => new Set(prev).add(visibleInviteToast.id))}
+                                    aria-label={t('card.dismiss')}
+                                    className="relative p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-all cursor-pointer shrink-0"
+                                >
+                                    <X size={15} strokeWidth={2.2} />
+                                </button>
+                            </div>
                         </div>
-                        <div className="relative flex flex-col min-w-0 mr-1">
-                            <span className="text-[13.5px] font-semibold text-stone-800 leading-tight truncate">
-                                {(visibleInviteToast.senderName || t('collab.a_collaborator'))} {t('collab.invited_you_banner')}
-                            </span>
-                            <span className="text-[12px] text-stone-500 leading-tight truncate">
-                                {(visibleInviteToast.projectTitle || t('workspace.untitled_note'))}
-                                {extraInviteCount > 0 ? ` · +${extraInviteCount}` : ''}
-                            </span>
+                    )}
+
+                    {/* Removed-from-project notice. Shown in EVERY section including Create:
+                        the project it names is the one that just vanished from that workspace.
+                        Deliberately calm — no glow ring, no celebration colours; this is
+                        information, not a moment. Dismissing writes the acknowledgement so it
+                        does not reappear on the next device or reload. */}
+                    {visibleRemovalNotice && (
+                        <div key={visibleRemovalNotice.id} className="collab-banner-enter pointer-events-auto max-w-full">
+                            <div className="relative bg-white rounded-full pl-4 pr-2 py-2 shadow-[0_12px_35px_rgba(0,0,0,0.14)] border border-stone-200/80 flex items-center gap-3 max-w-full">
+                                <div className="w-8 h-8 rounded-full bg-stone-100 text-stone-500 flex items-center justify-center shrink-0">
+                                    <UserMinus size={16} strokeWidth={2} />
+                                </div>
+                                <div className="flex flex-col min-w-0 mr-1">
+                                    <span className="text-[13.5px] font-semibold text-stone-800 leading-tight truncate">
+                                        {(visibleRemovalNotice.senderName || t('collab.the_project_owner'))} {t('collab.removed_you_banner')}
+                                    </span>
+                                    <span className="text-[12px] text-stone-500 leading-tight truncate">
+                                        {(visibleRemovalNotice.projectTitle || t('workspace.untitled_note'))}
+                                        {extraRemovalCount > 0 ? ` · +${extraRemovalCount}` : ''}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => acknowledgeRemovalNotice(visibleRemovalNotice.id)}
+                                    aria-label={t('card.dismiss')}
+                                    className="p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-all cursor-pointer shrink-0"
+                                >
+                                    <X size={15} strokeWidth={2.2} />
+                                </button>
+                            </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => router.push('/platform/create')}
-                            className="relative bg-[#E5FE6C] hover:bg-[#EEFE7B] text-stone-950 font-semibold text-[13px] px-4 py-2 rounded-full shadow-xs transition-all cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 border-none outline-none shrink-0"
-                        >
-                            <span>{t('collab.view_invite')}</span>
-                            <ArrowRight size={14} className="stroke-[2.5]" />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setDismissedInviteIds(prev => new Set(prev).add(visibleInviteToast.id))}
-                            aria-label={t('card.dismiss')}
-                            className="relative p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-all cursor-pointer shrink-0"
-                        >
-                            <X size={15} strokeWidth={2.2} />
-                        </button>
-                    </div>
+                    )}
                 </div>
             )}
 

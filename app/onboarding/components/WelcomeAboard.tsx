@@ -6,6 +6,7 @@ import { ArrowRight, Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizePath } from '@/lib/i18n';
 import { TRIAL_DAYS } from '@/lib/paddle/config';
+import { PRIMARY_BUTTON_BLOCK } from './buttonStyles';
 
 // The last screen of the flow, and the first one that isn't selling anything.
 // It confirms what just happened — the trial is running, this is what it opens
@@ -74,7 +75,7 @@ export default function WelcomeAboard({ signupsOpen, onRestart }: {
                 {signupsOpen ? (
                     <Link
                         href="/platform/create"
-                        className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-[#86BE7F] py-5 text-xl font-semibold text-stone-900 shadow-[0_4px_12px_rgba(0,0,0,0.02)] transition-all hover:opacity-95 active:scale-[0.99]"
+                        className={PRIMARY_BUTTON_BLOCK}
                     >
                         {t('onboarding.welcome.cta')}
                         <ArrowRight className="h-5 w-5 stroke-[2.5px]" />
@@ -87,7 +88,7 @@ export default function WelcomeAboard({ signupsOpen, onRestart }: {
 
                         <Link
                             href={`${localizePath('/waiting-list', language)}?from=onboarding`}
-                            className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-[#86BE7F] py-5 text-xl font-semibold text-stone-900 shadow-[0_4px_12px_rgba(0,0,0,0.02)] transition-all hover:opacity-95 active:scale-[0.99]"
+                            className={PRIMARY_BUTTON_BLOCK}
                         >
                             {t('home.nav.waitlist')}
                             <ArrowRight className="h-5 w-5 stroke-[2.5px]" />

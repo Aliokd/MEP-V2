@@ -105,20 +105,23 @@ export default function MoodOptions({ questionId, options, selectedOption, onSel
                         // an edge on the shape, not a mark of state. At half
                         // opacity it lifts each pill off the paper and off the
                         // photograph behind it without reading as a border.
-                        className="group relative h-[58px] w-full overflow-hidden rounded-full text-left ring-1 ring-white/50 md:h-[62px]"
+                        //
+                        // The whole pill steps back when another mood has the
+                        // page — label and all. Fading only the picture behind
+                        // the words, which is what this did before, left five
+                        // equally black lines of type down the column and the
+                        // choice barely registered. 45% is far enough to read as
+                        // "not this one" and still leave the words legible
+                        // enough to pick instead.
+                        className={`group relative h-[58px] w-full overflow-hidden rounded-full text-left ring-1 ring-white/50 transition-opacity duration-500 md:h-[62px] ${
+                            isDimmed ? 'opacity-45' : 'opacity-100'
+                        }`}
                     >
-                        {/* Every layer of the pill except its label, faded as one
-                            when another mood has the page. Half opacity on the
-                            group rather than a different number on each layer:
-                            what steps back is the pill, and the words on it are
-                            deliberately not part of that — they stay outside
-                            this wrapper at full strength. */}
-                        <span
-                            aria-hidden="true"
-                            className={`absolute inset-0 transition-opacity duration-500 ${
-                                isDimmed ? 'opacity-50' : 'opacity-100'
-                            }`}
-                        >
+                        {/* The picture and its wash. No dimming here any more —
+                            the button above fades the pill as a whole, and a
+                            second reduction on this layer would compound with it
+                            and sink the unchosen photographs to a quarter. */}
+                        <span aria-hidden="true" className="absolute inset-0">
                             <img
                                 src={`${MEDIA_DIR}/${option.value}.webp`}
                                 alt=""
@@ -140,12 +143,9 @@ export default function MoodOptions({ questionId, options, selectedOption, onSel
                         </span>
 
                         {/* No tick to leave room for on the right any more, so
-                            the label gets the pill's own symmetry back.
-
-                            Full black on all five, including the ones stepping
-                            back. What dims is the picture behind the words, not
-                            the words: a mood you haven't chosen still has to be
-                            readable enough to choose. */}
+                            the label gets the pill's own symmetry back. It fades
+                            with the rest of the pill rather than holding full
+                            black — see the note on the button. */}
                         <span className="relative flex h-full items-center px-6 md:px-8">
                             <span className="text-[18px] font-sans font-medium leading-snug tracking-tight text-[#363636] md:text-[20px]">
                                 {t(`onboarding.questions.${questionId}.options.${option.value}`)}

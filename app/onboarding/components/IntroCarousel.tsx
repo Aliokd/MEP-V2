@@ -78,7 +78,19 @@ const PsychologyArt = () => {
     }, [prefersReducedMotion]);
 
     return (
-        <div className="flex h-full w-full flex-col items-center justify-start gap-6 px-0 text-center md:gap-8">
+        <div className="flex h-full w-full flex-col px-0 text-center">
+            {/* A light container under the whole claim — the words, the quote and
+                the mark. On the painted backdrop they were type floating on a
+                gradient, with nothing saying where the statement began or ended;
+                a pane of near-white gives it an edge to sit inside without
+                turning it into a card that competes with the demo steps.
+
+                Tinted white rather than frosted: `backdrop-filter` inside an
+                ancestor that is overflow-hidden with a radius is the exact shape
+                of the WebKit bug this carousel already hit once, where the
+                composited layer draws against black instead of what is behind it.
+                A plain alpha background composites normally everywhere. */}
+            <div className="flex h-full w-full flex-col items-center justify-start gap-6 rounded-[28px] border border-white/40 bg-white/5 px-5 py-7 shadow-[0_8px_30px_rgba(0,0,0,0.02)] md:gap-8 md:px-10 md:py-8">
             <div className="space-y-4 md:space-y-5">
                 {/* The claim. The second line carries the underline, so the
                     emphasis sits on the finding itself rather than on the whole
@@ -147,8 +159,8 @@ const PsychologyArt = () => {
             {/* Pushed to the foot of the box, so the slack in a box sized for
                     the demo steps falls between the quote and the marks rather
                     than under them — which also puts the space below the logos
-                    at the card's own bottom padding, the same as the sides. */}
-                <div className="mt-auto w-full pb-3 md:pb-5">
+                    inside the pane's own bottom padding, the same as the sides. */}
+                <div className="mt-auto w-full">
                     {/* Centred. `justify-between` was right while there were two
                         marks to spread to the edges; with one it just pins that
                         mark to the left. */}
@@ -161,6 +173,7 @@ const PsychologyArt = () => {
                             className={`w-auto ${logo.className}`}
                         />
                     ))}
+                </div>
                 </div>
             </div>
         </div>
@@ -481,20 +494,28 @@ const ModernWayArt = () => {
 // a canvas.
 const DEMO_W = 880;
 const DEMO_H = 520;
-const CANVAS_W = 840;
-// The camera, and why it works the way it does. The frame this slide gets is a
-// fixed 880x520 box, so a canvas that fills it cannot also grow inside it —
-// scaling the CARD up could only get closer by cutting its own edges off, and
-// resting it small enough to have room to grow just made the canvas look tiny.
-// Both were the wrong lever. So the card now fills the frame and stays put, and
-// the push-in happens INSIDE it: the writing screen content scales up in place,
-// clipped by the flow window it already lives in. No edge is ever cut, and the
-// zoom can be stronger than a card-level one could ever have been.
-const CANVAS_ZOOM = 1.3;
+const CANVAS_W = 800;
+// The camera, in two nested moves, because one alone could never do it. The
+// frame is a fixed 880x520 box: a card that fills it cannot grow inside it, so
+// scaling the card is capped at the margin it has to grow into, and that cap is
+// a few percent. Scaling only the content gets as close as you like but leaves
+// the card sitting still around it, which is not a camera move.
+//
+// So both. The card pushes in to exactly the frame width — 800 to 880 — which
+// is the most it can do without its own sides being cut, and the content pushes
+// in further inside it. Everything on screen at any instant belongs to one of
+// those two layers and scales with it, so nothing is ever a different size from
+// the thing beside it.
+//
+// The origin sits near the top, so what overflows is the bottom — the margin
+// under the card, then the last few pixels of the toolbar. That is the one edge
+// allowed to be cropped.
+const CANVAS_ZOOM = 1.09;
+const CONTENT_ZOOM = 1.18;
 // The camera pulls back a beat BEFORE the toolbox opens, so the panel does not
 // arrive while the canvas is still moving under it. The pull-back runs for as
 // long as this lead, so the two never overlap.
-const ZOOM_OUT_LEAD = 700;
+const ZOOM_OUT_LEAD = 420;
 
 const ToolsCameraIcon = () => (
     <svg width="22" height="22" viewBox="0 0 36 36" fill="none" aria-hidden="true">
@@ -562,7 +583,7 @@ const lineDuration = (times: number[]) => times[times.length - 1] ?? 0;
 // A held beat on the bare canvas before anything is typed — long enough to take
 // in what this starts from: an empty sheet with the horizon illustration still
 // on it and the full toolbar underneath. It is the opening shot, not a pause.
-const EMPTY_HOLD = 300;
+const EMPTY_HOLD = 220;
 // The canvas names itself while the first line is going down — the way the app
 // does when you start writing without naming anything. It fades up quietly
 // behind the writing rather than typing itself, because a second caret in the
@@ -576,21 +597,50 @@ const TITLE_AFTER = 1300;
 // enough to watch — a recording that's over before you've registered it started
 // is just a flicker. Then the card transcribes itself, and the words it was
 // carrying land on the canvas under it.
-const BEFORE_REC = 350;
+const BEFORE_REC = 180;
 const REC_RUN = 1800;
-const AFTER_CAPSULE = 500;
+const AFTER_CAPSULE = 240;
 const TRANSCRIBE_RUN = 1200;
-const AFTER_TRANSCRIPT = 900;
+const AFTER_TRANSCRIPT = 420;
 
 // --- Act one: a page dropped in and read ---------------------------------------
 // The scan starts as the page lands rather than after a beat of it sitting
 // there: the pause read as the demo waiting for something, and there is nothing
 // to look at between the drop and the sweep. One pass of the sweep, not the
 // app's 3s round trip — the band crosses the page once and the words are there.
-const PHOTO_SETTLE = 250;
-const SCAN_RUN = 1100;
-const EXTRACT_STAGGER = 380;
-const AFTER_EXTRACT = 1100;
+// The page lands already being scanned — nothing in between, because a page
+// sitting there untouched is the demo waiting for something.
+//
+// The pause that used to be here existed to stop two animations fighting: the
+// scan lights a glow around the page's edge, and lighting an edge that was still
+// moving into place was the flash. The fix now is that the glow fades up over
+// exactly the arrival, so the two move together rather than one landing on top
+// of the other. The arrival is shorter for the same reason, and a tween rather
+// than a spring — a spring with any life in it overshoots, and an overshoot
+// under a glow reads as a flicker at this size.
+const PHOTO_IN_MS = 380;
+const PHOTO_SETTLE = 0;
+// Whatever is being worked on is shown at full size, and steps back once it has
+// given up what it was holding: the page after the scan, the recording after the
+// transcription. It reads as attention moving on rather than as things shrinking
+// — and it is transform only, so nothing below either of them ever moves.
+//
+// The page steps back further than the card because it is the larger object; the
+// same ratio on a 54px pill would barely register.
+// The page is held large for the whole scan and drops back to its own size once
+// the words are out of it. 1.45 is close to the ceiling: the growth is anchored
+// to the top of the page (see transformOrigin below) so it expands downward into
+// the space the extracted lines will occupy, and at this scale its lower edge
+// lands about 30px short of the bottom of the window. Anchored at the centre
+// instead, anything past about 1.09 would have its top clipped.
+const PHOTO_SCAN_SCALE = 1.45;
+const PHOTO_DONE_SCALE = 1;
+const CARD_DONE_SCALE = 0.94;
+const WORK_SETTLE_MS = 520;
+// Long enough for the edge to run out and back once and the shimmer to cross
+// twice — under a second and neither has time to register as anything.
+const SCAN_RUN = 1600;
+const AFTER_EXTRACT = 620;
 
 // --- Moving down the canvas ----------------------------------------------------
 // Between acts nothing is cleared: the canvas scrolls on to fresh space, the way
@@ -604,13 +654,13 @@ const SCROLL_MS = 700;
 const SCROLL_PEEK = 34;
 // A beat of blank canvas before the writing starts, so the second act doesn't
 // open mid-sentence.
-const WRITE_OPEN = 300;
+const WRITE_OPEN = 120;
 
 // --- The toolbox, over the top of the same canvas -------------------------------
 // The panel opens over what was just written — which stays visible around it and
 // is still there when the panel closes. The tuner finds its note and settles in
 // tune, then tap tempo takes a few taps. A glimpse of each, not a tour.
-const TOOLS_OPEN = 350;
+const TOOLS_OPEN = 0;
 // The dial stays on one note and the needle does the work: it opens well flat,
 // overshoots sharp, and settles dead centre — a string being brought up to
 // pitch. It used to turn the ring from A round to E as well, which looked
@@ -618,21 +668,22 @@ const TOOLS_OPEN = 350;
 // wedge marks the note being read, so a ring mid-travel put a note under the
 // marker that the needle wasn't reading. Note and needle now agree throughout,
 // and every frame of it is a state a real tuner could be in.
-// The ring turns, the way it does in the app: it picks up the A string first,
-// then the low E is played and the whole note ring rotates round to bring E
-// under the marker, and the needle comes up to pitch from well flat. Every step
-// carries its own frequency, so the hub's number, its note and the needle always
-// say the same thing — which is what was wrong the first time this rotated. The
-// hub is the authority now, so a ring mid-travel reads as the tuner turning to
-// the note it has already named, not as a mismatch.
+// One move, and the whole dial makes it together: it opens holding A and reading
+// well sharp, then the ring turns to the low E actually being played while the
+// needle swings from sharp to just under pitch. Both start at the same instant
+// and land at the same instant — see the matched transitions in DemoTunerDial.
 //
-// Frequencies are the real ones: A2 110Hz, low E 82.41Hz, each bent by its cents.
+// Simplified down to this from a five-step settle. Every extra step was another
+// chance for the two halves of the dial to be caught disagreeing, and none of
+// them said anything the single move doesn't.
+//
+// Both readings are real: A2 is 110Hz and low E 82.41Hz, bent by c cents as
+// f·2^(c/1200), so the number, the note and the needle are one statement.
 const TUNER_STEPS = [
-    { at: 0, note: 0, cents: -26, hz: '108.3' },
-    { at: 800, note: 7, cents: -24, hz: '81.3' },
-    { at: 1800, note: 7, cents: -6, hz: '82.1' },
+    { at: 0, note: 0, cents: 26, hz: '111.7' },
+    { at: 250, note: 7, cents: -2, hz: '82.3' },
 ] as const;
-const TUNER_RUN = 2500;
+const TUNER_RUN = 2000;
 const TAP_INTERVAL = 420;
 // What the taps read out. Four presses settling on a tempo, the way tapping one
 // in actually goes.
@@ -642,7 +693,7 @@ const TAP_BPM = [72, 86, 92, 94] as const;
 // scene that reshuffles itself on every loop reads as a glitch.
 const TAP_TINTS = ['#FBFFED', '#EDFF8E', '#ADCDC0', '#86BE7F'] as const;
 const TEMPO_RUN = 1900;
-const TOOLS_CLOSE = 400;
+const TOOLS_CLOSE = 240;
 
 // --- The finish: Complete -------------------------------------------------------
 // The panel closes onto the canvas it was covering, that canvas is saved — the
@@ -650,14 +701,23 @@ const TOOLS_CLOSE = 400;
 // and then the demo scrolls on down to blank canvas, which is where the loop
 // starts over. Both ends of the loop are empty, so the rewind is invisible and
 // needs no pause around it.
-const BEFORE_SAVE = 500;
+const BEFORE_SAVE = 120;
 const SAVE_RUN = 1800;
 // Everything after the save used to be a scroll down to a blank screen and a
 // hold on it. The wrap does not need either: the reset and the snap back to the
 // top happen in the same frame, and the top of the canvas is blank right then,
 // so the seam is invisible on its own. This is only a beat to register that the
 // canvas was saved.
-const AFTER_SAVE = 200;
+const AFTER_SAVE = 100;
+// Then the canvas keeps going the way it has been going all along: one more
+// screen down, which carries the work up and off the top and leaves blank
+// canvas behind it. That blank screen is where the loop restarts, so the jump
+// home has nothing on it to see — no fade needed to cover the reset, because
+// there is nothing on screen at the moment it happens.
+//
+// It used to rewind instead, scrolling back up through the work to the top.
+// That put the finished canvas back on screen for the last half second of
+// every pass, which is the opposite of an ending.
 
 // The top of the canvas, untouched: unnamed, nothing on it, nothing recorded.
 // The toolbar isn't in here — it is never absent. Held at module scope so it's
@@ -754,12 +814,18 @@ const DemoTunerDial = ({ noteIndex, cents, hz }: { noteIndex: number; cents: num
                 );
             })}
 
-            {/* The needle, reading how far off the note is */}
+            {/* The needle, reading how far off the note is. On the app's own dial
+                this moves in 0.5s while the ring takes 1.2s, which is right when
+                the two are reacting to a live signal independently. Here they are
+                one scripted move, so the needle is given the ring's duration and
+                easing exactly: they leave together and arrive together, rather
+                than the needle finishing early and sitting still while the ring
+                is still turning under it. */}
             <g
                 style={{
                     transform: `rotate(${needleAngle}deg)`,
                     transformOrigin: `300px ${TUNER_CENTRE_Y}px`,
-                    transition: 'transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                    transition: 'transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
             >
                 <line x1="300" y1="70" x2="300" y2="40" stroke="#FF3F5A" strokeWidth="2.2" />
@@ -906,7 +972,10 @@ const CreateCanvasArt = () => {
         const photoAt = EMPTY_HOLD;
         const scanAt = photoAt + PHOTO_SETTLE;
         const extractAt = scanAt + SCAN_RUN;
-        const actOneEnd = extractAt + EXTRACT_STAGGER + AFTER_EXTRACT;
+        // WORK_SETTLE_MS is in here because the extracted lines wait for the page
+        // to finish shrinking before they appear (see their delay) — without it
+        // the canvas would scroll on while they were still arriving.
+        const actOneEnd = extractAt + WORK_SETTLE_MS + AFTER_EXTRACT;
 
         // --- Act two: further down the same canvas, write and record ---
         const typeStart = actOneEnd + SCROLL_MS + WRITE_OPEN;
@@ -925,6 +994,7 @@ const CreateCanvasArt = () => {
 
         // --- Complete, and straight back round ---
         const saveAt = toolsCloseAt + TOOLS_CLOSE + BEFORE_SAVE;
+        const rewindAt = saveAt + SAVE_RUN + AFTER_SAVE;
 
         return {
             lines,
@@ -946,7 +1016,8 @@ const CreateCanvasArt = () => {
             saveAt,
             // The canvas names itself while the first thing is landing on it.
             titleAt: EMPTY_HOLD + TITLE_AFTER,
-            end: saveAt + SAVE_RUN + AFTER_SAVE,
+            rewindAt,
+            end: rewindAt + SCROLL_MS,
         };
     }, [t]);
 
@@ -1010,7 +1081,11 @@ const CreateCanvasArt = () => {
             // Which stretch of canvas is in view. Nothing is ever cleared: the
             // canvas scrolls on to fresh space, the way it does when you keep
             // writing down one, and stays there until the loop wraps.
-            const view = elapsed < script.actOneEnd ? 0 : 1;
+            // Back to the top for the rewind, so the last thing the loop does is
+            // scroll up through the work rather than blink it away.
+            // 0 the top of the canvas, 1 the writing, 2 the blank below it that
+            // the loop restarts from.
+            const view = elapsed >= script.rewindAt ? 2 : elapsed < script.actOneEnd ? 0 : 1;
 
             // Which step of the tuner's little performance we're on: it hears an
             // A well flat, turns to the E actually being played, and comes to
@@ -1119,8 +1194,15 @@ const CreateCanvasArt = () => {
     // where it is scrolled to. The scroll target is in the parent's pixels — CSS
     // applies the scale first and the translate second — so it has to account for
     // the zoom itself, or a zoomed canvas scrolls to the wrong place.
-    const zoom = state.zoom ? CANVAS_ZOOM : 1;
-    const scrollY = state.view === 0 ? 0 : SCROLL_PEEK - zoom * flowH;
+    const zoom = state.zoom ? CONTENT_ZOOM : 1;
+    const scrollY =
+        state.view === 0
+            ? 0
+            : state.view === 1
+                ? SCROLL_PEEK - zoom * flowH
+                // No peek on the last one: the point is that nothing is left
+                // showing, so the restart underneath it is invisible.
+                : -zoom * 2 * flowH;
 
     // The card slot under the writing is occupied from the moment REC is
     // pressed: first by the take being recorded, then by the card it became.
@@ -1142,13 +1224,19 @@ const CreateCanvasArt = () => {
     const screenTop = 'flex w-full shrink-0 flex-col justify-start gap-1';
 
     return (
-        // This box clips, because the demo zooms into the canvas partway through
-        // and a zoom needs an edge to crop against. What it must NOT clip is the
-        // save outline, which sits OUTSIDE the canvas card — so the card is held
-        // 8px clear of the top and bottom edges (see the wrapper below), which is
-        // room enough for the 5px ring. That inset is also what stopped the ring
-        // being sliced in half back when this box was flush with the card.
-        <div ref={attachFrame} className="relative h-full w-full overflow-hidden">
+        // This box does not clip. The push-in grows the card past the bottom of
+        // it, and clipping there cut the card's own bottom edge off mid-zoom —
+        // but there is no need to cut anything, because the carousel frame this
+        // sits in has 24–32px of its own padding underneath, and the overflow is
+        // ~21px of it at the `md` scale. So the zoom spends that margin instead
+        // of eating the design. The frame still clips at its own rounded edge,
+        // well below, so nothing escapes onto the page.
+        //
+        // The save outline also lives out here, 5px outside the card, which is
+        // why the card is held 8px clear of the top and bottom (see the wrapper
+        // below) — that inset is what stopped the ring being sliced in half back
+        // when this box did clip.
+        <div ref={attachFrame} className="relative h-full w-full">
             <div
                 className="absolute left-0 top-0 flex items-center justify-center"
                 style={{
@@ -1162,13 +1250,30 @@ const CreateCanvasArt = () => {
                 {/* A wrapper the sheet's own overflow can't clip, so the save
                     ring — which sits outside the card — and the toast above it
                     have somewhere to live. */}
-                <div
+                <motion.div
                     className="relative flex flex-col"
-                    // The card fills the frame and stays there — nothing about it
-                    // scales, so no edge of it is ever cut. 8px is held clear of
-                    // the top and bottom for the save ring, which sits outside the
-                    // card. See CANVAS_ZOOM for where the push-in actually lives.
-                    style={{ width: CANVAS_W, height: 'calc(100% - 16px)' }}
+                    // The outer half of the camera. At rest the card is 800 wide in
+                    // an 880 frame; zoomed it is exactly 880, so its sides land on
+                    // the frame's and are never cut. The origin sits at 15% down,
+                    // which keeps the top edge just inside the frame and sends the
+                    // overflow out of the bottom instead — the card's own bottom
+                    // margin first, then the last few pixels of the toolbar. That
+                    // is the one edge that may be cropped.
+                    //
+                    // 8px is held clear top and bottom at rest for the save ring,
+                    // which sits outside the card.
+                    initial={false}
+                    animate={{ scale: state.zoom ? CANVAS_ZOOM : 1 }}
+                    transition={
+                        prefersReducedMotion
+                            ? { duration: 0 }
+                            : { duration: ZOOM_OUT_LEAD / 1000, ease: [0.32, 0, 0.2, 1] }
+                    }
+                    style={{
+                        width: CANVAS_W,
+                        height: 'calc(100% - 16px)',
+                        transformOrigin: '50% 15%',
+                    }}
                 >
                     {/* Saved: the travelling multicolour outline the app runs
                         round the canvas card, and the status pill it drops at the
@@ -1211,27 +1316,25 @@ const CreateCanvasArt = () => {
                             second video on a carousel that already streams three of
                             them costs more than the drifting clouds are worth here.
 
-                            Pushed down rather than cut down. At the card's full width
-                            the artwork stands 174px tall, which reaches 56px up into
-                            the writing area and put temple roofs behind the lyrics.
-                            Capping its height fixed that but sliced the roofs and
-                            treetops off mid-air, which looked worse than the problem
-                            it solved. Dropping it 58px below the card's own bottom
-                            edge keeps every shape whole and clears the text by the
-                            same amount: what gets cut is the foreground, at the
-                            card's edge, where a cut reads as the picture carrying on
-                            past the frame rather than as damage. */}
+                            Pushed down rather than cut down. At the card's full
+                            width the artwork stands 174px tall, which reaches up
+                            into the writing area and put temple roofs behind the
+                            lyrics. Capping its height fixed that but sliced the
+                            roofs and treetops off mid-air, which looked worse than
+                            the problem it solved. Dropping it below the card's own
+                            bottom edge keeps every shape whole and leaves only the
+                            skyline showing, which is all it was ever for. */}
                         <img
                             src="/assets/Canvas%20empty/bottom.webp"
                             alt=""
                             aria-hidden="true"
-                            className="pointer-events-none absolute inset-x-0 bottom-[-58px] z-0 h-auto w-full select-none opacity-50"
+                            className="pointer-events-none absolute inset-x-0 -bottom-[58px] z-0 h-auto w-full select-none opacity-50"
                         />
 
-                        {/* The canvas names itself, quietly, while the first thing
-                            is landing on it — no caret, no typing, just a fade. The
-                            row is held at a fixed height so the flow below doesn't
-                            shift when the name arrives. */}
+                        {/* The canvas names itself, quietly, while the first
+                            thing is landing on it — no caret, no typing, just a
+                            fade. The row is held at a fixed height so the flow
+                            below doesn't shift when the name arrives. */}
                         <div className="relative z-10 flex shrink-0 items-center border-b border-stone-200/40 pb-4">
                             <motion.span
                                 initial={false}
@@ -1244,9 +1347,9 @@ const CreateCanvasArt = () => {
                         </div>
 
                         {/* The window onto the canvas. The canvas itself is the
-                            column inside, taller than the window, which slides up as
-                            the demo works its way down it — nothing is ever cleared,
-                            so everything written stays written. */}
+                            column inside, three screens tall, which slides up as
+                            the demo works its way down it — nothing is ever
+                            cleared, so everything written stays written. */}
                         <div ref={setFlow} className="relative z-10 min-h-0 flex-1 overflow-hidden">
                             <motion.div
                                 className="flex w-full flex-col"
@@ -1257,21 +1360,23 @@ const CreateCanvasArt = () => {
                                 // the line peeking above it at the old size — two
                                 // sizes of the same verse a few pixels apart.
                                 //
-                                // With the scale here the offsets have to account
-                                // for it: a screen is flowH tall unscaled, so it
+                                // With the scale here the offsets have to be scaled
+                                // with it: a screen is flowH tall unscaled, so it
                                 // stands zoom*flowH tall on screen, and the scroll
-                                // target is computed from the zoom it is animating
-                                // towards.
+                                // target has to be computed from the zoom it is
+                                // animating towards.
                                 animate={{ y: scrollY, scale: zoom }}
                                 transition={
-                                    // Returning to the top is the loop seam, not a
-                                    // move: everything resets in the same frame, so
-                                    // it snaps rather than scrolling back up.
+                                    // Arriving back at the top is the loop seam,
+                                    // not a move: it only ever happens at the
+                                    // wrap, with the canvas blank at both ends of
+                                    // it, so it snaps rather than scrolling back
+                                    // up through work that is no longer there.
                                     prefersReducedMotion || state.view === 0
                                         ? { duration: 0 }
                                         : { duration: SCROLL_MS / 1000, ease: [0.65, 0, 0.35, 1] }
                                 }
-                                style={{ transformOrigin: '50% 0%', opacity: flowH ? 1 : 0 }}
+                                style={{ transformOrigin: '50% 0%', visibility: flowH ? 'visible' : 'hidden' }}
                             >
                                 {/* --- Screen one: the photographed page --- */}
                                 <div className={screen} style={{ height: flowH }}>
@@ -1282,13 +1387,28 @@ const CreateCanvasArt = () => {
                                         floating over it. It arrives from above
                                         with a tilt that straightens as it lands,
                                         the way a dragged file does. */}
-                                    <div className={`${cardRow} my-3`}>
+                                    <div className={`${cardRow} my-2`}>
                                         <motion.div
                                             initial={false}
                                             animate={
                                                 state.photo
-                                                    ? { opacity: 1, y: 0, rotate: 0, scale: 1 }
-                                                    : { opacity: 0, y: -26, rotate: -4, scale: 0.94 }
+                                                    ? {
+                                                          opacity: 1,
+                                                          y: 0,
+                                                          rotate: 0,
+                                                          // Held large for the whole
+                                                          // scan, then down to its own
+                                                          // size once the words are out
+                                                          // — the page is the subject
+                                                          // for as long as the scan is
+                                                          // working on it, and after
+                                                          // that the words are.
+                                                          // Transform only, so the lines
+                                                          // below it never move to make
+                                                          // room and never move back.
+                                                          scale: state.extracted ? PHOTO_DONE_SCALE : PHOTO_SCAN_SCALE,
+                                                      }
+                                                    : { opacity: 0, y: -18, rotate: -3, scale: PHOTO_SCAN_SCALE * 0.9 }
                                             }
                                             transition={
                                                 // Instant on the way out. The loop
@@ -1302,53 +1422,133 @@ const CreateCanvasArt = () => {
                                                 // flashing back in.
                                                 prefersReducedMotion || !state.photo
                                                     ? { duration: 0 }
-                                                    : { type: 'spring', stiffness: 200, damping: 20 }
+                                                    : {
+                                                          duration: PHOTO_IN_MS / 1000,
+                                                          ease: [0.16, 1, 0.3, 1],
+                                                          // The step back down is its
+                                                          // own, slower move: arriving
+                                                          // is an event, finishing is a
+                                                          // release.
+                                                          scale: {
+                                                              duration: WORK_SETTLE_MS / 1000,
+                                                              ease: [0.16, 1, 0.3, 1],
+                                                          },
+                                                      }
                                             }
-                                            // The master's own 979×599, so the
-                                            // photo is drawn at its own shape and
-                                            // nothing is re-cropped here. Master is
-                                            // `written music.jpg` under
-                                            // public/Onboarding assets; the
-                                            // derivative is 720px wide for 20KB.
-                                            className="relative aspect-[979/599] w-full max-w-[340px] overflow-hidden rounded-[18px]"
+                                            // No overflow-hidden out here: the scan
+                                            // lights the page's own edge, and that
+                                            // sits outside it. The clipping happens
+                                            // one level in, around the image.
+                                            //
+                                            // 310, not 340. The glow needs room to
+                                            // exist: at 340 this screen's contents
+                                            // came to 324px in a 315px window, so the
+                                            // page was already having its top cut off
+                                            // before the halo was even drawn. At 310
+                                            // — with the row's margin down a step too
+                                            // — there is 8px of slack above and
+                                            // below, which the halo fits inside.
+                                            className="relative w-full max-w-[310px]"
+                                            // Grows downward, not outward from its
+                                            // middle. The page sits near the top of a
+                                            // clipped window with a few pixels above
+                                            // it, so scaling about the centre would
+                                            // put its top through that edge; anchored
+                                            // to the top it expands into the space
+                                            // the extracted lines are holding open
+                                            // below, which is empty until they land.
+                                            style={{ transformOrigin: '50% 0%' }}
                                         >
-                                            <img
-                                                src="/onboarding-cards/handwritten-lyrics.webp"
-                                                alt=""
-                                                aria-hidden="true"
-                                                className="h-full w-full select-none object-cover"
-                                            />
-                                            {/* The scan: a soft band of light
-                                                crossing the page once, top to
-                                                bottom, over exactly SCAN_RUN. A
-                                                tall gradient rather than the app's
-                                                hairline — at this size a 1.5px rule
-                                                reads as a scratch on the photo, not
-                                                as a beam moving over it. */}
+                                            {/* The scan, said the way it reads
+                                                fastest: the page's own outline lit
+                                                up and moving. The halo is the same
+                                                gradient blurred out behind it, which
+                                                is what stops the edge looking like a
+                                                border someone drew on. Both sit
+                                                UNDER the image — it's opaque, so all
+                                                that shows is what pokes out past its
+                                                corners.
+
+                                                Wrapped so the pair can fade up as
+                                                one, over exactly as long as the page
+                                                takes to arrive. They start at the
+                                                same instant it does now, and without
+                                                the fade the glow would snap on around
+                                                an edge still moving into place. */}
                                             {state.scanning && (
-                                                // No dim wash under the sweep. The
-                                                // app lays a 10% stone-900 film over
-                                                // the image while it scans, which on
-                                                // a full-size photo reads as "busy"
-                                                // — but this photo is a sheet of
-                                                // near-white paper, so the film just
-                                                // turned the whole thing grey and
-                                                // held it there for the rest of the
-                                                // run. The travelling light is
-                                                // enough on its own.
-                                                <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                                                    <div
-                                                        className="demo-scan-sweep absolute left-0 right-0 h-12 bg-gradient-to-b from-transparent via-white to-transparent"
+                                                <motion.span
+                                                    className="pointer-events-none absolute inset-0"
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    transition={{ duration: prefersReducedMotion ? 0 : PHOTO_IN_MS / 1000 }}
+                                                    aria-hidden="true"
+                                                >
+                                                    <span
+                                                        className="demo-scan-halo"
                                                         style={{ animationDuration: `${SCAN_RUN}ms` }}
                                                     />
-                                                </div>
+                                                    <span
+                                                        className="demo-scan-edge"
+                                                        style={{ animationDuration: `${SCAN_RUN}ms` }}
+                                                    />
+                                                </motion.span>
                                             )}
+
+                                            {/* The master's own 979×599, so the
+                                                photo is drawn at its own shape and
+                                                nothing is re-cropped here. Master is
+                                                `written music.jpg` under
+                                                public/Onboarding assets; the
+                                                derivative is 720px wide for 20KB. */}
+                                            <div className="relative aspect-[979/599] w-full overflow-hidden rounded-[18px]">
+                                                <img
+                                                    src="/onboarding-cards/handwritten-lyrics.webp"
+                                                    alt=""
+                                                    aria-hidden="true"
+                                                    className="h-full w-full select-none object-cover"
+                                                />
+                                                {/* And the work happening inside it: a
+                                                    skeleton shimmer running down the
+                                                    page, four times over the run.
+                                                    Down rather than across, because
+                                                    that is the direction a page is
+                                                    read in — a band crossing sideways
+                                                    looked like light moving over the
+                                                    paper. Quick and repeated, because
+                                                    one slow pass reads as a single
+                                                    sweep of glare, and this has to
+                                                    read as work in progress. */}
+                                                {state.scanning && (
+                                                    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                                                        <div
+                                                            className="demo-scan-shimmer absolute -inset-x-8 top-0 h-1/2 -skew-y-6 bg-gradient-to-b from-transparent via-white/75 to-transparent"
+                                                            style={{ animationDuration: `${SCAN_RUN / 4}ms` }}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </motion.div>
                                     </div>
 
-                                    {/* What the scan lifted off the page,
-                                        arriving whole rather than typed, one line
-                                        after the other. */}
+                                    {/* What the scan lifted off the page. Both
+                                        lines arrive together and they arrive
+                                        FROM the photograph — starting up at the
+                                        page, small and transparent, and settling
+                                        into the flow below it.
+
+                                        No stagger and no lead-in delay. Holding
+                                        them back until the page had finished
+                                        shrinking, then dealing them out one
+                                        after the other, put most of a second
+                                        between the scan finishing and the first
+                                        word appearing — which read as the demo
+                                        thinking rather than as text being lifted
+                                        off a page. Moving them out of the image
+                                        is what ties them to it; waiting is not.
+
+                                        `y` is negative and `scale` under 1 at
+                                        rest, so the words begin where the photo
+                                        is and travel down to where they belong. */}
                                     {[0, 1].map((i) => (
                                         <div key={i} className={lyricRow}>
                                             <motion.span
@@ -1356,7 +1556,8 @@ const CreateCanvasArt = () => {
                                                 initial={false}
                                                 animate={{
                                                     opacity: state.extracted ? 1 : 0,
-                                                    y: state.extracted ? 0 : 10,
+                                                    y: state.extracted ? 0 : -46,
+                                                    scale: state.extracted ? 1 : 0.82,
                                                 }}
                                                 transition={
                                                     // Instant on the way out, like
@@ -1367,11 +1568,7 @@ const CreateCanvasArt = () => {
                                                     // animating out is seen doing it.
                                                     prefersReducedMotion || !state.extracted
                                                         ? { duration: 0 }
-                                                        : {
-                                                              duration: 0.5,
-                                                              delay: (i * EXTRACT_STAGGER) / 1000,
-                                                              ease: [0.16, 1, 0.3, 1],
-                                                          }
+                                                        : { duration: 0.52, ease: [0.16, 1, 0.3, 1] }
                                                 }
                                             >
                                                 {script.lines[i]}
@@ -1467,13 +1664,59 @@ const CreateCanvasArt = () => {
                                             {/* The card it became — a real audio
                                                 card, sitting in the lyric flow, and
                                                 then working: while the transcription
-                                                runs it says so where its duration
-                                                normally sits. */}
+                                                runs it wears the same treatment the
+                                                page wore while it was being read.
+                                                One visual language for "this is
+                                                being worked on", whether the thing
+                                                being read is a photograph or a
+                                                recording. */}
                                             <motion.div
-                                                className="[grid-area:1/1] flex h-[54px] shrink-0 items-center gap-5 rounded-full border border-stone-200/60 bg-white px-6 shadow-[0_10px_34px_rgba(0,0,0,0.07)]"
+                                                className="[grid-area:1/1] relative"
                                                 initial={false}
-                                                animate={{ opacity: state.capsule ? 1 : 0 }}
-                                                transition={{ duration: 0.25 }}
+                                                animate={{
+                                                    opacity: state.capsule ? 1 : 0,
+                                                    // Full size while it works, then
+                                                    // it steps back once the words it
+                                                    // was carrying are on the canvas.
+                                                    scale: state.transcript ? CARD_DONE_SCALE : 1,
+                                                }}
+                                                transition={{
+                                                    opacity: { duration: 0.25 },
+                                                    scale:
+                                                        prefersReducedMotion || !state.capsule
+                                                            ? { duration: 0 }
+                                                            : { duration: WORK_SETTLE_MS / 1000, ease: [0.16, 1, 0.3, 1] },
+                                                }}
+                                            >
+                                                {/* The same edge and halo as the
+                                                    scanned page, at pill radius. */}
+                                                {state.transcribing && (
+                                                    <motion.span
+                                                        className="pointer-events-none absolute inset-0"
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
+                                                        aria-hidden="true"
+                                                    >
+                                                        <span
+                                                            className="demo-scan-halo"
+                                                            style={{
+                                                                animationDuration: `${TRANSCRIBE_RUN}ms`,
+                                                                borderRadius: 9999,
+                                                            }}
+                                                        />
+                                                        <span
+                                                            className="demo-scan-edge"
+                                                            style={{
+                                                                animationDuration: `${TRANSCRIBE_RUN}ms`,
+                                                                borderRadius: 9999,
+                                                            }}
+                                                        />
+                                                    </motion.span>
+                                                )}
+
+                                            <div
+                                                className="relative flex h-[54px] shrink-0 items-center gap-5 overflow-hidden rounded-full border border-stone-200/60 bg-white px-6 shadow-[0_10px_34px_rgba(0,0,0,0.07)]"
                                             >
                                                 <span className="shrink-0 whitespace-nowrap text-[13px] font-bold text-stone-800">
                                                     {t('onboarding.intro.slides.tools.demo.recording')}
@@ -1515,6 +1758,23 @@ const CreateCanvasArt = () => {
                                                         <span className="font-mono text-[11px] font-bold text-stone-500">0:12</span>
                                                     )}
                                                 </span>
+
+                                                {/* And the skeleton pass over the
+                                                    card itself — along its length
+                                                    rather than down it, because a
+                                                    band crossing a 54px pill top to
+                                                    bottom is gone before it reads as
+                                                    anything. Three passes over the
+                                                    transcription. */}
+                                                {state.transcribing && (
+                                                    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
+                                                        <div
+                                                            className="demo-scan-shimmer-x absolute -inset-y-4 left-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/70 to-transparent"
+                                                            style={{ animationDuration: `${TRANSCRIBE_RUN / 3}ms` }}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                             </motion.div>
                                         </motion.div>
                                     </div>
@@ -1552,6 +1812,12 @@ const CreateCanvasArt = () => {
                                     </div>
                                 </div>
 
+                                {/* --- Screen three: blank canvas below the work,
+                                    which is where the loop restarts. Empty by
+                                    design — the wrap happens while this is what is
+                                    on screen, so there is nothing to see it
+                                    happen. --- */}
+                                <div className={screen} style={{ height: flowH }} />
                             </motion.div>
                         </div>
 
@@ -1725,7 +1991,7 @@ const CreateCanvasArt = () => {
                             </div>
                         </div>
                     </div>
-                </div>
+                </motion.div>
             </div>
         </div>
     );
@@ -2013,18 +2279,20 @@ function useTypedLyrics(lines: string[], startedAtMs: number, loopTotalMs: numbe
 //   0 →150    wide for a blink — a keyframe needs somewhere to start, but the
 //             slide opens with the camera already moving
 //   →750      zoom in on the lyrics      (600ms)
-//   →6000     hold: the typing, and the guitarist's knob work beside it
-//   →6700     dolly right to the tracks  (700ms)
-//   →11800    hold: guitar take, then the vocal setup
-//   →12700    pull back out              (900ms) — right as the vocal take
+//   →3300     hold: just long enough for the FIRST line to be typed (~3.1s in
+//             the slowest language) — one line is the point made, and the
+//             camera moves on while lines two and three carry on behind it
+//   →4000     dolly right to the tracks  (700ms)
+//   →9100     hold: guitar take, vocal setup
+//   →10000    pull back out              (900ms) — right as the vocal take
 //             STARTS, so the last take plays out on the whole studio
-//   →CYCLE_MS hold wide: the take finishes at 16300, and the finished scene
+//   →CYCLE_MS hold wide: the take finishes at 13600, and the finished scene
 //             then just sits — a few quiet seconds of the completed session —
 //             before the loop starts over (trailing keyframe, CAMERA_TIMES)
 //
 // The moves are quick on purpose — 600–900ms is a glance, not a journey — and
 // the holds are where the time goes.
-const CAMERA_KEY_MS = [0, 150, 750, 6000, 6700, 11800, 12700];
+const CAMERA_KEY_MS = [0, 150, 750, 3300, 4000, 9100, 10000];
 
 // A close framing is described by which edge of the scene it hugs, not by a
 // point to centre on. Pinning is what the framings are actually for — "the
@@ -2120,25 +2388,26 @@ const CAMERA_PATH_COMPACT = buildCameraPath(
 //
 //   0          reset: two tracks, knobs at their opening positions, empty
 //              timelines, blank lyrics panel; camera diving in already
-//   300        the lyricist starts writing (runs to ~9.7s)
-//   2200–4900  the guitarist sets up alongside the typing: three knobs, then
-//              the compressor (all inside the lyrics framing, which at z1.25
-//              still shows the knob column)
-//   7000       the guitarist records (4.5s), a beat after the camera lands on
-//              the tracks at 6700
-//   8200–10000 the vocalist sets up while the guitar take runs
-//   11800      the vocalist records (4.5s), ending 16300
-//   11800      …and the camera pulls back out AS the take starts (11800–12700),
+//   300        the lyricist starts writing (runs to ~9.7s — lines two and
+//              three land while the camera is already over on the tracks)
+//   1200–3300  the guitarist sets up alongside the first line: three knobs,
+//              then the compressor (starting inside the lyrics framing, which
+//              at z1.25 still shows the knob column)
+//   4300       the guitarist records (4.5s), a beat after the camera lands on
+//              the tracks at 4000
+//   5500–7300  the vocalist sets up while the guitar take runs
+//   9100       the vocalist records (4.5s), ending 13600
+//   9100       …and the camera pulls back out AS the take starts (9100–10000),
 //              so the last recording plays out over the whole studio
-//   16300      the take ends; the finished session sits still — both waveforms
+//   13600      the take ends; the finished session sits still — both waveforms
 //              on tape, nobody doing anything — for the closing beat
-//   19500      loop, same order, forever
-const CYCLE_MS = 19500;
+//   16800      loop, same order, forever
+const CYCLE_MS = 16800;
 
 const REC_SWEEP_MS = 4500;
 // Each musician's setup steps run before their take: you watch someone dial
 // their sound in and then commit it, rather than a take appearing from nowhere.
-const REC_STARTS = [7000, 11800] as const;
+const REC_STARTS = [4300, 9100] as const;
 const REC_TOTAL_MS = CYCLE_MS;
 
 // The camera runs on this same cycle, and NOT as a fire-and-forget framer
@@ -2205,17 +2474,20 @@ const SETUP_LEAD_MS = 450;
 const SETUP_STEPS: SetupStep[] = [
     // The guitarist, working while the lyricist types: bring the level up,
     // place it slightly left, add some air, then switch the compressor off.
-    { at: 2200, row: 0, knob: 0, param: 'volume', value: 86 },
-    { at: 3100, row: 0, knob: 1, param: 'pan', value: -18 },
-    { at: 4000, row: 0, knob: 3, param: 'reverb', value: 38 },
-    { at: 4900, row: 0, knob: 4, param: 'compressor', value: false },
+    { at: 1200, row: 0, knob: 0, param: 'volume', value: 86 },
+    { at: 1900, row: 0, knob: 1, param: 'pan', value: -18 },
+    { at: 2600, row: 0, knob: 3, param: 'reverb', value: 38 },
+    // 700ms apart rather than 900 so the run ends (3300 + 900 reach-window =
+    // 4200) before the take arms at 4300 — the setup anchor must let go of the
+    // cursor before the sweep claims it.
+    { at: 3300, row: 0, knob: 4, param: 'compressor', value: false },
     // The vocalist, working while the guitar take runs: level, a touch of top
     // end, compressor on — finishing just before their own take at 11800.
     // Nothing is scripted after that take: it plays out on the wide frame and
     // the finished session then sits still until the loop wraps.
-    { at: 8200, row: 1, knob: 0, param: 'volume', value: 92 },
-    { at: 9100, row: 1, knob: 2, param: 'eq', value: 5 },
-    { at: 10000, row: 1, knob: 4, param: 'compressor', value: true },
+    { at: 5500, row: 1, knob: 0, param: 'volume', value: 92 },
+    { at: 6400, row: 1, knob: 2, param: 'eq', value: 5 },
+    { at: 7300, row: 1, knob: 4, param: 'compressor', value: true },
 ];
 
 // Voice-shaped pseudo-waveform — the same sine mix the canvas demo's capsule
@@ -3992,12 +4264,24 @@ export default function IntroCarousel({ onComplete, startAtEnd = false, onIndexC
                 The matching bottom margin on the button gives the shadow the
                 space it occupies, which puts the face back on the row's line. */}
             <div className="sticky bottom-4 z-20 flex items-center justify-center gap-4">
-                {/* Only drawn once the row is actually floating over content.
+                {/* Only drawn once the row is actually floating over content —
+                    which is to say, only on a screen too short to hold the step.
                     A scrim that were always on would change the look of the
-                    screens that never needed it. */}
+                    screens that never needed it.
+
+                    Glass, not a wash: this sits over a painted backdrop and
+                    over the demos, and a cream gradient across them reads as a
+                    band of paper laid on the picture. A blur keeps whatever is
+                    behind it visible as itself while still giving the controls
+                    something to be legible against — and it matches the quiz's
+                    own actions bar, which the visitor meets a screen later.
+
+                    Inset to the row rather than bled to the edges, so it reads
+                    as a pill holding the controls instead of a full-width
+                    curtain across the bottom of the card. */}
                 <div
                     aria-hidden="true"
-                    className={`pointer-events-none absolute -inset-x-6 -bottom-4 -top-4 -z-10 bg-gradient-to-t from-[#FCF7DE] via-[#FCF7DE]/90 to-transparent transition-opacity duration-300 ${
+                    className={`pointer-events-none absolute -inset-x-4 -bottom-3 -top-3 -z-10 rounded-[36px] bg-[#DCDDD4]/35 backdrop-blur-2xl backdrop-saturate-150 transition-opacity duration-300 ${
                         actionsStuck ? 'opacity-100' : 'opacity-0'
                     }`}
                 />

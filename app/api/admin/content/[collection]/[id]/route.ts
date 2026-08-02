@@ -15,6 +15,7 @@ const EDITABLE = {
     lessons: { collection: "learn_lessons", label: "lesson" },
     ideas: { collection: "ideas", label: "idea" },
     songs: { collection: "practice_songs", label: "song" },
+    pages: { collection: "site_pages", label: "page" },
 } as const;
 
 function resolve(collection: string) {

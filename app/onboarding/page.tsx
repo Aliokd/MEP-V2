@@ -14,7 +14,7 @@ import { openCheckout } from '@/lib/paddle/checkout';
 import IntroCarousel from './components/IntroCarousel';
 import PaywallPlans from './components/PaywallPlans';
 import QuestionCards from './components/QuestionCards';
-import SwipeDeck from './components/SwipeDeck';
+import SwipeDeck, { type DeckState } from './components/SwipeDeck';
 import GoalBox, { isCustom, customText } from './components/GoalBox';
 import MoodOptions from './components/MoodOptions';
 import AnalyzingAnswers from './components/AnalyzingAnswers';
@@ -144,21 +144,37 @@ const QUESTIONS = [
             { value: "intimate" }
         ]
     },
-    {
-        id: 'creation_method',
-        options: [
-            { value: "lyric_phrase" },
-            { value: "melody_head" },
-            { value: "chords" },
-            { value: "beat_production" },
-            { value: "improvisation" }
-        ]
-    }
 ];
+
+/**
+ * The question folded inside the songwriter-type cards rather than asked on a
+ * step of its own. Choosing a type doesn't advance the quiz — the other four
+ * cards leave, the chosen one takes the full width, and this is asked on its
+ * face. See the `nested` prop on QuestionCards.
+ *
+ * It is deliberately NOT in QUESTIONS: that array is the list of steps, and
+ * this is not one. The step counter, the dots and the back button all count it
+ * out correctly as a result, and the answer still lands in `answers` under its
+ * own id, so the verdict reads it exactly as it did when it was step five.
+ */
+const NESTED_QUESTION = {
+    id: 'creation_method',
+    options: [
+        { value: "lyric_phrase" },
+        { value: "melody_head" },
+        { value: "chords" },
+        { value: "beat_production" },
+        { value: "improvisation" }
+    ],
+};
 
 // The mood question, reached by hand because its photographs are mounted from
 // the first question onward rather than only while it is the one on screen —
 // see the backdrop layer in the render.
+// How long the chosen row stays on screen before the quiz moves on. Long
+// enough to read as an answer being taken, short enough not to feel stuck.
+const NESTED_ADVANCE_MS = 420;
+
 const MOOD_QUESTION = QUESTIONS.find((q) => (q as any).isVisual)!;
 
 export default function OnboardingPage() {
@@ -177,10 +193,27 @@ function OnboardingPageInner() {
     // Null on every other question — the quiz is otherwise bare paper.
     const [moodBackdrop, setMoodBackdrop] = useState<string | null>(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+
+    /**
+     * The struggle deck's own record, held here rather than inside it.
+     *
+     * Two jobs. It survives the deck unmounting, so a visitor who goes forward
+     * and comes back finds the cards where they left them instead of being
+     * dealt all five again — the answer alone can't restore that, since a
+     * passed card leaves nothing behind in it.
+     *
+     * And it is what Next reads on that question. Everywhere else an empty
+     * answer means unanswered, but the deck is the one question whose answer
+     * can legitimately be empty: a writer who claims none of the five
+     * struggles has still answered it. One swipe either way is enough, and
+     * that is a fact about the decisions, not about the kept list.
+     */
+    const [deckState, setDeckState] = useState<DeckState>({ decisions: [], written: [] });
     // How many times Next has been pressed on this question with nothing
     // chosen. A counter rather than a flag so the shake replays on every press,
     // not just the first — and resets to 0 whenever the question changes.
     const [nudgeCount, setNudgeCount] = useState(0);
+    const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     // One value per question, except the deck question, which answers with
     // every struggle that was swiped right.
     const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
@@ -296,6 +329,15 @@ function OnboardingPageInner() {
     }, []);
 
     const handleBack = () => {
+        // On the cards step, back means "show me the five again" before it
+        // means "leave the quiz". The chosen card has grown to fill the
+        // screen and swallowed the grid, so that is the state a visitor is
+        // actually trying to get out of — sending them to the carousel
+        // instead would skip the step they are standing on.
+        if ((currentQuestion as any).isCards && selectedOption) {
+            handleClearCardChoice();
+            return;
+        }
         if (currentQuestionIndex > 0) {
             setCurrentQuestionIndex(prev => prev - 1);
         } else {
@@ -323,10 +365,65 @@ function OnboardingPageInner() {
 
     const currentQuestion = QUESTIONS[currentQuestionIndex];
 
+    /**
+     * The dots count beats, not steps. Choosing a songwriter type doesn't move
+     * the quiz on — it expands the card and asks a second question on its face —
+     * so that expansion is a beat of its own and gets its own dot. Five dots for
+     * four steps, and the second fills the moment the card opens.
+     */
+    const QUIZ_BEATS = QUESTIONS.length + 1;
+    const currentBeat =
+        currentQuestionIndex === 0
+            ? (selectedOption ? 1 : 0)
+            : currentQuestionIndex + 1;
+
     // The current question's answer as a list, whichever shape it is stored in.
     // The goal box reads it to know what's in the box, and Next reads it to
     // know whether the question has been answered at all — `selectedOption`
     // alone can't say, since it stays null for the multi-answer questions.
+    // The nested question's answer, kept apart from `currentValues` because it
+    // belongs to a different question id even though it is asked on the same
+    // step.
+    const nestedAnswer = answers[NESTED_QUESTION.id];
+    const nestedValue = typeof nestedAnswer === 'string' ? nestedAnswer : null;
+
+    /**
+     * The nested question answers and moves on by itself. It takes one value and
+     * there is nothing else on that card to do, so making someone confirm with
+     * Next is a press that carries no decision — the only question left is
+     * whether they meant the row they just pressed.
+     *
+     * The short beat before leaving is what makes it readable: the row lights up
+     * and the others step back, and that state has to be on screen long enough
+     * to register as the answer being taken rather than the screen simply
+     * changing under them.
+     */
+    const handleNestedAnswer = (value: string) => {
+        setAnswers((prev) => ({ ...prev, [NESTED_QUESTION.id]: value }));
+        setNudgeCount(0);
+
+        if (advanceTimer.current) clearTimeout(advanceTimer.current);
+        advanceTimer.current = setTimeout(() => {
+            setCurrentQuestionIndex((index) => Math.min(index + 1, QUESTIONS.length - 1));
+        }, NESTED_ADVANCE_MS);
+    };
+
+    /**
+     * Takes back the card choice. Drops the nested answer with it: that
+     * question was asked of a Lyricist, and keeping the reply after the visitor
+     * says they are a Producer would carry an answer to a question nobody was
+     * asked in that form.
+     */
+    const handleClearCardChoice = () => {
+        setAnswers((prev) => {
+            const next = { ...prev };
+            delete next[QUESTIONS[0].id];
+            delete next[NESTED_QUESTION.id];
+            return next;
+        });
+        setSelectedOption(null);
+    };
+
     const currentAnswer = answers[currentQuestion.id];
     const currentValues = Array.isArray(currentAnswer)
         ? currentAnswer
@@ -360,6 +457,7 @@ function OnboardingPageInner() {
     const restartFlow = () => {
         setAnswers({});
         setSelectedOption(null);
+        setDeckState({ decisions: [], written: [] });
         setCurrentQuestionIndex(0);
         setCheckoutChoice(null);
         setCheckoutError('');
@@ -396,7 +494,20 @@ function OnboardingPageInner() {
     const handleQuizNext = () => {
         // Nothing chosen: ask again rather than refuse. The counter is what
         // drives the shake — see the button's `key`.
-        if (!currentValues.length) {
+        //
+        // The cards step carries two questions, so both have to be answered
+        // before it counts as done — otherwise choosing a type and pressing
+        // Next would skip past the question printed on the card in front of
+        // them.
+        const answered = (currentQuestion as any).isCards
+            ? currentValues.length > 0 && Boolean(nestedValue)
+            : (currentQuestion as any).isDeck
+              // One swipe, either way. See `deckState` — "none of these"
+              // is an answer, and it leaves the kept list empty.
+              ? deckState.decisions.length > 0 || currentValues.length > 0
+              : currentValues.length > 0;
+
+        if (!answered) {
             setNudgeCount((n) => n + 1);
             return;
         }
@@ -425,21 +536,19 @@ function OnboardingPageInner() {
         });
     };
 
-    // Running out of cards is a commit in itself — the deck moves the quiz on
-    // without waiting to be told to. Next does the same thing early.
+    /**
+     * The deck has dealt its last card. Records the answer and stops there.
+     *
+     * It used to move the quiz on by itself, which was right while the last
+     * swipe was the end of the question. It isn't any more: the empty deck now
+     * offers a card to write a struggle of their own on, and advancing on the
+     * final swipe would take that away in the same frame it appeared. Next is
+     * the way forward from here, as it is on every other question.
+     */
     const handleDeckComplete = (values: string[]) => {
         handleMultiAnswer(values);
-        handleQuizNext();
     };
 
-    /**
-     * The escape hatch in the controls. It goes to the plans rather than to the
-     * account form: the account sits behind the paywall in this flow, and the
-     * screens it skips (analyzing, verdict) are built entirely out of answers
-     * this visitor has chosen not to give — playing them on an empty set would
-     * read as the product guessing.
-     */
-    const handleSkipToSignUp = () => setCurrentStep(STEPS.PAYWALL);
 
     return (
         // `overflow-x-clip` rather than `overflow-hidden`: both clip sideways,
@@ -461,11 +570,18 @@ function OnboardingPageInner() {
             // headroom to clear it. The intro carries the mark inside its own
             // card, so that headroom is just a gap at the top of the screen.
             // The questions need only enough to clear the mark itself.
+            //
+            // The steps after the quiz take the same headroom as the quiz now.
+            // They used to reserve pt-28 / py-32 — half a screen of nothing
+            // between the mark and the headline on the taller ones, which on a
+            // step like the trial offer pushed the timeline it exists to show
+            // below the fold. The mark ends at ~64px; clearing it is all this
+            // has to do.
             currentStep === STEPS.INTRO
                 ? 'pb-3 pt-6 md:py-7'
                 : currentStep === STEPS.QUIZ
                     ? 'pt-16 pb-10 md:pt-20 md:pb-12'
-                    : 'pt-28 pb-12 md:py-32'
+                    : 'pt-16 pb-10 md:pt-20 md:pb-16'
         }`}>
             {/* The painted backdrop. `fixed` rather than absolute so it stays
                 put on a page long enough to scroll, and behind everything at
@@ -655,7 +771,7 @@ function OnboardingPageInner() {
                                 inside this box now, so it no longer moves
                                 anything below it. */}
                             <div
-                                className={`flex flex-col md:min-h-[620px] ${
+                                className={`flex flex-col sm:min-h-[760px] md:min-h-[620px] ${
                                     (currentQuestion as any).isCards || (currentQuestion as any).isGoals
                                         ? 'space-y-7 md:space-y-8'
                                         : 'space-y-12'
@@ -691,11 +807,20 @@ function OnboardingPageInner() {
                                 ~500px it wraps to two lines, which is the right
                                 answer on a phone — the floor keeps the headline
                                 readable rather than shrinking it to fit. */}
+                            {/* Hidden once a card question has been answered.
+                                The chosen card takes the whole width and asks
+                                the next question on its own face, so leaving
+                                this one above it put two questions on screen at
+                                once — and the top one was the one already
+                                answered. The card carries the headline from
+                                there. */}
+                            {!((currentQuestion as any).isCards && selectedOption) && (
                             <div className="relative left-1/2 w-[min(48rem,100vw-3rem)] -translate-x-1/2 text-center">
                                 <h2 className="text-[clamp(1.5rem,3.4vw,2.25rem)] font-sans font-light tracking-tight text-[#363636] leading-[1.15]">
                                     {t(`onboarding.questions.${currentQuestion.id}.question`)}
                                 </h2>
                             </div>
+                            )}
 
                             {(currentQuestion as any).isCards ? (
                                 <QuestionCards
@@ -703,6 +828,12 @@ function OnboardingPageInner() {
                                     options={currentQuestion.options}
                                     selectedOption={selectedOption}
                                     onSelect={(value) => handleAnswer(value)}
+                                    nested={{
+                                        questionId: NESTED_QUESTION.id,
+                                        options: NESTED_QUESTION.options,
+                                        value: nestedValue,
+                                        onSelect: handleNestedAnswer,
+                                    }}
                                 />
                             ) : (currentQuestion as any).isDeck ? (
                                 <SwipeDeck
@@ -710,6 +841,8 @@ function OnboardingPageInner() {
                                     options={currentQuestion.options}
                                     onChange={handleMultiAnswer}
                                     onComplete={handleDeckComplete}
+                                    state={deckState}
+                                    onStateChange={setDeckState}
                                 />
                             ) : (currentQuestion as any).isGoals ? (
                                 <GoalBox
@@ -771,61 +904,71 @@ function OnboardingPageInner() {
                                 that used to sit here — the box above is a
                                 constant height now, so a constant gap under it
                                 is what actually pins this row in place. */}
-                            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-4 sm:gap-x-7">
+                            {/* The row carries its own surface: a pane of the
+                                page's own colour, held slightly translucent and
+                                blurred behind. The mood question puts a
+                                full-bleed photograph behind this whole screen,
+                                and a photograph is not a colour you can style
+                                against — a purple one turns grey dots and grey
+                                text to mush. Tinting the page's own #DCDDD4
+                                rather than white or black keeps the controls
+                                looking like part of the page on the steps that
+                                have no picture at all, while still guaranteeing
+                                something to read against on the ones that do.
+
+                                Always present rather than only over an image:
+                                a bar that appears and disappears between steps
+                                is a bigger change than the one it prevents. */}
+                            <div className="sticky bottom-4 z-40 mx-auto mt-10 flex w-fit max-w-full flex-wrap items-center justify-center gap-x-5 gap-y-4 rounded-[36px] bg-[#DCDDD4]/35 px-6 py-3 backdrop-blur-2xl backdrop-saturate-150 sm:gap-x-7">
                                 <Tooltip label={t('onboarding.go_back')}>
                                     <button
                                         type="button"
                                         onClick={handleBack}
                                         aria-label={t('onboarding.go_back')}
-                                        className="shrink-0 p-2 text-stone-400 transition-colors hover:text-stone-700"
+                                        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/55 text-stone-700 transition-colors hover:bg-white hover:text-stone-900"
                                     >
-                                        <ArrowLeft size={20} />
+                                        <ArrowLeft size={22} className="stroke-[2.25px]" />
                                     </button>
                                 </Tooltip>
 
                                 <div className="flex flex-col items-center gap-2">
-                                    <div className="flex items-center gap-2.5">
-                                        <span className="text-[13px] font-medium text-stone-500">
-                                            {t('onboarding.quiz.step_counter')
-                                                .replace('{current}', String(currentQuestionIndex + 1))
-                                                .replace('{total}', String(QUESTIONS.length))}
-                                        </span>
+                                    {/* Dots alone. The "Step 1 of 4" beside them
+                                        counted the same thing twice, in words,
+                                        and words next to a green button are the
+                                        first place the eye lands — so the label
+                                        was winning attention from the control it
+                                        was standing next to.
 
-                                        {/* Read-only. Unlike the carousel's dots
-                                            these aren't jumps — a question you
-                                            haven't reached has no answer to show
-                                            and nothing to go back to. */}
-                                        {/* Black, not green — the same dots the
-                                            carousel uses, so progress reads the
-                                            same way in both halves of the flow.
-                                            Green is the colour of the one thing
-                                            to press; spending it on a progress
-                                            readout makes the Next button
-                                            compete with a row of dots. */}
-                                        <div className="flex items-center gap-1.5" aria-hidden="true">
-                                            {QUESTIONS.map((q, i) => (
-                                                <span
-                                                    key={q.id}
-                                                    className={`rounded-full transition-all duration-300 ${
-                                                        i === currentQuestionIndex
-                                                            ? 'h-2.5 w-2.5 bg-stone-900'
-                                                            : i < currentQuestionIndex
-                                                                ? 'h-1.5 w-1.5 bg-stone-900'
-                                                                : 'h-1.5 w-1.5 bg-stone-900/20'
-                                                    }`}
-                                                />
-                                            ))}
-                                        </div>
+                                        Read-only. Unlike the carousel's dots
+                                        these aren't jumps: a question you
+                                        haven't reached has no answer to show and
+                                        nothing to go back to.
+
+                                        Black, not green — the same dots the
+                                        carousel uses, so progress reads the same
+                                        way in both halves of the flow. Green is
+                                        the colour of the one thing to press. */}
+                                    <div className="flex items-center gap-1.5" aria-hidden="true">
+                                        {Array.from({ length: QUIZ_BEATS }, (_, i) => (
+                                            <span
+                                                key={i}
+                                                className={`rounded-full transition-all duration-300 ${
+                                                    i === currentBeat
+                                                        ? 'h-2.5 w-2.5 bg-stone-900'
+                                                        : i < currentBeat
+                                                            ? 'h-1.5 w-1.5 bg-stone-900'
+                                                            : 'h-1.5 w-1.5 bg-stone-900/20'
+                                                }`}
+                                            />
+                                        ))}
                                     </div>
 
-                                    {/* The nudge takes the skip link's place
-                                        rather than appearing beside it. Both
-                                        sit under the dots, and stacking them
-                                        would push the row taller at the exact
-                                        moment the point is that nothing moves.
-                                        The skip link comes back the instant a
-                                        choice is made. */}
-                                    {nudgeCount > 0 ? (
+                                    {/* The skip link is gone; this is what that
+                                        line under the dots is for now. It only
+                                        appears when Next is pressed with nothing
+                                        chosen, so the row is a single line of
+                                        dots the rest of the time. */}
+                                    {nudgeCount > 0 && (
                                         <motion.p
                                             key={nudgeCount}
                                             initial={{ opacity: 0, y: -4 }}
@@ -836,14 +979,6 @@ function OnboardingPageInner() {
                                         >
                                             {t('onboarding.quiz.pick_one')}
                                         </motion.p>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={handleSkipToSignUp}
-                                            className="text-[13px] font-semibold text-stone-900 underline-offset-4 transition-colors hover:text-stone-600 hover:underline"
-                                        >
-                                            {t('onboarding.quiz.skip')}
-                                        </button>
                                     )}
                                 </div>
 
@@ -890,21 +1025,17 @@ function OnboardingPageInner() {
                         </motion.div>
                     )}
 
-                    {currentStep === STEPS.ANALYZING && (
+                    {/* The analysis stays on screen for the email step — the
+                        dialog opens over it rather than replacing it. Frozen
+                        while it does: the pass has already finished, and letting
+                        its timers run behind a dialog would rotate quotes
+                        nobody can read. The step ends when Reveal is pressed. */}
+                    {(currentStep === STEPS.ANALYZING || currentStep === STEPS.EMAIL) && (
                         <AnalyzingAnswers
                             key="analyzing"
                             answers={answerLabels}
+                            frozen={currentStep === STEPS.EMAIL}
                             onComplete={() => setCurrentStep(STEPS.EMAIL)}
-                        />
-                    )}
-
-                    {currentStep === STEPS.EMAIL && (
-                        <EmailCapture
-                            key="email"
-                            initialEmail={email}
-                            isSubmitting={isSubmittingEmail}
-                            error={emailError}
-                            onSubmit={handleEmailSubmit}
                         />
                     )}
 
@@ -955,6 +1086,41 @@ function OnboardingPageInner() {
                         <WelcomeAboard key="welcome" signupsOpen={SIGNUPS_OPEN} onRestart={restartFlow} />
                     )}
             </main>
+
+            {/* The email step, as a dialog over the analysis rather than a
+                screen of its own. The pass that just read their answers back
+                stays behind it, blurred — which is the point: the thing being
+                asked for is somewhere to put THOSE results, and they should
+                still be on screen while the asking happens.
+
+                No way to dismiss it, and that is deliberate rather than an
+                oversight: there is nothing behind it to return to, so an X or
+                an Escape key would only strand someone on a frozen screen.
+                It closes by being answered.
+
+                z-50 clears the sticky controls at z-40. The blur sits on the
+                overlay itself so it takes in the whole page, mark and all,
+                rather than only what happens to be inside <main>. */}
+            {currentStep === STEPS.EMAIL && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={t('onboarding.email.title')}
+                    className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#DCDDD4]/45 px-6 py-10 backdrop-blur-2xl backdrop-saturate-150"
+                >
+                    <div className="w-full max-w-2xl">
+                        <EmailCapture
+                            initialEmail={email}
+                            isSubmitting={isSubmittingEmail}
+                            error={emailError}
+                            onSubmit={handleEmailSubmit}
+                        />
+                    </div>
+                </motion.div>
+            )}
         </div>
     );
 }

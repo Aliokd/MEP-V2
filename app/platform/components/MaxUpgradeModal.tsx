@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertCircle, Check, ShieldCheck, X } from 'lucide-react';
+import { AlertCircle, Check, X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -13,9 +13,10 @@ import {
 } from '@/lib/paddle/config';
 import { openCheckout } from '@/lib/paddle/checkout';
 
-// The Max benefits are already written for the onboarding paywall, so this reuses
-// those keys rather than forking a second copy of the same selling points.
-const MAX_BENEFITS = ['premium_songwriters', 'pro_collab', 'group_discussions', 'capacity', 'books'];
+// What Max is worth is already written for the onboarding paywall, so this
+// reads the same list rather than forking a second copy of the same selling
+// points — and stays in step when that one is rewritten.
+const MAX_OUTCOME_KEY = 'onboarding.paywall.plans.max.outcome';
 
 interface MaxUpgradeModalProps {
     isOpen: boolean;
@@ -30,7 +31,7 @@ interface MaxUpgradeModalProps {
  * to upgrade without losing their place.
  */
 export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeModalProps) {
-    const { t, language } = useLanguage();
+    const { t, tList, language } = useLanguage();
     const { user } = useAuth();
     const [billing, setBilling] = useState<BillingPeriod>('yearly');
     const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
@@ -38,6 +39,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
 
     if (!isOpen || typeof document === 'undefined') return null;
 
+    const maxOutcome = tList<string>(MAX_OUTCOME_KEY);
     const price = FALLBACK_PRICING.max[billing];
     const priceId = getPriceId('max', billing);
     const canCheckout = isPlanPurchasable('max', billing) && Boolean(user);
@@ -122,18 +124,13 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                 </div>
 
                 <ul className="space-y-3">
-                    {MAX_BENEFITS.map((id) => (
-                        <li key={id} className="flex gap-3 text-[14px] font-medium leading-snug text-[#363636]/85">
+                    {maxOutcome.map((item, i) => (
+                        <li key={i} className="flex gap-3 text-[14px] font-medium leading-snug text-[#363636]/85">
                             <Check size={16} className="mt-0.5 shrink-0 text-[#86BE7F]" />
-                            {t(`onboarding.paywall.plans.max.benefits.${id}`)}
+                            {item}
                         </li>
                     ))}
                 </ul>
-
-                <div className="flex items-center gap-2 text-[13px] font-semibold text-stone-700">
-                    <ShieldCheck size={16} className="text-[#86BE7F]" />
-                    {t('onboarding.paywall.guarantee')}
-                </div>
 
                 {checkoutError && (
                     <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-left text-xs text-red-700">

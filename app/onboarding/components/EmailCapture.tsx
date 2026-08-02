@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizePath } from '@/lib/i18n';
+import { PRIMARY_BUTTON_BLOCK } from './buttonStyles';
 
 // The gate between the analysis and the verdict.
 //
@@ -161,22 +162,18 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                     />
                 </motion.div>
 
+                {/* Announced, not shown. The shake is the whole visible reply —
+                    a sentence under the field said the same thing twice and
+                    turned a nudge into a telling-off. It stays in the DOM for
+                    screen readers, which cannot see a field move. */}
                 {message && (
-                    <motion.p
-                        initial={{ opacity: 0, y: -3 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.25 }}
-                        role="status"
-                        className="text-left text-[13px] font-semibold text-[#3f6b3a]"
-                    >
-                        {message}
-                    </motion.p>
+                    <p role="status" className="sr-only">{message}</p>
                 )}
 
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex w-full items-center justify-center gap-2.5 rounded-[20px] bg-[#86BE7F] py-4 text-lg font-semibold text-stone-900 shadow-sm transition-all hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+                    className={`${PRIMARY_BUTTON_BLOCK} disabled:cursor-not-allowed disabled:opacity-70`}
                 >
                     {isSubmitting ? (
                         <>
@@ -226,15 +223,9 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                     </label>
 
                     {showConsent && !accepted && (
-                        <motion.p
-                            initial={{ opacity: 0, y: -3 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.25 }}
-                            role="status"
-                            className="pl-8 text-left text-[13px] font-semibold text-[#3f6b3a]"
-                        >
+                        <p role="status" className="sr-only">
                             {t('onboarding.email.consent_required')}
-                        </motion.p>
+                        </p>
                     )}
                 </motion.div>
             </form>

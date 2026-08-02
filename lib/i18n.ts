@@ -37,8 +37,32 @@ export const isLanguage = (v: string | undefined | null): v is Language =>
 export const isPrefixedLocale = (v: string | undefined | null): v is PrefixedLocale =>
     !!v && (PREFIXED_LOCALES as readonly string[]).includes(v);
 
+/**
+ * Single path segments the app owns. Anything else with exactly one segment is
+ * treated as a possible CMS page slug (/terms, /cookies …) and so gets locale
+ * prefixes like the rest of the public site.
+ *
+ * This list exists because the proxy runs at the edge and can't read Firestore
+ * to find out which slugs exist. The cost of guessing wrong is small: an unknown
+ * slug gets a localized URL and then 404s, which is what it would have done anyway.
+ */
+const APP_OWNED_SEGMENTS = [
+    'platform', 'admin', 'api', '_next',
+    'signin', 'onboarding', 'reset-password', 'waiting-list', 'waitlist',
+    'about', 'privacy', 'no', 'sv', 'se',
+] as const;
+
+/** True for a single-segment path that could be a CMS-managed page. */
+export const isCmsPagePath = (pathname: string): boolean => {
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length !== 1) return false;
+    const [segment] = segments;
+    if (segment.includes('.')) return false; // sitemap.xml, icon.png, robots.txt
+    return !(APP_OWNED_SEGMENTS as readonly string[]).includes(segment);
+};
+
 export const isLocalizedPath = (pathname: string): boolean =>
-    (LOCALIZED_PATHS as readonly string[]).includes(pathname);
+    (LOCALIZED_PATHS as readonly string[]).includes(pathname) || isCmsPagePath(pathname);
 
 /** "/sv/about" -> { locale: "sv", path: "/about" }; "/about" -> { locale: null, path: "/about" } */
 export function splitLocale(pathname: string): { locale: PrefixedLocale | null; path: string } {

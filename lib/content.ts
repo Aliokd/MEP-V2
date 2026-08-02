@@ -102,6 +102,32 @@ export interface PracticeSongDoc {
     };
 }
 
+/**
+ * A standalone website page — privacy policy, terms, and anything else editorial
+ * that lives on the marketing site rather than inside the platform.
+ *
+ * The document id IS the slug, which makes uniqueness free: two pages can't claim
+ * /terms because they'd be the same document.
+ */
+export interface SitePage {
+    /** Same as the slug. URL is /{slug}, or /no/{slug} and /sv/{slug}. */
+    id: string;
+    slug: string;
+    title: LocalizedText;
+    /** Meta description and the standfirst under the page title. */
+    description: LocalizedText;
+    /** Markdown. Rendered with HTML disabled — see lib/sitePages.ts. */
+    body: LocalizedText;
+    /** Slug of the parent page, or null for a top-level page. One level deep. */
+    parentId: string | null;
+    order: number;
+    status: ContentStatus;
+    /** Whether the page gets a link in the site footer. */
+    showInFooter?: boolean;
+    updatedAt?: number | null;
+    updatedByEmail?: string | null;
+}
+
 /** Reads a localized field, falling back to English, then to any language present. */
 export function pickLocale(text: LocalizedText | undefined | null, locale: Locale): string {
     if (!text) return "";

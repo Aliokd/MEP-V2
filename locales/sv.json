@@ -289,6 +289,8 @@
     "close_desc": "Projektets realtidssamarbete kopplas bort. Är du samarbetspartner lämnar du projektet.",
     "invited_you_banner": "bjöd in dig till samarbete",
     "a_collaborator": "En samarbetspartner",
+    "the_project_owner": "Projektägaren",
+    "removed_you_banner": "tog bort dig från",
     "view_invite": "Visa inbjudan",
     "join": "Gå med",
     "collab": "Samarbete",
@@ -763,7 +765,7 @@
       "get_started": "Kom igång",
       "slides": {
         "psychology": {
-          "title": "Bevisat av forskningen",
+          "title": "Med stöd i forskningen",
           "science": {
             "claim_lead": "Att aktivt skapa musik",
             "claim_stress": "engagerar hela din hjärna.",
@@ -784,7 +786,7 @@
           "labels": {
             "master_lyrics": "Behärska\nlåtskrivandets\ngrunder",
             "expanded_skills": "Samarbete &\naffärer",
-            "see_life": "Äg och\nsläpp låtar",
+            "see_life": "Äg 100 %\nav dina låtar",
             "unlocked_creativity": "Nå din\nfulla\nmentala\nstyrka",
             "ignite_imagination": "Mental\nterapi",
             "tell_stories": "Berätta\nhistorier\nsom\nberör",
@@ -799,7 +801,7 @@
             "line_2": "känner värmen jag kan nå",
             "line_3": "jag är din att behålla",
             "line_4": "och jag är din att förlora",
-            "recording": "Refrängidé",
+            "recording": "Inspelning",
             "photo": "Handskriven vers"
           }
         },
@@ -825,39 +827,49 @@
       "step_counter": "Steg {current} av {total}",
       "skip": "Hoppa direkt till registrering",
       "deck": {
-        "counter": "{current} av {total}",
+        "counter": "{current}/{total}",
+        "feedback_keep": {
+          "unfinished": "Vår framstegsöversikt hjälper dig",
+          "weak_melodies": "Här finns verktyg som passar dig",
+          "no_structure": "Veinote har grymma tips till dig",
+          "too_similar": "Vi hjälper dig förbi det här",
+          "overthink": "Tappa aldrig inspirationen med vårt guidade skrivande"
+        },
+        "feedback_pass": "Toppen!\nSnyggt!\nBra!\nPerfekt!\nNoterat!\nUppfattat!",
+        "undo": "Ta tillbaka förra kortet",
         "keep": "Det är jag",
-        "pass": "Inte jag"
+        "pass": "Inte jag",
+        "own_placeholder": "Skriv något annat ..."
       },
       "pick_one": "Välj ett för att gå vidare."
     },
     "questions": {
       "goals": {
-        "add_custom": "Lägg till eget",
-        "custom_placeholder": "Skriv ditt eget och tryck enter",
+        "add_custom": "Lägg till mitt mål",
+        "custom_placeholder": "Skriv här",
         "take_back": "Ta ut det här kortet ur lådan igen"
       },
       "songwriter_type": {
-        "question": "Vad beskriver dig bäst?",
+        "question": "Hur ser du på dig själv?",
         "options": {
           "lyricist": {
-            "title": "Textförfattaren",
+            "title": "Textförfattare",
             "desc": "Orden kommer först."
           },
           "melodist": {
-            "title": "Melodiskaparen",
+            "title": "Melodiskapare",
             "desc": "Jag hör melodier före text."
           },
           "producer": {
-            "title": "Producenten",
+            "title": "Producent",
             "desc": "Jag bygger låtar med ljud och rytm."
           },
           "storyteller": {
-            "title": "Berättaren",
+            "title": "Berättare",
             "desc": "Jag vill uttrycka känslor och upplevelser."
           },
           "explorer": {
-            "title": "Utforskaren",
+            "title": "Utforskare",
             "desc": "Jag letar fortfarande efter min stil."
           }
         }
@@ -885,7 +897,7 @@
       "emotional_inspiration": {
         "question": "Vilken känsla drar dig mest?",
         "options": {
-          "melancholic": "Melankoliskt och känslosamt",
+          "melancholic": "Känslosamt och melankoliskt",
           "energetic": "Energiskt och peppande",
           "cinematic": "Filmiskt och drömskt",
           "dark": "Mörkt och rått",
@@ -901,12 +913,13 @@
           "beat_production": "En beat eller en produktionsidé",
           "improvisation": "Ren improvisation"
         }
-      }
+      },
+      "change_answer": "Ändra"
     },
     "analyzing": {
-      "title": "Läser igenom dina svar",
-      "subtitle": "Fem svar. Ge oss ett ögonblick med dem.",
-      "done": "Det räcker för att säga något om dig.",
+      "eyebrow": "Vi är klara med analysen",
+      "title": "Vi har sparat dina framsteg",
+      "cta": "Visa resultatet",
       "testimonials": [
         {
           "quote": "Jag hade fyra år av halva låtar i telefonen. Jag gjorde klart tre av dem på en månad.",
@@ -937,7 +950,8 @@
     },
     "verdict": {
       "label": "Så här ser vi det",
-      "struggle_label": "Och det som stoppar dig",
+      "struggle_label": "Det som står i vägen",
+      "fix_label": "Så löser vi det",
       "promise_label": "Hit leder det",
       "cta": "Visa mig hur",
       "types": {
@@ -957,25 +971,32 @@
         "default": "Du skriver redan. Det du saknar är ett ställe som hänger med."
       },
       "struggles": {
-        "unfinished": "Du börjar fler låtar än du gör klart — inte för att idéerna saknas, utan för att de ligger utspridda i anteckningar, röstmemon och filer som aldrig möts.",
-        "weak_melodies": "Texterna sitter. Det är melodin som alltid blir tvåa, och du har inte haft någonstans att testa tjugo versioner av den högt.",
-        "no_structure": "Du har bitarna. Det som saknas är formen som gör dem till en låt i stället för en samling fina stunder.",
-        "too_similar": "Allt kommer ut som förra låten — så går det för alla som skriver ensamma, i samma rum, med samma tre ackord.",
-        "overthink": "Du tänker ihjäl en rad innan den hunnit leva. Första utkastet får aldrig vara ett första utkast.",
+        "unfinished": "Du börjar låtar och blir inte klar med dem. Bitarna ligger i anteckningar, röstmemon och filer som du aldrig öppnar igen.",
+        "weak_melodies": "Texten har du. Det är melodin som aldrig blir bra, och du har ingenstans att sjunga den högt.",
+        "no_structure": "Du har bra bitar, men de blir inte en låt.",
+        "too_similar": "Nya låtar låter som den förra.",
+        "overthink": "Du skriver om första raden så många gånger att du aldrig når den andra.",
         "default": "Något lägger sig mellan dig och en färdig låt."
+      },
+      "fixes": {
+        "unfinished": "Veinote samlar en låt på ett ställe. Text, röstinspelningar och filer ligger på samma canvas, så du tar upp den där du slutade i stället för att börja om.",
+        "weak_melodies": "Sjung idén rakt in i demostudion och testa tio till på några minuter. Allt du spelar in finns kvar, så du hittar tillbaka till den som funkade.",
+        "no_structure": "Canvas lägger upp låten i delar. Du ser vad du har, vad som saknas och var en bit hör hemma.",
+        "too_similar": "Rim- och ordverktygen ger dig förslag du inte hade kommit på själv, och du kan skriva ihop med någon när ett huvud inte räcker.",
+        "overthink": "Lägg raden åt sidan, skriv vidare, kom tillbaka till den sen. Inget du testar försvinner, så en dålig idé kostar dig ingenting.",
+        "default": "Veinote samlar hela låten på ett ställe och hjälper dig att bli klar."
       },
       "dreams": {
         "finish_songs": "Om tre månader har du färdiga låtar du spelar upp utan att be om ursäkt först.",
         "unique_sound": "Om tre månader hör någon åtta takter och vet att det är du.",
         "move_people": "Om tre månader har du låten som får ett rum att tystna.",
-        "release_music": "Om tre månader har du en låt klar för release och någonstans att skicka den.",
-        "creative_fearless": "Om tre månader skriver du utan att tveka — och dåliga idéer kostar ingenting längre.",
+        "release_music": "Om tre månader har du en låt klar för release, och någonstans att skicka den.",
+        "creative_fearless": "Om tre månader testar du saker utan att tänka på om du slösar bort dagen.",
         "default": "Om tre månader har du låtar som är klara, inte bara påbörjade."
       }
     },
     "offer": {
-      "eyebrow": "Helt förutsättningslöst",
-      "title": "Vi vill att du provar Veinote gratis.",
+      "title": "Vi vill att du provar\nVeinote gratis.",
       "subtitle": "{days} dagar med allt. Så här går det till, steg för steg.",
       "timeline": {
         "today": {
@@ -1008,59 +1029,119 @@
         "billed_yearly": "per månad, faktureras årsvis",
         "billed_monthly": "per månad, faktureras månadsvis"
       },
-      "recommended": "Rekommenderas",
-      "benefits_label": "Det här får du",
-      "features_label": "Funktioner",
+      "recommended": "Populärast",
       "max_intro": "Allt i Pro, plus",
       "coming_soon": "Kommer snart",
       "plans": {
         "pro": {
           "name": "Pro",
-          "benefits": {
-            "fundamentals": "Bemästra grunderna",
-            "rhyme_lexicon": "Ta dina texter längre med rimlexikonet",
-            "production": "Låtproduktion från början till slut",
-            "mind_power": "Följ ditt tänkande och öva på plattformen, med terapi och produktivitet inbyggt",
-            "community": "Väx tillsammans med andra låtskrivare"
+          "tagline": "Populärast — för dig som skriver regelbundet",
+          "outcome": [
+            "Bli en skicklig låtskrivare och ta hantverket ett steg längre",
+            "Lär dig genom att göra låtar, inte genom att titta på lektioner",
+            "Äg 100 % av allt du skriver",
+            "Få ordning på tankarna — låtskrivande som terapi",
+            "Bli en del av gänget: träffa andra låtskrivare och lär känna dem"
+          ],
+          "groups": {
+            "tools": {
+              "title": "Alla verktyg öppna",
+              "items": [
+                "Rimlexikon och ordbok",
+                "Gitarrstämmare",
+                "Tap tempo",
+                "Demostudio — spela in direkt från laptopen",
+                "Canvas: text, tagningar och filer på ett ställe"
+              ]
+            },
+            "materials": {
+              "title": "Material som får dig att skriva",
+              "items": [
+                "Lär dig grunderna ordentligt",
+                "Djupdyk i det folk brukar fastna i",
+                "Hela banken med tips",
+                "Peters bok om låtskrivande"
+              ]
+            },
+            "community": {
+              "title": "Lär känna andra låtskrivare",
+              "items": [
+                "Skriv ihop i samma projekt",
+                "Träffa andra låtskrivare och lär känna dem",
+                "Håll ordning på alla dina projekt på ett ställe"
+              ]
+            },
+            "capacity": {
+              "title": "Kapacitet",
+              "items": [
+                "Upp till 300 projekt",
+                "5 samarbetspartners per projekt",
+                "Gott om plats för filer och inspelningar"
+              ]
+            }
           },
           "soon": {
             "stockholm_events": "Delta på Veinote-event i Stockholm"
-          },
-          "features": {
-            "canvas": "Canvas med full kontroll på inspelning och text",
-            "tools": "Gitarrstämmare, rimlexikon och tap tempo",
-            "collab": "Samarbeta med andra i samma projekt",
-            "demo_studio": "Demostudio – spela in direkt från laptopen",
-            "guided_writing": "Guidat skrivande, läkning genom skrivande och delning, inspirationer",
-            "files_backup": "Full filhantering och backup med lokal nedladdning",
-            "limits": "Begränsat antal filer och ljudinspelningar",
-            "sharing": "Dela dina låtar med andra låtskrivare"
-          },
-          "tagline": "Populärast — för dig som skriver regelbundet"
+          }
         },
         "max": {
           "name": "Max",
-          "benefits": {
-            "capacity": "Mer kapacitet – fler filer, mer inspelning, fler samarbetspartners",
-            "premium_songwriters": "Direkt tillgång till premiumlåtskrivare",
-            "pro_collab": "Möjligheter till professionella samarbeten",
-            "group_discussions": "Premium gruppdiskussioner – fråga vad som helst, få riktiga svar",
-            "books": "Böcker och hela paketet"
+          "tagline": "För låtskrivare som lever på det",
+          "outcome": [
+            "Allt du får i Pro, utan taken",
+            "Direkt tillgång till premiumlåtskrivare",
+            "Möjligheter till professionella samarbeten",
+            "Premium gruppdiskussioner — fråga vad som helst, få riktiga svar",
+            "Böcker och hela paketet"
+          ],
+          "groups": {
+            "tools": {
+              "title": "Alla verktyg öppna",
+              "items": [
+                "Alla verktyg i Pro",
+                "Först ut på nya verktyg när de kommer"
+              ]
+            },
+            "materials": {
+              "title": "Material som får dig att skriva",
+              "items": [
+                "Allt i Pro",
+                "Böcker och hela paketet",
+                "Direkt tillgång till premiumlåtskrivare"
+              ]
+            },
+            "community": {
+              "title": "Lär känna andra låtskrivare",
+              "items": [
+                "Allt i Pro",
+                "Premium gruppdiskussioner — fråga vad som helst, få riktiga svar",
+                "Möjligheter till professionella samarbeten"
+              ]
+            },
+            "capacity": {
+              "title": "Kapacitet",
+              "items": [
+                "Obegränsat antal projekt",
+                "20 samarbetspartners per projekt",
+                "Fler filer och mer inspelning"
+              ]
+            }
           },
-          "soon": {},
-          "features": {},
-          "tagline": "För låtskrivare som lever på det"
+          "soon": {}
         }
       },
-      "guarantee": "30 dagars pengarna-tillbaka-garanti",
-      "refund_policy": "Återbetalningspolicy",
-      "cta": "Betala $0.00",
+      "cta": "Börja gratis",
       "opening_checkout": "Öppnar betalning...",
       "checkout_error": "Vi kunde inte öppna betalningen. Försök igen.",
       "no_charge": "Ingen betalning i dag.",
       "reminder": "Vi mejlar dig innan din provperiod tar slut.",
       "today_free": "$0.00 idag",
-      "then_billed": "Betalningen startar dag {days}. Avsluta när som helst innan dess."
+      "then_billed": "Betalningen startar dag {days}. Avsluta när som helst innan dess.",
+      "outcome_label": "Vad får du ut av det?",
+      "no_ads": "Ingen reklam i Veinote. Aldrig.",
+      "cancel_note": "Börja gratis. Avsluta när du vill.",
+      "see_max": "Se Max-planen",
+      "see_pro": "Tillbaka till Pro-planen"
     },
     "verify": {
       "title": "En sista sak",
