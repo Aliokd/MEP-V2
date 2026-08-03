@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
 import { getCopyOverrides } from '@/lib/siteCopy';
-import { localizePath } from '@/lib/i18n';
+import SiteFooterStrip from '@/components/SiteFooterStrip';
 import { getPublishedPage, renderPageBody } from '@/lib/sitePages';
 import { pickLocale } from '@/lib/content';
 
@@ -76,12 +76,10 @@ export default async function PrivacyPolicyPage() {
                             dangerouslySetInnerHTML={{ __html: renderPageBody(cmsPage, language) }}
                         />
 
-                        <div className="pt-10 flex items-center gap-6 text-[14px] text-[#363636]">
-                            <Link href={localizePath('/about', language)} className="hover:text-black transition-colors font-medium">{t('common.about')}</Link>
-                            <Link href={localizePath('/', language)} className="hover:text-black transition-colors font-medium">{t('common.home')}</Link>
-                        </div>
                     </div>
                 </section>
+
+                <SiteFooterStrip language={language} currentPath="/privacy" />
             </div>
         );
     }
@@ -106,12 +104,10 @@ export default async function PrivacyPolicyPage() {
                         ))}
                     </div>
 
-                    <div className="pt-10 flex items-center gap-6 text-[14px] text-[#363636]">
-                        <Link href={localizePath('/about', language)} className="hover:text-black transition-colors font-medium">{t('common.about')}</Link>
-                        <Link href={localizePath('/', language)} className="hover:text-black transition-colors font-medium">{t('common.home')}</Link>
-                    </div>
                 </div>
             </section>
+
+            <SiteFooterStrip language={language} currentPath="/privacy" />
         </div>
     );
 }

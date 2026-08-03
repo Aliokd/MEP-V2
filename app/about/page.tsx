@@ -1,12 +1,11 @@
 import Link from 'next/link';
-import { ArrowRight, Heart } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { Metadata } from 'next';
 import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
 import { getCopyOverrides } from '@/lib/siteCopy';
 import { localizePath } from '@/lib/i18n';
-import { getFooterPages } from '@/lib/sitePages';
-import { pickLocale } from '@/lib/content';
+import SiteFooterStrip from '@/components/SiteFooterStrip';
 
 export async function generateMetadata(): Promise<Metadata> {
     const { language } = await resolveServerLocale();
@@ -22,9 +21,6 @@ const PILLAR_IDS = ['learn', 'create', 'practice', 'connect'] as const;
 export default async function AboutPage() {
     const { language } = await resolveServerLocale();
     const t = getServerT(language, await getCopyOverrides());
-    // Server component, so it reads the CMS directly rather than through the
-    // useFooterLinks() hook the client-side homepage footer uses.
-    const cmsLinks = await getFooterPages();
 
     return (
         <div className="overflow-x-clip bg-[#E6E3DB] min-h-screen font-sans">
@@ -76,27 +72,7 @@ export default async function AboutPage() {
                 </div>
             </section>
 
-            {/* Footer strip */}
-            <section className="px-6 md:px-[10%] pb-16 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-stone-400/20 pt-10">
-                <div className="flex items-center gap-2 text-[14px] text-[#363636] font-medium bg-white/30 backdrop-blur-lg border border-white/40 px-5 py-2.5 rounded-full">
-                    <Heart className="w-4 h-4 fill-[#363636] stroke-none shrink-0" />
-                    <span>{t('home.footer.designed')}</span>
-                </div>
-                <div className="flex items-center gap-6 text-[14px] text-[#363636]">
-                    <Link href={localizePath('/privacy', language)} className="hover:text-black transition-colors font-medium">{t('privacy.title')}</Link>
-                    {cmsLinks.map((page) => (
-                        <Link
-                            key={page.slug}
-                            href={localizePath(`/${page.slug}`, language)}
-                            className="hover:text-black transition-colors font-medium"
-                        >
-                            {pickLocale(page.title, language)}
-                        </Link>
-                    ))}
-                    <Link href={`${localizePath('/', language)}#qa`} className="hover:text-black transition-colors font-medium">{t('home.nav.qa')}</Link>
-                    <Link href={localizePath('/', language)} className="hover:text-black transition-colors font-medium">{t('common.home')}</Link>
-                </div>
-            </section>
+            <SiteFooterStrip language={language} currentPath="/about" />
         </div>
     );
 }
