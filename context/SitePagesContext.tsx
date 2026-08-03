@@ -19,16 +19,36 @@ export interface FooterLink {
     title: LocalizedText;
 }
 
-const SitePagesContext = createContext<FooterLink[]>([]);
+/** One Q&A entry for the homepage accordion. */
+export interface FaqEntry {
+    id: string;
+    question: LocalizedText;
+    answer: LocalizedText;
+}
 
-export const useFooterLinks = () => useContext(SitePagesContext);
+interface SiteContentValue {
+    footerLinks: FooterLink[];
+    /** Empty when the homepage isn't being rendered, or when none are published. */
+    faqs: FaqEntry[];
+}
+
+const SitePagesContext = createContext<SiteContentValue>({ footerLinks: [], faqs: [] });
+
+export const useFooterLinks = () => useContext(SitePagesContext).footerLinks;
+export const useFaqs = () => useContext(SitePagesContext).faqs;
 
 export function SitePagesProvider({
     links,
+    faqs = [],
     children,
 }: {
     links: FooterLink[];
+    faqs?: FaqEntry[];
     children: React.ReactNode;
 }) {
-    return <SitePagesContext.Provider value={links}>{children}</SitePagesContext.Provider>;
+    // Memoised on the arrays' identity: the server passes fresh objects on every
+    // render anyway, so this only avoids re-rendering consumers when React
+    // re-runs the provider without new props.
+    const value = React.useMemo(() => ({ footerLinks: links, faqs }), [links, faqs]);
+    return <SitePagesContext.Provider value={value}>{children}</SitePagesContext.Provider>;
 }

@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useLanguage } from "@/context/LanguageContext";
-import { useFooterLinks } from "@/context/SitePagesContext";
+import { useFaqs, useFooterLinks } from "@/context/SitePagesContext";
 import { pickLocale } from "@/lib/content";
 import { localizePath } from "@/lib/i18n";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -444,10 +444,19 @@ const AISection = () => {
 };
 
 const FAQSection = () => {
-    const { t, tList } = useLanguage();
+    const { t, tList, language } = useLanguage();
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-    const faqs = tList<{ question: string; answer: string }>('home.faq.items');
+    // Published Q&A from the admin CMS, server-rendered via the root layout.
+    // Falls back to the copy in the locale files until items are seeded, so the
+    // accordion is never empty.
+    const cmsFaqs = useFaqs();
+    const faqs = cmsFaqs.length > 0
+        ? cmsFaqs.map((faq) => ({
+            question: pickLocale(faq.question, language),
+            answer: pickLocale(faq.answer, language),
+        }))
+        : tList<{ question: string; answer: string }>('home.faq.items');
 
     return (
         <section id="qa" className="bg-[#EFF0E7] py-24 md:py-32 px-6 flex flex-col items-center">

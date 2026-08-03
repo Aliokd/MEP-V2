@@ -4,6 +4,7 @@ import { Providers } from '@/context/Providers';
 import Navigation from '@/components/Navigation';
 import { SitePagesProvider } from '@/context/SitePagesContext';
 import { getFooterPages } from '@/lib/sitePages';
+import { getPublishedFaqs } from '@/lib/faqs';
 import Script from 'next/script';
 import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
@@ -44,13 +45,23 @@ export default async function RootLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const { language, fromUrl } = await resolveServerLocale();
+    const { language, fromUrl, path } = await resolveServerLocale();
 
     // Fetched here rather than in the footer so the links land in the
     // server-rendered HTML — legal pages have to be crawlable. Cached for a
     // minute inside getFooterPages(), so this isn't a Firestore read per request.
     const footerPages = await getFooterPages();
     const footerLinks = footerPages.map((page) => ({ slug: page.slug, title: page.title }));
+
+    // The Q&A accordion only exists on the homepage, so only pay for it there.
+    const faqs =
+        path === "/"
+            ? (await getPublishedFaqs()).map((faq) => ({
+                  id: faq.id,
+                  question: faq.question,
+                  answer: faq.answer,
+              }))
+            : [];
 
     return (
         <html lang={language} suppressHydrationWarning>
@@ -67,7 +78,7 @@ export default async function RootLayout({
             </head>
             <body className="font-sans antialiased bg-white text-stone-900 transition-colors duration-300">
                 <Providers initialLanguage={language} localeFromUrl={fromUrl}>
-                    <SitePagesProvider links={footerLinks}>
+                    <SitePagesProvider links={footerLinks} faqs={faqs}>
                         <div className="min-h-screen flex flex-col">
                             <Navigation />
                             <main className="flex-grow">

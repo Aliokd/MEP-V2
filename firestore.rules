@@ -368,6 +368,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The homepage Q&A accordion. Server-rendered like site_pages, so this rule
+    // only matters for a direct client read.
+    match /faqs/{faqId} {
+      allow read: if isPublished() || isEditor();
+      allow write: if false;
+    }
+
     match /content_versions/{versionId} {
       allow read: if isEditor();
       allow write: if false;
