@@ -77,6 +77,26 @@ export async function listPublishedPages(): Promise<SitePage[]> {
     }
 }
 
+/**
+ * Pages that asked for a footer link, in display order.
+ *
+ * Read on every page render through the root layout, so it keeps a short
+ * in-process cache — footer links change about once a quarter, and a Firestore
+ * round trip on every request to the marketing site isn't worth paying for.
+ */
+const FOOTER_CACHE_TTL_MS = 60_000;
+let footerCache: { at: number; pages: SitePage[] } | null = null;
+
+export async function getFooterPages(): Promise<SitePage[]> {
+    if (footerCache && Date.now() - footerCache.at < FOOTER_CACHE_TTL_MS) {
+        return footerCache.pages;
+    }
+
+    const pages = (await listPublishedPages()).filter((page) => page.showInFooter);
+    footerCache = { at: Date.now(), pages };
+    return pages;
+}
+
 /** Direct children of a page, for the basic one-level hierarchy. */
 export async function getChildPages(parentSlug: string): Promise<SitePage[]> {
     const all = await listPublishedPages();

@@ -9,6 +9,9 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useLanguage } from "@/context/LanguageContext";
+import { useFooterLinks } from "@/context/SitePagesContext";
+import { pickLocale } from "@/lib/content";
+import { localizePath } from "@/lib/i18n";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const TopNav = () => {
@@ -493,7 +496,10 @@ const FAQSection = () => {
 };
 
 const NewFooter = () => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    // Pages ticked "show in footer" in the admin CMS. Server-rendered via the
+    // root layout, so these are in the HTML rather than appearing after hydration.
+    const cmsLinks = useFooterLinks();
 
     return (
         <footer className="relative w-full h-[80vh] min-h-[550px] md:h-screen md:min-h-[700px] flex flex-col justify-between overflow-hidden bg-[#D3D6CB]">
@@ -519,6 +525,15 @@ const NewFooter = () => {
                 <div className="flex items-center gap-6 text-[15px] text-[#363636]">
                     <Link href="/about" className="font-medium hover:text-black transition-colors">{t('home.footer.about')}</Link>
                     <Link href="/privacy" className="font-medium hover:text-black transition-colors">{t('home.footer.privacy')}</Link>
+                    {cmsLinks.map((page) => (
+                        <Link
+                            key={page.slug}
+                            href={localizePath(`/${page.slug}`, language)}
+                            className="font-medium hover:text-black transition-colors"
+                        >
+                            {pickLocale(page.title, language)}
+                        </Link>
+                    ))}
                     <Link href="#qa" className="font-medium hover:text-black transition-colors">{t('home.nav.qa')}</Link>
                     <Link href="/waiting-list?from=footer" className="font-bold hover:text-black transition-colors">{t('home.nav.waitlist')}</Link>
                 </div>

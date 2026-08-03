@@ -2,6 +2,8 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Providers } from '@/context/Providers';
 import Navigation from '@/components/Navigation';
+import { SitePagesProvider } from '@/context/SitePagesContext';
+import { getFooterPages } from '@/lib/sitePages';
 import Script from 'next/script';
 import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
@@ -44,6 +46,12 @@ export default async function RootLayout({
 }) {
     const { language, fromUrl } = await resolveServerLocale();
 
+    // Fetched here rather than in the footer so the links land in the
+    // server-rendered HTML — legal pages have to be crawlable. Cached for a
+    // minute inside getFooterPages(), so this isn't a Firestore read per request.
+    const footerPages = await getFooterPages();
+    const footerLinks = footerPages.map((page) => ({ slug: page.slug, title: page.title }));
+
     return (
         <html lang={language} suppressHydrationWarning>
             <head>
@@ -59,12 +67,14 @@ export default async function RootLayout({
             </head>
             <body className="font-sans antialiased bg-white text-stone-900 transition-colors duration-300">
                 <Providers initialLanguage={language} localeFromUrl={fromUrl}>
-                    <div className="min-h-screen flex flex-col">
-                        <Navigation />
-                        <main className="flex-grow">
-                            {children}
-                        </main>
-                    </div>
+                    <SitePagesProvider links={footerLinks}>
+                        <div className="min-h-screen flex flex-col">
+                            <Navigation />
+                            <main className="flex-grow">
+                                {children}
+                            </main>
+                        </div>
+                    </SitePagesProvider>
                 </Providers>
                 <Script id="microsoft-clarity" strategy="afterInteractive">
                     {`
