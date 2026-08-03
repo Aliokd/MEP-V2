@@ -17,6 +17,7 @@ const EDITABLE = {
     songs: { collection: "practice_songs", label: "song", orderBy: "order" },
     pages: { collection: "site_pages", label: "page", orderBy: "order" },
     faqs: { collection: "faqs", label: "faq", orderBy: "order" },
+    copy: { collection: "site_copy", label: "copy", orderBy: "order" },
 } as const;
 
 type EditableKey = keyof typeof EDITABLE;

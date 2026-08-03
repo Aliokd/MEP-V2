@@ -375,6 +375,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Per-string overrides for the pages that stay built in code. Read in the
+    // root layout with the Admin SDK, so this rule is belt-and-braces.
+    match /site_copy/{copyKey} {
+      allow read: if isPublished() || isEditor();
+      allow write: if false;
+    }
+
     match /content_versions/{versionId} {
       allow read: if isEditor();
       allow write: if false;

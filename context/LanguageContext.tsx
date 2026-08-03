@@ -46,12 +46,19 @@ export function LanguageProvider({
   children,
   initialLanguage = 'en',
   localeFromUrl = false,
+  copyOverrides,
 }: {
   children: React.ReactNode;
   /** Locale resolved on the server, from the URL prefix when there is one. */
   initialLanguage?: Language;
   /** True when the URL carried the locale, so server and client already agree. */
   localeFromUrl?: boolean;
+  /**
+   * Admin-authored overrides keyed by translation path, fetched server-side in
+   * the root layout. Lets the copy inside code-built pages (the homepage,
+   * /about) be edited in the CMS without moving their layouts out of code.
+   */
+  copyOverrides?: Record<string, Partial<Record<Language, string>>>;
 }) {
   const [language, setLanguageState] = useState<Language>(initialLanguage);
   // With a locale in the URL the first paint is already correct. Without one
@@ -77,10 +84,17 @@ export function LanguageProvider({
   const activeLanguage: Language = resolved ? language : 'en';
 
   const lookup = useCallback((keyPath: string): any => {
+    // A published override wins over the locale files, but only in the language
+    // asked for or English - a Norwegian override must not surface on the
+    // Swedish page just because it exists.
+    const override = copyOverrides?.[keyPath];
+    const overridden = override?.[activeLanguage] || override?.en;
+    if (typeof overridden === 'string' && overridden.trim()) return overridden;
+
     const keys = keyPath.split('.');
     const value = resolve(translations[activeLanguage], keys);
     return value !== undefined ? value : resolve(translations['en'], keys);
-  }, [activeLanguage]);
+  }, [activeLanguage, copyOverrides]);
 
   const t = useCallback((keyPath: string): string => {
     const value = lookup(keyPath);

@@ -5,6 +5,7 @@ import Navigation from '@/components/Navigation';
 import { SitePagesProvider } from '@/context/SitePagesContext';
 import { getFooterPages } from '@/lib/sitePages';
 import { getPublishedFaqs } from '@/lib/faqs';
+import { getCopyOverrides } from '@/lib/siteCopy';
 import Script from 'next/script';
 import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
@@ -63,6 +64,10 @@ export default async function RootLayout({
               }))
             : [];
 
+    // Per-string overrides for the pages that stay in code (homepage, /about).
+    // Cached for a minute; an empty map means the locale files are used as-is.
+    const copyOverrides = await getCopyOverrides();
+
     return (
         <html lang={language} suppressHydrationWarning>
             <head>
@@ -77,7 +82,7 @@ export default async function RootLayout({
                 />
             </head>
             <body className="font-sans antialiased bg-white text-stone-900 transition-colors duration-300">
-                <Providers initialLanguage={language} localeFromUrl={fromUrl}>
+                <Providers initialLanguage={language} localeFromUrl={fromUrl} copyOverrides={copyOverrides}>
                     <SitePagesProvider links={footerLinks} faqs={faqs}>
                         <div className="min-h-screen flex flex-col">
                             <Navigation />

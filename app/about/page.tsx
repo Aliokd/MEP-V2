@@ -3,15 +3,16 @@ import { ArrowRight, Heart } from 'lucide-react';
 import type { Metadata } from 'next';
 import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
+import { getCopyOverrides } from '@/lib/siteCopy';
 import { localizePath } from '@/lib/i18n';
 import { getFooterPages } from '@/lib/sitePages';
 import { pickLocale } from '@/lib/content';
 
 export async function generateMetadata(): Promise<Metadata> {
     const { language } = await resolveServerLocale();
-    const t = getServerT(language);
+    const t = getServerT(language, await getCopyOverrides());
     return {
-        title: `${t('about.eyebrow')} — Veinote`,
+        title: `${t('about.eyebrow')} | Veinote`,
         description: t('about.intro'),
     };
 }
@@ -20,7 +21,7 @@ const PILLAR_IDS = ['learn', 'create', 'practice', 'connect'] as const;
 
 export default async function AboutPage() {
     const { language } = await resolveServerLocale();
-    const t = getServerT(language);
+    const t = getServerT(language, await getCopyOverrides());
     // Server component, so it reads the CMS directly rather than through the
     // useFooterLinks() hook the client-side homepage footer uses.
     const cmsLinks = await getFooterPages();

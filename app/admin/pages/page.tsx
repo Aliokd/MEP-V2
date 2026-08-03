@@ -1,14 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, RefreshCw, ExternalLink, CornerDownRight, Code2, Lock } from "lucide-react";
+import { Plus, RefreshCw, ExternalLink, CornerDownRight, Code2, Lock, Download } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
-import { PageHeader, Panel, Badge, Button, Select, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
+import { PageHeader, Panel, Badge, Button, Input, Select, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 import { LOCALES, LOCALE_LABELS, localeCompleteness, pickLocale, type SitePage } from "@/lib/content";
 import PageEditor from "./PageEditor";
 import FaqEditor, { type FaqRow } from "./FaqEditor";
+import CopyEditor, { type CopyRow } from "./CopyEditor";
+import { listCopyKeys } from "@/lib/i18n-content";
 
-type Tab = "pages" | "faqs";
+type Tab = "pages" | "faqs" | "copy";
 
 const STATUS_TONE: Record<string, "neutral" | "green" | "gold" | "blue"> = {
     published: "green",
@@ -26,12 +28,12 @@ const CODE_ROUTES: { path: string; label: string; why: string }[] = [
     {
         path: "/",
         label: "Homepage",
-        why: "Bespoke layout — hero, sections and animations. The Q&A on it is editable under the Q&A tab.",
+        why: "Bespoke layout — hero, sections and animations. Its wording is editable under Site copy; the Q&A under the Q&A tab.",
     },
     {
         path: "/about",
         label: "About",
-        why: "Bespoke layout. Its wording lives in the locale files.",
+        why: "Bespoke layout. Its wording is editable under the Site copy tab.",
     },
 ];
 
@@ -47,22 +49,32 @@ export default function ManagePagesPage() {
 
     const [editingPage, setEditingPage] = useState<SitePage | "new" | null>(null);
     const [editingFaq, setEditingFaq] = useState<FaqRow | "new" | null>(null);
+    const [copyOverrides, setCopyOverrides] = useState<Record<string, any> | null>(null);
+    const [editingCopy, setEditingCopy] = useState<CopyRow | null>(null);
+    const [copySearch, setCopySearch] = useState("");
+    const [importing, setImporting] = useState(false);
+    const [importNote, setImportNote] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setRefreshing(true);
         setError(null);
         try {
             const params = statusFilter ? `?status=${statusFilter}` : "";
-            const endpoint = tab === "pages" ? "pages" : "faqs";
+            const endpoint = tab === "pages" ? "pages" : tab === "faqs" ? "faqs" : "copy";
             const res = await adminFetch(`/api/admin/content/${endpoint}${params}`);
             if (!res.ok) throw new Error((await res.json()).error || "Failed to load");
             const items = (await res.json()).items;
             if (tab === "pages") setPages(items);
-            else setFaqs(items);
+            else if (tab === "faqs") setFaqs(items);
+            else {
+                // Keyed by translation key so the list below can look each up in O(1).
+                setCopyOverrides(Object.fromEntries(items.map((i: any) => [i.id, i])));
+            }
         } catch (err: any) {
             setError(err.message);
             if (tab === "pages") setPages([]);
-            else setFaqs([]);
+            else if (tab === "faqs") setFaqs([]);
+            else setCopyOverrides({});
         } finally {
             setRefreshing(false);
         }
@@ -88,7 +100,67 @@ export default function ManagePagesPage() {
         return rows;
     }, [pages]);
 
-    const list = tab === "pages" ? pages : faqs;
+
+    /**
+     * Editable strings, derived from the English locale file rather than a
+     * hand-kept list — a new key in the code shows up here automatically.
+     * Arrays are skipped by listCopyKeys, so the Q&A list can't appear twice.
+     */
+    const copyRows: CopyRow[] = useMemo(() => {
+        if (!copyOverrides) return [];
+        return listCopyKeys(["home", "about"])
+            .filter(({ key, value }) => {
+                if (!copySearch.trim()) return true;
+                const q = copySearch.trim().toLowerCase();
+                return key.toLowerCase().includes(q) || value.toLowerCase().includes(q);
+            })
+            .map(({ key, value }) => {
+                const stored = copyOverrides[key];
+                return {
+                    key,
+                    codeValue: value,
+                    override: stored?.value,
+                    status: stored?.status,
+                    updatedByEmail: stored?.updatedByEmail || null,
+                };
+            });
+    }, [copyOverrides, copySearch]);
+
+    const list = tab === "pages" ? pages : tab === "faqs" ? faqs : copyOverrides;
+
+    /**
+     * Pulls the copy still living in the locale files into the CMS. Runs on the
+     * server, which already has Admin SDK credentials — so this needs no service
+     * account key on anyone's machine.
+     */
+    const importFromCode = async () => {
+        setImporting(true);
+        setImportNote(null);
+        try {
+            const res = await adminFetch("/api/admin/content/import-from-code", {
+                method: "POST",
+                body: JSON.stringify({ target: tab === "pages" ? "privacy" : "faqs" }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Import failed");
+
+            setImportNote(
+                data.imported.length > 0
+                    ? `Imported ${data.imported.join(", ")}.`
+                    : `Nothing to import — ${data.skipped.join("; ") || "already in the CMS"}.`,
+            );
+            await load();
+        } catch (err: any) {
+            setImportNote(err.message);
+        } finally {
+            setImporting(false);
+        }
+    };
+
+    // The privacy policy is the one page that already exists in code, so its
+    // absence from the list is the common case worth prompting about.
+    const privacyMissing = tab === "pages" && pages !== null && !pages.some((p) => p.slug === "privacy");
+    const faqsMissing = tab === "faqs" && faqs !== null && faqs.length === 0;
 
     return (
         <div className="flex flex-col gap-6">
@@ -107,7 +179,7 @@ export default function ManagePagesPage() {
                             {refreshing ? <Spinner className="w-3.5 h-3.5" /> : <RefreshCw className="w-3.5 h-3.5" />}
                             Refresh
                         </Button>
-                        {can("content.write") && (
+                        {can("content.write") && tab !== "copy" && (
                             <Button
                                 variant="primary"
                                 size="sm"
@@ -124,6 +196,7 @@ export default function ManagePagesPage() {
                 {([
                     { id: "pages" as Tab, label: "Pages" },
                     { id: "faqs" as Tab, label: "Q&A" },
+                    { id: "copy" as Tab, label: "Site copy" },
                 ]).map((t) => (
                     <button
                         key={t.id}
@@ -140,6 +213,27 @@ export default function ManagePagesPage() {
             {error && (
                 <Panel className="p-4 border-red-500/30">
                     <p className="text-sm text-red-300">{error}</p>
+                </Panel>
+            )}
+
+            {(privacyMissing || faqsMissing) && can("content.publish") && (
+                <Panel className="p-4 border-gold-500/30 bg-gold-500/5 flex flex-wrap items-center gap-3">
+                    <Download className="w-4 h-4 text-gold-300 shrink-0" />
+                    <p className="text-sm text-gold-200 flex-1 min-w-[240px]">
+                        {privacyMissing
+                            ? "The privacy policy is still the version built in code. Import it to edit it here — the live page keeps working either way."
+                            : "The homepage Q&A is still the version built in code. Import the four questions to edit them here."}
+                    </p>
+                    <Button variant="primary" size="sm" onClick={importFromCode} disabled={importing}>
+                        {importing ? <Spinner className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+                        Import from code
+                    </Button>
+                </Panel>
+            )}
+
+            {importNote && (
+                <Panel className="p-3.5">
+                    <p className="text-xs text-ink-300">{importNote}</p>
                 </Panel>
             )}
 
@@ -205,6 +299,43 @@ export default function ManagePagesPage() {
                             })}
                         </ul>
                     )
+                ) : tab === "copy" ? (
+                    <>
+                        <div className="p-4 border-b border-ink-600">
+                            <Input
+                                value={copySearch}
+                                onChange={(e) => setCopySearch(e.target.value)}
+                                placeholder="Search the text or the key"
+                            />
+                        </div>
+                        <ul className="divide-y divide-ink-600">
+                            {copyRows.map((row) => {
+                                const edited = row.status === "published" && row.override;
+                                const shown = edited ? (row.override?.en || row.codeValue) : row.codeValue;
+                                return (
+                                    <li key={row.key}>
+                                        <button
+                                            onClick={() => setEditingCopy(row)}
+                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-800 transition-colors text-left"
+                                        >
+                                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                                <span className="text-sm text-ink-100 line-clamp-2">{shown}</span>
+                                                <span className="text-[11px] text-ink-600 font-mono truncate">{row.key}</span>
+                                            </div>
+                                            {edited ? (
+                                                <Badge tone="green">edited</Badge>
+                                            ) : row.override ? (
+                                                <Badge tone="gold">draft</Badge>
+                                            ) : null}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                        {copyRows.length === 0 && (
+                            <EmptyState title="Nothing matches" description="Try a different word." />
+                        )}
+                    </>
                 ) : faqs && faqs.length === 0 ? (
                     <EmptyState
                         title="No questions yet"
@@ -287,6 +418,14 @@ export default function ManagePagesPage() {
                     allPages={pages || []}
                     onClose={() => setEditingPage(null)}
                     onSaved={() => { setEditingPage(null); load(); }}
+                />
+            )}
+
+            {editingCopy && (
+                <CopyEditor
+                    row={editingCopy}
+                    onClose={() => setEditingCopy(null)}
+                    onSaved={() => { setEditingCopy(null); load(); }}
                 />
             )}
 

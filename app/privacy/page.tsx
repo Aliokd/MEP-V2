@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
+import { getCopyOverrides } from '@/lib/siteCopy';
 import { localizePath } from '@/lib/i18n';
 import { getPublishedPage, renderPageBody } from '@/lib/sitePages';
 import { pickLocale } from '@/lib/content';
@@ -18,7 +19,7 @@ import { pickLocale } from '@/lib/content';
  */
 export async function generateMetadata(): Promise<Metadata> {
     const { language } = await resolveServerLocale();
-    const t = getServerT(language);
+    const t = getServerT(language, await getCopyOverrides());
 
     const cmsPage = await getPublishedPage('privacy');
     if (cmsPage) {
@@ -51,7 +52,7 @@ const SECTION_IDS = [
 
 export default async function PrivacyPolicyPage() {
     const { language } = await resolveServerLocale();
-    const t = getServerT(language);
+    const t = getServerT(language, await getCopyOverrides());
     const cmsPage = await getPublishedPage('privacy');
 
     // CMS version, once an admin has published one.
