@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -31,9 +31,62 @@ export const customText = (value: string) => value.slice(CUSTOM_PREFIX.length);
 // the box's rim — where this many characters still fit without being cut off.
 const CUSTOM_MAX_LENGTH = 38;
 
-// The recessed slot: an empty seat in the row, and the face of the
-// write-your-own cell. The one shape here that is a hole rather than an object.
+// The recessed face of the write-your-own cell: the one shape on the table
+// that is a hole rather than an object.
 const SLOT = 'rounded-[22px] bg-[#C6C7BB]/25 shadow-[inset_0_1px_4px_rgba(84,80,55,0.05)] ring-1 ring-inset ring-[#C6C7BB]/25';
+
+/**
+ * One pale ramp per brand hue, for the goal cards.
+ *
+ * The hues are the brand's own accents — the four in the scan gradient
+ * (#86BE7F green, #8ec9f0 sky, #b79df0 purple, #f0a8c9 pink) plus the lime and
+ * yellow used elsewhere in the flow. Each is mixed toward white at roughly
+ * 10/22/38%, so what lands on the card is a tint of the colour rather than the
+ * colour: these carry `text-stone-900` at 19px, and a card saturated enough to
+ * read as "the green one" from across the room is a card you cannot read the
+ * words on. The 160° angle is shared with every other card surface here, so
+ * the light keeps coming from the same corner across the whole set.
+ *
+ * Deliberately NOT in spectral order. These are walked in sequence (see
+ * `tintFor`), so listing them green→sky→purple→pink would lay a rainbow across
+ * the row and read as a scale rather than as an assortment. Jumping around the
+ * wheel is what makes consecutive cards look unrelated.
+ *
+ * Applied as an inline `backgroundImage` rather than a `bg-[…]` class: Tailwind
+ * compiles its arbitrary values at build time, so a class name assembled from a
+ * runtime value produces no CSS at all.
+ */
+const CARD_TINTS = [
+    'linear-gradient(160deg,#F3F9F2 0%,#E4F1E3 55%,#D1E6CE 100%)', // green
+    'linear-gradient(160deg,#FEF6FA 0%,#FCECF3 55%,#F9DEEA 100%)', // pink
+    'linear-gradient(160deg,#F4FAFD 0%,#E6F3FC 55%,#D4EAF9 100%)', // sky
+    'linear-gradient(160deg,#FFFCED 0%,#FFF8D6 55%,#FEF3B9 100%)', // yellow
+    'linear-gradient(160deg,#F8F5FD 0%,#EFEAFC 55%,#E4DAF9 100%)', // purple
+    'linear-gradient(160deg,#FDFFF4 0%,#FBFFE6 55%,#F8FFD4 100%)', // lime
+] as const;
+
+/**
+ * The soft edge over whatever is still off to the right.
+ *
+ * A mask rather than a panel of #DCDDD4 laid on top. Both look the same on a
+ * flat ground, but the page carries a painted backdrop and a solid gradient
+ * would show as a dull rectangle wherever the art behind it isn't that exact
+ * grey. Masking fades the cards themselves to transparent, so whatever is
+ * behind them is what shows through — the background colour by construction
+ * rather than by matching.
+ */
+const SCROLL_FADE = 'linear-gradient(to right, #000 calc(100% - 32px), transparent 100%)';
+
+/**
+ * The trip between the table and the box, in both directions.
+ *
+ * Stated rather than left to framer's default spring, and stated identically on
+ * both ends: a card leaving and the same card coming back should take the same
+ * time and the same curve, or the two halves of one gesture read as two
+ * different animations. It also covers the pile re-settling in the box when one
+ * card is pulled out of it.
+ */
+const FLIGHT = { duration: 0.42, ease: [0.22, 1, 0.36, 1] } as const;
 
 interface GoalBoxProps {
     questionId: string;
@@ -73,54 +126,140 @@ export default function GoalBox({ questionId, options, picked, onChange }: GoalB
     // from — the grid below doesn't need to know the difference.
     const seats = [...options.map((option) => option.value), ...customs];
 
+    /**
+     * Which tint a given goal wears — fixed per goal, for the life of the step.
+     *
+     * Keyed on the goal's index in `seats`, which is the one ordering here that
+     * never moves: the authored options keep their places and written ones only
+     * ever append. `onTable` was the obvious thing to index instead and is
+     * exactly wrong — it shrinks as goals go into the box, so every remaining
+     * card would change colour each time one was picked.
+     *
+     * Walking the palette rather than hashing the value. A hash reads as more
+     * "random", but over a fixed set of nine goals it is just an arbitrary draw
+     * that happens once at authoring time: every constant tried left at least
+     * one brand hue unused and doubled up another three times. Walking
+     * guarantees all six appear, spreads them as evenly as nine into six
+     * allows, and — because the palette above is not in spectral order — still
+     * looks scattered rather than sequential.
+     *
+     * Stable is the requirement underneath all of this. A card keeps its colour
+     * when it flies into the box and back, which is the whole premise of the
+     * shared `layoutId`: a card that changed colour mid-flight would read as a
+     * different card arriving. `Math.random()` would also differ between the
+     * server render and the client's, which is a hydration mismatch.
+     */
+    const tintFor = (value: string) => {
+        const seat = seats.indexOf(value);
+        return CARD_TINTS[(seat < 0 ? 0 : seat) % CARD_TINTS.length];
+    };
+
     useEffect(() => {
         if (writing) inputRef.current?.focus();
     }, [writing]);
 
     /**
-     * How many columns the grid is currently laying out.
+     * The whole table, one row wide, scrolling sideways rather than wrapping.
      *
-     * Read off the resolved `grid-template-columns` rather than duplicating the
-     * breakpoint in script — the browser has already decided it, and asking is
-     * the one answer that can't drift from the CSS. It is needed because the
-     * table now shows a single row, and a row is however many cells wide the
-     * viewport made it.
+     * Every goal is reachable — there are nine now, and a grid capped to a
+     * screenful meant a visitor could only meet the ones that happened to fit.
+     * A single row that scrolls needs no measuring: unlike a block, which grows
+     * downward without limit, a row's width is already fixed by the container
+     * around it, so the browser clips it the moment the cards outrun that
+     * width. Nothing here has to compute a ceiling the way the vertical
+     * version of this table once did.
+     *
+     * A goal already in the box leaves the table rather than holding its seat.
+     * The list is what is still on offer, and a stretch of dead slots in a
+     * scrolling row is just distance between the things that can be picked.
      */
-    const gridRef = useRef<HTMLDivElement>(null);
-    const [columns, setColumns] = useState(3);
-
-    useEffect(() => {
-        const grid = gridRef.current;
-        if (!grid) return;
-
-        const measure = () => {
-            const n = getComputedStyle(grid)
-                .gridTemplateColumns.split(' ')
-                .filter(Boolean).length;
-            if (n) setColumns(n);
-        };
-
-        measure();
-        const observer = new ResizeObserver(measure);
-        observer.observe(grid);
-        return () => observer.disconnect();
-    }, []);
+    const onTable = seats.filter((value) => !picked.includes(value));
 
     /**
-     * One row, refilled from behind.
+     * Whether the table is scrolled all the way to its right edge — the fade
+     * has to come off there.
      *
-     * The grid used to show every goal at once and leave a holder wherever one
-     * had been taken — six cells that only ever emptied. It read as a form to
-     * work through rather than a table to pick from, and each written goal made
-     * it taller until the carton the cards go into was pushed off the screen.
-     *
-     * Now the row is a fixed width of slots fed by a queue: take a card and the
-     * next one moves up into the gap. Nothing grows, nothing scrolls, and a
-     * goal the visitor writes simply joins the back of the line.
+     * Left on permanently it would dissolve the last card once there was
+     * nothing past it to hint at, and the same effect that reads as "there is
+     * more this way" mid-scroll reads as "this card is broken" at the end.
      */
-    const waiting = seats.filter((value) => !picked.includes(value));
-    const slots = Math.max(columns - 1, 1);
-    const onTable = waiting.slice(0, slots);
+    const [atEnd, setAtEnd] = useState(false);
+    const onScroll = (event: React.UIEvent<HTMLDivElement>) => {
+        const el = event.currentTarget;
+        // A pixel or two of slack: scrollLeft is fractional on a trackpad and
+        // on a display that isn't at 1x, so an exact comparison never fires.
+        setAtEnd(el.scrollWidth - el.scrollLeft - el.clientWidth < 4);
+    };
+
+    /**
+     * Click-and-hold and the row follows the hand — drag left and the cards
+     * travel left with it, bringing the ones off the right edge into view.
+     * The one way to scroll this row a mouse doesn't already have: touch pans
+     * it and a trackpad scrolls it, but a plain mouse does neither on an
+     * `overflow-x-auto` box, so without this the row is unreachable past its
+     * own width to anyone without one of those.
+     *
+     * `- dx`, not `+ dx`. Subtracting is what makes the content stick to the
+     * cursor, the way a sheet of paper pushed across a desk goes where the
+     * hand goes; adding scrolls the VIEWPORT in the drag direction instead,
+     * which moves the cards the opposite way to the hand and is the reason
+     * this felt backwards.
+     *
+     * `dragRef` rather than state: this updates on every pixel of mouse
+     * movement, and a re-render per pixel is the wrong tool for moving a
+     * scroll position that never needs to be read back by anything else.
+     */
+    const scrollerRef = useRef<HTMLDivElement>(null);
+    const dragRef = useRef({ active: false, startX: 0, startScrollLeft: 0, moved: false });
+
+    const onMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        // The primary button only, and not when the press lands inside the
+        // write-your-own field — that field has its own cursor and its own
+        // selection to manage, and hijacking its mousedown would make the
+        // text inside it impossible to click into.
+        if (e.button !== 0) return;
+        if ((e.target as HTMLElement).closest('input')) return;
+
+        const el = scrollerRef.current;
+        if (!el) return;
+
+        dragRef.current = { active: true, startX: e.clientX, startScrollLeft: el.scrollLeft, moved: false };
+
+        // On `window`, not the element: the pointer can leave the row
+        // entirely mid-drag — over the box below it, say — and the drag has
+        // to keep tracking it there. Removed on mouseup wherever that lands,
+        // captured or not.
+        const onMove = (moveEvent: MouseEvent) => {
+            const drag = dragRef.current;
+            if (!drag.active) return;
+            const dx = moveEvent.clientX - drag.startX;
+            // A few pixels of slack before this counts as a drag rather than
+            // a click that trembled slightly — otherwise every ordinary tap
+            // on a card would register as a (zero-distance, but non-zero)
+            // scroll attempt.
+            if (Math.abs(dx) > 4) drag.moved = true;
+            el.scrollLeft = drag.startScrollLeft - dx;
+        };
+        const onUp = () => {
+            dragRef.current.active = false;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    }, []);
+
+    // Fires in the capture phase — before a card's own onClick, which runs in
+    // the bubble phase — so a drag that just ended can swallow the click it
+    // would otherwise leave behind. Without this, releasing the mouse over a
+    // card after dragging across it both scrolls the row AND puts that card
+    // in the box: the click is a side effect of the mouseup, not a real tap.
+    const onClickCapture = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (!dragRef.current.moved) return;
+        e.preventDefault();
+        e.stopPropagation();
+        dragRef.current.moved = false;
+    }, []);
 
     const label = (value: string) =>
         isCustom(value) ? customText(value) : t(`onboarding.questions.${questionId}.options.${value}`);
@@ -151,32 +290,86 @@ export default function GoalBox({ questionId, options, picked, onChange }: GoalB
     };
 
     return (
-        // The gap between the table and the box has to clear the cards standing
-        // IN the box, not the box itself. They rise well above the carton's
-        // flaps — that is what makes them read as standing in it rather than
-        // lying behind it — so a gap measured against the carton's own top edge
-        // left the tallest card almost touching the row above.
-        <div className="space-y-8 md:space-y-14">
-            {/* The cards still on the table. `layoutId` is what carries a card
-                from here into the box's opening and back — the same element in
-                two places, so the trip is animated rather than a swap.
+        <div className="space-y-3 md:space-y-5">
+            {/* The cards still on the table, in a single row that scrolls
+                sideways instead of a grid that wraps. `layoutId` is what
+                carries a card from here into the box's opening and back —
+                the same element in two places, so the trip is animated rather
+                than a swap.
 
-                The scroller and the grid are separate elements on purpose: the
-                cap belongs to the box that holds the grid, not to the grid,
-                which has to stay free to lay its own rows out. `pr-1` leaves
-                the scrollbar somewhere to sit without it landing on a card. */}
-            <div ref={gridRef} className="mx-auto grid w-full max-w-[820px] grid-cols-2 gap-4 sm:grid-cols-3">
+                The scroller and the row are separate elements on purpose:
+                the bleed that gives the cards' shadows somewhere to fall
+                belongs to the frame around the row, not to the row itself,
+                which has to stay free to lay its cards out. */}
+            <div className="mx-auto w-full max-w-[820px]">
+            <motion.div
+                ref={scrollerRef}
+                /**
+                 * The reason the drag did nothing and the reason a card
+                 * returning from the box jumped are the same reason.
+                 *
+                 * Every card in this row carries `layout`, and framer measures
+                 * those with `getBoundingClientRect` — viewport coordinates. A
+                 * scroll container moves its children through the viewport
+                 * without changing their layout at all, so the moment anything
+                 * re-rendered mid-scroll (this component re-renders whenever
+                 * `atEnd` flips, and again on every put/takeBack) framer read
+                 * the scrolled-away distance as a layout change and animated
+                 * every card back toward where it had last seen them. Dragging
+                 * fought that spring the whole way and lost.
+                 *
+                 * `layoutScroll` is framer's own answer: it tells the
+                 * projection that this element scrolls, so the offset is read
+                 * and subtracted before children are compared. It only works on
+                 * a `motion` element — which is the only reason this div became
+                 * one.
+                 */
+                layoutScroll
+                onScroll={onScroll}
+                onMouseDown={onMouseDown}
+                onClickCapture={onClickCapture}
+                // The bleed used to be a flat 16px top/bottom and 24px each
+                // side, and the card's own shadow was still getting cut —
+                // `0 8px 24px` reaches 32px past the card on the underside
+                // (offset + blur) against only 16px above it (blur − offset),
+                // and the HOVER shadow, `0 14px 32px`, reaches further still:
+                // 46px below, 18px above, 32px to each side. Sized to the
+                // larger of the two states in every direction, so neither the
+                // resting nor the hovered shadow ever meets the clip.
+                //
+                // Still paired padding + negative margin, the same technique
+                // as before: the pair cancels in the surrounding layout, so
+                // this element's footprint on the page is exactly what it
+                // would be without any of it, and the room it buys is only
+                // ever used inside `overflow-y-hidden`, before the clip.
+                //
+                // `cursor-grab` / `active:cursor-grabbing` name the row as
+                // draggable before a hand ever touches it; `select-none` is
+                // what stops the browser reading the drag as a text
+                // selection instead of a scroll.
+                className="no-scrollbar -mx-8 -mb-12 -mt-5 cursor-grab select-none overflow-x-auto overflow-y-hidden px-8 pb-12 pt-5 [overflow-anchor:none] active:cursor-grabbing"
+                style={
+                    !atEnd
+                        ? // Both spellings: Safari still wants the prefix, and
+                          // this is the one property here that has to work
+                          // everywhere, since without it the row ends on a hard
+                          // cut instead of a fade.
+                          { maskImage: SCROLL_FADE, WebkitMaskImage: SCROLL_FADE }
+                        : undefined
+                }
+            >
+            <div className="flex w-fit gap-4">
                 {/* Write your own, as the first seat at the table.
 
                     Drawn as an empty holder rather than as a card: it is not a
                     goal, it is the space where one you haven't said yet would
                     go, and the dashed outline it used to wear made it the
-                    loudest thing in a grid of quiet cards. Same shape, same
+                    loudest thing in a row of quiet cards. Same shape, same
                     recessed tone as the seats a taken card leaves behind, so
-                    the grid reads as filled seats and empty ones — with the
+                    the row reads as filled seats and empty ones — with the
                     plus marking the one empty seat you can do something with. */}
                 {writing ? (
-                    <div className={`flex aspect-[4/3] items-center px-5 sm:aspect-[16/9] ${SLOT}`}>
+                    <div className={`flex aspect-[5/4] w-[176px] shrink-0 items-center px-5 sm:w-[211px] ${SLOT}`}>
                         <input
                             ref={inputRef}
                             value={draft}
@@ -200,52 +393,51 @@ export default function GoalBox({ questionId, options, picked, onChange }: GoalB
                     <button
                         type="button"
                         onClick={() => setWriting(true)}
-                        className={`flex aspect-[4/3] flex-col items-center justify-center gap-1.5 text-[14px] font-sans font-medium text-stone-600 transition-colors hover:bg-[#C6C7BB]/45 hover:text-[#363636] sm:aspect-[16/9] md:text-[15px] ${SLOT}`}
+                        className={`flex aspect-[5/4] w-[176px] shrink-0 flex-col items-center justify-center gap-1.5 text-[14px] font-sans font-medium text-stone-600 transition-colors hover:bg-[#C6C7BB]/45 hover:text-[#363636] sm:w-[211px] md:text-[15px] ${SLOT}`}
                     >
                         <Plus className="h-4 w-4 stroke-[2.5px]" />
                         {t('onboarding.questions.goals.add_custom')}
                     </button>
                 )}
 
-                {/* Exactly one row, always: the goals still on the table, and a
-                    recessed slot wherever the queue has run dry. Rendering the
-                    slots rather than the cards is what keeps the row from
-                    collapsing to two cells when only one goal is left — the
-                    carton below would move, and it is the one thing on this
-                    screen that should never move. */}
-                {Array.from({ length: slots }, (_, i) => {
-                    const value = onTable[i];
-                    if (!value) {
-                        return <div key={`goalbox-slot-${i}`} aria-hidden="true" className={`aspect-[4/3] sm:aspect-[16/9] ${SLOT}`} />;
-                    }
-                    return (
-                        <motion.button
-                            key={value}
-                            layoutId={`goal-${value}`}
-                            // Moves up into the gap the card in front left,
-                            // rather than appearing in its place. `layout` is
-                            // what animates the shift: `layoutId` alone carries
-                            // a card between the table and the box, but this one
-                            // never unmounts — it just changes column.
-                            layout
-                            type="button"
-                            onClick={() => put(value)}
-                            whileHover={{ y: -4 }}
-                            whileTap={{ scale: 0.98 }}
-                            // The same card as the one standing in the box: same
-                            // cream-green paper, same corner, same ring. It used
-                            // to be white here and green in there, so the card
-                            // appeared to change identity at the moment it moved
-                            // — the one moment it has to stay recognisably
-                            // itself.
-                            className="aspect-[4/3] overflow-hidden rounded-[22px] bg-[linear-gradient(160deg,#F3F5E8_0%,#E7EDDC_55%,#DDE7CF_100%)] p-5 text-left shadow-[0_8px_24px_rgba(0,0,0,0.07)] ring-1 ring-stone-300/40 transition-shadow hover:shadow-[0_14px_32px_rgba(0,0,0,0.10)] sm:aspect-[16/9]"
-                        >
-                            <span className="flex h-full items-center text-[19px] font-sans font-medium leading-snug tracking-tight text-stone-900 md:text-[23px]">
-                                {label(value)}
-                            </span>
-                        </motion.button>
-                    );
-                })}
+                {onTable.map((value) => (
+                    <motion.button
+                        key={value}
+                        layoutId={`goal-${value}`}
+                        // Slides into the gap the card ahead of it left, rather
+                        // than appearing in its place. `layout` is what animates
+                        // the shift: `layoutId` alone carries a card between the
+                        // table and the box, but this one never unmounts — it
+                        // just changes position in the row.
+                        layout
+                        transition={{ layout: FLIGHT }}
+                        type="button"
+                        onClick={() => put(value)}
+                        // Nothing that moves the card outside its own box. It
+                        // used to lift 4px on hover, which reads well on an open
+                        // page and not at all inside a scroller: the table is a
+                        // clipping window now, so a card rising toward an edge
+                        // gets its top sliced off — and mid-scroll every card is
+                        // near an edge, so no amount of padding fixes it. The
+                        // hover lives in the ring and the shadow instead, both
+                        // of which the card can afford to lose a few pixels of.
+                        // `whileTap` scales inward, so it is safe.
+                        whileTap={{ scale: 0.98 }}
+                        // The same card as the one standing in the box: same
+                        // cream-green paper, same corner, same ring. It used to
+                        // be white here and green in there, so the card appeared
+                        // to change identity at the moment it moved — the one
+                        // moment it has to stay recognisably itself.
+                        style={{ backgroundImage: tintFor(value) }}
+                        className="aspect-[5/4] w-[176px] shrink-0 overflow-hidden rounded-[22px] p-5 text-left shadow-[0_8px_24px_rgba(0,0,0,0.07)] ring-1 ring-stone-300/40 transition-all hover:shadow-[0_14px_32px_rgba(0,0,0,0.10)] hover:ring-stone-400/70 sm:w-[211px]"
+                    >
+                        <span className="flex h-full items-center text-[19px] font-sans font-medium leading-snug tracking-tight text-stone-900 md:text-[21px]">
+                            {label(value)}
+                        </span>
+                    </motion.button>
+                ))}
+            </div>
+            </motion.div>
             </div>
 
             {/* The box. A white carton in even light: built from flat tones
@@ -379,6 +571,16 @@ export default function GoalBox({ questionId, options, picked, onChange }: GoalB
                         <motion.button
                             key={value}
                             layoutId={`goal-${value}`}
+                            /**
+                             * `layout` as well as `layoutId`, so the pile
+                             * itself re-settles rather than snapping. Pulling
+                             * one card out changes every remaining card's `age`
+                             * — and with it its offset and tilt — so without
+                             * this, taking one card back jumps the other three
+                             * to new places in a single frame.
+                             */
+                            layout
+                            transition={{ layout: FLIGHT }}
                             type="button"
                             onClick={() => takeBack(value)}
                             whileHover={{ y: -6 }}
@@ -400,6 +602,12 @@ export default function GoalBox({ questionId, options, picked, onChange }: GoalB
                                 left: `${50 - 23 + offset}%`,
                                 rotate: tilt,
                                 zIndex: 10 + i,
+                                // The same tint it wore on the table — see
+                                // `tintFor`. This is the one property that has
+                                // to agree across the two places a card lives,
+                                // or the flight between them stops reading as
+                                // one card moving.
+                                backgroundImage: tintFor(value),
                             }}
                             // The grid's card, unchanged: same aspect, same
                             // padding, same corner, same shadow. `w-[46%]` is not
@@ -408,12 +616,42 @@ export default function GoalBox({ questionId, options, picked, onChange }: GoalB
                             // box's 420), so the card that lands in the carton is
                             // the size of the one that left the table and stops
                             // appearing to grow on the way in.
-                            className="absolute bottom-[54%] aspect-[4/3] w-[46%] overflow-hidden rounded-[22px] bg-[linear-gradient(160deg,#F3F5E8_0%,#E7EDDC_55%,#DDE7CF_100%)] p-5 text-left shadow-[0_8px_24px_rgba(0,0,0,0.07)] ring-1 ring-stone-300/40 sm:aspect-[16/9]"
+                            // `aspect-[5/4]`, matching the card on the table
+                            // exactly. This is what was squeezing the card
+                            // mid-flight: a shared `layoutId` animates the
+                            // source rect into the destination rect with a
+                            // scale transform, and when the two rects have
+                            // different proportions that scale is different on
+                            // each axis — the card is literally stretched on one
+                            // side and compressed on the other for the length of
+                            // the trip. It read as 4/3 here and 16/9 from `sm`
+                            // up, against 5/4 on the table: a 42% disagreement
+                            // between the axes at the widest. Matched, the scale
+                            // is uniform and the card only grows.
+                            className="absolute bottom-[34%] aspect-[5/4] w-[46%] overflow-hidden rounded-[22px] p-5 text-left shadow-[0_8px_24px_rgba(0,0,0,0.07)] ring-1 ring-stone-300/40"
                         >
                             {/* Top-aligned: only the upper part of the card
                                 clears the rim, so centred text would read as half
-                                a sentence disappearing into the box. */}
-                            <span className="block text-[19px] font-sans font-medium leading-snug tracking-tight text-stone-900 md:text-[23px]">
+                                a sentence disappearing into the box.
+
+                                `bottom-34%` rather than the 54% this sat at.
+                                Measured against the carton: the rim is painted
+                                over the card from y=150 of the 460-tall viewBox
+                                down, and at 54% the card's top edge cleared the
+                                box entirely and stood 52px up into the scrolling
+                                row above it — which is what was covering the
+                                cards still on the table. At 34% it clears that
+                                row by 11px and still shows a 111px band above
+                                the rim, against the 78px the longest goal needs
+                                at this width. Deeper than ~30% and the card
+                                starts disappearing into the carton; shallower
+                                than ~37% and it is back in the row's way. */}
+                            {/* The same size it is on the table. framer scales
+                                the whole card through the flight, type included,
+                                so a card that declares 21px at one end and 23px
+                                at the other snaps by that difference on the
+                                frame the animation finishes. */}
+                            <span className="block text-[19px] font-sans font-medium leading-snug tracking-tight text-stone-900 md:text-[21px]">
                                 {label(value)}
                             </span>
                         </motion.button>

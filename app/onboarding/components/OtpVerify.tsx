@@ -51,6 +51,15 @@ export default function OtpVerify({ email, isSubmitting = false, error = '', onV
         return () => clearTimeout(id);
     }, [cooldown]);
 
+    // A different address means a different code. This screen stays mounted
+    // while the address is being corrected — the dialog opens over it — so
+    // without this, digits typed for the old address would still be sitting in
+    // the boxes when the visitor came back to a code that no longer matches
+    // them.
+    useEffect(() => {
+        setDigits(Array(CODE_LENGTH).fill(''));
+    }, [email]);
+
     // Submitting the moment the last digit lands: the button is still there for
     // anyone who wants it, but nobody should have to press it after typing a
     // code that could only mean one thing.
@@ -117,9 +126,13 @@ export default function OtpVerify({ email, isSubmitting = false, error = '', onV
             className="space-y-8"
         >
             <div className="space-y-3 text-center">
-                <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[#86BE7F]/20">
-                    <MailCheck size={26} className="text-[#3f6b3a]" />
-                </span>
+                {/* The mark alone, in the page's own ink. The green disc behind
+                    it was a badge for something that isn't a status — nothing
+                    has been verified yet at the point this screen is read — and
+                    a filled circle at the top of a screen whose one green thing
+                    should be the button was competing with it. Drawn bigger to
+                    carry the space the disc used to hold. */}
+                <MailCheck size={34} className="mx-auto stroke-[1.75px] text-[#363636]" />
                 <h1 className="text-4xl font-sans font-light leading-[1.1] tracking-tight text-stone-900 md:text-[3.25rem]">
                     {t('onboarding.verify.title')}
                 </h1>
@@ -129,8 +142,13 @@ export default function OtpVerify({ email, isSubmitting = false, error = '', onV
                 </p>
             </div>
 
-            <div className="mx-auto max-w-md space-y-5 rounded-[28px] border border-stone-200/60 bg-[#EFF0E7] p-7 shadow-[0_8px_30px_rgba(0,0,0,0.015)] md:p-8">
-                <div className="flex justify-center gap-2 sm:gap-2.5">
+            {/* Glass, the same pane as the email form this screen is the twin
+                of — the two are the same step split across the ends of the
+                flow, and the opaque cream this used to carry was the one card
+                in the set that sat on the painted page rather than letting it
+                through. */}
+            <div className="mx-auto max-w-md space-y-5 rounded-[28px] border border-white/50 bg-white/25 p-7 shadow-[0_8px_30px_rgba(0,0,0,0.02)] backdrop-blur-2xl backdrop-saturate-150 md:p-8">
+                <div className="flex justify-center gap-2 sm:gap-3">
                     {digits.map((digit, i) => (
                         <input
                             key={i}
@@ -147,8 +165,20 @@ export default function OtpVerify({ email, isSubmitting = false, error = '', onV
                             onFocus={(e) => e.target.select()}
                             disabled={isSubmitting}
                             aria-label={t('onboarding.verify.digit_label').replace('{n}', String(i + 1))}
-                            className={`h-14 w-11 rounded-2xl border bg-white text-center font-sans text-2xl font-semibold text-stone-900 outline-none transition-colors disabled:opacity-60 sm:h-16 sm:w-12 ${
-                                error ? 'border-red-400/70' : digit ? 'border-[#86BE7F]' : 'border-stone-200 focus:border-[#86BE7F]'
+                            // Bigger, and drawn to be seen: solid white on the
+                            // glass rather than sharing its translucency, a
+                            // two-pixel edge instead of a hairline, and the
+                            // digit itself at 30px. Six boxes are the whole
+                            // interface on this screen — they are what the eye
+                            // should land on when it arrives, and at 44×56 on a
+                            // hairline border they read as a detail of the card
+                            // rather than the thing being asked for.
+                            className={`h-[60px] w-[46px] rounded-2xl border-2 bg-white text-center font-sans text-[28px] font-bold text-stone-900 shadow-[0_2px_10px_rgba(0,0,0,0.04)] outline-none transition-colors disabled:opacity-60 sm:h-[72px] sm:w-[56px] sm:text-[32px] ${
+                                error
+                                    ? 'border-red-400/70'
+                                    : digit
+                                      ? 'border-[#86BE7F]'
+                                      : 'border-stone-300/80 focus:border-[#86BE7F]'
                             }`}
                         />
                     ))}
@@ -165,7 +195,14 @@ export default function OtpVerify({ email, isSubmitting = false, error = '', onV
                     type="button"
                     onClick={() => onVerify(code)}
                     disabled={!complete || isSubmitting}
-                    className={`${PRIMARY_BUTTON_BLOCK} disabled:cursor-not-allowed disabled:bg-stone-300/70 disabled:text-stone-500 disabled:shadow-none`}
+                    // The flow's button, unmodified — same green, same offset
+                    // shadow, dimmed rather than repainted while the code is
+                    // short. It used to go flat grey and drop its shadow when
+                    // disabled, which is most of the time this screen is on
+                    // screen, so the last step of the flow was the one place
+                    // the button everyone had been pressing turned into a
+                    // different control.
+                    className={`${PRIMARY_BUTTON_BLOCK} disabled:cursor-not-allowed disabled:opacity-70`}
                 >
                     {isSubmitting && <Loader2 size={18} className="animate-spin" />}
                     {isSubmitting ? t('onboarding.verify.verifying') : t('onboarding.verify.cta')}

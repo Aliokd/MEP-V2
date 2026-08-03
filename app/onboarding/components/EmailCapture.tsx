@@ -42,11 +42,22 @@ const CONSENT_SLOTS = /(\{terms\}|\{privacy\})/g;
 const SHAKE = { x: [0, -6, 5, -4, 3, -2, 0] };
 const SHAKE_TIMING = { duration: 0.42, ease: [0.36, 0.07, 0.19, 0.97] as const };
 
-export default function EmailCapture({ initialEmail = '', isSubmitting = false, error = '', onSubmit }: {
+export default function EmailCapture({ initialEmail = '', isSubmitting = false, error = '', changing = false, onSubmit }: {
     initialEmail?: string;
     isSubmitting?: boolean;
     /** Set by the page when the address is refused upstream. */
     error?: string;
+    /**
+     * Reached from the code screen rather than from the analysis — the address
+     * already exists and is being corrected, not given for the first time.
+     *
+     * Same form, different framing: the account is not being created here, so
+     * the eyebrow announcing the plan and the "first, create your account"
+     * headline would both be describing a step that already happened. It asks
+     * the one question it actually needs, and its button says what pressing it
+     * does — change the address and go back for the new code.
+     */
+    changing?: boolean;
     onSubmit: (email: string) => void;
 }) {
     const { t, language } = useLanguage();
@@ -127,21 +138,30 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
             className="space-y-8"
         >
             <div className="space-y-3 text-center">
-                <p className="text-sm font-medium text-stone-500">
-                    {t('onboarding.email.eyebrow')}
-                </p>
+                {/* No eyebrow when correcting an address: "your initial plan is
+                    ready" is news, and it was already delivered the first time
+                    through. */}
+                {!changing && (
+                    <p className="text-sm font-medium text-stone-500">
+                        {t('onboarding.email.eyebrow')}
+                    </p>
+                )}
                 <h1 className="text-4xl font-sans font-light leading-[1.1] tracking-tight text-stone-900 md:text-[3.25rem]">
-                    {t('onboarding.email.title')}
+                    {t(changing ? 'onboarding.email.change_title' : 'onboarding.email.title')}
                 </h1>
                 <p className="mx-auto max-w-md text-[15px] font-medium text-stone-700/80">
-                    {t('onboarding.email.subtitle')}
+                    {t(changing ? 'onboarding.email.change_subtitle' : 'onboarding.email.subtitle')}
                 </p>
             </div>
 
             <form
                 onSubmit={handleSubmit}
                 noValidate
-                className="mx-auto max-w-md space-y-4 rounded-[28px] border border-stone-200/60 bg-[#EFF0E7] p-7 shadow-[0_8px_30px_rgba(0,0,0,0.015)] md:p-8"
+                // Glassy rather than the flat #EFF0E7 it was: a translucent
+                // panel over the frozen analysis behind it, matching the glass
+                // AnalyzingAnswers and TrialOffer already use elsewhere in this
+                // flow rather than introducing a fourth surface treatment.
+                className="mx-auto max-w-md space-y-6 rounded-[28px] border border-white/50 bg-white/25 p-7 shadow-[0_8px_30px_rgba(0,0,0,0.02)] backdrop-blur-2xl backdrop-saturate-150 md:space-y-7 md:p-8"
             >
                 <motion.div animate={emailShake}>
                     <input
@@ -182,7 +202,7 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                         </>
                     ) : (
                         <>
-                            {t('onboarding.email.cta')}
+                            {t(changing ? 'onboarding.email.change_cta' : 'onboarding.email.cta')}
                             <ArrowRight className="h-5 w-5 stroke-[2.5px]" />
                         </>
                     )}
@@ -192,7 +212,13 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                     a tick box that lets you through unticked records nothing
                     and protects no one. */}
                 <motion.div className="space-y-1.5" animate={consentShake}>
-                    <label className="flex cursor-pointer items-start gap-3 text-left">
+                    {/* Centred on the sentence rather than hung from its first
+                        line, and closer to it: a 20px box floating above a
+                        two-line paragraph reads as belonging to the line above.
+                        The negative margins let the row keep its own spacing
+                        while the padding inside them grows the tap target — see
+                        the box below. */}
+                    <label className="-m-1.5 flex cursor-pointer items-center gap-2 p-1.5 text-left">
                         {/* The native box drives state and keeps the keyboard
                             and screen-reader behaviour; the square beside it is
                             what gets drawn. `peer` links the two so focus and
@@ -208,13 +234,22 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                             aria-describedby="consent-text"
                             className="peer sr-only"
                         />
-                        <span
-                            aria-hidden="true"
-                            className={`mt-[1px] grid h-5 w-5 shrink-0 place-items-center rounded-[7px] border-2 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#86BE7F] peer-focus-visible:ring-offset-2 ${
-                                accepted ? 'border-[#86BE7F] bg-[#86BE7F]' : 'border-stone-300 bg-white'
-                            }`}
-                        >
-                            {accepted && <Check size={13} className="stroke-[3.5] text-stone-900" />}
+                        {/* The drawn box is 20px, but what you can hit is the
+                            40px around it: `p-2.5 -m-2.5` pads the slot out in
+                            every direction and then takes the space back off
+                            the layout, so the margin around the square answers
+                            a click without the row growing to make room for it.
+                            The whole label toggles too — this is for the
+                            thumb that aims at the box and lands beside it. */}
+                        <span className="-m-2.5 shrink-0 p-2.5">
+                            <span
+                                aria-hidden="true"
+                                className={`grid h-5 w-5 place-items-center rounded-[7px] border-2 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#86BE7F] peer-focus-visible:ring-offset-2 ${
+                                    accepted ? 'border-[#86BE7F] bg-[#86BE7F]' : 'border-stone-300 bg-white'
+                                }`}
+                            >
+                                {accepted && <Check size={13} className="stroke-[3.5] text-stone-900" />}
+                            </span>
                         </span>
 
                         <span id="consent-text" className="text-[12.5px] leading-relaxed text-stone-600">

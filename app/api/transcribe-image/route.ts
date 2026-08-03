@@ -188,7 +188,7 @@ If the image has NO text or lyrics on it at all, output EXACTLY: NO_TEXT`;
             // Answered by us, in JSON, rather than letting the platform kill the
             // request and hand the client an unparseable gateway error.
             return NextResponse.json({
-                error: 'Scanning took too long. Please try again — a smaller or clearer photo usually helps.',
+                error: 'Scanning took too long. Please try again. A smaller or clearer photo usually helps.',
                 isTimeout: true
             }, { status: 504 });
         }

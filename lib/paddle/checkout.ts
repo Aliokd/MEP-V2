@@ -27,6 +27,21 @@ export function loadPaddle(): Promise<Paddle | undefined> {
 // Our locales happen to line up with Paddle's supported checkout locales.
 const PADDLE_LOCALES: Record<string, string> = { en: 'en', no: 'no', sv: 'sv' };
 
+/**
+ * The class Paddle renders its inline checkout into, and the height it opens
+ * at before its own content measures itself.
+ *
+ * A class rather than an id because that is what Paddle's `frameTarget` takes.
+ * It lives here rather than in the component so the element being targeted and
+ * the call doing the targeting can never drift apart — a typo in either one is
+ * a checkout that silently renders nowhere.
+ */
+export const CHECKOUT_FRAME_CLASS = 'paddle-checkout-frame';
+const FRAME_INITIAL_HEIGHT = 450;
+// Transparent and borderless: the frame sits inside our own glass panel, and
+// Paddle's default white card inside that is a card inside a card.
+const FRAME_STYLE = 'width:100%; min-width:312px; background-color:transparent; border:none;';
+
 export interface OpenCheckoutParams {
     priceId: string;
     /** Firebase uid — the only link between a Paddle customer and our user doc. */
@@ -34,9 +49,15 @@ export interface OpenCheckoutParams {
     email?: string | null;
     locale?: string;
     successUrl?: string;
+    /**
+     * Render into the page instead of over it. The element carrying
+     * CHECKOUT_FRAME_CLASS must already be mounted when this is called —
+     * Paddle looks it up once and does not retry.
+     */
+    inline?: boolean;
 }
 
-export async function openCheckout({ priceId, uid, email, locale, successUrl }: OpenCheckoutParams): Promise<void> {
+export async function openCheckout({ priceId, uid, email, locale, successUrl, inline }: OpenCheckoutParams): Promise<void> {
     const paddle = await loadPaddle();
 
     if (!paddle) {
@@ -51,9 +72,16 @@ export async function openCheckout({ priceId, uid, email, locale, successUrl }: 
         customData: { uid },
         ...(email ? { customer: { email } } : {}),
         settings: {
-            displayMode: 'overlay',
             theme: 'light',
             locale: PADDLE_LOCALES[locale ?? 'en'] ?? 'en',
+            ...(inline
+                ? {
+                      displayMode: 'inline' as const,
+                      frameTarget: CHECKOUT_FRAME_CLASS,
+                      frameInitialHeight: FRAME_INITIAL_HEIGHT,
+                      frameStyle: FRAME_STYLE,
+                  }
+                : { displayMode: 'overlay' as const }),
             ...(successUrl ? { successUrl } : {}),
         },
     });

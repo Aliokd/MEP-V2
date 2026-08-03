@@ -21,20 +21,20 @@ import { PRIMARY_BUTTON } from './buttonStyles';
 // between a screen that flatters and one that convinces: nothing here would
 // make sense to a visitor who answered differently.
 //
-// The three beats used to arrive on a timer, 1.5s apart, with the button held
-// back until the last one. They are gone: arriving at the payoff to find it
-// doled out over four and a half seconds turns a reward into another queue.
-// Everything lands in one paint, in the order it reads, and the reading itself
-// is what paces it.
+// The four parts arrive in that order, a beat apart, rather than all at once.
+// A page this personal landing complete in a single paint reads as a page that
+// was already written; laid down block by block it reads as a result being
+// stated, and it puts the eye at the top of the page rather than anywhere in it.
 //
-// What is timed is what comes *before* that paint: a skeleton of the page,
-// swept, while the result is "put together". That wait was the analysis
-// screen's job until it stopped moving on by itself and started waiting to be
-// pressed — so the beat between asking for the result and getting it had
-// vanished, and a page this personal appearing the instant a button is pressed
-// reads as a page that was already written. It is one short hold, and it is the
-// last one in the flow.
-const BUILD_MS = 1900;
+// It replaced a skeleton of the whole page, swept, that held for two seconds
+// before any of this appeared. That is the same wait spent worse: bars where
+// the words go say "not yet" three times over, and everything they were
+// standing in for arrived in one go anyway.
+//
+// Every block keeps its space from the first paint and only fades in, so
+// nothing below it moves as the one above lands, and the button does not walk
+// down the screen under a cursor already reaching for it.
+const STEP_MS = 800;
 
 // Any answer we don't have a line for — including no answer at all, since the
 // quiz lets a question be deselected — falls back to copy that reads naturally
@@ -46,84 +46,31 @@ const line = (t: (k: string) => string, group: string, value: string | null) => 
     return resolved === key ? t(`onboarding.verdict.${group}.default`) : resolved;
 };
 
-const Bar = ({ className, tone = 'bg-stone-400/20' }: { className: string; tone?: string }) => (
-    <div className={`rounded-full ${tone} ${className}`} />
-);
-
-/**
- * The page before it is the page: the same four blocks, the same panel, the
- * same button, drawn as bars at roughly the widths the real lines run to.
- *
- * Built to the real layout rather than as a generic spinner because that is the
- * whole trick — what is being waited for is visibly a result about them, taking
- * shape, and nothing lands anywhere the eye wasn't already looking. It is not
- * pixel-matched, and it doesn't need to be: the verdict's own lines vary in
- * length by answer and by language, so an exact match is not a thing that
- * exists.
- */
-const VerdictSkeleton = () => (
-    <div aria-hidden="true" className="relative space-y-10 overflow-hidden">
-        <div className="flex flex-col items-center space-y-6">
-            <Bar className="h-3.5 w-32" />
-            <Bar className="h-11 w-[min(26rem,88%)] md:h-14" />
-            <div className="flex w-full flex-col items-center space-y-2.5">
-                <Bar className="h-4 w-[70%]" />
-                <Bar className="h-4 w-[46%]" />
-            </div>
-        </div>
-
-        <div className="rounded-[28px] border border-stone-200/60 bg-[#EFF0E7] px-7 py-8 shadow-[0_8px_30px_rgba(0,0,0,0.015)] md:px-10">
-            <div className="flex flex-col items-center space-y-4">
-                <Bar className="h-3.5 w-40" />
-                <Bar className="h-6 w-[88%]" />
-                <Bar className="h-6 w-[64%]" />
-            </div>
-            <div className="mt-8 flex flex-col items-center space-y-3.5 border-t border-stone-300/60 pt-7">
-                <Bar className="h-3.5 w-36" tone="bg-[#3f6b3a]/20" />
-                <Bar className="h-4 w-[78%]" />
-                <Bar className="h-4 w-[66%]" />
-            </div>
-        </div>
-
-        <div className="flex flex-col items-center space-y-8">
-            <div className="flex w-full flex-col items-center space-y-3">
-                <Bar className="h-3.5 w-28" />
-                <Bar className="h-7 w-[74%]" />
-            </div>
-            <Bar className="h-14 w-52" tone="bg-[#86BE7F]/35" />
-        </div>
-
-        {/* The band that says the wait is work rather than a stall. One sweep
-            over the whole stack, not one per bar: several running at once reads
-            as decoration, and this has to read as a single pass over a single
-            thing being assembled. */}
-        <div
-            className="verdict-skeleton-sweep pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/55 to-transparent"
-        />
-    </div>
-);
-
 export default function VerdictReveal({ answers, onContinue }: {
     answers: Record<string, string | string[]>;
     onContinue: () => void;
 }) {
     const { t } = useLanguage();
     const prefersReducedMotion = useReducedMotion();
-    // Starts building on every render path, including the server's, so the
-    // markup that hydrates is the markup that was sent. Reduced motion drops
-    // out of it on the first effect instead of never entering: the hold is
-    // built out of a moving band and a staggered arrival, and with both of
-    // those off it is not a build-up any more — just a page that takes two
-    // seconds to appear.
-    const [building, setBuilding] = useState(true);
+    /**
+     * How many of the three blocks have landed. Starts at 0 on every render
+     * path including the server's, so the markup that hydrates is the markup
+     * that was sent, and the first block is brought in by the timer below like
+     * the other two rather than being special-cased.
+     *
+     * Reduced motion gets all three at once: without the fade there is nothing
+     * to see arriving, and the beats would only be a page revealing itself in
+     * silence over two and a half seconds.
+     */
+    const [shown, setShown] = useState(0);
+    const revealed = (block: number) => prefersReducedMotion || shown >= block;
 
     useEffect(() => {
-        if (prefersReducedMotion) {
-            setBuilding(false);
-            return;
-        }
-        const id = setTimeout(() => setBuilding(false), BUILD_MS);
-        return () => clearTimeout(id);
+        if (prefersReducedMotion) return;
+        const timers = [1, 2, 3].map((block) =>
+            setTimeout(() => setShown(block), STEP_MS * (block - 1)),
+        );
+        return () => timers.forEach(clearTimeout);
     }, [prefersReducedMotion]);
 
     // Every question but the struggle deck answers with a single value.
@@ -178,41 +125,49 @@ export default function VerdictReveal({ answers, onContinue }: {
             exit={{ opacity: 0 }}
             className="space-y-10 text-center"
         >
-            {building ? <VerdictSkeleton /> : <>
-            {/* Each block arrives a beat after the one above it — top to
-                bottom, the order it is read in, and quick enough that all three
-                are on screen before the first one has been finished. It is the
-                skeleton resolving rather than three more waits: the page is
-                already there, and this is it coming into focus. */}
-            <motion.div
-                className="space-y-6"
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            >
-                <p className="text-sm font-medium text-stone-500">
-                    {t('onboarding.verdict.label')}
-                </p>
+            {/* Each block arrives a beat after the one above it, top to bottom,
+                in the order it is read in.
 
+                Driven by a class the browser transitions rather than by a
+                motion value driven from JS: what is being animated here is the
+                page's own content appearing, and an animation that stalls
+                mid-way — a tab that isn't compositing frames will do it — is a
+                verdict left invisible. A CSS transition that never runs still
+                ends at the state the class says. */}
+            <div
+                className={`space-y-6 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+                    revealed(1) ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
+                }`}
+            >
+                {/* The headline names what this page is, not what it says.
+                    The reading of them — "you're an Explorer" — is the line
+                    under it: it is still the first thing after the title and
+                    still the biggest sentence on the page, but it now arrives
+                    as an observation rather than as a verdict pronounced on
+                    someone, which is also what the button under it promises
+                    there is more of. */}
                 <h1 className="text-4xl font-sans font-light leading-[1.1] tracking-tight text-stone-900 md:text-[3.5rem]">
-                    {identity}
+                    {t('onboarding.verdict.headline')}
                 </h1>
+
+                <p className="mx-auto max-w-xl text-2xl font-sans font-light leading-snug text-stone-900 md:text-[1.75rem]">
+                    {identity}
+                </p>
 
                 <p className="mx-auto max-w-lg text-lg font-medium text-stone-700/80">
                     {identityDesc}
                 </p>
-            </motion.div>
+            </div>
 
             {/* The problem and the answer to it, in one panel split across the
                 middle: what's in the way above the rule, what we do about it
                 below. Giving the uncomfortable half a frame stops it reading as
                 more of the flattery above, and keeping the answer inside the
                 same frame stops the problem sitting on the screen alone. */}
-            <motion.div
-                className="rounded-[28px] border border-stone-200/60 bg-[#EFF0E7] px-7 py-8 shadow-[0_8px_30px_rgba(0,0,0,0.015)] md:px-10"
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
+            <div
+                className={`rounded-[28px] border border-stone-200/60 bg-[#EFF0E7] px-7 py-8 shadow-[0_8px_30px_rgba(0,0,0,0.015)] md:px-10 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+                    revealed(2) ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
+                }`}
             >
                 <p className="text-[15px] font-medium text-stone-500">
                     {t('onboarding.verdict.struggle_label')}
@@ -247,33 +202,40 @@ export default function VerdictReveal({ answers, onContinue }: {
                         ))}
                     </div>
                 </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-                className="space-y-8"
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            <div
+                className={`space-y-3 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+                    revealed(3) ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
+                }`}
             >
-                <div className="space-y-3">
-                    <p className="text-[15px] font-medium text-stone-500">
-                        {t('onboarding.verdict.promise_label')}
-                    </p>
-                    <p className="mx-auto max-w-xl text-2xl font-sans font-light italic leading-snug text-stone-900 md:text-[2rem]">
-                        {promise}
-                    </p>
-                </div>
+                <p className="text-[15px] font-medium text-stone-500">
+                    {t('onboarding.verdict.promise_label')}
+                </p>
+                <p className="mx-auto max-w-xl text-2xl font-sans font-light italic leading-snug text-stone-900 md:text-[2rem]">
+                    {promise}
+                </p>
+            </div>
 
-                <button
-                    type="button"
-                    onClick={onContinue}
-                    className={`${PRIMARY_BUTTON} mx-auto`}
-                >
+            {/* The way on, pinned to the bottom of the viewport rather than
+                sitting at the end of the page. This page is taller than a
+                screen on every window we have, and a button that has to be
+                scrolled to is a button a visitor has to go looking for at the
+                exact moment they have decided to move.
+
+                Outside the staged reveal, too: the blocks above are paced, but
+                the way out of a screen is not a reward to be earned by waiting.
+                It is there from the first paint.
+
+                The pane under it is the quiz's: the page's own colour, held
+                translucent and blurred, so the pill has something to sit on
+                over whatever the painted backdrop is doing behind it. */}
+            <div className="sticky bottom-4 z-40 mx-auto flex w-fit max-w-full items-center justify-center rounded-full bg-[#DCDDD4]/35 px-4 py-2.5 backdrop-blur-2xl backdrop-saturate-150">
+                <button type="button" onClick={onContinue} className={PRIMARY_BUTTON}>
                     {t('onboarding.verdict.cta')}
-                    <ArrowRight className="h-4 w-4 stroke-[2.5px]" />
+                    <ArrowRight className="h-5 w-5 stroke-[2.75px]" />
                 </button>
-            </motion.div>
-            </>}
+            </div>
         </motion.div>
     );
 }

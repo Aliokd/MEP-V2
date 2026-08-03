@@ -36,7 +36,7 @@ export const REASON_LABELS: Record<ReportReason, string> = {
     sexual: "Sexual content",
     self_harm: "Self-harm or suicide",
     violence: "Violence or threats",
-    copyright: "Copyright — this is someone else's work",
+    copyright: "Copyright: this is someone else's work",
     impersonation: "Impersonation",
     other: "Something else",
 };

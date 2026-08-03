@@ -259,7 +259,7 @@ const LYRICS_IDEAS_EN: Idea[] = [
         title: 'Make a word list from the title',
         description: 'Write ten words connected to the title and use them as lyric material.',
         whyItHelps: 'A word list gives you ideas to start from.',
-        example: 'Title: "Empty Chair" — room, silence, table, dinner, waiting, shadow.',
+        example: 'Title: "Empty Chair". Room, silence, table, dinner, waiting, shadow.',
     },
     {
         id: 'lyrics-32',
@@ -566,7 +566,7 @@ const LYRICS_IDEAS_NO: Idea[] = [
         title: 'Lag en ordliste fra tittelen',
         description: 'Skriv ti ord knyttet til tittelen, og bruk dem som tekstmateriale.',
         whyItHelps: 'En ordliste gir deg ideer å starte fra.',
-        example: 'Tittel: «Tom stol» — rom, stillhet, bord, middag, venting, skygge.',
+        example: 'Tittel: «Tom stol». Rom, stillhet, bord, middag, venting, skygge.',
     },
     {
         id: 'lyrics-32',
@@ -873,7 +873,7 @@ const LYRICS_IDEAS_SV: Idea[] = [
         title: 'Gör en ordlista från titeln',
         description: 'Skriv tio ord kopplade till titeln, och använd dem som textmaterial.',
         whyItHelps: 'En ordlista ger dig idéer att utgå från.',
-        example: 'Titel: ”Tom stol” — rum, tystnad, bord, middag, väntan, skugga.',
+        example: 'Titel: ”Tom stol”. Rum, tystnad, bord, middag, väntan, skugga.',
     },
     {
         id: 'lyrics-32',

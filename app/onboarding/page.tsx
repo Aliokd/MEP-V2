@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
+import { ChevronRight, ArrowRight, ArrowLeft, AlertCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import type { User } from 'firebase/auth';
 import { auth, db, googleProvider } from '@/lib/firebase';
@@ -127,7 +127,11 @@ const QUESTIONS = [
             { value: "unique_sound" },
             { value: "move_people" },
             { value: "release_music" },
-            { value: "creative_fearless" }
+            { value: "creative_fearless" },
+            { value: "write_for_loved_ones" },
+            { value: "feel_better" },
+            { value: "meet_songwriters" },
+            { value: "earn_money" }
         ]
     },
     {
@@ -229,6 +233,18 @@ function OnboardingPageInner() {
     // the email step and the code that verifies it at the very end.
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
+    /**
+     * Whether the email step was opened from the code screen to correct the
+     * address, rather than reached in order from the analysis.
+     *
+     * It changes three things and nothing else: what the form calls itself,
+     * where submitting it lands, and which screen sits behind the dialog. The
+     * address is wrong more often than the code is, so this path has to end
+     * back at the code — sending someone through the verdict and the plans a
+     * second time to fix a typo is the flow punishing them for its own
+     * mistake.
+     */
+    const [isChangingEmail, setIsChangingEmail] = useState(false);
     const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
     const [verifyError, setVerifyError] = useState('');
     const [isVerifying, setIsVerifying] = useState(false);
@@ -236,23 +252,22 @@ function OnboardingPageInner() {
     const { user } = useAuth();
 
     /**
-     * Hands the chosen plan to Paddle. Everything that would make that
-     * impossible — signups closed, no account, Paddle not configured, no price
-     * id for this plan — lands on the welcome screen instead, so the flow
-     * always has an ending rather than a button that does nothing.
+     * Hands the chosen plan to Paddle, which renders into the paywall itself
+     * rather than over it — see the checkout section in PaywallPlans.
      *
-     * The overlay opens over the paywall, never over the account form: by the
-     * time Paddle paints, the screen behind it should be the one showing the
-     * plan being paid for.
+     * Everything that would make that impossible — signups closed, no account,
+     * Paddle not configured, no price id for this plan — leaves the visitor on
+     * the paywall, where that section explains itself and offers the way on.
+     * The step is not advanced from here for those cases: the paywall asked for
+     * a checkout and it is the screen that should show what came of it.
      */
     const startCheckout = async (account: User | null, choice: { plan: PlanId; billing: BillingPeriod }) => {
         const priceId = getPriceId(choice.plan, choice.billing);
 
-        // No account, no Paddle, or signups closed: fall through to the code
-        // screen rather than the product. It is the next step in the flow
-        // either way, and pre-launch it is the one that still needs reviewing.
+        // No account, no Paddle, or signups closed: nothing to open. The
+        // paywall's own checkout section says so, and `onSkipCheckout` below is
+        // what moves the flow on from there.
         if (!SIGNUPS_OPEN || !account || !priceId || !isPlanPurchasable(choice.plan, choice.billing)) {
-            setCurrentStep(STEPS.VERIFY);
             return;
         }
 
@@ -265,6 +280,10 @@ function OnboardingPageInner() {
                 uid: account.uid,
                 email: account.email,
                 locale: language,
+                // Into the page, not over it. The frame is already mounted by
+                // the time this runs — the paywall opens its section on the
+                // press and calls up from the paint after it.
+                inline: true,
                 // Paddle owns the browser from here — this is how the flow gets
                 // its last screen back.
                 successUrl: `${window.location.origin}/onboarding?step=${STEPS.WELCOME}`,
@@ -301,7 +320,37 @@ function OnboardingPageInner() {
     const handleEmailSubmit = (submitted: string) => {
         setEmail(submitted);
         setEmailError('');
+        // Correcting an address goes straight back to the code, which is now
+        // waiting at the new one. Everything between here and there has already
+        // been read once.
+        if (isChangingEmail) {
+            setIsChangingEmail(false);
+            setVerifyError('');
+            setCurrentStep(STEPS.VERIFY);
+            return;
+        }
         setCurrentStep(STEPS.VERDICT);
+    };
+
+    /**
+     * Closing the email dialog puts the visitor back on the screen it opened
+     * from: the finished analysis, plan ready, button still there to press
+     * again. The pass does not run a second time — see the `passed` guard in
+     * AnalyzingAnswers — so it is the same screen they left, not a replay of
+     * it. From there the back control goes on to the questions.
+     */
+    const closeEmailStep = () => {
+        setEmailError('');
+        // Closing goes back where it was opened from, which is the code screen
+        // when the address was being corrected — dropping someone onto the
+        // analysis from there would rewind the whole flow for a dialog they
+        // merely dismissed.
+        if (isChangingEmail) {
+            setIsChangingEmail(false);
+            setCurrentStep(STEPS.VERIFY);
+            return;
+        }
+        setCurrentStep(STEPS.ANALYZING);
     };
 
     /**
@@ -317,6 +366,18 @@ function OnboardingPageInner() {
     const handleResendCode = () => {
         setVerifyError('');
     };
+
+    // Escape closes the email dialog. A dialog that can be closed by a button
+    // but not by the key everyone reaches for first is a dialog that feels
+    // stuck; this is the same exit, on the keyboard.
+    useEffect(() => {
+        if (currentStep !== STEPS.EMAIL) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') closeEmailStep();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [currentStep]);
 
     // `?step=` lets the two addressable steps be linked to directly: the plans
     // (from the in-platform Max upgrade prompt) and the welcome screen (where
@@ -558,13 +619,14 @@ function OnboardingPageInner() {
         // scroll container, so the carousel's actions row can pin itself to the
         // bottom of the viewport when the page is too short for it.
         <div className={`min-h-screen flex flex-col items-center px-6 bg-[#DCDDD4] relative overflow-x-clip font-sans ${
-            // The questions sit at the top rather than centred. Centring left
+            // Everything sits at the top rather than centred. Centring left
             // the headline stranded in the middle of the screen with a long
             // reach up to the mark above it; anchored to the top it reads as
-            // the mark's own heading. The whole justify set is swapped rather
-            // than overridden — two `md:justify-*` utilities in one list are
-            // resolved by build order, not by this list's order.
-            currentStep === STEPS.QUIZ ? 'justify-start' : 'justify-start md:justify-center'
+            // the mark's own heading. It also keeps a screen still while its
+            // own content changes height — the analysis drops its panel the
+            // moment the pass finishes, and centred, that would have hauled the
+            // headline down the screen as the reward for waiting.
+            'justify-start'
         } ${
             // Every other step floats the mark above the frame and needs the
             // headroom to clear it. The intro carries the mark inside its own
@@ -772,8 +834,13 @@ function OnboardingPageInner() {
                                 anything below it. */}
                             <div
                                 className={`flex flex-col sm:min-h-[760px] md:min-h-[620px] ${
+                                    // Tighter under a grid than under a column of
+                                    // text. A row of cards reads as one object and
+                                    // sits close to the question it answers; a list
+                                    // of rows needs the air or the first row reads
+                                    // as part of the headline.
                                     (currentQuestion as any).isCards || (currentQuestion as any).isGoals
-                                        ? 'space-y-7 md:space-y-8'
+                                        ? 'space-y-4 md:space-y-5'
                                         : 'space-y-12'
                                 }`}
                             >
@@ -975,7 +1042,15 @@ function OnboardingPageInner() {
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ duration: 0.25 }}
                                             role="status"
-                                            className="text-[13px] font-semibold text-[#3f6b3a]"
+                                            // Regular weight and the same green
+                                            // the deck's own "kept" feedback
+                                            // uses — semibold at 13px read as
+                                            // dark grey rather than a colour, and
+                                            // #3f6b3a is the badge/checkmark
+                                            // green, tuned for small text on
+                                            // white rather than on this page's
+                                            // cream.
+                                            className="text-[13px] font-normal text-[#5B8E54]"
                                         >
                                             {t('onboarding.quiz.pick_one')}
                                         </motion.p>
@@ -1030,10 +1105,11 @@ function OnboardingPageInner() {
                         while it does: the pass has already finished, and letting
                         its timers run behind a dialog would rotate quotes
                         nobody can read. The step ends when Reveal is pressed. */}
-                    {(currentStep === STEPS.ANALYZING || currentStep === STEPS.EMAIL) && (
+                    {(currentStep === STEPS.ANALYZING || (currentStep === STEPS.EMAIL && !isChangingEmail)) && (
                         <AnalyzingAnswers
                             key="analyzing"
                             answers={answerLabels}
+                            onBack={() => setCurrentStep(STEPS.QUIZ)}
                             frozen={currentStep === STEPS.EMAIL}
                             onComplete={() => setCurrentStep(STEPS.EMAIL)}
                         />
@@ -1057,8 +1133,15 @@ function OnboardingPageInner() {
 
                     {/* The code that finishes the signup, and the only step
                         that sends anyone away from the page. It is last for
-                        that reason — see the flow note at the top. */}
-                    {currentStep === STEPS.VERIFY && (
+                        that reason — see the flow note at the top.
+
+                        Stays mounted underneath while the address is being
+                        corrected, so the dialog opens over the screen it came
+                        from — the same idiom the email step uses over the
+                        analysis. Frozen is not needed here: nothing on this
+                        screen is running but the resend cooldown, which should
+                        keep counting. */}
+                    {(currentStep === STEPS.VERIFY || (currentStep === STEPS.EMAIL && isChangingEmail)) && (
                         <OtpVerify
                             key="verify"
                             email={email}
@@ -1066,7 +1149,10 @@ function OnboardingPageInner() {
                             error={verifyError}
                             onVerify={handleVerify}
                             onResend={handleResendCode}
-                            onChangeEmail={() => setCurrentStep(STEPS.EMAIL)}
+                            onChangeEmail={() => {
+                                setIsChangingEmail(true);
+                                setCurrentStep(STEPS.EMAIL);
+                            }}
                         />
                     )}
 
@@ -1077,6 +1163,11 @@ function OnboardingPageInner() {
                             // directly — there is nothing behind them.
                             onBack={checkoutChoice || answerLabels.length ? () => setCurrentStep(STEPS.OFFER) : undefined}
                             onCheckout={handlePlanChosen}
+                            // Nothing to charge — pre-launch, or Paddle not
+                            // configured. The code screen is the next step
+                            // either way, and it is the one that still needs
+                            // reviewing before payments are live.
+                            onSkipCheckout={() => setCurrentStep(STEPS.VERIFY)}
                             isSubmitting={isOpeningCheckout}
                             error={checkoutError}
                         />
@@ -1093,10 +1184,11 @@ function OnboardingPageInner() {
                 asked for is somewhere to put THOSE results, and they should
                 still be on screen while the asking happens.
 
-                No way to dismiss it, and that is deliberate rather than an
-                oversight: there is nothing behind it to return to, so an X or
-                an Escape key would only strand someone on a frozen screen.
-                It closes by being answered.
+                Closeable now, onto the quiz's last question rather than onto
+                the frozen analysis behind this dialog — that panel is a result
+                already delivered, not a screen anyone lands back on. Answers
+                are untouched by closing; `currentQuestionIndex` is still
+                sitting on the last question exactly as the quiz left it.
 
                 z-50 clears the sticky controls at z-40. The blur sits on the
                 overlay itself so it takes in the whole page, mark and all,
@@ -1108,14 +1200,29 @@ function OnboardingPageInner() {
                     transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                     role="dialog"
                     aria-modal="true"
-                    aria-label={t('onboarding.email.title')}
+                    aria-label={t(isChangingEmail ? 'onboarding.email.change_title' : 'onboarding.email.title')}
                     className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#DCDDD4]/45 px-6 py-10 backdrop-blur-2xl backdrop-saturate-150"
                 >
+                    {/* The way out, in the corner of the screen rather than in
+                        the corner of the card. It closes the dialog, so it
+                        belongs to the dialog's own edge — sitting inside the
+                        form it read as something that would clear the field.
+                        Escape does the same thing; see the effect above. */}
+                    <button
+                        type="button"
+                        onClick={closeEmailStep}
+                        aria-label={t('onboarding.email.close')}
+                        className="absolute right-5 top-5 grid h-11 w-11 place-items-center rounded-full text-stone-600 transition-colors hover:bg-stone-900/5 hover:text-stone-900 md:right-8 md:top-8"
+                    >
+                        <X className="h-6 w-6 stroke-[2.25px]" />
+                    </button>
+
                     <div className="w-full max-w-2xl">
                         <EmailCapture
                             initialEmail={email}
                             isSubmitting={isSubmittingEmail}
                             error={emailError}
+                            changing={isChangingEmail}
                             onSubmit={handleEmailSubmit}
                         />
                     </div>

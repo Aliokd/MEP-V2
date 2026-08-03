@@ -176,7 +176,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
             'What would it feel like if everything went quiet for a moment?',
             'What does calm feel like to you?',
             'Write one line about a quiet moment.',
-            'What kind of tempo feels calm — slow, steady, gentle?'
+            'What kind of tempo feels calm: slow, steady, gentle?'
         ]
     },
     {
@@ -332,7 +332,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
             'Who do you wish understood what you\'re going through?',
             'What does it feel like to know someone else has felt this too?',
             'Write one line about reaching out to someone.',
-            'What harmony — two voices together — feels like connection to you?'
+            'What harmony, two voices together, feels like connection to you?'
         ]
     },
     {
@@ -355,10 +355,10 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         bgImage: '/assets/inspiration/therapy_releasing_anger.png',
         questions: [
             'What\'s been making you angry or frustrated lately?',
-            'What\'s underneath the anger — hurt, fear, something else?',
+            'What\'s underneath the anger: hurt, fear, something else?',
             'What would it feel like to finally let that anger out?',
             'Write one strong line that says what you really feel.',
-            'What moment in a song feels like release — loud, then calm?'
+            'What moment in a song feels like release: loud, then calm?'
         ]
     },
     {

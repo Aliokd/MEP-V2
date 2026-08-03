@@ -2144,7 +2144,7 @@ export default function ConnectTab() {
         onClose={() => setReportingPost(null)}
         targetType="post"
         targetId={reportingPost?.id || ''}
-        targetLabel={reportingPost ? `${reportingPost.author} — ${reportingPost.projectName}` : undefined}
+        targetLabel={reportingPost ? `${reportingPost.author} · ${reportingPost.projectName}` : undefined}
       />
     </div>
   );

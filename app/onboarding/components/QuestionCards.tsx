@@ -17,9 +17,11 @@ const MEDIA_DIR = '/onboarding-cards';
 // signalstats — re-verify this if the clip is ever replaced again).
 const CLIP_START: Record<string, number> = { producer: 0.7 };
 
-// How color and motion feel less mechanical than a single linear transition.
-const COLOR_TRANSITION = 'filter 900ms cubic-bezier(0.33, 1, 0.68, 1)';
 const REVEAL_FADE_MS = 300;
+
+// How long a card takes to come into colour, and to fall back out of it. Slow
+// enough to read as the card warming up rather than as a state toggling.
+const COLOR_TRANSITION = 'filter 700ms cubic-bezier(0.33, 1, 0.68, 1)';
 
 // Rotation only — the cards stack squarely on one another rather than scattering.
 const PILE_ROTATION = [-9, -3, 5, -5, 8];
@@ -71,7 +73,6 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
     const containerRef = useRef<HTMLDivElement>(null);
     const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
     const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
-    const resetTimeouts = useRef<Array<ReturnType<typeof setTimeout> | null>>([]);
 
     // True once a card's video is actually flowing frames (the `playing` event,
     // not just `play()` having been called). Until then the poster stays on
@@ -118,6 +119,13 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
 
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (prefersReducedMotion) {
+            // Measure-then-commit, which is what an effect is actually for: the
+            // branch above reads `matchMedia` and the one below reads laid-out
+            // rects, and neither answer exists during render. The lint rule
+            // cannot tell that apart from state derived from props, which is
+            // the pattern it means to catch. The extra render this costs is one
+            // per mount, before anything has been painted.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setOffsets(options.map(() => ({ x: 0, y: 0 })));
             setSpread(true);
             return;
@@ -151,31 +159,18 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
         return () => clearTimeout(id);
     }, [offsets, spread]);
 
-    useEffect(() => {
-        return () => {
-            resetTimeouts.current.forEach((id) => id && clearTimeout(id));
-        };
-    }, []);
-
-    // Which card the pointer (or focus) is on. Playback is derived from this
-    // and from the answer rather than driven straight off the events, because
-    // two things now keep a clip running and only one of them is a pointer.
+    // Which card the pointer (or focus) is on.
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-    // Cards sit on their poster frame in black and white until pointed at.
-    const playClip = (index: number) => {
-        const video = videoRefs.current[index];
-        if (!video) return;
-
-        const pending = resetTimeouts.current[index];
-        if (pending) {
-            clearTimeout(pending);
-            resetTimeouts.current[index] = null;
-        }
-
-        // Playback can still be refused; the poster is a fine fallback.
-        video.play().catch(() => {});
-    };
+    /**
+     * The one card being considered, if there is one: what the pointer is on,
+     * or failing that the answer already given.
+     *
+     * `??` rather than `||` — index 0 is a real card, and `||` would fall
+     * through it to the selection every time the pointer was on the first one.
+     */
+    const selectedIndex = options.findIndex((option) => option.value === selectedOption);
+    const active = hoveredIndex ?? (selectedIndex >= 0 ? selectedIndex : null);
 
     const handlePlaying = (index: number) => {
         setRevealed((prev) => {
@@ -186,50 +181,50 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
         });
     };
 
-    const stopClip = (index: number, value: string) => {
-        const video = videoRefs.current[index];
-        if (!video) return;
-
-        setRevealed((prev) => {
-            if (!prev[index]) return prev;
-            const next = [...prev];
-            next[index] = false;
-            return next;
-        });
-
-        // The pause/rewind happens once the fade to the poster has finished, so
-        // the seek back to the start frame is never caught on screen.
-        resetTimeouts.current[index] = setTimeout(() => {
-            video.pause();
-            video.currentTime = CLIP_START[value] ?? 0;
-        }, REVEAL_FADE_MS);
-    };
-
     /**
-     * A clip runs while its card is pointed at, and goes on running for as long
-     * as that card is the answer. The chosen card being the only one alive and
-     * in colour is what says it was chosen — there is no tick and no outline to
-     * say it instead.
+     * Every clip runs, all the time, in black and white — until one card is
+     * singled out, at which point it is the only one still moving and the only
+     * one in colour.
      *
-     * What's tracked here is the instruction given to each clip, not the state
-     * of the element. `video.paused` looks like the same thing and isn't: the
+     * This is the inverse of what was here before, where a card was dead until
+     * pointed at. A grid of five still photographs asks to be looked at one at
+     * a time; five clips all running is a room with five people working in it,
+     * and picking one out of that is a stronger gesture than waking one up.
+     * Freezing the other four is what does the picking: the stillness around
+     * the live card is the highlight, before the colour even arrives.
+     *
+     * Frozen, not rewound. A paused clip holds the frame it was on, so the four
+     * cards you are not looking at stay the scene you just saw rather than
+     * snapping back to a start frame — which would read as four cards resetting
+     * every time the pointer moved.
+     *
+     * Held until `settled`. Five clips beginning to decode inside the fly-out
+     * is the same main-thread contention the blur band used to cause, and it
+     * lands on exactly the frames that can least afford it.
+     *
+     * What's tracked is the instruction given to each clip, not the state of
+     * the element. `video.paused` looks like the same thing and isn't: the
      * browser pauses media on its own — a backgrounded tab, a clip reaching its
-     * end — and a card that was paused out from under us would then never be
-     * told to stop, so its poster would never come back.
+     * end — so a card paused out from under us would never be told to resume.
      */
     const running = useRef<boolean[]>([]);
 
     useEffect(() => {
         options.forEach((option, index) => {
-            const shouldRun = hoveredIndex === index || selectedOption === option.value;
+            const video = videoRefs.current[index];
+            if (!video) return;
+
+            const shouldRun = settled && (active === null || active === index);
             if (shouldRun === !!running.current[index]) return;
 
             running.current[index] = shouldRun;
-            if (shouldRun) playClip(index);
-            else stopClip(index, option.value);
+            // Playback can still be refused; the poster underneath is a fine
+            // fallback, and a frozen frame is the intended resting state
+            // anyway.
+            if (shouldRun) video.play().catch(() => {});
+            else video.pause();
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [hoveredIndex, selectedOption, options]);
+    }, [active, options, settled]);
 
     // Once a card is chosen it is the only one on screen, at full width, with
     // the second question on its face. Rendered as its own branch rather than
@@ -348,9 +343,6 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
         <div ref={containerRef} className="flex flex-wrap justify-center gap-x-3 gap-y-4 md:gap-y-5">
             {options.map((option, i) => {
                 const isSelected = selectedOption === option.value;
-                // Pointed at or chosen: either way the card is awake, and an
-                // awake card shows its footage at full strength.
-                const isLive = hoveredIndex === i || isSelected;
                 const offset = offsets?.[i];
 
                 // Three phases: invisible while measuring, then the pile, then
@@ -436,22 +428,25 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                                 once `onPlaying` confirms it's flowing smoothly, so a
                                 slow first fetch or decoder warm-up is never on screen.
 
-                                Full opacity at rest. It used to sit at 55% over the
-                                cream, on the idea that five bright rectangles would
-                                read as noise — but held back that far the pictures
-                                stopped being pictures and the grid looked washed out
-                                rather than restrained. Greyscale alone is enough
-                                separation: the card under the pointer is the one in
-                                colour, and that reads without dimming everything
-                                else to get there. */}
+                                Grayscale, always — hovering used to lift this to full
+                                colour, which meant "awake" and "in colour" were the
+                                same signal. They're pulled apart now: black and white
+                                is the card's resting AND its running state, so a hand
+                                moving across the grid doesn't set off a wave of five
+                                cards flashing to colour and back as it passes. Only
+                                one thing marks the card under the pointer once colour
+                                can't: the video fading in under this poster, moving
+                                where the rest of the grid is still. */}
                             <img
                                 src={`${MEDIA_DIR}/${option.value}.webp`}
                                 alt=""
                                 aria-hidden="true"
-                                className={`absolute inset-0 h-full w-full object-cover ${
-                                    isLive ? 'opacity-100' : 'opacity-100 grayscale'
-                                }`}
-                                style={{ transition: `${COLOR_TRANSITION}, opacity 400ms ease-out` }}
+                                // Decoded off the main thread. Five posters landing
+                                // synchronously is a decode on the same thread that
+                                // owns the fly-out, and it lands right as the cards
+                                // start moving.
+                                decoding="async"
+                                className="absolute inset-0 h-full w-full object-cover grayscale"
                             />
 
                             <video
@@ -461,7 +456,11 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                                 src={`${MEDIA_DIR}/${option.value}.mp4`}
                                 muted
                                 playsInline
-                                preload="none"
+                                // Every clip runs from the moment the cards
+                                // land, so every clip has to be fetched — the
+                                // `none` that was here was right when a clip
+                                // only loaded on hover and is wrong now.
+                                preload="auto"
                                 // Explicit rather than a #t= URL fragment — fragment
                                 // seeking isn't reliably honored across browsers, this is.
                                 onLoadedMetadata={(e) => {
@@ -481,13 +480,16 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                                     video.currentTime = CLIP_START[option.value] ?? 0;
                                     video.play().catch(() => {});
                                 }}
-                                // Only ever visible on a card that is awake, so it
-                                // is never greyed and never held back to 55%.
+                                // Black and white unless this is the card being
+                                // considered. Colour is the reward for singling one
+                                // out, and it only means that while everything
+                                // around it stays grey — which is why the poster
+                                // underneath never takes it.
                                 className={`absolute inset-0 h-full w-full object-cover ${
-                                    revealed[i] ? 'opacity-100' : 'opacity-0'
-                                }`}
+                                    active === i ? '' : 'grayscale'
+                                } ${revealed[i] ? 'opacity-100' : 'opacity-0'}`}
                                 style={{
-                                    transition: `${COLOR_TRANSITION}, opacity ${REVEAL_FADE_MS}ms ease-out`,
+                                    transition: `opacity ${REVEAL_FADE_MS}ms ease-out, ${COLOR_TRANSITION}`,
                                 }}
                             />
 
@@ -497,8 +499,44 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                                 percentage of a card that is now half as tall, so the
                                 band still has to reach past the bottom of the
                                 description: the same words over a shorter card sit
-                                proportionally much further down it. */}
-                            <div className="pointer-events-none absolute inset-x-0 top-0 h-[62%]">
+                                proportionally much further down it.
+
+                                Switched off until the cards have landed, and this is
+                                the whole of the stutter that used to run for the
+                                length of the fly-out. `backdrop-filter` samples
+                                whatever is painted behind the element and blurs it
+                                again every frame; inside an ancestor that is being
+                                translated, rotated and scaled, "behind" is different
+                                on every one of those frames, so nothing can be
+                                cached. Five layers on each of five cards is
+                                twenty-five of those running at once against a moving
+                                target — enough to miss frames on hardware that has no
+                                trouble with the same twenty-five sitting still.
+
+                                `none` rather than `blur(0px)`: a zero blur is still a
+                                filter, and still forces the backdrop root that costs
+                                the money. The band is invisible during the flight
+                                either way — it fades up with the opacity below, and
+                                the titles carry their own text shadow, so nothing is
+                                unreadable in the meantime.
+
+                                Flush with the card's edges, and it has to stay
+                                that way. It was briefly bled 8px past the top
+                                and sides on the theory that the filter needed
+                                neighbouring pixels to sample; the opposite is
+                                true. `backdrop-filter` samples the backdrop
+                                image, and where nothing is painted the backdrop
+                                is transparent black — so an overhanging band
+                                blurs that nothing INTO the picture and pulls the
+                                edge toward dark and toward transparent, which is
+                                the murky rim that bleed produced. Kept inside
+                                the card, every pixel under this band is opaque
+                                footage and there is nothing to mix in. */}
+                            <div
+                                className={`pointer-events-none absolute inset-x-0 top-0 h-[62%] transition-opacity duration-500 ${
+                                    settled ? 'opacity-100' : 'opacity-0'
+                                }`}
+                            >
                                 {BLUR_LAYERS.map((layer) => {
                                     const mask = `linear-gradient(to bottom, #000 0%, #000 ${layer.solid}%, transparent ${layer.fade}%)`;
                                     return (
@@ -506,8 +544,8 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                                             key={layer.blur}
                                             className="absolute inset-0"
                                             style={{
-                                                backdropFilter: `blur(${layer.blur}px)`,
-                                                WebkitBackdropFilter: `blur(${layer.blur}px)`,
+                                                backdropFilter: settled ? `blur(${layer.blur}px)` : 'none',
+                                                WebkitBackdropFilter: settled ? `blur(${layer.blur}px)` : 'none',
                                                 maskImage: mask,
                                                 WebkitMaskImage: mask,
                                             }}

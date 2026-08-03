@@ -63,7 +63,7 @@
     "studio_badge": "Studio",
     "reopen_in_studio": "Öppna igen i Demo Studio",
     "add_to_studio": "Lägg till i Demo Studio",
-    "take_upload_failed": "Uppladdningen misslyckades — dina samarbetspartner kan inte höra den här tagningen ännu. Kontrollera anslutningen och spela in igen."
+    "take_upload_failed": "Uppladdningen misslyckades. Dina samarbetspartner kan inte höra den här tagningen ännu. Kontrollera anslutningen och spela in igen."
   },
   "canvas": {
     "tuner": "Stämapparat",
@@ -97,7 +97,7 @@
         "q1": "Hur skulle det kännas om allt blev tyst för en stund?",
         "q2": "Hur känns lugn för dig?",
         "q3": "Skriv en rad om ett tyst ögonblick.",
-        "q4": "Vilket tempo känns lugnt — långsamt, stadigt, mjukt?"
+        "q4": "Vilket tempo känns lugnt: långsamt, stadigt, mjukt?"
       },
       "growth_after_pain": {
         "title": "Att bli starkare",
@@ -205,7 +205,7 @@
         "q1": "Vem önskar du förstod det du går igenom?",
         "q2": "Hur känns det att veta att någon annan också har känt så här?",
         "q3": "Skriv en rad om att sträcka ut en hand till någon.",
-        "q4": "Vilken harmoni — två röster tillsammans — känns som gemenskap för dig?"
+        "q4": "Vilken harmoni, två röster tillsammans, känns som gemenskap för dig?"
       },
       "accepting_change": {
         "title": "Att acceptera förändring",
@@ -220,10 +220,10 @@
         "title": "Att släppa ut ilska",
         "category": "Frigörelse",
         "q0": "Vad har gjort dig arg eller frustrerad på sistone?",
-        "q1": "Vad finns under ilskan — smärta, rädsla, något annat?",
+        "q1": "Vad finns under ilskan: smärta, rädsla, något annat?",
         "q2": "Hur skulle det kännas att äntligen släppa ut den ilskan?",
         "q3": "Skriv en stark rad som säger vad du verkligen känner.",
-        "q4": "Vilket ögonblick i en låt känns som en befrielse — högt, sedan lugnt?"
+        "q4": "Vilket ögonblick i en låt känns som en befrielse: högt, sedan lugnt?"
       },
       "new_beginnings": {
         "title": "En ny början",
@@ -303,9 +303,9 @@
     "unlock_tooltip": "Lås upp",
     "lock_hold_hint": "Tryck för att låsa",
     "unlock_hold_hint": "Tryck för att låsa upp",
-    "lock_locked_toast": "Projektet är låst — endast visning för alla",
-    "lock_unlocked_toast": "Projektet är upplåst — alla kan redigera igen",
-    "lock_banner": "Låst av ägaren — endast visning",
+    "lock_locked_toast": "Projektet är låst. Endast visning för alla",
+    "lock_unlocked_toast": "Projektet är upplåst. Alla kan redigera igen",
+    "lock_banner": "Låst av ägaren. Endast visning",
     "locked": "Låst"
   },
   "workspace": {
@@ -375,7 +375,7 @@
       "title": "Kom i kontakt med proffsen",
       "max_badge": "Max",
       "locked_desc": "Ingår i Max. Uppgradera för att jobba direkt med professionella låtskrivare.",
-      "unlocked_desc": "Vi tar in professionella låtskrivare nu — du får veta först.",
+      "unlocked_desc": "Vi tar in professionella låtskrivare nu. Du får veta först.",
       "modal_title": "Kom i kontakt med professionella låtskrivare",
       "modal_subtitle": "Direktkontakt med professionella låtskrivare ingår i Max.",
       "modal_cta": "Uppgradera till Max"
@@ -446,9 +446,9 @@
     "inspiration_photo": "ett foto av din handskrivna låttext",
     "inspiration_doc": "en PDF, textfil eller ett Word-dokument med din låttext",
     "drop_files_here": "Släpp dina filer här",
-    "file_too_large_audio": "Den ljudfilen är lite för stor — prova en under 30MB",
-    "file_too_large": "Den filen är lite för stor — prova en under 3MB",
-    "save_failed": "Kunde inte spara till molnet. Ditt arbete är tryggt på den här enheten — kontrollera anslutningen."
+    "file_too_large_audio": "Den ljudfilen är lite för stor. Prova en under 30MB",
+    "file_too_large": "Den filen är lite för stor. Prova en under 3MB",
+    "save_failed": "Kunde inte spara till molnet. Ditt arbete är tryggt på den här enheten. Kontrollera anslutningen."
   },
   "progress": {
     "title": "Dina framsteg",
@@ -481,7 +481,7 @@
       "Ett enda ord kan väcka en hel symfoni.",
       "Små steg i låtskrivande leder till gigantiska kliv i melodi.",
       "Du bygger ditt arv, en textrad i taget.",
-      "Fortsätt att lägga hela din själ i canvasen – det lönar sig.",
+      "Fortsätt att lägga hela din själ i canvasen. Det lönar sig.",
       "Att skapa konst kräver tålamod, och du gör det jättebra."
     ],
     "progress_saved": "Sparar framsteg ...",
@@ -522,7 +522,7 @@
       "subject": "Välkommen till Veinote, {{name}}",
       "greeting": "Hej {{name}},",
       "body_1": "Välkommen till Veinote. Du har just öppnat en plats byggd för en enda sak: att göra klart låtar du är stolt över.",
-      "body_2": "Din canvas är redo när du är det — texter, melodianteckningar och idéer i ett och samma flöde.",
+      "body_2": "Din canvas är redo när du är det: texter, melodianteckningar och idéer i ett och samma flöde.",
       "cta": "Öppna din canvas",
       "signoff": "Vi ses därinne,",
       "team": "Veinote-teamet"
@@ -569,12 +569,12 @@
     "type_5_verbs": "Skriv 5 verb",
     "fill_more_prefix": "Fyll i",
     "fill_more_suffix": "till",
-    "step_1_header": "Steg 01 — Tema",
-    "step_2_header": "Steg 02 — Skissa substantiv",
-    "step_3_header": "Steg 03 — Skissa verb",
-    "step_4_header": "Steg 04 — Koppling",
-    "step_5_header": "Steg 05 — Komposition",
-    "step_6_header": "Steg 06 — Avslöjandet",
+    "step_1_header": "Steg 01: Tema",
+    "step_2_header": "Steg 02: Skissa substantiv",
+    "step_3_header": "Steg 03: Skissa verb",
+    "step_4_header": "Steg 04: Koppling",
+    "step_5_header": "Steg 05: Komposition",
+    "step_6_header": "Steg 06: Avslöjandet",
     "step": "Steg",
     "of": "av",
     "audio_unavailable": "Ljudströmmen är inte tillgänglig",
@@ -829,7 +829,7 @@
       "deck": {
         "counter": "{current}/{total}",
         "feedback_keep": {
-          "unfinished": "Vår framstegsöversikt hjälper dig",
+          "unfinished": "Välkommen hem!",
           "weak_melodies": "Här finns verktyg som passar dig",
           "no_structure": "Veinote har grymma tips till dig",
           "too_similar": "Vi hjälper dig förbi det här",
@@ -891,7 +891,11 @@
           "unique_sound": "Utveckla mitt eget sound.",
           "move_people": "Skriva låtar som berör människor.",
           "release_music": "Släppa musik professionellt.",
-          "creative_fearless": "Bli mer kreativ och orädd."
+          "creative_fearless": "Bli mer kreativ och orädd.",
+          "write_for_loved_ones": "Skriva låtar till dem jag älskar.",
+          "feel_better": "Må bättre genom låtskrivandet.",
+          "meet_songwriters": "Få kontakt med andra låtskrivare.",
+          "earn_money": "Tjäna pengar på mina låtar."
         }
       },
       "emotional_inspiration": {
@@ -917,9 +921,9 @@
       "change_answer": "Ändra"
     },
     "analyzing": {
-      "eyebrow": "Vi är klara med analysen",
-      "title": "Vi har sparat dina framsteg",
-      "cta": "Visa resultatet",
+      "title": "Analyserar dina framsteg ...",
+      "title_done": "Din plan är klar",
+      "cta": "Visa min plan",
       "testimonials": [
         {
           "quote": "Jag hade fyra år av halva låtar i telefonen. Jag gjorde klart tre av dem på en månad.",
@@ -936,24 +940,28 @@
       ]
     },
     "email": {
-      "eyebrow": "Ditt resultat är klart",
-      "title": "Var ska vi spara det?",
-      "subtitle": "En adress, sedan är resten din. Inget lösenord att hitta på — det väljer du senare, om du vill.",
+      "eyebrow": "Din första plan är klar",
+      "title": "Först skapar vi ditt konto",
+      "subtitle": "Lägg till din e-post för att spara dina framsteg.",
+      "close": "Stäng",
       "placeholder": "du@exempel.se",
-      "cta": "Visa mitt resultat",
+      "cta": "Visa min plan",
       "submitting": "Ett ögonblick…",
-      "invalid": "Vi behöver en fullständig adress — till exempel du@exempel.se.",
+      "invalid": "Vi behöver en fullständig adress, till exempel du@exempel.se.",
       "consent": "Jag godkänner Veinotes {terms} och {privacy}.",
       "consent_terms": "allmänna villkor",
       "consent_privacy": "integritetspolicy",
-      "consent_required": "Kryssa i rutan så går vi vidare."
+      "consent_required": "Kryssa i rutan så går vi vidare.",
+      "change_title": "Vad är din e-postadress?",
+      "change_subtitle": "Vi skickar en ny kod dit.",
+      "change_cta": "Ändra nu"
     },
     "verdict": {
-      "label": "Så här ser vi det",
+      "headline": "Första observationen.",
       "struggle_label": "Det som står i vägen",
       "fix_label": "Så löser vi det",
       "promise_label": "Hit leder det",
-      "cta": "Visa mig hur",
+      "cta": "Se mer",
       "types": {
         "lyricist": "Du är en textförfattare.",
         "melodist": "Du är en melodiskapare.",
@@ -965,7 +973,7 @@
       "type_notes": {
         "lyricist": "Orden kommer först, och de måste sitta. Hellre en rad som träffar än tio som fyller ut.",
         "melodist": "Du hör det innan du kan förklara det. Melodin kommer färdig och resten av låten får hänga med.",
-        "producer": "Du tänker i arrangemang — vad som kommer in, vad som försvinner, hur låten låter färdig.",
+        "producer": "Du tänker i arrangemang: vad som kommer in, vad som försvinner, hur låten låter färdig.",
         "storyteller": "Varje låt tillhör någon, och du kommer inte igång förrän du vet vem. Person före refräng.",
         "explorer": "Du skriver för att ta reda på vad du tycker. Låten är sökandet, inte rapporten.",
         "default": "Du skriver redan. Det du saknar är ett ställe som hänger med."
@@ -992,6 +1000,10 @@
         "move_people": "Om tre månader har du låten som får ett rum att tystna.",
         "release_music": "Om tre månader har du en låt klar för release, och någonstans att skicka den.",
         "creative_fearless": "Om tre månader testar du saker utan att tänka på om du slösar bort dagen.",
+        "write_for_loved_ones": "Om tre månader har du spelat upp låten du skrev till någon, för den personen.",
+        "feel_better": "Om tre månader är skrivandet dit du går för att må bättre, inte ännu en sak du borde göra.",
+        "meet_songwriters": "Om tre månader har du låtskrivare du skickar halvfärdiga låtar till, och som skickar sina till dig.",
+        "earn_money": "Om tre månader vet du vad dina låtar är värda, och vem som betalar för dem.",
         "default": "Om tre månader har du låtar som är klara, inte bara påbörjade."
       }
     },
@@ -1002,7 +1014,7 @@
         "today": {
           "label": "Idag",
           "title": "Allt låses upp. Du betalar ingenting.",
-          "desc": "Canvas, demostudio, rimlexikon, samarbete — allt, från att du är inne."
+          "desc": "Canvas, demostudio, rimlexikon, samarbete. Allt, från att du är inne."
         },
         "reminder": {
           "label": "Dag {day}",
@@ -1011,7 +1023,7 @@
         },
         "end": {
           "label": "Dag {days}",
-          "title": "Abonnemanget startar — om du inte har avslutat.",
+          "title": "Abonnemanget startar, om du inte har avslutat.",
           "desc": "Att avsluta tar två tryck och går ända in i sista stund. Inget samtal, inget formulär, ingen förklaring."
         }
       },
@@ -1020,8 +1032,7 @@
       "footnote": "Vi ber om kort så att provperioden kan gå rakt över i ett abonnemang om du vill. Inget dras idag."
     },
     "paywall": {
-      "title": "Starta din förvandling.",
-      "subtitle": "3 dagars premiumåtkomst, gratis. Vi påminner dig innan den tar slut.",
+      "title": "Starta dina **{days} dagar med premiumåtkomst**, gratis.",
       "billing": {
         "yearly": "Årsvis",
         "monthly": "Månadsvis",
@@ -1035,12 +1046,12 @@
       "plans": {
         "pro": {
           "name": "Pro",
-          "tagline": "Populärast — för dig som skriver regelbundet",
+          "tagline": "Populärast, för dig som skriver regelbundet",
           "outcome": [
             "Bli en skicklig låtskrivare och ta hantverket ett steg längre",
             "Lär dig genom att göra låtar, inte genom att titta på lektioner",
             "Äg 100 % av allt du skriver",
-            "Få ordning på tankarna — låtskrivande som terapi",
+            "Få ordning på tankarna: låtskrivande som terapi",
             "Bli en del av gänget: träffa andra låtskrivare och lär känna dem"
           ],
           "groups": {
@@ -1050,7 +1061,7 @@
                 "Rimlexikon och ordbok",
                 "Gitarrstämmare",
                 "Tap tempo",
-                "Demostudio — spela in direkt från laptopen",
+                "Demostudio: spela in direkt från laptopen",
                 "Canvas: text, tagningar och filer på ett ställe"
               ]
             },
@@ -1059,8 +1070,10 @@
               "items": [
                 "Lär dig grunderna ordentligt",
                 "Djupdyk i det folk brukar fastna i",
-                "Hela banken med tips",
-                "Peters bok om låtskrivande"
+                "Hela banken med tips"
+              ],
+              "soon": [
+                "Framtidens låtskrivande"
               ]
             },
             "community": {
@@ -1069,6 +1082,9 @@
                 "Skriv ihop i samma projekt",
                 "Träffa andra låtskrivare och lär känna dem",
                 "Håll ordning på alla dina projekt på ett ställe"
+              ],
+              "soon": [
+                "Delta på Veinote-event i Stockholm"
               ]
             },
             "capacity": {
@@ -1079,19 +1095,16 @@
                 "Gott om plats för filer och inspelningar"
               ]
             }
-          },
-          "soon": {
-            "stockholm_events": "Delta på Veinote-event i Stockholm"
           }
         },
         "max": {
-          "name": "Max",
+          "name": "Plus",
           "tagline": "För låtskrivare som lever på det",
           "outcome": [
             "Allt du får i Pro, utan taken",
             "Direkt tillgång till premiumlåtskrivare",
             "Möjligheter till professionella samarbeten",
-            "Premium gruppdiskussioner — fråga vad som helst, få riktiga svar",
+            "Premium gruppdiskussioner: fråga vad som helst, få riktiga svar",
             "Böcker och hela paketet"
           ],
           "groups": {
@@ -1114,7 +1127,7 @@
               "title": "Lär känna andra låtskrivare",
               "items": [
                 "Allt i Pro",
-                "Premium gruppdiskussioner — fråga vad som helst, få riktiga svar",
+                "Premium gruppdiskussioner: fråga vad som helst, få riktiga svar",
                 "Möjligheter till professionella samarbeten"
               ]
             },
@@ -1126,22 +1139,23 @@
                 "Fler filer och mer inspelning"
               ]
             }
-          },
-          "soon": {}
+          }
         }
       },
-      "cta": "Börja gratis",
+      "cta": "Prova för $0.00",
       "opening_checkout": "Öppnar betalning...",
       "checkout_error": "Vi kunde inte öppna betalningen. Försök igen.",
-      "no_charge": "Ingen betalning i dag.",
-      "reminder": "Vi mejlar dig innan din provperiod tar slut.",
-      "today_free": "$0.00 idag",
-      "then_billed": "Betalningen startar dag {days}. Avsluta när som helst innan dess.",
+      "no_charge": "Avsluta när som helst. Ingen betalning i dag.",
       "outcome_label": "Vad får du ut av det?",
       "no_ads": "Ingen reklam i Veinote. Aldrig.",
       "cancel_note": "Börja gratis. Avsluta när du vill.",
-      "see_max": "Se Max-planen",
-      "see_pro": "Tillbaka till Pro-planen"
+      "see_max": "Se Plus-planen",
+      "see_pro": "Tillbaka till Pro-planen",
+      "checkout_title": "Betaluppgifter",
+      "checkout_secure": "Säker",
+      "checkout_unavailable": "Betalning är inte öppen än.",
+      "checkout_unavailable_note": "Betalning öppnar när Veinote lanseras. Ingenting på den här sidan kan ta emot ett kort än, och vi ber inte om något.",
+      "checkout_continue": "Gå vidare"
     },
     "verify": {
       "title": "En sista sak",
@@ -1169,13 +1183,13 @@
       "subtitle": "Dina {days} dagar börjar nu. Här gör de mest nytta.",
       "steps_label": "Tre saker värda att göra först",
       "steps": {
-        "canvas": "Öppna en canvas och få ner en vers — skriven, sjungen eller fotad från ett papper.",
+        "canvas": "Öppna en canvas och få ner en vers, skriven, sjungen eller fotad från ett papper.",
         "tools": "Testa rimlexikonet och demostudion på något du redan har halvfärdigt.",
         "community": "Dela en låt. Feedback från en annan låtskrivare slår ännu en timme ensam med den."
       },
       "cta": "Öppna Veinote",
       "prelaunch": {
-        "body": "Konton är inte öppna än — Veinote är fortfarande i sluten testning, så inget skapades och inget kort debiterades. Här slutar förhandsvisningen.",
+        "body": "Konton är inte öppna än. Veinote är fortfarande i sluten testning, så inget skapades och inget kort debiterades. Här slutar förhandsvisningen.",
         "restart": "Gå igenom det igen"
       }
     },
@@ -1223,7 +1237,7 @@
   },
   "account_blocked": {
     "title": "Ditt konto är spärrat",
-    "body": "Åtkomsten till Veinote är avstängd för det här kontot. Inget du har skrivit är borttaget – dina låtar finns kvar om spärren hävs.",
+    "body": "Åtkomsten till Veinote är avstängd för det här kontot. Inget du har skrivit är borttaget. Dina låtar finns kvar om spärren hävs.",
     "contact_support": "Kontakta supporten",
     "back_home": "Tillbaka till startsidan"
   },
@@ -1238,7 +1252,7 @@
     "done_title": "Du står i kön",
     "done_subtitle": "Tack för att du vill vara med tidigt.",
     "done_body_prefix": "Vi har sparat",
-    "done_body_suffix": " – vi mejlar dig så snart Veinote öppnar dörrarna.",
+    "done_body_suffix": ". Vi mejlar dig så snart Veinote öppnar dörrarna.",
     "back_home": "Tillbaka till startsidan",
     "errors": {
       "enter_email": "Fyll i din e-postadress.",
@@ -1272,7 +1286,7 @@
       "canvas_title": "Din textcanvas",
       "canvas_desc": "Dubbelklicka var som helst för att börja skriva en rad. Dra in ljud, bilder eller dokument för att placera dem direkt i flödet.",
       "record_title": "Spela in idéer direkt",
-      "record_desc": "Fånga en melodi eller ett röstmemo när som helst — det blir ett kort på din canvas.",
+      "record_desc": "Fånga en melodi eller ett röstmemo när som helst. Det blir ett kort på din canvas.",
       "tools_title": "Kreativa verktyg",
       "tools_desc": "Öppna verktygspanelen för rimförslag, uppladdningar och mer.",
       "studio_title": "Demo Studio",
@@ -1312,7 +1326,7 @@
     "reason_sexual": "Sexuellt innehåll",
     "reason_self_harm": "Självskada eller självmord",
     "reason_violence": "Våld eller hot",
-    "reason_copyright": "Upphovsrätt – det här är någon annans verk",
+    "reason_copyright": "Upphovsrätt: det här är någon annans verk",
     "reason_impersonation": "Utger sig för att vara någon annan",
     "reason_other": "Något annat",
     "note_placeholder": "Är det något mer vi bör veta? (valfritt)",
@@ -1323,7 +1337,7 @@
     "error": "Det gick inte att skicka rapporten. Försök igen."
   },
   "meta": {
-    "title": "Veinote – hemmet för mänskligt låtskrivande",
+    "title": "Veinote: hemmet för mänskligt låtskrivande",
     "description": "Inga AI-genererade låtar. Du skapar dem. Du äger dem."
   },
   "about": {
@@ -1332,8 +1346,8 @@
     "title_2": "mänskligt låtskrivande.",
     "intro": "Inga AI-genererade låtar. Du skapar dem. Du äger dem. Veinote samlar kreativa verktyg, vägledning från erfarna låtskrivare och en stöttande gemenskap som hjälper låtskrivare att faktiskt göra klart det de börjar på.",
     "story_title": "Varför vi byggde det här",
-    "story_p1": "De flesta låtskrivare gör aldrig klart sina låtar. Inte för att de saknar talang eller idéer, utan för att vägen från första textraden till en färdig inspelning saknar en tydlig riktning — och det är lätt att tappa fart någonstans på vägen.",
-    "story_p2": "Veinote grundades 2026 i Stockholm av ett litet team av låtskrivare och utvecklare, bland dem medgrundare Peter Nordberg — en platinasäljande låtskrivare bland de 2 % bästa i världen, med över 30 års erfarenhet och 250+ släppta låtar. Hans lektioner, övningar och kreativa ramverk vägleder låtskrivare genom hela plattformen.",
+    "story_p1": "De flesta låtskrivare gör aldrig klart sina låtar. Inte för att de saknar talang eller idéer, utan för att vägen från första textraden till en färdig inspelning saknar en tydlig riktning, och det är lätt att tappa fart någonstans på vägen.",
+    "story_p2": "Veinote grundades 2026 i Stockholm av ett litet team av låtskrivare och utvecklare, bland dem medgrundare Peter Nordberg, en platinasäljande låtskrivare bland de 2 % bästa i världen, med över 30 års erfarenhet och 250+ släppta låtar. Hans lektioner, övningar och kreativa ramverk vägleder låtskrivare genom hela plattformen.",
     "story_p3": "Vi tror att låtskrivande är ett mänskligt hantverk. I takt med att AI-genererad musik blir vanligare bygger vi motsatsen: verktyg som hjälper dig att skriva, göra klart och äga låtar som verkligen är dina egna.",
     "pillars_title": "Så fungerar Veinote",
     "pillars": {
@@ -1353,7 +1367,7 @@
       },
       "info_we_collect": {
         "title": "Information vi samlar in",
-        "body": "Vi samlar in information du ger oss direkt, som ditt namn, din e-postadress och ditt lösenord när du skapar ett konto. Vi sparar också innehållet du skapar i Veinote — texter, ljudinspelningar, bilder, dokument och projektdata — så att det kan sparas och visas för dig igen. Vi samlar automatiskt in grundläggande användningsdata, som vilka sidor och funktioner du använder, för att förstå och förbättra produkten."
+        "body": "Vi samlar in information du ger oss direkt, som ditt namn, din e-postadress och ditt lösenord när du skapar ett konto. Vi sparar också innehållet du skapar i Veinote (texter, ljudinspelningar, bilder, dokument och projektdata) så att det kan sparas och visas för dig igen. Vi samlar automatiskt in grundläggande användningsdata, som vilka sidor och funktioner du använder, för att förstå och förbättra produkten."
       },
       "how_we_use": {
         "title": "Hur vi använder din information",
@@ -1369,7 +1383,7 @@
       },
       "third_party": {
         "title": "Tredjepartstjänster",
-        "body": "Veinote förlitar sig på pålitliga tredjepartstjänster för att fungera — bland annat Firebase (autentisering, databas och fillagring) och leverantörer av e-postutskick för transaktionsmeddelanden. Dessa leverantörer behandlar data för vår räkning och är bundna av sina egna skyldigheter kring integritet och säkerhet."
+        "body": "Veinote förlitar sig på pålitliga tredjepartstjänster för att fungera, bland annat Firebase (autentisering, databas och fillagring) och leverantörer av e-postutskick för transaktionsmeddelanden. Dessa leverantörer behandlar data för vår räkning och är bundna av sina egna skyldigheter kring integritet och säkerhet."
       },
       "data_security": {
         "title": "Datasäkerhet",
@@ -1377,7 +1391,7 @@
       },
       "data_retention": {
         "title": "Datalagring och radering",
-        "body": "Vi behåller ditt konto och innehåll så länge ditt konto är aktivt. Du kan när som helst begära att ditt konto och tillhörande data raderas genom att kontakta oss — se nedan."
+        "body": "Vi behåller ditt konto och innehåll så länge ditt konto är aktivt. Du kan när som helst begära att ditt konto och tillhörande data raderas genom att kontakta oss. Se nedan."
       },
       "your_rights": {
         "title": "Dina rättigheter",

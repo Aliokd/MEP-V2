@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { PRIMARY_BUTTON } from './buttonStyles';
 
@@ -12,11 +12,27 @@ import { PRIMARY_BUTTON } from './buttonStyles';
 // by the time the verdict lands it has to be obvious that it was built from
 // these five answers rather than written in advance.
 //
-// Deliberately unhurried. A progress bar that fills in half a second says the
-// answers were skimmed; this one takes about as long as reading them would.
-const ROW_MS = 620;
-// A held beat after the last line, while the set is "weighed" as a whole.
-const WEIGH_MS = 1200;
+// Deliberately unhurried, and slower than reading alone would need. A progress
+// bar that fills in half a second says the answers were skimmed; this one is
+// paced so the screen is worth watching — each line lands, is read, and is
+// ticked before the next one starts.
+const ROW_MS = 900;
+// A held beat after the last line, while the set is "weighed" as a whole. Long
+// enough to read as consideration rather than as a frame dropped between the
+// last tick and the headline changing.
+const WEIGH_MS = 1900;
+/**
+ * The ceiling on the ticking, whatever the answers add up to.
+ *
+ * The list is as long as the visitor made it: one struggle or five, one goal or
+ * nine. At a flat 900ms a maximal quiz would tick for thirteen seconds, and the
+ * generosity this screen is going for turns into a wait somewhere around eight.
+ * So the row time is whatever fits in this budget, never longer than ROW_MS and
+ * never so short that the rows stop being readable — a short set is unhurried,
+ * a long one just moves.
+ */
+const PASS_CAP_MS = 8000;
+const MIN_ROW_MS = 420;
 
 // How long each testimonial holds, and how many are shown. Reading the five
 // answers back takes ~3.1s, which is not enough time to read even two quotes —
@@ -24,7 +40,7 @@ const WEIGH_MS = 1200;
 // visitor leaves the screen up. They are what the wait is for: there is nothing
 // to do here but wait, and a reason to keep going is better use of the time
 // than a shorter bar.
-const TESTIMONIAL_MS = 2600;
+const TESTIMONIAL_MS = 4400;
 const TESTIMONIALS_SHOWN = 3;
 
 /**
@@ -44,6 +60,57 @@ const TESTIMONIALS_SHOWN = 3;
 const VISIBLE_ROWS = 3;
 const ROW_H = 40;
 const ROW_GAP = 12;
+
+/**
+ * The burst behind the headline when the plan lands. Fourteen pieces, three
+ * colours, all of them small: this is the one moment in the flow worth marking,
+ * and a screenful of paper would be marking it louder than it deserves.
+ *
+ * Fixed rather than random — a burst that is different every time is a burst
+ * nobody tuned, and these are placed to clear the middle of the line, where the
+ * words are, and gather at its ends.
+ *
+ * `x` is where the piece starts across the headline, the rest is where it goes:
+ * `dx`/`dy` in px from there, `r` degrees of turn on the way, `d` ms of delay so
+ * they do not all leave on the same frame.
+ */
+const CONFETTI = [
+    { x: 8, dx: -34, dy: -46, r: -140, d: 0, w: 6, h: 6, c: '#86BE7F', round: true },
+    { x: 15, dx: -18, dy: 44, r: 120, d: 90, w: 4, h: 9, c: '#363636', round: false },
+    { x: 22, dx: -30, dy: -28, r: 80, d: 40, w: 5, h: 5, c: '#5F9857', round: false },
+    { x: 30, dx: -8, dy: -54, r: -60, d: 140, w: 5, h: 5, c: '#86BE7F', round: true },
+    { x: 38, dx: -14, dy: 40, r: 100, d: 30, w: 4, h: 8, c: '#BBBEB2', round: false },
+    { x: 46, dx: 6, dy: -50, r: 150, d: 110, w: 5, h: 5, c: '#363636', round: true },
+    { x: 54, dx: -4, dy: 46, r: -110, d: 70, w: 5, h: 5, c: '#86BE7F', round: false },
+    { x: 62, dx: 16, dy: -44, r: 90, d: 20, w: 4, h: 9, c: '#5F9857', round: false },
+    { x: 70, dx: 12, dy: 42, r: -80, d: 130, w: 5, h: 5, c: '#BBBEB2', round: true },
+    { x: 78, dx: 30, dy: -30, r: 130, d: 60, w: 5, h: 5, c: '#86BE7F', round: false },
+    { x: 85, dx: 22, dy: 46, r: -100, d: 100, w: 4, h: 8, c: '#363636', round: false },
+    { x: 92, dx: 36, dy: -48, r: 70, d: 10, w: 6, h: 6, c: '#5F9857', round: true },
+    { x: 4, dx: -40, dy: 30, r: 110, d: 150, w: 5, h: 5, c: '#BBBEB2', round: false },
+    { x: 96, dx: 42, dy: 26, r: -120, d: 80, w: 5, h: 5, c: '#86BE7F', round: true },
+] as const;
+
+const Confetti = () => (
+    <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-visible">
+        {CONFETTI.map((p, i) => (
+            <span
+                key={i}
+                className={`confetti-piece absolute top-1/2 block ${p.round ? 'rounded-full' : 'rounded-[1px]'}`}
+                style={{
+                    left: `${p.x}%`,
+                    width: p.w,
+                    height: p.h,
+                    background: p.c,
+                    animationDelay: `${p.d}ms`,
+                    ['--cx' as string]: `${p.dx}px`,
+                    ['--cy' as string]: `${p.dy}px`,
+                    ['--cr' as string]: `${p.r}deg`,
+                } as React.CSSProperties}
+            />
+        ))}
+    </span>
+);
 
 /** "Mara L." → "ML". The stand-in for a face until there is a photograph. */
 const initialsOf = (name: string) =>
@@ -73,11 +140,17 @@ const initialsOf = (name: string) =>
  */
 type Testimonial = { quote: string; name: string; image?: string };
 
-export default function AnalyzingAnswers({ answers, onComplete, frozen = false }: {
+export default function AnalyzingAnswers({ answers, onComplete, onBack, frozen = false }: {
     /** The visitor's own answers, already resolved to their display labels. */
     answers: string[];
     /** Pressed, not waited out — see `ready` below. */
     onComplete: () => void;
+    /**
+     * Back to the quiz, with every answer still where the visitor left it. The
+     * control is hidden without it rather than being drawn inert — there is no
+     * honest disabled state for "you cannot change your mind".
+     */
+    onBack?: () => void;
     /**
      * Holds the screen at its finished state and stops every timer. Used while
      * the email dialog sits over it: the pass has already run, and letting it
@@ -113,33 +186,47 @@ export default function AnalyzingAnswers({ answers, onComplete, frozen = false }
     const ready = finished || passed;
 
     useEffect(() => {
-        if (finished) return;
+        // `passed` guards the way back: closing the email dialog returns to this
+        // screen with `frozen` off, and without this the whole pass would start
+        // again — the counter walking back down from full behind a headline
+        // that had already said the plan was ready.
+        if (finished || passed) return;
+
+        const rowMs = Math.max(
+            MIN_ROW_MS,
+            Math.min(ROW_MS, PASS_CAP_MS / Math.max(answers.length, 1)),
+        );
 
         const timers = answers.map((_, i) =>
-            setTimeout(() => setTicked(i + 1), ROW_MS * (i + 1)),
+            setTimeout(() => setTicked(i + 1), rowMs * (i + 1)),
         );
         // A held beat after the last row before the button lands, so the
         // gesture is "weighed, then answered" rather than a control appearing
         // on top of the tick that was still animating in.
-        timers.push(setTimeout(() => setPassed(true), ROW_MS * answers.length + WEIGH_MS));
+        timers.push(setTimeout(() => setPassed(true), rowMs * answers.length + WEIGH_MS));
 
         return () => timers.forEach(clearTimeout);
-    }, [answers.length, finished]);
+    }, [answers.length, finished, passed]);
 
-    // One quote at a time, swapped on its own clock. Stops on the last one
-    // rather than wrapping: the screen now waits to be pressed, so a rotation
-    // that came round again would run for as long as someone hesitated and say
-    // there were only ever three people to quote.
+    // One quote at a time, round and round the three. It used to stop on the
+    // last one, which was right when the screen moved itself on and wrong now
+    // that it waits to be pressed: a visitor who takes a minute over the
+    // button would spend most of it looking at one quote that had stopped
+    // being new. Coming round again is the lesser of the two — the set is
+    // three, and a fourth showing is a rotation, not a claim that there are
+    // only three people to quote.
+    // The set that is actually in the pane, and the one the rotation counts
+    // against. Everything below indexes into this rather than the whole list.
+    const shownQuotes = testimonials.slice(0, TESTIMONIALS_SHOWN);
+
     useEffect(() => {
-        if (frozen || prefersReducedMotion || testimonials.length < 2) return;
-        const last = Math.min(TESTIMONIALS_SHOWN, testimonials.length) - 1;
-        const timers = Array.from({ length: last }, (_, i) =>
-            setTimeout(() => setQuoteIndex(i + 1), TESTIMONIAL_MS * (i + 1)),
+        if (frozen || prefersReducedMotion || shownQuotes.length < 2) return;
+        const id = setInterval(
+            () => setQuoteIndex((i) => (i + 1) % shownQuotes.length),
+            TESTIMONIAL_MS,
         );
-        return () => timers.forEach(clearTimeout);
-    }, [prefersReducedMotion, testimonials.length, frozen]);
-
-    const quote = testimonials[quoteIndex];
+        return () => clearInterval(id);
+    }, [prefersReducedMotion, shownQuotes.length, frozen]);
 
     // How many rows the window holds, and which one is at its top. The row
     // being read sits at the bottom of the window with the two before it above,
@@ -162,20 +249,48 @@ export default function AnalyzingAnswers({ answers, onComplete, frozen = false }
             // thing it heads.
             className="space-y-6"
         >
-            {/* The small line first, the big one second. What the screen has
-                been doing is the footnote — "we've read them" — and what the
-                visitor gets out of it is the headline: the answers are kept,
-                whatever they do next. */}
-            <div className="space-y-2 text-center">
-                <p className="text-sm font-medium text-stone-500">
-                    {t('onboarding.analyzing.eyebrow')}
-                </p>
-                <h2 className="text-4xl font-sans font-light leading-[1.1] tracking-tight text-[#363636] md:text-[3.25rem]">
-                    {t('onboarding.analyzing.title')}
+            {/* One line, and it changes when the pass does: what is happening
+                while it happens, then what came of it. The small line that used
+                to sit above it said the same thing as the headline does now —
+                two labels for one state, one of them announcing the pass was
+                finished while the bar under it was still filling. */}
+            {/* The confetti mounts with the finished headline and never
+                remounts, so the burst plays once, on the line it belongs to.
+                It sits behind the words rather than over them: this is the
+                sentence the whole screen has been working towards, and paper
+                falling across it would be celebrating on top of the news. */}
+            <div className="relative text-center">
+                {ready && <Confetti />}
+                <h2 className="relative text-4xl font-sans font-light leading-[1.1] tracking-tight text-[#363636] md:text-[3.25rem]">
+                    {t(ready ? 'onboarding.analyzing.title_done' : 'onboarding.analyzing.title')}
                 </h2>
             </div>
 
-            <div className="space-y-4 rounded-[28px] border border-stone-200/60 bg-[#EFF0E7] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.015)] md:p-6">
+            {/* The scan panel, and only while there is scanning to show. Once
+                the pass is done it has nothing left to say — every row ticked,
+                the bar full — and holding it under a headline that says the
+                plan is ready makes the visitor read a finished progress bar
+                before they can reach the button. Going away is also what brings
+                the quote and the button up the screen to meet the eye.
+
+                Glass rather than the flat cream panel: it sits over the painted
+                page, and what is inside it is a list being worked through
+                rather than a card of content.
+
+                It collapses rather than unmounting, and by CSS rather than by
+                an exit animation. `grid-rows-[1fr]` to `[0fr]` is a height the
+                browser interpolates on its own; an AnimatePresence exit is a
+                JS-driven one, and an exit that never finishes — a tab that
+                isn't compositing frames will do it — is an element that never
+                leaves. The panel would simply sit there, which is the one
+                outcome this must not have. */}
+            <div
+                className={`grid transition-all duration-[900ms] ease-[cubic-bezier(0.33,1,0.68,1)] motion-reduce:transition-none ${
+                    ready ? 'mt-0 grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
+                }`}
+            >
+              <div className="overflow-hidden">
+                <div className="space-y-4 rounded-[28px] border border-white/50 bg-white/25 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.02)] backdrop-blur-2xl backdrop-saturate-150 md:p-6">
                 {/* The window. Its height is whatever three rows need — or all
                     of them, when there are fewer than three — and it is the one
                     thing on this card that never changes size. */}
@@ -183,19 +298,13 @@ export default function AnalyzingAnswers({ answers, onComplete, frozen = false }
                     className="relative overflow-hidden"
                     style={{ height: windowRows * ROW_H + (windowRows - 1) * ROW_GAP }}
                 >
-                    {/* Rows that have scrolled past the top edge are clipped
-                        mid-line rather than at a boundary, which reads as a
-                        list still moving. This fades that edge out instead, so
-                        what is leaving looks like it is leaving. Only while
-                        there is something above to leave — a full-strength
-                        gradient over the first row of a five-row list would
-                        just look like a dirty card. */}
-                    <div
-                        aria-hidden="true"
-                        className={`pointer-events-none absolute inset-x-0 top-0 z-10 h-7 bg-gradient-to-b from-[#EFF0E7] to-transparent transition-opacity duration-500 ${
-                            firstRow > 0 ? 'opacity-100' : 'opacity-0'
-                        }`}
-                    />
+                    {/* No fade over the top edge. There was one, to soften the
+                        row being clipped as it left, and on glass it could only
+                        be a wash of flat colour over a panel whose whole point
+                        is that the page shows through it — so it read as a
+                        beige band sitting on the first line rather than as
+                        anything fading. A row clipped at the window's edge is
+                        clipped; the panel's own rounded top is the edge. */}
                     {/* The slide is a CSS transition rather than a motion
                         value: it is one number moving in one direction and
                         nothing has to coordinate with it, and a transform the
@@ -227,17 +336,21 @@ export default function AnalyzingAnswers({ answers, onComplete, frozen = false }
                                 className="flex items-center gap-3.5"
                                 style={{ height: ROW_H }}
                             >
-                                {/* One fixed slot for both marks, so the text
-                                    never shifts as a row is ticked off. */}
+                                {/* One fixed slot for all three marks, so the
+                                    text never shifts as a row is ticked off.
+                                    The tick is bare and black — a green disc
+                                    behind it was a second colour doing the same
+                                    job as the mark itself, and on glass it read
+                                    as a chip stuck to the panel. */}
                                 <span className="grid h-6 w-6 shrink-0 place-items-center">
                                     {done ? (
                                         <motion.span
                                             initial={prefersReducedMotion ? false : { scale: 0.6, opacity: 0 }}
                                             animate={{ scale: 1, opacity: 1 }}
                                             transition={{ type: 'spring', stiffness: 420, damping: 24 }}
-                                            className="grid h-6 w-6 place-items-center rounded-full bg-[#86BE7F]/20"
+                                            className="grid place-items-center"
                                         >
-                                            <Check size={14} className="stroke-[3px] text-[#3f6b3a]" />
+                                            <Check size={18} className="stroke-[3px] text-stone-900" />
                                         </motion.span>
                                     ) : active ? (
                                         <Loader2 size={16} className="animate-spin text-stone-400" />
@@ -269,7 +382,7 @@ export default function AnalyzingAnswers({ answers, onComplete, frozen = false }
                     Digits rather than a sentence: nothing to translate, and it
                     reads the same in every language the flow is in. */}
                 <div className="flex items-center gap-4">
-                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#BBBEB2]/25">
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-stone-900/10">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${(read / Math.max(answers.length, 1)) * 100}%` }}
@@ -277,10 +390,12 @@ export default function AnalyzingAnswers({ answers, onComplete, frozen = false }
                             className="h-full rounded-full bg-stone-900"
                         />
                     </div>
-                    <span className="shrink-0 text-[13px] font-semibold tabular-nums text-stone-500">
+                    <span className="shrink-0 text-[13px] font-semibold tabular-nums text-stone-900/60">
                         {read}/{answers.length}
                     </span>
                 </div>
+                </div>
+              </div>
             </div>
 
             {/* Testimonials, one at a time, under the scan. This is the only
@@ -288,70 +403,83 @@ export default function AnalyzingAnswers({ answers, onComplete, frozen = false }
                 right place for other people's words — and the wrong place for
                 anything that needs a decision.
 
-                The row holds its height whichever quote is in it, so the card
-                above never shifts as they swap.
+                They get a pane of their own, glass like the scan panel above
+                them, and it stays whichever quote is in it. Two things come of
+                that: the words have something to sit on rather than floating
+                loose over the painting, and the pane holds one fixed height and
+                one fixed position, so the panel above can leave without the
+                quotes appearing to move on their own.
 
-                The swap itself is out-instantly, in-with-a-fade — no exit
-                animation and so no AnimatePresence. Two quotes crossfading
-                through each other would be unreadable while they overlap, and
-                `mode="wait"`, which avoids that by holding the outgoing one
-                until its exit finishes, is the same construct that stalled the
-                carousel and the step machine: if the exit never completes, the
-                next quote never mounts and the rotation silently stops on the
-                first one. Mounting the new quote directly cannot get stuck.
+                All three are mounted at once and stacked, and the swap is a
+                class change the browser transitions: the one leaving drifts up
+                and fades, the one arriving rises into its place. Nothing mounts
+                or unmounts, so there is no frame where the pane is empty —
+                which is what the old swap did, and what made it flash.
 
-                They hold this space for the whole screen. The closing line used
-                to live here and take it over the moment the last answer was
-                ticked — which is 3.1s into a 7.8s screen, so the quotes would
-                have disappeared for the longer half of the wait. The tick marks
-                and the filled bar already say the reading is done; a sentence
-                repeating it is not worth the only slot the quotes have. */}
-            <div className="flex min-h-[132px] items-center justify-center px-2">
-                {quote && (
-                    <motion.figure
-                        key={quoteIndex}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={
-                            prefersReducedMotion
-                                ? { duration: 0 }
-                                : { duration: 0.45, ease: [0.16, 1, 0.3, 1] }
-                        }
-                        // Face, then words, ranged left. Centred text under a
-                        // centred card was a third centred block on a screen
-                        // that already has two; set against a portrait it reads
-                        // as something a person said rather than a caption.
-                        className="mx-auto flex w-full max-w-xl items-center gap-4 text-left md:gap-5"
-                    >
-                        {/* Empty until there are real portraits to put here —
-                            see the note on `image` above. The monogram is not a
-                            placeholder for a face so much as what a name looks
-                            like without one. */}
-                        <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-[#EFF0E7] ring-1 ring-stone-300/60 md:h-16 md:w-16">
-                            {quote.image ? (
-                                <img
-                                    src={quote.image}
-                                    alt=""
-                                    className="h-full w-full object-cover"
-                                    loading="lazy"
-                                />
-                            ) : (
-                                <span aria-hidden="true" className="text-[15px] font-semibold tracking-wide text-stone-500 md:text-[17px]">
-                                    {initialsOf(quote.name)}
+                The incoming quote is held back 200ms so the two are never both
+                legible at once. That is the whole reason the previous approach
+                cut rather than crossfaded; a stagger solves it without the cut.
+
+                CSS rather than motion values, for the reason the row slide and
+                the panel collapse are: an animation that stalls part-way leaves
+                a quote half-faded, and a transition that never runs still ends
+                where the class says it does. */}
+            <div className="mx-auto flex min-h-[148px] w-full max-w-xl items-center rounded-[28px] border border-white/40 bg-white/30 px-6 py-5 shadow-[0_8px_30px_rgba(0,0,0,0.02)] backdrop-blur-2xl backdrop-saturate-150 md:px-7">
+                <div className="relative min-h-[104px] w-full">
+                    {shownQuotes.map((entry, i) => {
+                        // Where this quote sits relative to the one on screen:
+                        // 0 is showing, the last index is the one that just
+                        // left — it waits above — and everything else waits
+                        // below, ready to rise.
+                        const rel = (i - quoteIndex + shownQuotes.length) % shownQuotes.length;
+                        const active = rel === 0;
+                        const leaving = rel === shownQuotes.length - 1;
+
+                        return (
+                            <figure
+                                key={i}
+                                aria-hidden={!active}
+                                style={{ transform: `translateY(${active ? 0 : leaving ? -16 : 16}px)` }}
+                                // Face, then words, ranged left. Centred text
+                                // under a centred card was a third centred block
+                                // on a screen that already has two; set against a
+                                // portrait it reads as something a person said
+                                // rather than a caption.
+                                className={`absolute inset-0 flex items-center gap-4 text-left transition-[opacity,transform] duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none md:gap-5 ${
+                                    active ? 'opacity-100 delay-200' : 'pointer-events-none opacity-0'
+                                }`}
+                            >
+                                {/* Empty until there are real portraits to put
+                                    here — see the note on `image` above. The
+                                    monogram is not a placeholder for a face so
+                                    much as what a name looks like without one. */}
+                                <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-[#EFF0E7] ring-1 ring-stone-300/60 md:h-16 md:w-16">
+                                    {entry.image ? (
+                                        <img
+                                            src={entry.image}
+                                            alt=""
+                                            className="h-full w-full object-cover"
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        <span aria-hidden="true" className="text-[15px] font-semibold tracking-wide text-stone-500 md:text-[17px]">
+                                            {initialsOf(entry.name)}
+                                        </span>
+                                    )}
                                 </span>
-                            )}
-                        </span>
 
-                        <div className="min-w-0 space-y-1.5">
-                            <blockquote className="text-[19px] font-medium leading-snug text-stone-900 md:text-[22px]">
-                                {quote.quote}
-                            </blockquote>
-                            <figcaption className="text-[13px] font-medium text-stone-500 md:text-[14px]">
-                                {quote.name}
-                            </figcaption>
-                        </div>
-                    </motion.figure>
-                )}
+                                <div className="min-w-0 space-y-1.5">
+                                    <blockquote className="text-[19px] font-medium leading-snug text-stone-900 md:text-[22px]">
+                                        {entry.quote}
+                                    </blockquote>
+                                    <figcaption className="text-[13px] font-medium text-stone-500 md:text-[14px]">
+                                        {entry.name}
+                                    </figcaption>
+                                </div>
+                            </figure>
+                        );
+                    })}
+                </div>
             </div>
 
             {/* The way out. The flat green pill the second half of the flow
@@ -367,7 +495,34 @@ export default function AnalyzingAnswers({ answers, onComplete, frozen = false }
                 half that, mid-read. Disabled rather than absent while it waits,
                 which is also what keeps a keyboard from reaching a control that
                 is not there to press yet. */}
-            <div className="flex min-h-[60px] items-center justify-center">
+            <div className="flex min-h-[60px] items-center justify-center gap-4">
+                {/* Back to the questions, and only once the reading is done.
+                    While it runs there is nothing to decide and nothing to
+                    revise yet — a control on screen then is one more thing
+                    pulling at a screen whose whole job is to be watched. It
+                    arrives with the button beside it, as the other half of the
+                    same choice: go on, or go back and change an answer.
+
+                    The quiz's own back control, down to the circle — it is the
+                    same gesture and it goes to the same place. */}
+                {onBack && ready && (
+                    <motion.button
+                        type="button"
+                        onClick={onBack}
+                        aria-label={t('onboarding.go_back')}
+                        initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={
+                            prefersReducedMotion
+                                ? { duration: 0 }
+                                : { duration: 0.5, ease: [0.16, 1, 0.3, 1] }
+                        }
+                        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/55 text-stone-700 transition-colors hover:bg-white hover:text-stone-900"
+                    >
+                        <ArrowLeft size={22} className="stroke-[2.25px]" />
+                    </motion.button>
+                )}
+
                 <motion.button
                     type="button"
                     onClick={onComplete}

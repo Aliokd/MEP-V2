@@ -109,7 +109,13 @@ export default function TrialOffer({ onBack, onContinue }: {
                 </ol>
             </div>
 
-            <div className="mx-auto max-w-md space-y-4">
+            {/* Pinned, like the verdict's. The timeline is the point of this
+                screen and it is three stops long, so on most windows the row
+                that acts on it starts below the fold. The footnote about the
+                card rides along with it rather than staying behind at the
+                bottom of the page: it is the sentence that answers the only
+                question anyone has at the moment they reach for that button. */}
+            <div className="sticky bottom-4 z-40 mx-auto w-full max-w-md space-y-3 rounded-[32px] bg-[#DCDDD4]/35 px-4 py-3 backdrop-blur-2xl backdrop-saturate-150">
                 <div className="flex items-center gap-3">
                     <button type="button" onClick={onBack} className={SECONDARY_BUTTON}>
                         <ArrowLeft size={16} />
@@ -126,7 +132,7 @@ export default function TrialOffer({ onBack, onContinue }: {
                     </button>
                 </div>
 
-                <p className="text-center text-[13px] font-medium text-stone-600">
+                <p className="px-2 text-center text-[13px] font-medium text-stone-700">
                     {fill('onboarding.offer.footnote')}
                 </p>
             </div>

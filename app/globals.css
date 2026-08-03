@@ -134,6 +134,58 @@ input:-webkit-autofill:active {
     scrollbar-color: rgba(120, 120, 120, 0.25) transparent;
 }
 
+/* Onboarding's card table: a hairline in the page's own tone.
+   The platform default puts a stepper arrow at each end and a track behind the
+   thumb — three pieces of grey furniture on a screen that has none anywhere
+   else. Only the thumb survives, tinted from the #DCDDD4 ground it sits on, so
+   it says "there is more" without reading as a control to operate.
+
+   `width` sizes a VERTICAL scrollbar's thumb; `height` sizes a HORIZONTAL
+   one's — WebKit reads whichever axis is actually scrolling and ignores the
+   other, so both are set and there is nothing to pick between per use site.
+
+   The @supports guard below is load-bearing, and counter-intuitive. Declaring
+   `scrollbar-width` AT ALL — even `auto` — moves Chrome onto the standards path,
+   where every `::-webkit-scrollbar` rule here is ignored and the stepper arrows
+   come back; `thin` only narrows them. Measured on Chrome 148: webkit rules
+   alone reserve a 4px gutter with no buttons, the same rules plus
+   `scrollbar-width: thin` reserve 10px WITH buttons, and no styling at all
+   reserves 15px. So the standard properties are fenced off to browsers that
+   have no webkit pseudo-elements to use instead — Firefox, whose thin scrollbar
+   has no arrows either way. Removing the guard silently restores the arrows in
+   Chrome. */
+.onboarding-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+    background: transparent;
+}
+
+.onboarding-scrollbar::-webkit-scrollbar-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.onboarding-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.onboarding-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(154, 156, 141, 0.4);
+    border-radius: 9999px;
+}
+
+.onboarding-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(154, 156, 141, 0.6);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+    .onboarding-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(154, 156, 141, 0.4) transparent;
+    }
+}
+
 /* Hide scrollbar utility */
 .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -758,28 +810,32 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     @apply border border-stone-200 px-3 py-2;
 }
 
-/* Skeleton sweep, for the verdict while it builds.
-   The same idea as the demo's scan shimmer — a band crossing the thing that is
-   being worked on — turned sideways and run over placeholder bars instead of a
-   photograph. Left to right here rather than down: what is under it is lines of
-   text, and a band travelling the way the lines run reads as them being written
-   in. Off entirely under reduced motion; the skeleton is skipped there anyway,
-   so this is belt and braces. */
-@keyframes verdict-skeleton-sweep {
-    from {
-        transform: translateX(-100%);
+/* Confetti, for the moment the analysis lands on "your plan is ready".
+   One burst, no loop: the pieces fly out from behind the headline, turn once
+   and fade, and `forwards` leaves them invisible rather than snapping back to
+   the middle of the word. Each piece carries its own vector and delay as
+   custom properties, so one keyframe covers the whole burst.
+   Nothing at all under reduced motion — a celebration is exactly the kind of
+   decorative movement that setting is asking us to skip. */
+@keyframes confetti-pop {
+    0% {
+        transform: translate3d(0, 0, 0) rotate(0deg) scale(0.4);
+        opacity: 0;
     }
-    to {
-        transform: translateX(100%);
+    12% {
+        opacity: 1;
+    }
+    100% {
+        transform: translate3d(var(--cx), var(--cy), 0) rotate(var(--cr)) scale(1);
+        opacity: 0;
     }
 }
-.verdict-skeleton-sweep {
-    animation: verdict-skeleton-sweep 1.3s ease-in-out infinite;
+.confetti-piece {
+    animation: confetti-pop 1150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .verdict-skeleton-sweep {
-        animation: none;
-        opacity: 0;
+    .confetti-piece {
+        display: none;
     }
 }
