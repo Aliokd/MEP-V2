@@ -6,6 +6,8 @@ import { useAdmin } from "@/context/AdminContext";
 import { Badge, Button, Input, Panel, Select, Spinner, Textarea } from "../components/ui";
 import { LOCALES, LOCALE_LABELS, IDEA_CATEGORIES, type LocalizedText, type Locale } from "@/lib/content";
 import type { ContentItem } from "./page";
+import MediaUpload from "../components/MediaUpload";
+import { uploadContentMedia, type VideoProbe } from "@/lib/uploadContentMedia";
 
 type Collection = "chapters" | "lessons" | "ideas" | "songs";
 
@@ -49,6 +51,39 @@ export default function ContentEditor({
 
     const isNew = item === null;
     const localizedFields = LOCALIZED_FIELDS[collection];
+    const [posterStatus, setPosterStatus] = useState<string | null>(null);
+
+    /** Names the uploaded object after the thing it belongs to, not "blob". */
+    const mediaNameHint =
+        (typeof draft.title === "string" ? draft.title : draft.title?.en) || draft.id || collection;
+
+    /**
+     * Runs as soon as a video file is chosen, before the upload starts. Fills in
+     * the duration and uploads the captured first frame as the poster, so neither
+     * has to be done by hand — or by running ffmpeg.
+     */
+    const handleVideoProbed = async (probe: VideoProbe, file: File) => {
+        if (probe.durationSeconds > 0) setField("durationSeconds", probe.durationSeconds);
+
+        if (!probe.poster) {
+            setPosterStatus("Couldn't capture a frame from this video — add a poster by hand.");
+            return;
+        }
+        if (draft.posterUrl) {
+            setPosterStatus("Kept the existing poster. Upload a new one to replace it.");
+            return;
+        }
+
+        setPosterStatus("Capturing poster from the video…");
+        try {
+            const posterFile = new File([probe.poster], `${file.name}-poster.jpg`, { type: "image/jpeg" });
+            const { done } = uploadContentMedia(posterFile, "poster", mediaNameHint, () => {});
+            setField("posterUrl", await done);
+            setPosterStatus("Poster captured from the video's first frame.");
+        } catch (err: any) {
+            setPosterStatus(`Poster upload failed (${err.message}) — add one by hand.`);
+        }
+    };
 
     const setLocalized = (key: string, value: string) => {
         setDraft((prev) => ({
@@ -176,12 +211,29 @@ export default function ContentEditor({
                     {collection === "lessons" && (
                         <>
                             <Field label="Chapter id" value={draft.chapterId || ""} onChange={(v) => setField("chapterId", v)} />
-                            <Field label="Video URL" value={draft.videoUrl || ""} onChange={(v) => setField("videoUrl", v)} />
-                            <Field
-                                label="Poster URL"
-                                value={draft.posterUrl || ""}
-                                onChange={(v) => setField("posterUrl", v)}
+
+                            <MediaUpload
+                                label="Video"
+                                kind="video"
+                                value={draft.videoUrl || ""}
+                                onChange={(url) => setField("videoUrl", url)}
+                                nameHint={mediaNameHint}
+                                onVideoProbed={handleVideoProbed}
+                                hint="Duration is read from the file, and the first frame becomes the poster automatically."
                             />
+
+                            <MediaUpload
+                                label="Poster image"
+                                kind="poster"
+                                value={draft.posterUrl || ""}
+                                onChange={(url) => setField("posterUrl", url)}
+                                nameHint={mediaNameHint}
+                                hint={
+                                    posterStatus ||
+                                    "Shown before playback starts. Without one the lesson is a blank grey box."
+                                }
+                            />
+
                             <Field
                                 label="Duration (seconds)"
                                 value={String(draft.durationSeconds ?? "")}
@@ -194,8 +246,20 @@ export default function ContentEditor({
                         <>
                             <Field label="Title" value={(draft.title as string) || ""} onChange={(v) => setField("title", v)} />
                             <Field label="Artist" value={draft.artist || ""} onChange={(v) => setField("artist", v)} />
-                            <Field label="Audio URL" value={draft.audioUrl || ""} onChange={(v) => setField("audioUrl", v)} />
-                            <Field label="Cover URL" value={draft.coverUrl || ""} onChange={(v) => setField("coverUrl", v)} />
+                            <MediaUpload
+                                label="Audio"
+                                kind="audio"
+                                value={draft.audioUrl || ""}
+                                onChange={(url) => setField("audioUrl", url)}
+                                nameHint={mediaNameHint}
+                            />
+                            <MediaUpload
+                                label="Cover image"
+                                kind="image"
+                                value={draft.coverUrl || ""}
+                                onChange={(url) => setField("coverUrl", url)}
+                                nameHint={mediaNameHint}
+                            />
 
                             {/* Practice ships real commercial recordings — an unset
                                 licence is a takedown waiting to happen, so it is

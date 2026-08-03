@@ -5,12 +5,24 @@ service firebase.storage {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Editorial content (lesson videos, etc.) — public read, no client writes.
-    // Uploads happen via scripts/upload-lesson-video.mjs using the Admin SDK,
-    // which bypasses these rules entirely.
+    // Editorial content (lesson videos, posters, practice audio).
+    //
+    // Public read, and writable directly from the admin console by the roles that
+    // can edit content. The upload goes browser -> Storage without touching the
+    // Next backend on purpose: Cloud Run caps a request body at 32MB and times
+    // out at 120s, so a 200MB lesson video cannot be proxied through an API route.
+    //
+    // adminRole is a custom claim mirrored off admins/{uid} by syncAdminClaim()
+    // in lib/admin/auth.ts. Moderators and support staff are deliberately not
+    // listed — nothing they do requires writing a world-readable file.
+    //
+    // scripts/upload-lesson-video.mjs still works; it uses the Admin SDK and
+    // bypasses these rules entirely.
     match /content/{allPaths=**} {
       allow read: if true;
-      allow write: if false;
+      allow write: if request.auth != null &&
+        request.auth.token.get("admin", false) == true &&
+        request.auth.token.get("adminRole", "") in ["superadmin", "editor"];
     }
   }
 }
