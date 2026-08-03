@@ -244,7 +244,7 @@ export default function ManagePagesPage() {
                     ordered.length === 0 ? (
                         <EmptyState
                             title="No pages yet"
-                            description="Run scripts/seed-site-pages.mjs --commit to import the privacy policy, or create one from scratch."
+                            description="Use “Import from code” above to bring in the privacy policy, or create a page from scratch."
                             action={can("content.write") ? <Button onClick={() => setEditingPage("new")}><Plus className="w-3.5 h-3.5" /> New page</Button> : undefined}
                         />
                     ) : (
@@ -339,8 +339,22 @@ export default function ManagePagesPage() {
                 ) : faqs && faqs.length === 0 ? (
                     <EmptyState
                         title="No questions yet"
-                        description="Run scripts/seed-site-pages.mjs --commit to import the four questions already on the homepage, or write a new one."
-                        action={can("content.write") ? <Button onClick={() => setEditingFaq("new")}><Plus className="w-3.5 h-3.5" /> New question</Button> : undefined}
+                        description="Use “Import from code” above to bring in the four questions already live on the homepage, then edit them here. Or write a new one."
+                        action={
+                            can("content.publish") ? (
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                    <Button variant="primary" onClick={importFromCode} disabled={importing}>
+                                        {importing ? <Spinner className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+                                        Import from code
+                                    </Button>
+                                    <Button onClick={() => setEditingFaq("new")}>
+                                        <Plus className="w-3.5 h-3.5" /> New question
+                                    </Button>
+                                </div>
+                            ) : can("content.write") ? (
+                                <Button onClick={() => setEditingFaq("new")}><Plus className="w-3.5 h-3.5" /> New question</Button>
+                            ) : undefined
+                        }
                     />
                 ) : (
                     <ul className="divide-y divide-ink-600">
