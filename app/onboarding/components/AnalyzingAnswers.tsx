@@ -34,13 +34,20 @@ const WEIGH_MS = 1900;
 const PASS_CAP_MS = 8000;
 const MIN_ROW_MS = 420;
 
-// How long each testimonial holds, and how many are shown. Reading the five
-// answers back takes ~3.1s, which is not enough time to read even two quotes —
-// so the quotes keep rotating after the pass has finished, for as long as the
-// visitor leaves the screen up. They are what the wait is for: there is nothing
-// to do here but wait, and a reason to keep going is better use of the time
-// than a shorter bar.
-const TESTIMONIAL_MS = 4400;
+/**
+ * How long each testimonial holds, and how many are shown. The quotes keep
+ * rotating after the pass has finished, for as long as the visitor leaves the
+ * screen up: they are what the wait is for, and a reason to keep going is
+ * better use of the time than a shorter bar.
+ *
+ * The hold is not the reading time. The swap underneath spends 1.1s moving and
+ * holds the incoming quote back another 0.2s, so what is left standing still is
+ * this figure less about 1.3s. At 4400 that was three seconds for two lines and
+ * a name, which is enough to finish reading only if you started immediately;
+ * seven leaves the quote at rest for nearly six, which is long enough to notice
+ * it, read it, and look away before it moves.
+ */
+const TESTIMONIAL_MS = 7000;
 const TESTIMONIALS_SHOWN = 3;
 
 /**

@@ -707,7 +707,206 @@ function CommentDotMarker({
     );
 }
 
-// Draggable Phrase row rendering individual words for songwriting suggestions
+/**
+ * Resolves where in a line's text the writer clicked, so click-to-edit can drop the caret
+ * there instead of always jumping to the end.
+ *
+ * Safe to map exactly: the rendered line is `phrase.text.split(/(\s+)/)` re-emitted token by
+ * token (whitespace tokens included, and prePunc+word+postPunc always reassembles the whole
+ * token), so concatenating the container's text nodes reproduces `phrase.text` character for
+ * character. Walking those nodes to the clicked one therefore yields a real offset into it.
+ *
+ * Returns null whenever anything is uncertain — an unsupported browser API, a click that
+ * landed outside the text container, or an out-of-range result. Callers fall back to
+ * end-of-line, which is the behaviour double-click has always had.
+ */
+function getCaretOffsetFromPoint(clientX: number, clientY: number, container: HTMLElement | null, textLength: number): number | null {
+    if (!container) return null;
+    try {
+        let node: Node | null = null;
+        let offsetInNode = 0;
+
+        const doc: any = document;
+        if (typeof doc.caretRangeFromPoint === 'function') {
+            const range = doc.caretRangeFromPoint(clientX, clientY);
+            if (!range) return null;
+            node = range.startContainer;
+            offsetInNode = range.startOffset;
+        } else if (typeof doc.caretPositionFromPoint === 'function') {
+            const pos = doc.caretPositionFromPoint(clientX, clientY);
+            if (!pos) return null;
+            node = pos.offsetNode;
+            offsetInNode = pos.offset;
+        } else {
+            return null;
+        }
+
+        if (!node || !container.contains(node)) return null;
+
+        // Clicks can resolve to an element rather than a text node (e.g. the padding around
+        // the text). Those carry no reliable character position.
+        if (node.nodeType !== Node.TEXT_NODE) return null;
+
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        let consumed = 0;
+        while (walker.nextNode()) {
+            const textNode = walker.currentNode;
+            if (textNode === node) {
+                const resolved = consumed + offsetInNode;
+                return resolved >= 0 && resolved <= textLength ? resolved : null;
+            }
+            consumed += (textNode.textContent || '').length;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Is the caret sitting on the first / last *visual* row of a textarea?
+ *
+ * Long lyric lines wrap, so Up/Down must first walk the wrapped rows inside the line the
+ * writer is on and only jump to the neighbouring line from the top/bottom edge. A textarea
+ * exposes no caret geometry, so this measures against a hidden mirror element that copies its
+ * text metrics and width: the caret's row top is compared with the row tops of offset 0 and
+ * of the very end. A single-row line reports true for both, which is what makes Up and Down
+ * move straight to the previous/next line in the common case.
+ *
+ * Fails open (both true) — a measurement problem should leave arrows navigating, not stuck.
+ */
+/**
+ * The canvas only starts a new line from its middle; a band around the inside edges is inert
+ * so that clicking near the border, beside a section label, or just off the text column does
+ * not fire a line. Single source of truth for BOTH the click handler and the cursor styling —
+ * if these two disagreed, the canvas would advertise typing where it does nothing (or the
+ * reverse), which is exactly the confusing part.
+ */
+const CANVAS_TYPE_ZONE_INSET_X = 0.12;
+const CANVAS_TYPE_ZONE_INSET_Y = 0.10;
+const CANVAS_TYPE_ZONE_MIN_INSET = 24;
+
+function isInsideCanvasTypeZone(rect: DOMRect, clientX: number, clientY: number): boolean {
+    const inactiveX = Math.max(CANVAS_TYPE_ZONE_MIN_INSET, rect.width * CANVAS_TYPE_ZONE_INSET_X);
+    const inactiveY = Math.max(CANVAS_TYPE_ZONE_MIN_INSET, rect.height * CANVAS_TYPE_ZONE_INSET_Y);
+    return (
+        clientX >= rect.left + inactiveX && clientX <= rect.right - inactiveX &&
+        clientY >= rect.top + inactiveY && clientY <= rect.bottom - inactiveY
+    );
+}
+
+function buildTextMirror(ta: HTMLTextAreaElement): HTMLDivElement {
+    const cs = window.getComputedStyle(ta);
+    const mirror = document.createElement('div');
+    ([
+        'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'lineHeight',
+        'textTransform', 'wordSpacing', 'textIndent', 'textAlign', 'paddingTop',
+        'paddingRight', 'paddingBottom', 'paddingLeft', 'borderTopWidth', 'borderRightWidth',
+        'borderBottomWidth', 'borderLeftWidth', 'boxSizing'
+    ] as const).forEach(prop => {
+        (mirror.style as any)[prop] = (cs as any)[prop];
+    });
+    mirror.style.position = 'absolute';
+    mirror.style.visibility = 'hidden';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.overflowWrap = 'break-word';
+    mirror.style.width = `${ta.clientWidth}px`;
+    mirror.style.left = '-9999px';
+    mirror.style.top = '0';
+    return mirror;
+}
+
+/**
+ * Lays `text` out in a mirror of `ta` and hands `fn` a probe returning the {top,left} of any
+ * caret offset, relative to the mirror's own box. Returns `fallback` if anything goes wrong,
+ * so caret maths can never break typing.
+ */
+function withMirroredText<T>(
+    ta: HTMLTextAreaElement,
+    text: string,
+    fn: (measure: (offset: number) => { top: number; left: number }, length: number) => T,
+    fallback: T
+): T {
+    try {
+        const mirror = buildTextMirror(ta);
+        // A zero-width space keeps an empty line measurable (an empty mirror has no text node).
+        mirror.textContent = text.length ? text : '​';
+        document.body.appendChild(mirror);
+        try {
+            const node = mirror.firstChild;
+            if (!node) return fallback;
+            const box = mirror.getBoundingClientRect();
+            const range = document.createRange();
+            const nodeLength = (node.textContent || '').length;
+            const measure = (offset: number) => {
+                range.setStart(node, Math.max(0, Math.min(offset, nodeLength)));
+                range.collapse(true);
+                const r = range.getBoundingClientRect();
+                // Rounded top so sub-pixel line positions still compare as the same row.
+                return { top: Math.round(r.top - box.top), left: r.left - box.left };
+            };
+            return fn(measure, text.length);
+        } finally {
+            mirror.remove();
+        }
+    } catch {
+        return fallback;
+    }
+}
+
+/**
+ * Where the caret is, for arrow-key navigation: whether it sits on the first / last *visual*
+ * row (long lyric lines wrap, so Up/Down must walk those rows before leaving the line), and
+ * its horizontal pixel position, which is what gets carried to the neighbouring line.
+ *
+ * Fails open — a measurement problem should leave arrows navigating, not stuck.
+ */
+function getCaretMetrics(ta: HTMLTextAreaElement): { onFirstRow: boolean; onLastRow: boolean; x: number } {
+    const caret = ta.selectionStart ?? 0;
+    return withMirroredText(ta, ta.value, (measure, length) => {
+        const at = measure(caret);
+        const first = measure(0);
+        const last = measure(length);
+        return {
+            onFirstRow: Math.abs(at.top - first.top) <= 1,
+            onLastRow: Math.abs(at.top - last.top) <= 1,
+            x: at.left
+        };
+    }, { onFirstRow: true, onLastRow: true, x: 0 });
+}
+
+/**
+ * The caret offset in `text` sitting closest to horizontal position `targetX`, restricted to
+ * the line's first or last visual row — entering a line from above lands on its first row,
+ * from below on its last, exactly as a normal text editor behaves.
+ *
+ * Mapping by pixels rather than character index is what makes the caret land under the
+ * cursor: the canvas centres its lyrics, so the same index sits at a completely different x
+ * on lines of different lengths.
+ */
+function getOffsetAtCaretX(
+    ta: HTMLTextAreaElement,
+    text: string,
+    targetX: number,
+    row: 'first' | 'last'
+): number {
+    return withMirroredText(ta, text, (measure, length) => {
+        const rowTop = row === 'first' ? measure(0).top : measure(length).top;
+        let best = row === 'first' ? 0 : length;
+        let bestDistance = Infinity;
+        for (let offset = 0; offset <= length; offset++) {
+            const point = measure(offset);
+            if (Math.abs(point.top - rowTop) > 1) continue;
+            const distance = Math.abs(point.left - targetX);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = offset;
+            }
+        }
+        return best;
+    }, row === 'first' ? 0 : text.length);
+}
+
 // Draggable Phrase row rendering individual words for songwriting suggestions
 const PhraseRow = React.memo(function PhraseRow({
     phrase, 
@@ -738,7 +937,9 @@ const PhraseRow = React.memo(function PhraseRow({
     onStopEditing,
     onUpdateText,
     onBackspaceAtStart,
+    onNavigateLine,
     selectionOffset,
+    selectionX,
     draggedWord,
     setDraggedWord,
     dragOverWordIndex,
@@ -789,7 +990,15 @@ const PhraseRow = React.memo(function PhraseRow({
     dragOverBlockId?: string | null;
     handleAttachAudioToPhrase?: (audioNoteId: string, phraseId: string | null, groupId: string | null) => void;
     isCurrentlyEditing?: boolean;
-    onStartEditing?: (phraseId: string) => void;
+    onStartEditing?: (phraseId: string, caretOffset?: number) => void;
+    onNavigateLine?: (
+        fromPhraseId: string,
+        direction: 'up' | 'down',
+        // Up/Down carry the caret's horizontal position; Left/Right wrap to a line edge.
+        caret: { mode: 'x'; x: number } | { mode: 'edge'; edge: 'start' | 'end' }
+    ) => boolean;
+    /** Carried caret x from arrow navigation, resolved against this line once it mounts. */
+    selectionX?: { x: number; row: 'first' | 'last' };
     onStopEditing?: (createNext?: boolean) => void;
     onUpdateText?: (phraseId: string, text: string) => void;
     onBackspaceAtStart?: (phraseId: string) => void;
@@ -840,10 +1049,15 @@ const PhraseRow = React.memo(function PhraseRow({
     // Auto-adjust height and sync value without overwriting active typing
     useEffect(() => {
         if (isCurrentlyEditing && textareaRef.current) {
-            if (document.activeElement !== textareaRef.current) {
-                textareaRef.current.value = phrase.text;
+            const el = textareaRef.current;
+            if (document.activeElement !== el) {
+                el.value = phrase.text;
             }
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+            // Collapse before measuring. `scrollHeight` never reports less than the height
+            // already applied to the element, so measuring without this reset lets the row
+            // grow but never shrink back when the text gets shorter.
+            el.style.height = 'auto';
+            el.style.height = `${el.scrollHeight}px`;
         }
     }, [isCurrentlyEditing, phrase.text]);
 
@@ -857,13 +1071,21 @@ const PhraseRow = React.memo(function PhraseRow({
     // never gets corrected, so the next keystroke inserts at the start instead of the end.
     useLayoutEffect(() => {
         if (isCurrentlyEditing && textareaRef.current) {
-            if (document.activeElement !== textareaRef.current) {
-                textareaRef.current.focus();
+            const el = textareaRef.current;
+            if (document.activeElement !== el) {
+                el.focus();
             }
-            const pos = typeof selectionOffset === 'number' ? selectionOffset : phrase.text.length;
-            textareaRef.current.setSelectionRange(pos, pos);
+            // Arrow navigation carries a horizontal position rather than a character index;
+            // resolve it against THIS line's own layout so the caret lands under where it was.
+            const pos = selectionX
+                ? getOffsetAtCaretX(el, phrase.text, selectionX.x, selectionX.row)
+                : (typeof selectionOffset === 'number' ? selectionOffset : phrase.text.length);
+            el.setSelectionRange(pos, pos);
         }
-    }, [isCurrentlyEditing, selectionOffset]);
+        // Depends on selectionX's primitives, not the object: a fresh object identity on every
+        // render would re-run this and yank the caret back mid-typing.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isCurrentlyEditing, selectionOffset, selectionX?.x, selectionX?.row]);
     
     if (phrase.text.trim() === '' && hasAudioNote && !isCurrentlyEditing) {
         return (
@@ -1354,6 +1576,33 @@ const PhraseRow = React.memo(function PhraseRow({
                     }
                 }
             }}
+            onClick={(e) => {
+                // One click into a written line starts editing it, with the caret where the
+                // click landed. Double-click still works and is left in place below — it is
+                // the only way in from a word token, which swallows single clicks for the
+                // rhyme lexicon.
+                if (isCurrentlyEditing || isLockedByRemote) return;
+                if (draggedPhraseId !== null) return;
+                if (!onStartEditing) return;
+                // A tap that finished a long-press drag (or a scroll that began on this line)
+                // still emits a click on touch devices — don't read that as "edit this line".
+                if (isTouchDraggingRef.current || hasTouchMovedRef.current) return;
+
+                const target = e.target as HTMLElement | null;
+                // Never steal a click meant for a control living inside the row (comment dot,
+                // attached media, buttons) or for a word token's lexicon lookup.
+                if (target?.closest('button, a, input, textarea, select, [role="button"], .word-token, .suggestions-popover')) {
+                    return;
+                }
+
+                // Deliberately NOT stopping propagation: the open-rhyme-popover and
+                // editing-title dismissals are document-level native listeners, and swallowing
+                // the event here would leave the popover stuck open. No ancestor has an
+                // onClick, so letting it bubble matches the pre-existing behaviour exactly.
+                const textEl = e.currentTarget.querySelector('.phrase-row-text') as HTMLElement | null;
+                const caret = getCaretOffsetFromPoint(e.clientX, e.clientY, textEl, phrase.text.length);
+                onStartEditing(phrase.id, caret ?? undefined);
+            }}
             onDoubleClick={(e) => {
                 e.stopPropagation();
                 if (isLockedByRemote) return;
@@ -1468,14 +1717,29 @@ const PhraseRow = React.memo(function PhraseRow({
                     </div>
                 </div>
             ) : isCurrentlyEditing ? (
-                <div className="text-[30px] md:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4">
+                /* Vertical box metrics here must mirror the read-only `.phrase-row-text`
+                   below — py-[2px] plus a 1px transparent border — or swapping between the
+                   two on every click visibly nudges the surrounding lines. */
+                <div className="text-[30px] md:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4 py-[2px] border border-transparent rounded-[12px]">
+                    {/* Two attributes below are load-bearing for vertical rhythm:
+                        `rows={1}` — without an explicit rows a textarea defaults to TWO rows,
+                        so its auto height (and the scrollHeight measured from it) is two lines
+                        tall for a one-line lyric.
+                        `block` — a textarea is inline-block by default, so it sits on the
+                        parent's text baseline and collects descender space underneath.
+                        Together these were the empty band that appeared under a line the
+                        moment it was clicked into. */}
                     <textarea
                         ref={textareaRef}
                         autoFocus
+                        rows={1}
                         defaultValue={phrase.text}
                         placeholder=""
                         onInput={(e) => {
                             const target = e.currentTarget;
+                            // Reset before measuring so the row shrinks again when a wrapped
+                            // line is trimmed back down to one (see the effect above).
+                            target.style.height = 'auto';
                             target.style.height = `${target.scrollHeight}px`;
                             if (onUpdateText) {
                                 onUpdateText(phrase.id, target.value);
@@ -1492,6 +1756,48 @@ const PhraseRow = React.memo(function PhraseRow({
                                 e.preventDefault();
                                 if (onStopEditing) onStopEditing(true);
                             }
+                            // Arrow keys cross between lyric lines the way they would between
+                            // lines of one document. Modifier combinations are left to the
+                            // browser so shift-select and word jumps keep working, and the key
+                            // is only swallowed when a line was actually entered — at the very
+                            // top/bottom the caret still behaves normally.
+                            const isPlainArrow = !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey;
+
+                            // Up/Down walk the wrapped rows inside this line first, and only
+                            // hand over from its top/bottom edge.
+                            if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && isPlainArrow && onNavigateLine) {
+                                const metrics = getCaretMetrics(e.currentTarget);
+                                const atEdge = e.key === 'ArrowUp' ? metrics.onFirstRow : metrics.onLastRow;
+                                if (atEdge) {
+                                    const moved = onNavigateLine(
+                                        phrase.id,
+                                        e.key === 'ArrowUp' ? 'up' : 'down',
+                                        { mode: 'x', x: metrics.x }
+                                    );
+                                    if (moved) e.preventDefault();
+                                }
+                            }
+
+                            // Left/Right wrap past the ends of the line: off the start lands at
+                            // the end of the line above, off the end at the start of the line
+                            // below. Only with a collapsed caret — with a selection these keys
+                            // mean "collapse it", which is the browser's job.
+                            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && isPlainArrow && onNavigateLine) {
+                                const el = e.currentTarget;
+                                const collapsed = el.selectionStart === el.selectionEnd;
+                                const goingBack = e.key === 'ArrowLeft';
+                                const atBoundary = goingBack
+                                    ? el.selectionStart === 0
+                                    : el.selectionStart === el.value.length;
+                                if (collapsed && atBoundary) {
+                                    const moved = onNavigateLine(
+                                        phrase.id,
+                                        goingBack ? 'up' : 'down',
+                                        { mode: 'edge', edge: goingBack ? 'end' : 'start' }
+                                    );
+                                    if (moved) e.preventDefault();
+                                }
+                            }
                             if (e.key === 'Backspace') {
                                 const target = e.currentTarget;
                                 if (target.selectionStart === 0 && target.selectionEnd === 0) {
@@ -1502,7 +1808,7 @@ const PhraseRow = React.memo(function PhraseRow({
                                 }
                             }
                         }}
-                        className="w-full bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none leading-[1.4] py-0 no-scrollbar"
+                        className="block w-full bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none leading-[1.4] py-0 no-scrollbar"
                         style={{ height: 'auto', minHeight: '1.4em' }}
                         inputMode="text"
                     />
@@ -4082,6 +4388,9 @@ export default function CreatePage() {
     }, [clickedWord]);
 
     const [cursorSelectionOffset, setCursorSelectionOffset] = useState<{ phraseId: string; offset: number } | null>(null);
+    // Arrow navigation carries a horizontal pixel position instead of a character index, so the
+    // caret can land under itself on a line of a different length (the canvas centres its text).
+    const [cursorSelectionX, setCursorSelectionX] = useState<{ phraseId: string; x: number; row: 'first' | 'last' } | null>(null);
     const [draggedWord, setDraggedWord] = useState<{ word: string; phraseId: string; wordIndex: number } | null>(null);
     const [dragOverWordIndex, setDragOverWordIndex] = useState<{ phraseId: string; wordIndex: number; position: 'left' | 'right' } | null>(null);
     const recognitionRef = useRef<any>(null);
@@ -5253,8 +5562,18 @@ export default function CreatePage() {
         // visible as flicker to other collaborators watching presence indicators.
     }, [selectedNoteId, user, activeToolTab, activeRecordingTrackId, studioTracks.find(t => t.id === activeRecordingTrackId)?.name, studioState]);
 
+    // Whether the pointer is over the part of the canvas that actually starts typing. Drives
+    // the I-beam vs arrow cursor, so the card stops promising a text caret over its inert
+    // margins. Only written when the answer flips, so this doesn't re-render on every move.
+    const [isPointerInTypeZone, setIsPointerInTypeZone] = useState(false);
+
+    const handleCanvasPointerZone = (e: React.MouseEvent) => {
+        const inside = isInsideCanvasTypeZone(e.currentTarget.getBoundingClientRect(), e.clientX, e.clientY);
+        setIsPointerInTypeZone(prev => (prev === inside ? prev : inside));
+    };
+
     const lastCursorWriteRef = useRef<number>(0);
-    
+
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!selectedNoteId || !user) return;
         
@@ -9124,10 +9443,18 @@ export default function CreatePage() {
         });
     };
 
-    const handleStartEditing = async (phraseId: string) => {
+    const handleStartEditing = async (phraseId: string, caretOffset?: number) => {
         if (isCanvasReadOnly) return;
         setEditingPhraseId(phraseId);
-        setCursorSelectionOffset(null);
+        // A click-to-edit passes the caret position it resolved from the click point, so the
+        // cursor lands where the writer actually pointed. Without one (keyboard/menu entry)
+        // the row falls back to end-of-line.
+        setCursorSelectionOffset(
+            typeof caretOffset === 'number' ? { phraseId, offset: caretOffset } : null
+        );
+        // Entering a line any other way (a click, the menu) must drop a carried arrow-key x,
+        // or it would override the caret position that entry point just chose.
+        setCursorSelectionX(null);
 
         // Write lockedBy to Firestore
         if (selectedNoteId && user) {
@@ -9150,7 +9477,19 @@ export default function CreatePage() {
         }
     };
 
-    const handleStopEditing = async (createNext = false) => {
+    /**
+     * Commits the line being edited.
+     *
+     * `focusAfter` hands editing straight to another line (arrow-key navigation) instead of
+     * closing edit mode. It has to be part of THIS call rather than a follow-up
+     * handleStartEditing: removing a focused textarea fires no blur, and the lock release for
+     * the old line and the lock acquire for the new one would otherwise be two racing writes
+     * to the same `phrases` array.
+     */
+    const handleStopEditing = async (
+        createNext = false,
+        focusAfter?: { phraseId: string; caretOffset?: number; caretX?: { x: number; row: 'first' | 'last' } }
+    ) => {
         if (selectedNoteId && activeNote && editingPhraseId) {
             const currentPhrases = activeNote.phrases || [];
             const editingIdx = currentPhrases.findIndex(p => p.id === editingPhraseId);
@@ -9177,10 +9516,14 @@ export default function CreatePage() {
             
             const sanitizedPhrases = cleanupAndEnsurePlaceholders(finalPhrases, activeNote.verses || []);
             
-            // Release lock on editingPhrase
+            // Release lock on editingPhrase — and, when handing off to another line, take that
+            // line's lock in the same write so collaborators never see both or neither held.
             const updatedPhrases = sanitizedPhrases.map((p: any) => {
                 if (p.id === editingPhraseId) {
                     return { ...p, lockedBy: null };
+                }
+                if (focusAfter && user && p.id === focusAfter.phraseId) {
+                    return { ...p, lockedBy: user.uid };
                 }
                 return p;
             });
@@ -9193,9 +9536,24 @@ export default function CreatePage() {
                 title: activeNote.title || 'Untitled Project'
             });
             
-            setEditingPhraseId(nextPhraseId);
-            setCursorSelectionOffset(null);
-            
+            if (focusAfter) {
+                setEditingPhraseId(focusAfter.phraseId);
+                setCursorSelectionOffset(
+                    typeof focusAfter.caretOffset === 'number'
+                        ? { phraseId: focusAfter.phraseId, offset: focusAfter.caretOffset }
+                        : null
+                );
+                setCursorSelectionX(
+                    focusAfter.caretX
+                        ? { phraseId: focusAfter.phraseId, x: focusAfter.caretX.x, row: focusAfter.caretX.row }
+                        : null
+                );
+            } else {
+                setEditingPhraseId(nextPhraseId);
+                setCursorSelectionOffset(null);
+                setCursorSelectionX(null);
+            }
+
             // Immediately sync to database to release lock
             if (user) {
                 try {
@@ -9209,10 +9567,61 @@ export default function CreatePage() {
                     console.error("Error releasing focus lock in Firestore:", err);
                 }
             }
+        } else if (focusAfter) {
+            setEditingPhraseId(focusAfter.phraseId);
+            setCursorSelectionOffset(
+                typeof focusAfter.caretOffset === 'number'
+                    ? { phraseId: focusAfter.phraseId, offset: focusAfter.caretOffset }
+                    : null
+            );
+            setCursorSelectionX(
+                focusAfter.caretX
+                    ? { phraseId: focusAfter.phraseId, x: focusAfter.caretX.x, row: focusAfter.caretX.row }
+                    : null
+            );
         } else {
             setEditingPhraseId(null);
             setCursorSelectionOffset(null);
+            setCursorSelectionX(null);
         }
+    };
+
+    /**
+     * Arrow-key movement between lyric lines while editing.
+     *
+     * Ordering follows `phrases` with placeholders filtered out — the same convention
+     * handleBackspaceAtStart already uses for "the previous line", so merging backwards and
+     * arrowing upwards always agree on which line that is.
+     *
+     * Two ways in, both matching ordinary text-editor behaviour:
+     *  - Up/Down keep the caret's horizontal position — the x it sat at is carried over and
+     *    resolved against the target line's own layout, entering on that line's last visual
+     *    row going up and its first going down.
+     *  - Left/Right wrap past the ends of a line, landing on the far edge of the neighbour
+     *    (end of the previous line, start of the next).
+     * Returns false when there is no line in that direction, letting the key do its default
+     * thing rather than silently swallowing it.
+     */
+    const handleNavigateLine = (
+        fromPhraseId: string,
+        direction: 'up' | 'down',
+        caret: { mode: 'x'; x: number } | { mode: 'edge'; edge: 'start' | 'end' }
+    ): boolean => {
+        if (!activeNote) return false;
+        const realPhrases = (activeNote.phrases || []).filter(p => !p.id.startsWith('placeholder-'));
+        const currentIdx = realPhrases.findIndex(p => p.id === fromPhraseId);
+        if (currentIdx === -1) return false;
+
+        const target = realPhrases[direction === 'up' ? currentIdx - 1 : currentIdx + 1];
+        if (!target) return false;
+
+        handleStopEditing(false, {
+            phraseId: target.id,
+            ...(caret.mode === 'x'
+                ? { caretX: { x: caret.x, row: direction === 'up' ? 'last' as const : 'first' as const } }
+                : { caretOffset: caret.edge === 'end' ? (target.text || '').length : 0 })
+        });
+        return true;
     };
 
     const handleBackspaceAtStart = (phraseId: string) => {
@@ -9564,6 +9973,62 @@ export default function CreatePage() {
             content: newContent
         });
         setEditingPhraseId(newPhraseId);
+    };
+
+    /**
+     * Starts a new line at a specific place in the lyric flow rather than at the end — used
+     * when the writer clicks the gap between two existing lines, which reads as "I want to put
+     * something here".
+     *
+     * `groupId` says which verse the line joins, taken from where the click landed rather than
+     * from the anchor — clicking inside a verse box joins that verse, clicking in the padding
+     * outside one must not drop the line into a box the writer clicked outside of. A null
+     * anchor means there was nothing to position against, which falls back to appending.
+     */
+    const handleAddPhraseNear = (
+        anchorPhraseId: string | null,
+        position: 'before' | 'after',
+        groupId: string | null = null
+    ) => {
+        if (isCanvasReadOnly) return;
+        if (!selectedNoteId || !activeNote) return;
+        // Nothing to position against (an empty verse box, or a canvas with no lines yet) —
+        // append, still honouring the verse the click landed in.
+        if (!anchorPhraseId) {
+            handleAddNewPhrase(groupId);
+            return;
+        }
+
+        const currentPhrases = activeNote.phrases && activeNote.phrases.length > 0
+            ? activeNote.phrases
+            : syncPhrasesWithContent(activeNote.content);
+
+        const anchorIdx = currentPhrases.findIndex(p => p.id === anchorPhraseId);
+        if (anchorIdx === -1) {
+            handleAddNewPhrase(groupId);
+            return;
+        }
+
+        const newPhraseId = `p-${Math.random().toString(36).substring(2, 9)}`;
+        const newPhrase: Phrase = {
+            id: newPhraseId,
+            text: '',
+            groupId
+        };
+
+        const updatedPhrases = [...currentPhrases];
+        updatedPhrases.splice(position === 'after' ? anchorIdx + 1 : anchorIdx, 0, newPhrase);
+
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, activeNote.verses || []);
+        const newContent = finalPhrases.map(p => p.text).join('\n');
+
+        handleUpdateNote(selectedNoteId, {
+            phrases: finalPhrases,
+            content: newContent
+        });
+        setEditingPhraseId(newPhraseId);
+        setCursorSelectionOffset(null);
+        setCursorSelectionX(null);
     };
 
     const handleTranscribeAudioNote = async (noteId: string, audioNoteId: string, audioUrl: string) => {
@@ -10892,7 +11357,11 @@ export default function CreatePage() {
 
         const targetEl = e.currentTarget as HTMLElement;
         const rect = targetEl.getBoundingClientRect();
-        const parent = (targetEl.closest('.cursor-text') || targetEl.closest('.block-wrapper') || targetEl.closest('.creative-canvas-container') || document.body) as HTMLElement;
+        // Anchored to the canvas card by its own semantic class. This used to look for
+        // `.cursor-text`, which happened to resolve to the same element — but that class is now
+        // toggled by pointer position, so the popover would have re-anchored to a much smaller
+        // block (changing where it clamps) depending on where the mouse was.
+        const parent = (targetEl.closest('.creative-canvas-container') || targetEl.closest('.block-wrapper') || document.body) as HTMLElement;
         const parentRect = parent.getBoundingClientRect();
 
         const wordCenterX = rect.left + (rect.width / 2);
@@ -15271,6 +15740,88 @@ export default function CreatePage() {
             <div 
                 ref={writingCanvasRef}
                 id="writing-canvas"
+                onClick={(e) => {
+                    // One click on the bare canvas puts the writer straight into typing —
+                    // the card already advertises this with `cursor-text`, it just used to
+                    // demand a double-click.
+                    if (isCanvasReadOnly) return;
+                    if (draggedPhraseId !== null || draggedAudioId !== null || draggedGroupId !== null) return;
+
+                    // An open menu/popover treats this click as its dismissal; spawning a line
+                    // at the same time would make simply closing something feel destructive.
+                    if (showCanvasMenu || activePublishMenu || clickedWord) return;
+
+                    // Anything with its own meaning — a lyric line, a media card, a control —
+                    // keeps its own click behaviour. Media cards are covered by
+                    // `.phrase-row-container`: they render inside one.
+                    //
+                    // `.block-wrapper` and `.verse-group-container` are deliberately NOT listed.
+                    // They are containers, and their padding/gap is precisely the space BETWEEN
+                    // lines — the place a writer clicks meaning "put a line here". Bailing on
+                    // them is what stopped gap clicks from ever firing.
+                    const target = e.target as HTMLElement | null;
+                    if (target?.closest(
+                        '.phrase-row-container, .word-token, .suggestions-popover, button, a, input, textarea, select, video, img, [role="button"]'
+                    )) {
+                        return;
+                    }
+
+                    // Typing starts from the middle of the canvas only (see
+                    // isInsideCanvasTypeZone). Existing lines are unaffected: they were already
+                    // returned on above, so a lyric sitting inside the margin stays clickable.
+                    if (!isInsideCanvasTypeZone(e.currentTarget.getBoundingClientRect(), e.clientX, e.clientY)) {
+                        return;
+                    }
+
+                    if (!selectedNoteId) {
+                        handleCreateNote(activeFolderIdFilter);
+                    } else if (isNoteBlank) {
+                        // A blank project already renders the onboarding textarea — put the
+                        // caret back in it rather than starting a competing phrase row.
+                        textareaRef.current?.focus();
+                    } else {
+                        // Place the new line where the click actually was: clicking the gap
+                        // between two lyrics starts a line THERE, not at the end of the song.
+                        // Rows are read from the DOM in document order and compared against the
+                        // click's Y. Placeholder rows are skipped — they are 4px drop targets,
+                        // not lyrics, and would give a meaningless anchor.
+                        //
+                        // Any line that was being edited has already been committed by its own
+                        // blur, which fires on this click's mousedown. An empty one is removed
+                        // by that same path, so repeated clicks can't pile up blank lines.
+                        const rows = (Array.from(
+                            e.currentTarget.querySelectorAll('.phrase-row-container[data-phrase-id]')
+                        ) as HTMLElement[]).filter(
+                            row => !(row.dataset.phraseId || '').startsWith('placeholder-')
+                        );
+
+                        let anchorId: string | null = null;
+                        let position: 'before' | 'after' = 'after';
+                        for (const row of rows) {
+                            const box = row.getBoundingClientRect();
+                            if (box.height === 0) continue;
+                            if (e.clientY < box.top) {
+                                // Above every line so far — only meaningful before the first one.
+                                if (anchorId === null) {
+                                    anchorId = row.dataset.phraseId || null;
+                                    position = 'before';
+                                }
+                                break;
+                            }
+                            anchorId = row.dataset.phraseId || null;
+                            position = 'after';
+                        }
+
+                        // Which verse the new line belongs to comes from WHERE THE CLICK LANDED,
+                        // not from the anchor's group. Clicking inside a verse box joins that
+                        // verse; clicking in the padding below one must not silently drop the
+                        // line inside a box the writer clicked outside of.
+                        const clickedGroupId = target?.closest('.verse-group-container')
+                            ?.getAttribute('data-group-id') || null;
+
+                        handleAddPhraseNear(anchorId, position, clickedGroupId);
+                    }
+                }}
                 onDoubleClick={(e) => {
                     if (!selectedNoteId) {
                         handleCreateNote(activeFolderIdFilter);
@@ -15313,8 +15864,14 @@ export default function CreatePage() {
                     canvasTouchStartRef.current = null;
                 }}
                 onDragOver={(e) => e.preventDefault()}
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
+                onMouseMove={(e) => {
+                    handleCanvasPointerZone(e);
+                    handleMouseMove(e);
+                }}
+                onMouseLeave={(e) => {
+                    setIsPointerInTypeZone(false);
+                    handleMouseLeave();
+                }}
                 onDrop={(e) => {
                     e.preventDefault();
                     
@@ -15346,10 +15903,12 @@ export default function CreatePage() {
                         handleMovePhraseToGroup(phraseId, null);
                     }
                 }}
-                className={`bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
+                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
                     isCanvasLocked
                         ? 'border-2 border-[#EDFF8E] shadow-[0_0_0_4px_rgba(237,255,142,0.35),0_12px_40px_rgba(0,0,0,0.03)] cursor-default'
-                        : 'border border-stone-200/60 cursor-text'
+                        // The I-beam is only honest over the region that actually starts a
+                        // line; the inert margin band keeps the ordinary arrow.
+                        : `border border-stone-200/60 ${isPointerInTypeZone ? 'cursor-text' : 'cursor-default'}`
                 }`}
             >
                 {/* Empty-canvas backdrop: a looping animated sky (birds/clouds) behind a
@@ -16468,10 +17027,12 @@ export default function CreatePage() {
                                                                                             handleAttachAudioToPhrase={handleAttachAudioToPhrase}
                                                                                             isCurrentlyEditing={editingPhraseId === phrase.id}
                                                                                             onStartEditing={handleStartEditing}
+                                                                                            onNavigateLine={handleNavigateLine}
                                                                                             onStopEditing={handleStopEditing}
                                                                                             onUpdateText={handleUpdatePhraseText}
                                                                                             onBackspaceAtStart={handleBackspaceAtStart}
                                                                                             selectionOffset={cursorSelectionOffset?.phraseId === phrase.id ? cursorSelectionOffset.offset : undefined}
+                                                                                            selectionX={cursorSelectionX?.phraseId === phrase.id ? { x: cursorSelectionX.x, row: cursorSelectionX.row } : undefined}
                                                                                             draggedWord={draggedWord}
                                                                                             setDraggedWord={setDraggedWord}
                                                                                             dragOverWordIndex={dragOverWordIndex}
@@ -16736,10 +17297,12 @@ export default function CreatePage() {
                                                                         handleAttachAudioToPhrase={handleAttachAudioToPhrase}
                                                                         isCurrentlyEditing={editingPhraseId === phrase.id}
                                                                         onStartEditing={handleStartEditing}
+                                                                        onNavigateLine={handleNavigateLine}
                                                                         onStopEditing={handleStopEditing}
                                                                         onUpdateText={handleUpdatePhraseText}
                                                                         onBackspaceAtStart={handleBackspaceAtStart}
                                                                         selectionOffset={cursorSelectionOffset?.phraseId === phrase.id ? cursorSelectionOffset.offset : undefined}
+                                                                        selectionX={cursorSelectionX?.phraseId === phrase.id ? { x: cursorSelectionX.x, row: cursorSelectionX.row } : undefined}
                                                                         draggedWord={draggedWord}
                                                                         setDraggedWord={setDraggedWord}
                                                                         dragOverWordIndex={dragOverWordIndex}
