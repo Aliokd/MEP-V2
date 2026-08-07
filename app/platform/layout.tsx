@@ -4,14 +4,14 @@ import MaestroSidebar from './components/MaestroSidebar';
 import SupportModal from './components/SupportModal';
 import FeedbackModal from './components/FeedbackModal';
 import MindPowerPanel from './components/MindPowerPanel';
+import PlatformOnboarding from './components/PlatformOnboarding';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { TreePine, Menu, User, Play, Pause, X, RotateCcw, Brain, ChevronRight, ShieldOff, UsersRound, UserMinus, ArrowRight } from 'lucide-react';
+import { Menu, User, X, Brain, ChevronRight, ShieldOff, UsersRound, UserMinus, ArrowRight } from 'lucide-react';
 import Logo from '@/components/Logo';
-import Tooltip from '@/components/Tooltip';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getCountFromServer, onSnapshot } from 'firebase/firestore';
 import { acknowledgeRemovalNotice } from './create/collabUtils';
@@ -429,82 +429,8 @@ function PlatformLayoutInner({
         }
     }, [user, loading, blocked, router]);
 
-    const [showWelcomeVideoModal, setShowWelcomeVideoModal] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [isRedirecting, setIsRedirecting] = useState(false);
-    const [hasEnded, setHasEnded] = useState(false);
-
-    useEffect(() => {
-        if (!loading && user) {
-            const seen = localStorage.getItem('mep-welcome-video-seen');
-            if (!seen) {
-                setShowWelcomeVideoModal(true);
-                if (pathname === '/platform') {
-                    setIsRedirecting(true);
-                    router.push('/platform/create');
-                }
-            }
-        }
-    }, [user, loading, pathname, router]);
-
-    useEffect(() => {
-        if (showWelcomeVideoModal && videoRef.current) {
-            const playTimeout = setTimeout(() => {
-                if (videoRef.current) {
-                    videoRef.current.play().then(() => {
-                        setIsPlaying(true);
-                        setHasEnded(false);
-                    }).catch(err => {
-                        console.log("Autoplay unmuted blocked, showing overlay:", err);
-                        setIsPlaying(false);
-                    });
-                }
-            }, 250);
-            return () => clearTimeout(playTimeout);
-        }
-    }, [showWelcomeVideoModal]);
-
-    const handleCloseWelcomeModal = () => {
-        setShowWelcomeVideoModal(false);
-        safeLocalStorageSetItem('mep-welcome-video-seen', 'true');
-        if (videoRef.current) {
-            videoRef.current.pause();
-            setIsPlaying(false);
-        }
-        setHasEnded(false);
-    };
-
-    const handleReplay = () => {
-        setHasEnded(false);
-        setIsPlaying(true);
-        if (videoRef.current) {
-            videoRef.current.currentTime = 0;
-            videoRef.current.play().catch(err => {
-                console.error("Replay play failed:", err);
-            });
-        }
-    };
-
-    const togglePlay = () => {
-        if (videoRef.current) {
-            if (hasEnded) {
-                handleReplay();
-                return;
-            }
-            if (isPlaying) {
-                videoRef.current.pause();
-                setIsPlaying(false);
-            } else {
-                videoRef.current.play().then(() => {
-                    setIsPlaying(true);
-                    setHasEnded(false);
-                }).catch(err => {
-                    console.error("Video play failed:", err);
-                });
-            }
-        }
-    };
+    // The welcome video now lives inside the onboarding guide as its first step —
+    // see PlatformOnboarding, mounted at the bottom of this layout.
 
     if (loading) return (
         <div className="h-screen flex items-center justify-center bg-[#E4E4DF]">
@@ -853,77 +779,11 @@ function PlatformLayoutInner({
                         : 'overflow-y-auto bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] p-4 md:p-8 shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)]'
                     }
                 `}>
-                    {isRedirecting ? (
-                        <div className="w-full max-w-6xl mx-auto mt-0 mb-20 flex flex-col gap-4 animate-pulse">
-                            {[...Array(3)].map((_, i) => (
-                                <div key={i} className="w-full border border-stone-200/60 rounded-[20px] p-6 bg-white/40 flex justify-between items-center h-24" />
-                            ))}
-                        </div>
-                    ) : (
-                        children
-                    )}
+                    {children}
                 </div>
             </div>
 
-            {/* Welcome Video Overlay Modal */}
-            {showWelcomeVideoModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#FAF9F5]/10 backdrop-blur-[16px] p-0 md:p-12 transition-all duration-500">
-                    <button
-                        onClick={handleCloseWelcomeModal}
-                        className="fixed top-4 right-4 md:top-8 md:right-8 p-2.5 md:p-3 bg-white/80 md:bg-transparent backdrop-blur-xs md:backdrop-blur-none rounded-full text-stone-900 hover:opacity-75 transition-all duration-200 cursor-pointer active:scale-95 z-[110]"
-                        aria-label={t('platform_layout.close_welcome_video')}
-                    >
-                        <X className="w-6 h-6 md:w-8 md:h-8 stroke-[1.5]" />
-                    </button>
-                    
-                    <div className="relative w-full max-w-full md:w-[80%] md:max-w-[80%] aspect-video bg-white rounded-none md:rounded-[32px] shadow-[0_24px_60px_rgba(0,0,0,0.12)] overflow-hidden flex items-center justify-center border-none md:border md:border-white/40">
-                        <video
-                            ref={videoRef}
-                            src="/videos/Welcome%20-%20onboarding/Welcome_V3.mp4"
-                            className="w-full h-full block object-cover bg-white"
-                            onClick={togglePlay}
-                            onPlay={() => setIsPlaying(true)}
-                            onPause={() => setIsPlaying(false)}
-                            onEnded={() => {
-                                setIsPlaying(false);
-                                setHasEnded(true);
-                            }}
-                            controls={isPlaying && !hasEnded}
-                            playsInline
-                        />
-                        
-                        {!isPlaying && !hasEnded && (
-                            <div
-                                onClick={togglePlay}
-                                className="absolute inset-0 flex items-center justify-center bg-black/10 cursor-pointer group transition-all duration-300 z-10"
-                            >
-                                <Play className="w-24 h-24 md:w-32 md:h-32 fill-white/90 text-white/90 stroke-none drop-shadow-lg group-hover:scale-105 transition-all duration-300" />
-                            </div>
-                        )}
-
-                        {hasEnded && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-20 p-8 text-center animate-in fade-in duration-300">
-                                <Tooltip label={t('platform_layout.replay_video')}>
-                                    <button
-                                        onClick={handleReplay}
-                                        className="p-4 text-stone-600 hover:text-stone-900 hover:bg-stone-50 rounded-full transition-all cursor-pointer active:scale-95 flex items-center justify-center mb-6 border border-stone-150 bg-stone-50/50 shadow-xs"
-                                        aria-label={t('platform_layout.replay_video')}
-                                    >
-                                        <RotateCcw className="w-8 h-8 stroke-[1.5]" />
-                                    </button>
-                                </Tooltip>
-                                
-                                <button
-                                    onClick={handleCloseWelcomeModal}
-                                    className="w-full sm:w-auto px-16 py-4 bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] text-base font-semibold rounded-full transition-all shadow-md hover:shadow-lg shadow-[#87b884]/20 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2"
-                                >
-                                    {t('platform_layout.start_now')}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+            <PlatformOnboarding />
         </div>
     );
 }

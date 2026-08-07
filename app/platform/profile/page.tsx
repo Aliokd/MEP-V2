@@ -1,14 +1,17 @@
 "use client";
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { User, Mail } from 'lucide-react';
+import { User, Mail, PlayCircle } from 'lucide-react';
 import SupportModal from '../components/SupportModal';
+import { resetGuide } from '@/lib/onboardingGuide';
 
 export default function ProfilePage() {
     const { user } = useAuth();
     const { t } = useLanguage();
+    const router = useRouter();
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -34,6 +37,12 @@ export default function ProfilePage() {
     const showNotification = (msg: string) => {
         setNotification(msg);
         setTimeout(() => setNotification(''), 4000);
+    };
+
+    // Clearing the flag is enough — the guide re-checks its state on navigation.
+    const handleReplayGuide = async () => {
+        await resetGuide(user.uid);
+        router.push('/platform/create');
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -227,7 +236,7 @@ export default function ProfilePage() {
                                 <div className="absolute right-1 top-1 w-4 h-4 bg-stone-900 rounded-full" />
                             </div>
                         </div>
-                        <div className="flex items-center justify-between py-4">
+                        <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
                             <div className="space-y-0.5">
                                 <p className="font-sans text-sm font-medium text-stone-800">{t('profile.public_profile_title')}</p>
                                 <p className="text-xs text-stone-500">{t('profile.public_profile_desc')}</p>
@@ -235,6 +244,19 @@ export default function ProfilePage() {
                             <div className="w-10 h-6 bg-stone-200 rounded-full relative shrink-0 ml-4">
                                 <div className="absolute left-1 top-1 w-4 h-4 bg-stone-400 rounded-full" />
                             </div>
+                        </div>
+                        <div className="flex items-center justify-between py-4">
+                            <div className="space-y-0.5">
+                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.guide_title')}</p>
+                                <p className="text-xs text-stone-500">{t('profile.guide_desc')}</p>
+                            </div>
+                            <button
+                                onClick={handleReplayGuide}
+                                className="flex items-center gap-1.5 shrink-0 ml-4 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-xs font-semibold text-stone-700 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95"
+                            >
+                                <PlayCircle size={14} />
+                                {t('profile.guide_action')}
+                            </button>
                         </div>
                     </div>
                 </div>

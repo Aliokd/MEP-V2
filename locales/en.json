@@ -535,7 +535,10 @@
     "upgrade_to_max": "Upgrade to Max",
     "need_assistance": "Need help?",
     "contact_concierge": "Contact support",
-    "error_update_email": "Failed to update email. Please try logging in again."
+    "error_update_email": "Failed to update email. Please try logging in again.",
+    "guide_title": "Guide",
+    "guide_desc": "Watch the welcome video and feature tour again.",
+    "guide_action": "Replay"
   },
   "email": {
     "welcome": {
@@ -1322,28 +1325,23 @@
     "back": "Back",
     "next": "Next",
     "done": "Done",
-    "platform": {
-      "mind_power_title": "Track your Mind Power",
-      "mind_power_desc": "This bar fills up as you write, record, practice and share. It's your overall songwriting momentum.",
-      "fundamentals_title": "Start with the fundamentals",
-      "fundamentals_desc": "Short lessons that build your songwriting foundations, one chapter at a time.",
-      "ideas_title": "Stuck? Check the Bank of Ideas",
-      "ideas_desc": "A library of prompts and shortcuts whenever you need a spark.",
-      "create_nav_title": "Ready to write?",
-      "create_nav_desc": "Head to Create whenever you want to start a new song."
-    },
-    "create": {
-      "canvas_title": "Your lyric canvas",
-      "canvas_desc": "Double-click anywhere to start writing a line. Drag audio, images or documents in to place them right in the flow.",
-      "record_title": "Record ideas on the fly",
-      "record_desc": "Capture a melody or voice memo any time. It becomes a card in your canvas.",
-      "tools_title": "Creative tools",
-      "tools_desc": "Open the tools panel for rhyme suggestions, uploads and more.",
-      "studio_title": "Demo studio",
-      "studio_desc": "Layer your recordings into a full demo mix when you're ready.",
-      "inspirations_title": "Need inspiration?",
-      "inspirations_desc": "Get prompts and ideas without leaving the canvas."
-    }
+    "close_demo": "Close demo",
+    "canvas_title": "Your lyric canvas",
+    "canvas_desc": "Double-click anywhere to start writing a line. Drag audio, images or documents in to place them right in the flow.",
+    "record_title": "Record ideas on the fly",
+    "record_desc": "Capture a melody or voice memo any time. It becomes a card in your canvas.",
+    "tools_title": "Creative tools",
+    "tools_desc": "Open the tools panel for rhyme suggestions, uploads and more.",
+    "studio_title": "Demo studio",
+    "studio_desc": "Layer your recordings into a full demo mix when you're ready.",
+    "inspirations_title": "Need inspiration?",
+    "inspirations_desc": "Get prompts and ideas without leaving the canvas.",
+    "learn_title": "Lessons when you want them",
+    "learn_desc": "Learn holds short lessons, plus a Bank of Ideas for when you need a spark.",
+    "practice_title": "Train your instincts",
+    "practice_desc": "Practice has short exercises to sharpen rhythm, rhyme and melody. Opening soon.",
+    "connect_title": "Share and collaborate",
+    "connect_desc": "Connect is where you share projects and write together with other songwriters."
   },
   "card": {
     "document_attachment": "Document Attachment",

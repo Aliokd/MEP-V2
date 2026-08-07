@@ -13,6 +13,15 @@ import { PRACTICE_ENABLED } from '@/lib/uiFlags';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import Tooltip from '@/components/Tooltip';
 
+/** Anchors the onboarding guide spotlights onto specific nav entries. */
+function tourAnchor(href: string): string | undefined {
+    if (href === '/platform/create') return 'nav-create';
+    if (href === '/platform') return 'nav-learn';
+    if (href === '/platform/practice') return 'nav-practice';
+    if (href === '/platform/connect') return 'nav-connect';
+    return undefined;
+}
+
 interface MaestroSidebarProps {
     isMobileOpen?: boolean;
     onClose?: () => void;
@@ -153,6 +162,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                         <Tooltip key={item.label} label={`${item.label} — ${t('common.coming_soon')}`} side="right">
                                             <div
                                                 aria-disabled="true"
+                                                data-tour={tourAnchor(item.href)}
                                                 className="flex items-center justify-center py-3 w-full rounded-[12px] text-stone-500 select-none"
                                             >
                                                 <Icon size={18} className="stroke-[2.2] shrink-0" />
@@ -163,7 +173,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
 
                                 return (
                                     <Tooltip key={item.label} label={item.label} side="right">
-                                        <Link href={item.href} onClick={onClose} className="block w-full" data-tour={item.href === '/platform/create' ? 'nav-create' : undefined}>
+                                        <Link href={item.href} onClick={onClose} className="block w-full" data-tour={tourAnchor(item.href)}>
                                             <div className={`
                                                 flex items-center justify-center py-3 w-full rounded-[12px] transition-all group cursor-pointer
                                                 ${isActive
@@ -246,6 +256,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                             <div
                                                 key={item.label}
                                                 aria-disabled="true"
+                                                data-tour={tourAnchor(item.href)}
                                                 className="flex items-center gap-3 px-4 py-3 rounded-[12px] text-stone-500 select-none"
                                             >
                                                 <span className="font-sans text-[22px] font-medium tracking-wide whitespace-nowrap">
@@ -260,7 +271,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                     }
 
                                     return (
-                                        <Link key={item.label} href={item.href} onClick={onClose} data-tour={item.href === '/platform/create' ? 'nav-create' : undefined}>
+                                        <Link key={item.label} href={item.href} onClick={onClose} data-tour={tourAnchor(item.href)}>
                                             <div className={`
                                                 flex items-center gap-4 px-4 py-3 rounded-[12px] transition-all group cursor-pointer
                                                 ${isActive

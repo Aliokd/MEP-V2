@@ -535,7 +535,10 @@
     "upgrade_to_max": "Uppgradera till Max",
     "need_assistance": "Behöver du hjälp?",
     "contact_concierge": "Kontakta support",
-    "error_update_email": "Det gick inte att uppdatera e-postadressen. Logga in igen och försök på nytt."
+    "error_update_email": "Det gick inte att uppdatera e-postadressen. Logga in igen och försök på nytt.",
+    "guide_title": "Guide",
+    "guide_desc": "Se välkomstvideon och funktionsrundturen igen.",
+    "guide_action": "Spela upp igen"
   },
   "email": {
     "welcome": {
@@ -1322,28 +1325,23 @@
     "back": "Tillbaka",
     "next": "Nästa",
     "done": "Klar",
-    "platform": {
-      "mind_power_title": "Följ din Mind Power",
-      "mind_power_desc": "Den här mätaren fylls på när du skriver, spelar in, övar och delar. Den visar ditt samlade momentum som låtskrivare.",
-      "fundamentals_title": "Börja med grunderna",
-      "fundamentals_desc": "Korta lektioner som bygger din låtskrivargrund, ett kapitel i taget.",
-      "ideas_title": "Fastnat? Kolla idébanken",
-      "ideas_desc": "Ett bibliotek med idéer och genvägar när du behöver inspiration.",
-      "create_nav_title": "Redo att skriva?",
-      "create_nav_desc": "Gå till Create när du vill börja på en ny låt."
-    },
-    "create": {
-      "canvas_title": "Din textcanvas",
-      "canvas_desc": "Dubbelklicka var som helst för att börja skriva en rad. Dra in ljud, bilder eller dokument för att placera dem direkt i flödet.",
-      "record_title": "Spela in idéer direkt",
-      "record_desc": "Fånga en melodi eller ett röstmemo när som helst. Det blir ett kort på din canvas.",
-      "tools_title": "Kreativa verktyg",
-      "tools_desc": "Öppna verktygspanelen för rimförslag, uppladdningar och mer.",
-      "studio_title": "Demo Studio",
-      "studio_desc": "Lägg dina inspelningar i lager till en färdig demomix när du är redo.",
-      "inspirations_title": "Behöver du inspiration?",
-      "inspirations_desc": "Få förslag och idéer utan att lämna canvasen."
-    }
+    "close_demo": "Stäng demon",
+    "canvas_title": "Din textcanvas",
+    "canvas_desc": "Dubbelklicka var som helst för att börja skriva en rad. Dra in ljud, bilder eller dokument för att placera dem direkt i flödet.",
+    "record_title": "Spela in idéer direkt",
+    "record_desc": "Fånga en melodi eller ett röstmemo när som helst. Det blir ett kort på din canvas.",
+    "tools_title": "Kreativa verktyg",
+    "tools_desc": "Öppna verktygspanelen för rimförslag, uppladdningar och mer.",
+    "studio_title": "Demo Studio",
+    "studio_desc": "Lägg dina inspelningar i lager till en färdig demomix när du är redo.",
+    "inspirations_title": "Behöver du inspiration?",
+    "inspirations_desc": "Få förslag och idéer utan att lämna canvasen.",
+    "learn_title": "Lektioner när du vill ha dem",
+    "learn_desc": "Under Learn hittar du korta lektioner och en idébank när du behöver inspiration.",
+    "practice_title": "Träna dina instinkter",
+    "practice_desc": "Practice har korta övningar som vässar rytm, rim och melodi. Öppnar snart.",
+    "connect_title": "Dela och samarbeta",
+    "connect_desc": "I Connect delar du projekt och skriver tillsammans med andra låtskrivare."
   },
   "card": {
     "document_attachment": "Bifogat dokument",
