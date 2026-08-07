@@ -27,6 +27,7 @@
     "@mep/dataconnect": "file:lib/dataconnect-generated",
     "@paddle/paddle-js": "^1.6.4",
     "@paddle/paddle-node-sdk": "^3.8.0",
+    "@tombatossals/chords-db": "^0.5.1",
     "@types/markdown-it": "^14.1.2",
     "@types/matter-js": "^0.20.2",
     "acorn": "^8.16.0",
@@ -50,6 +51,7 @@
     "swiper": "^11.2.2",
     "tailwind-merge": "^3.4.0",
     "tesseract.js": "^7.0.0",
+    "tonal": "^6.4.3",
     "wavesurfer.js": "^7.12.8"
   },
   "devDependencies": {

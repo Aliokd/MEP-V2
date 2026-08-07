@@ -16,7 +16,8 @@
     "about": "About",
     "reset": "Reset",
     "coming_soon": "Coming soon",
-    "save_changes": "Save Changes"
+    "save_changes": "Save Changes",
+    "add": "Add"
   },
   "navigation": {
     "create": "Create",
@@ -306,7 +307,8 @@
     "lock_locked_toast": "Project locked. View only for everyone",
     "lock_unlocked_toast": "Project unlocked. Everyone can edit again",
     "lock_banner": "Locked by the owner. View only",
-    "locked": "Locked"
+    "locked": "Locked",
+    "chat_placeholder": "Say something…"
   },
   "workspace": {
     "my_projects": "My Projects",
@@ -448,7 +450,21 @@
     "drop_files_here": "Drop your files here",
     "file_too_large_audio": "That audio is a bit too big. Try one under 30MB",
     "file_too_large": "That file is a bit too big. Try one under 3MB",
-    "save_failed": "Could not save to the cloud. Your work is safe on this device. Check your connection."
+    "save_failed": "Could not save to the cloud. Your work is safe on this device. Check your connection.",
+    "add_chord": "Chords",
+    "chord_placeholder": "Other chord, e.g. F#m7b5",
+    "drag_chord_hint": "Drag onto a word",
+    "chord_play": "Play chord",
+    "chord_stop": "Stop",
+    "chord_no_diagram": "No guitar shape for this chord yet.",
+    "chord_remove": "Remove chord",
+    "chord_options": "Chord options",
+    "chord_delete": "Delete",
+    "chords_hide": "Hide chords",
+    "chords_show": "Show chords",
+    "chord_prev": "Previous voicing",
+    "chord_next": "Next voicing",
+    "chord_choose": "Choose a chord"
   },
   "progress": {
     "title": "Your progress",
@@ -839,7 +855,7 @@
         "undo": "Take back the last card",
         "keep": "That's me",
         "pass": "Not me",
-        "own_placeholder": "Type something else ..."
+        "own_placeholder": "Something else?"
       },
       "pick_one": "Pick one to keep going."
     },
@@ -957,6 +973,24 @@
       "change_cta": "Change now"
     },
     "verdict": {
+      "sections": {
+        "tools": {
+          "title": "Tools that keep up",
+          "desc": "One canvas for words, voice notes and files. Rhymes and synonyms a click away.",
+          "line_before": "the quiet after the",
+          "word": "rain",
+          "lexicon_label": "Rhymes",
+          "rhymes": "again|remain|explain"
+        },
+        "lectures": {
+          "title": "Lessons that finish songs",
+          "desc": "Short lessons on structure, verses and choruses, from a platinum songwriter."
+        },
+        "community": {
+          "title": "Songwriters to write with",
+          "desc": "Feedback, collaboration and people who are working on the same thing."
+        }
+      },
       "headline": "Initial observation.",
       "struggle_label": "What's getting in the way",
       "fix_label": "What we do about it",
@@ -1153,9 +1187,21 @@
       "see_pro": "Back to the Pro plan",
       "checkout_title": "Payment details",
       "checkout_secure": "Secure",
-      "checkout_unavailable": "Checkout is not live yet.",
-      "checkout_unavailable_note": "Payments open when Veinote launches. Nothing on this page can take a card yet, and none is being asked for.",
-      "checkout_continue": "Continue"
+      "checkout_continue": "Continue",
+      "checkout_form": {
+        "card_number": "Card number",
+        "expiry": "Expiry",
+        "expiry_placeholder": "MM/YY",
+        "cvc": "Security code",
+        "name": "Name on card",
+        "name_placeholder": "As printed on the card",
+        "country": "Country",
+        "postal": "Postal code",
+        "due_today": "Due today"
+      },
+      "checkout_preview_tag": "Preview",
+      "checkout_success": "You're in.",
+      "checkout_success_note": "Your {days} days start now."
     },
     "verify": {
       "title": "One last thing",
@@ -1439,5 +1485,31 @@
     "close_welcome_video": "Close welcome video",
     "replay_video": "Replay video",
     "start_now": "Start now"
+  },
+  "publish": {
+    "title": "Protecting your song",
+    "untitled": "Untitled song",
+    "step_one": "Step 1",
+    "step_two": "Step 2",
+    "legal": "Legal",
+    "legal_body": "Everything in this song — the words, the recordings, anything I've added — is my own work, or something I have the right to publish.",
+    "legal_accept": "I agree",
+    "ownership": "Song ownership",
+    "split_hint": "Split equally by default — drag to change",
+    "split_hint_readonly": "Split equally by default",
+    "split_reset": "Split equally",
+    "total": "Total",
+    "total_over": "must add up to 100%",
+    "total_under": "must add up to 100%",
+    "needs_legal": "Confirm step 1 first",
+    "needs_total": "Splits must add up to 100%",
+    "go_back": "Go back",
+    "confirm": "Publish now",
+    "publishing": "Publishing…",
+    "ownership_accept": "I agree with this split",
+    "add_credit": "Add a co-writer",
+    "credit_placeholder": "Their name",
+    "remove_credit": "Remove",
+    "needs_ownership": "Confirm the ownership split first"
   }
 }

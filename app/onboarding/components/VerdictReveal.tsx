@@ -6,6 +6,7 @@ import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { customText, isCustom } from './GoalBox';
 import { PRIMARY_BUTTON } from './buttonStyles';
+import PlanSections from './PlanSections';
 
 // The payoff for the quiz, in four parts, read top to bottom:
 //
@@ -35,6 +36,9 @@ import { PRIMARY_BUTTON } from './buttonStyles';
 // nothing below it moves as the one above lands, and the button does not walk
 // down the screen under a cursor already reaching for it.
 const STEP_MS = 800;
+
+/** How many of the visitor's struggles are said back. See the note below. */
+const MAX_STRUGGLES = 2;
 
 // Any answer we don't have a line for — including no answer at all, since the
 // quiz lets a question be deselected — falls back to copy that reads naturally
@@ -67,7 +71,7 @@ export default function VerdictReveal({ answers, onContinue }: {
 
     useEffect(() => {
         if (prefersReducedMotion) return;
-        const timers = [1, 2, 3].map((block) =>
+        const timers = [1, 2, 3, 4].map((block) =>
             setTimeout(() => setShown(block), STEP_MS * (block - 1)),
         );
         return () => timers.forEach(clearTimeout);
@@ -97,11 +101,14 @@ export default function VerdictReveal({ answers, onContinue }: {
     // yes — so each is said back, rather than picking one and quietly dropping
     // the rest. No answer at all falls through to the one default line.
     //
-    // Each one is said back twice: the problem in their words, and then what
-    // Veinote does about that exact problem. Naming the sore spot and stopping
-    // there is just a diagnosis, and a diagnosis is not a reason to pay for
-    // anything — the answer has to be in the same panel as the complaint, in
-    // the same order, so the pairing needs no explaining.
+    // Capped at two. Someone who swiped right on all five got five paragraphs
+    // about what is wrong with them, one after another, before anything on the
+    // page offered a way out of it — and the fifth said nothing the first two
+    // hadn't. The answer to all of them is the same three tiles underneath.
+    //
+    // The `fixes` that used to be paired with these are gone from the render;
+    // the lines are still in the locale files, and are what the sections below
+    // say in pictures instead.
     // One of them may be a struggle the visitor wrote at the end of the deck.
     // There is no authored line for it — there can't be — but its own text is
     // already the sentence this beat wants: the problem in their words. Passing
@@ -112,10 +119,11 @@ export default function VerdictReveal({ answers, onContinue }: {
     const struggles = Array.isArray(answers.struggle)
         ? answers.struggle
         : [answers.struggle ?? null];
-    const understandings = struggles.map((value) =>
-        value && isCustom(value) ? customText(value) : line(t, 'struggles', value),
-    );
-    const fixes = struggles.map((value) => line(t, 'fixes', value));
+    const understandings = struggles
+        .slice(0, MAX_STRUGGLES)
+        .map((value) =>
+            value && isCustom(value) ? customText(value) : line(t, 'struggles', value),
+        );
 
     return (
         <motion.div
@@ -159,20 +167,23 @@ export default function VerdictReveal({ answers, onContinue }: {
                 </p>
             </div>
 
-            {/* The problem and the answer to it, in one panel split across the
-                middle: what's in the way above the rule, what we do about it
-                below. Giving the uncomfortable half a frame stops it reading as
-                more of the flattery above, and keeping the answer inside the
-                same frame stops the problem sitting on the screen alone. */}
+            {/* The problem, and then — in pictures rather than prose — what
+                is done about it.
+
+                The panel used to carry both halves: the struggle above a rule,
+                a paragraph of answer below it. The answer moved out to the
+                three tiles under this, and the panel kept the half it was good
+                at. What is in the way is the one thing on this page the visitor
+                said themselves, and it reads harder alone. */}
             <div
-                className={`rounded-[28px] border border-stone-200/60 bg-[#EFF0E7] px-7 py-8 shadow-[0_8px_30px_rgba(0,0,0,0.015)] md:px-10 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+                className={`rounded-[28px] border border-stone-200/60 bg-[#EFF0E7] px-7 py-7 shadow-[0_8px_30px_rgba(0,0,0,0.015)] md:px-10 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
                     revealed(2) ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
                 }`}
             >
                 <p className="text-[15px] font-medium text-stone-500">
                     {t('onboarding.verdict.struggle_label')}
                 </p>
-                <div className="mt-3 space-y-4">
+                <div className="mt-3 space-y-3">
                     {understandings.map((understanding, i) => (
                         <p
                             key={i}
@@ -182,31 +193,19 @@ export default function VerdictReveal({ answers, onContinue }: {
                         </p>
                     ))}
                 </div>
+            </div>
 
-                {/* The fixes are set smaller and darker than the problems
-                    above, not larger. The complaint is the line that has to
-                    land — this half is the reply, and a reply that shouts over
-                    the thing it answers reads as a pitch. */}
-                <div className="mt-8 border-t border-stone-300/60 pt-7">
-                    <p className="text-[15px] font-medium text-[#3f6b3a]">
-                        {t('onboarding.verdict.fix_label')}
-                    </p>
-                    <div className="mt-3 space-y-3.5">
-                        {fixes.map((fix, i) => (
-                            <p
-                                key={i}
-                                className="mx-auto max-w-xl text-[16px] font-medium leading-relaxed text-stone-700 md:text-[17px]"
-                            >
-                                {fix}
-                            </p>
-                        ))}
-                    </div>
-                </div>
+            <div
+                className={`transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+                    revealed(3) ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
+                }`}
+            >
+                <PlanSections />
             </div>
 
             <div
                 className={`space-y-3 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
-                    revealed(3) ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
+                    revealed(4) ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
                 }`}
             >
                 <p className="text-[15px] font-medium text-stone-500">

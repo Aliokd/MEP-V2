@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { useLanguage } from '@/context/LanguageContext';
+import { PRACTICE_ENABLED } from '@/lib/uiFlags';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import Tooltip from '@/components/Tooltip';
 
@@ -80,7 +81,9 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
     const menuItems = [
         { label: t('navigation.create'), href: '/platform/create', icon: PenTool },
         { label: t('navigation.learn'), href: '/platform', icon: BookOpen },
-        { label: t('navigation.practice'), href: '/platform/practice', icon: Music },
+        // Practice is locked while the sessions are rebuilt — the entry stays
+        // visible so the section isn't forgotten, but it doesn't navigate.
+        { label: t('navigation.practice'), href: '/platform/practice', icon: Music, locked: !PRACTICE_ENABLED },
         { label: t('navigation.connect'), href: '/platform/connect', icon: Users },
     ];
 
@@ -144,6 +147,20 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                             {menuItems.map((item) => {
                                 const isActive = pathname === item.href;
                                 const Icon = item.icon;
+
+                                if (item.locked) {
+                                    return (
+                                        <Tooltip key={item.label} label={`${item.label} — ${t('common.coming_soon')}`} side="right">
+                                            <div
+                                                aria-disabled="true"
+                                                className="flex items-center justify-center py-3 w-full rounded-[12px] text-stone-500 select-none"
+                                            >
+                                                <Icon size={18} className="stroke-[2.2] shrink-0" />
+                                            </div>
+                                        </Tooltip>
+                                    );
+                                }
+
                                 return (
                                     <Tooltip key={item.label} label={item.label} side="right">
                                         <Link href={item.href} onClick={onClose} className="block w-full" data-tour={item.href === '/platform/create' ? 'nav-create' : undefined}>
@@ -223,13 +240,31 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                             <nav className="flex flex-col gap-2.5 w-full">
                                 {menuItems.map((item) => {
                                     const isActive = pathname === item.href;
-                                    const Icon = item.icon;
+
+                                    if (item.locked) {
+                                        return (
+                                            <div
+                                                key={item.label}
+                                                aria-disabled="true"
+                                                className="flex items-center gap-3 px-4 py-3 rounded-[12px] text-stone-500 select-none"
+                                            >
+                                                <span className="font-sans text-[22px] font-medium tracking-wide whitespace-nowrap">
+                                                    {item.label}
+                                                </span>
+                                                {/* Same pill treatment as the locked Practice page itself */}
+                                                <span className="bg-stone-100 text-stone-500 rounded-full px-2.5 py-1 font-sans text-[11px] whitespace-nowrap">
+                                                    {t('common.coming_soon')}
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+
                                     return (
                                         <Link key={item.label} href={item.href} onClick={onClose} data-tour={item.href === '/platform/create' ? 'nav-create' : undefined}>
                                             <div className={`
                                                 flex items-center gap-4 px-4 py-3 rounded-[12px] transition-all group cursor-pointer
-                                                ${isActive 
-                                                    ? 'bg-white text-stone-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40' 
+                                                ${isActive
+                                                    ? 'bg-white text-stone-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40'
                                                     : 'text-stone-500 hover:text-stone-800 hover:bg-white/30'
                                                 }
                                             `}>

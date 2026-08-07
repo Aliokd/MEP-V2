@@ -29,6 +29,15 @@ const PRESENCE_HEARTBEAT_MS = 25000;
 const PRESENCE_STALE_MS = 60000;
 const PRESENCE_RECHECK_MS = 15000;
 
+/**
+ * Everything on the canvas that owns its own clicks, so a click on it never also
+ * means "start a new line here". Shared by the canvas click handler and the
+ * press-origin guard beside it — they have to agree on what counts as interactive,
+ * and two copies of this list would eventually disagree.
+ */
+const CANVAS_INTERACTIVE_SELECTOR =
+    '.phrase-row-container, .canvas-add-menu, .canvas-flow-card, .chord-card, .word-token, .suggestions-popover, button, a, input, textarea, select, video, img, [role="button"]';
+
 const getCollabColor = (colorNameOrHex?: string) => {
     if (!colorNameOrHex) return '#A1B5EE';
     if (colorNameOrHex.startsWith('#')) return colorNameOrHex;
@@ -51,6 +60,12 @@ import { createPortal } from 'react-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import { fitToFirestore } from '@/lib/projectPayload';
+// Chord picking, validation and note lookup all moved into ChordCard — the page
+// only needs the shape it stores.
+import { type ChordMark } from '@/lib/chords';
+import ChordCard from './components/ChordCard';
+import WordChordSection from './components/WordChordSection';
+import PublishDialog, { type PublishSplit } from './components/PublishDialog';
 import Tooltip from '@/components/Tooltip';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
@@ -74,8 +89,7 @@ import {
     deleteProjectSubcollections,
     type ProjectComment
 } from './collabUtils';
-import { useVoiceCall } from './useVoiceCall';
-import { 
+import {
     Folder, 
     FileText, 
     Trash2, 
@@ -132,10 +146,7 @@ import {
     ArrowUpDown,
     Unlock,
     Lock,
-    MessageCircle,
-    Phone,
-    PhoneOff,
-    MicOff
+    MessageCircle
 } from 'lucide-react';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -498,6 +509,12 @@ interface SongNote {
     location?: string;
     images?: { id: string; url: string; name: string; phraseId?: string | null }[];
     documents?: { id: string; url: string; name: string; type: string; size?: number; phraseId?: string | null }[];
+    /** Chords pinned above individual words. Unlike images/documents/audio — which
+     *  occupy a line of their own via a placeholder phrase — a chord annotates a
+     *  word *in place*, so it is addressed by (phraseId, wordIndex) rather than
+     *  taking a slot in the flow. Unattached chords carry wordIndex -1 and render
+     *  as a loose card waiting to be dragged onto a word. */
+    chords?: ChordMark[];
 }
 
 
@@ -518,6 +535,21 @@ interface StudioTrack {
 // A StudioTrack snapshot saved onto an AudioNote — everything needed to reload the track
 // except the runtime-only decoded audio buffer, which gets re-fetched/decoded from `url`.
 type SavedStemTrack = Omit<StudioTrack, 'audioBuffer'>;
+
+/** One collaborator as the presence pipeline sees them. A single named shape shared by the
+ *  PhraseRow props, the page state and the snapshot rebuild — it used to be three inline
+ *  copies of the same object type, which had to be edited in lockstep for every new field. */
+type RemotePresenceUser = {
+    name: string;
+    color: string;
+    cursor?: { x: number; y: number };
+    chatText?: string;
+    activePhraseId?: string | null;
+    isStudioOpen?: boolean;
+    activeStudioTrackId?: string | null;
+    activeStudioTrackName?: string | null;
+    isStudioRecording?: boolean;
+};
 
 
 // Visual SVG Folder Illustration Component
@@ -964,13 +996,21 @@ const PhraseRow = React.memo(function PhraseRow({
     commentCount,
     commentTints,
     onOpenComments,
-    isCommentTarget
+    isCommentTarget,
+    chordsByWord,
+    areChordsHidden,
+    draggedChordId,
+    draggedChordIdRef,
+    dragOverChordWord,
+    setDragOverChordWord,
+    handleAttachChordToWord,
+    handleRemoveChord,
 }: {
     phrase: Phrase;
     draggedPhraseId: string | null;
     draggedPhraseIdRef?: React.RefObject<string | null>;
     setDraggedPhraseId: (id: string | null) => void;
-    handleWordClick: (e: React.MouseEvent, word: string, tokenIndex: number) => void;
+    handleWordClick: (e: React.MouseEvent, word: string, tokenIndex: number, chordKey: string) => void;
     handleReorderPhrases: (draggedId: string, targetId: string) => void;
     handleMovePhraseToGroup: (phraseId: string, groupId: string | null) => void;
     tokenOffset: number;
@@ -1013,7 +1053,7 @@ const PhraseRow = React.memo(function PhraseRow({
     handlePlaceAudioAsLineAt?: (audioNoteId: string, targetPhraseId: string, position: 'top' | 'bottom') => void;
     draggedAudioId?: string | null;
     draggedAudioIdRef?: React.RefObject<string | null>;
-    activeRemoteUsers?: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null; isStudioOpen?: boolean; activeStudioTrackId?: string | null; activeStudioTrackName?: string | null; isStudioRecording?: boolean }};
+    activeRemoteUsers?: {[uid: string]: RemotePresenceUser};
     clickedTokenIndex?: number | null;
     onDeleteDocBlock?: (docId: string, headerPhraseId: string) => void;
     onTranscribeDocBlock?: (docId: string, headerPhraseId: string) => void;
@@ -1026,6 +1066,18 @@ const PhraseRow = React.memo(function PhraseRow({
     draggedDocIdRef?: React.RefObject<string | null>;
     // Passed as primitives rather than the comment array so React.memo keeps working —
     // a fresh array identity every render would defeat it on every keystroke.
+    /** Chords pinned to words on this line, keyed "phraseId:wordIndex". Passed as a
+     *  plain lookup rather than the array so React.memo isn't defeated on every render. */
+    chordsByWord?: Record<string, ChordMark>;
+    /** Canvas-wide "hide chords" view — suppresses every chord symbol above the lyrics. */
+    areChordsHidden?: boolean;
+    draggedChordId?: string | null;
+    draggedChordIdRef?: React.RefObject<string | null>;
+    dragOverChordWord?: { phraseId: string; wordIndex: number } | null;
+    setDragOverChordWord?: (v: { phraseId: string; wordIndex: number } | null) => void;
+    handleAttachChordToWord?: (chordId: string, phraseId: string, wordIndex: number) => void;
+    handleRemoveChord?: (chordId: string) => void;
+    /** Opens the fingering/playback panel for a pinned chord. */
     commentCount?: number;
     commentTints?: string[];
     onOpenComments?: (phraseId: string) => void;
@@ -1610,14 +1662,6 @@ const PhraseRow = React.memo(function PhraseRow({
                     onStartEditing(phrase.id);
                 }
             }}
-            onContextMenu={(e) => {
-                // Right-click anywhere on a line to comment on it — available whether or not the
-                // project is currently shared, so notes can be left before anyone is invited.
-                if (!onOpenComments) return;
-                e.preventDefault();
-                e.stopPropagation();
-                onOpenComments(phrase.id);
-            }}
             className="phrase-row-container flex flex-col w-full relative transition-all duration-200 animate-in fade-in"
             data-phrase-id={phrase.id}
         >
@@ -1845,6 +1889,11 @@ const PhraseRow = React.memo(function PhraseRow({
                                 const isWordDragged = draggedWord?.phraseId === phrase.id && draggedWord?.wordIndex === idx;
                                 const isWordDragOver = dragOverWordIndex?.phraseId === phrase.id && dragOverWordIndex?.wordIndex === idx;
                                 const isWordClicked = clickedTokenIndex === tokenOffset + idx;
+                                // Nulled out rather than filtered at each use site, so the
+                                // "hide chords" view suppresses the symbol AND the outline
+                                // marking the word — the whole point is lyrics that read clean.
+                                const wordChord = areChordsHidden ? undefined : chordsByWord?.[`${phrase.id}:${idx}`];
+                                const isChordDragOver = dragOverChordWord?.phraseId === phrase.id && dragOverChordWord?.wordIndex === idx;
 
                                 return (
                                     <span key={idx} className={`inline-block ${draggedPhraseId !== null ? 'pointer-events-none' : ''}`} onClick={(e) => e.stopPropagation()}>
@@ -1863,6 +1912,16 @@ const PhraseRow = React.memo(function PhraseRow({
                                                 if (setDragOverWordIndex) setDragOverWordIndex(null);
                                             }}
                                             onDragOver={(e) => {
+                                                // A chord being dragged targets this exact word, so it takes
+                                                // precedence over the word-reorder indicator — the two mean
+                                                // different things and must not both light up.
+                                                const chordId = draggedChordIdRef?.current || draggedChordId;
+                                                if (chordId) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    if (setDragOverChordWord) setDragOverChordWord({ phraseId: phrase.id, wordIndex: idx });
+                                                    return;
+                                                }
                                                 if (!draggedWord) return;
                                                 e.preventDefault();
                                                 e.stopPropagation();
@@ -1873,8 +1932,16 @@ const PhraseRow = React.memo(function PhraseRow({
                                             }}
                                             onDragLeave={() => {
                                                 if (setDragOverWordIndex) setDragOverWordIndex(null);
+                                                if (setDragOverChordWord) setDragOverChordWord(null);
                                             }}
                                             onDrop={(e) => {
+                                                const chordId = e.dataTransfer.getData('text/chord-id') || draggedChordIdRef?.current || draggedChordId;
+                                                if (chordId && handleAttachChordToWord) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleAttachChordToWord(chordId, phrase.id, idx);
+                                                    return;
+                                                }
                                                 const dragInfoStr = e.dataTransfer.getData('text/word-drag-info');
                                                 if (dragInfoStr && handleWordDrop) {
                                                     e.preventDefault();
@@ -1890,14 +1957,32 @@ const PhraseRow = React.memo(function PhraseRow({
                                                 if (setDraggedWord) setDraggedWord(null);
                                                 if (setDragOverWordIndex) setDragOverWordIndex(null);
                                             }}
-                                            onClick={(e) => handleWordClick(e, word, tokenOffset + idx)}
+                                            onClick={(e) => handleWordClick(e, word, tokenOffset + idx, `${phrase.id}:${idx}`)}
                                             className={`
                                                 word-token text-stone-700 hover:text-stone-900 hover:font-medium rounded-[4px] px-[3px] py-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 inline-block select-none relative
                                                 ${isWordClicked ? 'bg-[#EDFF8E] text-stone-950 shadow-xs scale-102 z-10' : 'hover:bg-stone-200/90'}
                                                 ${isWordDragged ? 'opacity-30' : ''}
                                                 ${isWordDragOver ? 'bg-amber-100/80 scale-105' : ''}
+                                                ${isChordDragOver ? 'outline-2 outline-dashed outline-indigo-400 outline-offset-2 bg-indigo-50/70' : ''}
+                                                ${wordChord && !isChordDragOver ? 'outline outline-1 outline-indigo-300/70 outline-offset-2' : ''}
                                             `}
                                         >
+                                            {/* Pinned chord. Absolutely positioned so it sits above the
+                                                word without adding to the line's height — otherwise the
+                                                first chord in a song would re-flow every line under it.
+                                                The parent token is already `relative`, so this anchors to
+                                                the word itself and tracks it through wrapping. */}
+                                            {wordChord && (
+                                                <span
+                                                    // No handler of its own: the click bubbles to the word
+                                                    // token, so chord and lyric open the one popover that
+                                                    // already carries both.
+                                                    title={wordChord.symbol}
+                                                    className="chord-anchor absolute -top-[1.75em] left-0 text-[0.34em] font-bold leading-none tracking-tight text-white bg-stone-700 hover:bg-stone-900 px-[0.45em] py-[0.25em] rounded-[0.35em] cursor-pointer whitespace-nowrap z-20 transition-colors"
+                                                >
+                                                    {wordChord.symbol}
+                                                </span>
+                                            )}
                                             {/* Left drop indicator line */}
                                             {isWordDragOver && dragOverWordIndex?.position === 'left' && (
                                                 <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-indigo-500 rounded-full transform -translate-x-1/2 pointer-events-none z-40 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]">
@@ -3162,14 +3247,29 @@ const ScrollableWithCue = ({ className, children }: { className: string; childre
                 {children}
             </div>
             {hasMoreBelow && (
-                <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none flex items-end justify-center pb-1">
-                    {/* A bare chevron read as visual noise rather than a control — circling
-                        it in the same white-pill treatment used elsewhere in this panel
-                        (e.g. the word buttons' shadow) makes it read as a "there's more,
-                        tap to see" affordance instead. */}
-                    <div className="w-6 h-6 rounded-full bg-white border border-stone-200 shadow-[0_2px_6px_rgba(0,0,0,0.08)] flex items-center justify-center animate-bounce">
-                        <ChevronDown size={13} className="text-stone-500" strokeWidth={2.5} />
-                    </div>
+                <div className="absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none flex items-end justify-center pb-1">
+                    {/* A real button, not just a hint: the bounce says "there's more" but
+                        people try to click it, so it scrolls. pointer-events-auto is needed
+                        because the gradient strip above deliberately ignores clicks — without
+                        it the button would inherit that and silently do nothing.
+
+                        The bounce stops on hover: a 36px target drifting ±4px is awkward to
+                        hit, and by the time the pointer is on it the hint has done its job. */}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const el = scrollRef.current;
+                            if (!el) return;
+                            // Just under a full pane, so the row you were reading stays in
+                            // view as an anchor instead of jumping past it.
+                            el.scrollBy({ top: el.clientHeight * 0.8, behavior: 'smooth' });
+                        }}
+                        aria-label="Show more words"
+                        className="pointer-events-auto w-9 h-9 rounded-full bg-white border border-stone-200 shadow-[0_2px_8px_rgba(0,0,0,0.1)] flex items-center justify-center animate-bounce hover:animate-none hover:bg-stone-50 hover:border-stone-300 hover:scale-105 active:scale-95 transition-[background-color,border-color,transform] cursor-pointer"
+                    >
+                        <ChevronDown size={19} className="text-stone-600" strokeWidth={2.5} />
+                    </button>
                 </div>
             )}
         </div>
@@ -3501,7 +3601,7 @@ export default function CreatePage() {
     const [isCollaborative, setIsCollaborative] = useState(false);
     const [collaborators, setCollaborators] = useState<string[]>([]);
     const [collaboratorProfiles, setCollaboratorProfiles] = useState<{[uid: string]: { name: string; email: string }}>({});
-    const [activeRemoteUsers, setActiveRemoteUsers] = useState<{[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null; isStudioOpen?: boolean; activeStudioTrackId?: string | null; activeStudioTrackName?: string | null; isStudioRecording?: boolean }}>({});
+    const [activeRemoteUsers, setActiveRemoteUsers] = useState<{[uid: string]: RemotePresenceUser}>({});
     // Last raw presence docs from Firestore, kept so the staleness filter can re-run on a timer
     // (a departed collaborator sends no further snapshots to trigger a rebuild).
     const rawPresenceRef = useRef<{[uid: string]: any}>({});
@@ -3613,18 +3713,20 @@ export default function CreatePage() {
         '#E5B5ED'  // Soft Lavender
     ];
 
-    // Assign current user's color token deterministically from user UID on mount
+    // My colour comes from the same roster resolver every other client uses for me
+    // (getMemberColorToken: position in the alphabetically-sorted member set). It used to be
+    // a hash of my own uid into 7 buckets, which meant two collaborators could land on the
+    // same colour — each saw themself in their hash colour while the roster avatars showed
+    // index colours, so cursors, chat bubbles and avatars disagreed about who was which.
+    //
+    // Deliberately no dependency array: the resolver's inputs (roster, live presence) shift
+    // constantly and are read through a ref, so this re-checks after every render and the
+    // changed-guard makes it a no-op whenever the answer is stable.
     useEffect(() => {
-        if (user) {
-            let hash = 0;
-            for (let i = 0; i < user.uid.length; i++) {
-                hash = (hash << 5) - hash + user.uid.charCodeAt(i);
-                hash |= 0;
-            }
-            const color = COLLABORATOR_COLORS[Math.abs(hash) % COLLABORATOR_COLORS.length];
-            setCurrentUserColor(color);
-        }
-    }, [user]);
+        if (!user) return;
+        const next = getMemberColorTokenRef.current?.(user.uid);
+        if (next && next !== currentUserColor) setCurrentUserColor(next);
+    });
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -3684,8 +3786,30 @@ export default function CreatePage() {
     // Suggestion mode states
     const [isEditing, setIsEditing] = useState(true);
     const [clickedWord, setClickedWord] = useState<string | null>(null);
+    // A reading view: chord symbols off across the whole canvas. A per-user preference rather
+    // than project data — it is about how this person wants to read the song, not about the
+    // song — so it is kept in uid-scoped local storage (see bindLocalStateToAccount).
+    const [areChordsHidden, setAreChordsHidden] = useState(false);
     const [clickedTokenIndex, setClickedTokenIndex] = useState<number | null>(null);
     const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number; isNearBottom?: boolean } | null>(null);
+    /** "phraseId:wordIndex" for the word whose popover is open, so the chord
+     *  section at the top of it can look up that word's own chord. */
+    const [clickedWordChordKey, setClickedWordChordKey] = useState<string | null>(null);
+    /** Whether the press that will produce the next click began on something that
+     *  owns its own clicks. Read by the canvas click handler — see the comment
+     *  there for why the click's own target isn't enough. */
+    const pressBeganOnInteractiveRef = useRef(false);
+
+    useEffect(() => {
+        // Capture phase, so this still records the origin when a handler further in
+        // stops the event from propagating.
+        const onPointerDown = (e: PointerEvent) => {
+            const target = e.target as HTMLElement | null;
+            pressBeganOnInteractiveRef.current = !!target?.closest(CANVAS_INTERACTIVE_SELECTOR);
+        };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        return () => document.removeEventListener('pointerdown', onPointerDown, true);
+    }, []);
     const [draggedPhraseId, setDraggedPhraseId] = useState<string | null>(null);
     const [showCanvasMenu, setShowCanvasMenu] = useState(false);
     const [dragOverPhraseId, setDragOverPhraseIdState] = useState<string | null>(null);
@@ -4009,6 +4133,9 @@ export default function CreatePage() {
     const [editingTrackNameId, setEditingTrackNameId] = useState<number | null>(null);
     const [trackNameInputText, setTrackNameInputText] = useState('');
     const [activePublishMenu, setActivePublishMenu] = useState(false);
+    /** The two-step legal + ownership confirmation that stands between the publish
+     *  button and the song actually going out. */
+    const [showPublishDialog, setShowPublishDialog] = useState(false);
 
     const studioAudioCtxRef = useRef<AudioContext | null>(null);
     const studioMediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -4378,6 +4505,7 @@ export default function CreatePage() {
             }
             setClickedWord(null);
             setClickedTokenIndex(null);
+        setClickedWordChordKey(null);
             setPopoverPosition(null);
         };
         
@@ -4386,6 +4514,7 @@ export default function CreatePage() {
             document.removeEventListener('click', handleOutsideClick);
         };
     }, [clickedWord]);
+
 
     const [cursorSelectionOffset, setCursorSelectionOffset] = useState<{ phraseId: string; offset: number } | null>(null);
     // Arrow navigation carries a horizontal pixel position instead of a character index, so the
@@ -4420,7 +4549,6 @@ export default function CreatePage() {
     const [refTonePlaying, setRefTonePlaying] = useState(false);
     const [tunerModeAuto, setTunerModeAuto] = useState(true);
     const [savedTuning, setSavedTuning] = useState<{ note: string; freq: number; cents: number; timestamp: string } | null>(null);
-    const [tunerSavingState, setTunerSavingState] = useState<'saving' | 'saved' | null>(null);
 
     // Refs to track latest tuner state for auto-saving on tab switch/panel close
     const tunerActiveRef = useRef(false);
@@ -4443,6 +4571,24 @@ export default function CreatePage() {
     useEffect(() => {
         tunerCentsRef.current = tunerCents;
     }, [tunerCents]);
+
+    // Read inside effects/callbacks that must not re-run when a reading is saved.
+    const savedTuningRef = useRef<typeof savedTuning>(null);
+    useEffect(() => {
+        savedTuningRef.current = savedTuning;
+    }, [savedTuning]);
+
+    /** How many consecutive unanimous samples settle a reading. At the tuner's 50ms update
+     *  interval this is ~400ms of one steady note ON TOP of the 8 samples its history window
+     *  already needs to agree — roughly a second of held string, which a plucked note gives
+     *  easily and a passing noise does not. */
+    const TUNER_SETTLE_SAMPLES = 8;
+    const tunerSettleCountRef = useRef(0);
+    // The smoothed values as of the latest sample. State can't be read back inside the tuner
+    // callback (its setters are async and the mirror refs lag a render), and locking a reading
+    // has to record exactly the numbers that just settled.
+    const tunerSmoothFreqRef = useRef<number | null>(null);
+    const tunerSmoothCentsRef = useRef(0);
 
     // Tap Tempo States
     const [tapTimes, setTapTimes] = useState<number[]>([]);
@@ -5310,13 +5456,30 @@ export default function CreatePage() {
                     return prev.map(n => {
                         if (n.id === selectedNoteId) {
                             const localLockedPhraseId = editingPhraseIdRef.current;
-                            const mergedPhrases = (data.phrases || []).map((remoteP: any) => {
-                                if (remoteP.id === localLockedPhraseId) {
-                                    const localP = n.phrases?.find(p => p.id === localLockedPhraseId);
-                                    return { ...remoteP, text: localP?.text || remoteP.text };
-                                }
-                                return remoteP;
-                            });
+                            const remotePhrases: any[] = data.phrases || [];
+
+                            // A snapshot that predates the line we are editing is STALE, and
+                            // applying it makes that line vanish and come back.
+                            //
+                            // Clicking the gap between two lyrics fires two writes in quick
+                            // succession: the outgoing line's blur-commit (queued on mousedown,
+                            // so its array has no new line) and then the line creation itself.
+                            // The first write's snapshot lands after the new line has already
+                            // rendered, so without this guard the freshly made line is removed
+                            // for a frame and restored by the next snapshot — the flicker.
+                            const remoteHasEditingLine =
+                                !localLockedPhraseId ||
+                                remotePhrases.some((p: any) => p.id === localLockedPhraseId);
+
+                            const mergedPhrases = remoteHasEditingLine
+                                ? remotePhrases.map((remoteP: any) => {
+                                    if (remoteP.id === localLockedPhraseId) {
+                                        const localP = n.phrases?.find(p => p.id === localLockedPhraseId);
+                                        return { ...remoteP, text: localP?.text || remoteP.text };
+                                    }
+                                    return remoteP;
+                                })
+                                : (n.phrases || []);
 
                             // Audio cards mid-upload only exist locally as blob: URLs — taking the
                             // remote array wholesale would erase them until the upload's own write
@@ -5337,6 +5500,11 @@ export default function CreatePage() {
                                 ...n,
                                 ...data,
                                 phrases: mergedPhrases,
+                                // `content` is just the phrases joined by newlines, so it has to
+                                // come from whichever array won above — taking the stale remote
+                                // copy alongside kept local phrases would leave the two
+                                // disagreeing about what the song says.
+                                content: remoteHasEditingLine ? data.content : (n.content ?? data.content),
                                 audioNotes: mergedAudioNotes
                             };
                         }
@@ -5389,7 +5557,7 @@ export default function CreatePage() {
         // collaborator who closes their tab produces no further snapshots and would linger in the
         // roster indefinitely — the filter has to be able to run without new data arriving.
         const rebuildActiveUsers = () => {
-            const users: {[uid: string]: { name: string; color: string; cursor?: { x: number; y: number }; activePhraseId?: string | null; isStudioOpen?: boolean; activeStudioTrackId?: string | null; activeStudioTrackName?: string | null; isStudioRecording?: boolean }} = {};
+            const users: {[uid: string]: RemotePresenceUser} = {};
             const now = Date.now();
 
             Object.keys(rawPresenceRef.current).forEach(uid => {
@@ -5402,7 +5570,15 @@ export default function CreatePage() {
                 users[uid] = {
                     name: data.name || 'Collaborator',
                     color: getMemberColorTokenRef.current(uid),
-                    cursor: (data.x !== -999 && data.y !== -999) ? { x: data.x, y: data.y } : undefined,
+                    // Coordinates must actually BE numbers: a presence doc written by the
+                    // heartbeat or studio effect before any mouse move has no x/y at all,
+                    // and `undefined !== -999` used to pass that through as a cursor at
+                    // {x: undefined} — which renders nowhere, taking the user's chat bubble
+                    // with it.
+                    cursor: (typeof data.x === 'number' && typeof data.y === 'number' && data.x !== -999 && data.y !== -999)
+                        ? { x: data.x, y: data.y }
+                        : undefined,
+                    chatText: typeof data.chatText === 'string' ? data.chatText : '',
                     activePhraseId: data.activePhraseId || null,
                     isStudioOpen: !!data.isStudioOpen,
                     activeStudioTrackId: data.activeStudioTrackId || null,
@@ -5420,6 +5596,7 @@ export default function CreatePage() {
                     prev[k].name === users[k].name &&
                     prev[k].cursor?.x === users[k].cursor?.x &&
                     prev[k].cursor?.y === users[k].cursor?.y &&
+                    prev[k].chatText === users[k].chatText &&
                     prev[k].activePhraseId === users[k].activePhraseId &&
                     prev[k].isStudioOpen === users[k].isStudioOpen &&
                     prev[k].activeStudioTrackId === users[k].activeStudioTrackId &&
@@ -5567,16 +5744,59 @@ export default function CreatePage() {
     // margins. Only written when the answer flips, so this doesn't re-render on every move.
     const [isPointerInTypeZone, setIsPointerInTypeZone] = useState(false);
 
+    // The canvas's box, kept fresh by observation rather than measured on every mouse move.
+    // Reading layout inside a mousemove forces a synchronous reflow, and the canvas hosts
+    // CSS transitions (the Add menu grows its max-width/max-height over 500ms) that invalidate
+    // layout every frame — so the two together made hovering the canvas visibly janky.
+    const canvasRectRef = useRef<DOMRect | null>(null);
+
+    useEffect(() => {
+        const el = writingCanvasRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+
+        const refresh = () => { canvasRectRef.current = el.getBoundingClientRect(); };
+        refresh();
+
+        const observer = new ResizeObserver(refresh);
+        observer.observe(el);
+        // Capture phase so scrolling any ancestor is caught, not just the window.
+        window.addEventListener('scroll', refresh, true);
+        window.addEventListener('resize', refresh);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('scroll', refresh, true);
+            window.removeEventListener('resize', refresh);
+        };
+    }, [selectedNoteId]);
+
     const handleCanvasPointerZone = (e: React.MouseEvent) => {
-        const inside = isInsideCanvasTypeZone(e.currentTarget.getBoundingClientRect(), e.clientX, e.clientY);
+        // Measure once here if the observer hasn't populated the cache yet (canvas mounted
+        // after the effect ran, or no ResizeObserver), so the cursor never gets stuck.
+        if (!canvasRectRef.current) {
+            canvasRectRef.current = e.currentTarget.getBoundingClientRect();
+        }
+        const inside = isInsideCanvasTypeZone(canvasRectRef.current, e.clientX, e.clientY);
         setIsPointerInTypeZone(prev => (prev === inside ? prev : inside));
     };
 
     const lastCursorWriteRef = useRef<number>(0);
 
+    // ── Live cursor chat ─────────────────────────────────────────────────────
+    // Right-click anywhere on the canvas and the bubble beside your cursor turns
+    // into a composer that keeps following the pointer. What you type rides along
+    // in your presence doc, so collaborators read it beside your cursor as you go —
+    // no send button, no thread, nothing persisted. It's talk, not a record.
+    // Anything worth keeping gets pinned to a line, which is the only part that
+    // survives the conversation.
+    const myCursorRef = useRef<{ x: number; y: number }>({ x: 50, y: 50 });
+    const [chatAnchor, setChatAnchor] = useState<{ x: number; y: number } | null>(null);
+    const [chatDraft, setChatDraft] = useState('');
+    const chatInputRef = useRef<HTMLInputElement | null>(null);
+    const isChatting = chatAnchor !== null;
+
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!selectedNoteId || !user) return;
-        
+
         const now = Date.now();
         // 150ms: still smooth through the cursor's 100ms CSS transition, but roughly half the
         // Firestore write pressure of the old 80ms — sustained writes to a single doc above
@@ -5595,6 +5815,11 @@ export default function CreatePage() {
         const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
         const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
 
+        myCursorRef.current = { x, y };
+        // An open composer travels with the pointer rather than staying where it
+        // was opened — the bubble belongs to the cursor, not to a spot on the page.
+        if (chatAnchor) setChatAnchor({ x, y });
+
         const presenceRef = doc(db, "projects", selectedNoteId, "presence", user.uid);
         setDoc(presenceRef, {
             name: user.displayName || user.email?.split('@')[0] || 'Collaborator',
@@ -5604,6 +5829,85 @@ export default function CreatePage() {
             activePhraseId: editingPhraseId,
             updatedAt: new Date().toISOString()
         }, { merge: true }).catch(err => console.error("Error updating presence:", err));
+    };
+
+    /** Opens the composer on the cursor. Suppresses the browser menu, which is what
+     *  right-click would otherwise do here. */
+    const handleCanvasContextMenu = (e: React.MouseEvent) => {
+        if (!selectedNoteId || !user || isCanvasPreview) return;
+        const target = writingCanvasRef.current;
+        if (!target) return;
+        e.preventDefault();
+        const rect = target.getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+        const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+        myCursorRef.current = { x, y };
+        setChatAnchor({ x, y });
+        setChatDraft('');
+        // Plant the cursor in the presence doc right now. The mousemove writes are throttled
+        // and may not have carried the current position — and someone who right-clicks and
+        // then only types would otherwise be chatting from a cursor nobody can see.
+        setDoc(doc(db, "projects", selectedNoteId, "presence", user.uid), {
+            name: user.displayName || user.email?.split('@')[0] || 'Collaborator',
+            color: currentUserColor,
+            x, y,
+            updatedAt: new Date().toISOString()
+        }, { merge: true }).catch(() => {});
+        // The input mounts with this state, so focus has to wait for it.
+        setTimeout(() => chatInputRef.current?.focus(), 0);
+    };
+
+    // Push what's being typed out to everyone else. Debounced rather than written
+    // per keystroke: this is the same single presence doc the cursor writes to, and
+    // every write fans a snapshot out to every collaborator.
+    useEffect(() => {
+        if (!selectedNoteId || !user || !isChatting) return;
+        const timer = setTimeout(() => {
+            setDoc(doc(db, "projects", selectedNoteId, "presence", user.uid),
+                { chatText: chatDraft.slice(0, 240), updatedAt: new Date().toISOString() },
+                { merge: true }
+            ).catch(() => {});
+        }, 180);
+        return () => clearTimeout(timer);
+    }, [chatDraft, isChatting, selectedNoteId, user]);
+
+    // Escape closes the composer wherever focus happens to be.
+    useEffect(() => {
+        if (!isChatting) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeCursorChat(); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [isChatting]);
+
+    // Switching projects closes the composer and takes the draft off the OLD project's
+    // presence doc (the cleanup still holds the old id). Without this the anchor survived
+    // the switch and the debounced write carried the draft into the new project, while the
+    // old one kept showing the bubble until its presence went stale.
+    useEffect(() => {
+        const projectId = selectedNoteId;
+        const uid = user?.uid;
+        return () => {
+            setChatAnchor(null);
+            setChatDraft('');
+            if (projectId && uid) {
+                setDoc(doc(db, "projects", projectId, "presence", uid),
+                    { chatText: '', updatedAt: new Date().toISOString() },
+                    { merge: true }
+                ).catch(() => {});
+            }
+        };
+    }, [selectedNoteId, user?.uid]);
+
+    /** Closes the composer and takes the text off everyone else's screen. Chat is
+     *  live only: nothing typed here is stored anywhere. */
+    const closeCursorChat = () => {
+        setChatAnchor(null);
+        setChatDraft('');
+        if (!selectedNoteId || !user) return;
+        setDoc(doc(db, "projects", selectedNoteId, "presence", user.uid),
+            { chatText: '', updatedAt: new Date().toISOString() },
+            { merge: true }
+        ).catch(() => {});
     };
 
     const handleMouseLeave = () => {
@@ -5946,8 +6250,12 @@ export default function CreatePage() {
         const senderName = user.displayName || user.email?.split('@')[0] || 'Collaborator';
         const res = await inviteCollaboratorByEmail(selectedNoteId, inviteEmail, user.uid, senderName);
         if (res.success) {
-            setInviteStatus({ type: 'success', message: res.message });
             setInviteEmail('');
+            // The invite is away, so the dialog has nothing left to ask. It closes rather than
+            // holding a success line in front of the writer, and the toast the invitee receives
+            // is the real confirmation that anything happened.
+            setInviteStatus({ type: '', message: '' });
+            setShowShareModal(false);
             // Refetch profiles to update list
             try {
                 const projectDoc = await getDoc(doc(db, "projects", selectedNoteId));
@@ -6171,26 +6479,11 @@ export default function CreatePage() {
         (activeNote && activeNote.ownerId && activeNote.ownerId !== user?.uid)
     ));
 
-    // ── Voice call ───────────────────────────────────────────────────────────────────────────
-    // `isRecording` covers both capture paths (the canvas recorder and Demo Studio) — either one
-    // must suspend the call, since both route through the same speakers/microphone.
-    const {
-        isCallActive,
-        isConnecting: isCallConnecting,
-        isMuted: isCallMuted,
-        participants: callParticipants,
-        isHuddleRunning,
-        huddleOthers,
-        joinCall,
-        leaveCall,
-        toggleMute: toggleCallMute
-    } = useVoiceCall({
-        projectId: selectedNoteId,
-        userId: user?.uid || null,
-        userName: user?.displayName || user?.email?.split('@')[0] || 'Collaborator',
-        isRecording: isRecording || studioState === 'recording',
-        onNotify: triggerStudioNotification
-    });
+    // ── Voice call (Huddle) — withdrawn ──────────────────────────────────────────────────────
+    // The feature is off for now: nothing here mounts useVoiceCall, so no microphone is opened,
+    // no `callParticipants`/`signaling` documents are written, and no peer connections are made.
+    // The hook itself is kept at ./useVoiceCall (unreferenced) so bringing it back is a matter of
+    // restoring this binding and the two UI blocks that used it — see that file's header.
 
     // ── Comment derivations ──────────────────────────────────────────────────────────────────
     // Gate on "this is a shared project", not "someone is online right now": a comment left for
@@ -6543,10 +6836,27 @@ export default function CreatePage() {
         return { noteName, centsValue };
     };
 
+    /** Records a settled reading and releases the microphone. The tuner listens until it is
+     *  sure of a note, then holds that answer — it does not sit there re-reading the string
+     *  forever. Tuning again is an explicit click on the hub. */
+    const lockTuningReading = (reading: { note: string; freq: number; cents: number }) => {
+        const now = new Date();
+        setSavedTuning({
+            note: reading.note,
+            freq: reading.freq,
+            cents: reading.cents,
+            timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+        stopTunerMic();
+    };
+
     const startTunerMic = async () => {
         try {
             stopReferenceTone();
             tunerNoteHistoryRef.current = [];
+            tunerSettleCountRef.current = 0;
+            tunerSmoothFreqRef.current = null;
+            tunerSmoothCentsRef.current = 0;
 
             // Dynamic import to prevent SSR server compilation crashes
             const { createTuner } = await import('@chordbook/tuner');
@@ -6559,52 +6869,71 @@ export default function CreatePage() {
 
             const tuner = createTuner({
                 onNote: (note: any) => {
-                    if (note && note.frequency) {
-                        // Smooth frequency: weighted average (75% old, 25% new)
-                        setTunerFreq((prev) => {
-                            const target = Math.round(note.frequency * 10) / 10;
-                            if (prev === null) return target;
-                            return Math.round((prev * 0.75 + target * 0.25) * 10) / 10;
-                        });
-                        
-                        // Normalize note name (replace Unicode sharp sign ♯ with #)
-                        const normalizedNoteName = note.name ? note.name.replace('♯', '#') : '--';
-                        
-                        // Stabilize note name via history mode (most frequent note of last 8 samples)
-                        const history = tunerNoteHistoryRef.current;
-                        history.push(normalizedNoteName);
-                        if (history.length > 8) {
-                            history.shift();
+                    if (!note || !note.frequency) return;
+
+                    // Smoothing is computed against refs rather than the state updater's `prev`
+                    // so the settle check below can see the very numbers it would lock in.
+                    // Frequency: weighted average (75% old, 25% new)
+                    const targetFreq = Math.round(note.frequency * 10) / 10;
+                    const nextFreq = tunerSmoothFreqRef.current === null
+                        ? targetFreq
+                        : Math.round((tunerSmoothFreqRef.current * 0.75 + targetFreq * 0.25) * 10) / 10;
+                    tunerSmoothFreqRef.current = nextFreq;
+                    setTunerFreq(nextFreq);
+
+                    // Normalize note name (replace Unicode sharp sign ♯ with #)
+                    const normalizedNoteName = note.name ? note.name.replace('♯', '#') : '--';
+
+                    // Stabilize note name via history mode (most frequent note of last 8 samples)
+                    const history = tunerNoteHistoryRef.current;
+                    history.push(normalizedNoteName);
+                    if (history.length > 8) {
+                        history.shift();
+                    }
+                    const counts: Record<string, number> = {};
+                    let maxNote = normalizedNoteName;
+                    let maxCount = 0;
+                    for (const n of history) {
+                        counts[n] = (counts[n] || 0) + 1;
+                        if (counts[n] > maxCount) {
+                            maxCount = counts[n];
+                            maxNote = n;
                         }
-                        const counts: Record<string, number> = {};
-                        let maxNote = normalizedNoteName;
-                        let maxCount = 0;
-                        for (const n of history) {
-                            counts[n] = (counts[n] || 0) + 1;
-                            if (counts[n] > maxCount) {
-                                maxCount = counts[n];
-                                maxNote = n;
-                            }
-                        }
-                        
-                        if (tunerModeAuto) {
-                            setTunerNote(maxNote);
-                            // Smooth cents: weighted average (70% old, 30% new)
-                            setTunerCents((prev) => {
-                                const target = Math.max(-50, Math.min(50, Math.round(note.cents)));
-                                return Math.round(prev * 0.7 + target * 0.3);
-                            });
-                        } else {
-                            // Manual mode: calculate cents deviation relative to the nearest octave of A (440Hz)
-                            const distToA = 12 * Math.log2(note.frequency / 440);
-                            const nearestOctaveA = Math.round(distToA / 12) * 12;
-                            const centsValue = Math.round((distToA - nearestOctaveA) * 100);
-                            setTunerNote('A');
-                            setTunerCents((prev) => {
-                                const target = Math.max(-50, Math.min(50, centsValue));
-                                return Math.round(prev * 0.7 + target * 0.3);
-                            });
-                        }
+                    }
+
+                    let nextNote: string;
+                    let targetCents: number;
+                    if (tunerModeAuto) {
+                        nextNote = maxNote;
+                        targetCents = Math.max(-50, Math.min(50, Math.round(note.cents)));
+                    } else {
+                        // Manual mode: cents deviation relative to the nearest octave of A (440Hz)
+                        const distToA = 12 * Math.log2(note.frequency / 440);
+                        const nearestOctaveA = Math.round(distToA / 12) * 12;
+                        nextNote = 'A';
+                        targetCents = Math.max(-50, Math.min(50, Math.round((distToA - nearestOctaveA) * 100)));
+                    }
+
+                    // Cents: weighted average (70% old, 30% new)
+                    const nextCents = Math.round(tunerSmoothCentsRef.current * 0.7 + targetCents * 0.3);
+                    tunerSmoothCentsRef.current = nextCents;
+                    setTunerNote(nextNote);
+                    setTunerCents(nextCents);
+
+                    // Settle: the history window must be full AND unanimous, then hold that
+                    // for a further TUNER_SETTLE_SAMPLES. Anything less — a note still
+                    // wavering, a knock, a neighbouring string ringing — resets the count.
+                    const isSettling =
+                        history.length >= 8 &&
+                        history.every(n => n === maxNote) &&
+                        nextNote !== '--' &&
+                        nextFreq > 0;
+
+                    tunerSettleCountRef.current = isSettling ? tunerSettleCountRef.current + 1 : 0;
+
+                    if (tunerSettleCountRef.current >= TUNER_SETTLE_SAMPLES) {
+                        tunerSettleCountRef.current = 0;
+                        lockTuningReading({ note: nextNote, freq: nextFreq, cents: nextCents });
                     }
                 },
                 updateInterval: 50,
@@ -6727,10 +7056,12 @@ export default function CreatePage() {
         stopReferenceTone();
     };
 
-    // Auto-save and auto-start tuner mic depending on tools panel visibility and tab state
+    // Opening the tuner starts listening on its own — but only while there is no reading yet.
+    // Once one is held, re-opening shows that result and waits: re-arming automatically would
+    // throw away the answer the writer came back to read, and re-tuning is a click on the hub.
     useEffect(() => {
         if (showToolsPanel && activeToolTab === 'tuner') {
-            if (!tunerActiveRef.current) {
+            if (!tunerActiveRef.current && !savedTuningRef.current) {
                 startTunerMic();
             }
         } else {
@@ -8423,7 +8754,39 @@ export default function CreatePage() {
         }
     };
 
-    const handleShareToCommunity = async () => {
+    /**
+     * The publish button's first stop. Everything that can refuse a publish is
+     * checked here, before the confirmation dialog opens — asking someone to sign
+     * off on legals and splits and only then telling them their audio is still
+     * uploading would waste the whole exchange.
+     */
+    const openPublishDialog = () => {
+        if (shareStatus === 'shared') {
+            window.location.href = '/platform/connect';
+            return;
+        }
+        const note = notes.find(n => n.id === selectedNoteId) || null;
+        if (!note) return;
+
+        const hasBlobUrls = (note.audioUrl && note.audioUrl.startsWith('blob:'))
+            || (note.audioNotes && note.audioNotes.some(an => an.url.startsWith('blob:')));
+        if (hasBlobUrls) {
+            triggerStudioNotification("Audio is still uploading. Give it a few seconds, then publish.", 'rose');
+            return;
+        }
+
+        const lines = note.phrases && note.phrases.length > 0
+            ? note.phrases.map(p => p.text).filter(text => text.trim().length > 0)
+            : (note.content || '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length === 0) {
+            triggerStudioNotification("Write some lyrics before publishing.", 'rose');
+            return;
+        }
+
+        setShowPublishDialog(true);
+    };
+
+    const handleShareToCommunity = async (ownershipSplits: PublishSplit[] = []) => {
         if (shareStatus === 'shared') {
             window.location.href = '/platform/connect';
             return;
@@ -8496,6 +8859,15 @@ export default function CreatePage() {
                 groupId: an.groupId || null,
                 phraseId: an.phraseId || null,
                 createdAt: typeof an.createdAt === 'number' ? an.createdAt : (an.createdAt ? Date.parse(an.createdAt as any) : 0)
+            })),
+            // Who owns what, as agreed in the publish dialog. Stored on the post
+            // rather than only on the project: the split that was true at publish
+            // time is the one the published song was released under, and editing
+            // the project later shouldn't rewrite that history.
+            ownershipSplits: ownershipSplits.map(s => ({
+                uid: s.uid || null,
+                name: s.name || '',
+                percent: typeof s.percent === 'number' ? s.percent : 0,
             })),
             kudos: 0,
             likedBy: [],
@@ -8803,6 +9175,16 @@ export default function CreatePage() {
                             type: d.type || 'other',
                             size: d.size || 0,
                             phraseId: d.phraseId || null
+                        })),
+                        // Explicitly mapped rather than spread: Firestore rejects any
+                        // `undefined`, and a chord built in an older shape would take the
+                        // whole write down with it — the failure mode that silently ate
+                        // lyrics before the size guard below existed.
+                        chords: (updatedNote.chords || []).map((c: any) => ({
+                            id: c.id,
+                            symbol: c.symbol || '',
+                            phraseId: c.phraseId || '',
+                            wordIndex: typeof c.wordIndex === 'number' ? c.wordIndex : -1,
                         })),
                         updatedAt: new Date().toISOString()
                     };
@@ -9456,20 +9838,26 @@ export default function CreatePage() {
         // or it would override the caret position that entry point just chose.
         setCursorSelectionX(null);
 
-        // Write lockedBy to Firestore
+        // Write lockedBy to Firestore.
+        //
+        // Built from the LOCAL phrase list rather than a getDoc of the server's. Firestore
+        // can't update one element of an array, so this necessarily rewrites the whole thing —
+        // and a server read can easily be missing a line this client created moments ago
+        // (its own write may still be in flight). Writing that stale array back deleted the
+        // new line, which looked like it appearing and then vanishing.
         if (selectedNoteId && user) {
             try {
-                const docRef = doc(db, "projects", selectedNoteId);
-                const snap = await getDoc(docRef);
-                if (snap.exists()) {
-                    const phrases = snap.data().phrases || [];
-                    const updated = phrases.map((p: any) => {
-                        if (p.id === phraseId) {
-                            return { ...p, lockedBy: user.uid };
-                        }
-                        return p;
-                    });
-                    await updateDoc(docRef, { phrases: updated });
+                const localPhrases = notesRef.current.find(n => n.id === selectedNoteId)?.phrases || [];
+                if (localPhrases.length > 0) {
+                    // Same shape handleUpdateNote writes, so the two paths agree.
+                    const updated = localPhrases.map((p: any) => ({
+                        id: p.id,
+                        text: p.text || '',
+                        groupId: p.groupId || null,
+                        authorId: p.authorId || user.uid,
+                        lockedBy: p.id === phraseId ? user.uid : (p.lockedBy || null)
+                    }));
+                    await updateDoc(doc(db, "projects", selectedNoteId), { phrases: updated });
                 }
             } catch (err) {
                 console.error("Error setting focus lock in Firestore:", err);
@@ -9985,6 +10373,21 @@ export default function CreatePage() {
      * outside one must not drop the line into a box the writer clicked outside of. A null
      * anchor means there was nothing to position against, which falls back to appending.
      */
+    const chordsHiddenKey = user ? `veinote-hide-chords-${user.uid}` : null;
+
+    useEffect(() => {
+        if (!chordsHiddenKey) { setAreChordsHidden(false); return; }
+        setAreChordsHidden(localStorage.getItem(chordsHiddenKey) === 'true');
+    }, [chordsHiddenKey]);
+
+    const handleToggleChordsHidden = () => {
+        setAreChordsHidden(prev => {
+            const next = !prev;
+            if (chordsHiddenKey) safeLocalStorageSetItem(chordsHiddenKey, String(next));
+            return next;
+        });
+    };
+
     const handleAddPhraseNear = (
         anchorPhraseId: string | null,
         position: 'before' | 'after',
@@ -11159,7 +11562,153 @@ export default function CreatePage() {
         });
     };
 
-    const handleAddVerseGroup = (type: 'Verse' | 'Pre-Chorus' | 'Chorus' | 'Bridge' | 'Intro' | 'Outro' | 'Solo') => {
+    // ── Chords ───────────────────────────────────────────────────────────────
+    // A chord starts life unattached (wordIndex -1), shown as a loose card, and is
+    // then dragged onto the word it belongs over. Kept separate from the
+    // image/document/audio cards because those occupy a line of their own, while a
+    // chord annotates a word in place.
+    const [draggedChordId, setDraggedChordId] = useState<string | null>(null);
+    const draggedChordIdRef = useRef<string | null>(null);
+    const [dragOverChordWord, setDragOverChordWord] = useState<{ phraseId: string; wordIndex: number } | null>(null);
+    /** Adds an empty chord card, the way the import buttons add an image or audio
+     *  card: the click produces the thing, it doesn't open a browser of choices.
+     *  Which chord it is gets decided inside the card — see ChordCard — so the Add
+     *  menu stays a short list of what you can add. */
+    const handleAddChordCard = () => {
+        if (isCanvasReadOnly || !selectedNoteId) return;
+        const chord: ChordMark = {
+            id: `chord-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+            // No symbol yet — a card that hasn't been given a chord is a normal
+            // state, and the card opens on its picker because of it.
+            symbol: '',
+            phraseId: '',
+            wordIndex: -1,
+        };
+        // The card enters the lyric flow as its own line, the same way an image or a
+        // document card does, so it can then be dragged anywhere among the lyrics
+        // rather than being stranded in a tray under the song.
+        const currentPhrases = activeNote?.phrases || [];
+        const withCard = [
+            ...currentPhrases,
+            { id: `p-chord-${chord.id}`, text: '', groupId: null }
+        ];
+        const finalPhrases = cleanupAndEnsurePlaceholders(withCard, activeNote?.verses || []);
+        handleUpdateNote(selectedNoteId, {
+            chords: [...(activeNote?.chords || []), chord],
+            phrases: finalPhrases,
+            content: finalPhrases.map(p => p.text).join('\n'),
+        });
+        setIsAddMenuSticky(false);
+    };
+
+    /** Moves a chord card to sit as its own line between lyric lines (mirrors
+     *  handlePlaceImageAsLineAt). Only unpinned cards travel this way — a chord already
+     *  sitting above a word is a symbol on that word, not a card in the flow. */
+    const handlePlaceChordCardAsLineAt = (chordId: string, targetPhraseId: string, position: 'top' | 'bottom') => {
+        setDraggedChordId(null);
+        draggedChordIdRef.current = null;
+        setDragOverPhraseId(null);
+        setDropPosition(null);
+        setDragOverChordWord(null);
+
+        if (isCanvasReadOnly || !selectedNoteId) return;
+        const targetNote = notesRef.current.find(n => n.id === selectedNoteId);
+        if (!targetNote) return;
+
+        const chord = (targetNote.chords || []).find(c => c.id === chordId);
+        if (!chord || chord.wordIndex >= 0) return;
+
+        const dedicatedPhraseId = `p-chord-${chordId}`;
+        if (dedicatedPhraseId === targetPhraseId) return;
+
+        const updatedPhrases = (targetNote.phrases || []).filter(p => p.id !== dedicatedPhraseId);
+        const targetIdx = updatedPhrases.findIndex(p => p.id === targetPhraseId);
+        if (targetIdx === -1) return;
+
+        const targetGroupId = updatedPhrases[targetIdx].groupId;
+        updatedPhrases.splice(
+            position === 'top' ? targetIdx : targetIdx + 1,
+            0,
+            { id: dedicatedPhraseId, text: '', groupId: targetGroupId }
+        );
+
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, targetNote.verses || []);
+        handleUpdateNote(selectedNoteId, {
+            phrases: finalPhrases,
+            content: finalPhrases.map(p => p.text).join('\n'),
+        });
+    };
+
+    const handleSetChordSymbol = (chordId: string, symbol: string) => {
+        if (isCanvasReadOnly || !selectedNoteId || !activeNote) return;
+        handleUpdateNote(selectedNoteId, {
+            chords: (activeNote.chords || []).map(c => (c.id === chordId ? { ...c, symbol } : c)),
+        });
+    };
+
+    /**
+     * Pins a chord above a specific word. One chord per word: dropping onto a word
+     * that already has one replaces it, which is what a writer means by dragging a
+     * new chord there — otherwise symbols would silently stack on top of each other.
+     *
+     * Dragging from a card *copies* rather than moves. The card is a tool for
+     * placing chords, not the chord itself, so it stays open for the next word and
+     * only the × closes it — placing one chord shouldn't cost you the card you were
+     * about to place three more from.
+     */
+    const handleAttachChordToWord = (chordId: string, phraseId: string, wordIndex: number) => {
+        if (isCanvasReadOnly || !selectedNoteId || !activeNote) return;
+        const all = activeNote.chords || [];
+        const source = all.find(c => c.id === chordId);
+        if (!source || !source.symbol) return;
+
+        // Clear whatever was already sitting on the target word.
+        const kept = all.filter(c => !(c.phraseId === phraseId && c.wordIndex === wordIndex && c.id !== chordId));
+
+        const next = source.wordIndex < 0
+            ? [
+                // From a card: place a copy and leave the card be.
+                ...kept,
+                {
+                    id: `chord-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+                    symbol: source.symbol,
+                    phraseId,
+                    wordIndex,
+                },
+            ]
+            // Already pinned somewhere: this is a move, not a copy.
+            : kept.map(c => (c.id === chordId ? { ...c, phraseId, wordIndex } : c));
+
+        handleUpdateNote(selectedNoteId, { chords: next });
+        setDraggedChordId(null);
+        draggedChordIdRef.current = null;
+        setDragOverChordWord(null);
+    };
+
+    const handleRemoveChord = (chordId: string) => {
+        if (isCanvasReadOnly || !selectedNoteId || !activeNote) return;
+        // Its placeholder line goes with it, or the flow keeps an empty slot where the
+        // card used to be.
+        const finalPhrases = (activeNote.phrases || []).filter(p => p.id !== `p-chord-${chordId}`);
+        handleUpdateNote(selectedNoteId, {
+            chords: (activeNote.chords || []).filter(c => c.id !== chordId),
+            phrases: finalPhrases,
+            content: finalPhrases.map(p => p.text).join('\n'),
+        });
+    };
+
+
+    /** Chords keyed by "phraseId:wordIndex" so a word can look its own up in O(1)
+     *  rather than scanning the whole list on every token render. */
+    const chordsByWord = useMemo(() => {
+        const map: Record<string, ChordMark> = {};
+        (activeNote?.chords || []).forEach(c => {
+            if (c.wordIndex >= 0 && c.phraseId) map[`${c.phraseId}:${c.wordIndex}`] = c;
+        });
+        return map;
+    }, [activeNote?.chords]);
+
+    const handleAddVerseGroup =(type: 'Verse' | 'Pre-Chorus' | 'Chorus' | 'Bridge' | 'Intro' | 'Outro' | 'Solo') => {
         setIsAddMenuSticky(false);
         if (!selectedNoteId || !activeNote) return;
         const currentVerses = activeNote.verses || [];
@@ -11338,22 +11887,13 @@ export default function CreatePage() {
     };
 
     // Word suggestion click handler in Suggestion Mode
-    const getCompatibilityScore = (word: string, context: string): number => {
-        if (!word || !clickedWord) return 50;
-        const w = word.toLowerCase().trim();
-        const orig = clickedWord.toLowerCase().trim();
-        if (w === orig) return 100;
-        if (orig.length >= 3 && (w.endsWith(orig.slice(-3)) || orig.endsWith(w.slice(-3)))) return 88;
-        if (orig.length >= 2 && (w.endsWith(orig.slice(-2)) || orig.endsWith(w.slice(-2)))) return 75;
-        return 65;
-    };
-
-    const handleWordClick = (e: React.MouseEvent, word: string, tokenIndex: number) => {
+    const handleWordClick = (e: React.MouseEvent, word: string, tokenIndex: number, chordKey: string) => {
         const cleanWord = word.replace(/[^\p{L}]/gu, '');
         if (!cleanWord) return;
 
         setClickedWord(cleanWord);
         setClickedTokenIndex(tokenIndex);
+        setClickedWordChordKey(chordKey);
 
         const targetEl = e.currentTarget as HTMLElement;
         const rect = targetEl.getBoundingClientRect();
@@ -11438,6 +11978,7 @@ export default function CreatePage() {
         }
         setClickedWord(null);
         setClickedTokenIndex(null);
+        setClickedWordChordKey(null);
         setPopoverPosition(null);
     };
 
@@ -11613,12 +12154,22 @@ export default function CreatePage() {
         return position === 'top' ? block.phrases[0].id : block.phrases[block.phrases.length - 1].id;
     };
 
-    // A phrase id that is really an inline image/document card placeholder
-    const flowCardKind = (id: string): 'image' | 'doc' | null => {
+    // A phrase id that is really an inline card placeholder rather than a lyric line
+    const flowCardKind = (id: string): 'image' | 'doc' | 'chord' | null => {
         if (id.startsWith('p-image-')) return 'image';
         if (id.startsWith('p-docblock-')) return 'doc';
+        if (id.startsWith('p-chord-')) return 'chord';
         return null;
     };
+
+    /** The chord behind a `p-chord-…` placeholder, for rendering it in the lyric flow. */
+    const chordByPhraseIdMap = useMemo(() => {
+        const map: Record<string, ChordMark> = {};
+        (activeNote?.chords || []).forEach(c => {
+            if (c.wordIndex < 0) map[`p-chord-${c.id}`] = c;
+        });
+        return map;
+    }, [activeNote?.chords]);
 
     const dropIndicator = (edge: 'top' | 'bottom') => (
         <div className={`absolute ${edge === 'top' ? 'top-0 -translate-y-1/2' : 'bottom-0 translate-y-1/2'} left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]`}>
@@ -11638,7 +12189,7 @@ export default function CreatePage() {
         const onCardDragOver = (e: React.DragEvent) => {
             if (isCanvasReadOnly) return;
             const dt = e.dataTransfer.types;
-            const relevant = dt.includes('text/audio-note-id') || dt.includes('text/image-id') || dt.includes('text/document-id') || dt.includes('text/plain');
+            const relevant = dt.includes('text/audio-note-id') || dt.includes('text/image-id') || dt.includes('text/document-id') || dt.includes('text/chord-id') || dt.includes('text/plain');
             if (!relevant) return;
             e.preventDefault();
             e.stopPropagation();
@@ -11656,11 +12207,13 @@ export default function CreatePage() {
             const imageId = e.dataTransfer.getData('text/image-id') || draggedImageIdRef.current || draggedImageId;
             const documentId = e.dataTransfer.getData('text/document-id') || draggedDocIdRef.current || draggedDocId;
             const audioNoteId = e.dataTransfer.getData('text/audio-note-id') || draggedAudioIdRef.current || draggedAudioId;
+            const chordId = e.dataTransfer.getData('text/chord-id') || draggedChordIdRef.current || draggedChordId;
             const phraseDraggedId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
 
             if (imageId) handlePlaceImageAsLineAt(imageId, phrase.id, pos);
             else if (documentId) handlePlaceDocAsLineAt(documentId, phrase.id, pos);
             else if (audioNoteId) handlePlaceAudioAsLineAt(audioNoteId, phrase.id, pos);
+            else if (chordId) handlePlaceChordCardAsLineAt(chordId, phrase.id, pos);
             else if (phraseDraggedId && phraseDraggedId !== phrase.id) handleInsertPhraseAt(phraseDraggedId, phrase.id, pos);
 
             setDragOverPhraseId(null);
@@ -11672,13 +12225,43 @@ export default function CreatePage() {
         return (
             <div
                 data-phrase-id={phrase.id}
-                className="relative w-full flex flex-col items-center"
+                // `canvas-flow-card` keeps the click-to-type handler off these: a card's own
+                // padding is not empty canvas, and spawning a lyric line from it would shift
+                // the card out from under the pointer mid-interaction.
+                className="canvas-flow-card relative w-full flex flex-col items-center"
                 onDragOver={onCardDragOver}
                 onDragLeave={() => { setDragOverPhraseId(null); setDropPosition(null); }}
                 onDrop={onCardDrop}
             >
                 {showTop && dropIndicator('top')}
-                {kind === 'image' ? (() => {
+                {kind === 'chord' ? (() => {
+                    const chord = chordByPhraseIdMap[phrase.id];
+                    if (!chord) return null;
+                    return (
+                        <ChordCard
+                            chord={chord}
+                            isDragging={draggedChordId === chord.id}
+                            onSetSymbol={(symbol) => handleSetChordSymbol(chord.id, symbol)}
+                            onRemove={() => handleRemoveChord(chord.id)}
+                            onDragStart={(e) => {
+                                e.stopPropagation();
+                                setDraggedChordId(chord.id);
+                                draggedChordIdRef.current = chord.id;
+                                // Both a ref and dataTransfer: the ref drives the live
+                                // highlight during dragover (where dataTransfer.getData
+                                // is blocked by the browser), dataTransfer carries the
+                                // id through the drop itself.
+                                e.dataTransfer.setData('text/chord-id', chord.id);
+                                e.dataTransfer.effectAllowed = 'move';
+                            }}
+                            onDragEnd={() => {
+                                setDraggedChordId(null);
+                                draggedChordIdRef.current = null;
+                                setDragOverChordWord(null);
+                            }}
+                        />
+                    );
+                })() : kind === 'image' ? (() => {
                     const img = imageByPhraseIdMap[phrase.id];
                     if (!img) return null;
                     return (
@@ -13096,7 +13679,10 @@ export default function CreatePage() {
                 {remoteUsersInStudio.map((rUser) => {
                     if (!rUser.cursor) return null;
                     const member = allCollabMembers.find(m => m.uid === rUser.uid);
-                    const cColor = member ? member.color : getCollabColor(rUser.color);
+                    // Falls back to the roster resolver, never to the colour the writer
+                    // reported about itself — a stale self-report is exactly how two
+                    // cursors end up wearing the same colour.
+                    const cColor = member ? member.color : getMemberColorToken(rUser.uid);
                     const cursorName = rUser.name || (member ? (member.name.startsWith('Me (') ? member.name.slice(4, -1) : member.name) : 'Collaborator');
                     return (
                         <div 
@@ -15279,7 +15865,7 @@ export default function CreatePage() {
             );
         }
 
-        const getCanvasLyrics = (): { text: string; sectionName?: string }[] => {
+        const getCanvasLyrics = (): { text: string; sectionName?: string; chords?: string[] }[] => {
             if (!activeNote) return [];
             
             // If we have phrases, use them:
@@ -15288,7 +15874,15 @@ export default function CreatePage() {
                     const group = activeNote.verses?.find(v => v.id === p.groupId);
                     return {
                         text: p.text,
-                        sectionName: group?.name || undefined
+                        sectionName: group?.name || undefined,
+                        // The line's chords in the order they're played. Positions are
+                        // dropped deliberately: this panel is 260px of wrapping text, so
+                        // a symbol can't sit over its own word the way it does on the
+                        // canvas. The sequence is what a player reads off it anyway.
+                        chords: (activeNote.chords || [])
+                            .filter(c => c.phraseId === p.id && c.wordIndex >= 0 && c.symbol)
+                            .sort((a, b) => a.wordIndex - b.wordIndex)
+                            .map(c => c.symbol),
                     };
                 }).filter(item => item.text.trim().length > 0);
             }
@@ -15341,6 +15935,18 @@ export default function CreatePage() {
                                                             <span className="text-[10px] font-bold text-stone-400/60 tracking-wider uppercase mb-1">
                                                                 {lyric.sectionName}
                                                             </span>
+                                                        )}
+                                                        {lyric.chords && lyric.chords.length > 0 && (
+                                                            <div className="flex flex-wrap items-center gap-1 mb-0.5">
+                                                                {lyric.chords.map((sym, i) => (
+                                                                    <span
+                                                                        key={`${sym}-${i}`}
+                                                                        className="text-[10.5px] font-bold leading-none tracking-tight text-white bg-stone-700 px-1.5 py-1 rounded-md"
+                                                                    >
+                                                                        {sym}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
                                                         )}
                                                         <p className="text-stone-700 font-sans tracking-tight font-medium">{lyric.text}</p>
                                                     </div>
@@ -15737,10 +16343,19 @@ export default function CreatePage() {
             )}
 
             {/* 1. TYPING / WRITING CANVAS AREA (Top Panel) */}
-            <div 
+            <div
                 ref={writingCanvasRef}
                 id="writing-canvas"
+                onContextMenu={handleCanvasContextMenu}
                 onClick={(e) => {
+                    // With the composer stripped down to just the input (no close button),
+                    // clicking anywhere else on the canvas is how a chat ends — and that
+                    // click must ONLY end it, not also start a lyric line where it landed.
+                    // Escape still closes it too.
+                    if (isChatting) {
+                        closeCursorChat();
+                        return;
+                    }
                     // One click on the bare canvas puts the writer straight into typing —
                     // the card already advertises this with `cursor-text`, it just used to
                     // demand a double-click.
@@ -15759,10 +16374,25 @@ export default function CreatePage() {
                     // They are containers, and their padding/gap is precisely the space BETWEEN
                     // lines — the place a writer clicks meaning "put a line here". Bailing on
                     // them is what stopped gap clicks from ever firing.
+                    //
+                    // `.canvas-add-menu` covers the Add cluster as a whole, not just its
+                    // buttons: it opens on hover, so creating a line from a click that landed
+                    // in the padding BETWEEN its buttons shifted the layout out from under the
+                    // pointer and collapsed the menu mid-use.
                     const target = e.target as HTMLElement | null;
-                    if (target?.closest(
-                        '.phrase-row-container, .word-token, .suggestions-popover, button, a, input, textarea, select, video, img, [role="button"]'
-                    )) {
+                    if (target?.closest(CANVAS_INTERACTIVE_SELECTOR)) {
+                        return;
+                    }
+
+                    // Where the press STARTED also counts, not just where the click was
+                    // reported. When a press and its release land on different elements
+                    // the browser dispatches `click` on their common ancestor — which,
+                    // for a press inside the chord map that ends anywhere else, is the
+                    // canvas itself. `target` is then the canvas, `closest` finds nothing,
+                    // and a stray line appears under the caret. That is the "sometimes"
+                    // in this bug: it only happens when the pointer moves between down
+                    // and up, which is exactly what panning the chord map does.
+                    if (pressBeganOnInteractiveRef.current) {
                         return;
                     }
 
@@ -16208,77 +16838,6 @@ export default function CreatePage() {
                             )
                         )}
 
-                        {/* "Join the huddle" invite — shown to members who aren't in a huddle that's
-                            already running. Starting one lives in the Collab popup; this is only the
-                            nudge for everyone else. */}
-                        {!isCanvasPreview && selectedNoteId && showCommentsUI && !isCallActive && isHuddleRunning && (
-                            <Tooltip side="bottom" label={`${huddleOthers.map(p => p.name).join(', ')} in a huddle`}>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); joinCall(); }}
-                                    aria-label="Join the huddle"
-                                    className="relative flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/65 text-emerald-800 hover:bg-emerald-100/80 text-[13px] font-sans font-semibold transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in"
-                                >
-                                    <span className="relative flex h-1.5 w-1.5 shrink-0">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-                                    </span>
-                                    <span className="whitespace-nowrap">Join huddle</span>
-                                </button>
-                            </Tooltip>
-                        )}
-
-                        {/* In-call strip: who's on, mute, and a clear "paused while recording"
-                            state. Only mounted during a call so it costs nothing the rest of the time. */}
-                        {!isCanvasPreview && isCallActive && (
-                            <div className={`flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-full border shrink-0 select-none animate-fade-in transition-colors ${
-                                (isRecording || studioState === 'recording')
-                                    ? 'bg-amber-50 border-amber-200/70'
-                                    : 'bg-emerald-50 border-emerald-200/65'
-                            }`}>
-                                {(isRecording || studioState === 'recording') ? (
-                                    <span className="text-[11px] font-semibold text-amber-700 px-1 whitespace-nowrap">
-                                        Huddle paused
-                                    </span>
-                                ) : (
-                                    <span className="relative flex h-1.5 w-1.5 shrink-0 ml-0.5">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-                                    </span>
-                                )}
-
-                                {callParticipants.length > 0 && (
-                                    <div className="inline-flex items-center ml-0.5 shrink-0">
-                                        {callParticipants.slice(0, 4).map((p, i) => (
-                                            <Tooltip key={p.uid} label={`${p.name} is in the huddle`}>
-                                                <div
-                                                    className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold text-stone-900 border-2 border-white shadow-sm capitalize shrink-0 -ml-1.5 first:ml-0"
-                                                    style={{ backgroundColor: getMemberColorToken(p.uid), zIndex: 10 - i }}
-                                                >
-                                                    {getFirstInitial(p.name)}
-                                                </div>
-                                            </Tooltip>
-                                        ))}
-                                    </div>
-                                )}
-
-                                <Tooltip label={isCallMuted ? 'Unmute' : 'Mute'}>
-                                    <button
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); toggleCallMute(); }}
-                                        aria-label={isCallMuted ? 'Unmute microphone' : 'Mute microphone'}
-                                        disabled={isRecording || studioState === 'recording'}
-                                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0 disabled:opacity-40 disabled:pointer-events-none ${
-                                            isCallMuted
-                                                ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                                                : 'hover:bg-emerald-100 text-emerald-700'
-                                        }`}
-                                    >
-                                        {isCallMuted ? <MicOff size={13} className="stroke-[2.2]" /> : <Mic size={13} className="stroke-[2.2]" />}
-                                    </button>
-                                </Tooltip>
-                            </div>
-                        )}
-
                         {/* Publish to Community — icon only, the tooltip carries the explanation */}
                         {!isCanvasPreview && selectedNoteId && activeNote && (
                             <>
@@ -16293,7 +16852,7 @@ export default function CreatePage() {
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            handleShareToCommunity();
+                                            openPublishDialog();
                                         }}
                                         disabled={shareStatus === 'sharing'}
                                         aria-label={
@@ -16821,15 +17380,6 @@ export default function CreatePage() {
                                                                     e.stopPropagation();
                                                                     handleAddNewPhrase(block.groupId);
                                                                 }}
-                                                                onContextMenu={(e) => {
-                                                                    // Right-click the section itself (the padding around its lines)
-                                                                    // to comment on the whole chorus/verse. Right-clicking a line
-                                                                    // inside it stops propagation, so that still comments on the line.
-                                                                    if (!block.groupId) return;
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    handleOpenCommentThread(block.groupId);
-                                                                }}
                                                                 className={`verse-group-container border border-dashed rounded-[20px] p-5 pt-8 pb-5 relative flex flex-col gap-1.5 min-h-[90px] transition-all duration-300 cursor-grab active:cursor-grabbing group/verse-group ${
                                                                     isDragOverThisGroup
                                                                         ? 'border-black bg-stone-100/50 shadow-[0_4px_20px_rgba(0,0,0,0.03)] scale-[1.005]'
@@ -17056,6 +17606,14 @@ export default function CreatePage() {
                                                                                             commentTints={commentMarkers[phrase.id]?.tints}
                                                                                             onOpenComments={handleOpenCommentThread}
                                                                                             isCommentTarget={openCommentThread === phrase.id}
+                                                                                            chordsByWord={chordsByWord}
+                                                                                            areChordsHidden={areChordsHidden}
+                                                                                            draggedChordId={draggedChordId}
+                                                                                            draggedChordIdRef={draggedChordIdRef}
+                                                                                            dragOverChordWord={dragOverChordWord}
+                                                                                            setDragOverChordWord={setDragOverChordWord}
+                                                                                            handleAttachChordToWord={handleAttachChordToWord}
+                                                                                            handleRemoveChord={handleRemoveChord}
                                                                                         />
                                                                                     )}
                                                                                 </div>
@@ -17326,6 +17884,14 @@ export default function CreatePage() {
                                                                         commentTints={commentMarkers[phrase.id]?.tints}
                                                                         onOpenComments={handleOpenCommentThread}
                                                                         isCommentTarget={openCommentThread === phrase.id}
+                                                                                            chordsByWord={chordsByWord}
+                                                                                            areChordsHidden={areChordsHidden}
+                                                                                            draggedChordId={draggedChordId}
+                                                                                            draggedChordIdRef={draggedChordIdRef}
+                                                                                            dragOverChordWord={dragOverChordWord}
+                                                                                            setDragOverChordWord={setDragOverChordWord}
+                                                                                            handleAttachChordToWord={handleAttachChordToWord}
+                                                                                            handleRemoveChord={handleRemoveChord}
                                                                     />
                                                                 )}
                                                             </div>
@@ -17361,22 +17927,43 @@ export default function CreatePage() {
                                     </div>
                                 )}
 
+                                {/* Chord cards used to queue in a tray here. They now live in the
+                                    lyric flow as their own line (see renderFlowCard), so a card can
+                                    be dragged anywhere among the words instead of only from a fixed
+                                    row beneath the song. Dragging one onto a word still pins the
+                                    symbol above that word and leaves the card where it was. */}
+
                                 {/* Centered Add Section Trigger with Hover Expansion (sections + import) — one continuous box, three lines */}
                                 {/* Hidden while a drag is over the canvas so the dotted drop target reads clean */}
                                 <div className={`flex items-center justify-center mt-8 pb-2 w-full select-none relative z-50 ${isCanvasReadOnly || isDraggingOverCanvas ? 'hidden' : ''}`}>
-                                     <div className="group/add-menu relative py-3 px-6 pointer-events-auto flex items-center justify-center">
-                                         {/* Invisible spacer: reserves the trigger's collapsed footprint in normal flow */}
-                                         <div className="h-9 px-5 flex items-center justify-center gap-1.5 font-sans font-bold text-[13px] opacity-0 pointer-events-none shrink-0 whitespace-nowrap" aria-hidden="true">
-                                             <Plus size={15} className="stroke-[2.5]" />
-                                             <span>{t('creative.add')}</span>
-                                         </div>
+                                     {/* `canvas-add-menu` is a stable hook for the canvas click
+                                         handler to recognise this cluster — see the bail-out
+                                         list there. Its padding and the gaps between its
+                                         buttons are not empty canvas. */}
+                                     <div className="canvas-add-menu group/add-menu relative py-3 px-6 pointer-events-auto flex items-center justify-center">
+                                         {/* The one box: same border/radius throughout, width+height grow together,
+                                             opening on hover.
 
-                                         {/* The one box: same border/radius throughout, width+height grow together, everything centered */}
+                                             It sits in normal flow rather than floating above it. Absolutely
+                                             positioned (with an invisible spacer holding the collapsed footprint)
+                                             it took up no room, so the canvas never grew to match and the expanded
+                                             menu ran under the bottom toolbar with no way to reach what it hid. In
+                                             flow, opening it makes the canvas taller and the page simply scrolls
+                                             to the rest — the menu can extend past the canvas and still be reachable.
+
+                                             Growth is downward only: the box's top edge is where the collapsed pill
+                                             already was, so the "+ Add" trigger stays put under the pointer and
+                                             nothing above it moves.
+
+                                             The max-height is a cap, not a height: the box still sizes to its
+                                             content. It's back to a single value now that the chord palette
+                                             lives in the card rather than in here, so the menu no longer has a
+                                             tall variant to allow for. */}
                                          <div
-                                             className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center bg-white border rounded-[20px] overflow-hidden transition-all duration-500 ease-in-out ${
+                                             className={`flex flex-col items-center bg-white border rounded-[20px] overflow-hidden transition-all duration-500 ease-in-out ${
                                                  isAddMenuSticky
-                                                     ? "max-w-[600px] max-h-[200px] border-stone-300"
-                                                     : "max-w-[130px] max-h-9 border-stone-200 hover:border-stone-300 group-hover/add-menu:max-w-[600px] group-hover/add-menu:max-h-[200px] group-hover/add-menu:border-stone-300"
+                                                     ? "max-w-[600px] max-h-[240px] border-stone-300"
+                                                     : "max-w-[130px] max-h-9 border-stone-200 hover:border-stone-300 group-hover/add-menu:max-w-[600px] group-hover/add-menu:max-h-[240px] group-hover/add-menu:border-stone-300"
                                              }`}
                                          >
                                              {/* Line 1: "+ Add" trigger */}
@@ -17417,7 +18004,7 @@ export default function CreatePage() {
                                                                      e.stopPropagation();
                                                                      handleAddVerseGroup(sectionType);
                                                                  }}
-                                                                 className="h-7 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center shrink-0"
+                                                                 className="h-9 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center shrink-0"
                                                              >
                                                                  {label}
                                                              </button>
@@ -17427,7 +18014,38 @@ export default function CreatePage() {
                                                      {/* Divider */}
                                                      <div className="h-px bg-stone-100 mx-4 mb-2" />
 
-                                                     {/* Line 3: Import */}
+                                                     {/* Line 3: Chords. Its own row because a chord behaves
+                                                         unlike everything else here — the others drop a block
+                                                         into the flow, a chord becomes a loose card you then
+                                                         drag onto the word it belongs over.
+
+                                                         Deliberately just an action, not a submenu: it drops an
+                                                         empty chord card the way the import buttons drop an image
+                                                         or audio card. Which chord it is gets chosen in the card
+                                                         itself, where the diagram and playback already live. */}
+                                                     {/* px-4, not the px-2 the other rows use, so the full-width hover
+                                                         state below lines up exactly with the mx-4 dividers above and
+                                                         below it rather than overhanging them by 8px a side. */}
+                                                     <div className="flex flex-col items-center gap-1.5 px-4 pb-2">
+                                                         <button
+                                                             onClick={(e) => {
+                                                                 e.stopPropagation();
+                                                                 handleAddChordCard();
+                                                             }}
+                                                             // Full width, unlike the section pills above: this row holds a
+                                                             // single action rather than a set of choices, so the hover state
+                                                             // reads as one row rather than one option among several. Also
+                                                             // makes it a much larger target.
+                                                             className="w-full h-9 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                                                         >
+                                                             <Music size={13} className="shrink-0" />
+                                                             {t('creative.add_chord') || 'Chords'}
+                                                         </button>
+                                                     </div>
+
+                                                     <div className="h-px bg-stone-100 mx-4 mb-2" />
+
+                                                     {/* Line 4: Import */}
                                                      <div className="flex items-center justify-center gap-1 px-2 pb-2">
                                                          {([
                                                              ['image/*,.png,.jpg,.jpeg,.gif,.webp', ImageIcon, t('creative.import_image')],
@@ -17455,7 +18073,7 @@ export default function CreatePage() {
                                                                      };
                                                                      input.click();
                                                                  }}
-                                                                 className="h-7 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                                                                 className="h-9 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
                                                              >
                                                                  <Icon size={13} className="shrink-0" />
                                                                  {label}
@@ -17599,7 +18217,7 @@ export default function CreatePage() {
                     <>
                         <div 
                             className={`
-                                suggestions-popover bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[28px] p-10 shadow-[0_20px_60px_rgba(0,0,0,0.12)] z-40 flex flex-col gap-7 w-[540px] max-w-[95%] sm:w-[600px] md:w-[680px] animate-in fade-in zoom-in-95 duration-200
+                                suggestions-popover bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[28px] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.12)] z-40 flex flex-row items-stretch gap-5 w-[540px] max-w-[95%] sm:w-[640px] md:w-[760px] animate-in fade-in zoom-in-95 duration-200
                                 ${isMobile ? 'absolute bottom-4 left-4 right-4 shadow-2xl mx-auto' : 'absolute'}
                             `}
                             style={isMobile ? undefined : { 
@@ -17608,49 +18226,26 @@ export default function CreatePage() {
                                 transform: popoverPosition.isNearBottom ? 'translate(-50%, -100%)' : 'translateX(-50%)' 
                             }}
                         >
-                            {/* Header: Hovered word + compatibility */}
-                            <div className="flex flex-col gap-2.5">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[11.5px] text-stone-400 font-bold uppercase tracking-wider select-none">Current Word</span>
-                                    <span className="text-[13px] text-emerald-600 font-semibold">{getCompatibilityScore(clickedWord, contentVal)}% Compatible</span>
-                                </div>
-                                <div className="flex items-center gap-3.5">
-                                    <span className="text-2xl font-semibold text-stone-900">"{clickedWord}"</span>
-                                    <div className="flex-grow h-2.5 bg-stone-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${getCompatibilityScore(clickedWord, contentVal)}%` }} />
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            {/* Do you mean / Spell check suggestion banner */}
-                            {spellChecking ? (
-                                <div className="flex items-center gap-2 py-1 select-none animate-pulse">
-                                    <div className="w-4 h-4 rounded-full border-2 border-stone-300 border-t-stone-600 animate-spin" />
-                                    <span className="text-[12.5px] text-stone-400 font-medium">Checking spelling...</span>
-                                </div>
-                            ) : spellCheckResult && !spellCheckResult.correct && spellCheckResult.suggestions.length > 0 && (
-                                <div className="bg-stone-100/80 rounded-[20px] p-5 flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-4 duration-200">
-                                    <span className="text-[13px] font-medium text-stone-500 select-none">Do you mean...</span>
-                                    <div className="flex flex-wrap gap-2">
-                                        {spellCheckResult.suggestions.map((suggestion, idx) => (
-                                            <button
-                                                key={idx}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleSelectCorrection(suggestion);
-                                                }}
-                                                className="px-5 py-2 bg-white hover:bg-emerald-600 text-stone-700 hover:text-white border border-stone-200/50 rounded-[14px] text-[14px] font-medium transition-all cursor-pointer shadow-xs active:scale-95 animate-in zoom-in-95 duration-150"
-                                                type="button"
-                                            >
-                                                {suggestion}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            {/* The chord on this word, above the words it rhymes with.
+                                One click on a lyric now answers both questions rather
+                                than making the writer click the word for one and the
+                                little symbol above it for the other. */}
+                            <WordChordSection
+                                symbol={(clickedWordChordKey && chordsByWord[clickedWordChordKey]?.symbol) || null}
+                                onRemove={
+                                    !isCanvasReadOnly && clickedWordChordKey && chordsByWord[clickedWordChordKey]
+                                        ? () => handleRemoveChord(chordsByWord[clickedWordChordKey].id)
+                                        : undefined
+                                }
+                                chordsHidden={areChordsHidden}
+                                onToggleChordsHidden={handleToggleChordsHidden}
+                            />
 
-                            <div className="border-t border-stone-100/80 my-1" />
-                            
+                            {/* The words column. Wrapped so the chord panel can sit
+                                beside it rather than above it — min-w-0 so a long
+                                rhyme can't push the chord panel out of the popover. */}
+                            <div className="flex-1 min-w-0 flex flex-col gap-4">
+
                             {/* 2-way segment selector for Rhyme Lexicon vs Synonyms */}
                             <div className="flex bg-stone-100/70 p-1 rounded-[14px] w-full select-none">
                                 <button 
@@ -17684,9 +18279,43 @@ export default function CreatePage() {
                                     placeholder={t('lexicon.placeholder')}
                                     value={lexiconWord}
                                     onChange={(e) => setLexiconWord(e.target.value)}
-                                    className="w-full px-5 py-3 bg-stone-50 border border-stone-200/85 rounded-[16px] text-[15px] font-sans placeholder:text-stone-400 font-medium focus:outline-none focus:border-emerald-500/50"
+                                    // Larger and heavier than the surrounding UI: with the old
+                                    // header gone, this field IS the "current word" display, so
+                                    // it carries that weight now. Placeholder stays lighter so
+                                    // an empty field doesn't shout.
+                                    className="w-full px-5 py-3 bg-stone-50 border border-stone-200/85 rounded-[16px] text-[21px] font-sans placeholder:text-[16px] placeholder:font-medium placeholder:text-stone-400 font-semibold text-stone-900 focus:outline-none focus:border-emerald-500/50"
                                 />
                             </div>
+
+                            {/* Spell check, directly under the field it refers to — it corrects
+                                the word in that input, so it belongs beside it rather than in a
+                                header block above the whole panel. Renders nothing at all when
+                                the spelling is fine, so the panel doesn't reserve empty space. */}
+                            {spellChecking ? (
+                                <div className="flex items-center gap-2 select-none animate-pulse">
+                                    <div className="w-4 h-4 rounded-full border-2 border-stone-300 border-t-stone-600 animate-spin" />
+                                    <span className="text-[12.5px] text-stone-400 font-medium">Checking spelling...</span>
+                                </div>
+                            ) : spellCheckResult && !spellCheckResult.correct && spellCheckResult.suggestions.length > 0 && (
+                                <div className="bg-stone-100/80 rounded-[20px] p-5 flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-4 duration-200">
+                                    <span className="text-[13px] font-medium text-stone-500 select-none">Do you mean...</span>
+                                    <div className="flex flex-wrap gap-2">
+                                        {spellCheckResult.suggestions.map((suggestion, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleSelectCorrection(suggestion);
+                                                }}
+                                                className="px-5 py-2 bg-white hover:bg-emerald-600 text-stone-700 hover:text-white border border-stone-200/50 rounded-[14px] text-[14px] font-medium transition-all cursor-pointer shadow-xs active:scale-95 animate-in zoom-in-95 duration-150"
+                                                type="button"
+                                            >
+                                                {suggestion}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Suggestions Alternatives */}
                             <div className="flex flex-col gap-2 mt-2">
@@ -17742,7 +18371,6 @@ export default function CreatePage() {
                                                         </span>
                                                         <div className="flex flex-wrap gap-2">
                                                             {words.map((item, idx) => {
-                                                                const score = getCompatibilityScore(item.word, contentVal);
                                                                 return (
                                                                     <Tooltip key={idx} label={`Click to select ${item.word}`}>
                                                                     <button
@@ -17767,6 +18395,7 @@ export default function CreatePage() {
                                         })()}
                                     </ScrollableWithCue>
                                 )}
+                            </div>
                             </div>
                         </div>
                     </>
@@ -18036,15 +18665,17 @@ export default function CreatePage() {
                     const rUser = activeRemoteUsers[uid];
                     if (!rUser || !rUser.cursor) return null;
                     const member = allCollabMembers.find(m => m.uid === uid);
-                    const color = member ? member.color : getCollabColor(rUser.color);
+                    // Same rule as the studio layer: resolver fallback, never the writer's
+                    // self-reported colour.
+                    const color = member ? member.color : getMemberColorToken(uid);
                     const cursorName = (rUser.name || (member ? (member.name.startsWith('Me (') ? member.name.slice(4, -1) : member.name) : 'Collaborator')).split(' ')[0];
-                    
+
                     return (
-                        <div 
+                        <div
                             key={uid}
                             className="absolute pointer-events-none z-50 select-none transition-all duration-100 ease-out flex flex-col items-start"
-                            style={{ 
-                                left: `${rUser.cursor.x}%`, 
+                            style={{
+                                left: `${rUser.cursor.x}%`,
                                 top: `${rUser.cursor.y}%`,
                                 transform: 'translate(-5px, -6px)'
                             }}
@@ -18067,15 +18698,64 @@ export default function CreatePage() {
                                 />
                             </svg>
                             
-                            <div 
-                                className="mt-1 text-[13px] font-sans font-medium px-3.5 py-1 rounded-full shadow-md whitespace-nowrap select-none capitalize text-stone-900 border border-white/60"
+                            {/* The name pill IS the chat bubble — it grows into what
+                                they're saying rather than a second thing appearing beside
+                                it. Once there is something to say the name steps onto its
+                                own line above it: run together, a long name and the message
+                                read as one sentence, and it was never obvious where the
+                                person ended and their words began. */}
+                            <div
+                                className={`mt-1 text-[13px] font-sans font-medium py-1 rounded-[14px] shadow-md select-none text-stone-900 border border-white/60 transition-all duration-150 ${
+                                    rUser.chatText
+                                        ? 'px-3 py-1.5 max-w-[260px] whitespace-pre-wrap break-words'
+                                        : 'px-3.5 whitespace-nowrap capitalize rounded-full'
+                                }`}
                                 style={{ backgroundColor: color }}
                             >
-                                {cursorName}
+                                {rUser.chatText ? (
+                                    <>
+                                        <span className="block capitalize opacity-55 text-[11.5px] leading-tight">
+                                            {cursorName}
+                                        </span>
+                                        <span className="block font-semibold leading-snug mt-0.5">
+                                            {rUser.chatText}
+                                        </span>
+                                    </>
+                                ) : cursorName}
                             </div>
                         </div>
                     );
                 })}
+
+                {/* My own composer. Only rendered while chatting — the rest of the
+                    time my cursor is the real one the OS is drawing. */}
+                {isChatting && chatAnchor && (
+                    <div
+                        className="absolute z-[60] flex flex-col items-start pointer-events-none"
+                        style={{ left: `${chatAnchor.x}%`, top: `${chatAnchor.y}%`, transform: 'translate(-5px, -6px)' }}
+                    >
+                        <svg className="w-8 h-8 drop-shadow-[0_2px_4px_rgba(0,0,0,0.12)]" viewBox="0 0 134 134" fill="none">
+                            <path d="M21.2375 23.4624C21.2375 12.8168 32.7622 6.16301 41.9815 11.4858L119.002 55.9536C129.653 62.103 127.579 78.0549 115.71 81.2766L75.1725 92.279C74.4705 92.4696 73.8309 92.8418 73.3179 93.3577L44.8724 121.964C36.1719 130.713 21.2373 124.551 21.2373 112.212L21.2375 23.4624Z" stroke="white" strokeWidth="9.6803" />
+                            <path d="M26.0776 24.6597C26.0776 17.2078 34.1446 12.5503 40.5981 16.2763L115.143 59.3147C122.598 63.6193 121.147 74.7852 112.838 77.0404L74.0838 87.5595C72.4453 88.0043 70.9525 88.8721 69.7553 90.0761L42.6222 117.362C36.5318 123.487 26.0776 119.174 26.0776 110.536L26.0776 24.6597Z" fill={getCollabColor(currentUserColor)} stroke="rgba(0,0,0,0.15)" strokeWidth="4" />
+                        </svg>
+                        <div
+                            className="mt-1 pointer-events-auto flex items-center px-3 py-1 rounded-[14px] shadow-lg border border-white/60"
+                            style={{ backgroundColor: getCollabColor(currentUserColor) }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        >
+                            <input
+                                ref={chatInputRef}
+                                value={chatDraft}
+                                onChange={(e) => setChatDraft(e.target.value)}
+                                maxLength={240}
+                                placeholder={t('collab.chat_placeholder') || 'Say something…'}
+                                className="w-[190px] bg-transparent border-none outline-none text-[13px] font-medium text-stone-900 placeholder:text-stone-900/45"
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* 2. DIRECTORY GRID AREA (Bottom Section) */}
@@ -18506,46 +19186,6 @@ export default function CreatePage() {
                             </p>
                         )}
 
-                        {/* Huddle — a live voice room for everyone on the project. Starting one
-                            puts a "Join huddle" prompt in front of every other member. */}
-                        {selectedNoteId && (
-                            <div className="flex items-center justify-between gap-4 pt-6 border-t border-stone-100">
-                                <div className="min-w-0">
-                                    <h4 className="text-[14px] font-sans font-medium text-stone-600">Huddle</h4>
-                                    <p className="text-[12px] text-stone-400 font-medium mt-0.5">
-                                        {isCallActive
-                                            ? (huddleOthers.length > 0
-                                                ? `You and ${huddleOthers.map(p => p.name).join(', ')}`
-                                                : 'Waiting for others to join…')
-                                            : isHuddleRunning
-                                                ? `${huddleOthers.map(p => p.name).join(', ')} ${huddleOthers.length === 1 ? 'is' : 'are'} in a huddle`
-                                                : 'Talk to everyone on this project'}
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (isCallActive) {
-                                            leaveCall();
-                                        } else {
-                                            joinCall();
-                                        }
-                                    }}
-                                    disabled={isCallConnecting}
-                                    className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-full text-[14px] font-sans font-semibold transition-all cursor-pointer active:scale-95 shadow-sm disabled:opacity-60 disabled:pointer-events-none ${
-                                        isCallActive
-                                            ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
-                                            : 'bg-[#87b884] text-[#1c331a] hover:bg-[#7cb378] shadow-[#87b884]/20'
-                                    }`}
-                                >
-                                    {isCallActive
-                                        ? <><PhoneOff size={15} className="stroke-[2.2]" /> Leave</>
-                                        : <><Phone size={15} className="stroke-[2.2]" /> {isCallConnecting ? 'Connecting…' : isHuddleRunning ? 'Join huddle' : 'Start huddle'}</>}
-                                </button>
-                            </div>
-                        )}
-
                         {/* Access/Collaborators List */}
                         {selectedNoteId && (
                             <div className="flex flex-col gap-3 pt-6 border-t border-stone-100">
@@ -18792,6 +19432,25 @@ export default function CreatePage() {
                         </div>
                     </div>
                 </div>,
+                document.body
+            )}
+
+            {/* Portalled so the blurred backdrop covers the whole app rather than being
+                trapped inside the canvas card's own stacking context. */}
+            {showPublishDialog && createPortal(
+                <PublishDialog
+                    open={showPublishDialog}
+                    title={activeNote?.title?.trim() || ''}
+                    coverUrl={activeNote?.images?.[0]?.url || null}
+                    members={allCollabMembers.map(m => ({ uid: m.uid, name: m.name, isOwner: m.isOwner, isMe: m.uid === user?.uid }))}
+                    canEditSplits={isProjectOwner}
+                    isPublishing={shareStatus === 'sharing'}
+                    onCancel={() => setShowPublishDialog(false)}
+                    onPublish={(splits) => {
+                        setShowPublishDialog(false);
+                        handleShareToCommunity(splits);
+                    }}
+                />,
                 document.body
             )}
 

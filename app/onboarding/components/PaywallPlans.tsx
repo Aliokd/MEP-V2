@@ -13,7 +13,21 @@ import {
     type PlanId,
 } from '@/lib/paddle/config';
 import { CHECKOUT_FRAME_CLASS } from '@/lib/paddle/checkout';
+import CheckoutPreviewForm from './CheckoutPreviewForm';
+import Confetti, { CONFETTI_MS } from './Confetti';
 import { PRIMARY_BUTTON_BLOCK, SECONDARY_BUTTON } from './buttonStyles';
+
+/**
+ * How long the success moment holds before the flow moves on.
+ *
+ * Long enough for the burst to finish and the line under it to be read, short
+ * enough that nobody starts wondering whether the screen is stuck. It is a beat,
+ * not a step: there is nothing to press here, and pressing is not what should
+ * end it — the visitor has just done the thing this whole flow was asking for,
+ * and being handed one more button for it would be the flow taking the moment
+ * back.
+ */
+const SUCCESS_HOLD_MS = CONFETTI_MS + 700;
 
 // Prices and price ids both live in lib/paddle/config.ts — see the note there
 // on which figures are confirmed and which are still placeholders.
@@ -104,6 +118,12 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
      * of leaving a form for the plan they just navigated away from.
      */
     const [checkingOut, setCheckingOut] = useState<PlanId | null>(null);
+    /**
+     * Whether the preview checkout has been confirmed and the success beat is
+     * playing. Only ever true in preview — a live Paddle checkout runs its own
+     * confirmation and takes the browser from there.
+     */
+    const [confirmed, setConfirmed] = useState(false);
     const checkoutRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -140,7 +160,10 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
     }, []);
 
     const savingsBadge = t('onboarding.paywall.billing.save_badge').replace('{pct}', String(SAVINGS_PCT));
-    const title = t('onboarding.paywall.title').replace('{days}', String(TRIAL_DAYS));
+    // The trial length comes off TRIAL_DAYS wherever it is said, so this screen
+    // can never promise a number Paddle isn't billing against.
+    const fill = (key: string) => t(key).replace('{days}', String(TRIAL_DAYS));
+    const title = fill('onboarding.paywall.title');
 
     const price = PLAN_PRICING[plan][billing];
     const outcome = tList<string>(`onboarding.paywall.plans.${plan}.outcome`);
@@ -160,12 +183,22 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
     useEffect(() => {
         if (!checkingOut) return;
 
-        // Scrolled to rather than jumped to. The plan above it does not move,
-        // which is the point of paying in place: the thing being bought is
-        // still on screen, just above the form.
-        checkoutRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Scrolled to rather than jumped to, and landed at the top of the
+        // screen rather than merely brought into view: this is the start of a
+        // new task, and it should arrive with nothing above it competing for
+        // the eye.
+        //
+        // Deferred a frame. The section mounts on this same commit and the card
+        // form inside it is most of its height, so measuring on the effect
+        // itself aims the scroll at a box that is about to get taller — and a
+        // smooth scroll, once aimed, does not re-aim. `scroll-mt` on the
+        // element is what leaves the small breath above it.
+        const id = requestAnimationFrame(() => {
+            checkoutRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
 
         if (purchasable) onCheckout(checkingOut, billing);
+        return () => cancelAnimationFrame(id);
         // Deliberately not watching `onCheckout` — the page hands a fresh arrow
         // function on every render, and depending on it would re-open the
         // checkout on each one.
@@ -203,8 +236,28 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
      */
     const showForm = checkingOut && purchasable;
     const showPlaceholder = checkingOut && !purchasable;
+
+    /**
+     * Takes the card in the preview: marks it done, lets the moment play, and
+     * moves the flow on by itself.
+     *
+     * Nothing is charged and nothing is sent — see CheckoutPreviewForm. What
+     * this reproduces is the shape of the real thing, which is that confirming
+     * a payment is the last press a visitor makes on this screen.
+     */
+    const confirmPreviewCheckout = () => setConfirmed(true);
+
+    useEffect(() => {
+        if (!confirmed) return;
+        const id = setTimeout(() => onSkipCheckout?.(), SUCCESS_HOLD_MS);
+        return () => clearTimeout(id);
+        // `onSkipCheckout` is a fresh arrow from the page on every render;
+        // depending on it would restart the hold on each one.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [confirmed]);
+
     const barAction = showPlaceholder
-        ? { label: t('onboarding.paywall.checkout_continue'), onClick: onSkipCheckout }
+        ? { label: t('onboarding.paywall.checkout_continue'), onClick: confirmPreviewCheckout }
         : { label: isSubmitting ? t('onboarding.paywall.opening_checkout') : t('onboarding.paywall.cta'), onClick: startCheckout };
 
     return (
@@ -492,7 +545,7 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
                         line under it don't jump the layout the moment the form
                         appears; only the one control with nothing honest left
                         to say steps out. */}
-                    {!showForm && (
+                    {!showForm && !confirmed && (
                         <div className="mx-auto flex max-w-4xl items-center gap-3">
                             {onBack && (
                                 <button
@@ -525,9 +578,11 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
                         plainly enough already, on the timeline screen this flow
                         just came from, so this only has to answer the one
                         question left: does leaving cost anything. */}
-                    <p className="text-center text-[11px] font-semibold text-stone-700">
-                        {t('onboarding.paywall.no_charge')}
-                    </p>
+                    {!confirmed && (
+                        <p className="text-center text-[11px] font-semibold text-stone-700">
+                            {t('onboarding.paywall.no_charge')}
+                        </p>
+                    )}
                 </div>,
                 document.body,
             )}
@@ -550,49 +605,88 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
                     transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                     className="mx-auto w-full max-w-2xl scroll-mt-6 space-y-4 rounded-[32px] border border-white/60 bg-white/70 p-6 shadow-[0_8px_30px_rgba(0,0,0,0.02)] backdrop-blur-2xl backdrop-saturate-150 md:p-8"
                 >
-                    <div className="flex items-center justify-between gap-4">
-                        <h2 className="text-[19px] font-sans font-semibold text-[#363636]">
-                            {t('onboarding.paywall.checkout_title')}
-                        </h2>
-                        <span className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-stone-500">
-                            <Lock size={13} className="stroke-[2.5px]" />
-                            {t('onboarding.paywall.checkout_secure')}
-                        </span>
-                    </div>
+                    {!confirmed && (
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2.5">
+                                <h2 className="text-[19px] font-sans font-semibold text-[#363636]">
+                                    {t('onboarding.paywall.checkout_title')}
+                                </h2>
+                                {/* Small, but present. The form below takes
+                                    card input and does nothing with it — see
+                                    the note at the top of CheckoutPreviewForm —
+                                    and a card form that says nothing about that
+                                    is one somebody could type a real card
+                                    into. */}
+                                {showPlaceholder && (
+                                    <span className="rounded-full border border-stone-300/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-stone-500">
+                                        {t('onboarding.paywall.checkout_preview_tag')}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-stone-500">
+                                <Lock size={13} className="stroke-[2.5px]" />
+                                {t('onboarding.paywall.checkout_secure')}
+                            </span>
+                        </div>
+                    )}
 
                     {/* What Paddle renders into. Always in the tree while the
                         section is open, purchasable or not — the placeholder
                         below sits beside it rather than in its place, so the
                         target can never be missing at the moment Paddle looks
                         for it. */}
-                    <div className={CHECKOUT_FRAME_CLASS} />
+                    {!confirmed && <div className={CHECKOUT_FRAME_CLASS} />}
 
-                    {/* No price id, no Paddle key, or signups closed: there is
-                        nothing to render into the frame above. Rather than an
-                        empty box, say so — and offer the way on, so the rest of
-                        the flow can still be walked before payments are live.
+                    {/* No price id, no Paddle key, or signups closed: nothing
+                        will render into the frame above, so the form that
+                        Paddle would have drawn is stood in for here — the
+                        flow's last screen is the one that most needs walking
+                        before it goes live, and an empty box is not something
+                        anyone can review.
 
-                        Deliberately NOT a mock card form. A fake set of card
-                        fields is indistinguishable from a real one to anyone
-                        who lands on it, and a page that looks like it takes
-                        card numbers but doesn't is the one thing this screen
-                        must never be.
+                        It accepts anything and submits nowhere; read the note
+                        at the top of CheckoutPreviewForm before touching it.
+                        The way on is the fixed bar's button, which relabels
+                        itself to "Continue" whenever this is what's showing. */}
+                    {showPlaceholder && !confirmed && <CheckoutPreviewForm />}
 
-                        Says how to move on, but doesn't offer its own button
-                        for it any more — that lives in the fixed bar now,
-                        which relabels itself to "Continue" the moment this
-                        card is what's showing. Two controls promising the same
-                        next step a few inches apart was the thing worth fixing
-                        here. */}
-                    {!purchasable && (
-                        <div className="space-y-3 rounded-[24px] border border-dashed border-stone-300/80 bg-white/60 p-6 text-center">
-                            <p className="text-[15px] font-semibold text-[#363636]">
-                                {t('onboarding.paywall.checkout_unavailable')}
-                            </p>
-                            <p className="mx-auto max-w-sm text-[13px] font-medium leading-relaxed text-stone-600">
-                                {t('onboarding.paywall.checkout_unavailable_note')}
-                            </p>
-                        </div>
+                    {/* The card has gone in. The form is replaced rather than
+                        covered — what was being filled in is finished, and
+                        leaving it behind a check mark invites one more look at
+                        fields nobody needs to see again.
+
+                        It ends itself. There is no button here: the visitor has
+                        just done the thing the whole flow was asking for, and
+                        handing them another control for it would be the flow
+                        taking the moment back. See SUCCESS_HOLD_MS. */}
+                    {confirmed && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.96 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                            role="status"
+                            className="relative flex flex-col items-center gap-4 py-6 text-center"
+                        >
+                            <Confetti />
+
+                            <motion.span
+                                initial={{ scale: 0.5, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ type: 'spring', stiffness: 380, damping: 20, delay: 0.05 }}
+                                className="grid h-16 w-16 place-items-center rounded-full bg-[#86BE7F]"
+                            >
+                                <Check size={30} className="stroke-[3px] text-stone-900" />
+                            </motion.span>
+
+                            <div className="space-y-1.5">
+                                <p className="text-[26px] font-sans font-semibold tracking-tight text-stone-900">
+                                    {t('onboarding.paywall.checkout_success')}
+                                </p>
+                                <p className="text-[14px] font-medium text-stone-600">
+                                    {fill('onboarding.paywall.checkout_success_note')}
+                                </p>
+                            </div>
+                        </motion.div>
                     )}
                 </motion.div>
             )}

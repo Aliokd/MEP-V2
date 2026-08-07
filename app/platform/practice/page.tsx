@@ -4,11 +4,9 @@ import { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import PracticeTab from './components/PracticeTab';
-
-// The practice sessions are being rebuilt, so the tab is locked behind a
-// "coming soon" screen. Flip this to true to bring the existing PracticeTab
-// back — nothing else needs to change.
-const PRACTICE_ENABLED: boolean = false;
+// Shared with MaestroSidebar so the locked tab and its greyed-out nav entry
+// can never disagree about whether Practice is available.
+import { PRACTICE_ENABLED } from '@/lib/uiFlags';
 
 export default function PracticePage() {
     const { user, loading: authLoading } = useAuth();

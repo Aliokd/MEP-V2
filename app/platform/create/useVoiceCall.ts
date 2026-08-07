@@ -16,6 +16,17 @@ import {
 } from 'firebase/firestore';
 
 /**
+ * WITHDRAWN — nothing imports this hook.
+ *
+ * The Huddle was taken out of the product; this file is parked rather than deleted so it can
+ * come back without being reconstructed. While it stays unreferenced it costs nothing: no
+ * bundle weight, no microphone permission, no `callParticipants` or `signaling` documents.
+ *
+ * To restore it: bind this hook in app/platform/create/page.tsx (search for "Huddle —
+ * withdrawn" for the exact spot) and put back the two UI blocks that consumed it — the "Join
+ * huddle" nudge in the canvas header and the Huddle row in the Collab popup. Both are in this
+ * file's git history alongside the removal.
+ *
  * Peer-to-peer voice calling for a Create project.
  *
  * Topology is a full mesh: every participant holds one RTCPeerConnection per peer. That's only

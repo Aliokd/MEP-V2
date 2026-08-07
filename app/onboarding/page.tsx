@@ -762,10 +762,15 @@ function OnboardingPageInner() {
             {/* The paywall's two plans, the intro carousel and the video answer
                 cards all need more room than the plain question steps — the
                 carousel because its frame is one constant box across all six
-                slides, sized so the studio demo inside it stays legible. */}
+                slides, sized so the studio demo inside it stays legible.
+
+                The struggle deck joined them once its two directions moved out
+                to either side of the card: one 410px card between two pill
+                buttons is about 700px of row, and 2xl is 672. */}
             <main
                 className={`w-full relative z-10 ${
-                    currentStep === STEPS.QUIZ && (currentQuestion as any).isCards
+                    currentStep === STEPS.QUIZ
+                    && ((currentQuestion as any).isCards || (currentQuestion as any).isDeck)
                         ? 'max-w-4xl'
                         : currentStep === STEPS.INTRO || currentStep === STEPS.PAYWALL
                           // A fifth narrower than the 4xl it used to be. The

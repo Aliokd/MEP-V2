@@ -70,6 +70,23 @@ export interface DeckState {
 // Written on a card of its own, so it gets a card's worth of room and no more.
 const OWN_MAX_LENGTH = 44;
 
+/**
+ * The two ways to answer, as real buttons rather than the caption they were.
+ *
+ * Neutral on purpose — the same white-on-a-hairline as `SECONDARY_BUTTON`
+ * elsewhere in the flow, not the brand green. These are two equal directions,
+ * and the moment one of them carries the colour that means "forward" the pair
+ * stops being a choice and starts being a recommendation with an escape hatch
+ * beside it. Grey on both sides keeps "not me" as ordinary an answer as
+ * "that's me", which is the whole point of the question.
+ *
+ * They also stay lighter than the primary button under the deck: this screen
+ * still has a Next, and two filled pills competing with it would make the card
+ * look like it has three ways forward.
+ */
+const DIRECTION_BUTTON =
+    'flex items-center gap-2 rounded-full border border-stone-300/80 bg-white/50 px-5 py-2.5 text-[15px] font-medium text-stone-600 transition-colors hover:border-stone-400 hover:bg-white hover:text-stone-900 md:px-6 md:py-3 md:text-[16px]';
+
 interface SwipeDeckProps {
     questionId: string;
     options: { value: string }[];
@@ -377,7 +394,30 @@ export default function SwipeDeck({
                 </>
             )}
 
-            <div className="relative h-[310px] w-full max-w-[380px] shrink-0 md:h-[340px] md:max-w-[410px]">
+            {/* The card between its two answers.
+
+                One grid rather than two layouts. On a phone the card takes both
+                columns and the buttons sit under it in the second row; from
+                `md` the `order` classes lay the three out side by side, so the
+                same two button elements serve both arrangements and there is no
+                second copy to keep in sync. Grid honours `order` when it
+                auto-places, which is what makes that work.
+             */}
+            <div className="grid grid-cols-[auto_auto] items-center justify-items-center gap-x-4 gap-y-6 md:grid-cols-[auto_auto_auto] md:gap-x-7">
+                {/* Spans both columns while it is stacked, one of three once it
+                    is flanked. `order-2` puts it between the buttons without
+                    moving it in the markup, where it belongs first: it is the
+                    thing being answered, and a screen reader should reach it
+                    before the two answers.
+
+                    An explicit width, not `w-full max-w-[410px]`. The grid
+                    tracks are `auto`, so a percentage width resolves against a
+                    column that is itself sized to its contents — and every
+                    child of this slot is `absolute`, so its contents measure
+                    zero. The card collapsed to the width of the buttons beside
+                    it. Stating the width outright is what keeps the track from
+                    having to guess. */}
+                <div className="relative col-span-2 h-[310px] w-[min(380px,calc(100vw-3rem))] shrink-0 md:col-span-1 md:order-2 md:h-[340px] md:w-[410px]">
                 {/* The reply, above the card, as a bare line — no pill, no box;
                     a spoken aside rather than a notification.
 
@@ -481,104 +521,67 @@ export default function SwipeDeck({
                         />
                     </motion.div>
                 )}
+                </div>
+
+                {/* Both directions go quiet with the last card — `decide` would
+                    refuse them anyway. Hidden rather than unmounted: they hold
+                    their grid columns, so the card does not slide sideways to a
+                    new centre the moment the deck runs out. */}
+                <button
+                    type="button"
+                    onClick={() => decide('pass')}
+                    className={`${DIRECTION_BUTTON} md:order-1 ${
+                        remaining.length > 0 ? '' : 'invisible pointer-events-none'
+                    }`}
+                >
+                    <ArrowLeft className="h-4 w-4 stroke-[2.5px]" />
+                    {t('onboarding.quiz.deck.pass')}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => decide('keep')}
+                    className={`${DIRECTION_BUTTON} md:order-3 ${
+                        remaining.length > 0 ? '' : 'invisible pointer-events-none'
+                    }`}
+                >
+                    {t('onboarding.quiz.deck.keep')}
+                    <ArrowRight className="h-4 w-4 stroke-[2.5px]" />
+                </button>
             </div>
 
-            {/* The gesture guide, one quiet line under the deck with the
-                position in the middle of it:  ← Not me · 1/5 · That's me →.
-                It earned its way back once the worded stamps came off the
-                card — with nothing on the card saying which way is which,
-                this line is the only place the directions are named. Under
-                the deck it reads as a caption, not a warning. */}
-            {/* Three columns rather than a flex row, with the outer two
-                sharing whatever width is going equally. The counter marks the
-                deck's centre line — the cards' centre, the middle of the
-                gesture — and in a flex row it only lands there when the two
-                labels happen to be the same length. "Not me" against "That's
-                me" is four characters of difference, which walked the counter
-                off centre in English and by a different amount in every other
-                locale. As the middle column it is centred by construction, in
-                any language.
+            {/* What is left under the deck once the two directions moved out
+                beside the card: the position in it, and the way back one step.
 
-                One weight, one colour, arrows included: this is a caption, and
-                the moment part of it is darker than the rest that part starts
-                reading as the instruction and the rest as small print.
+                Undo belongs to the position, not to either direction, which is
+                why it rides here rather than next to one of the buttons — over
+                there it would read as a third way to answer. It sits in the
+                flow with an empty box of its own width mirrored on the far side
+                of the counter, so the counter stays on the deck's centre line
+                whether the button is showing or not. Hanging it off the
+                counter's edge with `absolute` kept the centring but gave the
+                button no width to claim, and it reached across and sat on top
+                of the label beside it.
 
-                The two sides answer the card as well as name the directions.
-                They looked inert and were — the only ways through were a drag
-                and the arrow keys, one of which is invisible on a touchscreen
-                and the other invisible everywhere. They stay styled as the
-                caption they were rather than growing into buttons: the swipe
-                is still the gesture this screen is built around, and a pair of
-                filled buttons under the deck would make the card look like the
-                slow way round. `decide` already refuses a second answer while
-                a card is in flight, so a rapid double-click can't skip one. */}
-            <div className="grid w-fit grid-cols-[1fr_auto_1fr] items-center gap-4 text-[13px] font-normal text-stone-400">
-                {/* Both directions leave with the last card. `decide` would
-                    refuse them anyway, and a pair of live-looking controls that
-                    do nothing is worse than no controls: the counter and its
-                    undo stay, because going back is the one thing still on
-                    offer here. The empty grid cell holds the column, so the
-                    counter doesn't jump to a new centre. */}
-                {remaining.length > 0 ? (
-                    <button
-                        type="button"
-                        onClick={() => decide('pass')}
-                        className="flex items-center gap-1.5 justify-self-end rounded-full px-1 py-0.5 transition-colors hover:text-stone-600"
-                    >
-                        <ArrowLeft className="h-3.5 w-3.5 stroke-[2.5px]" />
-                        {t('onboarding.quiz.deck.pass')}
-                    </button>
-                ) : (
-                    <span />
-                )}
-                {/* Undo belongs to the position in the deck, not to keeping or
-                    passing, so it rides with the counter rather than beside one
-                    of the two labels, where it would read as a third way to
-                    answer.
-
-                    It sits in the flow, balanced by an empty box of its own
-                    width on the other side of the counter. Hanging it off the
-                    counter's left edge with `absolute` kept the counter centred
-                    but gave the button no width to claim, so it reached across
-                    the column gap and sat on top of "Not me" — the layout was
-                    centred and unreadable. Mirrored like this, the middle
-                    column grows symmetrically: the counter is still the centre
-                    of it, and the two labels are simply pushed out of the way.
-
-                    The spacer stays even while the button is hidden, so nothing
-                    in the row shifts when it appears on the second card.
-                    Hidden rather than disabled on the first — nothing to go
-                    back to yet, and a permanently dead control in a row this
-                    quiet is noise. */}
-                <span className="flex items-center justify-center gap-1">
-                    <button
-                        type="button"
-                        onClick={undo}
-                        aria-label={t('onboarding.quiz.deck.undo')}
-                        title={t('onboarding.quiz.deck.undo')}
-                        className={`grid h-6 w-6 shrink-0 place-items-center rounded-full transition-all hover:bg-stone-900/5 hover:text-stone-600 ${
-                            decisions.length === 0 ? 'pointer-events-none opacity-0' : 'opacity-100'
-                        }`}
-                    >
-                        <Undo2 className="h-3.5 w-3.5 stroke-[2.5px]" />
-                    </button>
-                    {t('onboarding.quiz.deck.counter')
-                        .replace('{current}', String(Math.min(decisions.length + 1, pool.length)))
-                        .replace('{total}', String(pool.length))}
-                    <span aria-hidden="true" className="h-6 w-6 shrink-0" />
-                </span>
-                {remaining.length > 0 ? (
-                    <button
-                        type="button"
-                        onClick={() => decide('keep')}
-                        className="flex items-center gap-1.5 justify-self-start rounded-full px-1 py-0.5 transition-colors hover:text-stone-600"
-                    >
-                        {t('onboarding.quiz.deck.keep')}
-                        <ArrowRight className="h-3.5 w-3.5 stroke-[2.5px]" />
-                    </button>
-                ) : (
-                    <span />
-                )}
+                Hidden rather than disabled on the first card — there is nothing
+                to go back to yet, and a permanently dead control in a row this
+                quiet is noise. */}
+            <div className="flex items-center justify-center gap-1 text-[13px] font-normal text-stone-400">
+                <button
+                    type="button"
+                    onClick={undo}
+                    aria-label={t('onboarding.quiz.deck.undo')}
+                    title={t('onboarding.quiz.deck.undo')}
+                    className={`grid h-6 w-6 shrink-0 place-items-center rounded-full transition-all hover:bg-stone-900/5 hover:text-stone-600 ${
+                        decisions.length === 0 ? 'pointer-events-none opacity-0' : 'opacity-100'
+                    }`}
+                >
+                    <Undo2 className="h-3.5 w-3.5 stroke-[2.5px]" />
+                </button>
+                {t('onboarding.quiz.deck.counter')
+                    .replace('{current}', String(Math.min(decisions.length + 1, pool.length)))
+                    .replace('{total}', String(pool.length))}
+                <span aria-hidden="true" className="h-6 w-6 shrink-0" />
             </div>
 
         </div>

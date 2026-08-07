@@ -16,7 +16,8 @@
     "about": "Om oss",
     "reset": "Återställ",
     "coming_soon": "Kommer snart",
-    "save_changes": "Spara ändringar"
+    "save_changes": "Spara ändringar",
+    "add": "Lägg till"
   },
   "navigation": {
     "create": "Skapa",
@@ -306,7 +307,8 @@
     "lock_locked_toast": "Projektet är låst. Endast visning för alla",
     "lock_unlocked_toast": "Projektet är upplåst. Alla kan redigera igen",
     "lock_banner": "Låst av ägaren. Endast visning",
-    "locked": "Låst"
+    "locked": "Låst",
+    "chat_placeholder": "Säg något …"
   },
   "workspace": {
     "my_projects": "Mina projekt",
@@ -448,7 +450,21 @@
     "drop_files_here": "Släpp dina filer här",
     "file_too_large_audio": "Den ljudfilen är lite för stor. Prova en under 30MB",
     "file_too_large": "Den filen är lite för stor. Prova en under 3MB",
-    "save_failed": "Kunde inte spara till molnet. Ditt arbete är tryggt på den här enheten. Kontrollera anslutningen."
+    "save_failed": "Kunde inte spara till molnet. Ditt arbete är tryggt på den här enheten. Kontrollera anslutningen.",
+    "add_chord": "Ackord",
+    "chord_placeholder": "Annat ackord, t.ex. F#m7b5",
+    "drag_chord_hint": "Dra till ett ord",
+    "chord_play": "Spela ackord",
+    "chord_stop": "Stoppa",
+    "chord_no_diagram": "Inget gitargrepp för det här ackordet än.",
+    "chord_remove": "Ta bort ackord",
+    "chord_options": "Ackordalternativ",
+    "chord_delete": "Ta bort",
+    "chords_hide": "Dölj ackord",
+    "chords_show": "Visa ackord",
+    "chord_prev": "Föregående grepp",
+    "chord_next": "Nästa grepp",
+    "chord_choose": "Välj ett ackord"
   },
   "progress": {
     "title": "Dina framsteg",
@@ -839,7 +855,7 @@
         "undo": "Ta tillbaka förra kortet",
         "keep": "Det är jag",
         "pass": "Inte jag",
-        "own_placeholder": "Skriv något annat ..."
+        "own_placeholder": "Något annat?"
       },
       "pick_one": "Välj ett för att gå vidare."
     },
@@ -957,6 +973,24 @@
       "change_cta": "Ändra nu"
     },
     "verdict": {
+      "sections": {
+        "tools": {
+          "title": "Verktyg som hänger med",
+          "desc": "En canvas för text, röstmemon och filer. Rim och synonymer ett klick bort.",
+          "line_before": "tystnaden efter",
+          "word": "regnet",
+          "lexicon_label": "Rim",
+          "rhymes": "segnet|tecknet|hjärtat"
+        },
+        "lectures": {
+          "title": "Lektioner som gör låtar färdiga",
+          "desc": "Korta lektioner om struktur, verser och refränger, från en platinalåtskrivare."
+        },
+        "community": {
+          "title": "Låtskrivare att skriva med",
+          "desc": "Feedback, samarbete och människor som håller på med samma sak som du."
+        }
+      },
       "headline": "Första observationen.",
       "struggle_label": "Det som står i vägen",
       "fix_label": "Så löser vi det",
@@ -1153,9 +1187,21 @@
       "see_pro": "Tillbaka till Pro-planen",
       "checkout_title": "Betaluppgifter",
       "checkout_secure": "Säker",
-      "checkout_unavailable": "Betalning är inte öppen än.",
-      "checkout_unavailable_note": "Betalning öppnar när Veinote lanseras. Ingenting på den här sidan kan ta emot ett kort än, och vi ber inte om något.",
-      "checkout_continue": "Gå vidare"
+      "checkout_continue": "Gå vidare",
+      "checkout_form": {
+        "card_number": "Kortnummer",
+        "expiry": "Giltigt t.o.m.",
+        "expiry_placeholder": "MM/ÅÅ",
+        "cvc": "Säkerhetskod",
+        "name": "Namn på kortet",
+        "name_placeholder": "Som det står på kortet",
+        "country": "Land",
+        "postal": "Postnummer",
+        "due_today": "Att betala i dag"
+      },
+      "checkout_preview_tag": "Förhandsvisning",
+      "checkout_success": "Du är med.",
+      "checkout_success_note": "Dina {days} dagar börjar nu."
     },
     "verify": {
       "title": "En sista sak",
@@ -1439,5 +1485,31 @@
     "close_welcome_video": "Stäng välkomstvideon",
     "replay_video": "Spela upp igen",
     "start_now": "Börja nu"
+  },
+  "publish": {
+    "title": "Skyddar din låt",
+    "untitled": "Låt utan titel",
+    "step_one": "Steg 1",
+    "step_two": "Steg 2",
+    "legal": "Juridiskt",
+    "legal_body": "Allt i den här låten – texten, inspelningarna och allt annat jag lagt till – är mitt eget, eller något jag har rätt att publicera.",
+    "legal_accept": "Jag godkänner",
+    "ownership": "Ägande av låten",
+    "split_hint": "Delas lika som standard — dra för att ändra",
+    "split_hint_readonly": "Delas lika som standard",
+    "split_reset": "Dela lika",
+    "total": "Totalt",
+    "total_over": "måste bli 100 % totalt",
+    "total_under": "måste bli 100 % totalt",
+    "needs_legal": "Bekräfta steg 1 först",
+    "needs_total": "Fördelningen måste bli 100 %",
+    "go_back": "Tillbaka",
+    "confirm": "Publicera nu",
+    "publishing": "Publicerar …",
+    "ownership_accept": "Jag godkänner den här fördelningen",
+    "add_credit": "Lägg till en medförfattare",
+    "credit_placeholder": "Deras namn",
+    "remove_credit": "Ta bort",
+    "needs_ownership": "Bekräfta fördelningen först"
   }
 }

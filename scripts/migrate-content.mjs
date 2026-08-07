@@ -63,13 +63,14 @@ async function upsert(collection, id, data) {
 }
 
 async function migrateIdeas() {
-    const { LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE } = await loadTs("app/platform/data/ideas.ts");
+    const { LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE, VIBE_IDEAS_BY_LANGUAGE, CHORDS_IDEAS_BY_LANGUAGE } =
+        await loadTs("app/platform/data/ideas.ts");
 
-    // Each category's three language arrays share ids (lyrics-1 … lyrics-38,
-    // melody-1 … melody-40), so they merge into one document per idea carrying
+    // Each category's three language arrays share ids (lyrics-1 …, melody-1 …,
+    // vibe-1 …, chords-1 …), so they merge into one document per idea carrying
     // all three languages.
     const byId = new Map();
-    for (const byLanguage of [LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE]) {
+    for (const byLanguage of [LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE, VIBE_IDEAS_BY_LANGUAGE, CHORDS_IDEAS_BY_LANGUAGE]) {
         for (const [locale, ideas] of Object.entries(byLanguage)) {
             ideas.forEach((idea, index) => {
                 const entry = byId.get(idea.id) || {

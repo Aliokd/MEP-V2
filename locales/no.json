@@ -16,7 +16,8 @@
     "about": "Om oss",
     "reset": "Nullstill",
     "coming_soon": "Kommer snart",
-    "save_changes": "Lagre endringer"
+    "save_changes": "Lagre endringer",
+    "add": "Legg til"
   },
   "navigation": {
     "create": "Lag",
@@ -306,7 +307,8 @@
     "lock_locked_toast": "Prosjektet er låst. Kun visning for alle",
     "lock_unlocked_toast": "Prosjektet er låst opp. Alle kan redigere igjen",
     "lock_banner": "Låst av eieren. Kun visning",
-    "locked": "Låst"
+    "locked": "Låst",
+    "chat_placeholder": "Si noe …"
   },
   "workspace": {
     "my_projects": "Mine prosjekter",
@@ -448,7 +450,21 @@
     "drop_files_here": "Slipp filene dine her",
     "file_too_large_audio": "Den lydfilen er litt for stor. Prøv én under 30MB",
     "file_too_large": "Den filen er litt for stor. Prøv én under 3MB",
-    "save_failed": "Kunne ikke lagre til skyen. Arbeidet ditt er trygt på denne enheten. Sjekk tilkoblingen."
+    "save_failed": "Kunne ikke lagre til skyen. Arbeidet ditt er trygt på denne enheten. Sjekk tilkoblingen.",
+    "add_chord": "Akkorder",
+    "chord_placeholder": "Annen akkord, f.eks. F#m7b5",
+    "drag_chord_hint": "Dra til et ord",
+    "chord_play": "Spill akkord",
+    "chord_stop": "Stopp",
+    "chord_no_diagram": "Ingen gitargrep for denne akkorden ennå.",
+    "chord_remove": "Fjern akkord",
+    "chord_options": "Akkordvalg",
+    "chord_delete": "Slett",
+    "chords_hide": "Skjul akkorder",
+    "chords_show": "Vis akkorder",
+    "chord_prev": "Forrige grep",
+    "chord_next": "Neste grep",
+    "chord_choose": "Velg en akkord"
   },
   "progress": {
     "title": "Fremgangen din",
@@ -839,7 +855,7 @@
         "undo": "Ta tilbake forrige kort",
         "keep": "Det er meg",
         "pass": "Ikke meg",
-        "own_placeholder": "Skriv noe annet ..."
+        "own_placeholder": "Noe annet?"
       },
       "pick_one": "Velg ett for å gå videre."
     },
@@ -957,6 +973,24 @@
       "change_cta": "Endre nå"
     },
     "verdict": {
+      "sections": {
+        "tools": {
+          "title": "Verktøy som henger med",
+          "desc": "Én canvas for tekst, talememoer og filer. Rim og synonymer ett klikk unna.",
+          "line_before": "stillheten etter",
+          "word": "regnet",
+          "lexicon_label": "Rim",
+          "rhymes": "segnet|tegnet|hegnet"
+        },
+        "lectures": {
+          "title": "Leksjoner som gjør låter ferdige",
+          "desc": "Korte leksjoner om struktur, vers og refreng, fra en platinalåtskriver."
+        },
+        "community": {
+          "title": "Låtskrivere å skrive med",
+          "desc": "Tilbakemeldinger, samarbeid og folk som holder på med det samme som deg."
+        }
+      },
       "headline": "Første observasjon.",
       "struggle_label": "Det som står i veien",
       "fix_label": "Slik løser vi det",
@@ -1153,9 +1187,21 @@
       "see_pro": "Tilbake til Pro-planen",
       "checkout_title": "Betalingsdetaljer",
       "checkout_secure": "Sikker",
-      "checkout_unavailable": "Betaling er ikke åpnet ennå.",
-      "checkout_unavailable_note": "Betaling åpner når Veinote lanseres. Ingenting på denne siden kan ta imot et kort ennå, og vi ber ikke om et.",
-      "checkout_continue": "Gå videre"
+      "checkout_continue": "Gå videre",
+      "checkout_form": {
+        "card_number": "Kortnummer",
+        "expiry": "Utløper",
+        "expiry_placeholder": "MM/ÅÅ",
+        "cvc": "Sikkerhetskode",
+        "name": "Navn på kortet",
+        "name_placeholder": "Som det står på kortet",
+        "country": "Land",
+        "postal": "Postnummer",
+        "due_today": "Å betale i dag"
+      },
+      "checkout_preview_tag": "Forhåndsvisning",
+      "checkout_success": "Du er inne.",
+      "checkout_success_note": "De {days} dagene dine starter nå."
     },
     "verify": {
       "title": "Én siste ting",
@@ -1439,5 +1485,31 @@
     "close_welcome_video": "Lukk velkomstvideoen",
     "replay_video": "Spill av på nytt",
     "start_now": "Start nå"
+  },
+  "publish": {
+    "title": "Beskytter sangen din",
+    "untitled": "Sang uten tittel",
+    "step_one": "Steg 1",
+    "step_two": "Steg 2",
+    "legal": "Juridisk",
+    "legal_body": "Alt i denne sangen – teksten, opptakene og alt annet jeg har lagt til – er mitt eget, eller noe jeg har rett til å publisere.",
+    "legal_accept": "Jeg godtar",
+    "ownership": "Eierskap til sangen",
+    "split_hint": "Delt likt som standard — dra for å endre",
+    "split_hint_readonly": "Delt likt som standard",
+    "split_reset": "Del likt",
+    "total": "Totalt",
+    "total_over": "må bli 100 % til sammen",
+    "total_under": "må bli 100 % til sammen",
+    "needs_legal": "Bekreft steg 1 først",
+    "needs_total": "Fordelingen må bli 100 %",
+    "go_back": "Tilbake",
+    "confirm": "Publiser nå",
+    "publishing": "Publiserer …",
+    "ownership_accept": "Jeg godtar denne fordelingen",
+    "add_credit": "Legg til en medforfatter",
+    "credit_placeholder": "Navnet deres",
+    "remove_credit": "Fjern",
+    "needs_ownership": "Bekreft fordelingen først"
   }
 }

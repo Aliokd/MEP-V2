@@ -11,6 +11,23 @@
 @layer base {
     body {
         @apply bg-white text-stone-900 font-sans antialiased transition-colors duration-300;
+        /* App chrome must not advertise text entry.
+           A browser's default `cursor: auto` renders an I-beam over ANY selectable text, so
+           tabs, labels, headings, nav items and plain copy all read as "you can type here".
+           Flipping the inherited default to an arrow fixes every one of them at once; the
+           surfaces where typing IS possible opt back in below.
+           Nothing that sets its own cursor is affected: buttons and links get theirs from the
+           UA stylesheet, and Tailwind's cursor-* utilities are a class, so they outrank this. */
+        cursor: default;
+    }
+
+    /* Real text-entry surfaces keep the I-beam. `:where()` contributes no specificity, so a
+       cursor-* utility on any of these still wins. */
+    input:where(:not([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="image"])),
+    textarea,
+    [contenteditable="true"],
+    [contenteditable=""] {
+        cursor: text;
     }
 
     .dark body {
@@ -837,5 +854,223 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
 @media (prefers-reduced-motion: reduce) {
     .confetti-piece {
         display: none;
+    }
+}
+
+/* ── Publish dialog: ownership split sliders ──────────────────────────────────
+   The pill behind each input already carries the name capsule and the surface, so
+   the input itself contributes only two things: faint tick dots along the track to
+   give the share something to read against, and a thin bar for the thumb. Styled
+   here rather than inline because the pseudo-elements a range input needs
+   (::-webkit-slider-thumb, ::-moz-range-thumb) cannot be expressed as utilities. */
+/* Graduations along the track — short centred tick marks, evenly spaced, drawn over the
+   filled bar as well as the empty part so the scale reads as one continuous ruler.
+   The two ticks at each end are dimmed by a mask rather than removed: the name sits over the
+   left of the track and the percentage over the right, and full-strength ticks behind either
+   of them compete with the text. The scale still reads as continuous, just quieter where
+   something is written on top of it. */
+.publish-split-ticks {
+    background-image: linear-gradient(to right, rgba(120, 113, 108, 0.32) 1.5px, transparent 1.5px);
+    background-size: 10% 12px;
+    background-repeat: repeat-x;
+    background-position: center;
+    -webkit-mask-image: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.18) 14%, #000 18%,
+        #000 72%, rgba(0, 0, 0, 0.18) 76%, rgba(0, 0, 0, 0.18) 100%
+    );
+    mask-image: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.18) 14%, #000 18%,
+        #000 72%, rgba(0, 0, 0, 0.18) 76%, rgba(0, 0, 0, 0.18) 100%
+    );
+}
+
+/* The slider is now only a hit area: the share is drawn by the filled div beneath it, with
+   the drag marker as that fill's own right-hand border, so the two can never drift apart.
+   Stretched over the whole pill and made invisible, it lets the share be dragged or clicked
+   from either edge. A 1px thumb is what makes the value map (near enough) edge to edge —
+   a wider one is inset by half its width at both ends and could never reach 0 or 100. */
+.publish-split-range {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    opacity: 0;
+    outline: none;
+}
+.publish-split-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 1px;
+    height: 100%;
+    background: transparent;
+}
+.publish-split-range::-moz-range-thumb {
+    width: 1px;
+    height: 100%;
+    border: none;
+    background: transparent;
+}
+.publish-split-range::-moz-range-track { background: transparent; }
+
+
+/* ── Publish dialog: refusal shake ────────────────────────────────────────────
+   Pressing "Publish now" with something still outstanding shakes whatever is
+   blocking it. Short and small: this is an answer to a press, not an alarm. The
+   element is remounted to replay it, so the animation runs once per refusal. */
+@keyframes publish-consent-shake {
+    0%, 100% { transform: translateX(0); }
+    15%      { transform: translateX(-5px); }
+    30%      { transform: translateX(5px); }
+    45%      { transform: translateX(-4px); }
+    60%      { transform: translateX(3px); }
+    80%      { transform: translateX(-2px); }
+}
+.publish-consent-shake {
+    animation: publish-consent-shake 0.45s ease-in-out 1;
+}
+@media (prefers-reduced-motion: reduce) {
+    .publish-consent-shake { animation: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   The verdict's three "how we fix it" tiles.
+
+   Every one of these is a loop with no start and no end state to coordinate —
+   a picture of a thing happening, running behind copy that says what it is. So
+   they are CSS animations rather than motion values: nothing has to be told
+   when to begin, a tab that stops compositing simply pauses them, and there is
+   no timer in React keeping three unrelated pictures in step.
+
+   One duration per tile, with every element inside it working in percentages of
+   that duration, so a tile's beats can be read off the keyframes in one place.
+   --------------------------------------------------------------------------- */
+
+/* Tools: a cursor crosses a lyric line, lands on a word, and the lexicon opens
+   under it with rhymes. 7s round. */
+@keyframes plan-cursor {
+    0%, 8% { transform: translate(4px, 34px); opacity: 0; }
+    14% { opacity: 1; }
+    30%, 82% { transform: translate(96px, 8px); opacity: 1; }
+    92%, 100% { transform: translate(96px, 8px); opacity: 0; }
+}
+@keyframes plan-cursor-tap {
+    0%, 30% { transform: scale(1); }
+    34% { transform: scale(0.82); }
+    40%, 100% { transform: scale(1); }
+}
+@keyframes plan-word {
+    0%, 32% { background-color: rgba(134, 190, 127, 0); color: inherit; }
+    40%, 84% { background-color: rgba(134, 190, 127, 0.45); color: #1c1917; }
+    92%, 100% { background-color: rgba(134, 190, 127, 0); color: inherit; }
+}
+@keyframes plan-lexicon {
+    0%, 36% { opacity: 0; transform: translateY(8px) scale(0.98); }
+    46%, 84% { opacity: 1; transform: translateY(0) scale(1); }
+    92%, 100% { opacity: 0; transform: translateY(4px) scale(0.99); }
+}
+@keyframes plan-rhyme {
+    0%, 44% { opacity: 0; transform: translateX(-6px); }
+    56%, 86% { opacity: 1; transform: translateX(0); }
+    94%, 100% { opacity: 0; transform: translateX(-3px); }
+}
+
+/* Lectures: two lessons, one playing at a time, the play head crossing each in
+   turn. 12s round, 6s a lesson. */
+@keyframes plan-playhead-a {
+    0% { transform: scaleX(0); }
+    46% { transform: scaleX(1); }
+    50%, 100% { transform: scaleX(0); }
+}
+@keyframes plan-playhead-b {
+    0%, 50% { transform: scaleX(0); }
+    96% { transform: scaleX(1); }
+    100% { transform: scaleX(0); }
+}
+@keyframes plan-lesson-a {
+    0%, 46% { transform: scale(1); filter: saturate(1); }
+    52%, 96% { transform: scale(0.96); filter: saturate(0.7); }
+    100% { transform: scale(1); filter: saturate(1); }
+}
+@keyframes plan-lesson-b {
+    0%, 46% { transform: scale(0.96); filter: saturate(0.7); }
+    52%, 96% { transform: scale(1); filter: saturate(1); }
+    100% { transform: scale(0.96); filter: saturate(0.7); }
+}
+
+/* Community: faces drifting, each on its own clock. One keyframe, and the
+   variation comes from per-bubble duration and delay. */
+@keyframes plan-drift {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-10px) scale(1.04); }
+}
+
+/* The classes that hang the loops above on the tiles. One duration per tile,
+   shared by everything inside it, so the beats written as percentages line up:
+   7s for the canvas, 12s for the pair of lessons. The bubbles get their
+   duration and delay inline instead — the variation between them IS the
+   effect, so it belongs with the bubble rather than in a class. */
+.plan-anim-cursor,
+.plan-anim-cursor-tap,
+.plan-anim-word,
+.plan-anim-lexicon,
+.plan-anim-rhyme {
+    animation-duration: 7s;
+    animation-iteration-count: infinite;
+}
+.plan-anim-cursor {
+    animation-name: plan-cursor;
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+}
+.plan-anim-cursor-tap {
+    animation-name: plan-cursor-tap;
+    animation-timing-function: ease-out;
+}
+.plan-anim-word {
+    animation-name: plan-word;
+    animation-timing-function: ease-in-out;
+}
+.plan-anim-lexicon {
+    animation-name: plan-lexicon;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.plan-anim-rhyme {
+    animation-name: plan-rhyme;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.plan-anim-lesson-a,
+.plan-anim-lesson-b,
+.plan-anim-playhead-a,
+.plan-anim-playhead-b {
+    animation-duration: 12s;
+    animation-iteration-count: infinite;
+}
+.plan-anim-lesson-a {
+    animation-name: plan-lesson-a;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.plan-anim-lesson-b {
+    animation-name: plan-lesson-b;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.plan-anim-playhead-a {
+    animation-name: plan-playhead-a;
+    animation-timing-function: linear;
+}
+.plan-anim-playhead-b {
+    animation-name: plan-playhead-b;
+    animation-timing-function: linear;
+}
+
+.plan-anim-drift {
+    animation-name: plan-drift;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [class*='plan-anim-'] {
+        animation: none !important;
     }
 }

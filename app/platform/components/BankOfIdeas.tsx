@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
-import { Idea, IdeaCategory, LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE } from '../data/ideas';
+import { Idea, IdeaCategory, LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE, VIBE_IDEAS_BY_LANGUAGE, CHORDS_IDEAS_BY_LANGUAGE } from '../data/ideas';
 import { fetchIdeas } from '@/lib/contentClient';
 import { pickLocale, type IdeaDoc } from '@/lib/content';
 
@@ -67,6 +67,8 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
             : [
                 ...(LYRICS_IDEAS_BY_LANGUAGE[language] ?? LYRICS_IDEAS_BY_LANGUAGE.en),
                 ...(MELODY_IDEAS_BY_LANGUAGE[language] ?? MELODY_IDEAS_BY_LANGUAGE.en),
+                ...(VIBE_IDEAS_BY_LANGUAGE[language] ?? VIBE_IDEAS_BY_LANGUAGE.en),
+                ...(CHORDS_IDEAS_BY_LANGUAGE[language] ?? CHORDS_IDEAS_BY_LANGUAGE.en),
               ];
 
         // Categories with no authored ideas yet stand in with placeholders.
