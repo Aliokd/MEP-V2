@@ -285,6 +285,47 @@ function push(map, key, value) {
 }
 
 /**
+ * WordNet only catalogues open-class words (nouns, verbs, adjectives, adverbs), so
+ * using it alone as the "real English word" filter silently drops the closed class:
+ * pronouns and their compounds ("anything", "everybody"), modals ("could"), and the
+ * irregular verb forms a lyric actually contains ("said", "gone", "knew"). Those are
+ * some of the most rhyme-searched words in songwriting — "anything" returning no
+ * rhymes at all is how this list came to exist. Each entry still needs a CMUdict
+ * pronunciation to be indexed; this only opens the vocabulary door.
+ */
+const FUNCTION_WORDS = [
+    // Pronouns and their compounds
+    'me', 'my', 'mine', 'myself', 'you', 'your', 'yours', 'yourself',
+    'we', 'us', 'our', 'ours', 'ourselves', 'they', 'them', 'their', 'theirs', 'themselves',
+    'he', 'him', 'his', 'himself', 'she', 'her', 'hers', 'herself', 'it', 'its', 'itself',
+    'who', 'whom', 'whose', 'this', 'that', 'these', 'those',
+    'anything', 'everything', 'something', 'nothing',
+    'anyone', 'everyone', 'someone', 'anybody', 'everybody', 'somebody', 'nobody',
+    'anywhere', 'everywhere', 'somewhere', 'nowhere', 'somehow', 'anyway',
+    // Auxiliaries and modals
+    'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+    'do', 'does', 'did', 'done', 'have', 'has', 'had', 'having',
+    'can', 'could', 'will', 'would', 'shall', 'should', 'may', 'might', 'must', 'ought',
+    // Conjunctions, prepositions, particles
+    'the', 'and', 'but', 'nor', 'if', 'then', 'than', 'when', 'where', 'why', 'how',
+    'what', 'which', 'while', 'because', 'though', 'although', 'unless', 'until', 'till',
+    'since', 'about', 'above', 'across', 'after', 'against', 'along', 'among', 'around',
+    'before', 'behind', 'below', 'beneath', 'beside', 'between', 'beyond', 'into', 'onto',
+    'over', 'under', 'upon', 'within', 'without', 'through', 'during', 'again', 'away',
+    'here', 'there', 'never', 'always', 'often', 'once', 'twice', 'from', 'with', 'for', 'not',
+    // Irregular verb forms a songwriter clicks on in a finished line
+    'said', 'made', 'went', 'gone', 'came', 'knew', 'known', 'took', 'taken', 'gave', 'given',
+    'got', 'gotten', 'told', 'kept', 'left', 'felt', 'found', 'brought', 'thought', 'bought',
+    'caught', 'taught', 'stood', 'understood', 'heard', 'held', 'meant', 'met', 'paid',
+    'ran', 'sang', 'sung', 'sat', 'saw', 'seen', 'sent', 'spoke', 'spoken', 'spent',
+    'wore', 'worn', 'won', 'wrote', 'written', 'broke', 'broken', 'chose', 'chosen',
+    'drew', 'drawn', 'drove', 'driven', 'fell', 'fallen', 'flew', 'flown', 'forgot',
+    'forgotten', 'froze', 'frozen', 'grew', 'grown', 'hid', 'hidden', 'led', 'lost',
+    'rose', 'risen', 'shone', 'shown', 'slept', 'sold', 'stole', 'stolen', 'struck',
+    'threw', 'thrown', 'woke', 'woken',
+];
+
+/**
  * English is built differently, because English spelling lies: "though", "through"
  * and "tough" share four final letters and rhyme with none of each other. Suffix
  * matching — which works for Nordic orthography — produces nonsense here, so this
@@ -324,11 +365,16 @@ function buildEnglish(cmudict, synonyms, vocabulary) {
 
         syllables[rawWord] = vowelPositions.length;
 
-        // Prefer the last primary-stressed vowel; fall back to the last vowel so
-        // unstressed monosyllables still rhyme with each other.
-        const primary = vowelPositions.filter(i => phonemes[i].endsWith('1'));
-        const from = (primary.length ? primary : vowelPositions)[
-            (primary.length ? primary : vowelPositions).length - 1
+        // Prefer the last STRESSED vowel — primary or secondary; fall back to the
+        // last vowel so unstressed monosyllables still rhyme with each other.
+        // Secondary stress matters: compounds carry it on the syllable that
+        // actually rhymes ("anything" is EH1..IH2-NG, "heartbreak" AA1..EY2-K).
+        // Keying on primary stress alone filed those under their FIRST syllable,
+        // into single-word buckets the trim below then deleted — so the most
+        // common compound words had no rhymes at all.
+        const stressed = vowelPositions.filter(i => /[12]$/.test(phonemes[i]));
+        const from = (stressed.length ? stressed : vowelPositions)[
+            (stressed.length ? stressed : vowelPositions).length - 1
         ];
 
         // Stress digits are dropped so OW1 and OW2 rhyme, which they do.
@@ -514,6 +560,13 @@ async function main() {
     const dictPath = (wordnet.default ?? wordnet).path;
     const synonyms = parseWordNet(dictPath);
     const vocabulary = wordNetVocabulary(dictPath);
+    // Closed-class words WordNet doesn't carry. The floor of 6 stands in for the
+    // sense-count commonness signal they never got: these are among the most
+    // frequent words in the language, and without it they'd sort behind every
+    // rare-but-catalogued word and risk being trimmed out of full buckets.
+    for (const word of FUNCTION_WORDS) {
+        vocabulary.set(word, Math.max(vocabulary.get(word) || 0, 6));
+    }
     process.stdout.write(
         `${Object.keys(cmudict).length.toLocaleString()} pronunciations, ` +
         `${vocabulary.size.toLocaleString()} vocabulary\n`

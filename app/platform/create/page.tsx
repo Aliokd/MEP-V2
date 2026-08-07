@@ -35,6 +35,31 @@ const PRESENCE_RECHECK_MS = 15000;
  * press-origin guard beside it — they have to agree on what counts as interactive,
  * and two copies of this list would eventually disagree.
  */
+/**
+ * Words that stand in for other words — pronouns and their compounds, articles,
+ * modals — across the three UI languages. No thesaurus carries synonyms for these
+ * (there is nothing to substitute a substitute with), so when one turns up empty
+ * the panel explains that instead of shrugging "no matches", which read as the
+ * feature being broken for some of the most-searched words in a lyric.
+ */
+const LEXICON_FUNCTION_WORDS = new Set([
+    // English
+    'anything', 'everything', 'something', 'nothing', 'anyone', 'everyone', 'someone',
+    'nobody', 'anybody', 'everybody', 'somebody', 'anywhere', 'everywhere', 'somewhere',
+    'nowhere', 'me', 'my', 'mine', 'you', 'your', 'yours', 'we', 'us', 'our', 'ours',
+    'they', 'them', 'their', 'theirs', 'he', 'him', 'his', 'she', 'her', 'hers', 'it',
+    'its', 'who', 'whom', 'whose', 'this', 'that', 'these', 'those', 'the', 'and', 'but',
+    'because', 'was', 'were', 'been', 'being', 'could', 'would', 'should', 'shall', 'might', 'must',
+    // Swedish
+    'något', 'allt', 'allting', 'ingenting', 'någonting', 'ingen', 'någon', 'alla',
+    'jag', 'du', 'han', 'hon', 'den', 'det', 'vi', 'ni', 'de', 'min', 'din', 'sin',
+    'vår', 'er', 'deras', 'denna', 'detta', 'dessa', 'och', 'men', 'eftersom',
+    'skulle', 'kunde', 'borde',
+    // Norwegian
+    'noe', 'alt', 'ingenting', 'ingen', 'noen', 'alle', 'jeg', 'dere', 'mi', 'di',
+    'vårt', 'denne', 'dette', 'disse', 'og', 'fordi', 'kunne', 'burde',
+]);
+
 const CANVAS_INTERACTIVE_SELECTOR =
     '.phrase-row-container, .canvas-add-menu, .canvas-flow-card, .chord-card, .word-token, .suggestions-popover, button, a, input, textarea, select, video, img, [role="button"]';
 
@@ -3629,10 +3654,12 @@ export default function CreatePage() {
     const [inviteStatus, setInviteStatus] = useState<{ type: 'success' | 'error' | ''; message: string }>({ type: '', message: '' });
     const [isInviting, setIsInviting] = useState(false);
     const [currentUserColor, setCurrentUserColor] = useState<string>('indigo');
-    const [studioNotification, setStudioNotification] = useState<{ message: string; color: string; isOpen: boolean }>({ message: '', color: 'rose', isOpen: false });
-    
-    const triggerStudioNotification = (message: string, color: string = 'rose') => {
-        setStudioNotification({ message, color, isOpen: true });
+    const [studioNotification, setStudioNotification] = useState<{ message: string; isOpen: boolean }>({ message: '', isOpen: false });
+
+    /** `color` is accepted and ignored: the toast is one neutral card now, and the ~30 call
+     *  sites that pass a tone keep compiling. */
+    const triggerStudioNotification = (message: string, color?: string) => {
+        setStudioNotification({ message, isOpen: true });
         setTimeout(() => {
             setStudioNotification(prev => prev.message === message ? { ...prev, isOpen: false } : prev);
         }, 3000);
@@ -4954,6 +4981,11 @@ export default function CreatePage() {
                     let collabNotes: SongNote[] = [];
                     let pendingInviteNotes: SongNote[] = [];
                     let initialLoadComplete = false;
+                    // The two project queries answer independently, and "hasn't answered yet"
+                    // must never be read as "the project is gone" — these say when the full
+                    // picture has actually arrived.
+                    let receivedOwn = false;
+                    let receivedCollab = false;
 
                     const updateNotesState = async (forceFallback = false) => {
                         const mergedMap = new Map<string, SongNote>();
@@ -4966,7 +4998,12 @@ export default function CreatePage() {
                             initialLoadComplete = true;
                             setNotes([]);
                             setIsDataLoaded(true);
-                            setSelectedNoteId(null);
+                            // Deliberately NOT clearing the selection here: this branch runs when
+                            // the FIRST query answers empty, which says nothing about the queries
+                            // still in flight. For a writer whose open project arrives via the
+                            // collab query a beat later, nulling here wiped the selection — and,
+                            // through the persistence effect, deleted the stored id — so a
+                            // refresh landed on a blank canvas instead of their work.
                             return;
                         }
  
@@ -5040,12 +5077,24 @@ export default function CreatePage() {
                                 if (storedId && finalNotes.some(n => n.id === storedId)) {
                                     return storedId;
                                 }
-                                return null;
+                                // Absent from a COMPLETE picture — both queries have answered and
+                                // neither carries the note — means it is truly gone (deleted, or
+                                // access removed), so the selection ends.
+                                if (receivedOwn && receivedCollab) {
+                                    return null;
+                                }
+                                // Absent from a partial picture means nothing: the note may be in
+                                // the query still in flight. Hold the selection — clearing it here
+                                // is what used to turn a refresh into a blank canvas, because the
+                                // persistence effect then deleted the stored id before the second
+                                // query could answer.
+                                return storedId || null;
                             });
                         }
                     };
 
                     unsubOwn = onSnapshot(ownQuery, (snap) => {
+                        receivedOwn = true;
                         ownNotes = [];
                         snap.forEach(doc => {
                             ownNotes.push({ id: doc.id, ...doc.data() } as SongNote);
@@ -5054,6 +5103,7 @@ export default function CreatePage() {
                     }, (err) => console.error("Error listening to own projects:", err));
 
                     unsubCollab = onSnapshot(collabQuery, (snap) => {
+                        receivedCollab = true;
                         collabNotes = [];
                         snap.forEach(doc => {
                             collabNotes.push({ id: doc.id, ...doc.data() } as SongNote);
@@ -7219,6 +7269,22 @@ export default function CreatePage() {
         }
     }, [clickedWord, language]);
 
+    /** What the lexicon says when a search comes back empty — written for the word and
+     *  mode actually searched, instead of one flat "No matches found" for everything.
+     *  A function word with no synonyms gets told WHY (that's correct behaviour, not a
+     *  gap), and rhyme misses point at the mode that might still deliver. */
+    const lexiconEmptyMessage = (mode: 'rhyme' | 'near' | 'synonym') => {
+        const searched = lexiconWord.trim();
+        if (mode === 'synonym') {
+            if (LEXICON_FUNCTION_WORDS.has(searched.toLowerCase())) {
+                return t('lexicon.no_synonyms_function_word').replace('{word}', searched);
+            }
+            return t('lexicon.no_synonyms_found');
+        }
+        if (mode === 'rhyme') return t('lexicon.no_rhymes_found');
+        return t('lexicon.no_near_rhymes_found');
+    };
+
     useEffect(() => {
         if (lexiconWord.trim()) {
             // Enter the loading state immediately, not when the request finally fires.
@@ -8666,14 +8732,54 @@ export default function CreatePage() {
         }
     };
 
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        const types = e.dataTransfer.types;
-        const isFilesDrag = types ? Array.from(types).includes('Files') : false;
-        if (!isFilesDrag) return;
-
-        e.dataTransfer.dropEffect = 'copy';
+    /** True for a drag that carries OS files, as opposed to the app's own internal drags
+     *  (lines, cards, words), which move ids through custom dataTransfer types. */
+    const isExternalFileDrag = (e: React.DragEvent) => {
+        const types = e.dataTransfer?.types;
+        return types ? Array.from(types).includes('Files') : false;
     };
+
+    /** File-drop net over the whole canvas card, in the CAPTURE phase.
+     *
+     *  The canvas is full of child drop-zones (lines, blocks, media cards) whose handlers
+     *  stopPropagation for their own internal drags — a file dropped over any of them never
+     *  reached the file handler. That is both why drops only worked on parts of the dotted
+     *  box, and why the overlay could stick over the canvas looking frozen: the handler that
+     *  clears it was the very thing being swallowed. Capture runs before any child can eat
+     *  the event; internal drags fall through untouched. */
+    const handleFileDragOverCapture = (e: React.DragEvent) => {
+        if (!isExternalFileDrag(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = isCanvasReadOnly ? 'none' : 'copy';
+    };
+
+    const handleFileDropCapture = (e: React.DragEvent) => {
+        if (!isExternalFileDrag(e)) return;
+        e.stopPropagation();
+        handleDrop(e);
+    };
+
+    // Outside the canvas the browser's default for a dropped file is to NAVIGATE to it —
+    // the app appears to die mid-session over a missed drop. Swallow stray file drops at the
+    // window and drop the overlay with them, so nothing is left stuck whatever happens.
+    useEffect(() => {
+        const preventStrayFileDrop = (e: DragEvent) => {
+            if (e.dataTransfer?.types && Array.from(e.dataTransfer.types).includes('Files')) {
+                e.preventDefault();
+                if (e.type === 'drop') {
+                    dragCounterRef.current = 0;
+                    setIsDraggingOverCanvas(false);
+                }
+            }
+        };
+        window.addEventListener('dragover', preventStrayFileDrop);
+        window.addEventListener('drop', preventStrayFileDrop);
+        return () => {
+            window.removeEventListener('dragover', preventStrayFileDrop);
+            window.removeEventListener('drop', preventStrayFileDrop);
+        };
+    }, []);
 
     const handleDrop = async (e: React.DragEvent) => {
         e.preventDefault();
@@ -15425,7 +15531,11 @@ export default function CreatePage() {
                 ) : lexiconResults.length === 0 ? (
                     <div className="bg-stone-50 border border-stone-150 rounded-2xl p-8.5 text-center select-none">
                         <p className="text-[16.5px] text-stone-400 font-medium">
-                            {lexiconError ? t('lexicon.unavailable') : t('lexicon.no_results')}
+                            {lexiconError
+                                ? t('lexicon.unavailable')
+                                : lexiconWord.trim()
+                                    ? lexiconEmptyMessage(lexiconMode)
+                                    : t('lexicon.no_results')}
                         </p>
                     </div>
                 ) : (
@@ -16249,33 +16359,24 @@ export default function CreatePage() {
         <div className="w-full flex flex-col gap-0 md:gap-10 text-stone-900 font-sans min-h-[calc(100dvh-12rem)] pt-0 pb-10 md:py-2">
             
             
-            {/* Notification toast — same dark pill language as Tooltip, and the status dot now
-                follows the colour the caller asks for (it was hard-coded rose, so informational
-                messages like the project lock rendered with an alarm dot).
+            {/* Notification toast — one quiet white card that says its piece and leaves.
+                Kept permanently mounted rather than conditionally rendered, which is what makes
+                it able to animate OUT: an element removed from the tree has no chance to play an
+                exit. It is inert while hidden (opacity 0, pointer-events-none).
                 Rendered at the component root rather than inside renderDemoStudio: every canvas-side
                 caller (locked imports, blocked recording) was firing into a toast that only existed
                 while the Demo Studio panel was mounted, so those messages were never seen. */}
-            {studioNotification.isOpen && (() => {
-                const dot = ({
-                    emerald: { ping: 'bg-emerald-400', core: 'bg-emerald-500' },
-                    amber: { ping: 'bg-[#EDFF8E]', core: 'bg-[#DCEE7A]' },
-                    rose: { ping: 'bg-rose-400', core: 'bg-rose-500' },
-                } as Record<string, { ping: string; core: string }>)[studioNotification.color]
-                    || { ping: 'bg-rose-400', core: 'bg-rose-500' };
-
-                return (
-                    <div
-                        role="status"
-                        className="fixed top-6 left-1/2 -translate-x-1/2 bg-stone-900 text-white px-4 py-2 rounded-full flex items-center gap-2 shadow-lg text-[12px] font-sans font-medium animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150 z-[200] whitespace-nowrap max-w-[320px] pointer-events-none"
-                    >
-                        <span className="relative flex h-1.5 w-1.5 shrink-0">
-                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${dot.ping} opacity-75`} />
-                            <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${dot.core}`} />
-                        </span>
-                        <span className="truncate">{studioNotification.message}</span>
-                    </div>
-                );
-            })()}
+            <div
+                role="status"
+                aria-live="polite"
+                className={`fixed top-6 left-1/2 z-[200] px-4 py-2.5 rounded-full bg-white text-stone-800 text-[12.5px] font-sans font-medium border border-stone-200/70 shadow-[0_6px_22px_rgba(0,0,0,0.09)] whitespace-nowrap max-w-[320px] pointer-events-none transition-all duration-200 ease-out ${
+                    studioNotification.isOpen
+                        ? 'opacity-100 -translate-x-1/2 translate-y-0'
+                        : 'opacity-0 -translate-x-1/2 -translate-y-1.5'
+                }`}
+            >
+                <span className="block truncate">{studioNotification.message}</span>
+            </div>
 
             {/* Touch drag ghost overlay for mobile drag-and-drop */}
             {(() => {
@@ -16346,6 +16447,13 @@ export default function CreatePage() {
             <div
                 ref={writingCanvasRef}
                 id="writing-canvas"
+                // File drags are handled here, at the card root and in the capture phase, so a
+                // drop works on every pixel of the card — title row and paddings included — and
+                // can't be swallowed by a child drop-zone. See handleFileDropCapture.
+                onDragEnterCapture={handleDragEnter}
+                onDragOverCapture={handleFileDragOverCapture}
+                onDragLeaveCapture={handleDragLeave}
+                onDropCapture={handleFileDropCapture}
                 onContextMenu={handleCanvasContextMenu}
                 onClick={(e) => {
                     // With the composer stripped down to just the input (no close button),
@@ -17053,18 +17161,17 @@ export default function CreatePage() {
                     </div>
                 </div>
                     <div
-                        onDragEnter={handleDragEnter}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
                         data-tour="create-canvas"
                         className={`w-full flex-grow flex-1 flex flex-col z-10 py-6 relative ${
                             (isMobile && (editingPhraseId !== null || isFocused)) ? 'pb-16' : ''
                         }`}
                     >
-                        {/* Drag and Drop Hover Overlay */}
+                        {/* Drag and Drop Hover Overlay. The dashed box promises "drop anywhere in
+                            here" — and since the drop net now lives on the card root in the
+                            capture phase, every pixel of it delivers. z-[60] keeps it over lines
+                            and media cards; pointer-events-none keeps it out of the drop's way. */}
                         {isDraggingOverCanvas && (
-                            <div className="absolute inset-0 bg-stone-50/80 backdrop-blur-[2px] border-2 border-dashed border-stone-300 rounded-[24px] z-[50] flex flex-col items-center justify-center gap-3 animate-in fade-in duration-200 pointer-events-none select-none">
+                            <div className="absolute inset-0 bg-stone-50/80 backdrop-blur-[2px] border-2 border-dashed border-stone-300 rounded-[24px] z-[60] flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
                                 {/* Still multimedia icon — the old bouncing arrow drew attention to
                                     itself rather than to the drop target. */}
                                 <ImageIcon size={40} className="text-stone-400" strokeWidth={1.5} />
@@ -18346,8 +18453,8 @@ export default function CreatePage() {
                                         </div>
                                     </div>
                                 ) : lexiconResults.length === 0 ? (
-                                    <div className="text-center py-8 text-sm font-medium text-stone-400 select-none">
-                                        {lexiconError ? t('lexicon.unavailable') : t('lexicon.no_results_found')}
+                                    <div className="text-center py-8 px-6 text-sm font-medium text-stone-400 select-none leading-relaxed">
+                                        {lexiconError ? t('lexicon.unavailable') : lexiconEmptyMessage(lexiconMode)}
                                     </div>
                                 ) : (
                                     /* Same reasoning as the panel above: tall enough that the

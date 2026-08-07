@@ -212,12 +212,30 @@ export async function lookup(
     // around 100 MB. English has no key map and small buckets (~130k entries),
     // so it keeps the reverse index. A Nordic word outside the frequency list
     // returns nothing — the honest trade against an OOM'd server.
-    const resolve = (which: 0 | 1): string | undefined =>
+    const resolveFor = (w: string, which: 0 | 1): string | undefined =>
         data.keys
-            ? data.keys[word]?.[which]
+            ? data.keys[w]?.[which]
             : which === 0
-                ? reverseIndex(data).rhymeKeyOf.get(word)
-                : reverseIndex(data).nearKeyOf.get(word);
+                ? reverseIndex(data).rhymeKeyOf.get(w)
+                : reverseIndex(data).nearKeyOf.get(w);
+
+    const resolve = (which: 0 | 1): string | undefined => {
+        const direct = resolveFor(word, which);
+        if (direct) return direct;
+        // Compound-tail fallback. Some words can't carry their own index entry —
+        // "something"'s final syllable is unstressed, so no stress-based key ever
+        // lands on the "-thing" a songwriter hears — and unknown words aren't in
+        // the index at all. But if a word ENDS in a word the index does know
+        // ("something" → "thing", "moonlight" → "light"), that tail's sound is the
+        // compound's rhyme. Spelling-based, deliberately as a last resort only:
+        // every candidate tail must itself be an indexed word, so nothing is
+        // guessed from raw letters.
+        for (let i = 1; i <= word.length - 3; i++) {
+            const key = resolveFor(word.slice(i), which);
+            if (key) return key;
+        }
+        return undefined;
+    };
 
     if (mode === 'rhyme') {
         const key = resolve(0);
