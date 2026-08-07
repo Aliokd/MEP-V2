@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, RefreshCw, Eye, Archive } from "lucide-react";
+import { Plus, RefreshCw, Eye, Archive, Upload, Download } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, Badge, Button, Select, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 import {
@@ -9,6 +9,7 @@ import {
     type ContentStatus, type LocalizedText,
 } from "@/lib/content";
 import ContentEditor from "./ContentEditor";
+import BulkIdeasDialog from "./BulkIdeasDialog";
 
 type Tab = "chapters" | "lessons" | "ideas" | "songs";
 
@@ -57,6 +58,9 @@ export default function ContentPage() {
     const [refreshing, setRefreshing] = useState(false);
     const [statusFilter, setStatusFilter] = useState("");
     const [editing, setEditing] = useState<ContentItem | "new" | null>(null);
+    const [bulkOpen, setBulkOpen] = useState(false);
+    const [importing, setImporting] = useState(false);
+    const [importNote, setImportNote] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setRefreshing(true);
@@ -97,6 +101,32 @@ export default function ContentPage() {
         return LOCALES.reduce((acc, l) => ({ ...acc, [l]: Math.round((totals[l] / counted) * 100) }), {} as Record<string, number>);
     }, [items]);
 
+    /** Brings the 38 cards that ship in app/platform/data/ideas.ts into the CMS. */
+    const importFromCode = async () => {
+        setImporting(true);
+        setImportNote(null);
+        try {
+            const res = await adminFetch("/api/admin/content/import-from-code", {
+                method: "POST",
+                body: JSON.stringify({ target: "ideas" }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Import failed");
+            setImportNote(
+                data.imported.length > 0
+                    ? `Imported ${data.imported.length} cards.`
+                    : "Nothing to import — those cards are already in the CMS.",
+            );
+            await load();
+        } catch (err: any) {
+            setImportNote(err.message);
+        } finally {
+            setImporting(false);
+        }
+    };
+
+    const ideasMissing = tab === "ideas" && items !== null && items.length === 0;
+
     const activeTab = TABS.find((tabDef) => tabDef.id === tab)!;
 
     return (
@@ -117,6 +147,11 @@ export default function ContentPage() {
                             {refreshing ? <Spinner className="w-3.5 h-3.5" /> : <RefreshCw className="w-3.5 h-3.5" />}
                             Refresh
                         </Button>
+                        {tab === "ideas" && can("content.write") && (
+                            <Button size="sm" onClick={() => setBulkOpen(true)}>
+                                <Upload className="w-3.5 h-3.5" /> Bulk upload
+                            </Button>
+                        )}
                         {can("content.write") && (
                             <Button variant="primary" size="sm" onClick={() => setEditing("new")}>
                                 <Plus className="w-3.5 h-3.5" /> New
@@ -162,6 +197,26 @@ export default function ContentPage() {
                 </Panel>
             )}
 
+            {ideasMissing && can("content.publish") && (
+                <Panel className="p-4 border-gold-500/30 bg-gold-500/5 flex flex-wrap items-center gap-3">
+                    <Download className="w-4 h-4 text-gold-300 shrink-0" />
+                    <p className="text-sm text-gold-200 flex-1 min-w-[240px]">
+                        The Bank of Ideas is still the 38 cards built into the app. Import them to edit them
+                        here — learners keep seeing them either way.
+                    </p>
+                    <Button variant="primary" size="sm" onClick={importFromCode} disabled={importing}>
+                        {importing ? <Spinner className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+                        Import from code
+                    </Button>
+                </Panel>
+            )}
+
+            {importNote && (
+                <Panel className="p-3.5">
+                    <p className="text-xs text-ink-300">{importNote}</p>
+                </Panel>
+            )}
+
             <Panel className="overflow-hidden">
                 {!items ? (
                     <SkeletonRows rows={6} />
@@ -170,7 +225,7 @@ export default function ContentPage() {
                         title="Nothing here yet"
                         description={
                             tab === "ideas" || tab === "songs"
-                                ? "Run scripts/migrate-content.mjs --commit to import the content that currently ships in code, or create one from scratch."
+                                ? "Use “Import from code” above to bring in the cards that ship with the app, upload a batch, or create one from scratch."
                                 : "Create a chapter or lesson to get started."
                         }
                         action={can("content.write") ? <Button onClick={() => setEditing("new")}><Plus className="w-3.5 h-3.5" /> New</Button> : undefined}
@@ -234,6 +289,10 @@ export default function ContentPage() {
                 <Archive className="w-3 h-3 ml-2" />
                 Removing content archives it rather than deleting — lesson progress records point at these ids.
             </p>
+
+            {bulkOpen && (
+                <BulkIdeasDialog onClose={() => setBulkOpen(false)} onImported={load} />
+            )}
 
             {editing && (
                 <ContentEditor

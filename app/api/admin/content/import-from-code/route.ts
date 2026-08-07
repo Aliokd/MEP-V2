@@ -7,6 +7,7 @@ import en from "@/locales/en.json";
 import no from "@/locales/no.json";
 import sv from "@/locales/sv.json";
 import { LOCALES, type Locale } from "@/lib/content";
+import { LYRICS_IDEAS_BY_LANGUAGE as IDEAS_BY_LANGUAGE } from "@/app/platform/data/ideas";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +132,46 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
                 { merge: true },
             );
             imported.push(id);
+        }
+    }
+
+    if (target === "all" || target === "ideas") {
+        // The three language arrays share ids (lyrics-1 … lyrics-38), so they
+        // merge into one document per card carrying all three languages.
+        const byId = new Map<string, Record<string, any>>();
+
+        for (const locale of LOCALES) {
+            const ideas = IDEAS_BY_LANGUAGE[locale] || [];
+            ideas.forEach((idea, index) => {
+                const entry = byId.get(idea.id) || {
+                    id: idea.id,
+                    category: idea.category,
+                    order: index,
+                    status: "published",
+                    title: {} as Record<string, string>,
+                    description: {} as Record<string, string>,
+                    whyItHelps: {} as Record<string, string>,
+                    example: {} as Record<string, string>,
+                };
+                entry.title[locale] = idea.title;
+                entry.description[locale] = idea.description;
+                if (idea.whyItHelps) entry.whyItHelps[locale] = idea.whyItHelps;
+                if (idea.example) entry.example[locale] = idea.example;
+                byId.set(idea.id, entry);
+            });
+        }
+
+        for (const idea of byId.values()) {
+            const ref = adminDb.collection("ideas").doc(idea.id);
+            if ((await ref.get()).exists && !force) {
+                skipped.push(`${idea.id} — already in the CMS`);
+                continue;
+            }
+            await ref.set(
+                { ...idea, updatedAt: FieldValue.serverTimestamp(), updatedByEmail: admin.email },
+                { merge: true },
+            );
+            imported.push(idea.id);
         }
     }
 
