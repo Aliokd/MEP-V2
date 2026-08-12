@@ -78,6 +78,9 @@ export const GET = withAdmin("inbox.read", async (request) => {
                     tags: d.tags || [],
                     assigneeUid: d.assigneeUid || null,
                     assigneeName: d.assigneeName || null,
+                    // Who marked it done — shown on the row so the queue says who
+                    // dealt with each thread, not just that something happened.
+                    resolvedByName: d.resolvedByName || null,
                     hasAttachment: Boolean(d.attachmentUrl),
                     replyCount: d.replyCount || 0,
                     locale: d.locale || null,

@@ -114,15 +114,20 @@ export const PATCH = withAdmin("inbox.write", async (request, admin, ctx: Ctx) =
         before.status = current.status;
         after.status = body.status;
 
-        // Stamp resolution once, so resolution-time metrics stay honest if a
-        // thread is reopened and resolved again.
-        if ((body.status === "resolved" || body.status === "closed") && !current.resolvedAt) {
-            update.resolvedAt = FieldValue.serverTimestamp();
+        if (body.status === "resolved" || body.status === "closed") {
+            // Stamp the time once, so resolution-time metrics stay honest if a
+            // thread is reopened and resolved again — but always record who,
+            // since the list credits whoever actually dealt with it last.
+            if (!current.resolvedAt) update.resolvedAt = FieldValue.serverTimestamp();
+            update.resolvedByUid = admin.uid;
+            update.resolvedByName = admin.name;
             update.resolvedBy = admin.email;
         }
         if (body.status === "open" || body.status === "new" || body.status === "pending") {
             update.resolvedAt = null;
             update.resolvedBy = null;
+            update.resolvedByUid = null;
+            update.resolvedByName = null;
         }
     }
 

@@ -22,6 +22,7 @@ export interface InboxThread {
     tags: string[];
     assigneeUid: string | null;
     assigneeName: string | null;
+    resolvedByName: string | null;
     hasAttachment: boolean;
     replyCount: number;
     locale: string | null;
@@ -203,7 +204,11 @@ function InboxQueue() {
                                         <span className="truncate">{thread.userName} · {thread.userEmail}</span>
                                         {thread.locale && <span className="uppercase">{thread.locale}</span>}
                                         {thread.replyCount > 0 && <span>{thread.replyCount} replies</span>}
-                                        {thread.assigneeName && <span className="ml-auto">→ {thread.assigneeName}</span>}
+                                        {thread.resolvedByName && (thread.status === "resolved" || thread.status === "closed") ? (
+                                            <span className="ml-auto text-green-400">Done by {thread.resolvedByName}</span>
+                                        ) : thread.assigneeName ? (
+                                            <span className="ml-auto">→ {thread.assigneeName}</span>
+                                        ) : null}
                                     </div>
                                 </button>
                             </li>

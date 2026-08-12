@@ -26,7 +26,7 @@ function resolveSource(source: string): InboxSource {
 export const POST = withAdmin("inbox.reply", async (request, admin, ctx: Ctx) => {
     const { source, id } = await ctx.params;
     const collection = INBOX_COLLECTION[resolveSource(source)];
-    const { message, resolve } = await request.json();
+    const { message, keepOpen = false } = await request.json();
 
     if (!message || !String(message).trim()) {
         return NextResponse.json({ error: "Reply cannot be empty" }, { status: 400 });
@@ -77,21 +77,27 @@ export const POST = withAdmin("inbox.reply", async (request, admin, ctx: Ctx) =>
     // First-response time is the metric support is judged on — set once, never overwritten.
     if (!thread.firstResponseAt) update.firstResponseAt = now;
 
-    if (resolve) {
+    // Answering is what "done" means for a message: the person wrote in, someone
+    // wrote back. Replying therefore resolves the thread unless the reply is
+    // explicitly a request for more information, in which case it stays open and
+    // waits for them. Previously every reply left the thread open, so the queue
+    // never cleared and nothing recorded who had actually dealt with it.
+    if (keepOpen) {
+        update.status = "pending";
+    } else {
         update.status = "resolved";
-        if (!thread.resolvedAt) {
-            update.resolvedAt = now;
-            update.resolvedBy = admin.email;
-        }
-    } else if (thread.status === "new") {
-        update.status = "open";
+        if (!thread.resolvedAt) update.resolvedAt = now;
+        // Stamped every time, so a reopened-and-answered thread credits whoever
+        // handled it last rather than whoever happened to touch it first.
+        update.resolvedByUid = admin.uid;
+        update.resolvedByName = admin.name;
+        update.resolvedBy = admin.email;
     }
 
-    // An unassigned thread becomes the replier's once they answer it.
-    if (!thread.assigneeUid) {
-        update.assigneeUid = admin.uid;
-        update.assigneeName = admin.name;
-    }
+    // Whoever answers owns it. Reassigned on every reply, not just the first —
+    // if someone else picks a thread up, the list should say so.
+    update.assigneeUid = admin.uid;
+    update.assigneeName = admin.name;
 
     await ref.update(update);
 
@@ -103,7 +109,7 @@ export const POST = withAdmin("inbox.reply", async (request, admin, ctx: Ctx) =>
         targetType: "inbox_thread",
         targetId: id,
         targetLabel: thread.subject || id,
-        after: { to: thread.userEmail, resolved: Boolean(resolve) },
+        after: { to: thread.userEmail, resolved: !keepOpen, handledBy: admin.name },
         ...auditContext(request),
     });
 

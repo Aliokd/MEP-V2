@@ -93,20 +93,24 @@ export default function ThreadDetail({
         onChanged();
     };
 
-    const sendReply = async (resolve: boolean) => {
+    const sendReply = async (keepOpen: boolean) => {
         if (!reply.trim()) return;
         setSending(true);
         setError(null);
         try {
             const res = await adminFetch(`${base}/reply`, {
                 method: "POST",
-                body: JSON.stringify({ message: reply, resolve }),
+                body: JSON.stringify({ message: reply, keepOpen }),
             });
             if (!res.ok) throw new Error((await res.json()).error || "Failed to send reply");
             setReply("");
             // Sending used to clear the box and say nothing, which left it genuinely
             // unclear whether the message had gone. State it, and name the recipient.
-            setSent(`Sent to ${thread.userEmail}. They'll also see it in the platform.`);
+            setSent(
+                keepOpen
+                    ? `Sent to ${thread.userEmail} — left open, waiting on them.`
+                    : `Sent to ${thread.userEmail} and marked done. They'll also see it in the platform.`,
+            );
             setTimeout(() => setSent(null), 8000);
             await load();
             onChanged();
@@ -152,6 +156,15 @@ export default function ThreadDetail({
                         <p className="text-xs text-ink-500">
                             {thread.userName} · {thread.userEmail} · {timeAgo(thread.createdAt)}
                         </p>
+                        {/* Who closed it, so the queue records accountability and not
+                            just a state change. */}
+                        {t?.resolvedByName && (t.status === "resolved" || t.status === "closed") && (
+                            <p className="text-xs text-green-400 flex items-center gap-1.5">
+                                <Check className="w-3 h-3 shrink-0" />
+                                Handled by {t.resolvedByName}
+                                {t.resolvedAt ? ` · ${timeAgo(t.resolvedAt)}` : ""}
+                            </p>
+                        )}
                     </div>
                     <button onClick={onClose} className="text-ink-500 hover:text-ink-100 transition-colors shrink-0">
                         <X className="w-4 h-4" />
@@ -269,10 +282,10 @@ export default function ThreadDetail({
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <Button variant="primary" onClick={() => sendReply(false)} disabled={sending || !reply.trim()}>
                                         {sending ? <Spinner className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
-                                        Send
+                                        Send & mark done
                                     </Button>
                                     <Button onClick={() => sendReply(true)} disabled={sending || !reply.trim()}>
-                                        Send & resolve
+                                        Send, keep open
                                     </Button>
                                     {sent && (
                                         <span className="text-xs text-green-400 flex items-center gap-1.5">
