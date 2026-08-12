@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { useLanguage } from '@/context/LanguageContext';
+import { useFeedbackThreads } from '@/lib/useFeedbackThreads';
 import { PRACTICE_ENABLED } from '@/lib/uiFlags';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import Tooltip from '@/components/Tooltip';
@@ -32,6 +33,8 @@ interface MaestroSidebarProps {
 export default function MaestroSidebar({ isMobileOpen = false, onClose, onSupportClick, onFeedbackClick }: MaestroSidebarProps) {
     const { t } = useLanguage();
     const [isCollapsed, setIsCollapsed] = useState(false);
+    // Green dot on the feedback button while a reply from the team is unread.
+    const { unreadCount } = useFeedbackThreads();
     const [mounted, setMounted] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const pathname = usePathname();
@@ -90,8 +93,8 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
     const menuItems = [
         { label: t('navigation.create'), href: '/platform/create', icon: PenTool },
         { label: t('navigation.learn'), href: '/platform', icon: BookOpen },
-        // Practice is locked while the sessions are rebuilt — the entry stays
-        // visible so the section isn't forgotten, but it doesn't navigate.
+        // When Practice is locked the entry stays visible so the section isn't
+        // forgotten, but it doesn't navigate.
         { label: t('navigation.practice'), href: '/platform/practice', icon: Music, locked: !PRACTICE_ENABLED },
         { label: t('navigation.connect'), href: '/platform/connect', icon: Users },
     ];
@@ -100,6 +103,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
         { 
             label: t('navigation.feedback'), 
             onClick: onFeedbackClick,
+            hasDot: unreadCount > 0,
             icon: (className?: string) => (
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" className={className}>
                     <path d="M170,112a6,6,0,0,1-6,6H96a6,6,0,0,1,0-12h68A6,6,0,0,1,170,112Zm-6,26H96a6,6,0,0,0,0,12h68a6,6,0,0,0,0-12Zm66-14a98.11,98.11,0,0,1-98,98H48a14,14,0,0,1-14-14V124a98,98,0,0,1,196,0Zm-12,0a86,86,0,0,0-172,0v84a2,2,0,0,0,2,2h84A86.1,86.1,0,0,0,218,124Z"></path>
@@ -199,8 +203,11 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                 <button
                                     onClick={onFeedbackClick}
                                     aria-label={t('navigation.feedback')}
-                                    className="flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
+                                    className="relative flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
                                 >
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#86BE7F] border-2 border-[#E4E4DF]" />
+                                    )}
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" className="w-[16px] h-[16px]">
                                         <path d="M170,112a6,6,0,0,1-6,6H96a6,6,0,0,1,0-12h68A6,6,0,0,1,170,112Zm-6,26H96a6,6,0,0,0,0,12h68a6,6,0,0,0,0-12Zm66-14a98.11,98.11,0,0,1-98,98H48a14,14,0,0,1-14-14V124a98,98,0,0,1,196,0Zm-12,0a86,86,0,0,0-172,0v84a2,2,0,0,0,2,2h84A86.1,86.1,0,0,0,218,124Z"></path>
                                     </svg>
@@ -310,6 +317,9 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                         >
                                             {item.icon && item.icon("w-[16px] h-[16px] text-stone-500 group-hover/btn:text-stone-900 transition-colors shrink-0")}
                                             <span>{item.label}</span>
+                                            {item.hasDot && (
+                                                <span className="w-2 h-2 rounded-full bg-[#86BE7F] shrink-0 ml-auto" />
+                                            )}
                                         </button>
                                     );
                                 }

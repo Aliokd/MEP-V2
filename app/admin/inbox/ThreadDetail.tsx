@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { X, Send, Paperclip, StickyNote, ShieldAlert, ExternalLink } from "lucide-react";
+import { X, Send, Paperclip, StickyNote, ShieldAlert, ExternalLink, Check } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { Badge, Button, Select, Spinner, Textarea, timeAgo } from "../components/ui";
 import type { InboxThread } from "./page";
@@ -53,6 +53,7 @@ export default function ThreadDetail({
     const [reply, setReply] = useState("");
     const [note, setNote] = useState("");
     const [sending, setSending] = useState(false);
+    const [sent, setSent] = useState<string | null>(null);
     const [savingNote, setSavingNote] = useState(false);
 
     const base = `/api/admin/inbox/${thread.source}/${thread.id}`;
@@ -103,6 +104,10 @@ export default function ThreadDetail({
             });
             if (!res.ok) throw new Error((await res.json()).error || "Failed to send reply");
             setReply("");
+            // Sending used to clear the box and say nothing, which left it genuinely
+            // unclear whether the message had gone. State it, and name the recipient.
+            setSent(`Sent to ${thread.userEmail}. They'll also see it in the platform.`);
+            setTimeout(() => setSent(null), 8000);
             await load();
             onChanged();
         } catch (err: any) {
@@ -261,7 +266,7 @@ export default function ThreadDetail({
                                     onChange={(e) => setReply(e.target.value)}
                                     placeholder="Write a reply…"
                                 />
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <Button variant="primary" onClick={() => sendReply(false)} disabled={sending || !reply.trim()}>
                                         {sending ? <Spinner className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
                                         Send
@@ -269,6 +274,12 @@ export default function ThreadDetail({
                                     <Button onClick={() => sendReply(true)} disabled={sending || !reply.trim()}>
                                         Send & resolve
                                     </Button>
+                                    {sent && (
+                                        <span className="text-xs text-green-400 flex items-center gap-1.5">
+                                            <Check className="w-3.5 h-3.5 shrink-0" />
+                                            {sent}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         )}

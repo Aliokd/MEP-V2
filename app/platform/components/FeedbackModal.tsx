@@ -7,6 +7,8 @@ import { useLanguage } from '@/context/LanguageContext';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL, UploadTask } from 'firebase/storage';
 import { authedFetch } from '@/lib/authedFetch';
+import FeedbackThreads from './FeedbackThreads';
+import { useFeedbackThreads } from '@/lib/useFeedbackThreads';
 
 interface FeedbackModalProps {
     isOpen: boolean;
@@ -32,6 +34,11 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     
     const uploadTaskRef = useRef<UploadTask | null>(null);
     const [mounted, setMounted] = useState(false);
+    // The modal is now two things: a compose box, and the user's own thread
+    // history. Landing on the history when a reply is waiting is the point of
+    // the dot on the sidebar button.
+    const [view, setView] = useState<'compose' | 'messages'>('compose');
+    const { unreadCount } = useFeedbackThreads();
 
     useEffect(() => {
         setMounted(true);
@@ -41,6 +48,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     // Reset form states on close/open, and cancel any active background uploads
     useEffect(() => {
         if (isOpen) {
+            setView(unreadCount > 0 ? 'messages' : 'compose');
             setSubject('');
             setMessage('');
             setSelectedFile(null);
@@ -247,7 +255,32 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                     {t('feedback_modal.title') || 'Share Your Feedback'}
                 </h3>
 
-                <div className="flex flex-col gap-6">
+                <div className="flex items-center gap-1.5 -mt-3">
+                    {([
+                        { id: 'compose' as const, label: t('feedback_modal.tab_compose') },
+                        { id: 'messages' as const, label: t('feedback_modal.tab_messages') },
+                    ]).map((option) => (
+                        <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setView(option.id)}
+                            className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                                view === option.id
+                                    ? 'bg-stone-100 text-stone-800'
+                                    : 'text-stone-400 hover:text-stone-700'
+                            }`}
+                        >
+                            {option.label}
+                            {option.id === 'messages' && unreadCount > 0 && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#86BE7F]" />
+                            )}
+                        </button>
+                    ))}
+                </div>
+
+                {view === 'messages' && <FeedbackThreads />}
+
+                <div className={`flex-col gap-6 ${view === 'compose' ? 'flex' : 'hidden'}`}>
                     {/* User display info */}
                     {user?.email && (
                         <div className="text-stone-400 text-xs font-sans font-medium -mb-2 px-1">

@@ -50,6 +50,23 @@
   // one field, or an equality on one field) are covered automatically and are
   // deliberately not listed here.
   "indexes": [
+    // A user reading their own threads, and the unread dot on "Share feedback".
+    {
+      "collectionGroup": "user_feedback",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "unreadByUser", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "support_tickets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "unreadByUser", "order": "ASCENDING" }
+      ]
+    },
     // Inbox: status/priority/assignee filters combined with the queue ordering.
     {
       "collectionGroup": "user_feedback",

@@ -67,6 +67,11 @@ export const POST = withAdmin("inbox.reply", async (request, admin, ctx: Ctx) =>
         replyCount: FieldValue.increment(1),
         lastMessageAt: now,
         updatedAt: now,
+        // The reply is delivered twice: by email, and inside the platform. This
+        // flag is what puts the dot on "Share feedback" until the user reads it.
+        unreadByUser: true,
+        lastReplyAt: now,
+        lastReplyPreview: body.slice(0, 140),
     };
 
     // First-response time is the metric support is judged on — set once, never overwritten.

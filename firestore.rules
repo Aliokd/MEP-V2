@@ -306,14 +306,42 @@ service cloud.firestore {
     // signed-in user read, edit or erase every other user's feedback — including
     // their email address and message body. Both collections are now written by
     // the server (Admin SDK) and readable only by the sender or the support team.
+    // A thread's author may mark their own thread read — that and nothing else.
+    // Everything substantive (status, priority, assignee, replies) is written by
+    // the server, so this is the one field a client is allowed to touch.
+    function isMarkingOwnThreadRead() {
+      return isSignedIn() &&
+        resource.data.get("userId", "") == request.auth.uid &&
+        changedKeys().hasOnly(["unreadByUser", "readByUserAt"]) &&
+        request.resource.data.unreadByUser == false;
+    }
+
     match /user_feedback/{feedbackId} {
       allow read: if isSupport() || (isSignedIn() && resource.data.get("userId", "") == request.auth.uid);
-      allow create, update, delete: if false;
+      allow update: if isMarkingOwnThreadRead();
+      allow create, delete: if false;
+
+      // Replies an admin has sent. Readable by the person the thread belongs to —
+      // this is what makes a reply visible in the platform and not only by email.
+      match /replies/{replyId} {
+        allow read: if isSupport() ||
+          (isSignedIn() &&
+            get(/databases/$(database)/documents/user_feedback/$(feedbackId)).data.get("userId", "") == request.auth.uid);
+        allow write: if false;
+      }
     }
 
     match /support_tickets/{ticketId} {
       allow read: if isSupport() || (isSignedIn() && resource.data.get("userId", "") == request.auth.uid);
-      allow create, update, delete: if false;
+      allow update: if isMarkingOwnThreadRead();
+      allow create, delete: if false;
+
+      match /replies/{replyId} {
+        allow read: if isSupport() ||
+          (isSignedIn() &&
+            get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.get("userId", "") == request.auth.uid);
+        allow write: if false;
+      }
     }
 
     // Internal notes on an inbox thread never reach the user who wrote in.
