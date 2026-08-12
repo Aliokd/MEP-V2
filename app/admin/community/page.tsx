@@ -41,7 +41,7 @@ export default function CommunityPage() {
         "no-account": "Removed — but the author was NOT emailed: their account no longer exists.",
         "no-email": "Removed — but the author was NOT emailed: there is no address on their account.",
         "send-failed":
-            "Removed — but the email FAILED to send. Check the mail settings, then contact the author another way.",
+            "Removed — but the email FAILED to send. Ops & flags has a mail check that says why. Contact the author another way in the meantime.",
         skipped: "Removed. No email was requested.",
     };
 
@@ -94,11 +94,16 @@ export default function CommunityPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Action failed");
 
-            setNote(
-                action === "remove"
-                    ? NOTIFY_MESSAGE[data.notifyStatus] || "Removed."
-                    : "Restored to the feed.",
-            );
+            if (action === "remove") {
+                const base = NOTIFY_MESSAGE[data.notifyStatus] || "Removed.";
+                // The SMTP diagnosis, when there is one — "check the mail
+                // settings" is not actionable without knowing which setting.
+                setNote(data.notifyError ? `${base}
+
+${data.notifyError}` : base);
+            } else {
+                setNote("Restored to the feed.");
+            }
             await load();
         } catch (err: any) {
             setError(err.message);
@@ -149,7 +154,7 @@ export default function CommunityPage() {
                             note.includes("NOT") || note.includes("FAILED") ? "text-gold-200" : "text-green-200"
                         }`}
                     >
-                        {note}
+                        <span className="whitespace-pre-wrap">{note}</span>
                     </p>
                 </Panel>
             )}

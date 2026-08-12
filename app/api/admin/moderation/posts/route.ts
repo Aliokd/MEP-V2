@@ -122,6 +122,9 @@ export const POST = withAdmin("community.moderate", async (request, admin) => {
             | "no-account"
             | "no-email"
             | "send-failed" = "skipped";
+        // The actual SMTP diagnosis, so the console can say what to fix rather
+        // than only that something went wrong.
+        let notifyError: string | null = null;
 
         if (!notify) {
             notifyStatus = "skipped";
@@ -157,9 +160,10 @@ If you think this is wrong, reply to this email and a person will review it. App
                     });
                     notified = true;
                     notifyStatus = "sent";
-                } catch (err) {
+                } catch (err: any) {
                     console.error("[moderation] Failed to notify author:", err);
                     notifyStatus = "send-failed";
+                    notifyError = err?.message || "Unknown mail error";
                 }
             }
         }
@@ -184,11 +188,11 @@ If you think this is wrong, reply to this email and a person will review it. App
             targetId: postId,
             targetLabel: `${post.author || "?"} — ${post.projectName || "Untitled"}`,
             reason: String(reason).trim(),
-            after: { notified, notifyStatus },
+            after: { notified, notifyStatus, notifyError },
             ...auditContext(request),
         });
 
-        return NextResponse.json({ success: true, notified, notifyStatus });
+        return NextResponse.json({ success: true, notified, notifyStatus, notifyError });
     }
 
     // Restore

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Power } from "lucide-react";
+import { RefreshCw, Power, Mail, Check, X as XIcon } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, PanelHeader, Badge, Button, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 
@@ -20,6 +20,50 @@ export default function OpsPage() {
     const [error, setError] = useState<string | null>(null);
     const [busyId, setBusyId] = useState<string | null>(null);
 
+    const [mail, setMail] = useState<{
+        config: { host: string; port: string; user: string; passwordSet: boolean };
+        verified: boolean;
+        error: string | null;
+    } | null>(null);
+    const [mailChecking, setMailChecking] = useState(false);
+    const [mailTest, setMailTest] = useState<string | null>(null);
+    const [mailTesting, setMailTesting] = useState(false);
+
+    /** Opens an SMTP connection and authenticates, without sending anything. */
+    const checkMail = useCallback(async () => {
+        setMailChecking(true);
+        setMailTest(null);
+        try {
+            const res = await adminFetch("/api/admin/ops/mail");
+            if (!res.ok) throw new Error((await res.json()).error || "Check failed");
+            setMail(await res.json());
+        } catch (err: any) {
+            setMail({
+                config: { host: "?", port: "?", user: "?", passwordSet: false },
+                verified: false,
+                error: err.message,
+            });
+        } finally {
+            setMailChecking(false);
+        }
+    }, [adminFetch]);
+
+    /** Proves the whole path by sending a real message to the caller. */
+    const sendTestMail = async () => {
+        setMailTesting(true);
+        setMailTest(null);
+        try {
+            const res = await adminFetch("/api/admin/ops/mail", { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Send failed");
+            setMailTest(`Sent to ${data.sentTo}. If it arrives, outbound email works.`);
+        } catch (err: any) {
+            setMailTest(err.message);
+        } finally {
+            setMailTesting(false);
+        }
+    };
+
     const load = useCallback(async () => {
         setError(null);
         try {
@@ -34,7 +78,8 @@ export default function OpsPage() {
 
     useEffect(() => {
         load();
-    }, [load]);
+        checkMail();
+    }, [load, checkMail]);
 
     const toggle = async (flag: Flag) => {
         let reason = "";
@@ -94,6 +139,76 @@ export default function OpsPage() {
                     <p className="text-sm text-red-300">{error}</p>
                 </Panel>
             )}
+
+            {/* Email delivery. A failed notification only ever said "FAILED to
+                send", which doesn't say which setting to change — this separates
+                a missing password from a rejected login from an unreachable host. */}
+            <Panel className="overflow-hidden">
+                <PanelHeader
+                    title="Email delivery"
+                    subtitle="Every notification the platform sends — replies, removals, welcome mail — goes through this connection."
+                    action={
+                        <Button onClick={checkMail} disabled={mailChecking} size="sm">
+                            {mailChecking ? <Spinner className="w-3.5 h-3.5" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                            Re-check
+                        </Button>
+                    }
+                />
+                <div className="p-4 flex flex-col gap-3">
+                    {!mail ? (
+                        <div className="flex items-center gap-2 text-sm text-ink-400">
+                            <Spinner className="w-3.5 h-3.5" /> Checking the mail server…
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <Mail className="w-4 h-4 text-ink-500" />
+                                {mail.verified ? (
+                                    <Badge tone="green"><Check className="w-3 h-3" /> connected</Badge>
+                                ) : (
+                                    <Badge tone="red"><XIcon className="w-3 h-3" /> not working</Badge>
+                                )}
+                                <span className="text-xs text-ink-500 font-mono">
+                                    {mail.config.user} → {mail.config.host}:{mail.config.port}
+                                </span>
+                                {!mail.config.passwordSet && <Badge tone="red">no password set</Badge>}
+                            </div>
+
+                            {mail.error && (
+                                <div className="p-3.5 rounded-xl bg-red-500/5 border border-red-500/30">
+                                    <p className="text-sm text-red-200">{mail.error}</p>
+                                </div>
+                            )}
+
+                            {mail.verified && (
+                                <p className="text-xs text-ink-500">
+                                    The login works and the server accepted the connection. If a specific message
+                                    still fails, the problem is that message — a rejected recipient, say — not the
+                                    configuration.
+                                </p>
+                            )}
+
+                            {can("ops.write") && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <Button onClick={sendTestMail} disabled={mailTesting} size="sm">
+                                        {mailTesting ? <Spinner className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
+                                        Send a test to myself
+                                    </Button>
+                                    {mailTest && (
+                                        <span
+                                            className={`text-xs ${
+                                                mailTest.startsWith("Sent to") ? "text-green-400" : "text-red-300"
+                                            }`}
+                                        >
+                                            {mailTest}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            </Panel>
 
             <Panel className="overflow-hidden">
                 <PanelHeader
