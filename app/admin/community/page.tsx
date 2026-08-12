@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Trash2, Undo2, Flag } from "lucide-react";
+import { RefreshCw, Trash2, Undo2, Flag, MailX } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, Badge, Button, Select, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 
@@ -31,6 +31,19 @@ export default function CommunityPage() {
     const [refreshing, setRefreshing] = useState(false);
     const [view, setView] = useState("recent");
     const [busyId, setBusyId] = useState<string | null>(null);
+    const [note, setNote] = useState<string | null>(null);
+
+    /** Plain-English outcome for each way the author notification can end. */
+    const NOTIFY_MESSAGE: Record<string, string> = {
+        sent: "Removed, and the author was emailed the reason.",
+        "no-author-id":
+            "Removed — but the author was NOT emailed. This post was shared before Veinote recorded who posted it, so there is no account to write to. If you know who it was, tell them yourself.",
+        "no-account": "Removed — but the author was NOT emailed: their account no longer exists.",
+        "no-email": "Removed — but the author was NOT emailed: there is no address on their account.",
+        "send-failed":
+            "Removed — but the email FAILED to send. Check the mail settings, then contact the author another way.",
+        skipped: "Removed. No email was requested.",
+    };
 
     const load = useCallback(async () => {
         setRefreshing(true);
@@ -54,8 +67,13 @@ export default function CommunityPage() {
     const act = async (post: FeedPost, action: "remove" | "restore") => {
         let reason = "";
         if (action === "remove") {
+            // Say up front when the author cannot be reached, rather than letting
+            // the moderator write a careful explanation nobody will ever receive.
+            const reachable = Boolean(post.authorId);
             const input = window.prompt(
-                `Remove this post from the feed?\n\nThe author is emailed this reason, so write it for them to read:`,
+                reachable
+                    ? `Remove this post from the feed?\n\nThe author is emailed this reason, so write it for them to read:`
+                    : `Remove this post from the feed?\n\nNOTE: this post was shared before Veinote recorded who posted it, so nobody can be emailed about it. The reason is still kept in the audit log:`,
             );
             if (input === null) return;
             if (!input.trim()) {
@@ -67,12 +85,20 @@ export default function CommunityPage() {
 
         setBusyId(post.id);
         setError(null);
+        setNote(null);
         try {
             const res = await adminFetch("/api/admin/moderation/posts", {
                 method: "POST",
                 body: JSON.stringify({ postId: post.id, action, reason }),
             });
-            if (!res.ok) throw new Error((await res.json()).error || "Action failed");
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Action failed");
+
+            setNote(
+                action === "remove"
+                    ? NOTIFY_MESSAGE[data.notifyStatus] || "Removed."
+                    : "Restored to the feed.",
+            );
             await load();
         } catch (err: any) {
             setError(err.message);
@@ -107,6 +133,27 @@ export default function CommunityPage() {
                 </Panel>
             )}
 
+            {/* Whether the author was actually reached. This used to be silent:
+                a post with no authorId skipped the email entirely and still
+                reported success, so a removal looked identical either way. */}
+            {note && (
+                <Panel
+                    className={`p-4 ${
+                        note.includes("NOT") || note.includes("FAILED")
+                            ? "border-gold-500/40 bg-gold-500/5"
+                            : "border-green-500/30 bg-green-500/5"
+                    }`}
+                >
+                    <p
+                        className={`text-sm ${
+                            note.includes("NOT") || note.includes("FAILED") ? "text-gold-200" : "text-green-200"
+                        }`}
+                    >
+                        {note}
+                    </p>
+                </Panel>
+            )}
+
             {!posts ? (
                 <SkeletonRows rows={5} />
             ) : posts.length === 0 ? (
@@ -128,6 +175,11 @@ export default function CommunityPage() {
                                             <Badge tone="red"><Flag className="w-3 h-3" /> {post.reportCount}</Badge>
                                         )}
                                         {post.removed && <Badge tone="neutral">removed</Badge>}
+                                        {!post.removed && !post.authorId && (
+                                            <Badge tone="gold">
+                                                <MailX className="w-3 h-3" /> no author on file
+                                            </Badge>
+                                        )}
                                     </div>
                                     <span className="text-xs text-ink-500 truncate">
                                         {post.projectName} · {timeAgo(post.createdAt)}

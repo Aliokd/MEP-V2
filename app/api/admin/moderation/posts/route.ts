@@ -111,10 +111,31 @@ export const POST = withAdmin("community.moderate", async (request, admin) => {
         await liveRef.delete();
 
         let notified = false;
-        if (notify && post.authorId) {
+        // Why the author was or wasn't emailed, so the console can say so instead
+        // of leaving the moderator to assume it worked. Posts shared before
+        // 2026-07-26 carry no authorId, so there is nobody to write to — that was
+        // silently skipping the whole block and reporting success.
+        let notifyStatus:
+            | "sent"
+            | "skipped"
+            | "no-author-id"
+            | "no-account"
+            | "no-email"
+            | "send-failed" = "skipped";
+
+        if (!notify) {
+            notifyStatus = "skipped";
+        } else if (!post.authorId) {
+            notifyStatus = "no-author-id";
+        } else {
             const authorSnap = await adminDb.collection("users").doc(post.authorId).get();
-            const email = authorSnap.data()?.email;
-            if (email) {
+            const email = authorSnap.exists ? authorSnap.data()?.email : null;
+
+            if (!authorSnap.exists) {
+                notifyStatus = "no-account";
+            } else if (!email) {
+                notifyStatus = "no-email";
+            } else {
                 try {
                     await sendMail({
                         to: email,
@@ -135,8 +156,10 @@ If you think this is wrong, reply to this email and a person will review it. App
 — Veinote`,
                     });
                     notified = true;
+                    notifyStatus = "sent";
                 } catch (err) {
                     console.error("[moderation] Failed to notify author:", err);
+                    notifyStatus = "send-failed";
                 }
             }
         }
@@ -161,11 +184,11 @@ If you think this is wrong, reply to this email and a person will review it. App
             targetId: postId,
             targetLabel: `${post.author || "?"} — ${post.projectName || "Untitled"}`,
             reason: String(reason).trim(),
-            after: { notified },
+            after: { notified, notifyStatus },
             ...auditContext(request),
         });
 
-        return NextResponse.json({ success: true, notified });
+        return NextResponse.json({ success: true, notified, notifyStatus });
     }
 
     // Restore
