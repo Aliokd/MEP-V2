@@ -66,6 +66,21 @@ export async function GET(request: Request) {
             : 'MISSING — set GEMINI_API_KEY in the deployed environment',
     });
 
+    // Outbound email arrives by the same route as the key above and failed the
+    // same way: an unset CI secret wrote an empty value, and every send — welcome
+    // mail, support replies, moderation notices — threw before touching the
+    // network, silently, for weeks. Presence only: opening a real SMTP connection
+    // on a public endpoint would make this a free prober and add a round trip to
+    // every call. The live login test lives in the admin console's Ops page.
+    const smtpPass = process.env.SMTP_PASS;
+    checks.push({
+        name: 'smtp_password',
+        ok: Boolean(smtpPass),
+        detail: smtpPass
+            ? `present (${smtpPass.length} chars, fingerprint ${createHash('sha256').update(smtpPass).digest('hex').slice(0, 12)})`
+            : 'MISSING — no email can be sent. Set SMTP_PASS in the repository secrets.',
+    });
+
     // Can this environment reach Google at all, and are our pinned models real?
     if (apiKey) {
         checks.push(

@@ -16,6 +16,31 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
+      # An unset GitHub secret expands to an empty string rather than failing, so
+      # a missing one wrote `SMTP_PASS=` into .env, built green, deployed green,
+      # and silently broke every outbound email for weeks — welcome mail, support
+      # replies, moderation notices, all of it. Nothing surfaced until someone
+      # went looking. Check before writing the file, not after.
+      - name: Check required secrets are present
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          MISSING=""
+          for NAME in GEMINI_API_KEY SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS; do
+            if [ -z "${!NAME}" ]; then
+              MISSING="$MISSING $NAME"
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::Repository secrets are missing or empty:$MISSING — set them at Settings > Secrets and variables > Actions. Deploying without them ships a build where the matching feature fails silently."
+            exit 1
+          fi
+          echo "All required secrets are present."
+
       - name: Create environment configuration
         run: |
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
