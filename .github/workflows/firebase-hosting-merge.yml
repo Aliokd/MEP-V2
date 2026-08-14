@@ -35,9 +35,19 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          # Names only — see the jq below. Used to tell "not set" apart from
-          # "set under a different name", which the old message could not.
-          SECRET_NAMES: ${{ toJSON(secrets) }}
+          # Likely near-miss names, so "added under the wrong name" reports itself
+          # instead of looking identical to "never added".
+          #
+          # Do NOT swap these for a whole-context dump to enumerate every name.
+          # Serialising the entire secrets context expands all secret VALUES into
+          # one variable; GitHub's malicious-workflow detection flags that, and the
+          # run then sits unstarted awaiting manual approval (this step did once,
+          # run #187). Individual named references answer the same question safely.
+          ALT_SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ALT_SMTP_PW: ${{ secrets.SMTP_PW }}
+          ALT_MAIL_PASS: ${{ secrets.MAIL_PASS }}
+          ALT_EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          ALT_ONECOM_PASS: ${{ secrets.ONECOM_PASS }}
         run: |
           MISSING=""
           for NAME in GEMINI_API_KEY SMTP_PASS; do
@@ -57,12 +67,21 @@ jobs:
           fi
 
           if [ -n "$MISSING" ]; then
-            # `keys[]` prints the NAMES of the secrets this repo actually exposes
-            # and never their values, so a typo (SMTP_PASSWORD for SMTP_PASS) is
-            # visible here instead of being guessed at across successive re-runs.
-            echo "Secret names visible to this workflow:"
-            echo "$SECRET_NAMES" | jq -r 'keys[]' | sed 's/^/  - /'
-            echo "::error::Required secrets are missing or empty:$MISSING — add them at Settings > Secrets and variables > Actions (the 'Secrets' tab, not 'Variables'). Compare the names listed above. Deploying without SMTP_PASS ships a build where every outbound email fails silently."
+            # Presence of near-miss names, never their contents — this reports
+            # "something is set, under the wrong name", which is the one thing the
+            # bare missing-list could not distinguish from "nothing was added".
+            FOUND=""
+            for PAIR in "SMTP_PASSWORD:$ALT_SMTP_PASSWORD" "SMTP_PW:$ALT_SMTP_PW" \
+                        "MAIL_PASS:$ALT_MAIL_PASS" "EMAIL_PASS:$ALT_EMAIL_PASS" \
+                        "ONECOM_PASS:$ALT_ONECOM_PASS"; do
+              if [ -n "${PAIR#*:}" ]; then
+                FOUND="$FOUND ${PAIR%%:*}"
+              fi
+            done
+            if [ -n "$FOUND" ]; then
+              echo "::warning::These similarly-named secrets ARE set:$FOUND — the app reads SMTP_PASS specifically (lib/email/send.ts). Rename, or add SMTP_PASS with the same value."
+            fi
+            echo "::error::Required secrets are missing or empty:$MISSING — add them at Settings > Secrets and variables > Actions, on the 'Secrets' tab (not 'Variables'). Deploying without SMTP_PASS ships a build where every outbound email fails silently."
             exit 1
           fi
           echo "All required secrets are present."
