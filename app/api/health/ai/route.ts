@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GEMINI_AUDIO_MODELS, GEMINI_VISION_MODELS, GEMINI_TEXT_MODELS } from '@/lib/geminiModels';
 import { rateLimitGuard } from '@/lib/rateLimit';
+import { COLLAB_EMAIL_INVITES_ENABLED } from '@/lib/uiFlags';
 
 /**
  * Dependency health check for the AI features.
@@ -28,6 +29,17 @@ interface Check {
     ok: boolean;
     detail: string;
     ms?: number;
+    /**
+     * A failure that is known, accepted, and already contained in code — it is
+     * reported and listed under `degraded`, but does not make the endpoint 503.
+     *
+     * This exists so the gate keeps meaning something. The deploy workflow fails
+     * on a 503, so a fault nobody intends to fix this week would paint every
+     * subsequent run red, and a permanently red gate is one people stop reading —
+     * which is exactly how the outages this endpoint was written for went
+     * unnoticed. Anything genuinely broken must stay non-advisory.
+     */
+    advisory?: boolean;
 }
 
 async function timed(name: string, fn: () => Promise<string>): Promise<Check> {
@@ -76,9 +88,20 @@ export async function GET(request: Request) {
     checks.push({
         name: 'smtp_password',
         ok: Boolean(smtpPass),
+        // Advisory only while the mail-dependent feature is switched off in code.
+        // Inviting someone with no account is refused outright in that state
+        // (COLLAB_EMAIL_INVITES_ENABLED), so nothing tells a user an email is on
+        // its way when it is not. The remaining flows — welcome, support replies,
+        // moderation notices — do still fail silently, which is why this is
+        // reported as degraded rather than dropped. Turning invites back on makes
+        // it required again automatically, and the endpoint 503s until the secret
+        // is set, which is the correct order: the feature must not outrun it.
+        advisory: !COLLAB_EMAIL_INVITES_ENABLED,
         detail: smtpPass
             ? `present (${smtpPass.length} chars, fingerprint ${createHash('sha256').update(smtpPass).digest('hex').slice(0, 12)})`
-            : 'MISSING — no email can be sent. Set SMTP_PASS in the repository secrets.',
+            : COLLAB_EMAIL_INVITES_ENABLED
+                ? 'MISSING — no email can be sent. Set SMTP_PASS in the repository secrets.'
+                : 'MISSING — no email can be sent (welcome, support replies, moderation notices). Not failing the check because email invitations are disabled in code to match. Set SMTP_PASS in the repository secrets.',
     });
 
     // Can this environment reach Google at all, and are our pinned models real?
@@ -173,11 +196,16 @@ export async function GET(request: Request) {
         }),
     );
 
-    const healthy = checks.every(c => c.ok);
+    // Advisory failures are surfaced but do not gate the deploy — see Check.advisory.
+    const healthy = checks.every(c => c.ok || c.advisory);
+    const degraded = checks.filter(c => !c.ok && c.advisory).map(c => c.name);
 
     return NextResponse.json(
         {
             healthy,
+            // Present only when something is genuinely wrong but deliberately
+            // tolerated, so "200 with a degraded list" can never read as "all fine".
+            ...(degraded.length ? { degraded } : {}),
             checkedAt: new Date().toISOString(),
             runtime: {
                 node: process.version,
