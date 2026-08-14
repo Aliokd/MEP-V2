@@ -9,6 +9,7 @@ import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail, si
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/userProfile';
+import { clearOpenProject } from '@/lib/storage';
 import { useLanguage } from '@/context/LanguageContext';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
@@ -66,6 +67,7 @@ function SignInPageInner() {
                     if (!userDoc.exists()) {
                         await createUserProfile(user, { locale: language });
                     }
+                    clearOpenProject(user.uid);
                     router.push('/platform/create');
                 }
             } catch (err: any) {
@@ -90,7 +92,11 @@ function SignInPageInner() {
 
         setIsLoading(true);
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            const credential = await signInWithEmailAndPassword(auth, email, password);
+            // Signing in starts a session; it should open the workspace, not drop
+            // straight back into whatever song was last open. See clearOpenProject —
+            // a refresh deliberately still restores it.
+            clearOpenProject(credential.user.uid);
             router.push('/platform/create');
         } catch (err: any) {
             console.error('Password sign-in error:', err);
@@ -145,6 +151,7 @@ function SignInPageInner() {
             if (!userDoc.exists()) {
                 await createUserProfile(user, { locale: language });
             }
+            clearOpenProject(user.uid);
             router.push('/platform/create');
         } catch (err: any) {
             console.error('Google Sign-In error:', err);

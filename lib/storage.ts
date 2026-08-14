@@ -138,3 +138,29 @@ export function bindLocalStateToAccount(uid: string): void {
         console.warn('[Storage] Could not bind local state to account:', err);
     }
 }
+
+/**
+ * Forgets which project was open, so the next visit to Create opens the workspace
+ * rather than dropping straight back into a song.
+ *
+ * Signing in and refreshing the page are different intentions wearing the same
+ * clothes. A refresh means "I'm still here" and must keep the work on screen —
+ * losing it there is the bug that made this restore exist. Signing in means
+ * "I'm starting", and landing mid-song in whatever was last open is disorienting,
+ * especially on a shared or returning-after-weeks browser.
+ *
+ * Nothing distinguishes the two from inside the Create page: auth resolves from
+ * null to a user on a refresh exactly as it does on a sign-in. So this is called
+ * from the sign-in screen instead — the one place that only ever runs when someone
+ * has actually just signed in. A refresh never reaches it.
+ *
+ * Both keys are cleared: the restore path falls back from the uid-scoped key to the
+ * unscoped one, so leaving that behind would just reopen the same project.
+ */
+export function clearOpenProject(uid?: string): void {
+    if (typeof window === 'undefined') return;
+    try {
+        if (uid) localStorage.removeItem(`veinote-selected-note-id-${uid}`);
+        localStorage.removeItem('veinote-selected-note-id');
+    } catch { /* a browser refusing storage is not a reason to block sign-in */ }
+}
