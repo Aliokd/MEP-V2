@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/apiAuth";
 import { sendMail } from "@/lib/email/send";
 import { collabInviteEmail } from "@/lib/email/templates/collabInvite";
 import { resolveLocale } from "@/lib/email/locale";
-import { SIGNUPS_OPEN, inviteLandingPath } from "@/lib/uiFlags";
+import { SIGNUPS_OPEN, inviteLandingPath, COLLAB_EMAIL_INVITES_ENABLED } from "@/lib/uiFlags";
 import { localizePath } from "@/lib/i18n";
 import { TRIAL_DAYS } from "@/lib/paddle/config";
 
@@ -25,6 +25,14 @@ const RESEND_COOLDOWN_MS = 10 * 60 * 1000;
 export async function POST(request: Request) {
     const auth = await requireUser(request);
     if (auth instanceof Response) return auth;
+
+    // The client already refuses this path while the flag is off, but the route is
+    // reachable on its own, and a caller that got here would otherwise be told the
+    // mail went out. Checked after authentication so an unauthenticated request
+    // still gets 401 rather than learning which features are switched off.
+    if (!COLLAB_EMAIL_INVITES_ENABLED) {
+        return NextResponse.json({ success: true, skipped: "email invitations are disabled" });
+    }
 
     try {
         const { inviteId, locale } = await request.json();

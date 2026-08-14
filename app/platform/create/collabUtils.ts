@@ -1,6 +1,7 @@
 import { db, auth } from "@/lib/firebase";
 import { authedFetch } from "@/lib/authedFetch";
 import { LOCALE_COOKIE } from "@/lib/i18n";
+import { COLLAB_EMAIL_INVITES_ENABLED } from "@/lib/uiFlags";
 import {
     doc,
     setDoc,
@@ -207,9 +208,20 @@ export async function inviteCollaboratorByEmail(
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-            // Nobody on the platform holds this address: record the invite against the
-            // email so it can be claimed at signup, and tell them about it by mail —
-            // there is no workspace for them to see a notification in.
+            // Nobody on the platform holds this address, so the mail IS the invitation —
+            // there is no workspace for them to see a notification in. With the mailer
+            // unconfigured that invitation would be written and never announced, under a
+            // message promising an email that never left, so the branch is closed rather
+            // than made quietly untrue. See COLLAB_EMAIL_INVITES_ENABLED.
+            if (!COLLAB_EMAIL_INVITES_ENABLED) {
+                return {
+                    success: false,
+                    message: `${cleanedEmail} doesn't have a Veinote account yet, and invitations by email are turned off for now. Ask them to sign up first — once they have an account you can invite them straight away.`
+                };
+            }
+
+            // Record the invite against the email so it can be claimed at signup, and
+            // tell them about it by mail.
             const inviteId = await writeInvitation({
                 projectId, projectTitle, senderId, senderName, inviteeId: "", inviteeEmail: cleanedEmail
             });

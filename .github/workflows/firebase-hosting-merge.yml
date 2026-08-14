@@ -50,7 +50,7 @@ jobs:
           ALT_ONECOM_PASS: ${{ secrets.ONECOM_PASS }}
         run: |
           MISSING=""
-          for NAME in GEMINI_API_KEY SMTP_PASS; do
+          for NAME in GEMINI_API_KEY; do
             if [ -z "${!NAME}" ]; then
               MISSING="$MISSING $NAME"
             fi
@@ -64,6 +64,16 @@ jobs:
           done
           if [ -n "$SOFT" ]; then
             echo "::warning::Not set, falling back to the defaults in lib/email/send.ts:$SOFT"
+          fi
+
+          # SMTP_PASS stopped being fatal when COLLAB_EMAIL_INVITES_ENABLED went false:
+          # the one feature that would have shipped visibly broken without it now
+          # refuses its own mail-dependent branch instead. It is still loud, because
+          # every other outbound mail — welcome, support replies, moderation notices,
+          # admin replies — has no such guard and fails silently while this is unset.
+          # Make it fatal again, and flip that flag back on, once the secret is added.
+          if [ -z "$SMTP_PASS" ]; then
+            echo "::warning::SMTP_PASS is not set — ALL outbound email fails silently in this deploy. Collaboration invites by email are disabled in code to match (lib/uiFlags.ts). Add it at Settings > Secrets and variables > Actions, on the 'Secrets' tab."
           fi
 
           if [ -n "$MISSING" ]; then
@@ -81,7 +91,7 @@ jobs:
             if [ -n "$FOUND" ]; then
               echo "::warning::These similarly-named secrets ARE set:$FOUND — the app reads SMTP_PASS specifically (lib/email/send.ts). Rename, or add SMTP_PASS with the same value."
             fi
-            echo "::error::Required secrets are missing or empty:$MISSING — add them at Settings > Secrets and variables > Actions, on the 'Secrets' tab (not 'Variables'). Deploying without SMTP_PASS ships a build where every outbound email fails silently."
+            echo "::error::Required secrets are missing or empty:$MISSING — add them at Settings > Secrets and variables > Actions, on the 'Secrets' tab (not 'Variables'). These have no fallback in code, so the features that read them fail at runtime rather than here."
             exit 1
           fi
           echo "All required secrets are present."
