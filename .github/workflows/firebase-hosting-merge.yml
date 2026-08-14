@@ -21,6 +21,13 @@ jobs:
       # and silently broke every outbound email for weeks — welcome mail, support
       # replies, moderation notices, all of it. Nothing surfaced until someone
       # went looking. Check before writing the file, not after.
+      # Only the secrets with no working fallback are fatal. lib/email/send.ts
+      # reports the mailer healthy on `Boolean(process.env.SMTP_PASS)` alone and
+      # defaults host/port/user to send.one.com / 465 / support@veinote.com, which
+      # are the real production values — so failing the build on those three
+      # blocks deploys over settings the app never needed. They stay listed as
+      # warnings, because an unset one still means the defaults are load-bearing
+      # and nobody has said so out loud.
       - name: Check required secrets are present
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -28,15 +35,34 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          # Names only — see the jq below. Used to tell "not set" apart from
+          # "set under a different name", which the old message could not.
+          SECRET_NAMES: ${{ toJSON(secrets) }}
         run: |
           MISSING=""
-          for NAME in GEMINI_API_KEY SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS; do
+          for NAME in GEMINI_API_KEY SMTP_PASS; do
             if [ -z "${!NAME}" ]; then
               MISSING="$MISSING $NAME"
             fi
           done
+
+          SOFT=""
+          for NAME in SMTP_HOST SMTP_PORT SMTP_USER; do
+            if [ -z "${!NAME}" ]; then
+              SOFT="$SOFT $NAME"
+            fi
+          done
+          if [ -n "$SOFT" ]; then
+            echo "::warning::Not set, falling back to the defaults in lib/email/send.ts:$SOFT"
+          fi
+
           if [ -n "$MISSING" ]; then
-            echo "::error::Repository secrets are missing or empty:$MISSING — set them at Settings > Secrets and variables > Actions. Deploying without them ships a build where the matching feature fails silently."
+            # `keys[]` prints the NAMES of the secrets this repo actually exposes
+            # and never their values, so a typo (SMTP_PASSWORD for SMTP_PASS) is
+            # visible here instead of being guessed at across successive re-runs.
+            echo "Secret names visible to this workflow:"
+            echo "$SECRET_NAMES" | jq -r 'keys[]' | sed 's/^/  - /'
+            echo "::error::Required secrets are missing or empty:$MISSING — add them at Settings > Secrets and variables > Actions (the 'Secrets' tab, not 'Variables'). Compare the names listed above. Deploying without SMTP_PASS ships a build where every outbound email fails silently."
             exit 1
           fi
           echo "All required secrets are present."
