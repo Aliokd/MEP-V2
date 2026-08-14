@@ -26,7 +26,7 @@ export default function SongCard({ song, index, isSelected, isPlaying, onClick }
             `}
         >
             {/* Track number */}
-            <span className={`font-serif italic text-sm font-light ${isSelected ? 'text-white/50' : 'text-stone-400'}`}>
+            <span className={`font-serif text-sm font-normal ${isSelected ? 'text-white/50' : 'text-stone-400'}`}>
                 Song {index + 1}
             </span>
 

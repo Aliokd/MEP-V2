@@ -343,19 +343,20 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
                         )}
                     </div>
 
+                    {/* Dismiss on the left, forward action on the right */}
                     <div className="flex items-center gap-2.5">
+                        <button
+                            onClick={onFinish}
+                            className="px-5 py-2.5 rounded-full bg-stone-900/50 backdrop-blur-sm text-[13px] font-semibold text-white hover:bg-stone-900/65 transition-all cursor-pointer active:scale-95"
+                        >
+                            {closeDemoLabel}
+                        </button>
                         <button
                             onClick={goNext}
                             className="flex items-center gap-1 px-5 py-2.5 rounded-full bg-white text-[13px] font-semibold text-stone-900 shadow-[0_2px_10px_rgba(0,0,0,0.18)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-all cursor-pointer active:scale-95"
                         >
                             {nextLabel}
                             <ChevronRight size={14} />
-                        </button>
-                        <button
-                            onClick={onFinish}
-                            className="px-5 py-2.5 rounded-full bg-stone-900/50 backdrop-blur-sm text-[13px] font-semibold text-white hover:bg-stone-900/65 transition-all cursor-pointer active:scale-95"
-                        >
-                            {closeDemoLabel}
                         </button>
                     </div>
                 </div>

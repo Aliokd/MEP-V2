@@ -88,7 +88,16 @@ function reverseIndex(data: LexiconData): ReverseIndex {
 }
 
 export function normalizeWord(word: string): string {
-    return word.trim().toLowerCase().replace(/[^a-zåäöæøéèêüàáóç]/g, '');
+    return word
+        .trim()
+        .toLowerCase()
+        // Curly apostrophes fold onto the straight one — CMUdict spells its
+        // contractions "i've", so "I’ve" has to arrive in that shape to match.
+        .replace(/[’ʼ]/g, "'")
+        // Apostrophes and hyphens are part of the word ("i've", "rock-solid"), not
+        // punctuation around it. Stripping them made a different word.
+        .replace(/[^a-zåäöæøéèêüàáóç'\-]/g, '')
+        .replace(/^['\-]+|['\-]+$/g, '');
 }
 
 /** Consecutive vowels count as one syllable ("hjärta" -> 2, "kärleken" -> 3). */

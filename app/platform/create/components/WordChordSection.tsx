@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Play, Square, Trash2, ChevronLeft, ChevronRight, MoreVertical, Eye, EyeOff } from 'lucide-react';
+import { Play, Square, Trash2, ChevronLeft, ChevronRight, MoreVertical, Eye, EyeOff, Plus, X, ArrowUpDown } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { chordPositions, chordNotes, chordQuality } from '@/lib/chords';
+import { chordPositions, chordNotes, chordQuality, COMMON_CHORDS, isValidChord, normalizeChord } from '@/lib/chords';
 import { Fretboard, useChordPlayback } from './chordVisuals';
 
 /**
@@ -28,18 +28,81 @@ export interface WordChordSectionProps {
     chordsHidden?: boolean;
     /** Toggles that canvas-wide visibility. Omitted when there is no canvas to toggle. */
     onToggleChordsHidden?: () => void;
+    /** Pins the given chord straight onto this word — the popover's own picker path,
+     *  no round-trip through a canvas card. Omitted on a read-only canvas, which
+     *  leaves the chord-less state rendering nothing at all. */
+    onPickChord?: (symbol: string) => void;
+    /** Chords already used in this song. The suggestion is drawn from these when there
+     *  are any — a song reuses its own chords, so one of them is a better guess than a
+     *  stranger from the palette. */
+    suggestFrom?: string[];
 }
 
 export default function WordChordSection({
     symbol,
     onRemove,
     chordsHidden = false,
-    onToggleChordsHidden
+    onToggleChordsHidden,
+    onPickChord,
+    suggestFrom
 }: WordChordSectionProps) {
     const { t } = useLanguage();
     const [variation, setVariation] = useState(0);
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement | null>(null);
+    // Everything this word could be given, in one list: the song's own chords first
+    // (it reuses them), then the common palette. The empty state shows one of these
+    // ghosted as a suggestion; clicking it turns that same display live and opens the
+    // list as boxes beneath, so the writer browses shapes in place and can still go
+    // straight to the chord they already had in mind.
+    const browseList = useMemo(() => {
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const sym of [...(suggestFrom || []), ...COMMON_CHORDS]) {
+            if (sym && !seen.has(sym)) { seen.add(sym); out.push(sym); }
+        }
+        return out;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [(suggestFrom || []).join(',')]);
+
+    // Where the browser starts — a fresh suggestion per word, since the parent keys
+    // this component by word and so remounts it for each one.
+    const [browseIndex, setBrowseIndex] = useState(() => {
+        const pool = (suggestFrom && suggestFrom.length > 0) ? suggestFrom : COMMON_CHORDS;
+        return Math.floor(Math.random() * pool.length);
+    });
+    const browseSymbol = browseList[browseIndex] ?? browseList[0] ?? COMMON_CHORDS[0];
+    const browsePositions = useMemo(() => chordPositions(browseSymbol), [browseSymbol]);
+    /** Which fingering of the browsed chord is showing. The grid picks WHICH chord;
+     *  the arrows beside play move through that chord's own shapes, the same division
+     *  of labour the panel has once a chord is pinned. */
+    const [browseVariation, setBrowseVariation] = useState(0);
+    const browsePosition = browsePositions[browseVariation] ?? browsePositions[0];
+    const browsePlayback = useChordPlayback(browsePosition);
+    const stepBrowseVariation = (delta: number) => {
+        if (browsePositions.length < 2) return;
+        browsePlayback.stop();
+        setBrowseVariation(v => ((v + delta) % browsePositions.length + browsePositions.length) % browsePositions.length);
+    };
+    // A different chord starts from its own first shape rather than inheriting a
+    // variation number that meant something on the last one.
+    useEffect(() => { setBrowseVariation(0); }, [browseSymbol]);
+    // "Add chord" opens the palette right here in the panel; picking pins to the word
+    // and the panel flips to showing the chord it just gained.
+    const [picking, setPicking] = useState(false);
+    const [customDraft, setCustomDraft] = useState('');
+    const gridRef = useRef<HTMLDivElement | null>(null);
+
+    // Open the grid looking at the chord the ghost was offering, wherever it sits in
+    // the list. Written straight onto the scroller rather than via scrollIntoView,
+    // which would also scroll the popover this panel lives in.
+    useEffect(() => {
+        if (!picking) return;
+        const scroller = gridRef.current;
+        const box = scroller?.querySelector<HTMLElement>('[data-browse-selected="true"]');
+        if (!scroller || !box) return;
+        scroller.scrollTop = box.offsetTop - scroller.clientHeight / 2 + box.offsetHeight / 2;
+    }, [picking]);
 
     const positions = useMemo(() => chordPositions(symbol || ''), [symbol]);
     const notes = useMemo(() => chordNotes(symbol || ''), [symbol]);
@@ -47,8 +110,9 @@ export default function WordChordSection({
     const current = positions[variation];
     const { playing, play, stop } = useChordPlayback(current);
 
-    // A different word's chord starts from its own first voicing.
-    useEffect(() => { setVariation(0); setMenuOpen(false); stop(); }, [symbol]);
+    // A different word's chord starts from its own first voicing — and a pick that
+    // just landed flips the panel from the palette to the chord it produced.
+    useEffect(() => { setVariation(0); setMenuOpen(false); setPicking(false); setCustomDraft(''); stop(); }, [symbol]);
 
     // Dismiss the menu the way every other menu in the app does: click away or Escape.
     useEffect(() => {
@@ -70,14 +134,232 @@ export default function WordChordSection({
         setVariation(((next % positions.length) + positions.length) % positions.length);
     };
 
-    // No chord on this word: render nothing at all and let the rhymes have the full
-    // popover. A panel whose only content is "no chord here" is a column of furniture
-    // saying nothing — most words carry no chord, so it was the usual case, not the
-    // exception.
-    if (!symbol) return null;
+    /** Opens the palette. Starts it on the chord the word already has, when the word
+     *  has one — changing a chord is a comparison against what is there now, so the
+     *  list should open where the writer is rather than somewhere random. */
+    const openPicker = () => {
+        stop();
+        const at = symbol ? browseList.indexOf(symbol) : -1;
+        if (at >= 0) setBrowseIndex(at);
+        setPicking(true);
+    };
+
+    // Picking: the whole palette laid out as boxes under a live display of whatever is
+    // selected — a box says which chord, the arrows say which of its shapes, and the
+    // display above follows both, so the choice is made on a fingering rather than on a
+    // list of names. Everything stays in the popover, beside the word it is for.
+    //
+    // Reached two ways, and identical from both: a word with no chord opens it from the
+    // ghosted suggestion, a word that already has one opens it from the change button.
+    // Committing calls the same onPickChord either way — pinning to a word replaces
+    // whatever was on it — so nothing here needs to know which case it is beyond the
+    // wording of the button.
+    if (picking && onPickChord) {
+        const submitCustom = (e: React.FormEvent) => {
+            e.preventDefault();
+            if (!isValidChord(customDraft)) return;
+            setPicking(false);
+            onPickChord(normalizeChord(customDraft));
+        };
+        return (
+            <div className="w-[195px] shrink-0 self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
+                <div className="flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-1 min-w-0">
+                        <div className="min-w-0">
+                            <div className="text-[25px] leading-none font-bold text-stone-900 tracking-tight truncate">{browseSymbol}</div>
+                            <div className="mt-1.5 text-[15px] font-medium text-stone-400 truncate">
+                                {chordNotes(browseSymbol).join(' · ')}
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => { browsePlayback.stop(); setPicking(false); }}
+                            aria-label={t('common.back') || 'Back'}
+                            title={t('common.back') || 'Back'}
+                            className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 transition-colors cursor-pointer"
+                        >
+                            <X size={15} />
+                        </button>
+                    </div>
+
+                    {/* The voicing arrows ride on the diagram itself, one at each edge
+                        and level with its middle, the way a carousel puts them on the
+                        thing they page. They sit in dead space: the SVG carries about
+                        20px of blank margin outside the low and high strings, and the
+                        tile is wider still, so nothing is covered. Dimmed rather than
+                        dropped when the chord has only one shape, so the diagram does
+                        not resize as you move through the grid. */}
+                    {browsePosition && (
+                        <div className="relative flex items-center justify-center bg-white rounded-[14px] py-1.5">
+                            <Fretboard position={browsePosition} scale={0.8} />
+                            <button
+                                type="button"
+                                onClick={() => stepBrowseVariation(-1)}
+                                disabled={browsePositions.length < 2}
+                                aria-label={t('creative.chord_prev') || 'Previous voicing'}
+                                className="absolute left-0.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-800 hover:bg-stone-100 transition-colors cursor-pointer active:scale-95 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-stone-400 disabled:cursor-default disabled:active:scale-100"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => stepBrowseVariation(1)}
+                                disabled={browsePositions.length < 2}
+                                aria-label={t('creative.chord_next') || 'Next voicing'}
+                                className="absolute right-0.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-800 hover:bg-stone-100 transition-colors cursor-pointer active:scale-95 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-stone-400 disabled:cursor-default disabled:active:scale-100"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Play is left on its own below, centred: it acts on the shape as
+                        a whole rather than moving between shapes. */}
+                    <div className="flex items-center justify-center select-none">
+                        <button
+                            type="button"
+                            onClick={() => browsePlayback.playing ? browsePlayback.stop() : browsePlayback.play()}
+                            aria-label={browsePlayback.playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
+                            title={browsePlayback.playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
+                            className="w-9 h-9 rounded-full bg-white border border-stone-200 hover:border-stone-300 text-stone-700 flex items-center justify-center shadow-sm transition-all cursor-pointer active:scale-95"
+                        >
+                            {browsePlayback.playing
+                                ? <Square size={11} className="fill-current" />
+                                : <Play size={12} className="fill-current" />}
+                        </button>
+                    </div>
+
+                    {/* Every chord at once, as boxes — this is how you say "give me
+                        Bm" without walking past everything to reach it. Touching a box
+                        moves the name, notes and shape above; the box is only how you
+                        get there, the diagram is still what you judge. Same boxes,
+                        same behaviour as the canvas chord card, in the width this
+                        column has. */}
+                    <div
+                        ref={gridRef}
+                        className="relative max-h-[136px] overflow-y-auto no-scrollbar -mx-0.5 px-0.5"
+                    >
+                        <div className="grid grid-cols-3 gap-1.5">
+                            {browseList.map((sym, i) => {
+                                const isBrowsed = i === browseIndex;
+                                return (
+                                    <button
+                                        key={sym}
+                                        type="button"
+                                        data-browse-selected={isBrowsed ? 'true' : undefined}
+                                        onClick={() => { browsePlayback.stop(); setBrowseIndex(i); }}
+                                        className={`h-8 rounded-[10px] border text-[11.5px] font-semibold flex items-center justify-center transition-colors cursor-pointer ${
+                                            isBrowsed
+                                                ? 'bg-stone-800 text-white border-stone-800'
+                                                : 'bg-white text-stone-600 border-stone-200/70 hover:border-stone-400 hover:text-stone-900'
+                                        }`}
+                                    >
+                                        {sym}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Says what it will actually do: give this word its first chord, or
+                    replace the one it already has. */}
+                <button
+                    type="button"
+                    // Closes here as well as via the symbol-changed effect: re-picking the
+                    // chord the word already has leaves `symbol` untouched, and without
+                    // this the picker would just sit there looking like it ignored you.
+                    onClick={() => { browsePlayback.stop(); setPicking(false); onPickChord(browseSymbol); }}
+                    className="w-full h-10 rounded-[12px] bg-stone-800 hover:bg-stone-900 text-white text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98]"
+                >
+                    {symbol
+                        ? <ArrowUpDown size={14} className="stroke-[2.5]" />
+                        : <Plus size={14} className="stroke-[2.5]" />}
+                    <span className="truncate">
+                        {symbol
+                            ? (t('creative.chord_change') || 'Change chord')
+                            : (t('creative.add_chord_button') || 'Add chord')}
+                    </span>
+                </button>
+
+                {/* Anything outside the palette. */}
+                <form onSubmit={submitCustom} className="flex gap-1.5">
+                    <input
+                        value={customDraft}
+                        onChange={(e) => setCustomDraft(e.target.value)}
+                        // A chord symbol, not prose — notation needs no translation.
+                        placeholder="C#m7"
+                        className="flex-1 min-w-0 h-8 px-2.5 rounded-[10px] bg-white border border-stone-200/70 text-[12px] font-medium text-stone-700 placeholder:text-stone-400 focus:outline-none focus:border-stone-400"
+                    />
+                    <button
+                        type="submit"
+                        disabled={!isValidChord(customDraft)}
+                        aria-label={t('creative.add_chord_button') || 'Add chord'}
+                        className="w-8 h-8 shrink-0 rounded-[10px] bg-white border border-stone-200/70 text-stone-700 hover:border-stone-400 flex items-center justify-center transition-all cursor-pointer active:scale-95 disabled:opacity-35 disabled:cursor-default"
+                    >
+                        <Plus size={14} className="stroke-[2.5]" />
+                    </button>
+                </form>
+            </div>
+        );
+    }
+
+    // No chord on this word. On a read-only canvas there is nothing to offer, so
+    // nothing renders and the rhymes take the full popover. When the writer CAN add
+    // one, the panel shows a ghosted example chord with only the action lit — an
+    // invitation, not a fake answer.
+    if (!symbol) {
+        if (!onPickChord) return null;
+
+        // The ghost IS the browser's current position, voicing included — so clicking it
+        // opens on exactly the shape that was being offered, and backing out of the
+        // picker returns to the same one rather than snapping to the chord's first.
+        const ghostPosition = browsePosition;
+        return (
+            <div className="w-[195px] shrink-0 self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
+                {/* The suggestion IS the way in — clicking it opens the palette right here,
+                    so the writer never leaves the word they are looking at. Ghosted because
+                    it is an offer, not a chord this word has. */}
+                <button
+                    type="button"
+                    onClick={openPicker}
+                    aria-label={t('creative.add_chord_button') || 'Add chord'}
+                    className="opacity-30 hover:opacity-50 transition-opacity select-none flex flex-col gap-3 text-left cursor-pointer"
+                >
+                    <div className="min-w-0">
+                        <div className="text-[25px] leading-none font-bold text-stone-900 tracking-tight truncate">{browseSymbol}</div>
+                        <div className="mt-1.5 text-[15px] font-medium text-stone-400 truncate">
+                            {chordNotes(browseSymbol).join(' · ')}
+                        </div>
+                    </div>
+                    {/* Bigger here than anywhere else in the panel: with nothing else to
+                        show, the shape IS the offer. Nearly the full width of the column —
+                        the SVG runs 152px at scale 1 against 163px of room inside the
+                        padding — so it is the width, not spare height, that sizes it. */}
+                    {ghostPosition && (
+                        <div className="flex items-center justify-center bg-white rounded-[14px] py-2">
+                            <Fretboard position={ghostPosition} scale={0.95} />
+                        </div>
+                    )}
+                </button>
+                {/* Sits directly under the shape it belongs to. This used to be pushed to
+                    the floor with mt-auto, back when the panel stretched to the rhyme
+                    list's height — the panel is self-start now, so the flow already puts
+                    the action where it reads. */}
+                <button
+                    type="button"
+                    onClick={openPicker}
+                    className="w-full h-10 rounded-[12px] bg-white border border-stone-200 shadow-sm hover:shadow hover:border-stone-300 text-stone-800 text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98]"
+                >
+                    <Plus size={14} className="stroke-[2.5]" />
+                    {t('creative.add_chord_button') || 'Add chord'}
+                </button>
+            </div>
+        );
+    }
 
     return (
-        <div className="w-[195px] shrink-0 flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
+        <div className="w-[195px] shrink-0 self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
             {/* The chord's own actions live in a menu beside its name, where the thing
                 they act on is. The remove action used to sit as a bare bin next to the
                 voicing pager — two unrelated controls sharing a row, with the destructive
@@ -158,20 +440,41 @@ export default function WordChordSection({
             )}
 
             <div className="flex flex-col gap-2">
+                    {/* Hearing the chord and swapping it are the two things a writer does
+                        with a chord that is already placed, so they share the row as a
+                        matched pair of squares. Both icon-only: a play triangle and a
+                        two-way arrow need no caption, and the label was the only thing
+                        making the row's two halves different sizes. */}
+                    <div className="flex items-center justify-center gap-2">
                     {current ? (
                         <button
                             type="button"
                             onClick={playing ? stop : play}
-                            className="w-full h-[47px] rounded-[16px] bg-white border border-stone-200 shadow-sm hover:border-stone-300 text-stone-800 text-[15px] font-bold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98]"
+                            aria-label={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
+                            title={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
+                            className="w-[47px] h-[47px] shrink-0 rounded-[16px] bg-white border border-stone-200 shadow-sm hover:border-stone-300 text-stone-800 flex items-center justify-center transition-all cursor-pointer active:scale-[0.98]"
                         >
-                            {playing ? <Square size={14} className="fill-current" /> : <Play size={16} className="fill-current" />}
-                            {playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
+                            {playing
+                                ? <Square size={14} className="fill-current" />
+                                : <Play size={16} className="fill-current" />}
                         </button>
                     ) : (
-                        <span className="text-[15px] font-medium text-stone-400">
+                        <span className="flex-1 min-w-0 text-[15px] font-medium text-stone-400">
                             {t('creative.chord_no_diagram') || 'No guitar shape for this chord yet.'}
                         </span>
                     )}
+                    {onPickChord && (
+                        <button
+                            type="button"
+                            onClick={openPicker}
+                            aria-label={t('creative.chord_change') || 'Change chord'}
+                            title={t('creative.chord_change') || 'Change chord'}
+                            className="w-[47px] h-[47px] shrink-0 rounded-[16px] bg-white border border-stone-200 shadow-sm hover:border-stone-300 text-stone-700 hover:text-stone-900 flex items-center justify-center transition-all cursor-pointer active:scale-[0.98]"
+                        >
+                            <ArrowUpDown size={16} />
+                        </button>
+                    )}
+                    </div>
 
                     {/* Just the voicing pager now, so it centres instead of being pushed
                         left by a control that no longer shares the row. */}

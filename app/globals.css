@@ -680,33 +680,74 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     animation: mind-power-panel-enter 200ms ease-out forwards;
 }
 
+/* Profile view: the whole view (header + panel) slides in from the right when the
+   route is entered, and slides back out while the Back button holds navigation for
+   the same 420ms the profile page uses for its own slide-out to the guide. `both`
+   matters on the exit — the view must hold the faded-out end state during the gap
+   between animation end and the route actually changing. */
+@keyframes profile-view-in {
+    from { opacity: 0; transform: translateX(72px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+.profile-view-enter {
+    animation: profile-view-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes profile-view-out {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(72px); }
+}
+.profile-view-exit {
+    animation: profile-view-out 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .publish-arrow-launch,
     .publish-arrow-enter,
-    .mind-power-panel-enter {
+    .mind-power-panel-enter,
+    .profile-view-enter,
+    .profile-view-exit {
         animation-duration: 1ms;
     }
 }
 
 /* Publish button: indeterminate loading ring while the post is being written to
-   Firestore — the same mesh gradient palette as the rest of the celebration, spun
-   into a continuous ring rather than a fixed-progress sweep since we don't know how
-   long the write will take. */
-@keyframes publish-loading-ring-spin {
-    to { transform: rotate(360deg); }
+   Firestore — the same travelling multicolour border as the save and invite rings,
+   looping rather than running once since we don't know how long the write will take.
+
+   It is the border that moves, not the element. The previous version spun the whole
+   box behind a `radial-gradient(farthest-side)` mask, and a radial mask on a box
+   wider than it is tall describes an ELLIPSE: on the collapsed circle it read as a
+   ring, but the moment the pill grew out to fit "Publishing…" the mask stopped
+   following the button's outline and the rotation swept the leftover ellipse around
+   as a ribbon crossing the label. Masking content-box against padding-box instead
+   carves the middle out of whatever shape the element actually is, so the ring
+   traces the pill at any width and nothing has to rotate to make the colour move. */
+@keyframes publish-loading-ring-travel {
+    from { background-position: 0% 50%; }
+    to   { background-position: 200% 50%; }
 }
 .publish-loading-ring {
     position: absolute;
     inset: -3px;
     border-radius: 9999px;
+    /* The ring's own thickness: the band left between the two masks. */
+    padding: 2px;
     pointer-events: none;
-    background: conic-gradient(from 0deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-    animation: publish-loading-ring-spin 900ms linear infinite;
+    background: linear-gradient(90deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
+    background-size: 220% 100%;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    /* Quicker than the invite ring's 2.6s: that one is a standing offer, this one is
+       a wait, and a wait should look like it is getting on with something. */
+    animation: publish-loading-ring-travel 1.6s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-    .publish-loading-ring { animation-duration: 3s; }
+    /* Slowed rather than stopped: the colour still has to be moving for the button to
+       read as busy, and a gradient drifting round a border is mild enough to keep. */
+    .publish-loading-ring { animation-duration: 3.6s; }
 }
 /* Empty-canvas backdrop: the animated sky dissolves away entirely while the
    landmark illustration eases forward, so the scene comes to rest instead of
@@ -897,7 +938,16 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     background: transparent;
     opacity: 0;
     outline: none;
+    /* The dialog scrolls, and a horizontal drag that starts on a share used to be claimed
+       by that scroll the moment it wandered a few pixels off the horizontal: the finger
+       kept moving, the share stopped following, and the panel slid instead. The track owns
+       every gesture that starts on it. */
+    touch-action: none;
 }
+/* Dragging is the point, so say so on the whole track rather than only where a thumb
+   would have been — there is no visible thumb to aim at. */
+.publish-split-range:not(:disabled) { cursor: grab; }
+.publish-split-range:not(:disabled):active { cursor: grabbing; }
 .publish-split-range::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -1074,3 +1124,182 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
         animation: none !important;
     }
 }
+
+/* A word swapped in from the rhyme or synonym list.
+   The page scrolls it back into view, and this sweeps a lime gradient across it so
+   the eye lands on what actually changed rather than hunting the line for it.
+   The gradient travels right off the end, so nothing is left behind to clean up
+   visually — the class is removed once the sweep is done. Lime because that is
+   already what a selected word wears in the canvas. */
+@keyframes word-replaced-sweep {
+    0%   { background-position: 220% 0; }
+    100% { background-position: -220% 0; }
+}
+
+.word-replaced-flash {
+    background-image: linear-gradient(
+        100deg,
+        rgba(237, 255, 142, 0) 0%,
+        rgba(237, 255, 142, 0.95) 35%,
+        rgba(229, 254, 108, 1) 50%,
+        rgba(237, 255, 142, 0.95) 65%,
+        rgba(237, 255, 142, 0) 100%
+    );
+    background-size: 220% 100%;
+    background-repeat: no-repeat;
+    animation: word-replaced-sweep 1.5s ease-in-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* No sweep, but still say which word changed — a flat tint that the same
+       timer takes away. */
+    .word-replaced-flash {
+        animation: none;
+        background-image: none;
+        background-color: rgba(237, 255, 142, 0.9);
+    }
+}
+
+/* Profile "My songs" vinyl cards. The disc is pure CSS: fine repeating rings for
+   the grooves, a conic sheen for the light catching the surface, and a colored
+   centre label (per-song, set via --song-label-color) with a punched hole. */
+.song-disc {
+    position: relative;
+    border-radius: 9999px;
+    background: repeating-radial-gradient(
+        circle at 50% 50%,
+        #1c1917 0px,
+        #1c1917 1.5px,
+        #292524 1.5px,
+        #292524 3px
+    );
+    box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.16),
+        inset 0 0 0 2px rgba(255, 255, 255, 0.05);
+}
+.song-disc::before {
+    /* Light sheen sweeping across the grooves. */
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: conic-gradient(
+        from 20deg,
+        rgba(255, 255, 255, 0.09),
+        transparent 22%,
+        rgba(255, 255, 255, 0.05) 48%,
+        transparent 72%,
+        rgba(255, 255, 255, 0.09)
+    );
+    pointer-events: none;
+}
+.song-disc-label {
+    position: absolute;
+    inset: 33%;
+    border-radius: 9999px;
+    background-color: var(--song-label-color, #5FA8B8);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.song-disc-hole {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 9%;
+    height: 9%;
+    transform: translate(-50%, -50%);
+    border-radius: 9999px;
+    background: #FAF9F5;
+    box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.18);
+}
+
+@keyframes song-disc-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+/* The class stays on while a card is active; playback only flips
+   animation-play-state (inline), so pausing freezes the disc mid-turn and
+   resuming picks up from the same angle — like a real platter. */
+.song-disc--spin {
+    animation: song-disc-spin 3.6s linear infinite;
+    animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .song-disc--spin {
+        animation: none;
+    }
+}
+
+/* An audio card being transcribed.
+   The same five-stop gradient the canvas and Mind Power rings use, but travelling on
+   a loop instead of running once and fading: this marks work in progress, and it has
+   to keep saying so for as long as the request takes rather than announcing a result.
+   Two layers — a crisp masked ring on the card's edge, and the same gradient blurred
+   out behind it for the halo. */
+@keyframes transcribe-glow-travel {
+    from { background-position: 0% 50%; }
+    to   { background-position: 200% 50%; }
+}
+
+/* Wrapper only exists to scope the radius modifier. display:contents keeps it out
+   of the card's flex layout while its children still resolve against the card. */
+.transcribe-glow {
+    display: contents;
+}
+
+.transcribe-glow-ring,
+.transcribe-glow-halo {
+    position: absolute;
+    border-radius: 9999px;
+    pointer-events: none;
+    background: linear-gradient(90deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
+    background-size: 220% 100%;
+    animation: transcribe-glow-travel 2.4s linear infinite;
+}
+
+/* Carves its own middle out so only the border is painted, leaving the card's
+   own white background untouched. */
+.transcribe-glow-ring {
+    inset: -2px;
+    padding: 2px;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+
+/* The bloom outside the ring — and ONLY outside it.
+   z-index: -1 was not enough to keep this off the card's face. The cards are
+   positioned and carry a z-index, so they establish a stacking context, and inside
+   one a negative-z child paints above the parent's own background rather than
+   behind it: the blurred gradient washed straight across the white fill.
+   So it is masked into a band the same way the ring is, with the hole set to
+   exactly the card's edge. Mask is applied after filter, so the blur softens
+   outwards and is then cut dead at the boundary — the card's own border sits on
+   that line and covers the cut. The fill underneath stays untouched. */
+.transcribe-glow-halo {
+    inset: -7px;
+    padding: 7px;
+    filter: blur(11px);
+    opacity: 0.55;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* Hold the gradient still. The card is still visibly marked as working,
+       without a loop running in the corner of the eye for a minute at a time. */
+    .transcribe-glow-ring,
+    .transcribe-glow-halo {
+        animation: none;
+        background-position: 50% 50%;
+    }
+}
+
+/* Radius modifiers, for cards that are not pills. Each is the card's own radius
+   plus the layer's inset, so the glow stays concentric with the corner it traces
+   instead of tightening into it. */
+.transcribe-glow--r16 .transcribe-glow-ring { border-radius: 18px; }
+.transcribe-glow--r16 .transcribe-glow-halo { border-radius: 23px; }
+.transcribe-glow--r32 .transcribe-glow-ring { border-radius: 34px; }
+.transcribe-glow--r32 .transcribe-glow-halo { border-radius: 39px; }

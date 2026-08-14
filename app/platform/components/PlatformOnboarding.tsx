@@ -18,9 +18,9 @@ import OnboardingTour, { TourStep } from './OnboardingTour';
  * then paste the printed URLs here. Use a NEW slug — the filename is the cache key.
  */
 const INTRO_VIDEO_SRC =
-    'https://firebasestorage.googleapis.com/v0/b/mep-v2.firebasestorage.app/o/content%2Flessons%2Fonboarding-demo-tour-v3.mp4?alt=media';
+    'https://firebasestorage.googleapis.com/v0/b/mep-v2.firebasestorage.app/o/content%2Flessons%2Fonboarding-demo-tour-v4.mp4?alt=media';
 const INTRO_VIDEO_POSTER =
-    'https://firebasestorage.googleapis.com/v0/b/mep-v2.firebasestorage.app/o/content%2Flessons%2Fonboarding-demo-tour-v3-poster.jpg?alt=media';
+    'https://firebasestorage.googleapis.com/v0/b/mep-v2.firebasestorage.app/o/content%2Flessons%2Fonboarding-demo-tour-v4-poster.jpg?alt=media';
 
 /** The guide runs on the Create canvas, where every highlighted feature lives. */
 const GUIDE_ROUTE = '/platform/create';

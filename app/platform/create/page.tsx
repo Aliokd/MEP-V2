@@ -36,6 +36,28 @@ const PRESENCE_RECHECK_MS = 15000;
  * and two copies of this list would eventually disagree.
  */
 /**
+ * Hard ceiling on a single take, for canvas recordings and Demo Studio tracks alike.
+ * A recording is uploaded whole to Storage and, for canvas takes, sent whole to the
+ * transcription model — both of which are billed by size, and the transcription
+ * endpoint's own time budget can't finish a take much longer than this anyway. Ten
+ * minutes is far past any voice memo or single-instrument pass, so this catches the
+ * left-it-running case rather than interrupting real work.
+ */
+const MAX_RECORDING_SECONDS = 600;
+
+/**
+ * Encode rate for every take we record, canvas and Demo Studio alike.
+ *
+ * Opus reaches transparency — the point past which more bits buy nothing anyone can
+ * hear — at roughly 96 kbps for stereo music and lower still for a single voice.
+ * These takes are one singer or one instrument through a laptop or phone mic, so
+ * 128 kbps sits comfortably above that with headroom to spare, and halves what the
+ * old 256 kbps wrote to Storage and sent to the transcription model for audio that
+ * sounded identical.
+ */
+const RECORDING_BITS_PER_SECOND = 128000;
+
+/**
  * Words that stand in for other words — pronouns and their compounds, articles,
  * modals — across the three UI languages. No thesaurus carries synonyms for these
  * (there is nothing to substitute a substitute with), so when one turns up empty
@@ -59,6 +81,23 @@ const LEXICON_FUNCTION_WORDS = new Set([
     'noe', 'alt', 'ingenting', 'ingen', 'noen', 'alle', 'jeg', 'dere', 'mi', 'di',
     'vårt', 'denne', 'dette', 'disse', 'og', 'fordi', 'kunne', 'burde',
 ]);
+
+/**
+ * A clicked token reduced to the word itself.
+ *
+ * Keeps the marks that live INSIDE a word and drops the ones that merely bracket it —
+ * the same shape the lyric tokenizer uses (`\p{L}+(?:['’\-]\p{L}+)*`). Stripping every
+ * non-letter turned "I've" into "ive": a word the writer never typed, which found no
+ * rhymes and was then flagged by the spellchecker as a misspelling of the word it had
+ * just been made from.
+ */
+function cleanClickedWord(raw: string): string {
+    return raw
+        // One apostrophe, so a curly "I’ve" and a straight "I've" are the same word.
+        .replace(/[’ʼ]/g, "'")
+        .replace(/[^\p{L}'\-]/gu, '')
+        .replace(/^['\-]+|['\-]+$/g, '');
+}
 
 const CANVAS_INTERACTIVE_SELECTOR =
     '.phrase-row-container, .canvas-add-menu, .canvas-flow-card, .chord-card, .word-token, .suggestions-popover, button, a, input, textarea, select, video, img, [role="button"]';
@@ -88,19 +127,20 @@ import { fitToFirestore } from '@/lib/projectPayload';
 // Chord picking, validation and note lookup all moved into ChordCard — the page
 // only needs the shape it stores.
 import { type ChordMark } from '@/lib/chords';
-import ChordCard from './components/ChordCard';
+import ChordCard, { PlacedChordCard } from './components/ChordCard';
 import WordChordSection from './components/WordChordSection';
 import PublishDialog, { type PublishSplit } from './components/PublishDialog';
 import Tooltip from '@/components/Tooltip';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
-import { authedFetch } from '@/lib/authedFetch';
+import { authedFetch, authedFetchRetrying } from '@/lib/authedFetch';
 import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, updateDoc, writeBatch, arrayRemove, deleteDoc, arrayUnion, runTransaction } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, getBlob } from 'firebase/storage';
 import {
     migrateLegacyNotesToProjects,
     inviteCollaboratorByEmail,
+    inviteCollaboratorByUid,
     removeCollaboratorFromProject,
     notifyCollaboratorRemoved,
     getCollaboratorProfiles,
@@ -114,6 +154,7 @@ import {
     deleteProjectSubcollections,
     type ProjectComment
 } from './collabUtils';
+import InviteCollaboratorField, { isEmailAddress, type InvitePick } from './components/InviteCollaboratorField';
 import {
     Folder, 
     FileText, 
@@ -1721,7 +1762,10 @@ const PhraseRow = React.memo(function PhraseRow({
             
             {phrase.id.startsWith('p-docheader-') ? (
                 <div className="w-full max-w-2xl mx-auto px-4 py-2 select-none">
-                    <div className="flex items-center justify-between bg-stone-50 border border-stone-200/80 rounded-2xl p-4 shadow-3xs group/doc">
+                    <div className="relative flex items-center justify-between bg-stone-50 border border-stone-200/80 rounded-2xl p-4 shadow-3xs group/doc">
+                        {transcribingDocId === phrase.id.replace('p-docheader-', '') && (
+                            <TranscribeGlow radius="r16" />
+                        )}
                         <div className="flex items-center gap-3.5">
                             {/* Neutral file icon — file type is already spelled out in the meta line,
                                 so per-format colour coding just added noise against the grey UI. */}
@@ -1755,7 +1799,7 @@ const PhraseRow = React.memo(function PhraseRow({
                                             onTranscribeDocBlock(docId, phrase.id);
                                         }}
                                         aria-label={t('card.extract_text')}
-                                        className="w-7 h-7 rounded-full bg-stone-100 hover:bg-emerald-50 hover:text-emerald-600 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none disabled:opacity-35"
+                                        className="w-9 h-9 rounded-full bg-stone-100 hover:bg-emerald-50 hover:text-emerald-600 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none disabled:opacity-35"
                                     >
                                         {transcribingDocId === phrase.id.replace('p-docheader-', '') ? (
                                             <div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -1776,7 +1820,7 @@ const PhraseRow = React.memo(function PhraseRow({
                                             onDeleteDocBlock(docId, phrase.id);
                                         }}
                                         aria-label={t('card.delete_document_block')}
-                                        className="w-7 h-7 rounded-full bg-stone-100 hover:bg-red-50 hover:text-red-500 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none"
+                                        className="w-9 h-9 rounded-full bg-stone-100 hover:bg-red-50 hover:text-red-500 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none"
                                     >
                                         <Trash2 size={13} />
                                     </button>
@@ -1983,13 +2027,15 @@ const PhraseRow = React.memo(function PhraseRow({
                                                 if (setDragOverWordIndex) setDragOverWordIndex(null);
                                             }}
                                             onClick={(e) => handleWordClick(e, word, tokenOffset + idx, `${phrase.id}:${idx}`)}
+                                            // Lets the page find this exact word in the DOM after a
+                                            // rhyme swap, to scroll to it and flash it.
+                                            data-word-key={`${phrase.id}:${idx}`}
                                             className={`
                                                 word-token text-stone-700 hover:text-stone-900 hover:font-medium rounded-[4px] px-[3px] py-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 inline-block select-none relative
                                                 ${isWordClicked ? 'bg-[#EDFF8E] text-stone-950 shadow-xs scale-102 z-10' : 'hover:bg-stone-200/90'}
                                                 ${isWordDragged ? 'opacity-30' : ''}
                                                 ${isWordDragOver ? 'bg-amber-100/80 scale-105' : ''}
-                                                ${isChordDragOver ? 'outline-2 outline-dashed outline-indigo-400 outline-offset-2 bg-indigo-50/70' : ''}
-                                                ${wordChord && !isChordDragOver ? 'outline outline-1 outline-indigo-300/70 outline-offset-2' : ''}
+                                                ${isChordDragOver ? 'outline-2 outline-dashed outline-stone-500 outline-offset-2 bg-stone-100/80' : ''}
                                             `}
                                         >
                                             {/* Pinned chord. Absolutely positioned so it sits above the
@@ -2003,7 +2049,37 @@ const PhraseRow = React.memo(function PhraseRow({
                                                     // token, so chord and lyric open the one popover that
                                                     // already carries both.
                                                     title={wordChord.symbol}
-                                                    className="chord-anchor absolute -top-[1.75em] left-0 text-[0.34em] font-bold leading-none tracking-tight text-white bg-stone-700 hover:bg-stone-900 px-[0.45em] py-[0.25em] rounded-[0.35em] cursor-pointer whitespace-nowrap z-20 transition-colors"
+                                                    // Inline, not a `text-[…em]` utility. Every other
+                                                    // measurement on this badge — padding, radius, the
+                                                    // -top offset — is in em and so resolves against
+                                                    // THIS number. If the utility class is ever missing
+                                                    // from the served CSS the font-size silently falls
+                                                    // back to the word's own, and the whole badge
+                                                    // inflates to roughly lyric size instead of simply
+                                                    // losing one rule. An inline style cannot be
+                                                    // dropped by a stale build or a JIT scan.
+                                                    style={{ fontSize: '0.25em' }}
+                                                    // Two offsets doing two different jobs, both measured
+                                                    // rather than eyeballed (42px lyrics, 10.5px badge):
+                                                    //
+                                                    // -top is in em and so resolves against the BADGE's
+                                                    // own font-size. 0.5em leaves 8px between the badge
+                                                    // and the top of an ordinary letter — close enough to
+                                                    // read as belonging to the word. It is not tighter
+                                                    // because a leading Å/Ä/Ø carries its ring ~6px above
+                                                    // cap height, and those are ordinary letters in the
+                                                    // Norwegian and Swedish lyrics this has to hold; at
+                                                    // 0.5em they clear the badge by 2px, at 0.22em they
+                                                    // collide with it.
+                                                    //
+                                                    // left is in PX, deliberately, and mirrors the token's
+                                                    // own `px-[3px]`. An absolute child anchors to the
+                                                    // padding box, so `left-0` put the badge 3px to the
+                                                    // left of the first letter — visibly off, and the one
+                                                    // thing the eye reads as misalignment. Matching the
+                                                    // literal padding value keeps the two in lockstep;
+                                                    // an em value here would drift as the badge resizes.
+                                                    className="chord-anchor absolute -top-[0.5em] left-[3px] font-bold leading-none tracking-tight text-white bg-stone-700 hover:bg-stone-900 px-[0.38em] py-[0.18em] rounded-[0.3em] cursor-pointer whitespace-nowrap z-20 transition-colors"
                                                 >
                                                     {wordChord.symbol}
                                                 </span>
@@ -2270,6 +2346,41 @@ interface DocumentCapsuleCardProps {
     onDragEnd?: () => void;
 }
 
+/**
+ * Icon-only actions on the media cards — transcribe, delete, send to studio.
+ *
+ * The glyph stays small; these are quiet controls sitting beside the content. The
+ * TARGET does not: these used to be the bare 14px SVG with no padding at all, which
+ * is why the transcribe icon took several attempts to hit. Padding makes it a ~30px
+ * square, and the matching negative margin cancels that padding for layout — so the
+ * card's spacing, dividers and height are exactly as they were, and only the
+ * clickable area grew.
+ */
+const CARD_ICON_ACTION =
+    'relative p-2 -m-2 rounded-full flex items-center justify-center transition-colors cursor-pointer shrink-0 disabled:opacity-35 disabled:cursor-default';
+
+/** Same idea in the docked pill, which is 22px tall and has less room to give. */
+const CARD_ICON_ACTION_TIGHT =
+    'relative p-1.5 -m-1.5 rounded-full flex items-center justify-center transition-colors cursor-pointer shrink-0 disabled:opacity-35 disabled:cursor-default';
+
+/**
+ * The travelling gradient that marks a card as being read — a take transcribed, a
+ * photo scanned, a document's text pulled out. Same five-stop gradient as the canvas
+ * and Mind Power rings, looping rather than running once, because this says "working"
+ * rather than "done".
+ *
+ * The card it sits in must be `relative`. `radius` names the card's own corner so the
+ * glow stays concentric with it; pills need nothing.
+ */
+function TranscribeGlow({ radius }: { radius?: 'r16' | 'r32' }) {
+    return (
+        <span className={`transcribe-glow${radius ? ` transcribe-glow--${radius}` : ''}`} aria-hidden="true">
+            <span className="transcribe-glow-halo" />
+            <span className="transcribe-glow-ring" />
+        </span>
+    );
+}
+
 function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDragStart, onDragEnd }: DocumentCapsuleCardProps) {
     const { t } = useLanguage();
     const formatSize = (bytes?: number) => {
@@ -2284,7 +2395,8 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDr
             draggable={!!onDragStart}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            className={`bg-white border border-stone-200/80 rounded-full px-5 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3.5 z-30 transition-all select-none max-w-full my-2 mx-auto ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
+            className={`relative bg-white border border-stone-200/80 rounded-full px-5 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3.5 z-30 transition-all select-none max-w-full my-2 mx-auto ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
+            {isScanning && <TranscribeGlow />}
             {/* File icon — neutral, matching the Scan/meta/delete tones on this card */}
             <div className="p-1 rounded-md text-stone-600 flex items-center justify-center shrink-0">
                 <FileText size={17} className="stroke-[2.2]" />
@@ -2307,7 +2419,7 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDr
                 type="button"
                 disabled={isScanning}
                 onClick={onScan}
-                className="flex items-center gap-1.5 text-stone-700 hover:text-stone-950 font-semibold text-[13px] transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                className="flex items-center gap-1.5 text-stone-700 hover:text-stone-950 hover:bg-stone-100/80 font-semibold text-[13px] rounded-full transition-colors cursor-pointer h-9 px-3.5 -my-1 shrink-0 disabled:opacity-50"
             >
                 {isScanning ? (
                     <Loader2 size={13} className="animate-spin text-stone-600" />
@@ -2332,7 +2444,7 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDr
                     type="button"
                     onClick={onDelete}
                     aria-label={t('card.delete_document')}
-                    className="text-stone-400 hover:text-red-500 transition-colors p-1 cursor-pointer shrink-0"
+                    className={`${CARD_ICON_ACTION} text-stone-400 hover:text-red-500 hover:bg-red-50`}
                 >
                     <Trash2 size={14} />
                 </button>
@@ -2359,7 +2471,8 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
             draggable={!!onDragStart}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            className={`rounded-[32px] bg-white p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-3 w-full max-w-[440px] mx-auto select-none my-3 ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
+            className={`relative rounded-[32px] bg-white p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-3 w-full max-w-[440px] mx-auto select-none my-3 ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
+            {isScanning && <TranscribeGlow radius="r32" />}
             {/* Image Preview Area */}
             <div 
                 onClick={onPreview}
@@ -2396,7 +2509,7 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
                     type="button"
                     disabled={isScanning}
                     onClick={onScan}
-                    className="flex items-center gap-1.5 text-stone-700 hover:text-stone-950 font-semibold text-[13px] transition-colors cursor-pointer px-2 py-1 shrink-0 disabled:opacity-50"
+                    className="flex items-center gap-1.5 text-stone-700 hover:text-stone-950 hover:bg-stone-100/80 font-semibold text-[13px] rounded-full transition-colors cursor-pointer h-9 px-3.5 shrink-0 disabled:opacity-50"
                 >
                     {isScanning ? (
                         <Loader2 size={14} className="animate-spin text-stone-600" />
@@ -2414,7 +2527,7 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
                         type="button"
                         onClick={onDelete}
                         aria-label={t('card.delete_image')}
-                        className="text-stone-400 hover:text-red-500 transition-colors p-1 cursor-pointer shrink-0"
+                        className={`${CARD_ICON_ACTION} text-stone-400 hover:text-red-500 hover:bg-red-50`}
                     >
                         <Trash2 size={14} />
                     </button>
@@ -2791,10 +2904,13 @@ function AudioCapsulePlayer({
             <div
                 draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
                 onClick={(e) => e.stopPropagation()} {...sharedTouchHandlers}
-                className={`bg-white border border-stone-200/80 rounded-full px-3 py-0.5 shadow-sm flex items-center gap-2.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing touch-none ${
+                className={`relative bg-white border border-stone-200/80 rounded-full px-3 py-0.5 shadow-sm flex items-center gap-2.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing touch-none ${
                     draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
                 }`}
             >
+                {/* Travelling gradient while the take is being transcribed — the card
+                    itself shows the work, rather than only the label inside it. */}
+                {isTranscribing && <TranscribeGlow />}
                 {renderAudioEl()}
 
                 {/* Title & Badge */}
@@ -2876,7 +2992,7 @@ function AudioCapsulePlayer({
                     <Tooltip label={t('card.transcribe_recording')}>
                         <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onTranscribe(); }}
                             aria-label={t('card.transcribe_recording')}
-                            className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-35">
+                            className={`${CARD_ICON_ACTION_TIGHT} text-stone-400 hover:text-emerald-600 hover:bg-emerald-50`}>
                             <RefreshCw className="w-2.5 h-2.5" strokeWidth={2.2} />
                         </button>
                     </Tooltip></>
@@ -2887,7 +3003,7 @@ function AudioCapsulePlayer({
                 <Tooltip label={t('card.delete_recording')}>
                     <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onDelete(); }}
                         aria-label={t('card.delete_recording')}
-                        className="text-stone-404 hover:text-red-500 transition-colors cursor-pointer disabled:opacity-35">
+                        className={`${CARD_ICON_ACTION_TIGHT} text-stone-400 hover:text-red-500 hover:bg-red-50`}>
                         <svg className="w-2.5 h-2.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
@@ -2902,10 +3018,13 @@ function AudioCapsulePlayer({
         <div
             draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
             onClick={(e) => e.stopPropagation()} {...sharedTouchHandlers}
-            className={`bg-white border border-stone-200/80 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-1.5 sm:gap-3 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 touch-none max-w-full ${
+            className={`relative bg-white border border-stone-200/80 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-1.5 sm:gap-3 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 touch-none max-w-full ${
                 draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
             }`}
         >
+            {/* Travelling gradient while the take is being transcribed — the card
+                itself shows the work, rather than only the label inside it. */}
+            {isTranscribing && <TranscribeGlow />}
             {renderAudioEl()}
 
             {/* Title & Badge */}
@@ -2921,7 +3040,7 @@ function AudioCapsulePlayer({
                             type="button"
                             onClick={(e) => { e.stopPropagation(); onReopenInStudio(); }}
                             aria-label={t('studio.reopen_in_studio')}
-                            className="w-5 h-5 flex items-center justify-center rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
+                            className={`${CARD_ICON_ACTION} text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50`}
                         >
                             <ArrowUpRight className="w-3 h-3" strokeWidth={2.5} />
                         </button>
@@ -2933,7 +3052,7 @@ function AudioCapsulePlayer({
                             type="button"
                             onClick={(e) => { e.stopPropagation(); onAddAsStudioTrack(); }}
                             aria-label={t('studio.add_to_studio')}
-                            className="w-5 h-5 flex items-center justify-center rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
+                            className={`${CARD_ICON_ACTION} text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50`}
                         >
                             <ArrowUpRight className="w-3 h-3" strokeWidth={2.5} />
                         </button>
@@ -2988,7 +3107,7 @@ function AudioCapsulePlayer({
                 <Tooltip label={t('card.transcribe_recording')}>
                     <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onTranscribe(); }}
                         aria-label={t('card.transcribe_recording')}
-                        className="text-stone-404 hover:text-emerald-600 transition-colors cursor-pointer shrink-0 disabled:opacity-35">
+                        className={`${CARD_ICON_ACTION} text-stone-400 hover:text-emerald-600 hover:bg-emerald-50`}>
                         <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} />
                     </button>
                 </Tooltip></>
@@ -2999,7 +3118,7 @@ function AudioCapsulePlayer({
             <Tooltip label={t('card.delete_recording')}>
                 <button disabled={isTranscribing} onClick={(e) => { e.stopPropagation(); onDelete(); }}
                     aria-label={t('card.delete_recording')}
-                    className="text-stone-404 hover:text-red-500 transition-colors cursor-pointer shrink-0 disabled:opacity-35">
+                    className={`${CARD_ICON_ACTION} text-stone-400 hover:text-red-500 hover:bg-red-50`}>
                     <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6"/>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -3247,7 +3366,11 @@ const StudioKnob = ({
 // Wraps a scrollable list and shows a bottom fade + bouncing chevron whenever there's
 // more content below the fold — these lists use `no-scrollbar`, so without this there's
 // no cue at all that the word list continues past what's visible.
-const ScrollableWithCue = ({ className, children }: { className: string; children: React.ReactNode }) => {
+// `wrapperClassName` reaches the positioned outer div — the one that is the flex child
+// of whatever contains this list. A caller that wants the list to fill the height it is
+// given (rather than cap out at a fixed max-h) has to grow THAT element, not the
+// scroller inside it.
+const ScrollableWithCue = ({ className, wrapperClassName = '', children }: { className: string; wrapperClassName?: string; children: React.ReactNode }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [hasMoreBelow, setHasMoreBelow] = useState(false);
 
@@ -3267,7 +3390,7 @@ const ScrollableWithCue = ({ className, children }: { className: string; childre
     });
 
     return (
-        <div className="relative">
+        <div className={`relative ${wrapperClassName}`}>
             <div ref={scrollRef} onScroll={checkScroll} className={className}>
                 {children}
             </div>
@@ -3374,8 +3497,45 @@ function parseFlexibleDate(dateStr: any): number {
     return 0;
 }
 
-const compressAndGetBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
+/** What an imported image becomes: one encode, used for both the inline preview and
+ *  the durable copy in Storage. They used to diverge — the preview was compressed and
+ *  the Storage upload was the untouched original, so a 12MB phone photo was stored at
+ *  full size forever and mislabelled `.jpg` whatever it actually was. */
+type PreparedImage = { dataUrl: string; blob: Blob; extension: string };
+
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read encoded image'));
+        reader.readAsDataURL(blob);
+    });
+
+const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read image file'));
+        reader.readAsDataURL(file);
+    });
+
+const fileExtension = (file: File): string =>
+    (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+
+const prepareImageForCanvas = async (file: File): Promise<PreparedImage> => {
+    const passthrough = async (): Promise<PreparedImage> => ({
+        dataUrl: await readFileAsDataUrl(file),
+        blob: file,
+        extension: fileExtension(file),
+    });
+
+    // Left exactly as they arrived. Drawing an animated GIF to a canvas keeps one
+    // frame and throws the animation away, and rasterising an SVG turns something
+    // resolution-independent (and already tiny) into something that isn't. For these
+    // two, "compressed" and "without losing quality" can't both be true.
+    if (file.type === 'image/gif' || file.type === 'image/svg+xml') return passthrough();
+
+    return new Promise<PreparedImage>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
@@ -3409,12 +3569,35 @@ const compressAndGetBase64 = (file: File): Promise<string> => {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 if (!ctx) {
-                    resolve(e.target?.result as string);
+                    passthrough().then(resolve, reject);
                     return;
                 }
                 ctx.drawImage(img, 0, 0, width, height);
-                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
-                resolve(compressedBase64);
+
+                const encode = (type: string, quality: number) =>
+                    new Promise<Blob | null>(res => canvas.toBlob(res, type, quality));
+
+                (async () => {
+                    // WebP at 0.92 is visually indistinguishable from the source at this
+                    // size and lands well under the JPEG 0.85 it replaces. Safari before
+                    // 16 ignores an unsupported type and silently returns a PNG — which
+                    // is *larger* than the JPEG — so trust the blob's own type, not the
+                    // request, and fall back deliberately.
+                    let blob = await encode('image/webp', 0.92);
+                    let extension = 'webp';
+                    if (!blob || blob.type !== 'image/webp') {
+                        blob = await encode('image/jpeg', 0.85);
+                        extension = 'jpg';
+                    }
+                    // A small, already-optimised source can re-encode larger than it
+                    // started. Compression that adds bytes is worth nothing, so keep the
+                    // original in that case.
+                    if (!blob || blob.size >= file.size) {
+                        resolve(await passthrough());
+                        return;
+                    }
+                    resolve({ dataUrl: await blobToDataUrl(blob), blob, extension });
+                })().catch(reject);
             };
             img.onerror = () => {
                 reject(new Error('Failed to load image for compression'));
@@ -3440,6 +3623,18 @@ export default function CreatePage() {
     const [notes, setNotes] = useState<SongNote[]>(() => readCachedNotes(getBoundAccountUid()));
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
     const [isSelectionInitialized, setIsSelectionInitialized] = useState(false);
+
+    // Opening a project swaps a tall workspace list for the canvas, and the window keeps
+    // whatever offset the list was scrolled to — so a project picked from the bottom of
+    // the shelf opens part-way down its own canvas. Reset before paint (layout effect,
+    // not effect) so the canvas never flashes at the old offset.
+    const lastScrolledNoteIdRef = useRef<string | null>(null);
+    useLayoutEffect(() => {
+        if (selectedNoteId && selectedNoteId !== lastScrolledNoteIdRef.current) {
+            window.scrollTo({ top: 0, behavior: 'auto' });
+        }
+        lastScrolledNoteIdRef.current = selectedNoteId;
+    }, [selectedNoteId]);
     const [isExporting, setIsExporting] = useState<boolean>(false);
     const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
@@ -3542,9 +3737,9 @@ export default function CreatePage() {
     }, [notes]);
 
     const [activeFolderIdFilter, setActiveFolderIdFilter] = useState<string | null>(null);
+    /** Narrows the one shelf by who a project is shared with. */
+    const [projectScopeFilter, setProjectScopeFilter] = useState<'all' | 'personal' | 'collab'>('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [isMyProjectsOpen, setIsMyProjectsOpen] = useState(false);
-    const [isCollabProjectsOpen, setIsCollabProjectsOpen] = useState(false);
     const [projectViewStyle, setProjectViewStyle] = useState<'grid' | 'list'>('list');
     const [projectSortOption, setProjectSortOption] = useState<'date_desc' | 'date_asc' | 'az' | 'za'>('date_desc');
     const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
@@ -3650,7 +3845,14 @@ export default function CreatePage() {
     const [previewInviteId, setPreviewInviteId] = useState<string | null>(null);
     const currentPendingInvite = pendingInvites.find(inv => inv.projectId === selectedNoteId);
     const isCanvasPreview = previewInviteId !== null || currentPendingInvite !== undefined;
+    // What the sender typed into the share dialog: a name filtering their connections,
+    // or an email address for someone the platform has never seen.
     const [inviteEmail, setInviteEmail] = useState('');
+    // Set once they pick a connection by name, which invites by uid instead of address.
+    const [invitePick, setInvitePick] = useState<InvitePick | null>(null);
+    // Uids this project already has an outstanding invitation out to — suggesting them
+    // again just sends the same person a second copy of the same notice.
+    const [sentInviteUids, setSentInviteUids] = useState<string[]>([]);
     const [inviteStatus, setInviteStatus] = useState<{ type: 'success' | 'error' | ''; message: string }>({ type: '', message: '' });
     const [isInviting, setIsInviting] = useState(false);
     const [currentUserColor, setCurrentUserColor] = useState<string>('indigo');
@@ -3818,7 +4020,46 @@ export default function CreatePage() {
     // song — so it is kept in uid-scoped local storage (see bindLocalStateToAccount).
     const [areChordsHidden, setAreChordsHidden] = useState(false);
     const [clickedTokenIndex, setClickedTokenIndex] = useState<number | null>(null);
-    const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number; isNearBottom?: boolean } | null>(null);
+    const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
+    const suggestionsPopoverRef = useRef<HTMLDivElement | null>(null);
+
+    /** "phraseId:wordIndex" of a word just swapped in from the rhyme/synonym list.
+     *  Set for as long as the flash runs, then cleared. */
+    const [replacedWordKey, setReplacedWordKey] = useState<string | null>(null);
+
+    /**
+     * After a swap the new word is usually behind the popover, or off-screen entirely
+     * once the page has scrolled to show a long rhyme list — so the writer picks a word
+     * and cannot see what it did to the line. Bring it back into view and flash it.
+     *
+     * The class is added to the DOM node directly rather than rendered from state.
+     * PhraseRow is memoized on ~40 props; threading one more through would re-render
+     * every line in the song on every swap, and this is a decoration with a fixed
+     * lifetime, not part of the document.
+     */
+    useEffect(() => {
+        if (!replacedWordKey) return;
+        // After paint — the swapped text has to be laid out before we can scroll to it.
+        const raf = requestAnimationFrame(() => {
+            const el = document.querySelector<HTMLElement>(
+                `[data-word-key="${CSS.escape(replacedWordKey)}"]`,
+            );
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('word-replaced-flash');
+        });
+        const clear = window.setTimeout(() => {
+            document
+                .querySelector<HTMLElement>(`[data-word-key="${CSS.escape(replacedWordKey)}"]`)
+                ?.classList.remove('word-replaced-flash');
+            setReplacedWordKey(null);
+        }, 1800);
+        return () => {
+            cancelAnimationFrame(raf);
+            window.clearTimeout(clear);
+        };
+    }, [replacedWordKey]);
+
     /** "phraseId:wordIndex" for the word whose popover is open, so the chord
      *  section at the top of it can look up that word's own chord. */
     const [clickedWordChordKey, setClickedWordChordKey] = useState<string | null>(null);
@@ -4526,10 +4767,18 @@ export default function CreatePage() {
         if (!clickedWord) return;
         
         const handleOutsideClick = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-            if (target && (target.closest('.word-token') || target.closest('.suggestions-popover'))) {
-                return;
-            }
+            // Read the event's own path rather than asking the clicked node where it
+            // lives. The path is fixed when the click is dispatched; the node is not.
+            // React runs its handler before this one and flushes the state change
+            // synchronously, so a button that swaps its contents — Play becoming Stop
+            // is the one that bit us — has already thrown away the icon that was
+            // clicked. A detached node reports being inside nothing, the click read as
+            // "outside", and the popover closed on its own play button.
+            const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+            const inside = path.length > 0
+                ? path.some(n => n instanceof Element && n.matches('.word-token, .suggestions-popover'))
+                : !!(e.target as HTMLElement | null)?.closest('.word-token, .suggestions-popover');
+            if (inside) return;
             setClickedWord(null);
             setClickedTokenIndex(null);
         setClickedWordChordKey(null);
@@ -4630,6 +4879,32 @@ export default function CreatePage() {
     // used to be indistinguishable, which hid outages behind "No matches found".
     const [lexiconError, setLexiconError] = useState(false);
 
+    /**
+     * The popover always opens below the word, so on a word near the bottom of the
+     * screen it can start off-frame. Rather than flipping it above the word — which
+     * covers the lyrics being read and makes one click behave two different ways —
+     * bring the page to it.
+     *
+     * The popover is positioned inside the canvas container, so the word travels with
+     * it and the two stay pinned together while the page moves. Smooth, because the
+     * panel has just faded in and a hard jump reads as the layout breaking.
+     *
+     * Re-runs when the results land, not only when the popover opens: the panel's
+     * height depends on how many rhymes came back, so it can grow past the fold a
+     * moment after it appeared.
+     */
+    useEffect(() => {
+        if (!clickedWord || !popoverPosition || isMobile) return;
+        const el = suggestionsPopoverRef.current;
+        if (!el) return;
+        // Measured after paint, once the new results have actually laid out.
+        const raf = requestAnimationFrame(() => {
+            const overflow = el.getBoundingClientRect().bottom - (window.innerHeight - 16);
+            if (overflow > 0) window.scrollBy({ top: overflow, behavior: 'smooth' });
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [clickedWord, popoverPosition, isMobile, lexiconResults, lexiconLoading]);
+
     // Spellcheck States
     const [spellCheckResult, setSpellCheckResult] = useState<{ correct: boolean; suggestions: string[] } | null>(null);
     const [spellChecking, setSpellChecking] = useState(false);
@@ -4725,6 +5000,9 @@ export default function CreatePage() {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    // The same count as recordingTime, readable inside the tick without making the
+    // interval depend on a re-render — the cap check has to see the live value.
+    const recordingSecondsRef = useRef(0);
     const metronomeIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const metronomeWasPlayingRef = useRef(false);
     const nextTickTimeRef = useRef<number>(0);
@@ -4880,7 +5158,7 @@ export default function CreatePage() {
                         headers['Content-Type'] = 'application/json';
                     }
 
-                    const response = await authedFetch(`/api/transcribe?lang=${language}`, {
+                    const response = await authedFetchRetrying(`/api/transcribe?lang=${language}`, {
                         method: 'POST',
                         headers: headers,
                         body: body,
@@ -6268,9 +6546,45 @@ export default function CreatePage() {
         return () => unsubscribe();
     }, [selectedNoteId, user]);
 
+    /**
+     * Outstanding invitations this user has sent out for the open project, read once
+     * when the share dialog opens so the suggestion list can leave those people out.
+     *
+     * Queried by `senderId` rather than by `projectId`: the invitations rules grant a
+     * read only on documents where the caller is the sender or the invitee, and a
+     * query filtered on projectId alone asks for documents the rules can't hand over.
+     */
+    useEffect(() => {
+        if (!showShareModal || !user || !selectedNoteId) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const snap = await getDocs(query(
+                    collection(db, 'invitations'),
+                    where('senderId', '==', user.uid)
+                ));
+                const uids: string[] = [];
+                snap.forEach(d => {
+                    const data = d.data();
+                    if (data.projectId === selectedNoteId && data.status === 'pending' && data.inviteeId) {
+                        uids.push(data.inviteeId);
+                    }
+                });
+                if (!cancelled) setSentInviteUids(uids);
+            } catch (err) {
+                // Not fatal: without this the same person can simply be suggested twice.
+                console.warn('Could not read outstanding invitations:', err);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [showShareModal, user, selectedNoteId]);
+
     const handleInviteCollaborator = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedNoteId || !inviteEmail.trim() || !user) return;
+        if (!selectedNoteId || !user) return;
+        // Either a connection picked by name, or a typed address. A half-typed name is
+        // neither, and inviting it as an email would mail nobody.
+        if (!invitePick && !isEmailAddress(inviteEmail)) return;
         setIsInviting(true);
         setInviteStatus({ type: '', message: '' });
 
@@ -6298,8 +6612,12 @@ export default function CreatePage() {
 
         
         const senderName = user.displayName || user.email?.split('@')[0] || 'Collaborator';
-        const res = await inviteCollaboratorByEmail(selectedNoteId, inviteEmail, user.uid, senderName);
+        const res = invitePick
+            ? await inviteCollaboratorByUid(selectedNoteId, invitePick.uid, user.uid, senderName)
+            : await inviteCollaboratorByEmail(selectedNoteId, inviteEmail, user.uid, senderName);
         if (res.success) {
+            if (invitePick) setSentInviteUids(prev => prev.includes(invitePick.uid) ? prev : [...prev, invitePick.uid]);
+            setInvitePick(null);
             setInviteEmail('');
             // The invite is away, so the dialog has nothing left to ask. It closes rather than
             // holding a success line in front of the writer, and the toast the invitee receives
@@ -7255,7 +7573,7 @@ export default function CreatePage() {
 
     useEffect(() => {
         if (clickedWord) {
-            const clean = clickedWord.toLowerCase().replace(/[^\p{L}]/gu, '');
+            const clean = cleanClickedWord(clickedWord.toLowerCase());
             // Setting the word is enough — the debounced effect below performs the
             // lookup. Calling it here as well fired two identical requests for every
             // word the user clicked.
@@ -7449,9 +7767,12 @@ export default function CreatePage() {
                 dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
                 sourceRef.current = source;
                 
-                // MediaRecorder setup with premium high-bitrate settings
+                // Opus is transparent — indistinguishable from the source — well below
+                // 128 kbps on a single voice, which is all a canvas take ever is. The
+                // 256 kbps this used to request bought no audible quality over that and
+                // doubled every file we store and transcribe.
                 let mediaRecorder: MediaRecorder;
-                const recorderOptions: MediaRecorderOptions = { audioBitsPerSecond: 256000 };
+                const recorderOptions: MediaRecorderOptions = { audioBitsPerSecond: RECORDING_BITS_PER_SECOND };
                 if (typeof MediaRecorder !== 'undefined') {
                     if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
                         recorderOptions.mimeType = 'audio/webm;codecs=opus';
@@ -7704,10 +8025,18 @@ export default function CreatePage() {
                         // Fallback to Google Cloud Speech-to-Text API if empty but recording duration is significant (> 1.5s)
                         if (runSpeech && !finalTranscript && durationSeconds > 1.5) {
                             try {
-                                const wavBlob = await getWavBlob(audioBlob);
-                                const response = await authedFetch(`/api/transcribe?lang=${language}`, {
+                                // Send the take as recorded. This used to transcode to a
+                                // 16kHz mono WAV unconditionally, which was both lossier
+                                // than the Opus it started from and about twice the
+                                // bytes — uncompressed PCM beats a 128 kbps stream on
+                                // size only downwards of ~8kHz. toTranscribeAudioPayload
+                                // hands over the original when it recognises the
+                                // container and only transcodes when it can't.
+                                const payload = await toTranscribeAudioPayload(audioBlob);
+                                const response = await authedFetchRetrying(`/api/transcribe?lang=${language}`, {
                                     method: 'POST',
-                                    body: wavBlob,
+                                    headers: { 'Content-Type': payload.contentType },
+                                    body: payload.body,
                                 });
                                 if (response.ok) {
                                     const data = await response.json();
@@ -7811,13 +8140,20 @@ export default function CreatePage() {
             setIsRecording(true);
             setIsPaused(false);
             setRecordingTime(0);
-            
+            recordingSecondsRef.current = 0;
+
             // Recording timer
             timerRef.current = setInterval(() => {
-                setRecordingTime(t => t + 1);
+                recordingSecondsRef.current += 1;
+                setRecordingTime(recordingSecondsRef.current);
                 const storedSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
                 safeLocalStorageSetItem('mep-create-recording-seconds', (storedSeconds + 1).toString());
                 window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
+                if (recordingSecondsRef.current >= MAX_RECORDING_SECONDS) {
+                    // Stop, don't discard — ten minutes of singing is still worth keeping.
+                    stopRecording();
+                    triggerStudioNotification(t('studio.recording_limit_reached'), 'amber');
+                }
             }, 1000);
             
             if (runAudio) {
@@ -7923,12 +8259,19 @@ export default function CreatePage() {
             setIsPaused(false);
             
             timerRef.current = setInterval(() => {
-                setRecordingTime(t => t + 1);
+                recordingSecondsRef.current += 1;
+                setRecordingTime(recordingSecondsRef.current);
                 const storedSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
                 safeLocalStorageSetItem('mep-create-recording-seconds', (storedSeconds + 1).toString());
                 window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
+                // Paused time doesn't count, but the cap still applies to the take as a
+                // whole — the ref carries the total across pauses.
+                if (recordingSecondsRef.current >= MAX_RECORDING_SECONDS) {
+                    stopRecording();
+                    triggerStudioNotification(t('studio.recording_limit_reached'), 'amber');
+                }
             }, 1000);
-            
+
             if (recognitionRef.current) {
                 try {
                     recognitionRef.current.start();
@@ -8489,6 +8832,13 @@ export default function CreatePage() {
                         cleanupUpload();
                         resolve(null);
                     };
+                    // An aborted read fires NEITHER onload nor onerror. Without this the
+                    // promise never settles: the awaiting import loop hangs forever, its
+                    // upload card sits there mid-flight, and the canvas looks frozen.
+                    reader.onabort = () => {
+                        cleanupUpload();
+                        resolve(null);
+                    };
                     reader.readAsArrayBuffer(file);
                 } catch (err) {
                     console.error("File reading error:", err);
@@ -8499,7 +8849,8 @@ export default function CreatePage() {
             });
         } else if (uploadType === 'image') {
             try {
-                const compressedBase64 = await compressAndGetBase64(file);
+                const prepared = await prepareImageForCanvas(file);
+                const compressedBase64 = prepared.dataUrl;
                 // Generated out here so the background Storage upload can address this
                 // exact image once state has been updated.
                 const nextImageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -8541,7 +8892,7 @@ export default function CreatePage() {
                         return n;
                     }));
                     // Move the bytes to Storage so the project document stays small.
-                    promoteMediaToStorage(effectiveNoteId, nextImageId, 'images', file, 'jpg');
+                    promoteMediaToStorage(effectiveNoteId, nextImageId, 'images', prepared.blob, prepared.extension);
                     cleanupUpload();
                     return effectiveNoteId;
                 } else {
@@ -8580,7 +8931,7 @@ export default function CreatePage() {
                             collaborators: []
                         }).catch(err => console.error("Error creating project in Firestore:", err));
                     }
-                    promoteMediaToStorage(newNoteId, nextImageId, 'images', file, 'jpg');
+                    promoteMediaToStorage(newNoteId, nextImageId, 'images', prepared.blob, prepared.extension);
                     cleanupUpload();
                     return newNoteId;
                 }
@@ -8691,6 +9042,13 @@ export default function CreatePage() {
                     };
                     reader.onerror = (err) => {
                         console.error("FileReader error:", err);
+                        triggerStudioNotification(t('creative.import_failed'), 'rose');
+                        cleanupUpload();
+                        resolve(null);
+                    };
+                    // See the audio branch: an aborted read settles nothing on its own, and
+                    // the import loop awaiting this promise would hang.
+                    reader.onabort = () => {
                         cleanupUpload();
                         resolve(null);
                     };
@@ -8798,9 +9156,17 @@ export default function CreatePage() {
             const files = Array.from(e.dataTransfer.files);
             let activeNoteId = selectedNoteId;
             for (const file of files) {
-                const createdId = await processImportFile(file, activeNoteId);
-                if (createdId) {
-                    activeNoteId = createdId;
+                try {
+                    const createdId = await processImportFile(file, activeNoteId);
+                    if (createdId) {
+                        activeNoteId = createdId;
+                    }
+                } catch (err) {
+                    // One unreadable file in a batch must not take the rest of the drop
+                    // with it — and must not leave the writer staring at a half-finished
+                    // import with no idea which file failed.
+                    console.error(`Import failed for "${file.name}":`, err);
+                    triggerStudioNotification(t('creative.import_failed'), 'rose');
                 }
             }
         }
@@ -8809,9 +9175,9 @@ export default function CreatePage() {
 
     const handleCreateFolder = () => {
         requestPrompt({
-            title: 'Enter folder name',
-            placeholder: 'Folder name',
-            confirmLabel: 'Create',
+            title: t('workspace.new_folder'),
+            placeholder: t('workspace.folder_name'),
+            confirmLabel: t('common.confirm'),
             onConfirm: (name) => {
                 if (!name || name.trim() === '') return;
                 const newFolder: SongFolder = {
@@ -8819,6 +9185,8 @@ export default function CreatePage() {
                     name: name.trim()
                 };
                 setFolders(prev => [...prev, newFolder]);
+                // Open the new folder straight away — you made it to put something in it.
+                setActiveFolderIdFilter(newFolder.id);
             }
         });
     };
@@ -8836,7 +9204,10 @@ export default function CreatePage() {
             id: newNoteId,
             title: defaultTitle,
             content: '',
-            folderId: user ? null : (folderId || activeFolderIdFilter),
+            // A new project lands in whichever folder is being viewed. This used to be
+            // forced to null for signed-in users, which is why folders never worked for
+            // anyone with an account.
+            folderId: folderId || activeFolderIdFilter,
             updatedAt: timestamp,
             ownerId: user ? user.uid : undefined,
             phrases: [{
@@ -8970,10 +9341,16 @@ export default function CreatePage() {
             // rather than only on the project: the split that was true at publish
             // time is the one the published song was released under, and editing
             // the project later shouldn't rewrite that history.
+            //
+            // The two halves are kept alongside the total rather than only the total:
+            // words and recording are separately owned in practice, and a single
+            // averaged figure can't be taken back apart once it's written down.
             ownershipSplits: ownershipSplits.map(s => ({
                 uid: s.uid || null,
                 name: s.name || '',
                 percent: typeof s.percent === 'number' ? s.percent : 0,
+                lyricsPercent: typeof s.lyricsPercent === 'number' ? s.lyricsPercent : 0,
+                soundPercent: typeof s.soundPercent === 'number' ? s.soundPercent : 0,
             })),
             kudos: 0,
             likedBy: [],
@@ -9194,7 +9571,7 @@ export default function CreatePage() {
                     ...updates,
                     title: finalTitle,
                     updatedAt: new Date().toISOString(),
-                    folderId: user ? null : (updates.folderId !== undefined ? updates.folderId : n.folderId)
+                    folderId: updates.folderId !== undefined ? updates.folderId : (n.folderId ?? null)
                 };
 
                 if (user) {
@@ -9264,7 +9641,9 @@ export default function CreatePage() {
                         id: updatedNote.id,
                         title: updatedNote.title || 'Untitled Project',
                         content: updatedNote.content || '',
-                        folderId: null,
+                        // Hardcoding null here quietly erased every filing on save — the
+                        // project's folder has to survive the write like anything else.
+                        folderId: updatedNote.folderId ?? null,
                         isAudioOnly: updatedNote.isAudioOnly || false,
                         isTitleLocked: updatedNote.isTitleLocked || false,
                         isLocked: updatedNote.isLocked || false,
@@ -9291,6 +9670,7 @@ export default function CreatePage() {
                             symbol: c.symbol || '',
                             phraseId: c.phraseId || '',
                             wordIndex: typeof c.wordIndex === 'number' ? c.wordIndex : -1,
+                            placed: !!c.placed,
                         })),
                         updatedAt: new Date().toISOString()
                     };
@@ -9478,7 +9858,7 @@ export default function CreatePage() {
             // since an https URL has no base64 payload to decode. The server now
             // accepts either form directly, the same way /api/transcribe-image
             // already does for images, so the client just forwards whatever it has.
-            const extractRes = await authedFetch('/api/extract-text', {
+            const extractRes = await authedFetchRetrying('/api/extract-text', {
                 method: 'POST',
                 body: JSON.stringify({ documentUrl: docObj.url, fileName: docObj.name })
             });
@@ -9555,14 +9935,37 @@ export default function CreatePage() {
             const imgObj = (currentNote.images || []).find(i => i.id === imageId);
             if (!imgObj) throw new Error("Image object not found");
 
-            const res = await authedFetch('/api/transcribe-image', {
+            // A photo scanned the moment it lands is still an inline base64 data URL
+            // here — its upload to Storage is in flight. Sending half a megabyte of
+            // base64 spends the request's 60s window on the upload rather than on the
+            // model, which is one of the ways a first scan failed where the second
+            // worked. Wait briefly for the short https URL, then go anyway: the server
+            // accepts a data URL, it is just the slower road.
+            let imageUrl = imgObj.url;
+            if (imageUrl.startsWith('data:') || !imageUrl) {
+                const deadline = Date.now() + 5_000;
+                while (Date.now() < deadline) {
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                    const fresh = notesRef.current
+                        .find(n => n.id === selectedNoteId)?.images
+                        ?.find(i => i.id === imageId)?.url;
+                    if (fresh && !fresh.startsWith('data:')) { imageUrl = fresh; break; }
+                    if (fresh) imageUrl = fresh;
+                }
+            }
+            // Only reachable when the inline copy was dropped to keep the project
+            // document under Firestore's limit AND the upload never landed. Nothing
+            // to scan, and a 400 from the server would read as "unreadable photo".
+            if (!imageUrl) {
+                throw new Error('This image is still uploading. Give it a moment and try again.');
+            }
+
+            const res = await authedFetchRetrying('/api/transcribe-image', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    imageUrl: imgObj.url
-                })
+                body: JSON.stringify({ imageUrl })
             });
 
             if (!res.ok) {
@@ -10575,7 +10978,7 @@ export default function CreatePage() {
                 headers['Content-Type'] = 'application/json';
             }
 
-            const response = await authedFetch(`/api/transcribe?lang=${language}`, {
+            const response = await authedFetchRetrying(`/api/transcribe?lang=${language}`, {
                 method: 'POST',
                 headers: headers,
                 body: body,
@@ -11082,23 +11485,30 @@ export default function CreatePage() {
         }
     };
 
-    const handleDeleteFolder = (folderId: string, e: React.MouseEvent) => {
-        e.stopPropagation();
+    /** Deletes the folder only — never the songs inside it. They return to the unfiled
+     *  list, which is the one outcome that can't lose anyone's work. */
+    const handleDeleteFolder = (folderId: string, e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        const folder = folders.find(f => f.id === folderId);
+        const inside = notes.filter(n => n.folderId === folderId);
         requestConfirm({
-            title: 'Delete Folder?',
-            message: 'Are you sure you want to delete this folder? Projects inside will be kept uncategorized.',
+            title: t('workspace.delete_folder_title'),
+            message: inside.length > 0
+                ? t('workspace.delete_folder_desc').replace('{count}', String(inside.length))
+                : t('workspace.delete_folder_desc_empty'),
             destructive: true,
             onConfirm: () => {
+                // Through handleUpdateNote, not a bare setNotes: emptying the folder has to
+                // reach Firestore too, or every song springs back into a folder that no
+                // longer exists on the next load.
+                inside.forEach(n => handleUpdateNote(n.id, { folderId: null }));
                 setFolders(prev => prev.filter(f => f.id !== folderId));
-                setNotes(prev => prev.map(n => {
-                    if (n.folderId === folderId) {
-                        return { ...n, folderId: null };
-                    }
-                    return n;
-                }));
                 if (activeFolderIdFilter === folderId) {
                     setActiveFolderIdFilter(null);
                 }
+                triggerStudioNotification(
+                    t('workspace.folder_deleted').replace('{name}', folder?.name || '')
+                );
             }
         });
     };
@@ -11676,12 +12086,26 @@ export default function CreatePage() {
     const [draggedChordId, setDraggedChordId] = useState<string | null>(null);
     const draggedChordIdRef = useRef<string | null>(null);
     const [dragOverChordWord, setDragOverChordWord] = useState<{ phraseId: string; wordIndex: number } | null>(null);
+    /** Chords whose picker was reopened from a capsule already standing in the song,
+     *  as opposed to one on its way there for the first time. The card's commit
+     *  button reads "Swap" for these — the chord has a place already and is only
+     *  being exchanged. Deliberately not persisted: it describes an edit in progress,
+     *  not something true of the chord itself. */
+    const [reopenedChordIds, setReopenedChordIds] = useState<Set<string>>(() => new Set());
+    const markChordReopened = (chordId: string, reopened: boolean) => {
+        setReopenedChordIds(prev => {
+            if (prev.has(chordId) === reopened) return prev;
+            const next = new Set(prev);
+            if (reopened) next.add(chordId); else next.delete(chordId);
+            return next;
+        });
+    };
     /** Adds an empty chord card, the way the import buttons add an image or audio
      *  card: the click produces the thing, it doesn't open a browser of choices.
      *  Which chord it is gets decided inside the card — see ChordCard — so the Add
      *  menu stays a short list of what you can add. */
-    const handleAddChordCard = () => {
-        if (isCanvasReadOnly || !selectedNoteId) return;
+    const handleAddChordCard = (): string | null => {
+        if (isCanvasReadOnly || !selectedNoteId) return null;
         const chord: ChordMark = {
             id: `chord-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
             // No symbol yet — a card that hasn't been given a chord is a normal
@@ -11705,6 +12129,8 @@ export default function CreatePage() {
             content: finalPhrases.map(p => p.text).join('\n'),
         });
         setIsAddMenuSticky(false);
+        // So callers can find the card they just made (scroll it into view, etc).
+        return chord.id;
     };
 
     /** Moves a chord card to sit as its own line between lyric lines (mirrors
@@ -11742,6 +12168,33 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             phrases: finalPhrases,
             content: finalPhrases.map(p => p.text).join('\n'),
+        });
+    };
+
+    /** Pins a chord symbol straight onto a word — the word popover's inline picker
+     *  path, no round-trip through a canvas card. One chord per word: whatever
+     *  already sits there is replaced, same rule as dropping a card on it. */
+    const handlePinChordToWord = (symbol: string, phraseId: string, wordIndex: number) => {
+        if (isCanvasReadOnly || !selectedNoteId || !activeNote || !symbol) return;
+        const kept = (activeNote.chords || []).filter(
+            c => !(c.phraseId === phraseId && c.wordIndex === wordIndex)
+        );
+        handleUpdateNote(selectedNoteId, {
+            chords: [...kept, {
+                id: `chord-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+                symbol,
+                phraseId,
+                wordIndex,
+            }],
+        });
+    };
+
+    /** Flips a chord card between the full picker and its compact placed form —
+     *  Send to canvas commits it, clicking the placed card's name reopens it. */
+    const handleSetChordPlaced = (chordId: string, placed: boolean) => {
+        if (isCanvasReadOnly || !selectedNoteId || !activeNote) return;
+        handleUpdateNote(selectedNoteId, {
+            chords: (activeNote.chords || []).map(c => (c.id === chordId ? { ...c, placed } : c)),
         });
     };
 
@@ -11796,6 +12249,7 @@ export default function CreatePage() {
         // Its placeholder line goes with it, or the flow keeps an empty slot where the
         // card used to be.
         const finalPhrases = (activeNote.phrases || []).filter(p => p.id !== `p-chord-${chordId}`);
+        markChordReopened(chordId, false);
         handleUpdateNote(selectedNoteId, {
             chords: (activeNote.chords || []).filter(c => c.id !== chordId),
             phrases: finalPhrases,
@@ -11994,8 +12448,21 @@ export default function CreatePage() {
 
     // Word suggestion click handler in Suggestion Mode
     const handleWordClick = (e: React.MouseEvent, word: string, tokenIndex: number, chordKey: string) => {
-        const cleanWord = word.replace(/[^\p{L}]/gu, '');
+        const cleanWord = cleanClickedWord(word);
         if (!cleanWord) return;
+
+        // Clicking the word that opened the popover puts it away again. The word is
+        // the only control for this panel — there is no close button on it — so the
+        // way in has to be the way out. Keyed on chordKey (phraseId:wordIndex) rather
+        // than the word itself, so the same word twice in a line toggles only the one
+        // that was clicked.
+        if (popoverPosition && clickedWordChordKey === chordKey) {
+            setClickedWord(null);
+            setClickedTokenIndex(null);
+            setClickedWordChordKey(null);
+            setPopoverPosition(null);
+            return;
+        }
 
         setClickedWord(cleanWord);
         setClickedTokenIndex(tokenIndex);
@@ -12025,15 +12492,14 @@ export default function CreatePage() {
         const clampedViewportX = Math.max(minAllowedCenterX, Math.min(maxAllowedCenterX, wordCenterX));
         const clampedParentLeft = clampedViewportX - parentRect.left;
 
-        const isNearBottom = rect.bottom + 420 > window.innerHeight && rect.top > 400;
-        const topPos = isNearBottom 
-            ? rect.top - parentRect.top - 12 
-            : rect.bottom - parentRect.top + 8;
-
+        // Always under the word. It used to flip above when there wasn't room below,
+        // which put the panel over the lyrics the writer was reading and made the same
+        // click land in two different places depending on scroll position. If it runs
+        // past the bottom of the viewport the page scrolls to meet it instead — see the
+        // layout effect beside the popover.
         setPopoverPosition({
-            top: topPos,
+            top: rect.bottom - parentRect.top + 8,
             left: clampedParentLeft,
-            isNearBottom: isNearBottom
         });
     };
 
@@ -12081,6 +12547,11 @@ export default function CreatePage() {
                 title: activeNote.title || 'Untitled Project',
                 forceHistoryPush: true
             });
+
+            // The swapped word keeps the slot the old one held, so the key that
+            // identified it for the popover still points at it afterwards. Captured
+            // before the clear below wipes it.
+            if (clickedWordChordKey) setReplacedWordKey(clickedWordChordKey);
         }
         setClickedWord(null);
         setClickedTokenIndex(null);
@@ -12173,6 +12644,21 @@ export default function CreatePage() {
             handleUpdateNote(noteId, { folderId: null });
         }
     };
+
+    const handleRenameFolder = (folderId: string) => {
+        const folder = folders.find(f => f.id === folderId);
+        requestPrompt({
+            title: t('workspace.rename_folder'),
+            placeholder: t('workspace.folder_name'),
+            defaultValue: folder?.name || '',
+            confirmLabel: t('common.save'),
+            onConfirm: (name) => {
+                if (!name || !name.trim()) return;
+                setFolders(prev => prev.map(f => (f.id === folderId ? { ...f, name: name.trim() } : f)));
+            }
+        });
+    };
+
 
     const getNoteTime = (note: SongNote) => {
         return parseFlexibleDate(note.updatedAt);
@@ -12343,28 +12829,56 @@ export default function CreatePage() {
                 {kind === 'chord' ? (() => {
                     const chord = chordByPhraseIdMap[phrase.id];
                     if (!chord) return null;
-                    return (
+                    const chordDragProps = {
+                        onDragStart: (e: React.DragEvent) => {
+                            e.stopPropagation();
+                            setDraggedChordId(chord.id);
+                            draggedChordIdRef.current = chord.id;
+                            // Both a ref and dataTransfer: the ref drives the live
+                            // highlight during dragover (where dataTransfer.getData
+                            // is blocked by the browser), dataTransfer carries the
+                            // id through the drop itself.
+                            e.dataTransfer.setData('text/chord-id', chord.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                        },
+                        onDragEnd: () => {
+                            setDraggedChordId(null);
+                            draggedChordIdRef.current = null;
+                            setDragOverChordWord(null);
+                        },
+                    };
+                    // Committed chords stand in the song as a compact capsule, in the
+                    // same minimal language as the audio and document cards; the full
+                    // picker card is the CHOOSING state, and clicking the capsule's name
+                    // goes back to it.
+                    return chord.placed && chord.symbol ? (
+                        <PlacedChordCard
+                            chord={chord}
+                            isDragging={draggedChordId === chord.id}
+                            // Reopening from the song is a swap, not a first send — the
+                            // picker's commit button changes wording to match.
+                            onOpen={() => { markChordReopened(chord.id, true); handleSetChordPlaced(chord.id, false); }}
+                            onRemove={() => handleRemoveChord(chord.id)}
+                            {...chordDragProps}
+                        />
+                    ) : (
                         <ChordCard
                             chord={chord}
                             isDragging={draggedChordId === chord.id}
+                            isSwapping={reopenedChordIds.has(chord.id)}
                             onSetSymbol={(symbol) => handleSetChordSymbol(chord.id, symbol)}
                             onRemove={() => handleRemoveChord(chord.id)}
-                            onDragStart={(e) => {
-                                e.stopPropagation();
-                                setDraggedChordId(chord.id);
-                                draggedChordIdRef.current = chord.id;
-                                // Both a ref and dataTransfer: the ref drives the live
-                                // highlight during dragover (where dataTransfer.getData
-                                // is blocked by the browser), dataTransfer carries the
-                                // id through the drop itself.
-                                e.dataTransfer.setData('text/chord-id', chord.id);
-                                e.dataTransfer.effectAllowed = 'move';
+                            // "Sending" is the writer's commit: the card collapses to its
+                            // placed capsule, brought into view where it sits in the song.
+                            onSendToCanvas={() => {
+                                markChordReopened(chord.id, false);
+                                handleSetChordPlaced(chord.id, true);
+                                setTimeout(() => {
+                                    document.querySelector(`[data-phrase-id="p-chord-${chord.id}"]`)
+                                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }, 80);
                             }}
-                            onDragEnd={() => {
-                                setDraggedChordId(null);
-                                draggedChordIdRef.current = null;
-                                setDragOverChordWord(null);
-                            }}
+                            {...chordDragProps}
                         />
                     );
                 })() : kind === 'image' ? (() => {
@@ -12677,9 +13191,10 @@ export default function CreatePage() {
                 setupDirectMonitorChain(audioCtx, monitorNode);
             }
 
-            // MediaRecorder setup with premium high-bitrate settings
+            // A studio take is one instrument or one voice, and gets mixed afterwards —
+            // 128 kbps Opus is past transparent for that. See RECORDING_BITS_PER_SECOND.
             let mediaRecorder: MediaRecorder;
-            const recorderOptions: MediaRecorderOptions = { audioBitsPerSecond: 256000 };
+            const recorderOptions: MediaRecorderOptions = { audioBitsPerSecond: RECORDING_BITS_PER_SECOND };
             if (typeof MediaRecorder !== 'undefined') {
                 if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
                     recorderOptions.mimeType = 'audio/webm;codecs=opus';
@@ -12850,6 +13365,14 @@ export default function CreatePage() {
 
             studioPlayheadIntervalRef.current = window.setInterval(() => {
                 const elapsed = (Date.now() - studioRecordStartTimeRef.current) / 1000;
+                if (elapsed >= MAX_RECORDING_SECONDS) {
+                    // Same ceiling as a canvas take. stopStudioRecording clears this
+                    // interval via stopAllStudioAudio, so it can't fire twice.
+                    setStudioPlayhead(MAX_RECORDING_SECONDS);
+                    stopStudioRecording();
+                    triggerStudioNotification(t('studio.recording_limit_reached'), 'amber');
+                    return;
+                }
                 setStudioPlayhead(elapsed);
             }, 50);
 
@@ -13876,9 +14399,12 @@ export default function CreatePage() {
                         clean in half. Grow the clip box 1rem to the left and push the content back
                         by the same amount: content alignment and the right edge are unchanged, the
                         badges simply now fall inside the clipping region. */}
-                    <div className="flex flex-col flex-1 min-h-0 w-[calc(100%+1rem)] -ml-4 pl-4 relative gap-6 overflow-auto custom-canvas-scrollbar">
-                    {/* Headers Row */}
-                    <div className="hidden lg:flex items-center gap-3 select-none h-8 px-4">
+                    {/* Headers Row — pinned OUTSIDE the scroll region. These label the columns
+                        below them, so scrolling them out of view (which is what happened on a short
+                        viewport: the track list scrolled and took VOL/PAN/EQ/REV/COMP with it) left
+                        the knobs unlabelled. Keeping it here also shrinks what the scroll region has
+                        to fit, so scrolling engages later. */}
+                    <div className="hidden lg:flex items-center gap-3 select-none h-8 px-4 shrink-0">
                         <div className="w-5 shrink-0" /> {/* reorder handle gap */}
                         <div className="w-32 sm:w-36 md:w-40 lg:w-44 shrink-0" /> {/* track selector gap */}
                         
@@ -13915,6 +14441,11 @@ export default function CreatePage() {
                         <div className="w-8 shrink-0" /> {/* options menu gap */}
                     </div>
 
+                    {/* Scroll region — the track list only. Grown 1rem to the left (and the content
+                        pushed back by the same amount) so the collaborator badges hanging at
+                        -left-3.5 fall inside the clip box instead of being cut in half; alignment
+                        and the right edge are unchanged. */}
+                    <div className="flex flex-col flex-1 min-h-0 w-[calc(100%+1rem)] -ml-4 pl-4 relative overflow-auto custom-canvas-scrollbar">
                     {/* Sequencer Track List Container */}
                     <div className="flex flex-col gap-2.5 w-full relative">
                         {studioTracks.filter(Boolean).map((track, idx) => {
@@ -16215,20 +16746,151 @@ export default function CreatePage() {
         (!!n.ownerId && n.ownerId !== user?.uid) ||
         (n.ownerId === user?.uid && !!n.collaborators && n.collaborators.length > 0);
 
-    const myProjects = displayNotes.filter(n => !isCollabProject(n));
-    const collabProjects = displayNotes.filter(isCollabProject);
+    const collabCount = displayNotes.filter(isCollabProject).length;
+
+    /**
+     * One shelf, narrowed twice: by who it's shared with (the tabs) and by where it's
+     * filed (the folder you're inside). Projects and folders are the only two things
+     * here now — "My" and "Collab" stopped being separate places, because a folder had
+     * to mean the same thing on both sides and couldn't.
+     */
+    const scopedProjects = displayNotes.filter(n =>
+        projectScopeFilter === 'collab' ? isCollabProject(n)
+        : projectScopeFilter === 'personal' ? !isCollabProject(n)
+        : true
+    );
+
+    // Inside a folder you see its contents; at the top level, only what isn't filed —
+    // otherwise every filed song appears twice, once loose and once in its folder.
+    const visibleProjects = activeFolderIdFilter
+        ? scopedProjects.filter(n => n.folderId === activeFolderIdFilter)
+        : scopedProjects.filter(n => !n.folderId || !folders.some(f => f.id === n.folderId));
+
+    // Folders sit alongside projects at the top level, and a search looks past them.
+    const visibleFolders = (activeFolderIdFilter || searchQuery.trim() !== '') ? [] : folders;
+
+    const openFolder = folders.find(f => f.id === activeFolderIdFilter) || null;
 
     const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        // Searching from inside a folder should reach the whole shelf — otherwise a
+        // match two folders over silently doesn't exist.
         if (e.key === 'Enter') {
             e.preventDefault();
-            if (searchQuery.trim() !== '') {
-                const hasMyMatches = myProjects.length > 0;
-                const hasCollabMatches = collabProjects.length > 0;
-                setIsMyProjectsOpen(hasMyMatches);
-                setIsCollabProjectsOpen(hasCollabMatches);
-            }
+            if (searchQuery.trim() !== '') setActiveFolderIdFilter(null);
         }
     };
+
+    /** A folder as a grid tile — same footprint as a project card so the two sit in one
+     *  grid, distinguished by shape rather than by living somewhere else. Dropping a
+     *  project on it files it. */
+    const renderFolderCard = (folder: SongFolder) => {
+        // Counted within the active tab, so the number matches what opening it shows.
+        const count = scopedProjects.filter(n => n.folderId === folder.id).length;
+        const isDropTarget = dragOverFolderId === folder.id;
+        return (
+            <div
+                key={folder.id}
+                onClick={() => setActiveFolderIdFilter(folder.id)}
+                onDragOver={(e) => { e.preventDefault(); setDragOverFolderId(folder.id); }}
+                onDragLeave={() => setDragOverFolderId(null)}
+                onDrop={(e) => { handleDropOnFolder(e, folder.id); setDragOverFolderId(null); }}
+                className={`group cursor-pointer flex flex-col items-center justify-center gap-3 px-5 py-6 rounded-[18px] border transition-all duration-200 active:scale-[0.99] select-none min-h-[220px] ${
+                    isDropTarget
+                        ? 'bg-white border-stone-400 scale-[1.02] shadow-[0_4px_18px_rgba(0,0,0,0.05)]'
+                        : 'bg-white/40 border-stone-200/10 hover:bg-white/70 hover:border-stone-200/25'
+                }`}
+            >
+                <Folder
+                    size={52}
+                    strokeWidth={1.2}
+                    className={`transition-colors ${isDropTarget ? 'text-stone-600' : 'text-stone-300 group-hover:text-stone-400'}`}
+                />
+                <span className="w-full text-center font-sans text-[14px] text-stone-600 group-hover:text-stone-850 truncate transition-colors">
+                    {folder.name}
+                </span>
+                <span className="text-[12px] text-stone-400">{count}</span>
+
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <Tooltip label={t('workspace.rename_folder')}>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id); }}
+                            aria-label={t('workspace.rename_folder')}
+                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
+                        >
+                            <Pencil size={13} />
+                        </button>
+                    </Tooltip>
+                    <Tooltip label={t('workspace.delete_folder_title')}>
+                        <button
+                            onClick={(e) => handleDeleteFolder(folder.id, e)}
+                            aria-label={t('workspace.delete_folder_title')}
+                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
+                        >
+                            <Trash2 size={13} />
+                        </button>
+                    </Tooltip>
+                </div>
+            </div>
+        );
+    };
+
+    /** The same folder as a list row. */
+    const renderFolderListCard = (folder: SongFolder) => {
+        // Counted within the active tab, so the number matches what opening it shows.
+        const count = scopedProjects.filter(n => n.folderId === folder.id).length;
+        const isDropTarget = dragOverFolderId === folder.id;
+        return (
+            <div
+                key={folder.id}
+                onClick={() => setActiveFolderIdFilter(folder.id)}
+                onDragOver={(e) => { e.preventDefault(); setDragOverFolderId(folder.id); }}
+                onDragLeave={() => setDragOverFolderId(null)}
+                onDrop={(e) => { handleDropOnFolder(e, folder.id); setDragOverFolderId(null); }}
+                className={`group cursor-pointer flex items-center justify-between px-6 py-6 rounded-[18px] border transition-all duration-200 active:scale-[0.99] select-none ${
+                    isDropTarget
+                        ? 'bg-white border-stone-400 shadow-[0_4px_18px_rgba(0,0,0,0.05)]'
+                        : 'bg-white/40 border-stone-200/10 hover:bg-white/70 hover:border-stone-200/25'
+                }`}
+            >
+                <span className="font-sans text-[14px] text-stone-600 group-hover:text-stone-850 truncate flex items-center gap-2 transition-colors">
+                    <Folder size={15} strokeWidth={1.6} className="text-stone-400 shrink-0" />
+                    {folder.name}
+                    <span className="text-[12px] text-stone-400 font-normal">{count}</span>
+                </span>
+                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                    <Tooltip label={t('workspace.rename_folder')}>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id); }}
+                            aria-label={t('workspace.rename_folder')}
+                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
+                        >
+                            <Pencil size={13} />
+                        </button>
+                    </Tooltip>
+                    <Tooltip label={t('workspace.delete_folder_title')}>
+                        <button
+                            onClick={(e) => handleDeleteFolder(folder.id, e)}
+                            aria-label={t('workspace.delete_folder_title')}
+                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
+                        >
+                            <Trash2 size={13} />
+                        </button>
+                    </Tooltip>
+                </div>
+            </div>
+        );
+    };
+
+    /** Marks a project as shared, now that collab projects live in the same list as
+     *  everything else rather than under their own heading. */
+    const collabBadge = (note: SongNote) => (
+        isCollabProject(note) ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#EAF3E8] text-[#4e7a49] text-[10.5px] font-bold shrink-0">
+                <Users size={10} strokeWidth={2.5} />
+                {t('collab.collab')}
+            </span>
+        ) : null
+    );
 
     const renderProjectCard = (note: SongNote) => {
         const isSelected = selectedNoteId === note.id;
@@ -16256,6 +16918,10 @@ export default function CreatePage() {
                     )}
                     {getTranslatedTitle(note.title) || t('workspace.untitled_note')}
                 </span>
+
+                {/* Own row rather than inline: at four columns a badge beside the title
+                    eats the characters the title needs. */}
+                {collabBadge(note)}
 
                 {/* Music icon */}
                 <div className="flex-1 flex items-center justify-center">
@@ -16327,8 +16993,9 @@ export default function CreatePage() {
                         <Lock size={12} className="text-stone-500 shrink-0" strokeWidth={2} aria-label={t('collab.locked')} />
                     )}
                     {getTranslatedTitle(note.title) || t('workspace.untitled_note')}
+                    {collabBadge(note)}
                 </span>
-                
+
                 <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
                     <Tooltip label={t('workspace.duplicate_note')}>
                         <button
@@ -16946,36 +17613,47 @@ export default function CreatePage() {
                             )
                         )}
 
-                        {/* Publish to Community — icon only, the tooltip carries the explanation */}
+                        {/* Publish to Community. The most consequential action on this bar, so
+                            it is the one control that says its own name: the circle grows into a
+                            pill on hover rather than relying on a tooltip to explain itself. */}
                         {!isCanvasPreview && selectedNoteId && activeNote && (
                             <>
-                                <Tooltip
-                                    side="bottom"
-                                    label={
-                                        shareStatus === 'shared' ? t('collab.publish_tooltip_shared')
-                                        : shareStatus === 'sharing' ? t('collab.publishing')
-                                        : t('collab.publish_tooltip')
-                                    }
-                                >
+                                {(() => {
+                                // Short enough to sit in the pill. The longer "check your song in
+                                // community" line stays on the tooltip, which is kept only for the
+                                // published state — everywhere else the pill already says it all
+                                // and a tooltip on top would repeat the same word twice.
+                                const publishLabel =
+                                    shareStatus === 'shared' ? t('collab.published')
+                                    : shareStatus === 'sharing' ? t('collab.publishing')
+                                    : t('collab.publish');
+                                const publishDescription =
+                                    shareStatus === 'shared' ? t('collab.publish_tooltip_shared')
+                                    : shareStatus === 'sharing' ? t('collab.publishing')
+                                    : t('collab.publish_tooltip');
+                                // Held open while the post is in flight: the button is disabled then,
+                                // so hover can't be relied on to reveal what it is busy doing.
+                                const isPublishOpen = shareStatus === 'sharing';
+                                const publishButton = (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             openPublishDialog();
                                         }}
                                         disabled={shareStatus === 'sharing'}
-                                        aria-label={
-                                            shareStatus === 'shared' ? t('collab.publish_tooltip_shared')
-                                            : shareStatus === 'sharing' ? t('collab.publishing')
-                                            : t('collab.publish_tooltip')
-                                        }
-                                        className={`relative flex items-center justify-center w-10 h-10 border rounded-full transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none
+                                        aria-label={publishDescription}
+                                        // Typography lifted from the Collab button beside it —
+                                        // same 18px medium, same tracking, same height — so the
+                                        // expanded pill reads as one of the pair rather than a
+                                        // different kind of control that happens to sit nearby.
+                                        className={`group/publish relative flex items-center h-10 border rounded-full font-sans text-[18px] font-medium tracking-wide transition-all duration-300 ease-out cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none
                                             ${shareStatus === 'shared' && !isPublishLaunching
                                                 ? 'bg-emerald-600 border-emerald-600 text-stone-900 hover:bg-emerald-700 hover:border-emerald-700'
                                                 : 'bg-stone-100/65 border-stone-200/40 text-stone-700 hover:bg-stone-200/50 hover:text-stone-900'
                                             }
                                         `}
                                     >
-                                        {/* Indeterminate mesh-gradient loading ring while the post is being written —
+                                        {/* Indeterminate gradient outline while the post is being written —
                                             deliberately rendered outside the clipped span below so its -3px inset
                                             can extend past the button's own edge instead of getting cut off. */}
                                         {shareStatus === 'sharing' && <span className="publish-loading-ring" aria-hidden="true" />}
@@ -16988,12 +17666,14 @@ export default function CreatePage() {
                                         </span>
                                         {/* A single arrow-up throughout: idle, a gentle bounce while sending, then a
                                             one-beat launch up-and-out the instant it lands, settling back in from
-                                            below — the same up/below language as the Save→Publish→Mind Power cascade. */}
-                                        <span className="relative z-10 flex items-center justify-center overflow-hidden">
+                                            below — the same up/below language as the Save→Publish→Mind Power cascade.
+                                            Fixed 40px box: it holds the circle's shape when collapsed and keeps the
+                                            arrow still while the pill grows out to the right of it. */}
+                                        <span className="relative z-10 w-10 h-10 shrink-0 flex items-center justify-center overflow-hidden">
                                             {isPublishLaunching ? (
                                                 <ArrowUp key="launch" size={18} className="stroke-[1.6] publish-arrow-launch" />
                                             ) : (
-                                                // No motion while sharing — the spinning ring already reads as
+                                                // No motion while sharing — the travelling ring already reads as
                                                 // "in progress"; the arrow only moves at the actual moment it's
                                                 // done, straight up via .publish-arrow-launch above.
                                                 <ArrowUp
@@ -17003,8 +17683,33 @@ export default function CreatePage() {
                                                 />
                                             )}
                                         </span>
+                                        {/* The name, revealed by growing its own width rather than by
+                                            appearing — width is what makes the circle read as becoming a
+                                            pill. max-w rather than w so the transition has something to
+                                            animate between; the text sets the real width. Size and weight
+                                            are inherited from the button, which carries Collab's. Right
+                                            padding matches Collab's px-5; the left inset stays whatever
+                                            the icon's 40px box gives it, because that box is what keeps
+                                            the collapsed state a true circle. */}
+                                        <span
+                                            className={`relative z-10 overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${
+                                                isPublishOpen
+                                                    ? 'max-w-[10rem] opacity-100 pr-5'
+                                                    : 'max-w-0 opacity-0 pr-0 group-hover/publish:max-w-[10rem] group-hover/publish:opacity-100 group-hover/publish:pr-5'
+                                            }`}
+                                        >
+                                            {publishLabel}
+                                        </span>
                                     </button>
-                                </Tooltip>
+                            );
+                            // Only the published state gets a tooltip: its pill says "Published"
+                            // while the tooltip says where to go and look, which is genuinely
+                            // more than the button can hold. Idle and sending say everything
+                            // they have to say in the pill itself.
+                            return shareStatus === 'shared' ? (
+                                <Tooltip side="bottom" label={publishDescription}>{publishButton}</Tooltip>
+                            ) : publishButton;
+                        })()}
 
                                 {/* Owner-only project lock. Hold for 1s to toggle — the ring fills as you hold. */}
                                 {isProjectOwner && (
@@ -18069,8 +18774,8 @@ export default function CreatePage() {
                                          <div
                                              className={`flex flex-col items-center bg-white border rounded-[20px] overflow-hidden transition-all duration-500 ease-in-out ${
                                                  isAddMenuSticky
-                                                     ? "max-w-[600px] max-h-[240px] border-stone-300"
-                                                     : "max-w-[130px] max-h-9 border-stone-200 hover:border-stone-300 group-hover/add-menu:max-w-[600px] group-hover/add-menu:max-h-[240px] group-hover/add-menu:border-stone-300"
+                                                     ? "max-w-[660px] max-h-[240px] border-stone-300"
+                                                     : "max-w-[130px] max-h-9 border-stone-200 hover:border-stone-300 group-hover/add-menu:max-w-[660px] group-hover/add-menu:max-h-[240px] group-hover/add-menu:border-stone-300"
                                              }`}
                                          >
                                              {/* Line 1: "+ Add" trigger */}
@@ -18111,7 +18816,10 @@ export default function CreatePage() {
                                                                      e.stopPropagation();
                                                                      handleAddVerseGroup(sectionType);
                                                                  }}
-                                                                 className="h-9 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center shrink-0"
+                                                                 // h-10/px-4 rather than h-9/px-3: the label is small and
+                                                                 // the gaps between these are dead space, so the pill has
+                                                                 // to be the target rather than the word inside it.
+                                                                 className="h-10 px-4 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center shrink-0"
                                                              >
                                                                  {label}
                                                              </button>
@@ -18143,7 +18851,7 @@ export default function CreatePage() {
                                                              // single action rather than a set of choices, so the hover state
                                                              // reads as one row rather than one option among several. Also
                                                              // makes it a much larger target.
-                                                             className="w-full h-9 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                                                             className="w-full h-10 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
                                                          >
                                                              <Music size={13} className="shrink-0" />
                                                              {t('creative.add_chord') || 'Chords'}
@@ -18180,7 +18888,7 @@ export default function CreatePage() {
                                                                      };
                                                                      input.click();
                                                                  }}
-                                                                 className="h-9 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                                                                 className="h-10 px-4 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
                                                              >
                                                                  <Icon size={13} className="shrink-0" />
                                                                  {label}
@@ -18322,15 +19030,16 @@ export default function CreatePage() {
                 {/* Floating Suggestions Popover Overlay */}
                 {clickedWord && popoverPosition && (
                     <>
-                        <div 
+                        <div
+                            ref={suggestionsPopoverRef}
                             className={`
                                 suggestions-popover bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[28px] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.12)] z-40 flex flex-row items-stretch gap-5 w-[540px] max-w-[95%] sm:w-[640px] md:w-[760px] animate-in fade-in zoom-in-95 duration-200
                                 ${isMobile ? 'absolute bottom-4 left-4 right-4 shadow-2xl mx-auto' : 'absolute'}
                             `}
-                            style={isMobile ? undefined : { 
-                                top: `${popoverPosition.top}px`, 
+                            style={isMobile ? undefined : {
+                                top: `${popoverPosition.top}px`,
                                 left: `${popoverPosition.left}px`,
-                                transform: popoverPosition.isNearBottom ? 'translate(-50%, -100%)' : 'translateX(-50%)' 
+                                transform: 'translateX(-50%)'
                             }}
                         >
                             {/* The chord on this word, above the words it rhymes with.
@@ -18338,7 +19047,18 @@ export default function CreatePage() {
                                 than making the writer click the word for one and the
                                 little symbol above it for the other. */}
                             <WordChordSection
+                                // Keyed by word, so each one gets its own fresh suggestion
+                                // (and its own clean panel state) rather than inheriting
+                                // whatever the previously-clicked word was showing.
+                                key={clickedWordChordKey || 'no-word'}
                                 symbol={(clickedWordChordKey && chordsByWord[clickedWordChordKey]?.symbol) || null}
+                                // Chords this song already uses, newest first — the suggestion
+                                // comes from here when there is anything to draw on.
+                                suggestFrom={Array.from(new Set(
+                                    (activeNote?.chords || [])
+                                        .map(c => c.symbol)
+                                        .filter((s): s is string => !!s)
+                                )).reverse()}
                                 onRemove={
                                     !isCanvasReadOnly && clickedWordChordKey && chordsByWord[clickedWordChordKey]
                                         ? () => handleRemoveChord(chordsByWord[clickedWordChordKey].id)
@@ -18346,6 +19066,18 @@ export default function CreatePage() {
                                 }
                                 chordsHidden={areChordsHidden}
                                 onToggleChordsHidden={handleToggleChordsHidden}
+                                // A chord-less word carries its own palette: the pick pins
+                                // straight to this word and the popover stays open, flipping
+                                // to show the chord it just gained — no round-trip through a
+                                // canvas card.
+                                onPickChord={!isCanvasReadOnly && clickedWordChordKey ? (symbol) => {
+                                    const splitAt = clickedWordChordKey.lastIndexOf(':');
+                                    const phraseId = clickedWordChordKey.slice(0, splitAt);
+                                    const wordIndex = parseInt(clickedWordChordKey.slice(splitAt + 1), 10);
+                                    if (phraseId && Number.isFinite(wordIndex)) {
+                                        handlePinChordToWord(symbol, phraseId, wordIndex);
+                                    }
+                                } : undefined}
                             />
 
                             {/* The words column. Wrapped so the chord panel can sit
@@ -18424,8 +19156,19 @@ export default function CreatePage() {
                                 </div>
                             )}
 
-                            {/* Suggestions Alternatives */}
-                            <div className="flex flex-col gap-2 mt-2">
+                            {/* Suggestions Alternatives. flex-1 so the word list takes
+                                whatever height the popover has: usually this column sets
+                                that height itself, but the chord panel beside it can
+                                overtake it with its picker open, and without this the
+                                words would stop at a fixed 220px with the leftover height
+                                sitting empty beneath them. (The chord panel is self-start,
+                                so the reverse never happens — a short chord panel no
+                                longer stretches to match a long rhyme list.) The 220px
+                                floor lives here rather than on the scroller so it still
+                                applies when there is no chord panel at all — a read-only
+                                canvas drops that column, and a floor further in would
+                                overflow a parent that had collapsed to nothing. */}
+                            <div className="flex-1 min-h-[220px] flex flex-col gap-2 mt-2">
                                 {lexiconLoading ? (
                                     <div className="flex flex-col gap-4 py-2 select-none">
                                         {/* Syllable Group 1 Skeleton */}
@@ -18457,9 +19200,14 @@ export default function CreatePage() {
                                         {lexiconError ? t('lexicon.unavailable') : lexiconEmptyMessage(lexiconMode)}
                                     </div>
                                 ) : (
-                                    /* Same reasoning as the panel above: tall enough that the
-                                       next syllable group's header peeks in at the bottom. */
-                                    <ScrollableWithCue className="flex flex-col gap-4 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
+                                    /* Fills the height it is given rather than capping at a
+                                       fixed one: a short popover still shows the next
+                                       syllable group's header peeking in at the bottom, a
+                                       tall one simply shows more words before scrolling. */
+                                    <ScrollableWithCue
+                                        wrapperClassName="flex-1 min-h-0 flex flex-col"
+                                        className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto pr-1 no-scrollbar"
+                                    >
                                         {(() => {
                                             const groupedBySyllables: Record<number, typeof lexiconResults> = {};
                                             lexiconResults.forEach(item => {
@@ -18883,6 +19631,33 @@ export default function CreatePage() {
                         />
                     </div>
 
+                    {/* Personal / collab is a filter, not a place. It used to be two
+                        accordions, which split one shelf in half and made a folder mean
+                        something different on each side. */}
+                    <div className="flex items-center gap-1 bg-stone-100/70 p-1 rounded-[14px] shrink-0 select-none">
+                        {([
+                            ['all', t('workspace.filter_all')],
+                            ['personal', t('workspace.filter_personal')],
+                            ['collab', t('workspace.filter_collab')],
+                        ] as const).map(([value, label]) => (
+                            <button
+                                key={value}
+                                type="button"
+                                onClick={() => setProjectScopeFilter(value)}
+                                className={`h-[36px] px-3.5 rounded-[11px] text-[12.5px] font-semibold transition-all cursor-pointer ${
+                                    projectScopeFilter === value
+                                        ? 'bg-white text-stone-800 shadow-2xs'
+                                        : 'text-stone-500 hover:text-stone-800'
+                                }`}
+                            >
+                                {label}
+                                {value === 'collab' && collabCount > 0 && (
+                                    <span className="ml-1.5 font-normal opacity-60">{collabCount}</span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
                     {/* Sort Dropdown */}
                     <div className="relative shrink-0">
                         <Tooltip label={t('workspace.sort_label') || 'Sort'} disabled={isSortMenuOpen}>
@@ -18964,106 +19739,71 @@ export default function CreatePage() {
                         </Tooltip>
                     </div>
                 </div>
-                <div className="flex flex-col gap-6">
-                    {/* Category 1: My Projects */}
-                    <div className={`transition-all duration-300 rounded-[24px] ${
-                        isMyProjectsOpen 
-                            ? 'bg-stone-200/20 border border-stone-250/20 py-3 px-5 md:py-4 md:px-6 min-h-[300px] flex flex-col' 
-                            : 'bg-transparent'
-                    }`}>
-                        <button 
+                {/* One shelf of folders and projects. A thin bar carries only where you
+                    are (root, or inside a folder) and the one action that creates
+                    structure — dropping a project on "All projects" unfiles it. */}
+                <div className="flex items-center justify-between gap-3 mb-5 px-1 select-none">
+                    <div className="flex items-center gap-1.5 min-w-0 font-sans text-[15px]">
+                        <button
                             type="button"
-                            onClick={() => setIsMyProjectsOpen(!isMyProjectsOpen)}
-                            className={`w-full flex items-center justify-between px-6 py-6 md:py-8 rounded-[24px] transition-all duration-300 group cursor-pointer outline-none select-none text-stone-700 ${
-                                isMyProjectsOpen 
-                                    ? 'bg-transparent border border-transparent' 
-                                    : 'bg-transparent border border-stone-250/20 hover:bg-stone-200/30'
+                            onClick={() => setActiveFolderIdFilter(null)}
+                            onDragOver={(e) => { e.preventDefault(); setDragOverFolderId('__root__'); }}
+                            onDragLeave={() => setDragOverFolderId(null)}
+                            onDrop={(e) => { handleDropOnRoot(e); setDragOverFolderId(null); }}
+                            className={`px-2.5 py-1.5 -ml-2.5 rounded-[10px] transition-all cursor-pointer ${
+                                dragOverFolderId === '__root__'
+                                    ? 'bg-stone-800 text-white'
+                                    : openFolder
+                                        ? 'text-stone-400 hover:text-stone-700 hover:bg-stone-200/40'
+                                        : 'text-stone-600'
                             }`}
                         >
-                            <span className="font-sans font-light text-xl md:text-[22px] tracking-tight">
-                                {t('workspace.my_projects')} <span className="text-[15px] md:text-[17px] text-stone-400/80 font-normal ml-1.5">({myProjects.length})</span>
-                            </span>
-                            <span className={`transform transition-transform duration-300 ease-in-out ${isMyProjectsOpen ? 'rotate-180' : 'rotate-0'} flex items-center justify-center text-stone-400 group-hover:text-stone-600`}>
-                                <ChevronDown size={20} />
-                            </span>
+                            {t('workspace.all_projects')}
                         </button>
-                        
-                        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
-                            isMyProjectsOpen 
-                                ? 'max-h-[2000px] opacity-100 mt-4 px-4 pb-4 md:pb-6 flex-1 flex flex-col' 
-                                : 'max-h-0 opacity-0 pointer-events-none'
-                        }`}>
-                            {myProjects.length === 0 ? (
-                                <div className="text-center py-16 border border-stone-200/50 border-dashed rounded-[24px] bg-white/10 select-none flex-1 flex flex-col items-center justify-center min-h-[180px]">
-                                    <p className="text-xs text-stone-400 italic">{t('workspace.no_personal_projects')}</p>
-                                </div>
-                            ) : (
-                                projectViewStyle === 'grid' ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 p-1">
-                                        {myProjects.map(renderProjectCard)}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-2.5 w-full">
-                                        {myProjects.map(renderProjectListCard)}
-                                    </div>
-                                )
-                            )}
-                        </div>
+                        {openFolder && (
+                            <>
+                                <ChevronRight size={14} className="text-stone-300 shrink-0" />
+                                <span className="text-stone-700 truncate">{openFolder.name}</span>
+                            </>
+                        )}
                     </div>
 
-                    {/* Category 2: Collaboration Projects */}
-                    <div className={`transition-all duration-300 rounded-[24px] ${
-                        isCollabProjectsOpen 
-                            ? 'bg-stone-200/20 border border-stone-250/20 py-3 px-5 md:py-4 md:px-6 min-h-[300px] flex flex-col' 
-                            : 'bg-transparent'
-                    }`}>
-                        <button 
+                    {!openFolder && (
+                        <button
                             type="button"
-                            onClick={() => setIsCollabProjectsOpen(!isCollabProjectsOpen)}
-                            className={`w-full flex items-center justify-between px-6 py-6 md:py-8 rounded-[24px] transition-all duration-300 group cursor-pointer outline-none select-none text-stone-700 ${
-                                isCollabProjectsOpen 
-                                    ? 'bg-transparent border border-transparent' 
-                                    : 'bg-transparent border border-stone-250/20 hover:bg-stone-200/30'
-                            }`}
+                            onClick={handleCreateFolder}
+                            className="h-9 px-3.5 shrink-0 rounded-[12px] text-[12.5px] font-semibold text-stone-500 border border-dashed border-stone-300 hover:text-stone-800 hover:border-stone-400 hover:bg-white/50 flex items-center gap-1.5 transition-colors cursor-pointer"
                         >
-                            <span className="font-sans font-light text-xl md:text-[22px] tracking-tight">
-                                {t('workspace.collab_projects')} <span className="text-[15px] md:text-[17px] text-stone-400/80 font-normal ml-1.5">({collabProjects.length})</span>
-                            </span>
-                            <span className={`transform transition-transform duration-300 ease-in-out ${isCollabProjectsOpen ? 'rotate-180' : 'rotate-0'} flex items-center justify-center text-stone-400 group-hover:text-stone-600`}>
-                                <ChevronDown size={20} />
-                            </span>
+                            <Plus size={13} className="stroke-[2.5]" />
+                            {t('workspace.new_folder')}
                         </button>
-                        
-                        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
-                            isCollabProjectsOpen 
-                                ? 'max-h-[1000px] opacity-100 mt-4 px-4 pb-4 md:pb-6 flex-1 flex flex-col' 
-                                : 'max-h-0 opacity-0 pointer-events-none'
-                        }`}>
-                            {collabProjects.length === 0 ? (
-                                <div className="text-center py-16 border border-stone-200/50 border-dashed rounded-[24px] bg-white/10 select-none flex-1 flex flex-col items-center justify-center min-h-[180px]">
-                                    <p className="text-xs text-stone-400 italic">{t('workspace.no_collab_projects')}</p>
-                                </div>
-                            ) : (
-                                projectViewStyle === 'grid' ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 p-1">
-                                        {collabProjects.map(renderProjectCard)}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-2.5 w-full">
-                                        {collabProjects.map(renderProjectListCard)}
-                                    </div>
-                                )
-                            )}
-                        </div>
-                    </div>
+                    )}
                 </div>
 
-                {/* Combined Empty State when both lists are empty */}
-                {myProjects.length === 0 && collabProjects.length === 0 && (
+                {visibleFolders.length === 0 && visibleProjects.length === 0 ? (
                     <div className="text-center py-16 border border-stone-200 border-dashed rounded-[28px] bg-white/20 select-none">
-                        <p className="text-sm text-stone-400 italic">{t('workspace.no_projects_found')}</p>
+                        <p className="text-sm text-stone-400 italic">
+                            {openFolder
+                                ? t('workspace.folder_empty')
+                                : searchQuery.trim() !== ''
+                                    ? t('workspace.no_projects_found')
+                                    : projectScopeFilter === 'collab'
+                                        ? t('workspace.no_collab_projects')
+                                        : t('workspace.no_personal_projects')}
+                        </p>
+                    </div>
+                ) : projectViewStyle === 'grid' ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 p-1">
+                        {visibleFolders.map(renderFolderCard)}
+                        {visibleProjects.map(renderProjectCard)}
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-2.5 w-full">
+                        {visibleFolders.map(renderFolderListCard)}
+                        {visibleProjects.map(renderProjectListCard)}
                     </div>
                 )}
+
             {/* Comment thread panel — right-docked on desktop, bottom sheet on mobile.
                 z-[70] deliberately: above the creative tools panel (z-[60]) but below modals
                 (z-[100]) and the toast (z-[200]). */}
@@ -19209,6 +19949,8 @@ export default function CreatePage() {
                     onClick={() => {
                         setShowShareModal(false);
                         setInviteStatus({ type: '', message: '' });
+                        setInvitePick(null);
+                        setInviteEmail('');
                     }}
                 >
                     <form
@@ -19254,30 +19996,32 @@ export default function CreatePage() {
                         )}
 
                         <div className="flex flex-col gap-6">
-                            <input 
-                                type="email" 
-                                required
-                                placeholder={t('collab.email_placeholder')}
-                                value={inviteEmail}
-                                onChange={(e) => setInviteEmail(e.target.value)}
-                                className="w-full bg-stone-50 border border-stone-200 rounded-full px-6 py-4 text-[17px] font-sans font-medium outline-none focus:bg-white focus:border-stone-400 transition-all placeholder:text-stone-300"
+                            <InviteCollaboratorField
+                                query={inviteEmail}
+                                onQueryChange={setInviteEmail}
+                                picked={invitePick}
+                                onPick={setInvitePick}
+                                excludeUids={[...allCollabMembers.map(m => m.uid), ...sentInviteUids]}
+                                disabled={isInviting}
                             />
 
                             <div className="flex items-center justify-end gap-3.5 mt-2">
-                                <button 
+                                <button
                                     type="button"
                                     onClick={() => {
                                         setShowShareModal(false);
                                         setInviteStatus({ type: '', message: '' });
+                                        setInvitePick(null);
+                                        setInviteEmail('');
                                     }}
                                     className="px-8 py-3 bg-stone-100/75 hover:bg-stone-200/50 text-stone-600 rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer"
                                 >
                                     {t('common.close')}
                                 </button>
-                                <button 
+                                <button
                                     type="submit"
-                                    disabled={isInviting}
-                                    className="px-8 py-3 bg-stone-900 hover:bg-stone-850 text-white rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer disabled:opacity-50"
+                                    disabled={isInviting || (!invitePick && !isEmailAddress(inviteEmail))}
+                                    className="px-8 py-3 bg-stone-900 hover:bg-stone-850 text-white rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     {isInviting ? t('collab.inviting') : t('collab.invite')}
                                 </button>

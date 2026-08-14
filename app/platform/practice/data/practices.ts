@@ -1,0 +1,103 @@
+/**
+ * The practice catalogue.
+ *
+ * `name` is the stable English string the rest of the tab switches on — the
+ * translated label lives behind `nameKey`, so renaming a practice in the UI
+ * never breaks the logic that keys off it.
+ */
+
+export type PracticeLevel = 'beginner' | 'intermediate' | 'advanced' | 'all levels';
+
+export interface PracticeDefinition {
+    name: string;
+    /** i18n key for the display name. */
+    nameKey: string;
+    /** i18n key for the one-line goal shown on the card. */
+    goalKey: string;
+    level: PracticeLevel;
+    /** Session metrics shown in the stats row. Static until we track them for real. */
+    progress: number;
+    score: number;
+    time: string;
+    /**
+     * Intro clip opened by the card's play button. These currently point at the
+     * Learn "Master fundamentals" recordings as placeholders — swap each one for
+     * its own practice walkthrough once those are shot.
+     */
+    videoUrl?: string;
+    posterUrl?: string;
+    /** false → the card shows "coming soon" and cannot be started. */
+    available: boolean;
+}
+
+const VIDEO_DIR = '/videos/Master%20fundamentals';
+
+export const PRACTICES: PracticeDefinition[] = [
+    {
+        name: 'Master song structure',
+        nameKey: 'practice.master_song_structure',
+        goalKey: 'practice.goal_master_song_structure',
+        level: 'beginner',
+        progress: 65,
+        score: 125,
+        time: '25 min',
+        videoUrl: `${VIDEO_DIR}/song-structure-v2.compressed.mp4`,
+        posterUrl: `${VIDEO_DIR}/song-structure-v2-poster.jpg`,
+        available: true,
+    },
+    {
+        name: 'Composing verses',
+        nameKey: 'practice.composing_verses',
+        goalKey: 'practice.goal_composing_verses',
+        level: 'intermediate',
+        progress: 30,
+        score: 95,
+        time: '18 min',
+        videoUrl: `${VIDEO_DIR}/verse.compressed.mp4`,
+        posterUrl: `${VIDEO_DIR}/verse-poster.jpg`,
+        available: true,
+    },
+    {
+        name: 'Melody & harmony',
+        nameKey: 'practice.melody_harmony',
+        goalKey: 'practice.goal_melody_harmony',
+        level: 'intermediate',
+        progress: 10,
+        score: 180,
+        time: '40 min',
+        videoUrl: `${VIDEO_DIR}/chorus.compressed.mp4`,
+        posterUrl: `${VIDEO_DIR}/chorus-poster.jpg`,
+        available: false,
+    },
+    {
+        name: 'Advanced structures',
+        nameKey: 'practice.advanced_structures',
+        goalKey: 'practice.goal_advanced_structures',
+        level: 'advanced',
+        progress: 0,
+        score: 0,
+        time: '0 min',
+        videoUrl: `${VIDEO_DIR}/bridge.compressed.mp4`,
+        posterUrl: `${VIDEO_DIR}/bridge-poster.jpg`,
+        available: false,
+    },
+    {
+        name: 'Free hand session',
+        nameKey: 'practice.free_hand_session',
+        goalKey: 'practice.goal_free_hand_session',
+        level: 'all levels',
+        progress: 0,
+        score: 0,
+        time: '0 min',
+        videoUrl: `${VIDEO_DIR}/from-idea-to-finished-song.compressed.mp4`,
+        posterUrl: `${VIDEO_DIR}/from-idea-to-finished-song-poster.jpg`,
+        available: false,
+    },
+];
+
+export const PRACTICE_NAMES = PRACTICES.map(p => p.name);
+
+/** Falls back to the first practice so an unknown name can never blank the tab. */
+export function getPractice(name: string): PracticeDefinition {
+    return PRACTICES.find(p => p.name === name) || PRACTICES[0];
+}

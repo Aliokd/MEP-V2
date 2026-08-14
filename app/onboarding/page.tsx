@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import Tooltip from '@/components/Tooltip';
 import { getPriceId, isPlanPurchasable, type BillingPeriod, type PlanId } from '@/lib/paddle/config';
 import { openCheckout } from '@/lib/paddle/checkout';
+import { SIGNUPS_OPEN } from '@/lib/uiFlags';
 import IntroCarousel from './components/IntroCarousel';
 import PaywallPlans from './components/PaywallPlans';
 import QuestionCards from './components/QuestionCards';
@@ -72,20 +73,14 @@ const STEPS = {
 const ADDRESSABLE_STEPS = new Set([STEPS.PAYWALL, STEPS.WELCOME]);
 
 /**
- * Pre-launch: the flow itself is public so the draft can be shared and reviewed,
- * but the account step is closed. Reviewers walk every screen — including the
- * offer, the plans and the welcome — while the two steps that would touch the
- * outside world are skipped: no Firebase account is created and Paddle is never
- * opened. `Pay $0.00` goes straight to the welcome screen, which swaps its door
- * into the product for the waiting list.
+ * Pre-launch, the account step of this flow is closed — see SIGNUPS_OPEN in
+ * lib/uiFlags.ts for the full reasoning. It moved there because the collaboration
+ * invite email needs the same answer when it decides where to send someone who
+ * has no account yet.
  *
  * This replaced a redirect that sent signed-out visitors to the waiting list —
  * which made the draft impossible to show anyone without an account.
- *
- * Flip to `true` to reopen public signups. Nothing else needs changing: the
- * signup form and the checkout call are both still wired up behind this flag.
  */
-const SIGNUPS_OPEN: boolean = false;
 
 // Only the stable ids and answer values live here — every visible label is
 // looked up under `onboarding.questions.<id>` in the locale files.

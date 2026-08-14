@@ -26,7 +26,44 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MAX_EMAIL_LENGTH = 254; // the practical ceiling from RFC 5321
 
 /** Where the signup came from, for reading which surface actually converts. */
-const KNOWN_SOURCES = new Set(["hero", "nav", "footer", "about", "signin", "onboarding", "direct"]);
+const KNOWN_SOURCES = new Set(["hero", "nav", "footer", "about", "signin", "onboarding", "invite", "direct"]);
+
+/** Firestore document ids: no slashes, and nothing long enough to be a payload. */
+const INVITE_ID_PATTERN = /^[A-Za-z0-9_-]{1,200}$/;
+
+/**
+ * Resolves the collaboration invitation a visitor arrived with into something a
+ * human reading the list can act on.
+ *
+ * The invite email tells the recipient we'll let them in "with the invite
+ * attached", and this is what makes that true rather than a turn of phrase: the
+ * row records who wanted them and for which song. Read server-side from the
+ * invitation itself, never trusted from the query string, and best-effort —
+ * nobody loses their place on the list because a lookup failed.
+ */
+async function resolveInvite(inviteId: unknown): Promise<{
+    inviteId: string;
+    inviterName: string | null;
+    projectId: string | null;
+    projectTitle: string | null;
+} | null> {
+    if (typeof inviteId !== "string" || !INVITE_ID_PATTERN.test(inviteId)) return null;
+
+    try {
+        const snap = await adminDb.doc(`invitations/${inviteId}`).get();
+        if (!snap.exists) return null;
+        const data = snap.data() ?? {};
+        return {
+            inviteId,
+            inviterName: data.senderName ?? null,
+            projectId: data.projectId ?? null,
+            projectTitle: data.projectTitle ?? null,
+        };
+    } catch (err) {
+        console.error("[waitlist] Could not resolve invitation:", err);
+        return null;
+    }
+}
 
 export async function POST(request: Request) {
     const limited = rateLimitGuard(request, "waitlist");
@@ -46,6 +83,8 @@ export async function POST(request: Request) {
     if (!email || email.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(email)) {
         return NextResponse.json({ error: "invalid-email" }, { status: 400 });
     }
+
+    const invite = await resolveInvite(body?.invite);
 
     // The address is the document id, so signing up twice updates one row
     // instead of leaving duplicates for someone to de-dupe by hand later.
@@ -68,6 +107,9 @@ export async function POST(request: Request) {
                 // something, so the latest locale and source win.
                 locale: locale ?? existing.data()?.locale ?? null,
                 source,
+                // Only overwritten when they actually arrived with one, so a later
+                // plain visit doesn't erase the invite that first brought them.
+                ...(invite ? { invite } : {}),
             });
         } else {
             // Their number on the list. Counted before the write, so it's the
@@ -85,6 +127,7 @@ export async function POST(request: Request) {
                 lastSignupAt: FieldValue.serverTimestamp(),
                 signupCount: 1,
                 invitedAt: null,
+                invite,
                 userAgent: request.headers.get("user-agent") || null,
                 referer: request.headers.get("referer") || null,
             });
@@ -102,14 +145,16 @@ export async function POST(request: Request) {
             replyTo: email,
             subject: alreadyOnList
                 ? `[Waitlist] ${email} signed up again`
-                : `[Waitlist] ${email}`,
+                : invite
+                    ? `[Waitlist] ${email} — invited to collaborate`
+                    : `[Waitlist] ${email}`,
             text: `${alreadyOnList ? "Someone already on the waitlist submitted again." : "A new person joined the Veinote waitlist."}
 
 Email:    ${email}
 Language: ${locale || "unknown"}
 From:     ${source}
 Position: ${position ?? "unknown"}
-${stored ? "" : "\nWARNING: this address could NOT be written to Firestore — it exists only in this email.\n"}
+${invite ? `\nSomeone is waiting to write with them:\nInvited by: ${invite.inviterName || "unknown"}\nProject:    ${invite.projectTitle || "untitled"} (${invite.projectId || "unknown id"})\nThey can't accept it until they have an account.\n` : ""}${stored ? "" : "\nWARNING: this address could NOT be written to Firestore — it exists only in this email.\n"}
 The full list is in the admin console: https://veinote.com/admin/waiting-list
 
 (Reply to this email to reach them directly.)`,

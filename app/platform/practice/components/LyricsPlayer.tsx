@@ -1,21 +1,23 @@
 "use client";
 import { safeLocalStorageSetItem } from '@/lib/storage';
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Check, ArrowLeft } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { Song, Word, LyricSection } from '../data/songs';
-import SongCard from './SongCard';
-import Tooltip from '@/components/Tooltip';
+import SongTimeline from './SongTimeline';
+import { KIND_LABEL_KEY, KIND_STYLE, classifySection, type SectionKind } from '../data/sections';
 
 interface LyricsPlayerProps {
     song: Song;
-    songIndex: number;
     isPlaying: boolean;
     onTogglePlay: () => void;
-    onBack: () => void;
 }
 
-export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay, onBack }: LyricsPlayerProps) {
+/**
+ * Mounted with `key={song.id}` so switching songs starts the exercise clean —
+ * the shuffle and the answers live in state that only initialises on mount.
+ */
+export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPlayerProps) {
     const { t } = useLanguage();
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
@@ -25,36 +27,30 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
     const requestRef = useRef<number | undefined>(undefined);
     const updateProgressRef = useRef<(() => void) | null>(null);
 
-    // Drag and Drop Exercise States
-    const [shuffledSections, setShuffledSections] = useState<{ section: LyricSection; originalIdx: number }[]>([]);
-    const [assignments, setAssignments] = useState<{ [key: number]: number | null }>({});
-    const [selectedBlockIdx, setSelectedBlockIdx] = useState<number | null>(null);
-    const [shakeSlot, setShakeSlot] = useState<number | null>(null);
+    /*
+     * Identify exercise: pick a section type off the timeline, then the block of
+     * lyrics it belongs to. The blocks are shuffled and unlabelled — otherwise
+     * their order alongside the timeline would give every answer away.
+     */
+    const [shuffled] = useState<{ section: LyricSection; originalIdx: number }[]>(() =>
+        song.lyrics
+            .map((section, originalIdx) => ({ section, originalIdx }))
+            .sort(() => Math.random() - 0.5)
+    );
+    const [selectedKind, setSelectedKind] = useState<SectionKind | null>(null);
+    const [identified, setIdentified] = useState<number[]>([]);
+    const [wrongIdx, setWrongIdx] = useState<number | null>(null);
 
-    // Shuffle sections and reset assignments on song change
+    // Naming every section is what counts as having practised the song.
     useEffect(() => {
-        const sectionsWithIdx = song.lyrics.map((section, idx) => ({ section, originalIdx: idx }));
-        const shuffled = [...sectionsWithIdx].sort(() => Math.random() - 0.5);
-        setShuffledSections(shuffled);
-        setAssignments({});
-        setSelectedBlockIdx(null);
-    }, [song.id, song.lyrics]);
-
-    // Track song completion when all slots are correctly matched
-    useEffect(() => {
-        if (!song || !song.lyrics || song.lyrics.length === 0) return;
-        
-        // Check if all slots have correct assignments
-        const correctCount = song.lyrics.filter((_, idx) => assignments[idx] === idx).length;
-        if (correctCount === song.lyrics.length) {
-            const completedPractices = JSON.parse(localStorage.getItem('mep-completed-practices') || '[]');
-            if (!completedPractices.includes(song.id)) {
-                completedPractices.push(song.id);
-                safeLocalStorageSetItem('mep-completed-practices', JSON.stringify(completedPractices));
-                window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
-            }
+        if (song.lyrics.length === 0 || identified.length < song.lyrics.length) return;
+        const completed = JSON.parse(localStorage.getItem('mep-completed-practices') || '[]');
+        if (!completed.includes(song.id)) {
+            completed.push(song.id);
+            safeLocalStorageSetItem('mep-completed-practices', JSON.stringify(completed));
+            window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
         }
-    }, [assignments, song]);
+    }, [identified, song.id, song.lyrics.length]);
 
     // Audio progress polling callback
     const updateProgress = useCallback(() => {
@@ -137,135 +133,27 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
         }
     }, [isPlaying, isLoaded, onTogglePlay]);
 
-    // Waveform bar heights generator
-    const waveformBars = useMemo(() => {
-        const barCount = 100;
-        const result = [];
-        let seed = 0;
-        const hashString = song.id + song.title;
-        for (let i = 0; i < hashString.length; i++) {
-            seed += hashString.charCodeAt(i);
-        }
-        for (let i = 0; i < barCount; i++) {
-            const val = Math.abs(Math.sin(seed + i * 0.14) * Math.cos(seed * 0.4 + i * 0.06));
-            const height = Math.max(10, Math.round(15 + val * 65));
-            result.push(height);
-        }
-        return result;
-    }, [song.id, song.title]);
-
-    // Seek player on waveform click
-    const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!audioRef.current || !duration) return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const percentage = Math.max(0, Math.min(1, clickX / rect.width));
-        const newTime = percentage * duration;
-        
-        audioRef.current.currentTime = newTime;
-        setCurrentTime(newTime);
-    };
-
-    const handleWordClick = (time: number) => {
+    const handleSeek = (time: number) => {
         if (audioRef.current) {
             audioRef.current.currentTime = time;
             setCurrentTime(time);
         }
     };
 
-    const isWordActive = (word: Word) => {
-        return currentTime >= word.start && currentTime <= word.end;
-    };
+    const isWordActive = (word: Word) => currentTime >= word.start && currentTime <= word.end;
+    const isWordPast = (word: Word) => currentTime > word.end;
 
-    const isWordPast = (word: Word) => {
-        return currentTime > word.end;
-    };
+    // Answering: the armed type either matches this block or it doesn't.
+    const handleGuess = (section: LyricSection, originalIdx: number) => {
+        if (!selectedKind || identified.includes(originalIdx)) return;
 
-    // Generic label mapper based on design mockup labels
-    const getSlotLabel = (title: string) => {
-        const lower = title.toLowerCase();
-        if (lower.includes('verse')) return 'Verse';
-        if (lower.includes('pre-chorus') || lower.includes('bridge') || lower.includes('build')) return 'Bridge';
-        if (lower.includes('chorus')) return 'Chorus';
-        return title;
-    };
-
-    // Assign draggable blocks to target structure slots
-    const handleAssign = (slotIdx: number, draggedIdx: number) => {
-        if (assignments[slotIdx] === slotIdx) return;
-
-        setAssignments(prev => ({ ...prev, [slotIdx]: draggedIdx }));
-        setSelectedBlockIdx(null);
-        
-        if (slotIdx === draggedIdx) {
-            // Correct match: dispatch songwriting-progress-updated event
-            const currentProgress = parseInt(localStorage.getItem('songwriting-progress') || '35');
-            const newProgress = Math.min(100, currentProgress + 15);
-            safeLocalStorageSetItem('songwriting-progress', newProgress.toString());
-            window.dispatchEvent(new Event('songwriting-progress-updated'));
+        if (classifySection(section.title) === selectedKind) {
+            setIdentified(prev => [...prev, originalIdx]);
+            setSelectedKind(null);
         } else {
-            // Shake slot border on incorrect match
-            setShakeSlot(slotIdx);
-            setTimeout(() => setShakeSlot(null), 350);
+            setWrongIdx(originalIdx);
+            setTimeout(() => setWrongIdx(null), 450);
         }
-    };
-
-    // Remove mismatched selection from slot
-    const handleRemove = (slotIdx: number) => {
-        if (assignments[slotIdx] !== slotIdx) {
-            setAssignments(prev => {
-                const copy = { ...prev };
-                delete copy[slotIdx];
-                return copy;
-            });
-        }
-    };
-
-    // Render timing highlighted lyrics inside assigned slots
-    const renderSlotLyrics = (section: LyricSection) => {
-        return (
-            <div className="space-y-4 py-2 px-6">
-                {section.lines.map((line, lineIdx) => (
-                    <div key={lineIdx} className="flex flex-wrap gap-x-1.5 gap-y-2 justify-center leading-relaxed">
-                        {line.words.map((word, wordIdx) => {
-                            const active = isWordActive(word);
-                            const past = isWordPast(word);
-
-                            return (
-                                <button
-                                    key={wordIdx}
-                                    onClick={() => handleWordClick(word.start)}
-                                    className={`
-                                        font-serif text-lg md:text-xl transition-all duration-300 py-0.5 px-0.5 rounded-xs focus:outline-none
-                                        ${active
-                                            ? 'text-stone-900 font-bold scale-102 word-active z-10'
-                                            : past
-                                                ? 'text-stone-400 italic font-light'
-                                                : 'text-stone-700 hover:text-stone-955 font-normal'
-                                        }
-                                    `}
-                                >
-                                    {word.text}
-                                </button>
-                            );
-                        })}
-                    </div>
-                ))}
-            </div>
-        );
-    };
-
-    // Render lyrics in an incorrect/failure state
-    const renderSlotLyricsIncorrect = (section: LyricSection) => {
-        return (
-            <div className="space-y-3 py-2 px-6 opacity-80 text-center select-none">
-                {section.lines.map((line, lineIdx) => (
-                    <p key={lineIdx} className="font-serif italic text-amber-700/80 text-base md:text-lg">
-                        {line.words.map(w => w.text).join(' ')}
-                    </p>
-                ))}
-            </div>
-        );
     };
 
     if (loadError) {
@@ -292,223 +180,120 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
         );
     }
 
+    const allDone = identified.length === song.lyrics.length && song.lyrics.length > 0;
+
     return (
         <div className="w-full flex flex-col gap-10">
-            
-            {/* Header Detail Row: Back arrow, selected SongCard, and Waveform Player side-by-side */}
-            <div className="w-full flex items-center gap-4 md:gap-6 max-w-6xl mx-auto select-none overflow-visible">
-                {/* Back Arrow Button */}
-                <Tooltip label={t('practice.back_to_song_list')}>
-                    <button
-                        onClick={onBack}
-                        aria-label={t('practice.back_to_song_list')}
-                        className="w-10 h-10 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-600 hover:text-stone-900 shadow-2xs shrink-0 cursor-pointer"
-                    >
-                        <ArrowLeft size={18} className="stroke-[2.2]" />
-                    </button>
-                </Tooltip>
 
-                {/* Selected Song Card */}
-                <div className="shrink-0 w-[110px]">
-                    <SongCard
-                        song={song}
-                        index={songIndex}
-                        isSelected={true}
-                        isPlaying={isPlaying}
-                        onClick={onTogglePlay}
-                    />
+            {/* The timeline is the player, and the palette of section types */}
+            <SongTimeline
+                sections={song.lyrics}
+                duration={duration}
+                currentTime={currentTime}
+                isPlaying={isPlaying}
+                onTogglePlay={onTogglePlay}
+                onSeek={handleSeek}
+                selectedKind={selectedKind}
+                onSelectKind={(kind) => setSelectedKind(prev => (prev === kind ? null : kind))}
+            />
+
+            <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
+                {/* What to do, and how far along you are */}
+                <div className="flex items-center justify-between gap-4 flex-wrap select-none">
+                    <p className="text-sm font-sans text-stone-500">
+                        {allDone
+                            ? t('practice.identify_done')
+                            : selectedKind
+                                ? t('practice.identify_now_pick').replace('{section}', t(KIND_LABEL_KEY[selectedKind]))
+                                : t('practice.identify_hint')}
+                    </p>
+                    <span className="text-sm font-sans text-stone-400 tabular-nums">
+                        {t('practice.identify_progress')
+                            .replace('{done}', String(identified.length))
+                            .replace('{total}', String(song.lyrics.length))}
+                    </span>
                 </div>
 
-                {/* Waveform Player on the right */}
-                <div className="flex-1 bg-white border border-stone-200 rounded-[20px] p-4 flex items-center gap-3.5 h-[90px]">
-                    {/* Play/Pause Button */}
-                    <button 
-                        onClick={onTogglePlay}
-                        className="w-10 h-10 shrink-0 rounded-full bg-stone-900 flex items-center justify-center text-[#FAF9F5] hover:bg-stone-800 active:scale-95 transition-all cursor-pointer"
-                        aria-label={isPlaying ? "Pause" : "Play"}
-                    >
-                        {isPlaying ? (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-[#FAF9F5]">
-                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                            </svg>
-                        ) : (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-0.5 text-[#FAF9F5]">
-                                <path d="M8 5v14l11-7z" />
-                            </svg>
-                        )}
-                    </button>
-
-                    {/* Waveform Seekbar */}
-                    <div 
-                        onClick={handleWaveformClick}
-                        className="flex-1 h-10 flex items-center justify-between gap-[1.5px] cursor-pointer select-none overflow-hidden relative px-1 group"
-                    >
-                        {waveformBars.map((height, idx) => {
-                            const progressRatio = currentTime / (duration || 1);
-                            const isBarActive = (idx / waveformBars.length) <= progressRatio;
-                            
-                            return (
-                                <div 
-                                    key={idx}
-                                    className="flex-1 flex flex-col items-center justify-center h-full transition-all duration-300"
-                                >
-                                    {/* Upper Half: Thinner Lines */}
-                                    <div 
-                                        className={`w-[1.2px] rounded-t-full transition-colors duration-200 ${
-                                            isBarActive ? 'bg-stone-900' : 'bg-stone-200 group-hover:bg-stone-300/80'
-                                        }`}
-                                        style={{ height: `${height / 2}%` }}
-                                    />
-                                    <div className="h-[0.5px] w-full" />
-                                    {/* Lower Half: Thinner Lines */}
-                                    <div 
-                                        className={`w-[1.2px] rounded-b-full transition-colors duration-200 ${
-                                            isBarActive ? 'bg-stone-900' : 'bg-stone-200 group-hover:bg-stone-300/80'
-                                        }`}
-                                        style={{ height: `${height / 2}%` }}
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
-
-            {/* Target Slots for Song Structure Drag & Drop */}
-            <div className="w-full max-w-6xl mx-auto flex flex-col gap-8 mt-4 select-none">
-                {song.lyrics.map((section, idx) => {
-                    const assignedIdx = assignments[idx];
-                    const isCorrect = assignedIdx === idx;
-                    const isIncorrect = assignedIdx !== undefined && assignedIdx !== null && assignedIdx !== idx;
-                    const isAssigned = assignedIdx !== undefined && assignedIdx !== null;
-                    const label = getSlotLabel(section.title);
-                    const isShake = shakeSlot === idx;
-
-                    return (
-                        <div 
-                            key={idx}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => {
-                                const draggedIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
-                                handleAssign(idx, draggedIdx);
-                            }}
-                            onClick={() => {
-                                if (isIncorrect) {
-                                    handleRemove(idx);
-                                } else if (selectedBlockIdx !== null) {
-                                    handleAssign(idx, selectedBlockIdx);
-                                }
-                            }}
-                            className={`
-                                relative w-full border rounded-[16px] transition-all duration-300 py-8 min-h-[95px] flex items-center justify-center cursor-pointer
-                                ${isCorrect
-                                    ? 'bg-[#EAF7E8]/30 border-[#86BE7F]'
-                                    : isIncorrect
-                                        ? 'bg-[#FEF3C7]/20 border-[#F59E0B]'
-                                        : 'bg-white/50 border-stone-200 border-dashed hover:border-stone-400 hover:bg-white'
-                                }
-                                ${isShake ? 'animate-shake' : ''}
-                            `}
-                        >
-                            {/* Slot overlay card label sitting on top-left border */}
-                            {isCorrect && (
-                                <div className="absolute -top-3.5 left-6 bg-white border border-[#86BE7F] rounded-[4px] px-3.5 py-0.5 text-xs text-[#86BE7F] font-serif italic shadow-2xs flex items-center gap-1.5 font-bold">
-                                    {label} <Check size={11} className="stroke-[3]" />
-                                </div>
-                            )}
-
-                            {isIncorrect && (
-                                <div className="absolute -top-3.5 left-6 bg-white border border-[#F59E0B] rounded-[4px] px-3.5 py-0.5 text-xs text-[#D97706] font-serif italic shadow-2xs flex items-center gap-1.5 font-bold">
-                                    {label} <span className="text-xs font-sans font-medium ml-1">{t('practice.try_again')}</span>
-                                </div>
-                            )}
-
-                            {!isAssigned && (
-                                <div className="absolute -top-3.5 left-6 bg-white border border-stone-300 rounded-[4px] px-3.5 py-0.5 text-xs text-stone-500 font-serif italic shadow-2xs">
-                                    {label}
-                                </div>
-                            )}
-
-                            {/* Slot Lyrics Content */}
-                            {isCorrect && renderSlotLyrics(song.lyrics[idx])}
-
-                            {isIncorrect && renderSlotLyricsIncorrect(song.lyrics[assignedIdx as number])}
-
-                            {!isAssigned && (
-                                <span className="font-serif italic text-stone-400/80 text-lg md:text-xl tracking-wide">
-                                    {label} + Drag and drop phrases
-                                </span>
-                            )}
-
-                            {/* Reset Button for Mismatched Slots */}
-                            {isIncorrect && (
-                                <Tooltip label={t('practice.clear_selection')}>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation(); // Avoid triggering parent slot click
-                                            handleRemove(idx);
-                                        }}
-                                        aria-label={t('practice.clear_selection')}
-                                        className="absolute top-3.5 right-4 w-6 h-6 rounded-full bg-amber-50 hover:bg-amber-100 flex items-center justify-center text-amber-700 hover:text-amber-900 active:scale-90 transition-all font-sans text-[10px] font-bold shadow-2xs border border-amber-200/50"
-                                    >
-                                        ✕
-                                    </button>
-                                </Tooltip>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Draggable Lyric Blocks */}
-            <div className="w-full max-w-6xl mx-auto border-t border-stone-200 pt-10 mt-6 flex flex-col gap-10">
-                {shuffledSections.map(({ section, originalIdx }) => {
-                    const isAssigned = Object.values(assignments).includes(originalIdx);
-                    if (isAssigned) return null; // Hide correctly or incorrectly placed blocks from list
-
-                    const isSelected = selectedBlockIdx === originalIdx;
+                {/* The shuffled, unlabelled blocks */}
+                {shuffled.map(({ section, originalIdx }) => {
+                    const kind = classifySection(section.title);
+                    const style = KIND_STYLE[kind];
+                    const isIdentified = identified.includes(originalIdx);
+                    const isWrong = wrongIdx === originalIdx;
+                    const answering = !!selectedKind && !isIdentified;
 
                     return (
                         <div
                             key={originalIdx}
-                            draggable
-                            onDragStart={(e) => {
-                                e.dataTransfer.setData("text/plain", originalIdx.toString());
-                            }}
-                            onClick={() => {
-                                if (selectedBlockIdx === originalIdx) {
-                                    setSelectedBlockIdx(null);
-                                } else {
-                                    setSelectedBlockIdx(originalIdx);
-                                }
-                            }}
+                            data-section-block
+                            onClick={() => handleGuess(section, originalIdx)}
                             className={`
-                                p-6 rounded-[20px] border transition-all duration-300 text-center select-text cursor-grab active:cursor-grabbing
-                                ${isSelected
-                                    ? 'bg-stone-50 border-stone-500'
-                                    : 'bg-white border-stone-200 hover:border-stone-400'
+                                relative rounded-[20px] border p-6 md:p-8 transition-colors duration-200
+                                ${isIdentified
+                                    ? 'border-[#86BE7F] bg-[#EAF7E8]/25'
+                                    : isWrong
+                                        ? 'border-[#F59E0B] bg-[#FEF3C7]/25 animate-shake'
+                                        : answering
+                                            ? 'border-stone-300 bg-white hover:border-stone-500 cursor-pointer'
+                                            : 'border-stone-200 bg-white'
                                 }
                             `}
                         >
-                            {/* Draggable Lyric Text Paragraphs */}
-                            <div className="space-y-4 max-w-3xl mx-auto">
-                                {section.lines.map((line, lIdx) => (
-                                    <p key={lIdx} className="font-serif italic text-stone-700/90 text-lg md:text-xl font-light leading-relaxed">
-                                        {line.words.map(w => w.text).join(' ')}
-                                    </p>
+                            {/* Its name, once you've found it */}
+                            {isIdentified ? (
+                                <span
+                                    style={{ backgroundColor: style.bg, color: style.text }}
+                                    className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-sans mb-4"
+                                >
+                                    {t(KIND_LABEL_KEY[kind])}
+                                    <Check size={12} className="stroke-[3]" />
+                                </span>
+                            ) : (
+                                <span className="inline-block rounded-full bg-stone-100 text-stone-400 px-3.5 py-1 text-xs font-sans mb-4">
+                                    ?
+                                </span>
+                            )}
+
+                            <div className="space-y-3">
+                                {section.lines.map((line, lineIdx) => (
+                                    <div key={lineIdx} className="flex flex-wrap gap-x-1.5 gap-y-1 leading-relaxed">
+                                        {line.words.map((word, wordIdx) => {
+                                            const active = isWordActive(word);
+                                            const past = isWordPast(word);
+                                            const tone = active
+                                                ? 'text-stone-900 font-bold scale-102 word-active z-10'
+                                                : past
+                                                    ? 'text-stone-400 font-light'
+                                                    : 'text-stone-700 font-normal';
+
+                                            // While a type is armed the whole block is the answer
+                                            // target, so the words stop being seek buttons.
+                                            return answering ? (
+                                                <span
+                                                    key={wordIdx}
+                                                    className={`font-serif text-lg md:text-xl transition-all duration-300 py-0.5 px-0.5 ${tone}`}
+                                                >
+                                                    {word.text}
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    key={wordIdx}
+                                                    onClick={() => handleSeek(word.start)}
+                                                    className={`font-serif text-lg md:text-xl transition-all duration-300 py-0.5 px-0.5 rounded-xs focus:outline-none hover:text-stone-900 ${tone}`}
+                                                >
+                                                    {word.text}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 ))}
-                            </div>
-                            
-                            {/* Help tooltip hint */}
-                            <div className="text-xs text-stone-400 mt-4 select-none">
-                                {isSelected ? 'Click the correct target box above to place' : 'Drag this section or click to select'}
                             </div>
                         </div>
                     );
                 })}
             </div>
 
-            {/* Injected CSS keyframes for target Slot Shaking */}
+            {/* Keyframes for the wrong-answer shake */}
             <style jsx>{`
                 @keyframes shake {
                     0%, 100% { transform: translateX(0); }
@@ -516,7 +301,7 @@ export default function LyricsPlayer({ song, songIndex, isPlaying, onTogglePlay,
                     40%, 80% { transform: translateX(6px); }
                 }
                 .animate-shake {
-                    animation: shake 0.35s ease-in-out;
+                    animation: shake 0.45s ease-in-out;
                 }
             `}</style>
         </div>

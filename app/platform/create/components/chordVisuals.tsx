@@ -206,7 +206,7 @@ export function Fretboard({ position, scale = 1 }: { position: ChordPosition; sc
                         key={`b${b}`}
                         x={from - dotR} y={fretY(b - 1) + FRET_GAP / 2 - dotR}
                         width={to - from + dotR * 2} height={dotR * 2}
-                        rx={dotR} fill="#4f46e5"
+                        rx={dotR} fill="#44403C"
                     />
                 );
             })}
@@ -237,7 +237,7 @@ export function Fretboard({ position, scale = 1 }: { position: ChordPosition; sc
                 const finger = barredSilently.has(i) ? 0 : fingers?.[i];
                 return (
                     <g key={`d${i}`}>
-                        <circle cx={x} cy={y} r={dotR} fill="#4f46e5" />
+                        <circle cx={x} cy={y} r={dotR} fill="#44403C" />
                         {finger ? (
                             <text
                                 x={x} y={y + 0.5 * scale}

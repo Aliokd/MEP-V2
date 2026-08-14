@@ -21,13 +21,15 @@ test.describe('Connect Page (Community Feed)', () => {
     // Check that connect link in the sidebar is visible
     await expect(page.locator('a[href="/platform/connect"]').first()).toBeVisible();
 
-    // Verify presence of "Create your song" link card
-    await expect(page.locator('text=Create your song')).toBeVisible();
-
     // Verify presence of "Connect with Songwriters" section
     await expect(page.locator('text=Connect with Songwriters')).toBeVisible();
 
-    // Verify presence of "Recent creations" section
-    await expect(page.locator('text=Recent creations')).toBeVisible();
+    // Verify presence of the Max-gated PRO panel beside it
+    await expect(page.locator('text=Connect with PROs')).toBeVisible();
+
+    // Verify presence of the "Recent songs" section and its create button, which
+    // replaced the old "Create your song" banner at the top of the page.
+    await expect(page.locator('text=Recent songs')).toBeVisible();
+    await expect(page.locator('a[href="/platform/create"]', { hasText: 'Create a song' })).toBeVisible();
   });
 });

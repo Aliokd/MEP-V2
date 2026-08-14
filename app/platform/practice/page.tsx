@@ -39,7 +39,7 @@ export default function PracticePage() {
         return (
             <div className="w-full min-h-[60vh] flex items-center justify-center px-6 py-10">
                 <div className="flex flex-col items-center text-center gap-4 max-w-md">
-                    <h1 className="font-serif italic font-light text-3xl md:text-4xl text-stone-900">
+                    <h1 className="font-serif font-normal text-3xl md:text-4xl text-stone-900">
                         {t('practice.locked_title')}
                     </h1>
                     <span className="inline-block bg-stone-100 text-stone-500 rounded-full px-4 py-1.5 text-sm font-sans">

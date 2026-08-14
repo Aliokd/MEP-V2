@@ -5,9 +5,10 @@ import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { useLanguage } from '@/context/LanguageContext';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, Plus, Check, ArrowUpRight, LayoutGrid, ThumbsUp, Repeat, Send, Loader2, Play, Pause } from 'lucide-react';
+import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, Plus, Check, LayoutGrid, ThumbsUp, Repeat, Send, Loader2, Play, Pause } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProSongwritersPanel from './ProSongwritersPanel';
+import { fetchPlatformUsers, setConnection, useConnections, type PlatformUser } from '@/lib/connections';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ReportDialog from '@/components/ReportDialog';
 
@@ -1237,15 +1238,7 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
 function ConnectSkeleton() {
   return (
     <div className="w-full max-w-[1000px] mx-auto py-4 px-4 font-sans mb-12 animate-pulse select-none">
-      {/* 1. Create Section Link Card */}
-      <div className="w-full bg-[#F6F6F0] border border-stone-200/50 rounded-[20px] p-6 mb-8">
-        <div className="flex items-center justify-between">
-          <div className="h-5 w-44 bg-stone-300/30 rounded-full" />
-          <div className="w-5 h-5 bg-stone-300/30 rounded-full" />
-        </div>
-      </div>
-
-      {/* 2. Connect row — songwriters box and PRO banner as peers, matching the
+      {/* 1. Connect row — songwriters box and PRO banner as peers, matching the
              loaded layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8 md:items-stretch">
         <div className="min-w-0 bg-[#F6F6F0] border border-stone-200/50 rounded-[24px] py-6 px-0">
@@ -1267,8 +1260,11 @@ function ConnectSkeleton() {
         </div>
       </div>
 
-      {/* 3. Recent Creations */}
-      <div className="h-5 w-40 bg-stone-300/30 rounded-full mb-6" />
+      {/* 2. Recent songs — heading plus the create button beside it */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="h-5 w-40 bg-stone-300/30 rounded-full" />
+        <div className="h-9 w-32 bg-stone-300/25 rounded-full shrink-0" />
+      </div>
 
       <div className="flex flex-col gap-12 w-full">
         {[...Array(2)].map((_, i) => (
@@ -1472,41 +1468,50 @@ export default function ConnectTab() {
     setActivePostId(prev => (prev === postId ? null : prev));
   };
 
-  // Songwriters horizontal scroll state
-  interface Songwriter {
-    id: string;
-    name: string;
-    avatarFallback: string;
-    specialty: string;
-    connected: boolean;
-    hoursSpent: number;
-    projectsCount: number;
-  }
+  // Real people on the platform, replacing the placeholder roster this row used
+  // to render. Fetched once — a browse list gains nothing from a live listener,
+  // and the connection state that *does* change is its own subscription.
+  const [songwriters, setSongwriters] = useState<PlatformUser[]>([]);
+  const [songwritersLoaded, setSongwritersLoaded] = useState(false);
+  const { connections } = useConnections();
 
-  const [songwriters, setSongwriters] = useState<Songwriter[]>([
-    { id: 'sw-1', name: 'Alek Vane', avatarFallback: 'AV', specialty: 'Pop Melodist', connected: false, hoursSpent: 28.5, projectsCount: 12 },
-    { id: 'sw-2', name: 'Elena Rostova', avatarFallback: 'ER', specialty: 'Indie Lyricist', connected: false, hoursSpent: 42.0, projectsCount: 19 },
-    { id: 'sw-3', name: 'Liam Sterling', avatarFallback: 'LS', specialty: 'Synth Beats', connected: false, hoursSpent: 12.5, projectsCount: 6 },
-    { id: 'sw-4', name: 'Chloe Bennett', avatarFallback: 'CB', specialty: 'Vocal Arranger', connected: false, hoursSpent: 56.0, projectsCount: 24 },
-    { id: 'sw-5', name: 'Marcus Vance', avatarFallback: 'MV', specialty: 'Acoustic Folk', connected: false, hoursSpent: 19.5, projectsCount: 9 },
-    { id: 'sw-6', name: 'Sophia Chen', avatarFallback: 'SC', specialty: 'R&B Vocals', connected: false, hoursSpent: 34.0, projectsCount: 15 },
-    { id: 'sw-7', name: 'Jonas Becker', avatarFallback: 'JB', specialty: 'Cinematic Piano', connected: false, hoursSpent: 48.5, projectsCount: 20 },
-    { id: 'sw-8', name: 'Amira Al-Jamil', avatarFallback: 'AA', specialty: 'Neo-Soul Writer', connected: false, hoursSpent: 22.0, projectsCount: 10 },
-    { id: 'sw-9', name: 'Oliver Wood', avatarFallback: 'OW', specialty: 'Folk Guitarist', connected: false, hoursSpent: 15.0, projectsCount: 7 },
-    { id: 'sw-10', name: 'Maya Lin', avatarFallback: 'ML', specialty: 'EDM Producer', connected: false, hoursSpent: 62.5, projectsCount: 29 },
-    { id: 'sw-11', name: 'Daniel Kim', avatarFallback: 'DK', specialty: 'Hip-Hop Beats', connected: false, hoursSpent: 18.0, projectsCount: 8 }
-  ]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const users = await fetchPlatformUsers(user?.uid ?? null);
+        if (!cancelled) setSongwriters(users);
+      } catch (err) {
+        console.error('Error loading platform users:', err);
+      } finally {
+        if (!cancelled) setSongwritersLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.uid]);
 
   const hasDraggedSongwritersRef = useRef(false);
 
-  const handleConnectSongwriter = (id: string) => {
+  // Resolves an onboarding answer id to its localized label. Users who signed up
+  // before the quiz, or skipped it, simply show no specialty line.
+  const songwriterTypeLabel = (typeId: string | null): string => {
+    if (!typeId) return '';
+    const key = `onboarding.questions.songwriter_type.options.${typeId}.title`;
+    const label = t(key);
+    return label === key ? '' : label;
+  };
+
+  const handleConnectSongwriter = async (targetUid: string) => {
+    // A drag that ends over a card must not read as a click on it.
     if (hasDraggedSongwritersRef.current) return;
-    setSongwriters(prev => prev.map(sw => {
-      if (sw.id === id) {
-        return { ...sw, connected: !sw.connected };
-      }
-      return sw;
-    }));
+    if (!user) return;
+
+    const isConnected = connections.includes(targetUid);
+    try {
+      await setConnection(user.uid, targetUid, !isConnected);
+    } catch (err) {
+      console.error('Error updating connection:', err);
+    }
   };
 
 
@@ -1968,20 +1973,7 @@ export default function ConnectTab() {
   return (
     <div className="w-full max-w-[1000px] mx-auto py-4 px-4 font-sans mb-12">
       
-      {/* 1. Create Section Link Card */}
-      <a 
-        href="/platform/create"
-        className="block w-full bg-[#F6F6F0] hover:bg-[#EBEBE3] border border-stone-200/50 rounded-[20px] p-6 mb-8 transition-all duration-300 shadow-none cursor-pointer group select-none"
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-[20px] font-sans font-medium tracking-tight text-stone-850">
-            {t('connect.create_your_song')}
-          </span>
-          <ArrowUpRight className="w-5.5 h-5.5 text-stone-550 group-hover:text-stone-900 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300" />
-        </div>
-      </a>
-
-      {/* 2. Connect row — two peers side by side, not one box holding both: the
+      {/* 1. Connect row — two peers side by side, not one box holding both: the
              songwriters container on the left, the PRO banner standing on the page
              background on the right. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8 select-none md:items-stretch">
@@ -1999,43 +1991,67 @@ export default function ConnectTab() {
             isDraggingSongwriters ? 'cursor-grabbing select-none scroll-auto' : 'cursor-grab snap-x snap-mandatory scroll-smooth'
           }`}
         >
-          {songwriters.map(sw => (
-            <div 
-              key={sw.id} 
+          {!songwritersLoaded && [...Array(3)].map((_, i) => (
+            <div
+              key={`sw-skeleton-${i}`}
+              className="min-w-[185px] max-w-[185px] min-h-[165px] bg-white border border-stone-200/60 rounded-[22px] p-5 flex flex-col justify-between relative shrink-0 animate-pulse"
+            >
+              <div className="h-5 w-28 bg-stone-300/30 rounded-full" />
+              <div className="absolute bottom-4 right-4 w-5 h-5 bg-stone-300/30 rounded-full" />
+            </div>
+          ))}
+
+          {songwritersLoaded && songwriters.length === 0 && (
+            <div className="min-h-[165px] flex items-center text-[14px] text-stone-500 font-sans pr-6">
+              {t('connect.no_songwriters')}
+            </div>
+          )}
+
+          {songwriters.map(sw => {
+            const isConnected = connections.includes(sw.uid);
+            const specialty = songwriterTypeLabel(sw.songwriterType);
+            return (
+            <div
+              key={sw.uid}
               className={`min-w-[185px] max-w-[185px] min-h-[165px] bg-white border border-stone-200/60 rounded-[22px] p-5 flex flex-col justify-between relative hover:shadow-[0_4px_16px_rgba(0,0,0,0.015)] transition-all duration-300 group ${
                 isDraggingSongwriters ? 'snap-none' : 'snap-start'
               }`}
             >
-              {/* Name at top left with hover stats */}
+              {/* Name at top left with hover detail */}
               <div className="flex flex-col text-left select-none">
                 <span className="text-[21px] font-sans font-medium text-stone-700 tracking-tight leading-snug break-words pr-2">
                   {sw.name}
                 </span>
-                
-                {/* Stats block fading in gently on hover: uniform light grey, larger details, lowercase */}
+
+                {/* Fades in gently on hover. Both lines come from the user's own
+                    record — the specialty is their onboarding answer, so a user
+                    who skipped the quiz shows only the join date. */}
                 <div className="opacity-0 group-hover:opacity-100 mt-2 transition-opacity duration-350 pointer-events-none flex flex-col gap-0.5 text-sm text-stone-400 font-sans">
-                  <div className="leading-snug">
-                    {sw.hoursSpent} {t('connect.hrs_active')}
-                  </div>
-                  <div className="leading-snug">
-                    {sw.projectsCount} {t('connect.projects')}
-                  </div>
+                  {specialty && <div className="leading-snug">{specialty}</div>}
+                  {sw.createdAt > 0 && (
+                    <div className="leading-snug">
+                      {t('connect.member_since')} {new Date(sw.createdAt).getFullYear()}
+                    </div>
+                  )}
                 </div>
               </div>
-              
+
               {/* Plus / Checked icon at bottom right (no circle, raw icon only) */}
               <button
-                onClick={() => handleConnectSongwriter(sw.id)}
+                onClick={() => handleConnectSongwriter(sw.uid)}
+                aria-pressed={isConnected}
+                aria-label={`${isConnected ? t('connect.connected') : t('connect.connect_action')} — ${sw.name}`}
                 className="absolute bottom-4 right-4 text-stone-550 hover:text-stone-850 transition-colors duration-200 active:scale-90 p-1 flex items-center justify-center"
               >
-                {sw.connected ? (
+                {isConnected ? (
                   <Check className="w-5.5 h-5.5 text-stone-600 stroke-[2.5]" />
                 ) : (
                   <Plus className="w-5.5 h-5.5 text-[#2c2a29] stroke-[2.5]" />
                 )}
               </button>
             </div>
-          ))}
+            );
+          })}
         </div>
         </div>
 
@@ -2048,10 +2064,20 @@ export default function ConnectTab() {
         </div>
       </div>
 
-      {/* 3. Recent Creations Title */}
-      <h3 className="text-[20px] font-sans font-medium tracking-tight text-stone-850 mb-6">
-        {t('connect.recent_creations')}
-      </h3>
+      {/* 2. Recent songs — the create action lives here now that the top banner is
+             gone, so the entry point sits next to the thing it produces. */}
+      <div className="flex items-center gap-4 mb-6">
+        <h3 className="text-[20px] font-sans font-medium tracking-tight text-stone-850">
+          {t('connect.recent_songs')}
+        </h3>
+        <a
+          href="/platform/create"
+          className="flex items-center gap-1.5 shrink-0 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-[13px] font-semibold text-stone-700 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95 select-none"
+        >
+          {t('connect.create_song_cta')}
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+        </a>
+      </div>
 
       {/* Community Feed - List Layout with space for peeking CD */}
       <div className="flex flex-col gap-12 w-full">

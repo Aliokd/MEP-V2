@@ -5,9 +5,23 @@ import { SAMPLE_SONGS, type Song } from '../data/songs';
 import { fetchPracticeSongs } from '@/lib/contentClient';
 import LyricsPlayer from './LyricsPlayer';
 import SongCard from './SongCard';
-import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react';
+import PracticeCard from './PracticeCard';
+import PracticeVideoModal from './PracticeVideoModal';
+import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
+import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
+
+/**
+ * Carousel slide for the practice card. Direction is +1 when moving forward
+ * through the list and -1 when moving back. Position only — the card never
+ * fades, it just travels.
+ */
+const CARD_SLIDE = {
+    enter: (direction: number) => ({ x: direction >= 0 ? '100%' : '-100%' }),
+    center: { x: 0 },
+    exit: (direction: number) => ({ x: direction >= 0 ? '-100%' : '100%' }),
+};
 
 export default function PracticeTab() {
     const { t } = useLanguage();
@@ -36,16 +50,7 @@ export default function PracticeTab() {
         return () => { cancelled = true; };
     }, []);
 
-    const getTranslatedPracticeName = (name: string) => {
-        switch(name) {
-            case 'Master song structure': return t('practice.master_song_structure');
-            case 'Composing verses': return t('practice.composing_verses');
-            case 'Melody & harmony': return t('practice.melody_harmony');
-            case 'Advanced structures': return t('practice.advanced_structures');
-            case 'Free hand session': return t('practice.free_hand_session');
-            default: return name;
-        }
-    };
+    const getTranslatedPracticeName = (name: string) => t(getPractice(name).nameKey);
 
     const getTranslatedLevel = (lvl: string) => {
         switch(lvl) {
@@ -57,19 +62,17 @@ export default function PracticeTab() {
         }
     };
 
-    const practices = [
-        'Master song structure',
-        'Composing verses',
-        'Melody & harmony',
-        'Advanced structures',
-        'Free hand session'
-    ];
+    const practices = PRACTICE_NAMES;
 
-    const [selectedPractice, setSelectedPractice] = useState('Master song structure');
+    const [selectedPractice, setSelectedPractice] = useState(practices[0]);
+    // null → the card gallery. Set to a practice name once it has been started.
+    const [openedPractice, setOpenedPractice] = useState<string | null>(null);
+    const [videoPractice, setVideoPractice] = useState<PracticeDefinition | null>(null);
+    // Which way the card carousel should travel on the next switch.
+    const [direction, setDirection] = useState(1);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [selectedSongId, setSelectedSongId] = useState('song-1');
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isFocused, setIsFocused] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Composing Verses (Practice 2) State
@@ -81,47 +84,50 @@ export default function PracticeTab() {
     const [pendingNounIndex, setPendingNounIndex] = useState<number | null>(null);
     const [sentences, setSentences] = useState<string[]>(Array(5).fill(''));
 
-    // Dynamic practice-specific metadata
-    const practiceMetadata = {
-        'Master song structure': { progress: 65, level: 'beginner', time: '25 min', score: 125 },
-        'Composing verses': { progress: 30, level: 'intermediate', time: '18 min', score: 95 },
-        'Melody & harmony': { progress: 10, level: 'intermediate', time: '40 min', score: 180 },
-        'Advanced structures': { progress: 0, level: 'advanced', time: '0 min', score: 0 },
-        'Free hand session': { progress: 0, level: 'all levels', time: '0 min', score: 0 }
-    };
-
-    const currentMeta = practiceMetadata[selectedPractice as keyof typeof practiceMetadata] || practiceMetadata['Master song structure'];
+    const currentMeta = getPractice(selectedPractice);
     const currentSong = songs.find(s => s.id === selectedSongId) || songs[0];
 
-    // Reset player states when changing practice module
+    /**
+     * Switching practice from the header. Staying inside a practice only makes
+     * sense when the target has one to show — otherwise fall back to the card
+     * for the one just picked.
+     */
+    const selectPractice = (name: string, dir?: number) => {
+        // A menu pick slides toward wherever that practice sits in the list.
+        setDirection(dir ?? (practices.indexOf(name) >= practices.indexOf(selectedPractice) ? 1 : -1));
+        setSelectedPractice(name);
+        setDropdownOpen(false);
+        setOpenedPractice(prev => (prev && getPractice(name).available ? name : null));
+    };
+
+    // Stop playback when moving between practices or back to the overview card
     useEffect(() => {
-        setIsFocused(false);
         setIsPlaying(false);
-    }, [selectedPractice]);
+    }, [selectedPractice, openedPractice]);
 
     // Handle cycling practices
     const handlePrevPractice = () => {
         const currentIndex = practices.indexOf(selectedPractice);
-        const prevIndex = (currentIndex - 1 + practices.length) % practices.length;
-        setSelectedPractice(practices[prevIndex]);
-        setDropdownOpen(false);
+        selectPractice(practices[(currentIndex - 1 + practices.length) % practices.length], -1);
     };
 
     const handleNextPractice = () => {
         const currentIndex = practices.indexOf(selectedPractice);
-        const nextIndex = (currentIndex + 1) % practices.length;
-        setSelectedPractice(practices[nextIndex]);
-        setDropdownOpen(false);
+        selectPractice(practices[(currentIndex + 1) % practices.length], 1);
     };
 
     const handleTogglePlay = () => {
         setIsPlaying(!isPlaying);
     };
 
+    // Clicking the selected song toggles playback; clicking another switches to it.
     const handleSongSelect = (id: string) => {
-        setSelectedSongId(id);
-        setIsPlaying(true);
-        setIsFocused(true);
+        if (id === selectedSongId) {
+            setIsPlaying(prev => !prev);
+        } else {
+            setSelectedSongId(id);
+            setIsPlaying(true);
+        }
     };
 
     const handleWordChange = (type: 'noun' | 'verb', index: number, value: string) => {
@@ -156,22 +162,18 @@ export default function PracticeTab() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const currentProgress = selectedPractice === 'Composing verses'
-        ? Math.round((currentStep / 6) * 100)
-        : currentMeta.progress;
-
     return (
         <div className="w-full">
 
             {/* Full-width content column */}
-            <div className="w-full bg-transparent py-4 md:py-6 relative overflow-visible">
+            <div className="w-full bg-transparent pb-6 relative overflow-visible">
 
-                {/* Top Practice Selector Header */}
-                <div className="flex items-center justify-center gap-4 mb-8 relative z-30 select-none">
+                {/* Top Practice Selector Header — swapped for the back row once a practice is open */}
+                <div className={`items-center justify-center gap-4 mb-6 relative z-30 select-none ${openedPractice ? 'hidden' : 'flex'}`}>
                     {/* Previous Button */}
                     <button 
                         onClick={handlePrevPractice}
-                        className="w-9 h-9 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-500 hover:text-stone-900"
+                        className="w-9 h-9 rounded-full border border-stone-200/70 bg-white/50 opacity-60 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center text-stone-500 hover:text-stone-900"
                         aria-label={t('practice.previous_practice')}
                     >
                         <ChevronLeft size={18} className="stroke-[2.2]" />
@@ -181,7 +183,7 @@ export default function PracticeTab() {
                     <div ref={dropdownRef} className="relative">
                         <button 
                             onClick={() => setDropdownOpen(!dropdownOpen)}
-                            className="flex items-center gap-2 text-stone-900 hover:text-stone-950 font-serif text-xl md:text-2xl font-light tracking-wide py-1 px-4 rounded-full hover:bg-stone-100/40 transition-colors"
+                            className="flex items-center gap-2.5 bg-white hover:bg-stone-50 border border-stone-200/80 text-stone-900 font-serif text-xl md:text-2xl font-normal tracking-wide py-2.5 px-7 rounded-full transition-colors"
                         >
                             <span>{getTranslatedPracticeName(selectedPractice)}</span>
                             <ChevronDown size={16} className={`stroke-[2.2] transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
@@ -202,15 +204,12 @@ export default function PracticeTab() {
                                     >
                                         {practices.map((p) => {
                                             const isSelected = p === selectedPractice;
-                                            const meta = practiceMetadata[p as keyof typeof practiceMetadata];
+                                            const meta = getPractice(p);
                                             return (
                                                 <button
                                                     key={p}
-                                                    onClick={() => {
-                                                        setSelectedPractice(p);
-                                                        setDropdownOpen(false);
-                                                    }}
-                                                    className={`w-full text-left px-5 py-3 rounded-[12px] flex flex-col sm:grid sm:grid-cols-2 sm:items-baseline gap-0.5 sm:gap-4 font-serif italic font-light text-base sm:text-lg transition-colors
+                                                    onClick={() => selectPractice(p)}
+                                                    className={`w-full text-left px-5 py-3 rounded-[12px] flex flex-col sm:grid sm:grid-cols-2 sm:items-baseline gap-0.5 sm:gap-4 font-serif font-normal text-base sm:text-lg transition-colors
                                                         ${isSelected
                                                             ? 'bg-stone-100 text-stone-900'
                                                             : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
@@ -219,7 +218,7 @@ export default function PracticeTab() {
                                                 >
                                                     <span className="truncate">{getTranslatedPracticeName(p)}</span>
                                                     <span className="text-stone-400 truncate lowercase text-sm sm:text-lg">
-                                                        {t('practice.level')}: {getTranslatedLevel(meta.level)}
+                                                        {getTranslatedLevel(meta.level)}
                                                     </span>
                                                 </button>
                                             );
@@ -233,95 +232,107 @@ export default function PracticeTab() {
                     {/* Next Button */}
                     <button 
                         onClick={handleNextPractice}
-                        className="w-9 h-9 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-500 hover:text-stone-900"
+                        className="w-9 h-9 rounded-full border border-stone-200/70 bg-white/50 opacity-60 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center text-stone-500 hover:text-stone-900"
                         aria-label={t('practice.next_practice')}
                     >
                         <ChevronRight size={18} className="stroke-[2.2]" />
                     </button>
                 </div>
  
-                {/* Metrics / Info Row */}
-                <div className="w-full flex flex-wrap items-center gap-x-10 gap-y-4 text-sm text-stone-500 font-sans border-b border-stone-200 pb-5 mb-10 select-none">
+                {/* Inside a practice the header selector gives way to this row: the way
+                    back, and the practice you're in. */}
+                {openedPractice && (
+                    <div className="flex items-center gap-4 mb-8 select-none">
+                        <button
+                            onClick={() => setOpenedPractice(null)}
+                            className="flex items-center gap-2 text-sm font-sans text-stone-500 hover:text-stone-900 transition-colors shrink-0"
+                        >
+                            <ArrowLeft size={16} className="stroke-[2]" />
+                            {t('practice.back_to_overview')}
+                        </button>
 
-                    {/* Progress Segment */}
-                    <div className="flex items-center gap-4 min-w-[200px] flex-1">
-                        <span>{t('practice.progress')}</span>
-                        <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden relative">
-                            <motion.div
-                                className="h-full bg-stone-800 rounded-full"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${currentProgress}%` }}
-                                transition={{ duration: 0.8, ease: "easeOut" }}
-                            />
-                        </div>
-                        <span className="text-stone-800 font-medium min-w-[36px] text-right tabular-nums">{currentProgress}%</span>
-                    </div>
+                        <span className="w-px h-5 bg-stone-300 shrink-0" />
 
-                    {/* Your Score Segment */}
-                    <div className="flex items-center gap-2">
-                        <span>{t('practice.your_score')}</span>
-                        <span className="text-stone-800 font-medium tabular-nums">{currentMeta.score}</span>
+                        <h2 className="font-serif text-xl md:text-2xl font-normal tracking-wide text-stone-900 truncate">
+                            {getTranslatedPracticeName(openedPractice)}
+                        </h2>
                     </div>
-
-                    {/* Level Segment */}
-                    <div className="flex items-center gap-2">
-                        <span>{t('practice.level')}</span>
-                        <span className="text-stone-800 font-medium capitalize">{getTranslatedLevel(currentMeta.level)}</span>
-                    </div>
-
-                    {/* Time Spent Segment */}
-                    <div className="flex items-center gap-2">
-                        <span>{t('practice.time_spent')}</span>
-                        <span className="text-stone-800 font-medium">{currentMeta.time}</span>
-                    </div>
-                </div>
+                )}
 
                 <AnimatePresence mode="wait">
-                    {selectedPractice === 'Master song structure' && (
-                        !isFocused ? (
-                            <motion.div
-                                key="menu"
-                                initial={{ opacity: 0, y: 15 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -15 }}
-                                transition={{ duration: 0.2, ease: "easeInOut" }}
-                                className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 pb-8 relative z-10"
-                            >
-                                {songs.map((song, idx) => (
-                                    <SongCard
-                                        key={song.id}
-                                        song={song}
-                                        index={idx}
-                                        isSelected={selectedSongId === song.id}
-                                        isPlaying={selectedSongId === song.id && isPlaying}
-                                        onClick={() => handleSongSelect(song.id)}
+                    {/* One practice at a time — the header arrows and menu cycle through them */}
+                    {!openedPractice && (
+                        <motion.div
+                            key="card-area"
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -15 }}
+                            transition={{ duration: 0.2, ease: "easeInOut" }}
+                            className="w-full pb-8 relative overflow-hidden"
+                        >
+                            {/* Cards slide past each other in the direction you asked for.
+                                popLayout takes the outgoing card out of flow so both move
+                                at once instead of one waiting for the other. */}
+                            <AnimatePresence mode="popLayout" custom={direction} initial={false}>
+                                <motion.div
+                                    key={selectedPractice}
+                                    custom={direction}
+                                    variants={CARD_SLIDE}
+                                    initial="enter"
+                                    animate="center"
+                                    exit="exit"
+                                    transition={{ duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
+                                >
+                                    <PracticeCard
+                                        practice={currentMeta}
+                                        name={t(currentMeta.nameKey)}
+                                        goal={t(currentMeta.goalKey)}
+                                        level={getTranslatedLevel(currentMeta.level)}
+                                        startLabel={t('practice.start_practice')}
+                                        comingSoonLabel={t('common.coming_soon')}
+                                        videoLabel={t('practice.why_practice').replace('{practice}', t(currentMeta.nameKey))}
+                                        onStart={() => setOpenedPractice(currentMeta.name)}
+                                        onPlayVideo={() => setVideoPractice(currentMeta)}
                                     />
-                                ))}
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="detail"
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.98 }}
-                                transition={{ duration: 0.25, ease: "easeInOut" }}
-                                className="w-full"
-                            >
-                                <LyricsPlayer
-                                    song={currentSong}
-                                    songIndex={songs.findIndex(s => s.id === selectedSongId)}
-                                    isPlaying={isPlaying}
-                                    onTogglePlay={handleTogglePlay}
-                                    onBack={() => {
-                                        setIsFocused(false);
-                                        setIsPlaying(false);
-                                    }}
-                                />
-                            </motion.div>
-                        )
+                                </motion.div>
+                            </AnimatePresence>
+                        </motion.div>
                     )}
 
-                    {selectedPractice === 'Composing verses' && (
+                    {openedPractice === 'Master song structure' && (
+                        <motion.div
+                            key="song-structure"
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -15 }}
+                            transition={{ duration: 0.2, ease: "easeInOut" }}
+                            className="w-full"
+                        >
+                            {/* Song carousel — horizontal scroll, first song selected by default */}
+                            <div className="w-full max-w-6xl mx-auto flex gap-4 overflow-x-auto no-scrollbar pb-2 mb-8">
+                                {songs.map((song, idx) => (
+                                    <div key={song.id} className="w-[130px] shrink-0">
+                                        <SongCard
+                                            song={song}
+                                            index={idx}
+                                            isSelected={selectedSongId === song.id}
+                                            isPlaying={selectedSongId === song.id && isPlaying}
+                                            onClick={() => handleSongSelect(song.id)}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <LyricsPlayer
+                                key={currentSong.id}
+                                song={currentSong}
+                                isPlaying={isPlaying}
+                                onTogglePlay={handleTogglePlay}
+                            />
+                        </motion.div>
+                    )}
+
+                    {openedPractice === 'Composing verses' && (
                         <motion.div
                             key="composing-verses"
                             initial={{ opacity: 0, y: 15 }}
@@ -358,7 +369,7 @@ export default function PracticeTab() {
                                 <div className="w-full flex flex-col items-center animate-in fade-in duration-500">
                                     <div className="text-center mb-10 space-y-2 select-none">
                                         <p className="text-stone-400 text-xs font-sans">{t('practice.step_1_header')}</p>
-                                        <h2 className="text-3xl font-serif text-stone-900 italic font-light">{t('practice.choose_theme')}</h2>
+                                        <h2 className="text-3xl font-serif text-stone-900 font-normal">{t('practice.choose_theme')}</h2>
                                         <p className="text-stone-500 text-sm font-sans">{t('practice.select_theme_desc')}</p>
                                     </div>
                                     <div className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
@@ -387,7 +398,7 @@ export default function PracticeTab() {
                                         <p className="text-stone-400 text-xs font-sans">
                                             {currentStep === 2 ? t('practice.step_2_header') : t('practice.step_3_header')}
                                         </p>
-                                        <h2 className="text-3xl font-serif text-stone-900 italic font-light">
+                                        <h2 className="text-3xl font-serif text-stone-900 font-normal">
                                             {currentStep === 2 ? t('practice.type_5_nouns') : t('practice.type_5_verbs')}
                                         </h2>
                                         <p className="text-stone-500 text-sm font-sans">
@@ -400,7 +411,7 @@ export default function PracticeTab() {
                                         <div className="flex flex-col gap-4 w-full lg:w-60 shrink-0">
                                             <div className="p-5 bg-white border border-stone-200 rounded-[16px]">
                                                 <span className="text-xs font-sans text-stone-400 block mb-1">{t('practice.theme')}</span>
-                                                <span className="text-stone-800 font-serif italic text-lg font-light">{selectedTheme}</span>
+                                                <span className="text-stone-800 font-serif text-lg font-normal">{selectedTheme}</span>
                                             </div>
 
                                             {currentStep === 3 && (
@@ -484,7 +495,7 @@ export default function PracticeTab() {
                                         <div className="p-8 md:p-12 relative">
                                             <div className="text-center mb-12 space-y-2">
                                                 <p className="text-stone-400 text-xs font-sans">{t('practice.step_4_header')}</p>
-                                                <h2 className="text-3xl font-serif text-stone-900 italic font-light">{t('practice.link_nouns_verbs')}</h2>
+                                                <h2 className="text-3xl font-serif text-stone-900 font-normal">{t('practice.link_nouns_verbs')}</h2>
                                                 <p className="text-stone-500 text-sm font-sans">{t('practice.link_desc')}</p>
                                             </div>
 
@@ -631,7 +642,7 @@ export default function PracticeTab() {
                                     <div className="w-full max-w-4xl">
                                         <div className="text-center mb-10 space-y-2">
                                             <p className="text-stone-400 text-xs font-sans">{t('practice.step_5_header')}</p>
-                                            <h2 className="text-3xl font-serif text-stone-900 italic font-light">{t('practice.complete_sentences')}</h2>
+                                            <h2 className="text-3xl font-serif text-stone-900 font-normal">{t('practice.complete_sentences')}</h2>
                                             <p className="text-stone-500 text-sm font-sans">(don't overthink, just connect them naturally)</p>
                                         </div>
 
@@ -731,7 +742,7 @@ export default function PracticeTab() {
                                     <div className="w-full max-w-3xl">
                                         <div className="text-center mb-10 space-y-2">
                                             <p className="text-stone-400 text-xs font-sans">{t('practice.step_6_header')}</p>
-                                            <h2 className="text-3xl font-serif text-stone-900 italic font-light">{t('practice.story_ready')}</h2>
+                                            <h2 className="text-3xl font-serif text-stone-900 font-normal">{t('practice.story_ready')}</h2>
                                         </div>
 
                                         <div className="bg-transparent rounded-[28px] p-10 md:p-14 mb-10 relative overflow-hidden group">
@@ -806,26 +817,19 @@ export default function PracticeTab() {
                         </motion.div>
                     )}
 
-                    {selectedPractice !== 'Master song structure' && selectedPractice !== 'Composing verses' && (
-                        <motion.div
-                            key="coming-soon"
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            transition={{ duration: 0.2, ease: "easeInOut" }}
-                            className="w-full flex items-center justify-center min-h-[400px] bg-white border border-stone-200 rounded-[20px]"
-                        >
-                            <div className="text-center space-y-3">
-                                <p className="text-stone-900 font-serif italic text-xl tracking-tight font-light">{getTranslatedPracticeName(selectedPractice)}</p>
-                                <span className="inline-block bg-stone-100 text-stone-500 rounded-full px-3 py-1 text-xs font-sans">
-                                    {t('common.coming_soon')}
-                                </span>
-                            </div>
-                        </motion.div>
-                    )}
                 </AnimatePresence>
 
             </div>
+
+            {/* Practice intro clip, played like the onboarding demo video */}
+            {videoPractice?.videoUrl && (
+                <PracticeVideoModal
+                    src={videoPractice.videoUrl}
+                    poster={videoPractice.posterUrl}
+                    title={t(videoPractice.nameKey)}
+                    onClose={() => setVideoPractice(null)}
+                />
+            )}
 
             <style jsx>{`
                 .no-scrollbar::-webkit-scrollbar {

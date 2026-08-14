@@ -28,6 +28,9 @@ function WaitlistPageInner() {
 
     // Which CTA sent them here, so we can see which surface actually converts.
     const source = searchParams.get('from') || 'direct';
+    // Set when a collaboration invite email sent them: the id of the invitation
+    // waiting for them, so joining the list can be tied back to who invited them.
+    const invite = searchParams.get('invite');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,10 +44,13 @@ function WaitlistPageInner() {
 
         setIsLoading(true);
         try {
-            const res = await fetch('/api/waiting-list', {
+            // /api/waitlist, not /api/waiting-list: the rename that moved this page
+            // never moved the route, and the proxy redirect covers the page paths
+            // only — this form was posting into a 404.
+            const res = await fetch('/api/waitlist', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: trimmed, locale: language, source }),
+                body: JSON.stringify({ email: trimmed, locale: language, source, invite }),
             });
 
             if (!res.ok) {

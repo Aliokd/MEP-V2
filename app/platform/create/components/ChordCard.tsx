@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Play, Square, X, ChevronLeft, ChevronRight, Plus, GripVertical } from 'lucide-react';
+import { Play, Square, X, ChevronLeft, ChevronRight, Plus, GripVertical, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { COMMON_CHORDS, chordPositions, chordNotes, isValidChord, normalizeChord, type ChordMark } from '@/lib/chords';
 import { Fretboard, useChordPlayback } from './chordVisuals';
@@ -49,6 +49,92 @@ const HOLD_MS = 320;
 
 type Panel = 'none' | 'chord' | 'input';
 
+/**
+ * The chord once it stands in the song: a compact capsule in the same minimal
+ * language as the audio and document cards — white, softly rounded, hairline
+ * border, the content and one quiet action. Play on the left, the shape as a small diagram
+ * on the right, remove on hover. Clicking the name reopens the full picker
+ * (un-placing it), and the whole capsule drags exactly like the big card: onto
+ * a word to pin the symbol, between lines to move it.
+ */
+export function PlacedChordCard({
+    chord, onOpen, onRemove, onDragStart, onDragEnd, isDragging,
+}: {
+    chord: ChordMark;
+    /** Back to the full picker card — "I want a different chord here". */
+    onOpen: () => void;
+    onRemove: () => void;
+    onDragStart: (e: React.DragEvent) => void;
+    onDragEnd: () => void;
+    isDragging?: boolean;
+}) {
+    const { t } = useLanguage();
+    const positions = useMemo(() => chordPositions(chord.symbol), [chord.symbol]);
+    const notes = useMemo(() => chordNotes(chord.symbol), [chord.symbol]);
+    const current = positions[0];
+    const { playing, play, stop } = useChordPlayback(current);
+
+    return (
+        <div
+            draggable
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            // Same shell the audio / image / document capsules use — white, hairline
+            // border, one soft ambient shadow — so a chord sitting in the flow reads as
+            // the same KIND of thing as the cards above and below it.
+            className={`group/placed w-fit max-w-full mx-auto my-2 flex items-center gap-2.5 bg-white border border-stone-200/80 rounded-[16px] pl-2 pr-1.5 py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all cursor-grab active:cursor-grabbing select-none ${
+                isDragging ? 'opacity-40' : ''
+            }`}
+        >
+            {current && (
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); playing ? stop() : play(); }}
+                    aria-label={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
+                    title={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
+                    className="w-9 h-9 shrink-0 rounded-full bg-stone-50 border border-stone-200 hover:bg-stone-100 text-stone-700 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                >
+                    {playing ? <Square size={11} className="fill-current" /> : <Play size={12} className="fill-current" />}
+                </button>
+            )}
+
+            <button
+                type="button"
+                onClick={onOpen}
+                aria-label={chord.symbol}
+                className="min-w-0 text-left px-1 cursor-pointer"
+            >
+                <div className="text-[15px] leading-none font-bold text-stone-900 tracking-tight truncate">{chord.symbol}</div>
+                {notes.length > 0 && (
+                    <div className="mt-1 text-[10.5px] font-medium text-stone-400 truncate">{notes.join(' · ')}</div>
+                )}
+            </button>
+
+            {current && (
+                <div className="shrink-0 bg-stone-50/70 rounded-[11px] px-1.5 py-0.5 pointer-events-none" aria-hidden="true">
+                    <Fretboard position={current} scale={0.4} />
+                </div>
+            )}
+
+            {/* Collapsed to nothing until the capsule is hovered, rather than sitting
+                there invisible: at a fixed width it held 38px of empty air open on the
+                right of every chord in the song, and the capsule looked lopsided. The
+                negative margin cancels the flex gap while it is closed, so the two
+                animate as one and the capsule widens to admit the button instead of
+                the button fading into a slot that was always waiting for it. */}
+            <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); stop(); onRemove(); }}
+                aria-label={t('creative.chord_remove') || 'Remove chord'}
+                title={t('creative.chord_remove') || 'Remove chord'}
+                className="w-0 -ml-2.5 opacity-0 group-hover/placed:w-7 group-hover/placed:ml-0 group-hover/placed:opacity-100 focus-visible:w-7 focus-visible:ml-0 focus-visible:opacity-100 h-7 shrink-0 overflow-hidden rounded-full flex items-center justify-center text-stone-300 hover:text-red-500 hover:bg-red-50 transition-all duration-200 cursor-pointer"
+            >
+                <X size={13} strokeWidth={2.5} className="shrink-0" />
+            </button>
+        </div>
+    );
+}
+
 export interface ChordCardProps {
     chord: ChordMark;
     onSetSymbol: (symbol: string) => void;
@@ -56,9 +142,17 @@ export interface ChordCardProps {
     onDragStart: (e: React.DragEvent) => void;
     onDragEnd: () => void;
     isDragging?: boolean;
+    /** The "done choosing" commit: called after the sending beat, as the panel settles
+     *  back onto the map and the chord stands in the song. */
+    onSendToCanvas?: () => void;
+    /** True when this card was reopened from a chord already standing in the song.
+     *  Nothing is being sent anywhere in that case — the writer is exchanging one
+     *  chord for another in a slot that already exists — so the commit button says
+     *  so. See the button itself for the wording. */
+    isSwapping?: boolean;
 }
 
-export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, onDragEnd, isDragging }: ChordCardProps) {
+export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, onDragEnd, isDragging, onSendToCanvas, isSwapping }: ChordCardProps) {
     const { t } = useLanguage();
     const [variation, setVariation] = useState(0);
     const [draft, setDraft] = useState('');
@@ -161,6 +255,25 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
     }, [panel, openFrom]);
 
     useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
+
+    /** Send-to-canvas runs as a short beat: the button reads "Sending…" while the
+     *  panel shrinks back onto the map, so the chord is visibly IN the song by the
+     *  time the label clears. The chord already lives in the lyric flow — this is
+     *  the affirmative "done choosing", as opposed to × which discards the card. */
+    const [isSending, setIsSending] = useState(false);
+    const sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => { if (sendTimer.current) clearTimeout(sendTimer.current); }, []);
+
+    const sendToCanvas = () => {
+        if (isSending) return;
+        setIsSending(true);
+        stop();
+        sendTimer.current = setTimeout(() => {
+            onSendToCanvas?.();
+            setIsSending(false);
+            closePanel();
+        }, 550);
+    };
 
     /** Shrinks back into its box, then unmounts. */
     const closePanel = () => {
@@ -345,16 +458,21 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
             }`}
         >
             {/* Removing the card. Hidden until the card is hovered so it isn't a
-                permanent piece of furniture on a card that is otherwise just a map. */}
-            <button
-                type="button"
-                onClick={() => { stop(); onRemove(); }}
-                aria-label={t('creative.chord_remove') || 'Remove chord'}
-                title={t('creative.chord_remove') || 'Remove chord'}
-                className="absolute -top-2 -right-2 z-20 w-7 h-7 rounded-full bg-white border border-stone-200 shadow-2xs flex items-center justify-center text-stone-400 hover:text-red-500 hover:border-red-200 transition-all cursor-pointer opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100"
-            >
-                <X size={13} className="stroke-[2.5]" />
-            </button>
+                permanent piece of furniture on a card that is otherwise just a map —
+                and gone entirely while a chord is open, where an × in the corner of an
+                open panel reads as "close this" and would instead throw the whole card
+                away. Closing is what clicking the panel already does. */}
+            {panel === 'none' && (
+                <button
+                    type="button"
+                    onClick={() => { stop(); onRemove(); }}
+                    aria-label={t('creative.chord_remove') || 'Remove chord'}
+                    title={t('creative.chord_remove') || 'Remove chord'}
+                    className="absolute -top-2 -right-2 z-20 w-7 h-7 rounded-full bg-white border border-stone-200 shadow-2xs flex items-center justify-center text-stone-400 hover:text-red-500 hover:border-red-200 transition-all cursor-pointer opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100"
+                >
+                    <X size={13} className="stroke-[2.5]" />
+                </button>
+            )}
 
             <div className="relative">
                 <div
@@ -414,7 +532,7 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
                                         aria-label={t('creative.chord_placeholder') || 'Other chord'}
                                         title={t('creative.chord_placeholder') || 'Other chord'}
                                         style={{ width: CELL_W, height: CELL_H }}
-                                        className={`${cellBase} border-dashed border-stone-300 text-stone-400 bg-white/70 hover:border-indigo-300 hover:text-indigo-600 cursor-pointer`}
+                                        className={`${cellBase} border-dashed border-stone-300 text-stone-400 bg-white/70 hover:border-stone-400 hover:text-stone-700 cursor-pointer`}
                                     >
                                         <Plus size={16} className="stroke-[2.5]" />
                                     </button>
@@ -452,10 +570,10 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
                                         choose(symbol, itemIndex);
                                     }}
                                     style={{ width: CELL_W, height: CELL_H }}
-                                    className={`${cellBase} ${isLifted ? 'cursor-grabbing scale-110 shadow-lg ring-2 ring-indigo-400 z-10 relative' : 'cursor-pointer'} ${
+                                    className={`${cellBase} ${isLifted ? 'cursor-grabbing scale-110 shadow-lg ring-2 ring-stone-500 z-10 relative' : 'cursor-pointer'} ${
                                         isSelected
-                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                            : 'bg-white text-stone-600 border-stone-200/70 hover:border-indigo-300 hover:text-indigo-700 hover:shadow-2xs'
+                                            ? 'bg-stone-800 text-white border-stone-800 shadow-sm'
+                                            : 'bg-white text-stone-600 border-stone-200/70 hover:border-stone-400 hover:text-stone-900 hover:shadow-2xs'
                                     }`}
                                 >
                                     {symbol}
@@ -503,14 +621,14 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
                                         value={draft}
                                         onChange={(e) => setDraft(e.target.value)}
                                         placeholder={t('creative.chord_placeholder') || 'Other chord, e.g. F#m7b5'}
-                                        className="w-full h-10 px-3 rounded-[12px] bg-stone-50 border border-stone-200/70 text-[13px] font-medium text-stone-700 placeholder:text-stone-400 focus:outline-none focus:border-indigo-400"
+                                        className="w-full h-10 px-3 rounded-[12px] bg-stone-50 border border-stone-200/70 text-[13px] font-medium text-stone-700 placeholder:text-stone-400 focus:outline-none focus:border-stone-400"
                                     />
                                     <button
                                         type="submit"
                                         disabled={!isValidChord(draft)}
                                         className={`w-full h-9 rounded-[12px] text-[12.5px] font-bold transition-colors ${
                                             isValidChord(draft)
-                                                ? 'bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer active:scale-[0.98]'
+                                                ? 'bg-stone-800 text-white hover:bg-stone-900 cursor-pointer active:scale-[0.98]'
                                                 : 'bg-stone-100 text-stone-300 cursor-not-allowed'
                                         }`}
                                     >
@@ -551,14 +669,46 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
                                             </div>
                                         )}
 
-                                        <button
-                                            type="button"
-                                            onClick={playing ? stop : play}
-                                            className="w-full h-9 rounded-[12px] bg-white border border-stone-200 shadow-sm hover:shadow hover:border-stone-300 text-stone-800 text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98]"
-                                        >
-                                            {playing ? <Square size={12} className="fill-current" /> : <Play size={13} className="fill-current" />}
-                                            {playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
-                                        </button>
+                                        {/* Play shrinks to its icon so Send to canvas — the
+                                            action that ends the choosing — can carry its full
+                                            label beside it in every language. */}
+                                        <div className="flex items-center gap-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={playing ? stop : play}
+                                                aria-label={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
+                                                title={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
+                                                className="w-9 h-9 shrink-0 rounded-[12px] bg-white border border-stone-200 shadow-sm hover:shadow hover:border-stone-300 text-stone-800 flex items-center justify-center transition-all cursor-pointer active:scale-[0.98]"
+                                            >
+                                                {playing ? <Square size={12} className="fill-current" /> : <Play size={13} className="fill-current" />}
+                                            </button>
+                                            {/* One button, two jobs. A chord on its way into the
+                                                song for the first time is SENT — the up arrow, and
+                                                the canvas named as the destination. A chord
+                                                reopened from the flow already has its place, so
+                                                the same button exchanges one symbol for another:
+                                                "Swap", and the two-way arrow to say it's a trade
+                                                rather than another delivery. */}
+                                            <button
+                                                type="button"
+                                                onClick={sendToCanvas}
+                                                disabled={isSending}
+                                                className="flex-1 min-w-0 h-9 rounded-[12px] bg-white border border-stone-200 shadow-sm hover:shadow hover:border-stone-300 text-stone-800 text-[12px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-70 disabled:cursor-default whitespace-nowrap"
+                                            >
+                                                {isSwapping
+                                                    ? <ArrowUpDown size={13} className={`shrink-0 ${isSending ? 'animate-pulse' : ''}`} />
+                                                    : <ArrowUp size={13} className={`shrink-0 ${isSending ? 'animate-pulse' : ''}`} />}
+                                                <span className="truncate">
+                                                    {isSending
+                                                        ? (isSwapping
+                                                            ? (t('creative.swapping_status') || 'Swapping...')
+                                                            : (t('creative.sending_status') || 'Sending...'))
+                                                        : (isSwapping
+                                                            ? (t('creative.swap_chord') || 'Swap')
+                                                            : (t('creative.send_to_canvas') || 'Send to canvas'))}
+                                                </span>
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Extra padding on the right keeps the high-E string's open

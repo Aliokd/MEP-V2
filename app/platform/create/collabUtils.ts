@@ -1,4 +1,6 @@
 import { db, auth } from "@/lib/firebase";
+import { authedFetch } from "@/lib/authedFetch";
+import { LOCALE_COOKIE } from "@/lib/i18n";
 import {
     doc,
     setDoc,
@@ -105,12 +107,92 @@ export async function migrateLegacyNotesToProjects(userId: string) {
 }
 
 /**
+ * Rejects an invitee who can't be added: the owner themself, someone already in,
+ * or one member past the cap. Returns null when the invite may go ahead.
+ */
+function rejectIneligibleInvitee(
+    projectData: any,
+    inviteeUid: string
+): { success: false; message: string } | null {
+    if (!projectData) return null;
+    if (projectData.ownerId === inviteeUid) {
+        return { success: false, message: "You cannot invite yourself as a collaborator." };
+    }
+    if (projectData.collaborators?.includes(inviteeUid)) {
+        return { success: false, message: "This user is already a collaborator." };
+    }
+    if ((projectData.collaborators?.length || 0) >= MAX_COLLABORATORS) {
+        return { success: false, message: `This project already has the maximum of ${MAX_PROJECT_MEMBERS} members.` };
+    }
+    return null;
+}
+
+/**
+ * Writes the invitation document both invite paths share.
+ *
+ * The id is deterministic — `{projectId}_{uid}` for a known account, or a slug of
+ * the email for someone who doesn't have one yet — so inviting the same person
+ * twice overwrites one document instead of stacking duplicates in their inbox.
+ */
+async function writeInvitation(params: {
+    projectId: string;
+    projectTitle: string;
+    senderId: string;
+    senderName?: string;
+    inviteeId: string;
+    inviteeEmail: string;
+}): Promise<string> {
+    const { projectId, projectTitle, senderId, senderName, inviteeId, inviteeEmail } = params;
+    const inviteId = inviteeId
+        ? `${projectId}_${inviteeId}`
+        : `${projectId}_pending_${inviteeEmail.replace(/[@.]/g, '_')}`;
+
+    await setDoc(doc(db, "invitations", inviteId), {
+        id: inviteId,
+        projectId,
+        projectTitle,
+        senderId,
+        senderName: senderName || "A collaborator",
+        inviteeId,
+        inviteeEmail,
+        status: "pending",
+        createdAt: new Date().toISOString()
+    }, { merge: true });
+
+    return inviteId;
+}
+
+/**
+ * Mails the invitation to someone who has no account yet.
+ *
+ * Best-effort: the invitation document is already written, so a mail failure
+ * costs the notification, not the invite — if they sign up with that address
+ * later the project still appears for them.
+ */
+async function sendInviteEmail(inviteId: string): Promise<void> {
+    try {
+        // The invitee's own language is unknown — nobody has met them yet — so the
+        // mail goes out in the language the sender is writing in.
+        const locale = typeof window !== 'undefined' ? localStorage.getItem(LOCALE_COOKIE) : null;
+        const res = await authedFetch("/api/emails/collab-invite", {
+            method: "POST",
+            body: JSON.stringify({ inviteId, locale })
+        });
+        if (!res.ok) {
+            console.warn("Invitation email not sent:", (await res.json().catch(() => ({}))).error || res.status);
+        }
+    } catch (err) {
+        console.warn("Invitation email not sent:", err);
+    }
+}
+
+/**
  * Invites a collaborator by email. Finds user UID and adds them to collaborators list.
  */
 export async function inviteCollaboratorByEmail(
-    projectId: string, 
-    email: string, 
-    senderId: string, 
+    projectId: string,
+    email: string,
+    senderId: string,
     senderName?: string
 ): Promise<{ success: boolean; message: string }> {
     try {
@@ -123,68 +205,76 @@ export async function inviteCollaboratorByEmail(
         const usersRef = collection(db, "users");
         const q = query(usersRef, where("email", "==", cleanedEmail));
         const querySnapshot = await getDocs(q);
-        
+
         if (querySnapshot.empty) {
-            // Non-existing user: create a pending invitation doc linked to their email
-            const inviteId = `${projectId}_pending_${cleanedEmail.replace(/[@.]/g, '_')}`;
-            const inviteRef = doc(db, "invitations", inviteId);
-            
-            await setDoc(inviteRef, {
-                id: inviteId,
-                projectId,
-                projectTitle,
-                senderId,
-                senderName: senderName || "A collaborator",
-                inviteeId: "", // will be claimed upon registration
-                inviteeEmail: cleanedEmail,
-                status: "pending",
-                createdAt: new Date().toISOString()
-            }, { merge: true });
+            // Nobody on the platform holds this address: record the invite against the
+            // email so it can be claimed at signup, and tell them about it by mail —
+            // there is no workspace for them to see a notification in.
+            const inviteId = await writeInvitation({
+                projectId, projectTitle, senderId, senderName, inviteeId: "", inviteeEmail: cleanedEmail
+            });
+            await sendInviteEmail(inviteId);
 
-            console.log(`Mock Email Service: Sent collaboration invitation email to ${cleanedEmail} for project "${projectTitle}" from ${senderName || "A collaborator"}`);
-
-            return { 
-                success: true, 
-                message: `Invitation sent! An email has been sent to ${cleanedEmail}. Once they sign up, this project will appear in their workspace.` 
+            return {
+                success: true,
+                message: `Invitation sent! An email has been sent to ${cleanedEmail}. Once they sign up, this project will appear in their workspace.`
             };
         }
-        
+
         const collaboratorId = querySnapshot.docs[0].id;
-        
-        // Check if already invited or is owner
-        if (projectDoc.exists()) {
-            const data = projectDoc.data();
-            if (data.ownerId === collaboratorId) {
-                return { success: false, message: "You cannot invite yourself as a collaborator." };
-            }
-            if (data.collaborators && data.collaborators.includes(collaboratorId)) {
-                return { success: false, message: "This user is already a collaborator." };
-            }
-            if ((data.collaborators?.length || 0) >= MAX_COLLABORATORS) {
-                return { success: false, message: "This project already has the maximum of 5 members." };
-            }
-        }
-        
-        
-        // Create an invitation document in Firestore
-        const inviteId = `${projectId}_${collaboratorId}`;
-        const inviteRef = doc(db, "invitations", inviteId);
-        
-        await setDoc(inviteRef, {
-            id: inviteId,
-            projectId,
-            projectTitle,
-            senderId,
-            senderName: senderName || "A collaborator",
-            inviteeId: collaboratorId,
-            inviteeEmail: cleanedEmail,
-            status: "pending",
-            createdAt: new Date().toISOString()
-        }, { merge: true });
-        
+
+        const rejection = projectDoc.exists() ? rejectIneligibleInvitee(projectDoc.data(), collaboratorId) : null;
+        if (rejection) return rejection;
+
+        await writeInvitation({
+            projectId, projectTitle, senderId, senderName, inviteeId: collaboratorId, inviteeEmail: cleanedEmail
+        });
+
         return { success: true, message: "Invitation sent successfully! They will see a notification in their workspace." };
     } catch (err: any) {
         console.error("Error inviting collaborator:", err);
+        return { success: false, message: err.message || "Failed to invite collaborator." };
+    }
+}
+
+/**
+ * Invites someone the sender already knows on the platform — picked from their
+ * connections in the share dialog rather than typed out.
+ *
+ * Separate from the email path because the uid is already known: no lookup by
+ * address, and no dependence on the invitee's email being readable. It still
+ * stores the address so a re-invite by typing reuses the same document.
+ */
+export async function inviteCollaboratorByUid(
+    projectId: string,
+    inviteeUid: string,
+    senderId: string,
+    senderName?: string
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const projectDoc = await getDoc(doc(db, "projects", projectId));
+        const projectTitle = projectDoc.exists() ? (projectDoc.data()?.title || "Untitled Song") : "Untitled Song";
+
+        const rejection = projectDoc.exists() ? rejectIneligibleInvitee(projectDoc.data(), inviteeUid) : null;
+        if (rejection) return rejection;
+
+        const inviteeSnap = await getDoc(doc(db, "users", inviteeUid));
+        if (!inviteeSnap.exists()) {
+            return { success: false, message: "That account no longer exists." };
+        }
+
+        await writeInvitation({
+            projectId,
+            projectTitle,
+            senderId,
+            senderName,
+            inviteeId: inviteeUid,
+            inviteeEmail: (inviteeSnap.data()?.email || "").toLowerCase()
+        });
+
+        return { success: true, message: "Invitation sent successfully! They will see a notification in their workspace." };
+    } catch (err: any) {
+        console.error("Error inviting collaborator by uid:", err);
         return { success: false, message: err.message || "Failed to invite collaborator." };
     }
 }

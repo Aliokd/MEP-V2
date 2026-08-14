@@ -23,6 +23,9 @@ export interface ChordMark {
     phraseId: string;
     /** Index of the word within that line's token list. */
     wordIndex: number;
+    /** True once the writer has committed the chord with "Send to canvas": the flow
+     *  then renders it as a compact placed card rather than the full picker. */
+    placed?: boolean;
 }
 
 /** Starting palette in the picker — the chords most songs are actually built from,

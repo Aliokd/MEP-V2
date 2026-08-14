@@ -182,7 +182,24 @@ export function quotaError(message: string): Error & { status: number } {
  * Budgeting the work ourselves means we always return our own JSON error, and
  * always in time to be useful.
  */
-export const GEMINI_TOTAL_BUDGET_MS = 45_000;
+/**
+ * HARD CEILING — read before raising this. Requests reach these routes through
+ * Firebase Hosting's CDN, whose backend rewrites time out at ~60 seconds no matter
+ * what frameworksBackend.timeoutSeconds says. The WHOLE request has to finish
+ * inside that, upload included — and the upload is not free here: a photo or a
+ * take is sent in the same 60s window before the model is even called.
+ *
+ * This default used to be 45s. That fit the ceiling on paper and missed it in
+ * practice: a first scan of a large photo spent long enough uploading that 45s of
+ * model time pushed the request past the edge cutoff, the CDN answered with its
+ * own non-JSON error page, and the client — which can only parse JSON — reported
+ * a generic failure. Trying again usually worked, because by then the image was
+ * warm, which is exactly what "it fails the first time" looked like from the
+ * outside. /api/transcribe had already been walked down to 40s for this reason;
+ * the default is now the same, so a new route inherits the safe number instead of
+ * the trap.
+ */
+export const GEMINI_TOTAL_BUDGET_MS = 40_000;
 export const GEMINI_ATTEMPT_TIMEOUT_MS = 20_000;
 
 export interface CallBudget {

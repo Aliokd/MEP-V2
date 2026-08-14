@@ -8,13 +8,23 @@ import PlatformOnboarding from './components/PlatformOnboarding';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { Menu, User, X, Brain, ChevronRight, ShieldOff, UsersRound, UserMinus, ArrowRight } from 'lucide-react';
+import { Menu, User, X, Brain, ChevronRight, ChevronLeft, ShieldOff, UsersRound, UserMinus, ArrowRight } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getCountFromServer, onSnapshot } from 'firebase/firestore';
 import { acknowledgeRemovalNotice } from './create/collabUtils';
+
+/**
+ * When to fire the actual navigation during the profile's slide-out
+ * (.profile-view-exit in globals.css runs 420ms). Deliberately well before the
+ * animation ends: the route swap costs real time — mounting the Create canvas is
+ * not free — and paying it after the view has fully faded left the screen holding
+ * on an empty background. By this point the ease-out curve has done ~90% of the
+ * motion, so cutting over reads as the end of the slide, not an interruption.
+ */
+const PROFILE_EXIT_NAV_MS = 200;
 
 // Owns the focus-timer's 1s tick locally so it doesn't force the entire
 // PlatformLayoutInner tree to re-render every second while running.
@@ -110,7 +120,44 @@ function PlatformLayoutInner({
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSupportOpen, setIsSupportOpen] = useState(false);
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+    // Leaving Profile plays the slide-out first, then navigates; this holds the
+    // exit class on the view for that window. Reset on arrival at the new route.
+    const [isProfileExiting, setIsProfileExiting] = useState(false);
+    // Mirrors the state as a ref so a second trigger can be rejected synchronously,
+    // before React has re-rendered with the updated flag.
+    const profileExitingRef = useRef(false);
     const popupRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        profileExitingRef.current = false;
+        setIsProfileExiting(false);
+    }, [pathname]);
+
+    // Slide the profile out, then navigate. `to` omitted = back in history.
+    const exitProfile = useCallback((to?: string) => {
+        if (profileExitingRef.current) return;
+        profileExitingRef.current = true;
+        setIsProfileExiting(true);
+        setTimeout(() => {
+            if (to) {
+                router.push(to);
+            } else if (window.history.length > 1) {
+                // A fresh tab landing directly on /platform/profile has no in-app history —
+                // falling back to Create beats bouncing the user out of the app.
+                router.back();
+            } else {
+                router.push('/platform/create');
+            }
+        }, PROFILE_EXIT_NAV_MS);
+    }, [router]);
+
+    // The profile page itself can't reach this state, so it asks for the exit by
+    // event — e.g. "Replay guide", which slides the profile away to reveal the canvas.
+    useEffect(() => {
+        const onExitRequest = (e: Event) => exitProfile((e as CustomEvent<{ to?: string }>).detail?.to);
+        window.addEventListener('veinote-profile-exit', onExitRequest);
+        return () => window.removeEventListener('veinote-profile-exit', onExitRequest);
+    }, [exitProfile]);
 
     // Progress breakdowns and state values
     const [progressLevel, setProgressLevel] = useState(1);
@@ -444,10 +491,15 @@ function PlatformLayoutInner({
 
     const firstName = (user.displayName || '').trim().split(' ')[0] || t('navigation.my_profile');
 
+    // Profile is a focused, full-width view: no sidebar, just a back button top-left.
+    const isProfile = pathname === '/platform/profile' || pathname?.startsWith('/platform/profile/');
+
+    const handleBack = () => exitProfile();
+
     return (
         <div className={`min-h-screen flex text-stone-900 font-sans selection:bg-stone-900/10 selection:text-stone-900 transition-colors duration-200 ${
             pathname?.startsWith('/platform/create') ? 'bg-[#FAF9F5] md:bg-[#E4E4DF]' : 'bg-[#E4E4DF]'
-        }`}>
+        } ${isProfile ? 'overflow-x-clip' : ''}`}>
 
             {/* Collab notification stack. Both toasts share one fixed column so they stack
                 rather than overlap when an invite and a removal notice land together. */}
@@ -561,13 +613,15 @@ function PlatformLayoutInner({
                 </div>
             )}
 
-            {/* Sidebar */}
-            <MaestroSidebar 
-                isMobileOpen={isMobileMenuOpen} 
-                onClose={() => setIsMobileMenuOpen(false)} 
-                onSupportClick={() => setIsSupportOpen(true)}
-                onFeedbackClick={() => setIsFeedbackOpen(true)}
-            />
+            {/* Sidebar — hidden on Profile, which is a focused full-width view */}
+            {!isProfile && (
+                <MaestroSidebar
+                    isMobileOpen={isMobileMenuOpen}
+                    onClose={() => setIsMobileMenuOpen(false)}
+                    onSupportClick={() => setIsSupportOpen(true)}
+                    onFeedbackClick={() => setIsFeedbackOpen(true)}
+                />
+            )}
 
             <SupportModal 
                 isOpen={isSupportOpen} 
@@ -579,9 +633,11 @@ function PlatformLayoutInner({
                 onClose={() => setIsFeedbackOpen(false)} 
             />
 
-            {/* Main Content Area */}
+            {/* Main Content Area. On Profile the whole view (header + panel) slides in
+                on arrival and slides back out while Back defers navigation. */}
             <div className={`
                 flex-1 flex flex-col min-w-0
+                ${isProfile ? (isProfileExiting ? 'profile-view-exit' : 'profile-view-enter') : ''}
                 ${pathname?.startsWith('/platform/create')
                     ? 'p-0 md:p-8'
                     : 'p-4 md:p-8'
@@ -591,13 +647,23 @@ function PlatformLayoutInner({
                 <header className={`flex md:hidden items-center justify-between px-6 pt-6 pb-4 text-stone-655 font-sans z-40 mb-0 relative transition-colors duration-205 ${
                     pathname?.startsWith('/platform/create') ? 'bg-[#F5F4EE] border-none' : 'bg-[#E4E4DF] border-b border-stone-250/20'
                 }`}>
-                    <button 
-                        onClick={() => setIsMobileMenuOpen(true)}
-                        className="p-2 -ml-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955"
-                    >
-                        <Menu size={22} className="stroke-[2.2]" />
-                    </button>
-                    
+                    {isProfile ? (
+                        <button
+                            onClick={handleBack}
+                            aria-label={t('navigation.my_profile')}
+                            className="p-2 -ml-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955"
+                        >
+                            <ChevronLeft size={22} className="stroke-[2.2]" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => setIsMobileMenuOpen(true)}
+                            className="p-2 -ml-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955"
+                        >
+                            <Menu size={22} className="stroke-[2.2]" />
+                        </button>
+                    )}
+
                     <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
                         <Link href="/platform/create">
                             <Logo size="md" showBeta />
@@ -605,12 +671,14 @@ function PlatformLayoutInner({
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Link
-                            href="/platform/profile"
-                            className="p-2 -mr-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955 flex items-center justify-center"
-                        >
-                            <User size={22} className="stroke-[2.2]" />
-                        </Link>
+                        {!isProfile && (
+                            <Link
+                                href="/platform/profile"
+                                className="p-2 -mr-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955 flex items-center justify-center"
+                            >
+                                <User size={22} className="stroke-[2.2]" />
+                            </Link>
+                        )}
                     </div>
                 </header>
 
@@ -688,9 +756,19 @@ function PlatformLayoutInner({
 
                 {/* Desktop Top Header */}
                 <header className="hidden md:flex items-center justify-between px-8 pb-6 text-stone-600/70 font-sans text-xs tracking-wider z-40">
-                    {/* Spacer */}
-                    <div></div>
-                    
+                    {/* Back button on Profile (which has no sidebar); plain spacer elsewhere */}
+                    {isProfile ? (
+                        <button
+                            onClick={handleBack}
+                            className="flex items-center gap-1.5 bg-white/50 hover:bg-white/70 border border-stone-200/80 pl-4 pr-5 py-3 rounded-full transition-all active:scale-95 shadow-2xs text-stone-600 hover:text-stone-800 text-sm font-semibold normal-case tracking-normal cursor-pointer"
+                        >
+                            <ChevronLeft size={16} strokeWidth={2} />
+                            {t('navigation.my_profile')}
+                        </button>
+                    ) : (
+                        <div></div>
+                    )}
+
                     {/* Centered navigation items: Progress Bar Capsule & Tooltip */}
                     <div className="flex items-center gap-3 font-medium">
                         <div className="relative flex flex-col items-center" ref={popupRef}>
@@ -760,14 +838,16 @@ function PlatformLayoutInner({
                             )}
                         </div>
 
-                        {/* Profile link — user's name */}
-                        <Link
-                            href="/platform/profile"
-                            className="flex items-center gap-1.5 bg-white/50 hover:bg-white/70 border border-stone-200/80 pl-5 pr-4 py-3 rounded-full transition-all active:scale-95 shadow-2xs text-stone-600 hover:text-stone-800 text-sm font-semibold normal-case tracking-normal"
-                        >
-                            {firstName}
-                            <ChevronRight size={16} strokeWidth={1.5} />
-                        </Link>
+                        {/* Profile link — user's name. Hidden on Profile itself. */}
+                        {!isProfile && (
+                            <Link
+                                href="/platform/profile"
+                                className="flex items-center gap-1.5 bg-white/50 hover:bg-white/70 border border-stone-200/80 pl-5 pr-4 py-3 rounded-full transition-all active:scale-95 shadow-2xs text-stone-600 hover:text-stone-800 text-sm font-semibold normal-case tracking-normal"
+                            >
+                                {firstName}
+                                <ChevronRight size={16} strokeWidth={1.5} />
+                            </Link>
+                        )}
                     </div>
                 </header>
 
@@ -776,7 +856,10 @@ function PlatformLayoutInner({
                     flex-1
                     ${pathname?.startsWith('/platform/create')
                         ? 'bg-transparent md:bg-[#FAF9F5] p-0 md:p-8 rounded-none md:rounded-[32px] shadow-none'
-                        : 'overflow-y-auto bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] p-4 md:p-8 shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)]'
+                        // overflow-x-hidden: setting only overflow-y makes overflow-x compute
+                        // to auto, so page transitions that translate sideways (the profile's
+                        // slide-out to the guide) would flash a horizontal scrollbar.
+                        : 'overflow-y-auto overflow-x-hidden bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] p-4 md:p-8 shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)]'
                     }
                 `}>
                     {children}
