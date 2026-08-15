@@ -209,7 +209,6 @@ import {
     Download,
     Image as ImageIcon,
     Copy,
-    ArrowUpDown,
     Unlock,
     Lock,
     MessageCircle
@@ -3742,7 +3741,7 @@ export default function CreatePage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [projectViewStyle, setProjectViewStyle] = useState<'grid' | 'list'>('list');
     const [projectSortOption, setProjectSortOption] = useState<'date_desc' | 'date_asc' | 'az' | 'za'>('date_desc');
-    const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+    const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
     const [showNewItemMenu, setShowNewItemMenu] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -5231,8 +5230,20 @@ export default function CreatePage() {
                             const userData = userDoc.data();
                             if (userData.createFolders && userData.createFolders.length > 0) {
                                 setFolders(userData.createFolders);
-                            } else {
+                            } else if (userData.createFoldersSeeded) {
+                                // Seeded once already and now empty: they deleted it. An
+                                // empty shelf is their choice, not a state to repair —
+                                // without this flag the starter folder would grow back
+                                // every time the page loaded.
                                 setFolders([]);
+                            } else {
+                                // A workspace with nowhere to file anything doesn't show
+                                // that filing exists. One folder does, and costs nothing
+                                // to delete.
+                                const starter = [{ id: `f-${Date.now()}`, name: t('workspace.default_folder_name') }];
+                                setFolders(starter);
+                                setDoc(userDocRef, { createFolders: starter, createFoldersSeeded: true }, { merge: true })
+                                    .catch(err => console.error('Could not seed the starter folder:', err));
                             }
                             if (!userData.email || !userData.name) {
                                 setDoc(userDocRef, {
@@ -5242,12 +5253,15 @@ export default function CreatePage() {
                                 }, { merge: true }).catch(console.error);
                             }
                         } else {
-                            setFolders([]);
+                            const starter = [{ id: `f-${Date.now()}`, name: t('workspace.default_folder_name') }];
+                            setFolders(starter);
                             setDoc(userDocRef, {
                                 uid: user.uid,
                                 name: user.displayName || user.email?.split('@')[0] || 'Collaborator',
                                 email: user.email || '',
-                                createdAt: new Date().toISOString()
+                                createdAt: new Date().toISOString(),
+                                createFolders: starter,
+                                createFoldersSeeded: true
                             }, { merge: true }).catch(console.error);
                         }
                     }).catch(err => console.error("Error loading user doc:", err));
@@ -16797,7 +16811,7 @@ export default function CreatePage() {
                 className={`group cursor-pointer flex flex-col items-center justify-center gap-3 px-5 py-6 rounded-[18px] border transition-all duration-200 active:scale-[0.99] select-none min-h-[220px] ${
                     isDropTarget
                         ? 'bg-white border-stone-400 scale-[1.02] shadow-[0_4px_18px_rgba(0,0,0,0.05)]'
-                        : 'bg-white/40 border-stone-200/10 hover:bg-white/70 hover:border-stone-200/25'
+                        : 'bg-white/40 border-stone-200/70 hover:bg-white/70 hover:border-stone-300'
                 }`}
             >
                 <Folder
@@ -16849,7 +16863,7 @@ export default function CreatePage() {
                 className={`group cursor-pointer flex items-center justify-between px-6 py-6 rounded-[18px] border transition-all duration-200 active:scale-[0.99] select-none ${
                     isDropTarget
                         ? 'bg-white border-stone-400 shadow-[0_4px_18px_rgba(0,0,0,0.05)]'
-                        : 'bg-white/40 border-stone-200/10 hover:bg-white/70 hover:border-stone-200/25'
+                        : 'bg-white/40 border-stone-200/70 hover:bg-white/70 hover:border-stone-300'
                 }`}
             >
                 <span className="font-sans text-[14px] text-stone-600 group-hover:text-stone-850 truncate flex items-center gap-2 transition-colors">
@@ -16906,8 +16920,8 @@ export default function CreatePage() {
                     ${isLocked
                         ? 'bg-white/40 border-[#DCEE7A] hover:bg-white/70'
                         : isSelected
-                            ? 'bg-white shadow-[0_4px_15px_rgba(0,0,0,0.015)] border-stone-200/30'
-                            : 'bg-white/40 border-stone-200/10 hover:bg-white/70 hover:border-stone-200/25'}
+                            ? 'bg-white shadow-[0_4px_15px_rgba(0,0,0,0.015)] border-stone-300'
+                            : 'bg-white/40 border-stone-200/70 hover:bg-white/70 hover:border-stone-300'}
                 `}
             >
                 {/* Title — a locked project carries the same lime marker as the canvas,
@@ -16982,8 +16996,8 @@ export default function CreatePage() {
                     ${isLocked
                         ? 'bg-white/40 border-[#DCEE7A] hover:bg-white/70'
                         : isSelected
-                            ? 'bg-white shadow-[0_4px_15px_rgba(0,0,0,0.015)] border-stone-200/30'
-                            : 'bg-white/40 border-stone-200/10 hover:bg-white/70 hover:border-stone-200/25'}
+                            ? 'bg-white shadow-[0_4px_15px_rgba(0,0,0,0.015)] border-stone-300'
+                            : 'bg-white/40 border-stone-200/70 hover:bg-white/70 hover:border-stone-300'}
                 `}
             >
                 {/* Same lime outline and lock glyph the canvas uses, so the state reads
@@ -19616,27 +19630,25 @@ export default function CreatePage() {
             {/* 2. DIRECTORY GRID AREA (Bottom Section) */}
             <div className="space-y-8 mt-1.5 px-4 md:px-0">
                 
-                {/* Header Controls & Navigation */}
-                <div className="flex items-center justify-between gap-4 w-full py-1.5 md:py-2 mb-4">
-                    {/* Search Field */}
-                    <div className="flex items-center gap-3 bg-stone-50/40 hover:bg-stone-50/70 border border-stone-200 px-4 py-2.5 rounded-[16px] text-stone-750 flex-1 focus-within:bg-white focus-within:border-stone-400/80 transition-all duration-300 shadow-3xs">
-                        <Search size={16} className="text-stone-500" />
-                        <input 
-                            type="text" 
-                            placeholder={t('workspace.search_placeholder') || 'Search projects...'} 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={handleSearchKeyDown}
-                            className="bg-transparent border-none outline-none w-full text-[13.5px] font-sans placeholder:text-stone-400 font-medium text-stone-800 focus:ring-0 focus:outline-none"
-                        />
-                    </div>
-
+                {/* Header Controls. Left to right: which projects, then finding one,
+                    then how they are ordered and drawn, then everything else. The scope
+                    tabs lead because they say what you are looking at — that used to be
+                    a heading on its own line underneath, which spent a whole row
+                    restating what the selected tab already said. */}
+                <div className="flex items-center gap-3 w-full py-1.5 md:py-2 mb-4">
                     {/* Personal / collab is a filter, not a place. It used to be two
                         accordions, which split one shelf in half and made a folder mean
                         something different on each side. */}
-                    <div className="flex items-center gap-1 bg-stone-100/70 p-1 rounded-[14px] shrink-0 select-none">
+                    {/* basis, not a fixed width: the group asks for 420px and gets it when
+                        the row is wide, and gives ground to the search field when it is
+                        not. No min-w-0 on purpose — flexbox then refuses to shrink it past
+                        its own labels, so the tabs get narrower but never squash the text.
+                        h-[48px] is explicit because the height used to come from the
+                        content, and the border would otherwise have pushed the group to
+                        50px and knocked it out of line with the controls beside it. */}
+                    <div className="flex items-center gap-1 h-[48px] bg-stone-100/70 border border-stone-200/60 p-1 rounded-[16px] basis-[420px] max-w-[46%] select-none">
                         {([
-                            ['all', t('workspace.filter_all')],
+                            ['all', t('workspace.all_projects')],
                             ['personal', t('workspace.filter_personal')],
                             ['collab', t('workspace.filter_collab')],
                         ] as const).map(([value, label]) => (
@@ -19644,7 +19656,7 @@ export default function CreatePage() {
                                 key={value}
                                 type="button"
                                 onClick={() => setProjectScopeFilter(value)}
-                                className={`h-[36px] px-3.5 rounded-[11px] text-[12.5px] font-semibold transition-all cursor-pointer ${
+                                className={`flex-1 h-[40px] px-4 rounded-[12px] text-[14px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
                                     projectScopeFilter === value
                                         ? 'bg-white text-stone-800 shadow-2xs'
                                         : 'text-stone-500 hover:text-stone-800'
@@ -19658,33 +19670,48 @@ export default function CreatePage() {
                         ))}
                     </div>
 
-                    {/* Sort Dropdown */}
+                    {/* Search Field */}
+                    <div className="flex items-center gap-3 bg-stone-50/40 hover:bg-stone-50/70 border border-stone-200 px-4 h-[48px] rounded-[16px] text-stone-750 flex-1 min-w-0 focus-within:bg-white focus-within:border-stone-400/80 transition-all duration-300 shadow-3xs">
+                        <Search size={16} className="text-stone-500 shrink-0" />
+                        <input
+                            type="text"
+                            placeholder={t('workspace.search_placeholder') || 'Search projects...'}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={handleSearchKeyDown}
+                            className="bg-transparent border-none outline-none w-full text-[13.5px] font-sans placeholder:text-stone-400 font-medium text-stone-800 focus:ring-0 focus:outline-none"
+                        />
+                    </div>
+
+                    {/* One menu for everything that isn’t choosing a scope or typing a
+                        search: how the shelf is ordered, how it is drawn, and what folders
+                        exist. Sorting and the layout toggle each had their own control on
+                        this row — both are set once and then left alone for weeks, which is
+                        a poor trade for two permanent slots beside the search field. */}
                     <div className="relative shrink-0">
-                        <Tooltip label={t('workspace.sort_label') || 'Sort'} disabled={isSortMenuOpen}>
+                        <Tooltip label={t('workspace.more_actions')} disabled={isWorkspaceMenuOpen}>
                         <button
                             type="button"
-                            onClick={() => setIsSortMenuOpen(prev => !prev)}
-                            aria-label={t('workspace.sort_label') || 'Sort'}
-                            className={`flex items-center gap-2 border px-3.5 rounded-[14px] h-[44px] text-[13px] font-sans font-medium transition-all cursor-pointer select-none ${
-                                isSortMenuOpen
+                            onClick={() => setIsWorkspaceMenuOpen(prev => !prev)}
+                            aria-label={t('workspace.more_actions')}
+                            className={`w-[48px] h-[48px] flex items-center justify-center border rounded-[16px] transition-all cursor-pointer select-none active:scale-95 ${
+                                isWorkspaceMenuOpen
                                     ? 'bg-white border-stone-400/80 text-stone-800'
-                                    : 'bg-stone-100/70 hover:bg-stone-200/60 border-stone-200/60 text-stone-600'
+                                    : 'bg-stone-100/70 hover:bg-stone-200/60 border-stone-200/60 text-stone-600 hover:text-stone-900'
                             }`}
                         >
-                            <ArrowUpDown size={14} />
-                            <span className="hidden sm:inline whitespace-nowrap">
-                                {projectSortOption === 'date_desc' && (t('workspace.sort_newest') || 'Newest first')}
-                                {projectSortOption === 'date_asc' && (t('workspace.sort_oldest') || 'Oldest first')}
-                                {projectSortOption === 'az' && (t('workspace.sort_az') || 'A → Z')}
-                                {projectSortOption === 'za' && (t('workspace.sort_za') || 'Z → A')}
-                            </span>
+                            <MoreVertical size={16} />
                         </button>
                         </Tooltip>
 
-                        {isSortMenuOpen && (
+                        {isWorkspaceMenuOpen && (
                             <>
-                                <div className="fixed inset-0 z-40" onClick={() => setIsSortMenuOpen(false)} />
-                                <div className="absolute right-0 top-full mt-2 bg-white border border-stone-200/80 rounded-[16px] shadow-[0_10px_30px_rgba(0,0,0,0.08)] py-1.5 min-w-[180px] z-50 animate-in fade-in zoom-in-95 duration-150">
+                                <div className="fixed inset-0 z-40" onClick={() => setIsWorkspaceMenuOpen(false)} />
+                                <div className="absolute right-0 top-full mt-2 bg-white border border-stone-200/80 rounded-[18px] shadow-[0_10px_30px_rgba(0,0,0,0.08)] py-2 min-w-[230px] z-50 animate-in fade-in zoom-in-95 duration-150">
+                                    {/* Sentence case, not caps — a section marker, not a shout. */}
+                                    <div className="px-4 pt-1 pb-1.5 text-[11.5px] font-semibold text-stone-400 select-none">
+                                        {t('workspace.sort_label')}
+                                    </div>
                                     {([
                                         ['date_desc', t('workspace.sort_newest') || 'Newest first'],
                                         ['date_asc', t('workspace.sort_oldest') || 'Oldest first'],
@@ -19694,91 +19721,109 @@ export default function CreatePage() {
                                         <button
                                             key={opt}
                                             type="button"
-                                            onClick={() => { setProjectSortOption(opt); setIsSortMenuOpen(false); }}
-                                            className={`w-full text-left px-4 py-2 text-[13px] font-sans transition-colors cursor-pointer ${
-                                                projectSortOption === opt ? 'text-stone-900 font-semibold bg-stone-50' : 'text-stone-600 hover:bg-stone-50'
+                                            onClick={() => setProjectSortOption(opt)}
+                                            className={`w-full text-left px-4 py-2.5 text-[13px] font-sans transition-colors cursor-pointer flex items-center gap-2.5 ${
+                                                projectSortOption === opt ? 'text-stone-900 font-semibold' : 'text-stone-600 hover:bg-stone-50'
                                             }`}
                                         >
+                                            {/* The tick keeps its space when absent, so the labels
+                                                stay on one left edge as the choice moves. */}
+                                            <span className="w-3.5 shrink-0 flex items-center justify-center">
+                                                {projectSortOption === opt && <Check size={13} className="stroke-[3]" />}
+                                            </span>
                                             {label}
                                         </button>
                                     ))}
+
+                                    <div className="h-px bg-stone-100 my-1.5 mx-3" />
+
+                                    <div className="px-4 pt-1 pb-1.5 text-[11.5px] font-semibold text-stone-400 select-none">
+                                        {t('workspace.view_label')}
+                                    </div>
+                                    {([
+                                        ['grid', t('workspace.grid_view'), LayoutGrid],
+                                        ['list', t('workspace.list_view'), List],
+                                    ] as const).map(([style, label, Icon]) => (
+                                        <button
+                                            key={style}
+                                            type="button"
+                                            onClick={() => setProjectViewStyle(style)}
+                                            className={`w-full text-left px-4 py-2.5 text-[13px] font-sans transition-colors cursor-pointer flex items-center gap-2.5 ${
+                                                projectViewStyle === style ? 'text-stone-900 font-semibold' : 'text-stone-600 hover:bg-stone-50'
+                                            }`}
+                                        >
+                                            <span className="w-3.5 shrink-0 flex items-center justify-center">
+                                                {projectViewStyle === style && <Check size={13} className="stroke-[3]" />}
+                                            </span>
+                                            <Icon size={14} className="shrink-0" />
+                                            {label}
+                                        </button>
+                                    ))}
+
+                                    <div className="h-px bg-stone-100 my-1.5 mx-3" />
+
+                                    <button
+                                        type="button"
+                                        onClick={() => { setIsWorkspaceMenuOpen(false); handleCreateFolder(); }}
+                                        className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer flex items-center gap-2.5"
+                                    >
+                                        <span className="w-3.5 shrink-0" />
+                                        <Plus size={14} className="stroke-[2.4] shrink-0" />
+                                        {t('workspace.new_folder')}
+                                    </button>
+                                    {openFolder && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setIsWorkspaceMenuOpen(false); handleRenameFolder(openFolder.id); }}
+                                                className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer flex items-center gap-2.5"
+                                            >
+                                                <span className="w-3.5 shrink-0" />
+                                                <Pencil size={13} className="shrink-0" />
+                                                {t('workspace.rename_folder')}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setIsWorkspaceMenuOpen(false); handleDeleteFolder(openFolder.id); }}
+                                                className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer flex items-center gap-2.5"
+                                            >
+                                                <span className="w-3.5 shrink-0" />
+                                                <Trash2 size={13} className="shrink-0" />
+                                                {t('workspace.delete_folder_title')}
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </>
                         )}
                     </div>
-
-                    {/* Grid / List Style Toggle */}
-                    <div className="flex items-center bg-stone-100/70 p-1 rounded-[14px] border border-stone-200/60 select-none shrink-0 h-[44px]">
-                        <Tooltip label="Grid view">
-                            <button
-                                type="button"
-                                onClick={() => setProjectViewStyle('grid')}
-                                aria-label="Grid view"
-                                className={`px-3.5 rounded-[10px] flex items-center justify-center transition-all cursor-pointer h-full ${
-                                    projectViewStyle === 'grid'
-                                        ? 'bg-white shadow-3xs text-stone-800'
-                                        : 'text-stone-400 hover:text-stone-600'
-                                }`}
-                            >
-                                <LayoutGrid size={15} />
-                            </button>
-                        </Tooltip>
-                        <Tooltip label="List view">
-                            <button
-                                type="button"
-                                onClick={() => setProjectViewStyle('list')}
-                                aria-label="List view"
-                                className={`px-3.5 rounded-[10px] flex items-center justify-center transition-all cursor-pointer h-full ${
-                                    projectViewStyle === 'list'
-                                        ? 'bg-white shadow-3xs text-stone-800'
-                                        : 'text-stone-400 hover:text-stone-600'
-                                }`}
-                            >
-                                <List size={15} />
-                            </button>
-                        </Tooltip>
-                    </div>
                 </div>
-                {/* One shelf of folders and projects. A thin bar carries only where you
-                    are (root, or inside a folder) and the one action that creates
-                    structure — dropping a project on "All projects" unfiles it. */}
-                <div className="flex items-center justify-between gap-3 mb-5 px-1 select-none">
-                    <div className="flex items-center gap-1.5 min-w-0 font-sans text-[15px]">
+
+                {/* Only inside a folder. At the root this row read "All projects" directly
+                    under a tab already reading "All projects" — the way back out is the
+                    only thing it is really for, that and being the target you drop a
+                    project onto to take it back out of the folder. */}
+                {openFolder && (
+                    <div className="flex items-center gap-1.5 min-w-0 font-sans text-[15px] mb-5 px-1 select-none">
                         <button
                             type="button"
                             onClick={() => setActiveFolderIdFilter(null)}
                             onDragOver={(e) => { e.preventDefault(); setDragOverFolderId('__root__'); }}
                             onDragLeave={() => setDragOverFolderId(null)}
                             onDrop={(e) => { handleDropOnRoot(e); setDragOverFolderId(null); }}
-                            className={`px-2.5 py-1.5 -ml-2.5 rounded-[10px] transition-all cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 -ml-2.5 rounded-[10px] transition-all cursor-pointer ${
                                 dragOverFolderId === '__root__'
                                     ? 'bg-stone-800 text-white'
-                                    : openFolder
-                                        ? 'text-stone-400 hover:text-stone-700 hover:bg-stone-200/40'
-                                        : 'text-stone-600'
+                                    : 'text-stone-400 hover:text-stone-700 hover:bg-stone-200/40'
                             }`}
                         >
+                            <ChevronLeft size={15} className="shrink-0" />
                             {t('workspace.all_projects')}
                         </button>
-                        {openFolder && (
-                            <>
-                                <ChevronRight size={14} className="text-stone-300 shrink-0" />
-                                <span className="text-stone-700 truncate">{openFolder.name}</span>
-                            </>
-                        )}
+                        <ChevronRight size={14} className="text-stone-300 shrink-0" />
+                        <span className="text-stone-700 truncate">{openFolder.name}</span>
                     </div>
-
-                    {!openFolder && (
-                        <button
-                            type="button"
-                            onClick={handleCreateFolder}
-                            className="h-9 px-3.5 shrink-0 rounded-[12px] text-[12.5px] font-semibold text-stone-500 border border-dashed border-stone-300 hover:text-stone-800 hover:border-stone-400 hover:bg-white/50 flex items-center gap-1.5 transition-colors cursor-pointer"
-                        >
-                            <Plus size={13} className="stroke-[2.5]" />
-                            {t('workspace.new_folder')}
-                        </button>
-                    )}
-                </div>
+                )}
 
                 {visibleFolders.length === 0 && visibleProjects.length === 0 ? (
                     <div className="text-center py-16 border border-stone-200 border-dashed rounded-[28px] bg-white/20 select-none">

@@ -7,6 +7,67 @@
 
 ---
 
+## The 11 word cards
+
+Full-frame type cards, cut between the footage. Read alone, in order, they are the whole ad:
+
+> Breathe. Sing. Write. Play. Record.
+> **Type.**
+> Nobody.
+> You. Finish. Yours. Veinote.
+
+| # | Card | In | Act | Why it's there |
+|---|---|---|---|---|
+| 1 | `BREATHE` | 0:01 | Lineage | First sound in the film is a breath. Card lands on it. |
+| 2 | `SING` | 0:05 | Lineage | Before any tool existed. |
+| 3 | `WRITE` | 0:09 | Lineage | Song becomes an object you can hand to someone. |
+| 4 | `PLAY` | 0:13 | Lineage | Instruments. Also the only word here that means joy. |
+| 5 | `RECORD` | 0:18 | Lineage | You can finally hear yourself back. |
+| 6 | `TYPE` | 0:21 | **The break** | Everything above is done with a body. This one isn't. |
+| 7 | `NOBODY` | 0:25 | Break | Hold it long. Then cut to silence. |
+| 8 | `YOU` | 0:29 | Veinote | Biggest type in the film, straight after the longest silence. |
+| 9 | `FINISH` | 0:38 | Veinote | The actual promise. Most songwriters never do. |
+| 10 | `YOURS` | 0:43 | Veinote | Ownership. Rhymes with card 8 and closes it. |
+| 11 | `VEINOTE` | 0:46 | End card | Wordmark, not typeset. |
+
+### Why this set works
+
+Every card is a plain, everyday word — nothing to decode, all readable at thumbnail size. But the sequence is doing something structural underneath:
+
+**Cards 1–5 are imperatives you perform with your body. Card 6 is an imperative with no body in it.** `RECORD` → `TYPE` is the hinge of the entire film. The near-rhyme with `WRITE` three cards earlier makes it worse in exactly the right way: write is craft, type is data entry. The word deflates the thing it describes, which is the whole argument in four letters.
+
+Then the grammar itself breaks. After five commands, card 7 is not a command at all — just `NOBODY`. Card 8 recovers the person (`YOU`), and card 9 restores the imperative (`FINISH`). The viewer feels the sentence collapse and rebuild without ever being told that's happening.
+
+Note the division of labour: **the footage carries the civilizations, the words carry the human continuity.** The cards never caption what's on screen. Cave, clay, vellum, tape and phone are visible; the cards say the thing the pictures can't — that it was the same act every time.
+
+### The one rule for card 6
+
+`TYPE` must look **exactly** like cards 1–5. Same gold, same weight, same size, same position, same cut rhythm. Do not style the break — no glitch, no shake, no colour shift. If the design announces it, the design has done the work and the word has done nothing. Let it be identical and let the viewer feel the wrongness themselves.
+
+### Colour arc
+
+| Cards | Background | Type |
+|---|---|---|
+| 1–6 | Gold `#D4A855` | Ink `#111` |
+| 7 | Desaturated grey — the gold drained out | Ink |
+| 8–11 | Bone `#E6E3DB` | Ink `#363636` |
+
+A muted viewer gets all three acts from the background colour alone.
+
+### Swaps
+
+- **`PLAY`** is the softest card. If the edit needs more weight there, `HANDS` works and keeps the body theme.
+- **`FINISH`** can become `TOGETHER` if you'd rather the back half point at community than at completion. Completion is the stronger claim — it's the thing the audience has personally failed at.
+- **`TYPE`** — don't swap. `GENERATE` is longer and colder, `AI` names a category and starts an argument mid-ad, `SLOP` is internet-jargon that will date within a year. None of them shrink the act the way `TYPE` does.
+
+### Hook-first variant (social cuts only)
+
+Cards 1–5 are a slow open. On a platform where 3-second retention is the KPI, that's a real risk. For the 9:16 and short cuts, cold-open on card 7 — hold `NOBODY` on frame one, then hard-cut to the cave and run the history as a flashback. Same 11 cards, same order after the opening, but the provocation sits at 0:00 where the scroll decision actually gets made.
+
+Keep the master 16:9 in chronological order. It plays where people have already chosen to watch.
+
+---
+
 ## Voice-over, full read
 
 > Before writing, there was a song.

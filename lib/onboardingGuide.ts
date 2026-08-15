@@ -55,9 +55,33 @@ export async function markGuideSeen(uid: string): Promise<void> {
     }
 }
 
-/** Clear the flag so the guide plays again — used by the "Guide" option in settings. */
+/**
+ * Set for the hop between "Play demo" in settings and the guide mounting on the
+ * canvas. A first-time user meets the intro video as a small player docked in the
+ * corner and presses play themselves; someone who just clicked "Play demo" has
+ * already expressed that intent, so the replay opens the video centered and
+ * playing instead of tucked away where it reads as missing.
+ *
+ * sessionStorage, not state: the two live on different routes with a navigation
+ * in between, and it must not survive into a later session.
+ */
+const REPLAY_KEY = 'veinote-guide-replay';
+
+/** True once, for the guide launched by the most recent "Play demo" click. */
+export function consumeGuideReplayIntent(): boolean {
+    try {
+        if (sessionStorage.getItem(REPLAY_KEY) !== 'true') return false;
+        sessionStorage.removeItem(REPLAY_KEY);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/** Clear the flag so the guide plays again — used by the "Demo" option in settings. */
 export async function resetGuide(uid: string): Promise<void> {
     safeLocalStorageSetItem(localKey(uid), 'false');
+    try { sessionStorage.setItem(REPLAY_KEY, 'true'); } catch { /* private mode */ }
     try {
         await setDoc(
             doc(db, 'users', uid),

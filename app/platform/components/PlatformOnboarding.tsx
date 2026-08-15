@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
-import { readCachedGuideSeen, fetchGuideSeen, markGuideSeen } from '@/lib/onboardingGuide';
+import { readCachedGuideSeen, fetchGuideSeen, markGuideSeen, consumeGuideReplayIntent } from '@/lib/onboardingGuide';
 import OnboardingTour, { TourStep } from './OnboardingTour';
 
 /**
@@ -22,6 +22,17 @@ const INTRO_VIDEO_SRC =
 const INTRO_VIDEO_POSTER =
     'https://firebasestorage.googleapis.com/v0/b/mep-v2.firebasestorage.app/o/content%2Flessons%2Fonboarding-demo-tour-v4-poster.jpg?alt=media';
 
+/**
+ * Peter's welcome — the guide opens on a person, not a product tour. Uploaded
+ * with the same pipeline from `public/videos/Welcome - onboarding/Welcome_V3.mp4`,
+ * which is gitignored and therefore absent in production; only the Storage copy
+ * is safe to reference.
+ */
+const WELCOME_VIDEO_SRC =
+    'https://firebasestorage.googleapis.com/v0/b/mep-v2.firebasestorage.app/o/content%2Flessons%2Fwelcome-peter-v1.mp4?alt=media';
+const WELCOME_VIDEO_POSTER =
+    'https://firebasestorage.googleapis.com/v0/b/mep-v2.firebasestorage.app/o/content%2Flessons%2Fwelcome-peter-v1-poster.jpg?alt=media';
+
 /** The guide runs on the Create canvas, where every highlighted feature lives. */
 const GUIDE_ROUTE = '/platform/create';
 
@@ -34,6 +45,19 @@ export default function PlatformOnboarding() {
     // null = not resolved yet. Never render the tour on an unresolved state, or a
     // returning user gets a flash of onboarding before Firestore answers.
     const [seen, setSeen] = useState<boolean | null>(null);
+
+    // Whether this run was launched by "Play demo" — it opens the intro video
+    // centered and playing instead of docked in the corner.
+    //
+    // Checked when the guide becomes eligible rather than on mount: this component
+    // lives in the platform layout, so it is already mounted (on the profile page)
+    // when the button sets the flag, and a mount-only effect would never see it.
+    const [isReplay, setIsReplay] = useState(false);
+    useEffect(() => {
+        if (seen === false && pathname === GUIDE_ROUTE && consumeGuideReplayIntent()) {
+            setIsReplay(true);
+        }
+    }, [seen, pathname]);
 
     useEffect(() => {
         if (loading || !user) return;
@@ -66,6 +90,10 @@ export default function PlatformOnboarding() {
     if (!user || seen !== false || pathname !== GUIDE_ROUTE) return null;
 
     const steps: TourStep[] = [
+        {
+            video: WELCOME_VIDEO_SRC,
+            poster: WELCOME_VIDEO_POSTER,
+        },
         {
             video: INTRO_VIDEO_SRC,
             poster: INTRO_VIDEO_POSTER,
@@ -122,6 +150,7 @@ export default function PlatformOnboarding() {
             doneLabel={t('onboarding_tour.done')}
             closeLabel={t('common.close')}
             closeDemoLabel={t('onboarding_tour.close_demo')}
+            autoPlayVideo={isReplay}
         />
     );
 }

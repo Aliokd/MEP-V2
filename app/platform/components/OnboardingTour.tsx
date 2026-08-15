@@ -27,6 +27,12 @@ interface OnboardingTourProps {
     closeLabel: string;
     /** Dismiss label on the intro video step, e.g. "Close demo". */
     closeDemoLabel: string;
+    /**
+     * Replay from settings: the user already pressed "Play demo", so the intro
+     * video opens centered and playing rather than in the pristine docked state
+     * a first-time user clicks into.
+     */
+    autoPlayVideo?: boolean;
 }
 
 interface Rect { top: number; left: number; width: number; height: number; }
@@ -49,14 +55,15 @@ function findVisibleElement(selector: string): HTMLElement | null {
     return null;
 }
 
-export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, nextLabel, doneLabel, closeLabel, closeDemoLabel }: OnboardingTourProps) {
+export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, nextLabel, doneLabel, closeLabel, closeDemoLabel, autoPlayVideo = false }: OnboardingTourProps) {
     const [mounted, setMounted] = useState(false);
     const [stepIndex, setStepIndex] = useState(0);
     const [rect, setRect] = useState<Rect | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     // Once playback has begun the video stays centered/large even while paused —
     // only the pristine "haven't pressed play yet" state docks it small in the corner.
-    const [hasStarted, setHasStarted] = useState(false);
+    // A replay skips that state: the "Play demo" click was the play intent.
+    const [hasStarted, setHasStarted] = useState(autoPlayVideo);
     const [progress, setProgress] = useState(0);
     const attemptsRef = useRef(0);
     const cancelledRef = useRef(false);
@@ -140,13 +147,31 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
         return () => window.removeEventListener('keydown', onKey);
     }, [onFinish]);
 
-    // Leaving the video step should stop playback rather than let audio run under the tour.
+    // Leaving a video step should stop playback rather than let audio run under the
+    // tour. Moving between two video steps also lands here: the progress bar and the
+    // play/pause overlay describe whichever clip is on screen, so they reset with it.
     useEffect(() => {
         if (!video && videoRef.current) {
             videoRef.current.pause();
-            setIsPlaying(false);
         }
+        setIsPlaying(false);
+        setProgress(0);
     }, [video]);
+
+    // Replay: open the intro centered and start it. `autoPlayVideo` can arrive a
+    // render late — the parent only learns it's a replay once the guide is
+    // eligible — so this reacts to the flip rather than trusting the value that
+    // was present at mount.
+    //
+    // The click that asked for this happened on the previous route, so the browser
+    // may still refuse an unmuted autoplay. That's survivable: the card is already
+    // centered and large with its play button showing, which is the state this is
+    // really here to produce.
+    useEffect(() => {
+        if (!autoPlayVideo || !video) return;
+        setHasStarted(true);
+        videoRef.current?.play().catch(() => { /* user presses play instead */ });
+    }, [autoPlayVideo, video]);
 
     // Below `md` the 70% maths would *shrink* the card below its resting size, so
     // narrow screens keep the near-full-width treatment instead. Listening to `resize`
@@ -300,6 +325,10 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
                         container crops that sliver instead of showing it. */}
                     <div className="relative w-full aspect-video overflow-hidden rounded-[18px] bg-stone-200 shadow-[0_20px_50px_rgba(0,0,0,0.30)]">
                         <video
+                            // Keyed so each clip gets its own element: without this React
+                            // reuses the node across consecutive video steps and swaps
+                            // `src`, which keeps the previous clip's buffered state.
+                            key={video}
                             ref={videoRef}
                             src={video}
                             poster={step.poster}
