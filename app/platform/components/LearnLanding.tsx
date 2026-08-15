@@ -3,8 +3,14 @@
 import React from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 
-// Placeholder duration only — not tied to a real deadline yet.
-const COUNTDOWN_DURATION_MS = 37 * 24 * 60 * 60 * 1000;
+/**
+ * When Deep dive opens — 40 days from 2026-08-15, when it was set.
+ *
+ * A fixed date on purpose: the previous countdown was `Date.now() + n days`
+ * evaluated at mount, so it restarted on every page load and never actually
+ * counted down. Move this date to change the deadline.
+ */
+const DEEP_DIVE_LAUNCH_MS = Date.parse('2026-09-24T00:00:00Z');
 
 function formatCountdown(remainingMs: number) {
     const clamped = Math.max(0, remainingMs);
@@ -20,12 +26,10 @@ function formatCountdown(remainingMs: number) {
 interface LearnLandingProps {
     onStart: () => void;
     onOpenIdeas: () => void;
-    onOpenDeepDive: () => void;
 }
 
-export default function LearnLanding({ onStart, onOpenIdeas, onOpenDeepDive }: LearnLandingProps) {
+export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps) {
     const { t } = useLanguage();
-    const [targetTime] = React.useState(() => Date.now() + COUNTDOWN_DURATION_MS);
     const [now, setNow] = React.useState(() => Date.now());
 
     React.useEffect(() => {
@@ -50,27 +54,27 @@ export default function LearnLanding({ onStart, onOpenIdeas, onOpenDeepDive }: L
                         className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-stone-950/10 to-transparent" />
-                    <div className="relative h-full flex flex-col justify-end gap-2 p-8">
+                    {/* No countdown here any more — Master Fundamentals is ready. */}
+                    <div className="relative h-full flex flex-col justify-end p-8">
                         <h2 className="text-4xl font-sans font-medium text-white leading-tight">
                             {t('learn.master_fundamentals')}
                         </h2>
-                        <span className="self-start bg-yellow-400 text-stone-900 text-sm font-mono font-bold tracking-wide px-3 py-1 rounded-full">
-                            {formatCountdown(targetTime - now)}
-                        </span>
                     </div>
                 </button>
 
-                <button
-                    onClick={onOpenDeepDive}
-                    className="group relative text-left w-full flex-1 min-h-[160px] rounded-[20px] overflow-hidden bg-stone-950 border border-stone-200/80 hover:border-stone-400 transition-all cursor-pointer active:scale-[0.995]"
+                {/* Deep dive is not open yet, so this is a plain panel rather than a
+                    button: it shows the countdown but does not navigate anywhere. */}
+                <div
+                    aria-disabled="true"
+                    className="relative w-full flex-1 min-h-[160px] rounded-[20px] overflow-hidden bg-stone-950 border border-stone-200/80 select-none"
                 >
                     <img
                         src="/assets/Learn/deep-dive-cover.jpg"
                         alt=""
-                        className="absolute inset-0 w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+                        className="absolute inset-0 w-full h-full object-contain"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-stone-950/85 via-stone-950/25 to-transparent" />
-                    <div className="relative h-full flex flex-col justify-end p-8">
+                    <div className="relative h-full flex flex-col justify-end gap-2 p-8">
                         <div className="flex items-end justify-between gap-4">
                             <h2 className="text-4xl font-sans font-medium text-white leading-tight">
                                 {t('learn.deep_dive')}
@@ -79,8 +83,11 @@ export default function LearnLanding({ onStart, onOpenIdeas, onOpenDeepDive }: L
                                 {t('learn.coming_soon')}
                             </span>
                         </div>
+                        <span className="self-start bg-yellow-400 text-stone-900 text-sm font-mono font-bold tracking-wide px-3 py-1 rounded-full">
+                            {formatCountdown(DEEP_DIVE_LAUNCH_MS - now)}
+                        </span>
                     </div>
-                </button>
+                </div>
             </div>
 
             <button

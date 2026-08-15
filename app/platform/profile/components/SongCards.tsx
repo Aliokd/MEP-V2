@@ -4,6 +4,7 @@ import {
     Play, Pause, SkipBack, SkipForward, CalendarDays, Clock3,
     UsersRound, CheckCircle2, PenLine, MicOff, Music, X
 } from 'lucide-react';
+import { setPlaybackAudioSession } from '@/lib/audioSession';
 
 export interface SongTrack {
     id: string;
@@ -94,6 +95,8 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
         setTrackIndex(index);
         setCurrentTime(0);
         setDuration(track.duration || 0);
+        // iOS: overrides the ring/silent switch, which otherwise plays this at zero volume.
+        setPlaybackAudioSession();
         audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
     };
 
@@ -129,6 +132,7 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
             audio.pause();
             setIsPlaying(false);
         } else if (audio.src) {
+            setPlaybackAudioSession();
             audio.play().then(() => setIsPlaying(true)).catch(() => {});
         } else {
             playTrack(song, trackIndexRef.current);

@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import type { LyricSection } from '../data/songs';
-import { KIND_LABEL_KEY, KIND_STYLE, classifySection, formatTime, type SectionKind } from '../data/sections';
+import { KIND_BG, KIND_LABEL_KEY, SECTION_TEXT, classifySection, formatTime, type SectionKind } from '../data/sections';
 
 interface Segment {
     kind: SectionKind;
@@ -17,6 +17,8 @@ interface Segment {
 const MIN_GAP = 2;
 
 interface SongTimelineProps {
+    /** Shown above the bar — the song being worked on. */
+    title: string;
     sections: LyricSection[];
     /** Audio duration; falls back to the last lyric timestamp when the file hasn't loaded. */
     duration: number;
@@ -36,6 +38,7 @@ interface SongTimelineProps {
  * to double as the palette of section types for the identify exercise.
  */
 export default function SongTimeline({
+    title,
     sections,
     duration,
     currentTime,
@@ -104,7 +107,6 @@ export default function SongTimeline({
     if (segments.length === 0 || total <= 0) return null;
 
     const displayTime = dragTime ?? currentTime;
-    const activeIdx = segments.findIndex(s => displayTime >= s.start && displayTime < s.end);
     const playheadPct = Math.max(0, Math.min(100, (displayTime / total) * 100));
 
     const timeFromPointer = (clientX: number) => {
@@ -137,16 +139,16 @@ export default function SongTimeline({
     }, []);
 
     return (
-        <section className="w-full max-w-6xl mx-auto flex flex-col gap-3 select-none">
-            {/* Heading left, colour key right */}
+        <section data-song-timeline className="w-full max-w-6xl mx-auto flex flex-col gap-3 select-none">
+            {/* Song name left, colour key right */}
             <div className="flex items-center justify-between gap-6 flex-wrap">
-                <h3 className="text-sm font-sans text-stone-500">{t('practice.song_timeline')}</h3>
+                <h3 className="text-sm font-sans" style={{ color: SECTION_TEXT }}>{title}</h3>
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                     {legendKinds.map(kind => (
-                        <span key={kind} className="flex items-center gap-2 text-xs text-stone-500 font-sans">
+                        <span key={kind} className="flex items-center gap-2 text-xs font-sans" style={{ color: SECTION_TEXT }}>
                             <span
                                 className="w-2.5 h-2.5 rounded-full border border-stone-300/60"
-                                style={{ backgroundColor: KIND_STYLE[kind].bg }}
+                                style={{ backgroundColor: KIND_BG[kind] }}
                             />
                             {t(KIND_LABEL_KEY[kind])}
                         </span>
@@ -178,9 +180,7 @@ export default function SongTimeline({
                     <div className="relative w-full h-11 rounded-[12px] overflow-hidden flex bg-stone-100">
                         {segments.map((segment, i) => {
                             const widthPct = ((segment.end - segment.start) / total) * 100;
-                            const style = KIND_STYLE[segment.kind];
                             const label = t(KIND_LABEL_KEY[segment.kind]);
-                            const isActive = i === activeIdx;
                             const pickable = !!onSelectKind && segment.fromLyrics;
                             const isArmed = pickable && selectedKind === segment.kind;
 
@@ -191,14 +191,14 @@ export default function SongTimeline({
                                     disabled={!pickable}
                                     onClick={() => onSelectKind?.(segment.kind)}
                                     title={`${label} · ${formatTime(segment.start)}`}
-                                    style={{ width: `${widthPct}%`, backgroundColor: style.bg, color: style.text }}
+                                    style={{ width: `${widthPct}%`, backgroundColor: KIND_BG[segment.kind], color: SECTION_TEXT }}
                                     className={`relative h-full flex items-center justify-center overflow-hidden transition-all
                                         ${pickable ? 'cursor-pointer hover:brightness-95' : 'cursor-default'}
                                         ${isArmed ? 'ring-2 ring-inset ring-stone-900' : ''}
                                     `}
                                 >
                                     {widthPct > 7 && (
-                                        <span className={`px-1 text-xs font-sans truncate pointer-events-none ${isActive || isArmed ? 'font-semibold' : ''}`}>
+                                        <span className="px-1 text-xs font-sans truncate pointer-events-none">
                                             {label}
                                         </span>
                                     )}
@@ -227,14 +227,14 @@ export default function SongTimeline({
                             <svg width="13" height="8" viewBox="0 0 13 8" className="-mt-[7px]" aria-hidden="true">
                                 <path d="M6.5 0 L13 8 H0 Z" fill="#1C1917" />
                             </svg>
-                            <span className="mt-1 text-xs font-sans tabular-nums text-stone-800 font-medium">
+                            <span className="mt-1 text-xs font-sans tabular-nums" style={{ color: SECTION_TEXT }}>
                                 {formatTime(displayTime)}
                             </span>
                         </div>
 
                         {/* Song length, hidden once the marker gets close enough to collide */}
                         {playheadPct < 88 && (
-                            <span className="absolute right-0 top-2 text-xs font-sans tabular-nums text-stone-400">
+                            <span className="absolute right-0 top-2 text-xs font-sans tabular-nums" style={{ color: SECTION_TEXT }}>
                                 {formatTime(total)}
                             </span>
                         )}

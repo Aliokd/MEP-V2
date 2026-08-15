@@ -32,6 +32,20 @@ export interface PracticeDefinition {
 
 const VIDEO_DIR = '/videos/Master%20fundamentals';
 
+/** A practice that is on the roadmap but not built yet. */
+function planned(name: string, key: string, level: PracticeLevel): [PracticeDefinition] {
+    return [{
+        name,
+        nameKey: `practice.${key}`,
+        goalKey: `practice.goal_${key}`,
+        level,
+        progress: 0,
+        score: 0,
+        time: '0 min',
+        available: false,
+    }];
+}
+
 export const PRACTICES: PracticeDefinition[] = [
     {
         name: 'Master song structure',
@@ -93,9 +107,28 @@ export const PRACTICES: PracticeDefinition[] = [
         posterUrl: `${VIDEO_DIR}/from-idea-to-finished-song-poster.jpg`,
         available: false,
     },
+
+    /*
+     * The rest of the roadmap. They carry no video yet, so their cards show the
+     * copy alone — fill in videoUrl/posterUrl as each one gets recorded, and flip
+     * `available` when the practice itself is built.
+     */
+    ...planned('Finding hooks', 'finding_hooks', 'beginner'),
+    ...planned('Rhyme without cliché', 'rhyme_without_cliche', 'intermediate'),
+    ...planned('Rhythm and phrasing', 'rhythm_and_phrasing', 'intermediate'),
+    ...planned('Telling a story', 'telling_a_story', 'intermediate'),
+    ...planned('Chord progressions', 'chord_progressions', 'beginner'),
+    ...planned('Imagery and detail', 'imagery_and_detail', 'intermediate'),
+    ...planned('Titles that stick', 'titles_that_stick', 'beginner'),
+    ...planned('Bridges that turn', 'bridges_that_turn', 'advanced'),
+    ...planned('Writing from a feeling', 'writing_from_a_feeling', 'all levels'),
+    ...planned('Co-writing session', 'co_writing_session', 'all levels'),
 ];
 
-export const PRACTICE_NAMES = PRACTICES.map(p => p.name);
+/** How many entries the header menu lists. */
+export const MENU_LIMIT = 15;
+
+export const PRACTICE_NAMES = PRACTICES.slice(0, MENU_LIMIT).map(p => p.name);
 
 /** Falls back to the first practice so an unknown name can never blank the tab. */
 export function getPractice(name: string): PracticeDefinition {

@@ -1,11 +1,12 @@
 "use client";
 import { safeLocalStorageSetItem } from '@/lib/storage';
+import { setPlaybackAudioSession } from '@/lib/audioSession';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { Song, Word, LyricSection } from '../data/songs';
 import SongTimeline from './SongTimeline';
-import { KIND_LABEL_KEY, KIND_STYLE, classifySection, type SectionKind } from '../data/sections';
+import { KIND_BG, KIND_LABEL_KEY, SECTION_TEXT, classifySection, type SectionKind } from '../data/sections';
 
 interface LyricsPlayerProps {
     song: Song;
@@ -119,6 +120,8 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
     useEffect(() => {
         if (audioRef.current && isLoaded) {
             if (isPlaying) {
+                // iOS: overrides the ring/silent switch, which otherwise plays this at zero volume.
+                setPlaybackAudioSession();
                 const playPromise = audioRef.current.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
@@ -180,13 +183,12 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
         );
     }
 
-    const allDone = identified.length === song.lyrics.length && song.lyrics.length > 0;
-
     return (
         <div className="w-full flex flex-col gap-10">
 
             {/* The timeline is the player, and the palette of section types */}
             <SongTimeline
+                title={song.title}
                 sections={song.lyrics}
                 duration={duration}
                 currentTime={currentTime}
@@ -198,26 +200,9 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
             />
 
             <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
-                {/* What to do, and how far along you are */}
-                <div className="flex items-center justify-between gap-4 flex-wrap select-none">
-                    <p className="text-sm font-sans text-stone-500">
-                        {allDone
-                            ? t('practice.identify_done')
-                            : selectedKind
-                                ? t('practice.identify_now_pick').replace('{section}', t(KIND_LABEL_KEY[selectedKind]))
-                                : t('practice.identify_hint')}
-                    </p>
-                    <span className="text-sm font-sans text-stone-400 tabular-nums">
-                        {t('practice.identify_progress')
-                            .replace('{done}', String(identified.length))
-                            .replace('{total}', String(song.lyrics.length))}
-                    </span>
-                </div>
-
                 {/* The shuffled, unlabelled blocks */}
                 {shuffled.map(({ section, originalIdx }) => {
                     const kind = classifySection(section.title);
-                    const style = KIND_STYLE[kind];
                     const isIdentified = identified.includes(originalIdx);
                     const isWrong = wrongIdx === originalIdx;
                     const answering = !!selectedKind && !isIdentified;
@@ -242,7 +227,7 @@ export default function LyricsPlayer({ song, isPlaying, onTogglePlay }: LyricsPl
                             {/* Its name, once you've found it */}
                             {isIdentified ? (
                                 <span
-                                    style={{ backgroundColor: style.bg, color: style.text }}
+                                    style={{ backgroundColor: KIND_BG[kind], color: SECTION_TEXT }}
                                     className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-sans mb-4"
                                 >
                                     {t(KIND_LABEL_KEY[kind])}

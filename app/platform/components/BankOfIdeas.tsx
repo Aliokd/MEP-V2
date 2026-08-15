@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Search, Heart } from 'lucide-react';
+import { ArrowLeft, Search, Heart, Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { Idea, IdeaCategory, LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE, VIBE_IDEAS_BY_LANGUAGE, CHORDS_IDEAS_BY_LANGUAGE } from '../data/ideas';
 import { fetchIdeas } from '@/lib/contentClient';
@@ -27,6 +27,7 @@ interface BankOfIdeasProps {
 export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     const { t, language } = useLanguage();
     const [likedIds, setLikedIds] = React.useState<Set<string>>(new Set());
+    const [checkedIds, setCheckedIds] = React.useState<Set<string>>(new Set());
     const [showOnlyFavorites, setShowOnlyFavorites] = React.useState(false);
     const [isSearchOpen, setIsSearchOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState('');
@@ -50,6 +51,18 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
 
     const toggleLike = (id: string) => {
         setLikedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const toggleChecked = (id: string) => {
+        setCheckedIds(prev => {
             const next = new Set(prev);
             if (next.has(id)) {
                 next.delete(id);
@@ -116,6 +129,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     const index = Math.min(rawIndex, Math.max(0, visibleIdeas.length - 1));
     const currentIdea = visibleIdeas[index];
     const isCurrentLiked = currentIdea ? likedIds.has(currentIdea.id) : false;
+    const isCurrentChecked = currentIdea ? checkedIds.has(currentIdea.id) : false;
     const hasPrev = index > 0;
     const hasNext = index < visibleIdeas.length - 1;
 
@@ -167,25 +181,22 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                 </div>
 
                 <div className="justify-self-end flex items-center gap-3">
-                    {isSearchOpen ? (
-                        <input
-                            autoFocus
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onBlur={() => { if (!searchQuery) setIsSearchOpen(false); }}
-                            placeholder={t('learn.ideas_search')}
-                            className="w-32 sm:w-40 bg-white border border-stone-200/80 rounded-full px-4 py-1.5 text-sm text-stone-700 placeholder:text-stone-400 focus:outline-none focus:border-stone-400 transition-colors"
-                        />
-                    ) : (
-                        <button
-                            onClick={() => setIsSearchOpen(true)}
-                            className="text-stone-400 hover:text-stone-700 transition-colors cursor-pointer"
-                            aria-label={t('learn.ideas_search')}
-                            title={t('learn.ideas_search')}
-                        >
-                            <Search size={19} strokeWidth={2} />
-                        </button>
-                    )}
+                    {/* Toggle only — the field itself opens full width below the tabs,
+                        so it never squeezes the centred tab row. */}
+                    <button
+                        onClick={() => {
+                            if (isSearchOpen) setSearchQuery('');
+                            setIsSearchOpen(open => !open);
+                        }}
+                        aria-expanded={isSearchOpen}
+                        aria-label={t('learn.ideas_search')}
+                        title={t('learn.ideas_search')}
+                        className={`transition-colors cursor-pointer ${
+                            isSearchOpen ? 'text-stone-800' : 'text-stone-400 hover:text-stone-700'
+                        }`}
+                    >
+                        <Search size={19} strokeWidth={2} />
+                    </button>
                     <button
                         onClick={() => setShowOnlyFavorites(prev => !prev)}
                         aria-pressed={showOnlyFavorites}
@@ -199,6 +210,25 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                     </button>
                 </div>
             </div>
+
+            {/* Full-width search sits between the tabs and the deck. It is a
+                shrink-0 row in the column, so opening it pushes the card down
+                rather than overlaying it. */}
+            {isSearchOpen && (
+                <input
+                    autoFocus
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            setSearchQuery('');
+                            setIsSearchOpen(false);
+                        }
+                    }}
+                    placeholder={t('learn.ideas_search')}
+                    className="shrink-0 w-full bg-white border border-stone-200/80 rounded-full px-5 py-2.5 text-sm text-stone-700 placeholder:text-stone-400 focus:outline-none focus:border-stone-400 transition-colors"
+                />
+            )}
 
             {visibleIdeas.length === 0 ? (
                 <div className="w-full flex items-center justify-center py-24 text-sm text-stone-500">
@@ -215,7 +245,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         {hasNext && (
                             <div
                                 aria-hidden
-                                className="absolute left-8 right-8 top-0 bottom-8 bg-white/70 border border-stone-200/70 rounded-[20px]"
+                                className="absolute left-8 right-8 top-0 bottom-8 bg-[#FAF9F5]/70 border border-stone-200/70 rounded-[20px]"
                             />
                         )}
 
@@ -231,7 +261,20 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                                 exit={{ y: '110%', zIndex: 2 }}
                                 transition={{ duration: 0.34, ease: [0.23, 1, 0.32, 1] }}
                                 style={{ top: DECK_PEEK_PX }}
-                                className="absolute inset-x-0 bottom-0 bg-white border border-stone-200/80 rounded-[20px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-6"
+                                /* Drag is horizontal on purpose: the card's own notes
+                                   scroll vertically, and a vertical drag would fight
+                                   that gesture. Snaps back when the throw is too small
+                                   or there is nothing left in that direction. */
+                                drag="x"
+                                dragConstraints={{ left: 0, right: 0 }}
+                                dragElastic={0.16}
+                                dragMomentum={false}
+                                onDragEnd={(_, info) => {
+                                    const threshold = 90;
+                                    if (info.offset.x <= -threshold) goNext();
+                                    else if (info.offset.x >= threshold) goPrev();
+                                }}
+                                className="absolute inset-x-0 bottom-0 bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-6 cursor-grab active:cursor-grabbing"
                             >
                                 <div className="flex flex-col sm:flex-row gap-6 md:gap-8 flex-1 min-h-0">
                                     {/* Deliberately empty for now — artwork comes later. */}
@@ -266,20 +309,38 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                                     </div>
                                 </div>
 
-                                <div className="shrink-0 flex items-center justify-between gap-4 pt-2">
+                                {/* Both actions sit together on the right. The heart is
+                                    the same lucide icon as the favourites filter in the
+                                    header, so a liked idea reads identically in both. */}
+                                <div className="shrink-0 flex items-center justify-end gap-3 pt-2">
                                     <button
                                         onClick={() => toggleLike(currentIdea.id)}
                                         aria-pressed={isCurrentLiked}
                                         aria-label={t('learn.ideas_like')}
+                                        title={t('learn.ideas_like')}
                                         className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
                                             isCurrentLiked
                                                 ? 'border-red-200 bg-red-50 text-red-500'
                                                 : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
                                         }`}
                                     >
-                                        <svg width="17" height="17" viewBox="0 0 24 24" fill={isCurrentLiked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s-6.716-4.35-9.428-8.06C.88 10.31 1.5 6.5 4.7 5.2c2.1-.85 4.2.1 5.3 2 .3.5.9.5 1.2 0 1.1-1.9 3.2-2.85 5.3-2 3.2 1.3 3.82 5.11 2.13 7.74C18.716 16.65 12 21 12 21z" />
-                                        </svg>
+                                        <Heart size={18} strokeWidth={2} fill={isCurrentLiked ? 'currentColor' : 'none'} />
+                                    </button>
+
+                                    {/* Checked state borrows the Create section's marker:
+                                        a filled #87b884 circle with a white tick. */}
+                                    <button
+                                        onClick={() => toggleChecked(currentIdea.id)}
+                                        aria-pressed={isCurrentChecked}
+                                        aria-label={t('learn.ideas_mark_done')}
+                                        title={t('learn.ideas_mark_done')}
+                                        className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                                            isCurrentChecked
+                                                ? 'bg-[#87b884] border-[#87b884] text-white shadow-sm'
+                                                : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
+                                        }`}
+                                    >
+                                        <Check size={16} className="stroke-[3.5]" />
                                     </button>
 
                                     <Link

@@ -46,6 +46,24 @@ const PRESENCE_RECHECK_MS = 15000;
 const MAX_RECORDING_SECONDS = 600;
 
 /**
+ * What /api/transcribe can actually finish, expressed as something checkable before
+ * the user waits for it.
+ *
+ * The route has ~40s of budget inside Firebase Hosting's ~60s edge window, and the
+ * WHOLE round trip lives in it: downloading the file to the browser, posting those
+ * same bytes up to the route, and only then the model. A long or high-bitrate file
+ * spends the budget on transport and times out with nothing to show — after a wait
+ * long enough that the failure reads as the feature being broken.
+ *
+ * These are set to comfortably contain what the app itself produces: a 10-minute
+ * take at 128 kbps Opus is ~9.6MB, so anything inside these limits is something we
+ * made and can handle. Beyond them the answer is known in advance, and saying so
+ * immediately is far kinder than a two-minute wait ending in "try again".
+ */
+const MAX_TRANSCRIBE_SECONDS = MAX_RECORDING_SECONDS;
+const MAX_TRANSCRIBE_BYTES = 12 * 1024 * 1024;
+
+/**
  * Encode rate for every take we record, canvas and Demo Studio alike.
  *
  * Opus reaches transparency — the point past which more bits buy nothing anyone can
@@ -123,6 +141,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallba
 import { createPortal } from 'react-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { safeLocalStorageSetItem } from '@/lib/storage';
+import { setPlaybackAudioSession, setRecordingAudioSession, releaseRecordingAudioSession } from '@/lib/audioSession';
 import { fitToFirestore } from '@/lib/projectPayload';
 // Chord picking, validation and note lookup all moved into ChordCard — the page
 // only needs the shape it stores.
@@ -1832,7 +1851,7 @@ const PhraseRow = React.memo(function PhraseRow({
                 /* Vertical box metrics here must mirror the read-only `.phrase-row-text`
                    below — py-[2px] plus a 1px transparent border — or swapping between the
                    two on every click visibly nudges the surrounding lines. */
-                <div className="text-[30px] md:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4 py-[2px] border border-transparent rounded-[12px]">
+                <div className="text-[30px] md:text-[34px] lg:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4 py-[2px] border border-transparent rounded-[12px]">
                     {/* Two attributes below are load-bearing for vertical rhythm:
                         `rows={1}` — without an explicit rows a textarea defaults to TWO rows,
                         so its auto height (and the scrollHeight measured from it) is two lines
@@ -1920,7 +1939,7 @@ const PhraseRow = React.memo(function PhraseRow({
                                 }
                             }
                         }}
-                        className="block w-full bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none leading-[1.4] py-0 no-scrollbar"
+                        className="block w-full bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[34px] lg:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none leading-[1.4] py-0 no-scrollbar"
                         style={{ height: 'auto', minHeight: '1.4em' }}
                         inputMode="text"
                     />
@@ -1928,7 +1947,7 @@ const PhraseRow = React.memo(function PhraseRow({
             ) : (
                 <div
                     className={`
-                        phrase-row-text text-[30px] md:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-[2px] px-4 rounded-[12px] transition-all duration-200 w-full border border-transparent
+                        phrase-row-text text-[30px] md:text-[34px] lg:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-[2px] px-4 rounded-[12px] transition-all duration-200 w-full border border-transparent
                         ${isLockedByRemote ? 'cursor-not-allowed border-dashed opacity-70' : 'cursor-grab active:cursor-grabbing hover:border-stone-200/50 hover:bg-stone-50/30 group/line'}
                         ${draggedPhraseId === phrase.id ? 'opacity-30' : ''}
                         ${isCommentTarget ? 'bg-stone-100/80 border-stone-300/80 shadow-[0_0_0_3px_rgba(120,113,108,0.07)]' : ''}
@@ -2142,40 +2161,57 @@ function decodeAudioDataPromise(audioCtx: AudioContext | OfflineAudioContext, ar
     });
 }
 
-function showMicrophoneHelp(err?: any) {
-    if (typeof window === 'undefined') return;
+/**
+ * What to tell someone whose microphone did not open, and why.
+ *
+ * Returns the text rather than showing it: this is module scope, with no access to
+ * the in-app dialog, and it used to reach for window.alert() — the one dialog in the
+ * app that looks like the browser rather than like Veinote, and that blocks the page
+ * until dismissed. Callers render it through requestConfirm instead.
+ *
+ * The advice is per-platform because the fix is: on iOS the permission lives behind
+ * the address bar's 'aA' menu, which is not somewhere anyone finds by guessing.
+ */
+function microphoneHelp(err?: any): { title: string; message: string } {
+    const isSecure = typeof window !== 'undefined' && (
+        window.location.protocol === 'https:'
+        || window.location.hostname === 'localhost'
+        || window.location.hostname === '127.0.0.1'
+    );
 
-    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     if (!isSecure) {
-        alert(
-            "Microphone Access Error:\n\n" +
-            "Your browser blocks microphone access on insecure (HTTP) connections.\n\n" +
-            "Please use a secure (HTTPS) URL, or test locally via localhost."
-        );
-        return;
+        return {
+            title: 'Microphone blocked',
+            message:
+                'Browsers only allow microphone access over a secure connection.\n\n'
+                + 'Open Veinote over https:// and try again.',
+        };
     }
 
-    const userAgent = navigator.userAgent || '';
-    const isIOS = /iPad|iPhone|iPod/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const userAgent = typeof navigator !== 'undefined' ? (navigator.userAgent || '') : '';
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent)
+        || (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isSafari = /^((?!chrome|android).)*safari/i.test(userAgent);
 
     if (isIOS || isSafari) {
-        alert(
-            "Microphone Permission Denied:\n\n" +
-            "To record on iPhone / Safari, please allow microphone access:\n\n" +
-            "1. Tap the 'aA' settings icon on the left of the URL search bar.\n" +
-            "2. Tap 'Website Settings'.\n" +
-            "3. Change Microphone permission to 'Allow'.\n" +
-            "4. Reload the page and try again.\n\n" +
-            "Alternatively, go to iOS Settings > Safari > Microphone and select 'Ask' or 'Allow'."
-        );
-    } else {
-        alert(
-            "Microphone Permission Denied:\n\n" +
-            "Please grant microphone permission to record audio:\n\n" +
-            "Click the microphone/settings icon in your browser URL bar, change permission to 'Allow', and reload the page."
-        );
+        return {
+            title: 'Microphone permission needed',
+            message:
+                'To record in Safari:\n\n'
+                + '1. Tap the "aA" icon on the left of the address bar.\n'
+                + '2. Tap Website Settings.\n'
+                + '3. Set Microphone to Allow.\n'
+                + '4. Reload the page.\n\n'
+                + 'Or open iOS Settings › Safari › Microphone and choose Ask or Allow.',
+        };
     }
+
+    return {
+        title: 'Microphone permission needed',
+        message:
+            'Click the microphone icon in your browser\u2019s address bar, set the permission '
+            + 'to Allow, then reload the page.',
+    };
 }
 
 function downmixToMono(audioBuffer: AudioBuffer, audioCtx: AudioContext | OfflineAudioContext): AudioBuffer {
@@ -2263,6 +2299,109 @@ async function getWavBlob(audioBlob: Blob): Promise<Blob> {
     return new Blob([wavBuffer], { type: 'audio/wav' });
 }
 
+/**
+ * Uncompressed audio containers. These are the ones worth re-encoding: they carry
+ * raw PCM, so their size is pure arithmetic — sample rate x bit depth x channels x
+ * seconds — and none of it is a decision anyone made about how the music sounds.
+ *
+ * Everything else (mp3, m4a, ogg, opus, webm) is deliberately excluded. Those are
+ * already lossy, and decoding one to re-encode it is generation loss: strictly worse
+ * audio, usually for a LARGER file, since PCM is bigger than the compressed stream
+ * it came from.
+ */
+const UNCOMPRESSED_AUDIO = /\.(wav|wave|aif|aiff|aifc|pcm|au|snd)$/i;
+
+function isUncompressedAudio(file: File): boolean {
+    return UNCOMPRESSED_AUDIO.test(file.name)
+        || /^audio\/(wav|wave|x-wav|x-pcm|aiff|x-aiff|basic)$/i.test(file.type);
+}
+
+/** 16-bit interleaved PCM, any channel count. audioBufferToWav below is the mono
+ *  variant the transcription path needs; this one keeps the stereo image. */
+function encodePcmWav(buffer: AudioBuffer): Blob {
+    const channels = buffer.numberOfChannels;
+    const frames = buffer.length;
+    const bytes = frames * channels * 2;
+    const out = new ArrayBuffer(44 + bytes);
+    const view = new DataView(out);
+
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + bytes, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, channels, true);
+    view.setUint32(24, buffer.sampleRate, true);
+    view.setUint32(28, buffer.sampleRate * channels * 2, true);
+    view.setUint16(32, channels * 2, true);
+    view.setUint16(34, 16, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, bytes, true);
+
+    const data: Float32Array[] = [];
+    for (let c = 0; c < channels; c++) data.push(buffer.getChannelData(c));
+
+    let offset = 44;
+    for (let i = 0; i < frames; i++) {
+        for (let c = 0; c < channels; c++) {
+            const sample = Math.max(-1, Math.min(1, data[c][i]));
+            view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+            offset += 2;
+        }
+    }
+    return new Blob([out], { type: 'audio/wav' });
+}
+
+/**
+ * Shrinks an imported file before it is ever stored.
+ *
+ * Raw PCM imports are the outlier in this app: a 24-bit 48kHz stereo WAV runs about
+ * 2.2 Mbps, so under two minutes of it lands near 30MB — larger than an entire album
+ * of compressed audio, and larger than the lyric extractor can accept. Re-encoding to
+ * 16-bit at 48kHz keeps CD-or-better fidelity and takes roughly a third of the bytes.
+ *
+ * What it does NOT do is touch already-compressed audio, and that restraint is the
+ * point: this is about removing waste, not about degrading what someone chose.
+ *
+ * Returns null when there is nothing to gain, and the caller keeps the original.
+ */
+async function shrinkImportedAudio(file: File): Promise<File | null> {
+    if (!isUncompressedAudio(file)) return null;
+    try {
+        const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+        const decoded = await decodeAudioDataPromise(new OfflineContextClass(1, 1, 44100), await file.arrayBuffer());
+
+        // 48kHz is the ceiling, not a target: a 44.1kHz source stays at 44.1kHz
+        // rather than being resampled up and back for nothing.
+        const targetRate = Math.min(decoded.sampleRate, 48000);
+        let buffer = decoded;
+        if (targetRate !== decoded.sampleRate) {
+            const ctx = new OfflineContextClass(
+                decoded.numberOfChannels,
+                Math.ceil(decoded.duration * targetRate),
+                targetRate,
+            );
+            const source = ctx.createBufferSource();
+            source.buffer = decoded;
+            source.connect(ctx.destination);
+            source.start();
+            buffer = await ctx.startRendering();
+        }
+
+        const blob = encodePcmWav(buffer);
+        // Compression that adds bytes is worth nothing — a 16-bit 44.1kHz source
+        // re-encodes to almost exactly its own size, so this is the common exit.
+        if (blob.size >= file.size * 0.95) return null;
+
+        const name = file.name.replace(/\.[^.]+$/, '') + '.wav';
+        return new File([blob], name, { type: 'audio/wav', lastModified: Date.now() });
+    } catch (err) {
+        console.warn('Could not re-encode this import; keeping the original.', err);
+        return null;
+    }
+}
+
 function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
     const length = buffer.length * 2;
     const bufferArr = new ArrayBuffer(44 + length);
@@ -2346,6 +2485,59 @@ interface DocumentCapsuleCardProps {
 }
 
 /**
+ * "The AI is reading this" — the same three bouncing dots and the same wording on
+ * every card that can be scanned, so a take, a photo and a PDF all report the work
+ * identically instead of each inventing its own spinner.
+ *
+ * The label says what is being produced, not what is being done to the file: the
+ * writer cares that lyrics are coming out, not that a transcription is running.
+ *
+ * No animate-pulse over the group. It used to wrap the whole thing and dimmed the
+ * label on every cycle, which made a working card look like a disabled one — the
+ * dots carry the motion on their own.
+ */
+function ExtractingState({ compact = false }: { compact?: boolean }) {
+    const { t } = useLanguage();
+    // A single frozen label makes a long wait feel like a hang. The line advances
+    // instead — not a fake progress bar, just an honest account of what is taking
+    // the time, which is what turns "is this broken?" into "it is working on it".
+    // It stops on the last message rather than looping: cycling back to the first
+    // would read as having started over.
+    const [stage, setStage] = useState(0);
+    const stages = compact
+        ? [t('card.transcribing')]
+        : [
+            t('card.transcribing_audio'),
+            t('card.extract_stage_large'),
+            t('card.extract_stage_almost'),
+        ];
+
+    useEffect(() => {
+        if (stages.length < 2) return;
+        const id = window.setInterval(() => {
+            setStage(prev => (prev >= stages.length - 1 ? prev : prev + 1));
+        }, 7000);
+        return () => window.clearInterval(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [stages.length]);
+
+    const dot = compact ? 'w-1 h-1' : 'w-1.5 h-1.5';
+    return (
+        <span className={`flex items-center shrink-0 text-stone-600 font-bold ${compact ? 'gap-1.5 text-[9px]' : 'gap-2 text-xs'}`}>
+            <span className={`flex items-center shrink-0 ${compact ? 'gap-[3px]' : 'gap-1'}`}>
+                <span className={`${dot} rounded-full bg-stone-500 animate-bounce [animation-delay:-0.3s]`} />
+                <span className={`${dot} rounded-full bg-stone-500 animate-bounce [animation-delay:-0.15s]`} />
+                <span className={`${dot} rounded-full bg-stone-500 animate-bounce`} />
+            </span>
+            {/* Keyed so each new line fades in rather than swapping mid-word. */}
+            <span key={stage} className="animate-in fade-in duration-300 whitespace-nowrap">
+                {stages[Math.min(stage, stages.length - 1)]}
+            </span>
+        </span>
+    );
+}
+
+/**
  * Icon-only actions on the media cards — transcribe, delete, send to studio.
  *
  * The glyph stays small; these are quiet controls sitting beside the content. The
@@ -2418,14 +2610,20 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDr
                 type="button"
                 disabled={isScanning}
                 onClick={onScan}
-                className="flex items-center gap-1.5 text-stone-700 hover:text-stone-950 hover:bg-stone-100/80 font-semibold text-[13px] rounded-full transition-colors cursor-pointer h-9 px-3.5 -my-1 shrink-0 disabled:opacity-50"
+                className={`flex items-center gap-1.5 text-stone-700 font-semibold text-[13px] rounded-full transition-colors h-9 px-3.5 -my-1 shrink-0 ${
+                    isScanning
+                        ? 'cursor-default'
+                        : 'hover:text-stone-950 hover:bg-stone-100/80 cursor-pointer'
+                }`}
             >
                 {isScanning ? (
-                    <Loader2 size={13} className="animate-spin text-stone-600" />
+                    <ExtractingState />
                 ) : (
-                    <RefreshCw size={13} className="text-stone-500 stroke-[2.2]" />
+                    <>
+                        <RefreshCw size={13} className="text-stone-500 stroke-[2.2]" />
+                        <span>{t('card.scan')}</span>
+                    </>
                 )}
-                <span>Scan</span>
             </button>
 
             <div className="h-4 w-px bg-stone-200 shrink-0" />
@@ -2508,14 +2706,20 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
                     type="button"
                     disabled={isScanning}
                     onClick={onScan}
-                    className="flex items-center gap-1.5 text-stone-700 hover:text-stone-950 hover:bg-stone-100/80 font-semibold text-[13px] rounded-full transition-colors cursor-pointer h-9 px-3.5 shrink-0 disabled:opacity-50"
+                    className={`flex items-center gap-1.5 text-stone-700 font-semibold text-[13px] rounded-full transition-colors h-9 px-3.5 shrink-0 ${
+                        isScanning
+                            ? 'cursor-default'
+                            : 'hover:text-stone-950 hover:bg-stone-100/80 cursor-pointer'
+                    }`}
                 >
                     {isScanning ? (
-                        <Loader2 size={14} className="animate-spin text-stone-600" />
+                        <ExtractingState />
                     ) : (
-                        <Sparkles size={14} className="text-stone-600 stroke-[2]" />
+                        <>
+                            <Sparkles size={14} className="text-stone-600 stroke-[2]" />
+                            <span>{t('card.scan')}</span>
+                        </>
                     )}
-                    <span>Scan</span>
                 </button>
 
                 <div className="h-4 w-px bg-stone-200 shrink-0 mx-1" />
@@ -2728,6 +2932,9 @@ function AudioCapsulePlayer({
             document.querySelectorAll('audio').forEach(el => {
                 if (el !== playbackAudioRef.current) el.pause();
             });
+            // iOS: without this the take plays silently when the ring/silent switch is
+            // on, or out the earpiece if a recording left the session in record mode.
+            setPlaybackAudioSession();
             playbackAudioRef.current.play().catch(err => console.error("Playback failed:", err));
         }
     };
@@ -2957,12 +3164,7 @@ function AudioCapsulePlayer({
                 <div className="h-2.5 w-px bg-stone-200 shrink-0" />
 
                 {isTranscribing ? (
-                    <div className="flex items-center gap-1 text-emerald-600 animate-pulse text-[9px] font-bold shrink-0">
-                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]" />
-                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.15s]" />
-                        <span className="w-1 h-1 rounded-full bg-emerald-500 inline-block animate-bounce" />
-                        <span>{t('card.transcribing')}</span>
-                    </div>
+                    <ExtractingState compact />
                 ) : (
                     <>
                         {/* Play / Pause */}
@@ -3063,7 +3265,7 @@ function AudioCapsulePlayer({
                         disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
                         style={{ width: `${Math.max(6, (audioNote.title || '').length)}ch` }}
                         aria-label={t('card.rename_recording')}
-                        className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[50px] max-w-[150px] md:max-w-[200px] truncate"
+                        className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[50px] max-w-[90px] lg:max-w-[200px] truncate"
                     />
                 </Tooltip>
             </div>
@@ -3071,11 +3273,8 @@ function AudioCapsulePlayer({
             <div className="h-4 w-px bg-stone-200 shrink-0" />
 
             {isTranscribing ? (
-                <div className="flex items-center gap-2 text-emerald-600 animate-pulse text-xs font-bold py-1 px-2 shrink-0">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.3s]" />
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce [animation-delay:-0.15s]" />
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-bounce" />
-                    <span>{t('card.transcribing_audio')}</span>
+                <div className="flex items-center py-1 px-2 shrink-0">
+                    <ExtractingState />
                 </div>
             ) : (
                 <>
@@ -3088,10 +3287,12 @@ function AudioCapsulePlayer({
                         }
                     </button>
 
-                    {/* Waveform */}
-                    <div className="hidden sm:block h-4 w-px bg-stone-200 shrink-0" />
-                    <div className="hidden sm:block shrink-0">{renderWaveformViz(false)}</div>
-                    <div className="hidden sm:block h-4 w-px bg-stone-200 shrink-0" />
+                    {/* Waveform — hidden through the tablet/squeeze zone too (not just below
+                        sm:), since that's decorative and the row is already tight there once
+                        the sidebar is expanded; only worth showing once there's real room. */}
+                    <div className="hidden lg:block h-4 w-px bg-stone-200 shrink-0" />
+                    <div className="hidden lg:block shrink-0">{renderWaveformViz(false)}</div>
+                    <div className="hidden lg:block h-4 w-px bg-stone-200 shrink-0" />
 
                     {/* Timer */}
                     <span className="text-[10px] font-mono font-bold text-stone-500 shrink-0">
@@ -3742,6 +3943,12 @@ export default function CreatePage() {
     const [projectViewStyle, setProjectViewStyle] = useState<'grid' | 'list'>('list');
     const [projectSortOption, setProjectSortOption] = useState<'date_desc' | 'date_asc' | 'az' | 'za'>('date_desc');
     const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
+    const workspaceMenuBtnRef = useRef<HTMLButtonElement | null>(null);
+    /** How tall the workspace menu may be, measured against the room actually below
+     *  the button when it opens. A fixed cap cannot do this job: the row sits
+     *  partway down a long page, so the same 375px menu fits on one screen and
+     *  hangs 121px past the fold on another. */
+    const [workspaceMenuMaxH, setWorkspaceMenuMaxH] = useState(420);
     const [showNewItemMenu, setShowNewItemMenu] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -4175,6 +4382,21 @@ export default function CreatePage() {
     const [isRecordingSaving, setIsRecordingSaving] = useState(false);
     const [transcribingAudioNoteId, setTranscribingAudioNoteId] = useState<string | null>(null);
     const [transcribingDocId, setTranscribingDocId] = useState<string | null>(null);
+
+    /**
+     * Audio note ids whose upload to Storage is actually running right now.
+     *
+     * Publishing used to be blocked by any audioNote still carrying a `blob:` URL,
+     * on the assumption that a blob URL means "uploading". It does not — it means
+     * "never reached Storage", and a failed background upload leaves one behind
+     * permanently. The project was then unpublishable forever, told each time to
+     * wait a few seconds for an upload that had stopped long ago.
+     *
+     * A ref rather than state on purpose: nothing renders from it, it is read once
+     * at the moment Publish is pressed, and re-rendering the canvas on every upload
+     * transition would cost real work for no visible gain.
+     */
+    const pendingAudioUploadsRef = useRef<Set<string>>(new Set());
     const [scanningImageId, setScanningImageId] = useState<string | null>(null);
     const [editingPhraseId, setEditingPhraseId] = useState<string | null>(null);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -4458,6 +4680,10 @@ export default function CreatePage() {
                 studioMicrophoneStreamRef.current.getTracks().forEach(track => track.stop());
             } catch (e) {}
             studioMicrophoneStreamRef.current = null;
+            // iOS: only when a mic was actually open — hand the session back to speaker
+            // routing so playback after a studio take isn't stuck on the earpiece.
+            // (Guarded, so stopping plain playback doesn't churn the session type.)
+            releaseRecordingAudioSession();
         }
         Object.keys(studioActiveSourcesRef.current).forEach(trackId => {
             try {
@@ -4492,6 +4718,9 @@ export default function CreatePage() {
         if (studioAudioCtxRef.current.state === 'suspended') {
             studioAudioCtxRef.current.resume().catch(console.error);
         }
+        // iOS: same as the metronome — Web Audio respects the silent switch. Recording
+        // paths call setRecordingAudioSession() after this, so they still win.
+        setPlaybackAudioSession();
         return studioAudioCtxRef.current;
     };
 
@@ -5096,6 +5325,7 @@ export default function CreatePage() {
         if (isRecording) {
             stopRecording();
         } else if (playbackAudioRef.current) {
+            setPlaybackAudioSession();
             playbackAudioRef.current.play().catch(err => console.error("Playback error:", err));
             setIsPlaying(true);
         }
@@ -5121,6 +5351,7 @@ export default function CreatePage() {
         } else if (playbackAudioRef.current) {
             playbackAudioRef.current.currentTime = 0;
             setPlaybackTime(0);
+            setPlaybackAudioSession();
             playbackAudioRef.current.play().catch(err => console.error("Playback error:", err));
             setIsPlaying(true);
         }
@@ -5188,7 +5419,7 @@ export default function CreatePage() {
             });
             setIsEditing(true);
         } else {
-            alert("No transcription available. Save a recording first.");
+            triggerStudioNotification('No transcription available. Save a recording first.', 'amber');
         }
     };
 
@@ -6356,7 +6587,7 @@ export default function CreatePage() {
             const currentCollaborators = noteData?.collaborators || [];
 
             if (currentCollaborators.length >= MAX_COLLABORATORS) {
-                alert("This project already has the maximum of 5 members.");
+                triggerStudioNotification('This project already has the maximum of 5 members.', 'amber');
                 return;
             }
 
@@ -7019,6 +7250,9 @@ export default function CreatePage() {
         if (!metronomeAudioContextRef.current) {
             metronomeAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         }
+        // iOS: Web Audio output is silenced by the ring/silent switch too, and there's
+        // no <audio> element here to hang the session off — so declare it on the context.
+        setPlaybackAudioSession();
         return metronomeAudioContextRef.current;
     };
 
@@ -7334,7 +7568,7 @@ export default function CreatePage() {
         } catch (err) {
             console.error("Tuner mic activation error:", err);
             setTunerActive(false);
-            alert("Could not access microphone for tuning. Please check settings.");
+            triggerStudioNotification('Could not access microphone for tuning. Please check settings.', 'rose');
         }
     };
 
@@ -7742,7 +7976,7 @@ export default function CreatePage() {
             if (runAudio) {
                 // Guard: mediaDevices requires HTTPS or localhost
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    alert('Recording requires a secure (HTTPS) connection and browser microphone permission.');
+                    triggerStudioNotification('Recording requires a secure (HTTPS) connection and browser microphone permission.', 'rose');
                     return;
                 }
                 // iOS-compatible high-fidelity audio constraints
@@ -7755,6 +7989,8 @@ export default function CreatePage() {
                         channelCount: 1
                     }
                 };
+                // iOS: declare the record-capable session before asking for the mic.
+                setRecordingAudioSession();
                 let stream: MediaStream;
                 try {
                     stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
@@ -8177,7 +8413,8 @@ export default function CreatePage() {
             
         } catch (err) {
             console.error("Microphone access error:", err);
-            showMicrophoneHelp(err);
+            const help = microphoneHelp(err);
+            requestConfirm({ ...help, confirmLabel: t('common.ok') || 'OK', onConfirm: () => {} });
         }
     };
 
@@ -8370,6 +8607,10 @@ export default function CreatePage() {
             } catch (e) {}
             recognitionRef.current = null;
         }
+        // iOS: hand the session back to playback routing. Without this the page stays
+        // in the record-capable session getUserMedia established, and every take the
+        // user plays back afterwards comes out the earpiece instead of the speaker.
+        releaseRecordingAudioSession();
     };
 
     // Keep audio state in sync with selected note
@@ -8402,6 +8643,7 @@ export default function CreatePage() {
             playbackAudioRef.current.pause();
             setIsPlaying(false);
         } else {
+            setPlaybackAudioSession();
             playbackAudioRef.current.play().catch(err => console.error("Playback error:", err));
             setIsPlaying(true);
         }
@@ -8647,6 +8889,19 @@ export default function CreatePage() {
             if (file.size > 3 * 1024 * 1024) {
                 triggerStudioNotification(t('creative.file_too_large'), 'amber');
                 return null;
+            }
+        }
+
+        // Re-encoded before anything downstream sees it, so the smaller file is what
+        // gets played, stored, and sent for extraction — one substitution instead of
+        // threading a second version through every branch below.
+        if (uploadType === 'audio') {
+            const shrunk = await shrinkImportedAudio(file);
+            if (shrunk) {
+                console.log(
+                    `[Import] ${file.name}: ${(file.size / 1048576).toFixed(1)}MB -> ${(shrunk.size / 1048576).toFixed(1)}MB`,
+                );
+                file = shrunk;
             }
         }
 
@@ -9259,10 +9514,15 @@ export default function CreatePage() {
         const note = notes.find(n => n.id === selectedNoteId) || null;
         if (!note) return;
 
-        const hasBlobUrls = (note.audioUrl && note.audioUrl.startsWith('blob:'))
-            || (note.audioNotes && note.audioNotes.some(an => an.url.startsWith('blob:')));
-        if (hasBlobUrls) {
-            triggerStudioNotification("Audio is still uploading. Give it a few seconds, then publish.", 'rose');
+        // Only a genuinely running upload holds publishing back. A `blob:` URL with
+        // no upload behind it is a take that never reached Storage — waiting will
+        // not change that, so the song goes out without a playable link rather than
+        // the project becoming permanently unpublishable.
+        const uploadingNow = (note.audioNotes || []).some(
+            an => an.url?.startsWith('blob:') && pendingAudioUploadsRef.current.has(an.id),
+        );
+        if (uploadingNow) {
+            triggerStudioNotification(t('collab.publish_wait_upload'), 'amber');
             return;
         }
 
@@ -9286,11 +9546,12 @@ export default function CreatePage() {
         const activeNote = notes.find(n => n.id === selectedNoteId) || null;
         if (!activeNote) return;
 
-        // Guard: Prevent publishing while audio files are still uploading in the background (starts with blob:)
-        const hasBlobUrls = (activeNote.audioUrl && activeNote.audioUrl.startsWith('blob:')) || 
-                            (activeNote.audioNotes && activeNote.audioNotes.some(an => an.url.startsWith('blob:')));
-        if (hasBlobUrls) {
-            alert("Audio files are still uploading in the background. Please wait a few seconds for the upload to complete, then try publishing.");
+        // Same test as openPublishDialog: in flight blocks, abandoned does not.
+        const uploadingNow = (activeNote.audioNotes || []).some(
+            an => an.url?.startsWith('blob:') && pendingAudioUploadsRef.current.has(an.id),
+        );
+        if (uploadingNow) {
+            triggerStudioNotification(t('collab.publish_wait_upload'), 'amber');
             return;
         }
 
@@ -9300,7 +9561,7 @@ export default function CreatePage() {
             : (activeNote.content || '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
         if (lyricsLines.length === 0) {
-            alert("Please write some lyrics before sharing to the community!");
+            triggerStudioNotification('Please write some lyrics before sharing to the community.', 'amber');
             return;
         }
 
@@ -10965,6 +11226,20 @@ export default function CreatePage() {
         const groupId = matchingAudio ? matchingAudio.groupId : null;
         const phraseId = matchingAudio ? matchingAudio.phraseId : null;
 
+        // Answered before anything is downloaded. The note already knows how long it
+        // is, so a file that cannot finish is refused in the same instant it is asked
+        // for rather than after a minute of waiting.
+        const durationSeconds = Math.round(matchingAudio?.duration || 0);
+        if (durationSeconds > MAX_TRANSCRIBE_SECONDS) {
+            triggerStudioNotification(
+                t('card.extract_too_long')
+                    .replace('{minutes}', String(Math.floor(MAX_TRANSCRIBE_SECONDS / 60)))
+                    .replace('{length}', formatTime(durationSeconds)),
+                'amber',
+            );
+            return;
+        }
+
         setTranscribingAudioNoteId(audioNoteId);
         setIsTranscribing(true);
         try {
@@ -10984,6 +11259,17 @@ export default function CreatePage() {
             }
 
             if (fetchedBlob) {
+                // Duration passed but the file is still too heavy to post inside the
+                // budget — a long high-bitrate import, or a lossless WAV.
+                if (fetchedBlob.size > MAX_TRANSCRIBE_BYTES) {
+                    triggerStudioNotification(
+                        t('card.extract_too_large')
+                            .replace('{size}', `${(fetchedBlob.size / (1024 * 1024)).toFixed(1)} MB`)
+                            .replace('{limit}', `${Math.round(MAX_TRANSCRIBE_BYTES / (1024 * 1024))} MB`),
+                        'amber',
+                    );
+                    return;
+                }
                 const payload = await toTranscribeAudioPayload(fetchedBlob);
                 body = payload.body;
                 headers['Content-Type'] = payload.contentType;
@@ -11006,7 +11292,7 @@ export default function CreatePage() {
                     // (timeout, upstream trouble) — not that the recording is silent.
                     // "No spoken lyrics found" for a failure sends the user hunting for a
                     // problem in their own recording that isn't there.
-                    alert(data.error || t('audio.no_lyrics_found') || "No spoken lyrics found in this recording.");
+                    triggerStudioNotification(data.error || t('audio.no_lyrics_found'), data.error ? 'rose' : 'amber');
                 }
                 let line1 = "";
                 let line2 = "";
@@ -11118,11 +11404,11 @@ export default function CreatePage() {
                 // forever, since retrying changes nothing about why it failed.
                 const errData = await response.json().catch(() => ({}));
                 console.error('Server transcription failed status:', response.status, errData);
-                alert(errData.error || "Transcription failed. Please try again.");
+                triggerStudioNotification(errData.error || t('card.extract_failed'), 'rose');
             }
         } catch (e) {
             console.error("Failed to transcribe audio note:", e);
-            alert("Error trying to transcribe this audio recording.");
+            triggerStudioNotification(t('card.extract_failed'), 'rose');
         } finally {
             setTranscribingAudioNoteId(null);
             setIsTranscribing(false);
@@ -11131,6 +11417,7 @@ export default function CreatePage() {
 
     const uploadRecordedAudio = async (blob: Blob, noteId: string, recId: string) => {
         if (!user) return;
+        pendingAudioUploadsRef.current.add(recId);
         try {
             const fileRef = storageRef(storage, `users/${user.uid}/recordings/${noteId}_RecId_${recId}.webm`);
             await uploadBytes(fileRef, blob);
@@ -11154,6 +11441,10 @@ export default function CreatePage() {
             console.log("Audio uploaded successfully to production storage:", downloadUrl);
         } catch (error) {
             console.error("Failed to upload recorded audio:", error);
+        } finally {
+            // Cleared whether it landed or not: a failed upload is finished, and
+            // leaving it marked "in flight" is what blocked publishing forever.
+            pendingAudioUploadsRef.current.delete(recId);
         }
     };
 
@@ -11327,7 +11618,7 @@ export default function CreatePage() {
 
     const handleDetectLocation = () => {
         if (!navigator.geolocation) {
-            alert("Geolocation is not supported by your browser.");
+            triggerStudioNotification('Geolocation is not supported by your browser.', 'amber');
             return;
         }
 
@@ -11358,7 +11649,7 @@ export default function CreatePage() {
             },
             (error) => {
                 console.error("Geolocation error:", error);
-                alert("Failed to detect location. Please type it manually.");
+                triggerStudioNotification('Could not detect your location. Please type it manually.', 'rose');
             }
         );
     };
@@ -11493,7 +11784,7 @@ export default function CreatePage() {
             URL.revokeObjectURL(downloadUrl);
         } catch (err) {
             console.error("Failed to generate project bundle zip:", err);
-            alert("Failed to export project bundle. Please try again.");
+            triggerStudioNotification('Could not export the project bundle. Please try again.', 'rose');
         } finally {
             setIsExporting(false);
         }
@@ -13188,6 +13479,8 @@ export default function CreatePage() {
                     latency: { ideal: 0.002 }
                 } as any
             };
+            // iOS: declare the record-capable session before asking for the mic.
+            setRecordingAudioSession();
             let stream: MediaStream;
             try {
                 stream = await navigator.mediaDevices.getUserMedia(premiumAudioConstraints);
@@ -13393,7 +13686,8 @@ export default function CreatePage() {
         } catch (err) {
             console.error("Microphone access denied or failed to record:", err);
             setStudioState('idle');
-            showMicrophoneHelp(err);
+            const help = microphoneHelp(err);
+            requestConfirm({ ...help, confirmLabel: t('common.ok') || 'OK', onConfirm: () => {} });
         }
     };
 
@@ -13593,7 +13887,7 @@ export default function CreatePage() {
         try {
             const renderedBuffer = await renderOfflineMixdown();
             if (!renderedBuffer) {
-                alert("Please record some track audio first!");
+                triggerStudioNotification('Record something on a track first.', 'amber');
                 return;
             }
 
@@ -13613,7 +13907,7 @@ export default function CreatePage() {
             document.body.removeChild(link);
         } catch (err) {
             console.error("Export mixdown failed:", err);
-            alert("Failed to export studio mixdown.");
+            triggerStudioNotification('Could not export the studio mixdown.', 'rose');
         }
     };
 
@@ -13623,7 +13917,7 @@ export default function CreatePage() {
         try {
             const renderedBuffer = await renderOfflineMixdown();
             if (!renderedBuffer) {
-                alert("Please record some track audio first!");
+                triggerStudioNotification('Record something on a track first.', 'amber');
                 setIsSendingToCanvas(false);
                 return;
             }
@@ -13769,7 +14063,7 @@ export default function CreatePage() {
 
         } catch (err: any) {
             console.error("Save mixdown to project failed:", err);
-            alert("Failed to save mixdown to project: " + err.message);
+            triggerStudioNotification('Could not save the mixdown to this project: ' + err.message, 'rose');
             setIsSendingToCanvas(false);
         }
     };
@@ -16557,7 +16851,9 @@ export default function CreatePage() {
 
         if (activeToolTab === 'studio') {
             return (
-                <div className="flex w-full max-h-[calc(100vh-6rem)] sm:max-h-[calc(100vh-8rem)] text-left items-stretch mb-3 sm:mb-5 pointer-events-auto select-none relative">
+                // dvh, not vh: iOS Safari's 100vh excludes the URL bar, so a vh-capped
+                // panel still overflows the visible screen and clips its own controls.
+                <div className="flex w-full max-h-[calc(100dvh-6rem)] sm:max-h-[calc(100dvh-8rem)] text-left items-stretch mb-3 sm:mb-5 pointer-events-auto select-none relative">
                     {/* Left Gray Lyrics Panel with smooth width transition */}
                     <div 
                         className={`bg-[#E5E4DE] flex flex-col overflow-hidden transition-all duration-300 ease-out relative z-10 ${
@@ -17322,7 +17618,7 @@ export default function CreatePage() {
                         handleMovePhraseToGroup(phraseId, null);
                     }
                 }}
-                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
+                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-5 lg:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
                     isCanvasLocked
                         ? 'border-2 border-[#EDFF8E] shadow-[0_0_0_4px_rgba(237,255,142,0.35),0_12px_40px_rgba(0,0,0,0.03)] cursor-default'
                         // The I-beam is only honest over the region that actually starts a
@@ -17466,7 +17762,7 @@ export default function CreatePage() {
                                     setLocalTitleText(e.target.value);
                                 }
                             }}
-                            className={`bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-400 placeholder:text-stone-300 transition-colors min-w-0 shrink ${isCanvasReadOnly ? "cursor-default select-none pointer-events-none" : "cursor-text select-text focus:text-stone-900"}`}
+                            className={`bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-600 placeholder:text-stone-400 transition-colors min-w-0 shrink ${isCanvasReadOnly ? "cursor-default select-none pointer-events-none" : "cursor-text select-text focus:text-stone-900"}`}
                             style={{
                                 // Size to the text rather than filling the row, so the save check
                                 // and the BPM pill sit right beside the title instead of being
@@ -17849,7 +18145,7 @@ export default function CreatePage() {
                                                             setShowDetailsModal(true);
                                                             setShowCanvasMenu(false);
                                                         } catch (err) {
-                                                            alert("Error opening details: " + err);
+                                                            triggerStudioNotification('Could not open the details: ' + err, 'rose');
                                                         }
                                                     }}
                                                     className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
@@ -18941,7 +19237,7 @@ export default function CreatePage() {
                                             setIsFocused(false);
                                             setTimeout(updateScrollbarInfo, 50);
                                         }}
-                                        className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[60vh] md:max-h-[70vh] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
+                                        className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[34px] lg:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[60vh] md:max-h-[70vh] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
                                         placeholder=""
                                         style={{ 
                                             height: 'auto',
@@ -18951,8 +19247,8 @@ export default function CreatePage() {
                                     />
                                     {contentVal === '' && (
                                         <div className="absolute inset-x-0 top-0 px-4 md:px-8 xl:px-16 flex items-center justify-center pointer-events-none select-none py-0">
-                                            <span className="relative text-[30px] md:text-[42px] font-normal text-stone-300/80 tracking-[-0.035em] leading-[1.4] text-center flex items-center justify-center">
-                                                <span className="inline-block w-[2.5px] h-[32px] md:h-[44px] bg-black mr-2 animate-caret-blink shrink-0" />
+                                            <span className="relative text-[30px] md:text-[34px] lg:text-[42px] font-normal text-stone-300/80 tracking-[-0.035em] leading-[1.4] text-center flex items-center justify-center">
+                                                <span className="inline-block w-[2.5px] h-[32px] md:h-[36px] lg:h-[44px] bg-black mr-2 animate-caret-blink shrink-0" />
                                                 {t('creative.type_lyrics_placeholder')}
                                             </span>
                                         </div>
@@ -19692,7 +19988,16 @@ export default function CreatePage() {
                         <Tooltip label={t('workspace.more_actions')} disabled={isWorkspaceMenuOpen}>
                         <button
                             type="button"
-                            onClick={() => setIsWorkspaceMenuOpen(prev => !prev)}
+                            ref={workspaceMenuBtnRef}
+                            onClick={() => {
+                                if (!isWorkspaceMenuOpen) {
+                                    const r = workspaceMenuBtnRef.current?.getBoundingClientRect();
+                                    // 24px of breathing room below; never squeezed under
+                                    // 220px, where scrolling inside it is still workable.
+                                    if (r) setWorkspaceMenuMaxH(Math.max(220, window.innerHeight - r.bottom - 24));
+                                }
+                                setIsWorkspaceMenuOpen(prev => !prev);
+                            }}
                             aria-label={t('workspace.more_actions')}
                             className={`w-[48px] h-[48px] flex items-center justify-center border rounded-[16px] transition-all cursor-pointer select-none active:scale-95 ${
                                 isWorkspaceMenuOpen
@@ -19707,7 +20012,14 @@ export default function CreatePage() {
                         {isWorkspaceMenuOpen && (
                             <>
                                 <div className="fixed inset-0 z-40" onClick={() => setIsWorkspaceMenuOpen(false)} />
-                                <div className="absolute right-0 top-full mt-2 bg-white border border-stone-200/80 rounded-[18px] shadow-[0_10px_30px_rgba(0,0,0,0.08)] py-2 min-w-[230px] z-50 animate-in fade-in zoom-in-95 duration-150">
+                                {/* Scrolls rather than running off the screen. Measured at
+                                    375px with every section showing, against a 720px
+                                    window whose row already sits partway down it — the
+                                    folder actions were below the fold and unreachable. */}
+                                <div
+                                    style={{ maxHeight: `${workspaceMenuMaxH}px` }}
+                                    className="absolute right-0 top-full mt-2 bg-white border border-stone-200/80 rounded-[18px] shadow-[0_10px_30px_rgba(0,0,0,0.08)] py-2 min-w-[230px] overflow-y-auto no-scrollbar z-50 animate-in fade-in zoom-in-95 duration-150"
+                                >
                                     {/* Sentence case, not caps — a section marker, not a shout. */}
                                     <div className="px-4 pt-1 pb-1.5 text-[11.5px] font-semibold text-stone-400 select-none">
                                         {t('workspace.sort_label')}

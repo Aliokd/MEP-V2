@@ -32,7 +32,11 @@ export default function PracticeCard({
     const { available, videoUrl } = practice;
 
     return (
-        <div className="w-full max-w-5xl mx-auto min-h-[62vh] bg-white border border-stone-200 rounded-[28px] p-8 md:p-12 flex flex-col">
+        // Sized against the viewport rather than a flex parent: the practice page
+        // is a plain scrolling column, so there is no height here to inherit. The
+        // subtracted rem account for the platform header, panel padding and the
+        // practice selector sitting above the card.
+        <div className="w-full max-w-5xl mx-auto min-h-[62vh] md:min-h-[calc(100vh-14rem)] bg-[#FAF9F5] border border-stone-200 rounded-[28px] p-8 md:p-12 flex flex-col">
 
             {/* Title row — the intro clip sits opposite the title */}
             <div className="flex items-start justify-between gap-6">

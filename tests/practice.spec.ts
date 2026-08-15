@@ -48,6 +48,18 @@ test.describe('Practice Page', () => {
     await expect(page.getByText('Coming soon')).toBeVisible();
   });
 
+  test('the menu lists the roadmap, marking what is not built yet', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: /Master song structure/ }).first().click();
+
+    const menu = page.locator('[data-practice-menu]');
+    await expect(menu.locator('button')).toHaveCount(15);
+
+    // Names only — no level column — and a chip on everything unbuilt
+    await expect(menu.getByText('beginner')).toHaveCount(0);
+    await expect(menu.getByText('Coming soon')).toHaveCount(13);
+  });
+
   test('starting a practice opens it, and the back link returns to its card', async ({ page }) => {
     await page.goto('/platform/practice');
 
@@ -57,7 +69,7 @@ test.describe('Practice Page', () => {
     await expect(page.getByText('Castle on the Hill')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Back to overview' }).click();
+    await page.locator('main').getByRole('button', { name: 'Back', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
   });
 
@@ -66,7 +78,7 @@ test.describe('Practice Page', () => {
     await page.getByRole('button', { name: 'Start' }).first().click();
     await page.getByRole('button', { name: /^Song 2/ }).click();
 
-    const timeline = page.locator('section', { has: page.getByText('Song timeline') });
+    const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible();
 
     // Sections come out of the lyric timings, in order, with the gaps marked
@@ -91,7 +103,7 @@ test.describe('Practice Page', () => {
     await page.getByRole('button', { name: 'Start' }).first().click();
     await page.getByRole('button', { name: /^Song 2/ }).click();
 
-    const timeline = page.locator('section', { has: page.getByText('Song timeline') });
+    const timeline = page.locator('[data-song-timeline]');
 
     // Blocks are shuffled, so find them by a word only that section contains
     const blocks = page.locator('[data-section-block]');
@@ -100,19 +112,19 @@ test.describe('Practice Page', () => {
     const verseBlock = blocks.nth(texts.findIndex(x => x.includes('club')));
     const notVerseBlock = blocks.nth(texts.findIndex(x => !x.includes('club')));
 
-    await expect(page.getByText('0 of 4 named')).toBeVisible();
+    // Nothing named yet — every block wears the placeholder chip
+    await expect(page.getByText('?', { exact: true })).toHaveCount(4);
 
     // Arm "Verse" from the timeline, then answer with the wrong block
     await timeline.locator('button[title^="Verse"]').click();
-    await expect(page.getByText('Now pick the lyrics that make up the Verse.')).toBeVisible();
     await notVerseBlock.click();
     await expect(notVerseBlock).toHaveClass(/animate-shake/);
-    await expect(page.getByText('0 of 4 named')).toBeVisible();
+    await expect(page.getByText('?', { exact: true })).toHaveCount(4);
 
     // A wrong answer keeps the type armed, so the right block still lands
     await verseBlock.click();
     await expect(verseBlock).toHaveClass(/border-\[#86BE7F\]/);
-    await expect(page.getByText('1 of 4 named')).toBeVisible();
+    await expect(page.getByText('?', { exact: true })).toHaveCount(3);
   });
 
   test('the card play button opens the intro video', async ({ page }) => {

@@ -466,6 +466,18 @@ input:-webkit-autofill:active {
         opacity: 0;
     }
 }
+/* Full viewport height that respects mobile browser chrome.
+   iOS Safari resolves 100vh to the height the page *would* have with the URL bar
+   hidden, which is taller than what's actually on screen. A 100vh drawer therefore
+   runs past the bottom of the visible viewport, and anything anchored to its end —
+   the sidebar's language / feedback / log out row — sits below the fold with no way
+   to scroll to it. 100dvh tracks the genuinely visible height instead. The 100vh
+   declaration stays first as the fallback for engines without dvh support. */
+.h-viewport {
+    height: 100vh;
+    height: 100dvh;
+}
+
 .mind-power-glow-ring {
     position: absolute;
     inset: -3px;

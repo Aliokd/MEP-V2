@@ -8,19 +8,23 @@
 export type SectionKind = 'intro' | 'verse' | 'prechorus' | 'chorus' | 'bridge' | 'outro' | 'other';
 
 /**
- * Drawn from the platform's green ramp plus the stone neutrals: the more a
- * section carries the song, the greener it gets, with the chorus on the accent
- * green itself. Instrumental stretches stay stone.
+ * A single beige ramp: the more a section carries the song, the deeper the
+ * shade. Green is deliberately absent here — it belongs to success states, so
+ * a correctly named section can read as green without competing with its own
+ * colour. Every shade stays light enough for one shared text colour.
  */
-export const KIND_STYLE: Record<SectionKind, { bg: string; text: string }> = {
-    intro: { bg: '#E4E4DF', text: '#57534E' },
-    verse: { bg: '#D1ECD4', text: '#292524' },
-    prechorus: { bg: '#A1D1A1', text: '#1F2E1D' },
-    chorus: { bg: '#86BE7F', text: '#1C2B1A' },
-    bridge: { bg: '#6CA365', text: '#FAF9F5' },
-    outro: { bg: '#C9C8BE', text: '#44403C' },
-    other: { bg: '#EFEFEA', text: '#78716C' },
+export const KIND_BG: Record<SectionKind, string> = {
+    other: '#F0F0EA',
+    intro: '#E4E4DF',
+    outro: '#DCDDD4',
+    verse: '#D2D2C6',
+    prechorus: '#C9C8BE',
+    bridge: '#BDBBAC',
+    chorus: '#B0AD9A',
 };
+
+/** One colour and one weight for every label on the timeline. */
+export const SECTION_TEXT = '#44403C';
 
 export const KIND_LABEL_KEY: Record<SectionKind, string> = {
     intro: 'practice.section_intro',

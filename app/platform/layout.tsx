@@ -639,7 +639,7 @@ function PlatformLayoutInner({
                 flex-1 flex flex-col min-w-0
                 ${isProfile ? (isProfileExiting ? 'profile-view-exit' : 'profile-view-enter') : ''}
                 ${pathname?.startsWith('/platform/create')
-                    ? 'p-0 md:p-8'
+                    ? 'p-0 md:p-4 lg:p-8'
                     : 'p-4 md:p-8'
                 }
             `}>
@@ -855,7 +855,7 @@ function PlatformLayoutInner({
                 <div className={`
                     flex-1
                     ${pathname?.startsWith('/platform/create')
-                        ? 'bg-transparent md:bg-[#FAF9F5] p-0 md:p-8 rounded-none md:rounded-[32px] shadow-none'
+                        ? 'bg-transparent md:bg-[#FAF9F5] p-0 md:p-4 lg:p-8 rounded-none md:rounded-[32px] shadow-none'
                         // overflow-x-hidden: setting only overflow-y makes overflow-x compute
                         // to auto, so page transitions that translate sideways (the profile's
                         // slide-out to the guide) would flash a horizontal scrollbar.

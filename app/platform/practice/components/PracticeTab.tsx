@@ -8,7 +8,8 @@ import SongCard from './SongCard';
 import PracticeCard from './PracticeCard';
 import PracticeVideoModal from './PracticeVideoModal';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
-import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, Play } from 'lucide-react';
+import Tooltip from '@/components/Tooltip';
 import { useLanguage } from '@/context/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -73,6 +74,8 @@ export default function PracticeTab() {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [selectedSongId, setSelectedSongId] = useState('song-1');
     const [isPlaying, setIsPlaying] = useState(false);
+    // The carousel starts open on entering a practice and folds away once a song is picked.
+    const [carouselMinimized, setCarouselMinimized] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Composing Verses (Practice 2) State
@@ -100,9 +103,11 @@ export default function PracticeTab() {
         setOpenedPractice(prev => (prev && getPractice(name).available ? name : null));
     };
 
-    // Stop playback when moving between practices or back to the overview card
+    // Stop playback when moving between practices or back to the overview card,
+    // and open the carousel again for the next run through.
     useEffect(() => {
         setIsPlaying(false);
+        setCarouselMinimized(false);
     }, [selectedPractice, openedPractice]);
 
     // Handle cycling practices
@@ -121,6 +126,7 @@ export default function PracticeTab() {
     };
 
     // Clicking the selected song toggles playback; clicking another switches to it.
+    // Either way the choice is made, so the carousel gets out of the way.
     const handleSongSelect = (id: string) => {
         if (id === selectedSongId) {
             setIsPlaying(prev => !prev);
@@ -128,6 +134,7 @@ export default function PracticeTab() {
             setSelectedSongId(id);
             setIsPlaying(true);
         }
+        setCarouselMinimized(true);
     };
 
     const handleWordChange = (type: 'noun' | 'verb', index: number, value: string) => {
@@ -196,11 +203,12 @@ export default function PracticeTab() {
                             {dropdownOpen && (
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 z-50">
                                     <motion.div
+                                        data-practice-menu
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: 10 }}
                                         transition={{ duration: 0.18, ease: "easeOut" }}
-                                        className="w-[min(88vw,540px)] bg-white/95 backdrop-blur-md border border-stone-200/60 rounded-[24px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.10)] overflow-hidden"
+                                        className="w-[min(88vw,540px)] max-h-[min(60vh,520px)] overflow-y-auto no-scrollbar bg-white/95 backdrop-blur-md border border-stone-200/60 rounded-[24px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.10)]"
                                     >
                                         {practices.map((p) => {
                                             const isSelected = p === selectedPractice;
@@ -209,7 +217,7 @@ export default function PracticeTab() {
                                                 <button
                                                     key={p}
                                                     onClick={() => selectPractice(p)}
-                                                    className={`w-full text-left px-5 py-3 rounded-[12px] flex flex-col sm:grid sm:grid-cols-2 sm:items-baseline gap-0.5 sm:gap-4 font-serif font-normal text-base sm:text-lg transition-colors
+                                                    className={`w-full text-left px-5 py-3 rounded-[12px] flex items-center justify-between gap-4 font-serif font-normal text-base sm:text-lg transition-colors
                                                         ${isSelected
                                                             ? 'bg-stone-100 text-stone-900'
                                                             : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
@@ -217,9 +225,11 @@ export default function PracticeTab() {
                                                     `}
                                                 >
                                                     <span className="truncate">{getTranslatedPracticeName(p)}</span>
-                                                    <span className="text-stone-400 truncate lowercase text-sm sm:text-lg">
-                                                        {getTranslatedLevel(meta.level)}
-                                                    </span>
+                                                    {!meta.available && (
+                                                        <span className="shrink-0 rounded-full bg-stone-100 text-stone-400 px-3 py-0.5 text-xs font-sans">
+                                                            {t('common.coming_soon')}
+                                                        </span>
+                                                    )}
                                                 </button>
                                             );
                                         })}
@@ -248,14 +258,27 @@ export default function PracticeTab() {
                             className="flex items-center gap-2 text-sm font-sans text-stone-500 hover:text-stone-900 transition-colors shrink-0"
                         >
                             <ArrowLeft size={16} className="stroke-[2]" />
-                            {t('practice.back_to_overview')}
+                            {t('practice.back')}
                         </button>
 
-                        <span className="w-px h-5 bg-stone-300 shrink-0" />
+                        <span className="w-px h-4 bg-stone-300 shrink-0" />
 
-                        <h2 className="font-serif text-xl md:text-2xl font-normal tracking-wide text-stone-900 truncate">
+                        <h2 className="font-serif text-base md:text-lg font-normal tracking-wide text-stone-900 truncate">
                             {getTranslatedPracticeName(openedPractice)}
                         </h2>
+
+                        {/* Walkthrough for this practice — the intro clip for now */}
+                        {currentMeta.videoUrl && (
+                            <Tooltip label={t('practice.why_practice').replace('{practice}', getTranslatedPracticeName(openedPractice))}>
+                                <button
+                                    onClick={() => setVideoPractice(currentMeta)}
+                                    aria-label={t('practice.why_practice').replace('{practice}', getTranslatedPracticeName(openedPractice))}
+                                    className="ml-auto w-9 h-9 shrink-0 rounded-full border border-stone-200 hover:border-stone-400 hover:bg-white flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+                                >
+                                    <Play className="w-3.5 h-3.5 fill-stone-700 text-stone-700 stroke-none ml-0.5" />
+                                </button>
+                            </Tooltip>
+                        )}
                     </div>
                 )}
 
@@ -308,20 +331,58 @@ export default function PracticeTab() {
                             transition={{ duration: 0.2, ease: "easeInOut" }}
                             className="w-full"
                         >
-                            {/* Song carousel — horizontal scroll, first song selected by default */}
-                            <div className="w-full max-w-6xl mx-auto flex gap-4 overflow-x-auto no-scrollbar pb-2 mb-8">
-                                {songs.map((song, idx) => (
-                                    <div key={song.id} className="w-[130px] shrink-0">
-                                        <SongCard
-                                            song={song}
-                                            index={idx}
-                                            isSelected={selectedSongId === song.id}
-                                            isPlaying={selectedSongId === song.id && isPlaying}
-                                            onClick={() => handleSongSelect(song.id)}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
+                            {/* Song carousel — collapses to a strip once a song is picked,
+                                so the exercise gets the room. */}
+                            <AnimatePresence mode="wait" initial={false}>
+                                {carouselMinimized ? (
+                                    <motion.div
+                                        key="songs-strip"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="w-full max-w-6xl mx-auto mb-8"
+                                    >
+                                        <button
+                                            onClick={() => setCarouselMinimized(false)}
+                                            aria-label={t('practice.change_song')}
+                                            className="flex items-center gap-3 pl-5 pr-4 py-2.5 rounded-full bg-white border border-stone-200 hover:border-stone-400 transition-colors max-w-full"
+                                        >
+                                            <span className="text-xs font-sans text-stone-400 shrink-0">
+                                                Song {songs.findIndex(s => s.id === selectedSongId) + 1}
+                                            </span>
+                                            <span className="text-sm font-sans font-medium text-stone-900 truncate">
+                                                {currentSong.title}
+                                            </span>
+                                            <span className="text-sm font-sans text-stone-500 truncate hidden sm:inline">
+                                                {currentSong.artist}
+                                            </span>
+                                            <ChevronDown size={16} className="stroke-[2] text-stone-400 shrink-0" />
+                                        </button>
+                                    </motion.div>
+                                ) : (
+                                    <motion.div
+                                        key="songs-carousel"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="w-full max-w-6xl mx-auto flex gap-4 overflow-x-auto no-scrollbar pb-2 mb-8"
+                                    >
+                                        {songs.map((song, idx) => (
+                                            <div key={song.id} className="w-[130px] shrink-0">
+                                                <SongCard
+                                                    song={song}
+                                                    index={idx}
+                                                    isSelected={selectedSongId === song.id}
+                                                    isPlaying={selectedSongId === song.id && isPlaying}
+                                                    onClick={() => handleSongSelect(song.id)}
+                                                />
+                                            </div>
+                                        ))}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
                             <LyricsPlayer
                                 key={currentSong.id}

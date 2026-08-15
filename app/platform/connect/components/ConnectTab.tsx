@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ProSongwritersPanel from './ProSongwritersPanel';
 import { fetchPlatformUsers, setConnection, useConnections, type PlatformUser } from '@/lib/connections';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { setPlaybackAudioSession } from '@/lib/audioSession';
 import ReportDialog from '@/components/ReportDialog';
 
 // ==========================================
@@ -296,6 +297,8 @@ function ConnectPostCard({
     if (!audioRef.current) return;
     if (isPlaying && currentAudioSrc) {
       audioRef.current.load();
+      // iOS: overrides the ring/silent switch, which otherwise plays this at zero volume.
+      setPlaybackAudioSession();
       audioRef.current.play().catch(err => {
         console.warn("Failed to play attachment audio:", err);
       });
@@ -317,6 +320,7 @@ function ConnectPostCard({
         // Single track loop fallback
         if (audioRef.current) {
           audioRef.current.currentTime = 0;
+          setPlaybackAudioSession();
           audioRef.current.play().catch(err => console.warn(err));
         }
       } else {

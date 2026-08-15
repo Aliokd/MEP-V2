@@ -34,6 +34,28 @@ function isTransientStatus(status: number): boolean {
     return status === 429 || status >= 500;
 }
 
+/** Roughly how many bytes this request will put on the wire, where that is knowable. */
+function bodyBytes(body: BodyInit | null | undefined): number {
+    if (!body) return 0;
+    if (typeof body === 'string') return body.length;
+    if (body instanceof Blob) return body.size;
+    if (body instanceof ArrayBuffer) return body.byteLength;
+    if (ArrayBuffer.isView(body)) return body.byteLength;
+    return 0;
+}
+
+/**
+ * Past this, a timeout is a verdict rather than bad luck.
+ *
+ * Retrying a small request that timed out is worth it — the next one may catch a
+ * warm function. Retrying a several-megabyte upload is not: the upload itself is
+ * what consumed the server's window, so every attempt spends the same minute
+ * getting to the same failure, and the user waits three times as long to be told
+ * the same thing. 2MB is comfortably above the JSON these routes normally exchange
+ * and well below an audio file.
+ */
+const RETRY_TIMEOUT_MAX_BYTES = 2 * 1024 * 1024;
+
 /**
  * authedFetch that retries itself before giving up.
  *
@@ -57,12 +79,18 @@ export async function authedFetchRetrying(
     { attempts = 3, baseDelayMs = 800 }: { attempts?: number; baseDelayMs?: number } = {},
 ): Promise<Response> {
     let lastError: unknown;
+    // A heavy body makes a timeout deterministic — see RETRY_TIMEOUT_MAX_BYTES.
+    // 429 still retries at any size: that one is the upstream asking us to wait,
+    // and waiting is exactly what fixes it.
+    const heavy = bodyBytes(init.body) > RETRY_TIMEOUT_MAX_BYTES;
 
     for (let attempt = 0; attempt < attempts; attempt++) {
         const isLast = attempt === attempts - 1;
         try {
             const response = await authedFetch(input, init);
-            if (response.ok || isLast || !isTransientStatus(response.status)) return response;
+            const worthRepeating = isTransientStatus(response.status)
+                && !(heavy && response.status !== 429);
+            if (response.ok || isLast || !worthRepeating) return response;
 
             // Honour an explicit Retry-After when the server sent one; it knows how
             // long its own window is better than any guess here.

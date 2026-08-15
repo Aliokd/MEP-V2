@@ -194,7 +194,6 @@ export default function PlatformPage() {
                 <LearnLanding
                     onStart={() => setView('reader')}
                     onOpenIdeas={() => setView('ideas')}
-                    onOpenDeepDive={() => setView('deepDive')}
                 />
             )}
             {view === 'reader' && (
@@ -202,6 +201,8 @@ export default function PlatformPage() {
                     chapters={chapters}
                     onComplete={handleComplete}
                     onBackToLanding={() => setView('landing')}
+                    onOpenDeepDive={() => setView('deepDive')}
+                    onOpenIdeas={() => setView('ideas')}
                 />
             )}
             {view === 'ideas' && (
