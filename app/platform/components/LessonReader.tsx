@@ -7,12 +7,13 @@ import { useLanguage } from '@/context/LanguageContext';
 interface ReaderChapter {
     id: string;
     title: string;
-    lessons: { id: string; title: string; videoUrl?: string; posterUrl?: string | null }[];
+    lessons: { id: string; title: string; summary?: string; videoUrl?: string; posterUrl?: string | null }[];
 }
 
 interface FlatLesson {
     id: string;
     title: string;
+    summary?: string;
     videoUrl?: string;
     posterUrl?: string | null;
     chapterTitle: string;
@@ -92,12 +93,24 @@ export default function LessonReader({ chapters, onComplete, onBackToLanding }: 
                         onVideoEnd={goNext}
                     />
                     <div className="w-full text-sm text-stone-700 leading-relaxed font-sans space-y-4">
-                        <p>{t('learn.placeholder_intro')}</p>
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>{t('learn.placeholder_point_1')}</li>
-                            <li>{t('learn.placeholder_point_2')}</li>
-                            <li>{t('learn.placeholder_point_3')}</li>
-                        </ul>
+                        {currentLesson.summary?.trim() ? (
+                            // Blank lines separate paragraphs, so a summary written in
+                            // the admin reads the way it was typed.
+                            currentLesson.summary
+                                .split(/\n{2,}/)
+                                .map((paragraph, i) => (
+                                    <p key={i} className="whitespace-pre-line">{paragraph.trim()}</p>
+                                ))
+                        ) : (
+                            <>
+                                <p>{t('learn.placeholder_intro')}</p>
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>{t('learn.placeholder_point_1')}</li>
+                                    <li>{t('learn.placeholder_point_2')}</li>
+                                    <li>{t('learn.placeholder_point_3')}</li>
+                                </ul>
+                            </>
+                        )}
                     </div>
                 </div>
 

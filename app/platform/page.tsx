@@ -105,6 +105,9 @@ export default function PlatformPage() {
                 lessons: chapter.lessons.map(lesson => ({
                     id: lesson.id,
                     title: pickLocale(lesson.title, language),
+                    // The written content an editor typed into Summary. Dropping it
+                    // here is why published text never reached the lesson page.
+                    summary: pickLocale(lesson.summary, language),
                     videoUrl: lesson.videoUrl,
                     posterUrl: lesson.posterUrl ?? null,
                     midiDataUrl: lesson.midiDataUrl ?? null,
