@@ -640,6 +640,31 @@
       "ignore": "Inte din grej? Strunta i det här mejlet, så händer ingenting.",
       "signoff": "Vi ses därinne,",
       "team": "Veinote-teamet"
+    },
+    "beta_welcome": {
+      "subject": "Välkommen till Veinote-betan, {{name}}",
+      "preheader": "Dina inloggningsuppgifter finns nedan, och fyra saker att testa först.",
+      "greeting": "Hej {{name}},",
+      "body_1": "Du är bland de första låtskrivarna inne i Veinote. Vi börjar med en liten grupp, så att vi får höra vad som funkar och vad som inte gör det. Ditt konto är klart, så du slipper registrera dig.",
+      "body_2": "Logga in med uppgifterna nedan. Lösenordet är tillfälligt. När du är inne, använd ”Glömt lösenordet?” på inloggningssidan för att välja ett eget.",
+      "credentials_title": "Din inloggning",
+      "credentials_email_label": "E-post",
+      "credentials_password_label": "Tillfälligt lösenord",
+      "credentials_note": "Behåll det här mejlet för dig själv. Alla som har uppgifterna kommer in på ditt konto.",
+      "cta": "Logga in på Veinote",
+      "tasks_title": "Det här hoppas vi att du gör",
+      "task_1_title": "Gör klart en låt",
+      "task_1_body": "Ta en idé från en blank canvas till en låt du skulle spela upp för någon. Text, tagningar och anteckningar ligger i samma flöde. Det är den delen vi helst vill ha testad.",
+      "task_2_title": "Lär dig ett nytt tips och använd det",
+      "task_2_body": "Öppna Lär dig, välj ett tips du inte provat och använd det på låten du skriver. Berätta sedan om det gjorde någon skillnad.",
+      "task_3_title": "Öva på det du lärde dig",
+      "task_3_body": "Kör minst ett pass i Öva. Säg rakt ut om det var värt din tid. Om det inte var det är det lika användbart för oss att veta.",
+      "task_4_title": "Dela den i communityn",
+      "task_4_body": "Lägg upp din färdiga låt i Community och ge feedback på någon annans. Rummet funkar bara när folk är där.",
+      "feedback": "Om något går sönder, förvirrar eller irriterar dig, använd ”Dela feedback” i sidopanelen eller svara bara på det här mejlet. Små irritationsmoment räknas också. Det är de som ingen rapporterar och som därför aldrig blir fixade.",
+      "signoff": "Tack för att du bygger det här tillsammans med oss,",
+      "team": "Veinote-teamet",
+      "contact": "veinote.com"
     }
   },
   "practice": {

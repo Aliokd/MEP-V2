@@ -39,11 +39,15 @@ function generatePassword(): string {
     return chars.join("");
 }
 
+/** What goes out when the account is made. "none" sends nothing at all. */
+type EmailChoice = "welcome" | "beta" | "none";
+
 interface Created {
     uid: string;
     email: string;
     password: string;
     welcomeSent: boolean;
+    emailChoice: EmailChoice;
 }
 
 export default function CreateUserDialog({
@@ -62,7 +66,7 @@ export default function CreateUserDialog({
     const [tier, setTier] = useState("trial");
     const [locale, setLocale] = useState<Locale>("en");
     const [trialDays, setTrialDays] = useState("14");
-    const [sendWelcome, setSendWelcome] = useState(true);
+    const [emailChoice, setEmailChoice] = useState<EmailChoice>("welcome");
     const [emailVerified, setEmailVerified] = useState(true);
 
     const [saving, setSaving] = useState(false);
@@ -92,7 +96,8 @@ export default function CreateUserDialog({
                     tier,
                     locale,
                     trialDays: Number(trialDays) || 0,
-                    sendWelcome,
+                    sendWelcome: emailChoice !== "none",
+                    emailType: emailChoice === "none" ? "welcome" : emailChoice,
                     emailVerified,
                 }),
             });
@@ -100,7 +105,13 @@ export default function CreateUserDialog({
             if (!res.ok) throw new Error(data.error || "Could not create the account");
 
             // Shown once. The password is not stored anywhere we can read back.
-            setCreated({ uid: data.uid, email: data.email, password, welcomeSent: data.welcomeSent });
+            setCreated({
+                uid: data.uid,
+                email: data.email,
+                password,
+                welcomeSent: data.welcomeSent,
+                emailChoice,
+            });
             onCreated();
         } catch (err: any) {
             setError(err.message);
@@ -150,9 +161,13 @@ export default function CreateUserDialog({
                         </Panel>
 
                         <p className="text-xs text-ink-400 leading-relaxed">
-                            {created.welcomeSent
-                                ? "A welcome email has gone out, but it doesn't contain the password — send that separately."
-                                : "No welcome email was sent."}{" "}
+                            {created.emailChoice === "none"
+                                ? "No email was sent — pass these details on yourself."
+                                : created.welcomeSent
+                                  ? created.emailChoice === "beta"
+                                      ? "The beta invite has gone out, with the password in it — nothing else to send."
+                                      : "A welcome email has gone out, but it doesn't contain the password — send that separately."
+                                  : "The email failed to send, so pass these details on yourself. Check Ops → Mail for the reason."}{" "}
                             They can change the password themselves from the sign-in page using
                             &ldquo;Forgot password&rdquo;.
                         </p>
@@ -263,13 +278,26 @@ export default function CreateUserDialog({
                             </label>
                         )}
 
+                        <label className="flex flex-col gap-1.5">
+                            <span className="text-xs text-ink-400">Email to send</span>
+                            <Select
+                                value={emailChoice}
+                                onChange={(e) => setEmailChoice(e.target.value as EmailChoice)}
+                            >
+                                <option value="welcome">Welcome email</option>
+                                <option value="beta">Beta tester invite</option>
+                                <option value="none">Nothing</option>
+                            </Select>
+                            <span className="text-[11px] text-ink-500">
+                                {emailChoice === "beta"
+                                    ? "Sign-in details, the four beta tasks, and the password above — the only email that sends a password."
+                                    : emailChoice === "welcome"
+                                      ? "The same one a normal signup gets. It never contains the password."
+                                      : "The account is created silently. You hand over the details yourself."}
+                            </span>
+                        </label>
+
                         <div className="flex flex-col gap-2.5 pt-1">
-                            <Toggle
-                                checked={sendWelcome}
-                                onChange={setSendWelcome}
-                                label="Send the welcome email"
-                                hint="The same one a normal signup gets. It never contains the password."
-                            />
                             <Toggle
                                 checked={emailVerified}
                                 onChange={setEmailVerified}

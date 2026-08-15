@@ -640,6 +640,31 @@
       "ignore": "Not your kind of thing? You can ignore this email and nothing happens.",
       "signoff": "See you inside,",
       "team": "The Veinote team"
+    },
+    "beta_welcome": {
+      "subject": "Welcome to the Veinote beta, {{name}}",
+      "preheader": "Your sign-in details are below, plus four things to try first.",
+      "greeting": "Hi {{name}},",
+      "body_1": "You're one of the first songwriters inside Veinote. We're starting with a small group, so we can hear what works and what doesn't. Your account is ready, so there's nothing to sign up for.",
+      "body_2": "Sign in with the details below. The password is temporary. Once you're in, use “Forgot password?” on the sign-in page to pick your own.",
+      "credentials_title": "Your sign-in",
+      "credentials_email_label": "Email",
+      "credentials_password_label": "Temporary password",
+      "credentials_note": "Please keep this email to yourself. Anyone with these details can open your account.",
+      "cta": "Sign in to Veinote",
+      "tasks_title": "What we'd love you to do",
+      "task_1_title": "Finish one song",
+      "task_1_body": "Take one idea from a blank canvas to a song you'd play someone. Lyrics, takes and notes all live in the same flow. That's the part we most want tested.",
+      "task_2_title": "Learn a new tip and use it",
+      "task_2_body": "Open Learn, pick a tip you haven't tried, and use it on the song you're writing. Then tell us if it made a difference.",
+      "task_3_title": "Practise what you learned",
+      "task_3_body": "Run at least one session in Practice. Tell us straight if it was worth your time. If it wasn't, that's just as useful for us to know.",
+      "task_4_title": "Share it in the community",
+      "task_4_body": "Post your finished song in Community, and leave feedback on someone else's. The room only works when people are in it.",
+      "feedback": "If anything breaks, confuses or annoys you, use “Share feedback” in the sidebar or just reply to this email. Small annoyances count too. Those are the ones nobody reports and nobody fixes.",
+      "signoff": "Thanks for building this with us,",
+      "team": "The Veinote team",
+      "contact": "veinote.com"
     }
   },
   "practice": {

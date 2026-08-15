@@ -53,6 +53,20 @@ export function renderLayout({ preheader, bodyHtml }: RenderLayoutOptions): stri
 </html>`;
 }
 
+/**
+ * The Veinote wordmark, for signing an email off.
+ *
+ * Always points at the production host. An email is opened from an inbox days
+ * later, so an image URL built from NEXT_PUBLIC_APP_URL would be a dead
+ * localhost link for anything sent from a dev machine. PNG rather than the
+ * site's SVG: Gmail and Outlook both strip SVG. Width and height are set as
+ * attributes as well as styles because Outlook ignores the styles.
+ */
+export function emailLogo(width = 132): string {
+    const height = Math.round((width * 100) / 420); // the asset is 420x100
+    return `<img src="https://veinote.com/assets/veinote-logo-email.png" alt="Veinote" width="${width}" height="${height}" style="display:block; border:0; outline:none; text-decoration:none; width:${width}px; height:${height}px;" />`;
+}
+
 export function emailButton(label: string, url: string): string {
     return `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:14px; background-color:${ACCENT};">
   <a href="${url}" style="display:inline-block; padding:14px 28px; font-size:15px; font-weight:600; color:${INK}; text-decoration:none; border-radius:14px;">${escapeHtml(label)}</a>

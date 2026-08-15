@@ -640,6 +640,31 @@
       "ignore": "Ikke noe for deg? Da kan du bare se bort fra denne e-posten.",
       "signoff": "Vi sees der inne,",
       "team": "Veinote-teamet"
+    },
+    "beta_welcome": {
+      "subject": "Velkommen til Veinote-betaen, {{name}}",
+      "preheader": "Innloggingen din ligger under, og fire ting du kan prøve først.",
+      "greeting": "Hei {{name}},",
+      "body_1": "Du er blant de første låtskriverne inne i Veinote. Vi starter med en liten gjeng, så vi får høre hva som funker og hva som ikke gjør det. Kontoen din er klar, så du slipper å registrere deg.",
+      "body_2": "Logg inn med detaljene under. Passordet er midlertidig. Når du er inne, bruk «Glemt passord?» på innloggingssiden for å velge ditt eget.",
+      "credentials_title": "Innloggingen din",
+      "credentials_email_label": "E-post",
+      "credentials_password_label": "Midlertidig passord",
+      "credentials_note": "Behold denne e-posten for deg selv. Alle som har detaljene, kommer inn på kontoen din.",
+      "cta": "Logg inn på Veinote",
+      "tasks_title": "Dette håper vi du gjør",
+      "task_1_title": "Gjør ferdig én låt",
+      "task_1_body": "Ta én idé fra blank canvas til en låt du kunne spilt for noen. Tekst, opptak og notater ligger i samme flyt. Det er den delen vi mest av alt vil ha testet.",
+      "task_2_title": "Lær et nytt tips og bruk det",
+      "task_2_body": "Åpne Lær, velg et tips du ikke har prøvd, og bruk det på låten du skriver. Si så ifra om det gjorde en forskjell.",
+      "task_3_title": "Øv på det du lærte",
+      "task_3_body": "Kjør minst én økt i Øv. Si rett ut om det var verdt tiden din. Var det ikke det, er det like nyttig for oss å vite.",
+      "task_4_title": "Del den i communityet",
+      "task_4_body": "Legg ut den ferdige låten i Community, og gi tilbakemelding på en annens. Rommet funker bare når folk er der.",
+      "feedback": "Hvis noe knekker, forvirrer eller irriterer deg, bruk «Del tilbakemelding» i sidepanelet eller bare svar på denne e-posten. Små irritasjoner teller også. Det er de ingen melder fra om, og som derfor aldri blir fikset.",
+      "signoff": "Takk for at du bygger dette sammen med oss,",
+      "team": "Veinote-teamet",
+      "contact": "veinote.com"
     }
   },
   "practice": {

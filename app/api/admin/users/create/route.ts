@@ -4,6 +4,7 @@ import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import { auditContext, writeAudit } from "@/lib/admin/audit";
 import { sendMail } from "@/lib/email/send";
 import { welcomeEmail } from "@/lib/email/templates/welcome";
+import { betaWelcomeEmail } from "@/lib/email/templates/betaWelcome";
 import { resolveLocale } from "@/lib/email/locale";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 const DAY = 24 * 60 * 60 * 1000;
 const VALID_TIERS = ["trial", "pro", "max", "comp"];
 const VALID_LOCALES = ["en", "no", "sv"];
+const VALID_EMAIL_TYPES = ["welcome", "beta"];
 
 // Firebase itself only enforces 6 characters. An admin setting someone else's
 // password should not be able to set a worse one than the user would pick.
@@ -38,6 +40,7 @@ export const POST = withAdmin("users.create", async (request, admin) => {
         locale = "en",
         trialDays,
         sendWelcome = true,
+        emailType = "welcome",
         emailVerified = true,
     } = body;
 
@@ -57,6 +60,9 @@ export const POST = withAdmin("users.create", async (request, admin) => {
     }
     if (!VALID_LOCALES.includes(locale)) {
         return NextResponse.json({ error: `Invalid locale "${locale}"` }, { status: 400 });
+    }
+    if (!VALID_EMAIL_TYPES.includes(emailType)) {
+        return NextResponse.json({ error: `Invalid email type "${emailType}"` }, { status: 400 });
     }
 
     const existing = await adminAuth.getUserByEmail(cleanEmail).catch(() => null);
@@ -135,10 +141,22 @@ export const POST = withAdmin("users.create", async (request, admin) => {
     if (sendWelcome) {
         try {
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://veinote.com";
-            const { subject, html, text } = welcomeEmail(resolveLocale(locale), {
-                name: displayName,
-                appUrl: `${appUrl}/platform/create`,
-            });
+            // The beta variant is the one place a password leaves this route. It is
+            // taken from the request body we were handed, never read back from
+            // storage — nothing stores it — and it stops here: not in the audit
+            // entry, not in a log line.
+            const { subject, html, text } =
+                emailType === "beta"
+                    ? betaWelcomeEmail(resolveLocale(locale), {
+                          name: displayName,
+                          loginEmail: cleanEmail,
+                          password: String(password),
+                          signInUrl: `${appUrl}/signin`,
+                      })
+                    : welcomeEmail(resolveLocale(locale), {
+                          name: displayName,
+                          appUrl: `${appUrl}/platform/create`,
+                      });
             await sendMail({ to: cleanEmail, subject, html, text });
             await adminDb.collection("users").doc(user.uid).set(
                 { billing: { welcomeEmailSent: true } },
@@ -161,7 +179,13 @@ export const POST = withAdmin("users.create", async (request, admin) => {
         targetId: user.uid,
         targetLabel: cleanEmail,
         // No password field here, deliberately.
-        after: { tier, locale, emailVerified: Boolean(emailVerified), welcomeSent },
+        after: {
+            tier,
+            locale,
+            emailVerified: Boolean(emailVerified),
+            welcomeSent,
+            emailType: welcomeSent ? emailType : null,
+        },
         ...auditContext(request),
     });
 
@@ -170,5 +194,6 @@ export const POST = withAdmin("users.create", async (request, admin) => {
         uid: user.uid,
         email: cleanEmail,
         welcomeSent,
+        emailType: welcomeSent ? emailType : null,
     });
 });
