@@ -18,10 +18,12 @@ function resolveSource(source: string): InboxSource {
 }
 
 /**
- * Sends a reply to the person who wrote in and records it on the thread.
+ * Records a reply on the thread and delivers it.
  *
- * The email goes out first: if the send fails the reply is not recorded, so the
- * thread never shows a response the user never received.
+ * Two channels: the platform (always) and email (best effort). The reply is
+ * written first and the delivery outcome recorded against it, so a mail outage
+ * costs the email leg and nothing else — the text survives, the thread is
+ * marked answered, and the reader still sees it when they next open Veinote.
  */
 export const POST = withAdmin("inbox.reply", async (request, admin, ctx: Ctx) => {
     const { source, id } = await ctx.params;
@@ -44,24 +46,46 @@ export const POST = withAdmin("inbox.reply", async (request, admin, ctx: Ctx) =>
     const body = String(message).trim();
     const subject = thread.subject?.startsWith("Re:") ? thread.subject : `Re: ${thread.subject || "Your message"}`;
 
-    await sendMail({
-        to: thread.userEmail,
-        replyTo: "support@veinote.com",
-        subject,
-        text: `${body}\n\n—\n${admin.name}\nVeinote Support\nsupport@veinote.com`,
-    });
-
     const now = FieldValue.serverTimestamp();
 
-    await ref.collection("replies").add({
+    // Record BEFORE sending. This used to send first and write the reply only if
+    // the send succeeded, on the reasoning that a thread should never show a
+    // response the user never received. That stopped being true once replies
+    // were also delivered inside the platform: email is no longer the only
+    // channel, so discarding the text on an SMTP failure threw away work that
+    // would have reached the reader anyway — and left the thread sitting on
+    // "new" with no trace that anyone had answered.
+    const replyRef = await ref.collection("replies").add({
         body,
         authorUid: admin.uid,
         authorName: admin.name,
         authorEmail: admin.email,
         channel: "email",
         to: thread.userEmail,
+        emailStatus: "pending",
+        emailError: null,
         createdAt: now,
     });
+
+    let emailStatus: "sent" | "failed" = "sent";
+    let emailError: string | null = null;
+
+    try {
+        await sendMail({
+            to: thread.userEmail,
+            replyTo: "support@veinote.com",
+            subject,
+            text: `${body}\n\n—\n${admin.name}\nVeinote Support\nsupport@veinote.com`,
+        });
+    } catch (err: any) {
+        // The reply still stands: stored, attributed, and visible to the user in
+        // the platform. Only the email leg failed, and it now says so.
+        emailStatus = "failed";
+        emailError = err?.message || "Unknown mail error";
+        console.error("[inbox] Reply saved but email failed:", emailError);
+    }
+
+    await replyRef.update({ emailStatus, emailError });
 
     const update: Record<string, unknown> = {
         replyCount: FieldValue.increment(1),
@@ -109,9 +133,9 @@ export const POST = withAdmin("inbox.reply", async (request, admin, ctx: Ctx) =>
         targetType: "inbox_thread",
         targetId: id,
         targetLabel: thread.subject || id,
-        after: { to: thread.userEmail, resolved: !keepOpen, handledBy: admin.name },
+        after: { to: thread.userEmail, resolved: !keepOpen, handledBy: admin.name, emailStatus },
         ...auditContext(request),
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, emailStatus, emailError });
 });

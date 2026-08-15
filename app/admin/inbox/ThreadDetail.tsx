@@ -10,7 +10,10 @@ interface Detail {
     thread: Record<string, any>;
     profile: Record<string, any> | null;
     notes: { id: string; body: string; authorName: string; createdAt: number | null }[];
-    replies: { id: string; body: string; authorName: string; createdAt: number | null }[];
+    replies: {
+        id: string; body: string; authorName: string; createdAt: number | null;
+        emailStatus?: "pending" | "sent" | "failed"; emailError?: string | null;
+    }[];
 }
 
 const CATEGORIES = ["bug", "billing", "feature request", "content", "account", "abuse", "other"];
@@ -55,6 +58,7 @@ export default function ThreadDetail({
     const [sending, setSending] = useState(false);
     const [sent, setSent] = useState<string | null>(null);
     const [savingNote, setSavingNote] = useState(false);
+    const [resendingId, setResendingId] = useState<string | null>(null);
 
     const base = `/api/admin/inbox/${thread.source}/${thread.id}`;
 
@@ -106,10 +110,12 @@ export default function ThreadDetail({
             setReply("");
             // Sending used to clear the box and say nothing, which left it genuinely
             // unclear whether the message had gone. State it, and name the recipient.
+            const data = await res.json();
+            const done = keepOpen ? "left open, waiting on them" : "marked done";
             setSent(
-                keepOpen
-                    ? `Sent to ${thread.userEmail} — left open, waiting on them.`
-                    : `Sent to ${thread.userEmail} and marked done. They'll also see it in the platform.`,
+                data.emailStatus === "failed"
+                    ? `Saved and ${done}. They'll see it in the platform — but the EMAIL failed: ${data.emailError}`
+                    : `Emailed to ${thread.userEmail} and ${done}. They'll also see it in the platform.`,
             );
             setTimeout(() => setSent(null), 8000);
             await load();
@@ -118,6 +124,23 @@ export default function ThreadDetail({
             setError(err.message);
         } finally {
             setSending(false);
+        }
+    };
+
+    /** Retries the email leg of a reply that was recorded but never delivered. */
+    const resend = async (replyId: string) => {
+        setResendingId(replyId);
+        setError(null);
+        try {
+            const res = await adminFetch(`${base}/reply/${replyId}`, { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Resend failed");
+            setSent(`Emailed to ${data.sentTo}.`);
+            await load();
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setResendingId(null);
         }
     };
 
@@ -246,15 +269,54 @@ export default function ThreadDetail({
                         {/* Conversation */}
                         {detail.replies.length > 0 && (
                             <div className="flex flex-col gap-2">
-                                <span className="text-xs text-ink-400">Replies sent</span>
-                                {detail.replies.map((r) => (
-                                    <div key={r.id} className="p-3.5 rounded-xl bg-green-500/5 border border-green-500/20">
-                                        <p className="text-sm text-ink-200 whitespace-pre-wrap">{r.body}</p>
-                                        <p className="text-[11px] text-ink-500 mt-2">
-                                            {r.authorName} · {timeAgo(r.createdAt)}
-                                        </p>
-                                    </div>
-                                ))}
+                                <span className="text-xs text-ink-400">Replies</span>
+                                {detail.replies.map((r) => {
+                                    // A reply always reaches the reader in the platform.
+                                    // The email is a second channel that can fail on its
+                                    // own, so it gets its own state rather than being
+                                    // implied by the reply existing at all.
+                                    const failed = r.emailStatus === "failed";
+                                    return (
+                                        <div
+                                            key={r.id}
+                                            className={`p-3.5 rounded-xl border ${
+                                                failed
+                                                    ? "bg-gold-500/5 border-gold-500/30"
+                                                    : "bg-green-500/5 border-green-500/20"
+                                            }`}
+                                        >
+                                            <p className="text-sm text-ink-200 whitespace-pre-wrap">{r.body}</p>
+
+                                            <div className="flex items-center gap-2 flex-wrap mt-2">
+                                                <span className="text-[11px] text-ink-500">
+                                                    {failed ? "Written by" : "Reply sent by"} {r.authorName} · {timeAgo(r.createdAt)}
+                                                </span>
+                                                {failed ? (
+                                                    <Badge tone="gold">email failed</Badge>
+                                                ) : (
+                                                    <Badge tone="green"><Check className="w-3 h-3" /> emailed</Badge>
+                                                )}
+                                                {failed && can("inbox.reply") && (
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => resend(r.id)}
+                                                        disabled={resendingId === r.id}
+                                                        className="ml-auto"
+                                                    >
+                                                        {resendingId === r.id ? <Spinner className="w-3 h-3" /> : <Send className="w-3 h-3" />}
+                                                        Retry email
+                                                    </Button>
+                                                )}
+                                            </div>
+
+                                            {failed && r.emailError && (
+                                                <p className="text-[11px] text-gold-300 mt-1.5">
+                                                    {r.emailError} — the reader can still see this reply in the platform.
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
 
