@@ -45,7 +45,9 @@ test.describe('Practice Page', () => {
     await page.locator('button[aria-label="Next Practice"]').click();
     await expect(page.getByText('Find melodies that sit naturally', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(0);
-    await expect(page.getByText('Coming soon')).toBeVisible();
+    // The unbuilt card promises a date and counts down to it
+    await expect(page.getByText(/^Coming /)).toBeVisible();
+    await expect(page.getByText(/^in \d+ days?$/)).toBeVisible();
   });
 
   test('the menu lists the roadmap, marking what is not built yet', async ({ page }) => {
@@ -57,7 +59,7 @@ test.describe('Practice Page', () => {
 
     // Names only — no level column — and a chip on everything unbuilt
     await expect(menu.getByText('beginner')).toHaveCount(0);
-    await expect(menu.getByText('Coming soon')).toHaveCount(13);
+    await expect(menu.getByText(/^Coming /)).toHaveCount(13);
   });
 
   test('starting a practice lands on the song chooser, and back returns to the card', async ({ page }) => {

@@ -23,9 +23,35 @@ const CARD_SLIDE = {
 };
 
 export default function PracticeTab() {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     const getTranslatedPracticeName = (name: string) => t(getPractice(name).nameKey);
+
+    /**
+     * The promise an unbuilt practice carries: its release date and the days
+     * until it. Null once the date has slipped past — better a plain "coming
+     * soon" than a countdown standing at zero.
+     */
+    const releaseInfo = (p: PracticeDefinition, monthStyle: 'long' | 'short') => {
+        if (p.available || !p.releaseAt) return null;
+        const date = new Date(`${p.releaseAt}T00:00:00Z`);
+        const days = Math.ceil((date.getTime() - Date.now()) / 86400000);
+        if (days <= 0) return null;
+        const intlLocale = language === 'no' ? 'nb-NO' : language === 'sv' ? 'sv-SE' : 'en-GB';
+        const sameYear = date.getUTCFullYear() === new Date().getFullYear();
+        const dateLabel = new Intl.DateTimeFormat(intlLocale, {
+            day: 'numeric',
+            month: monthStyle,
+            timeZone: 'UTC',
+            ...(sameYear ? {} : { year: 'numeric' }),
+        }).format(date);
+        return { dateLabel, days };
+    };
+
+    const comingLabel = (p: PracticeDefinition, monthStyle: 'long' | 'short') => {
+        const info = releaseInfo(p, monthStyle);
+        return info ? t('practice.coming_on').replace('{date}', info.dateLabel) : t('common.coming_soon');
+    };
 
     const getTranslatedLevel = (lvl: string) => {
         switch(lvl) {
@@ -186,8 +212,8 @@ export default function PracticeTab() {
                                                 >
                                                     <span className="truncate">{getTranslatedPracticeName(p)}</span>
                                                     {!meta.available && (
-                                                        <span className="shrink-0 rounded-full bg-stone-100 text-stone-400 px-3 py-0.5 text-xs font-sans">
-                                                            {t('common.coming_soon')}
+                                                        <span className="shrink-0 whitespace-nowrap rounded-full bg-stone-100 text-stone-400 px-3 py-0.5 text-xs font-sans">
+                                                            {comingLabel(meta, 'short')}
                                                         </span>
                                                     )}
                                                 </button>
@@ -272,7 +298,14 @@ export default function PracticeTab() {
                                         goal={t(currentMeta.goalKey)}
                                         level={getTranslatedLevel(currentMeta.level)}
                                         startLabel={t('practice.start_practice')}
-                                        comingSoonLabel={t('common.coming_soon')}
+                                        comingSoonLabel={comingLabel(currentMeta, 'long')}
+                                        countdownLabel={(() => {
+                                            const info = releaseInfo(currentMeta, 'long');
+                                            if (!info) return null;
+                                            return info.days === 1
+                                                ? t('practice.in_one_day')
+                                                : t('practice.in_days').replace('{days}', String(info.days));
+                                        })()}
                                         videoLabel={t('practice.why_practice').replace('{practice}', t(currentMeta.nameKey))}
                                         onStart={() => setOpenedPractice(currentMeta.name)}
                                         onPlayVideo={() => setVideoPractice(currentMeta)}

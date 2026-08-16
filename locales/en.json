@@ -373,7 +373,7 @@
     "complete_next_chapter": "Complete & Go to Next Chapter",
     "chapter": "Chapter",
     "video_not_supported": "Your browser does not support the video tag.",
-    "master_fundamentals": "Master Fundamentals",
+    "master_fundamentals": "Master fundamentals",
     "deep_dive": "Deep dive",
     "coming_soon": "Coming soon",
     "deep_dive_desc": "More advanced music lessons are on their way. Check back soon.",
@@ -774,7 +774,10 @@
     "start_new_practice": "Start a new practice",
     "retry_connection": "Retry connection",
     "analyzing": "Listening through the song…",
-    "analyzing_desc": "We are mapping its structure — intro, verses, choruses and everything between. A few seconds."
+    "analyzing_desc": "We are mapping its structure — intro, verses, choruses and everything between. A few seconds.",
+    "coming_on": "Coming {date}",
+    "in_days": "in {days} days",
+    "in_one_day": "in 1 day"
   },
   "curriculum": {
     "foundation": "Foundation",

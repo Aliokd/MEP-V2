@@ -774,7 +774,10 @@
     "start_new_practice": "Starta en ny övning",
     "retry_connection": "Försök ansluta igen",
     "analyzing": "Lyssnar igenom låten…",
-    "analyzing_desc": "Vi kartlägger strukturen — intro, verser, refränger och allt däremellan. Några sekunder."
+    "analyzing_desc": "Vi kartlägger strukturen — intro, verser, refränger och allt däremellan. Några sekunder.",
+    "coming_on": "Kommer {date}",
+    "in_days": "om {days} dagar",
+    "in_one_day": "om 1 dag"
   },
   "curriculum": {
     "foundation": "Grund",

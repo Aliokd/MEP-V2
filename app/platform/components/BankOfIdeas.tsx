@@ -42,8 +42,22 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     // How far the card has been dragged so far, so it follows the pointer.
     const [dragY, setDragY] = React.useState(0);
     const [isDragging, setIsDragging] = React.useState(false);
-    // +1 travelled forward, -1 back — picks which way the next card slides in.
-    const [direction, setDirection] = React.useState(1);
+    // While set, the departing tip is still rendered above/below the incoming
+    // one so the whole card can be seen leaving. `fromOffset` carries the drag
+    // position at the moment of release, so the exit continues from where the
+    // finger left the card instead of snapping back to zero first.
+    const [deckTransition, setDeckTransition] = React.useState<{
+        from: Idea; dir: 1 | -1; fromOffset: number; stamp: number;
+    } | null>(null);
+
+    const transitionStamp = React.useRef(0);
+
+    // Overlay lifetime; a hair longer than the 320ms exit so it never blinks out early.
+    React.useEffect(() => {
+        if (!deckTransition) return;
+        const id = setTimeout(() => setDeckTransition(null), 380);
+        return () => clearTimeout(id);
+    }, [deckTransition]);
     const [showCheckGlow, setShowCheckGlow] = React.useState(false);
     // Bumped per tick so a repeated click restarts the ring rather than
     // continuing the animation already in flight.
@@ -156,24 +170,125 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     // favorites filter while the deck is mid-way through it.
     const index = Math.min(rawIndex, Math.max(0, visibleIdeas.length - 1));
     const currentIdea = visibleIdeas[index];
-    const isCurrentLiked = currentIdea ? likedIds.has(currentIdea.id) : false;
-    const isCurrentChecked = currentIdea ? checkedIds.has(currentIdea.id) : false;
     const hasPrev = index > 0;
     const hasNext = index < visibleIdeas.length - 1;
 
-    const goPrev = () => {
-        if (!hasPrev) return;
-        setDirection(-1);
-        setDragY(0);
-        setIndex(index - 1);
+    // One card body, two consumers: the live draggable card and the short-lived
+    // exit overlay both render the same content, so the departing card looks
+    // identical mid-flight to how it looked at rest.
+    const renderCardBody = (idea: Idea) => {
+        const liked = likedIds.has(idea.id);
+        const checked = checkedIds.has(idea.id);
+        return (
+            <>
+                <div className="flex flex-col sm:flex-row gap-6 md:gap-8 flex-1 min-h-0">
+                    {/* No panel behind the glyph — it sits straight on the card so
+                        the artwork reads as part of it. A full-height square on the
+                        card's left, so the drawing spans top to bottom instead of
+                        floating small in a fixed-width strip. */}
+                    <div className="w-full sm:w-auto sm:aspect-square shrink-0 h-48 sm:h-full flex items-center justify-center">
+                        <IdeaGlyph
+                            seed={idea.id}
+                            className="w-full h-full text-stone-500 opacity-70"
+                        />
+                    </div>
+
+                    {/* Scrolls inside the card so a long idea never pushes the deck
+                        controls off screen — without a visible scrollbar, which read
+                        as clutter. */}
+                    <div data-notes-scroller className="flex-1 flex flex-col gap-4 min-w-0 overflow-y-auto no-scrollbar">
+                        <h3 className="text-2xl md:text-3xl font-sans font-normal text-stone-800">
+                            {idea.title}
+                        </h3>
+                        <p className="text-lg font-sans text-stone-500 leading-relaxed">
+                            {idea.description}
+                        </p>
+
+                        {idea.whyItHelps && (
+                            <div className="flex flex-col gap-1 pt-1">
+                                <span className="text-sm font-sans font-semibold text-stone-500">
+                                    {t('learn.ideas_why_label')}
+                                </span>
+                                <p className="text-base font-sans text-stone-400 leading-relaxed">
+                                    {idea.whyItHelps}
+                                </p>
+                            </div>
+                        )}
+
+                        {idea.example && (
+                            <p className="text-base font-sans text-stone-500 italic border-l-2 border-stone-200 pl-3">
+                                {idea.example}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Both actions sit together on the right. The heart is the same
+                    lucide icon as the favourites filter in the header, so a liked
+                    idea reads identically in both. */}
+                <div className="shrink-0 flex items-center justify-end gap-3 pt-2">
+                    <button
+                        onClick={() => toggleLike(idea.id)}
+                        aria-pressed={liked}
+                        aria-label={t('learn.ideas_like')}
+                        title={t('learn.ideas_like')}
+                        className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                            liked
+                                ? 'border-red-200 bg-red-50 text-red-500'
+                                : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
+                        }`}
+                    >
+                        <Heart size={18} strokeWidth={2} fill={liked ? 'currentColor' : 'none'} />
+                    </button>
+
+                    {/* Checked state borrows the Create section's marker:
+                        a filled #87b884 circle with a white tick. */}
+                    <button
+                        onClick={() => toggleChecked(idea.id)}
+                        aria-pressed={checked}
+                        aria-label={t('learn.ideas_mark_done')}
+                        title={t('learn.ideas_mark_done')}
+                        className={`relative w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                            checked
+                                ? 'bg-[#87b884] border-[#87b884] text-white shadow-sm'
+                                : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
+                        }`}
+                    >
+                        {showCheckGlow && (
+                            <span
+                                key={checkGlowKey}
+                                aria-hidden
+                                className="mind-power-glow-ring mind-power-glow-ring--quick"
+                            />
+                        )}
+                        <Check size={16} className="stroke-[3.5]" />
+                    </button>
+
+                    <Link
+                        href="/platform/create"
+                        className="px-5 py-2.5 rounded-full bg-stone-100 hover:bg-stone-200/80 text-stone-700 text-sm font-sans font-medium transition-colors"
+                    >
+                        {t('learn.ideas_send_to_canvas')}
+                    </Link>
+                </div>
+            </>
+        );
     };
 
-    const goNext = () => {
-        if (!hasNext) return;
-        setDirection(1);
+    // Both cards stay on screen through a navigation: the outgoing one keeps
+    // travelling in the swipe direction until it is fully off the deck, while
+    // the incoming one slides the full distance into its place. The overlay
+    // holds a snapshot of the departing tip for the duration of that motion.
+    const navigate = (dir: 1 | -1) => {
+        const target = index + dir;
+        if (target < 0 || target >= visibleIdeas.length || !currentIdea) return;
+        transitionStamp.current += 1;
+        setDeckTransition({ from: currentIdea, dir, fromOffset: dragY, stamp: transitionStamp.current });
         setDragY(0);
-        setIndex(index + 1);
+        setIndex(target);
     };
+    const goPrev = () => navigate(-1);
+    const goNext = () => navigate(1);
 
     return (
         <div className="w-full flex-1 min-h-0 flex flex-col gap-4">
@@ -281,23 +396,48 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                             />
                         )}
 
-                        {/* Deliberately a plain keyed element rather than
-                            AnimatePresence. framer-motion's enter/exit never completed
-                            for this card in practice: without `mode="wait"` the
-                            outgoing cards piled up in the DOM one per navigation, and
-                            with it the content froze on the first tip waiting for an
-                            exit that never finished. Re-keying on the tip id remounts
-                            the card, which replays a pure CSS drop-in — no lifecycle
-                            left to stall. */}
-                        {/* Keyed on the tip id, so each change remounts and replays the
-                            entry animation. Which way it slides in follows the direction
-                            travelled: forward drops down from above, back rises from
-                            below, matching the arrows and the swipe. */}
+                        {/* Departing card. A snapshot of the previous tip that keeps
+                            travelling in the swipe direction until fully off the deck,
+                            starting from wherever the drag released it. Driven by the
+                            Web Animations API, so its lifetime is a plain timeout —
+                            deliberately no AnimatePresence, whose unfinished exits
+                            once piled cards up in the DOM here. Going forward it exits
+                            over the incoming card; going back it slips out beneath it. */}
+                        {deckTransition && (
+                            <div
+                                key={deckTransition.stamp}
+                                aria-hidden
+                                style={{ top: DECK_PEEK_PX, zIndex: deckTransition.dir === 1 ? 3 : 1 }}
+                                className="absolute inset-x-0 bottom-0 pointer-events-none"
+                                ref={node => {
+                                    if (!node || node.dataset.exiting) return;
+                                    node.dataset.exiting = '1';
+                                    node.animate(
+                                        [
+                                            { transform: `translateY(${deckTransition.fromOffset}px)` },
+                                            { transform: `translateY(${deckTransition.dir * 115}%)` },
+                                        ],
+                                        { duration: 320, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'forwards' },
+                                    );
+                                }}
+                            >
+                                <div className="h-full bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-6">
+                                    {renderCardBody(deckTransition.from)}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Incoming card, keyed on the tip id so each navigation
+                            remounts it and replays the slide. It arrives from the
+                            opposite edge to the exit: forward pulls the next card down
+                            from above, back returns the previous one from below. */}
                         <div
                             key={currentIdea.id}
-                            style={{ top: DECK_PEEK_PX }}
-                            className={`absolute inset-x-0 bottom-0 animate-in duration-200 ease-out ${
-                                direction >= 0 ? 'slide-in-from-top-10' : 'slide-in-from-bottom-10'
+                            style={{ top: DECK_PEEK_PX, zIndex: 2 }}
+                            className={`absolute inset-x-0 bottom-0 ${
+                                deckTransition
+                                    ? (deckTransition.dir === 1 ? 'deck-enter-from-top' : 'deck-enter-from-bottom')
+                                    : ''
                             }`}
                         >
                             <div
@@ -348,93 +488,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                                 }}
                                 className="h-full bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-6 cursor-grab active:cursor-grabbing touch-none"
                             >
-                                <div className="flex flex-col sm:flex-row gap-6 md:gap-8 flex-1 min-h-0">
-                                    {/* No panel behind the glyph — it sits straight on the
-                                        card so the artwork reads as part of it. */}
-                                    <div className="w-full sm:w-[40%] shrink-0 h-40 sm:h-full flex items-center justify-center overflow-hidden">
-                                        <IdeaGlyph
-                                            seed={currentIdea.id}
-                                            className="w-full h-full max-w-[360px] max-h-[360px] text-stone-500"
-                                        />
-                                    </div>
-
-                                    {/* Scrolls inside the card so a long idea never pushes
-                                        the deck controls off screen. */}
-                                    <div data-notes-scroller className="flex-1 flex flex-col gap-4 min-w-0 overflow-y-auto pr-1">
-                                        <h3 className="text-2xl md:text-3xl font-sans font-normal text-stone-800">
-                                            {currentIdea.title}
-                                        </h3>
-                                        <p className="text-lg font-sans text-stone-500 leading-relaxed">
-                                            {currentIdea.description}
-                                        </p>
-
-                                        {currentIdea.whyItHelps && (
-                                            <div className="flex flex-col gap-1 pt-1">
-                                                <span className="text-sm font-sans font-semibold text-stone-500">
-                                                    {t('learn.ideas_why_label')}
-                                                </span>
-                                                <p className="text-base font-sans text-stone-400 leading-relaxed">
-                                                    {currentIdea.whyItHelps}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        {currentIdea.example && (
-                                            <p className="text-base font-sans text-stone-500 italic border-l-2 border-stone-200 pl-3">
-                                                {currentIdea.example}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Both actions sit together on the right. The heart is
-                                    the same lucide icon as the favourites filter in the
-                                    header, so a liked idea reads identically in both. */}
-                                <div className="shrink-0 flex items-center justify-end gap-3 pt-2">
-                                    <button
-                                        onClick={() => toggleLike(currentIdea.id)}
-                                        aria-pressed={isCurrentLiked}
-                                        aria-label={t('learn.ideas_like')}
-                                        title={t('learn.ideas_like')}
-                                        className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
-                                            isCurrentLiked
-                                                ? 'border-red-200 bg-red-50 text-red-500'
-                                                : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
-                                        }`}
-                                    >
-                                        <Heart size={18} strokeWidth={2} fill={isCurrentLiked ? 'currentColor' : 'none'} />
-                                    </button>
-
-                                    {/* Checked state borrows the Create section's marker:
-                                        a filled #87b884 circle with a white tick. */}
-                                    <button
-                                        onClick={() => toggleChecked(currentIdea.id)}
-                                        aria-pressed={isCurrentChecked}
-                                        aria-label={t('learn.ideas_mark_done')}
-                                        title={t('learn.ideas_mark_done')}
-                                        className={`relative w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
-                                            isCurrentChecked
-                                                ? 'bg-[#87b884] border-[#87b884] text-white shadow-sm'
-                                                : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
-                                        }`}
-                                    >
-                                        {showCheckGlow && (
-                                            <span
-                                                key={checkGlowKey}
-                                                aria-hidden
-                                                className="mind-power-glow-ring mind-power-glow-ring--quick"
-                                            />
-                                        )}
-                                        <Check size={16} className="stroke-[3.5]" />
-                                    </button>
-
-                                    <Link
-                                        href="/platform/create"
-                                        className="px-5 py-2.5 rounded-full bg-stone-100 hover:bg-stone-200/80 text-stone-700 text-sm font-sans font-medium transition-colors"
-                                    >
-                                        {t('learn.ideas_send_to_canvas')}
-                                    </Link>
-                                </div>
+                                {renderCardBody(currentIdea)}
                             </div>
                         </div>
                     </div>

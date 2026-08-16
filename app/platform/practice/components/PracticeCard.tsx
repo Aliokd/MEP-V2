@@ -12,7 +12,10 @@ interface PracticeCardProps {
     goal: string;
     level: string;
     startLabel: string;
+    /** For unbuilt practices: "Coming 1 September" (or plain "Coming soon"). */
     comingSoonLabel: string;
+    /** The countdown under the date, e.g. "in 16 days". */
+    countdownLabel?: string | null;
     /** Names the intro clip, e.g. "Why Master song structure?". */
     videoLabel: string;
     onStart: () => void;
@@ -26,6 +29,7 @@ export default function PracticeCard({
     level,
     startLabel,
     comingSoonLabel,
+    countdownLabel = null,
     videoLabel,
     onStart,
     onPlayVideo,
@@ -90,9 +94,16 @@ export default function PracticeCard({
                         <ArrowRight size={20} className="stroke-[2]" />
                     </button>
                 ) : (
-                    <span className="px-10 py-5 rounded-full bg-stone-100 text-stone-400 text-lg font-sans select-none shrink-0">
-                        {comingSoonLabel}
-                    </span>
+                    <div className="flex flex-col items-end gap-2 shrink-0 select-none">
+                        <span className="px-10 py-5 rounded-full bg-stone-100 text-stone-500 text-lg font-sans">
+                            {comingSoonLabel}
+                        </span>
+                        {countdownLabel && (
+                            <span className="pr-4 text-sm font-sans text-stone-400 tabular-nums">
+                                {countdownLabel}
+                            </span>
+                        )}
+                    </div>
                 )}
             </div>
         </div>

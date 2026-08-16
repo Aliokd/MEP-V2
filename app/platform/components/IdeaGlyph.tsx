@@ -1,5 +1,7 @@
 "use client";
 
+import React from 'react';
+
 /**
  * Minimal geometric artwork for Bank of tips cards.
  *
@@ -211,24 +213,58 @@ interface IdeaGlyphProps {
     className?: string;
 }
 
+/** How much of the 120-unit box the drawing is scaled to occupy — a little
+    under the full box so hairline strokes never kiss the frame. */
+const FILL_TARGET = 114;
+
 export default function IdeaGlyph({ seed, className }: IdeaGlyphProps) {
     const render = GLYPHS[glyphIndexFor(seed)];
+    const groupRef = React.useRef<SVGGElement>(null);
+    const [fit, setFit] = React.useState({ cx: 60, cy: 60, scale: 1 });
+
+    // The glyphs are drawn at different sizes and not always symmetrically
+    // around the viewBox midpoint. Measure each drawing once it's in the DOM,
+    // then centre it and scale it up to fill the box, so every tip's artwork
+    // fills its column identically. getBBox ignores the group's own transform,
+    // so this settles in one pass rather than feeding back.
+    React.useLayoutEffect(() => {
+        const el = groupRef.current;
+        if (!el) return;
+        const b = el.getBBox();
+        if (b.width === 0 || b.height === 0) return;
+        setFit({
+            cx: b.x + b.width / 2,
+            cy: b.y + b.height / 2,
+            scale: FILL_TARGET / Math.max(b.width, b.height),
+        });
+    }, [seed]);
 
     return (
         <svg
             viewBox="0 0 120 120"
+            /* `meet` (contain): the whole drawing stays visible and centred in
+               its column. The earlier `slice` cover-crop pushed shapes against
+               the frame edges and read as misaligned. */
+            preserveAspectRatio="xMidYMid meet"
             role="presentation"
             aria-hidden="true"
             fill="none"
             stroke="currentColor"
             /* The 120-unit viewBox is drawn around 3x that on screen, so the stroke
-               is scaled down to keep the hairline weight the style depends on. */
-            strokeWidth={0.6}
+               is kept thin to preserve the hairline weight the style depends on —
+               divided by the fill scale so every glyph lands at the same weight
+               regardless of how much it was enlarged. */
+            strokeWidth={0.6 / fit.scale}
             strokeLinecap="round"
             strokeLinejoin="round"
             className={className}
         >
-            {render(seed)}
+            <g
+                ref={groupRef}
+                transform={`translate(60 60) scale(${fit.scale.toFixed(4)}) translate(${(-fit.cx).toFixed(2)} ${(-fit.cy).toFixed(2)})`}
+            >
+                {render(seed)}
+            </g>
         </svg>
     );
 }

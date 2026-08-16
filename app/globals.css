@@ -1315,3 +1315,23 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
 .transcribe-glow--r16 .transcribe-glow-halo { border-radius: 23px; }
 .transcribe-glow--r32 .transcribe-glow-ring { border-radius: 34px; }
 .transcribe-glow--r32 .transcribe-glow-halo { border-radius: 39px; }
+
+
+/* Bank of tips deck — the incoming card slides the full deck height into
+   place while the outgoing one is driven off by the Web Animations API.
+   Hand-rolled keyframes: tailwindcss-animate is not installed, so the
+   animate-in utilities used around the app do not compile to anything. */
+@keyframes deck-enter-from-top {
+    from { transform: translateY(calc(-100% - 32px)); }
+    to   { transform: translateY(0); }
+}
+@keyframes deck-enter-from-bottom {
+    from { transform: translateY(102%); }
+    to   { transform: translateY(0); }
+}
+.deck-enter-from-top { animation: deck-enter-from-top 320ms cubic-bezier(0.23, 1, 0.32, 1); }
+.deck-enter-from-bottom { animation: deck-enter-from-bottom 320ms cubic-bezier(0.23, 1, 0.32, 1); }
+@media (prefers-reduced-motion: reduce) {
+    .deck-enter-from-top,
+    .deck-enter-from-bottom { animation: none; }
+}

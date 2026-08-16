@@ -28,6 +28,11 @@ export interface PracticeDefinition {
     posterUrl?: string;
     /** false → the card shows "coming soon" and cannot be started. */
     available: boolean;
+    /**
+     * ISO date (yyyy-mm-dd) an unbuilt practice is promised for. Assigned
+     * below from the release cadence; set it by hand to pin a specific date.
+     */
+    releaseAt?: string;
 }
 
 const VIDEO_DIR = '/videos/Master%20fundamentals';
@@ -124,6 +129,25 @@ export const PRACTICES: PracticeDefinition[] = [
     ...planned('Writing from a feeling', 'writing_from_a_feeling', 'all levels'),
     ...planned('Co-writing session', 'co_writing_session', 'all levels'),
 ];
+
+/*
+ * The release schedule for everything not built yet: one new practice every
+ * two weeks, in catalogue order, starting from the anchor below. Dates land
+ * deterministically, so the promise shown to users never drifts day to day.
+ */
+const RELEASE_ANCHOR_UTC = Date.UTC(2026, 8, 1); // 1 September 2026
+const RELEASE_CADENCE_DAYS = 14;
+
+{
+    let queue = 0;
+    for (const practice of PRACTICES) {
+        if (practice.available || practice.releaseAt) continue;
+        practice.releaseAt = new Date(RELEASE_ANCHOR_UTC + queue * RELEASE_CADENCE_DAYS * 86400000)
+            .toISOString()
+            .slice(0, 10);
+        queue += 1;
+    }
+}
 
 /** How many entries the header menu lists. */
 export const MENU_LIMIT = 15;
