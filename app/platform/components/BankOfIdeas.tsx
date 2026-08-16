@@ -2,10 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Search, Heart, Check } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, Search, Heart, Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { Idea, IdeaCategory, LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE, VIBE_IDEAS_BY_LANGUAGE, CHORDS_IDEAS_BY_LANGUAGE } from '../data/ideas';
+import IdeaGlyph from './IdeaGlyph';
 import { fetchIdeas } from '@/lib/contentClient';
 import { pickLocale, type IdeaDoc } from '@/lib/content';
 
@@ -19,6 +19,9 @@ const CATEGORIES: { id: 'all' | IdeaCategory; labelKey: string }[] = [
 
 /** How much of the card behind peeks out above the current one. */
 const DECK_PEEK_PX = 28;
+
+/** Horizontal travel needed before a swipe counts as a navigation. */
+const SWIPE_THRESHOLD_PX = 90;
 
 interface BankOfIdeasProps {
     onBackToLanding: () => void;
@@ -34,6 +37,22 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     const [activeCategory, setActiveCategory] = React.useState<'all' | IdeaCategory>('all');
     const [cmsIdeas, setCmsIdeas] = React.useState<IdeaDoc[] | null>(null);
     const [rawIndex, setIndex] = React.useState(0);
+    // Where a pointer-drag across the card began, for swipe-to-navigate.
+    const swipeStartY = React.useRef<number | null>(null);
+    // How far the card has been dragged so far, so it follows the pointer.
+    const [dragY, setDragY] = React.useState(0);
+    const [isDragging, setIsDragging] = React.useState(false);
+    // +1 travelled forward, -1 back — picks which way the next card slides in.
+    const [direction, setDirection] = React.useState(1);
+    const [showCheckGlow, setShowCheckGlow] = React.useState(false);
+    // Bumped per tick so a repeated click restarts the ring rather than
+    // continuing the animation already in flight.
+    const [checkGlowKey, setCheckGlowKey] = React.useState(0);
+    const checkGlowTimeout = React.useRef<NodeJS.Timeout | null>(null);
+
+    React.useEffect(() => () => {
+        if (checkGlowTimeout.current) clearTimeout(checkGlowTimeout.current);
+    }, []);
 
     // Ideas are edited in the admin CMS. Until the content migration has been
     // committed the collection is empty, so the bundled copy in data/ideas.ts
@@ -62,15 +81,24 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     };
 
     const toggleChecked = (id: string) => {
+        const willCheck = !checkedIds.has(id);
         setCheckedIds(prev => {
             const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
+            if (willCheck) next.add(id);
+            else next.delete(id);
             return next;
         });
+
+        // Ticking a tip off is progress, so it lights the same travelling ring the
+        // Create canvas uses. `veinote-celebrate` glows every time (unlike the
+        // once-a-day milestone event), and the button runs the identical animation
+        // off the same click, so the two read as one moment.
+        if (!willCheck) return;
+        window.dispatchEvent(new CustomEvent('veinote-celebrate'));
+        setCheckGlowKey(key => key + 1);
+        setShowCheckGlow(true);
+        if (checkGlowTimeout.current) clearTimeout(checkGlowTimeout.current);
+        checkGlowTimeout.current = setTimeout(() => setShowCheckGlow(false), 2000);
     };
 
     const allIdeas: Idea[] = React.useMemo(() => {
@@ -135,11 +163,15 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
 
     const goPrev = () => {
         if (!hasPrev) return;
+        setDirection(-1);
+        setDragY(0);
         setIndex(index - 1);
     };
 
     const goNext = () => {
         if (!hasNext) return;
+        setDirection(1);
+        setDragY(0);
         setIndex(index + 1);
     };
 
@@ -249,60 +281,106 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                             />
                         )}
 
-                        {/* No `mode="wait"`: both cards are mounted through the
-                            transition, so the outgoing one slides down and off while
-                            the next rises out of the deck behind it in one motion.
-                            Absolute positioning lets them overlap while they do. */}
-                        <AnimatePresence initial={false}>
-                            <motion.div
-                                key={currentIdea.id}
-                                initial={{ y: -DECK_PEEK_PX, zIndex: 1 }}
-                                animate={{ y: 0, zIndex: 1 }}
-                                exit={{ y: '110%', zIndex: 2 }}
-                                transition={{ duration: 0.34, ease: [0.23, 1, 0.32, 1] }}
-                                style={{ top: DECK_PEEK_PX }}
-                                /* Drag is horizontal on purpose: the card's own notes
-                                   scroll vertically, and a vertical drag would fight
-                                   that gesture. Snaps back when the throw is too small
-                                   or there is nothing left in that direction. */
-                                drag="x"
-                                dragConstraints={{ left: 0, right: 0 }}
-                                dragElastic={0.16}
-                                dragMomentum={false}
-                                onDragEnd={(_, info) => {
-                                    const threshold = 90;
-                                    if (info.offset.x <= -threshold) goNext();
-                                    else if (info.offset.x >= threshold) goPrev();
+                        {/* Deliberately a plain keyed element rather than
+                            AnimatePresence. framer-motion's enter/exit never completed
+                            for this card in practice: without `mode="wait"` the
+                            outgoing cards piled up in the DOM one per navigation, and
+                            with it the content froze on the first tip waiting for an
+                            exit that never finished. Re-keying on the tip id remounts
+                            the card, which replays a pure CSS drop-in — no lifecycle
+                            left to stall. */}
+                        {/* Keyed on the tip id, so each change remounts and replays the
+                            entry animation. Which way it slides in follows the direction
+                            travelled: forward drops down from above, back rises from
+                            below, matching the arrows and the swipe. */}
+                        <div
+                            key={currentIdea.id}
+                            style={{ top: DECK_PEEK_PX }}
+                            className={`absolute inset-x-0 bottom-0 animate-in duration-200 ease-out ${
+                                direction >= 0 ? 'slide-in-from-top-10' : 'slide-in-from-bottom-10'
+                            }`}
+                        >
+                            <div
+                                /* Vertical swipe, matching the way cards move: down goes
+                                   forward, up goes back. Drags starting inside the notes
+                                   column are ignored — that area scrolls, and scrolling
+                                   it should not also flip the card. The card tracks the
+                                   pointer while dragging, with resistance so it never
+                                   runs away from the cursor. */
+                                onPointerDown={e => {
+                                    if ((e.target as HTMLElement)?.closest('[data-notes-scroller]')) {
+                                        swipeStartY.current = null;
+                                        return;
+                                    }
+                                    swipeStartY.current = e.clientY;
+                                    setIsDragging(true);
+                                    e.currentTarget.setPointerCapture(e.pointerId);
                                 }}
-                                className="absolute inset-x-0 bottom-0 bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-6 cursor-grab active:cursor-grabbing"
+                                onPointerMove={e => {
+                                    if (swipeStartY.current === null) return;
+                                    const dy = e.clientY - swipeStartY.current;
+                                    // Damped, and capped so the card stays on screen.
+                                    setDragY(Math.max(-140, Math.min(140, dy * 0.55)));
+                                }}
+                                onPointerUp={e => {
+                                    const start = swipeStartY.current;
+                                    swipeStartY.current = null;
+                                    setIsDragging(false);
+                                    setDragY(0);
+                                    if (start === null) return;
+                                    const dy = e.clientY - start;
+                                    if (dy >= SWIPE_THRESHOLD_PX) goNext();
+                                    else if (dy <= -SWIPE_THRESHOLD_PX) goPrev();
+                                }}
+                                onPointerCancel={() => {
+                                    swipeStartY.current = null;
+                                    setIsDragging(false);
+                                    setDragY(0);
+                                }}
+                                style={{
+                                    // Always an explicit translate, never an absent one:
+                                    // transitioning to a removed transform leaves the card
+                                    // stuck at its dragged offset instead of springing back.
+                                    transform: `translateY(${dragY}px)`,
+                                    // No transition while the finger is down, so the card
+                                    // tracks it exactly; springs back on release.
+                                    transition: isDragging ? 'none' : 'transform 220ms cubic-bezier(0.23, 1, 0.32, 1)',
+                                }}
+                                className="h-full bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-6 cursor-grab active:cursor-grabbing touch-none"
                             >
                                 <div className="flex flex-col sm:flex-row gap-6 md:gap-8 flex-1 min-h-0">
-                                    {/* Deliberately empty for now — artwork comes later. */}
-                                    <div className="w-full sm:w-[40%] shrink-0 h-32 sm:h-full bg-stone-100 rounded-[14px]" />
+                                    {/* No panel behind the glyph — it sits straight on the
+                                        card so the artwork reads as part of it. */}
+                                    <div className="w-full sm:w-[40%] shrink-0 h-40 sm:h-full flex items-center justify-center overflow-hidden">
+                                        <IdeaGlyph
+                                            seed={currentIdea.id}
+                                            className="w-full h-full max-w-[360px] max-h-[360px] text-stone-500"
+                                        />
+                                    </div>
 
                                     {/* Scrolls inside the card so a long idea never pushes
                                         the deck controls off screen. */}
-                                    <div className="flex-1 flex flex-col gap-3 min-w-0 overflow-y-auto pr-1">
-                                        <h3 className="text-xl md:text-2xl font-sans font-light text-stone-800">
+                                    <div data-notes-scroller className="flex-1 flex flex-col gap-4 min-w-0 overflow-y-auto pr-1">
+                                        <h3 className="text-2xl md:text-3xl font-sans font-normal text-stone-800">
                                             {currentIdea.title}
                                         </h3>
-                                        <p className="text-base font-sans text-stone-500 leading-relaxed">
+                                        <p className="text-lg font-sans text-stone-500 leading-relaxed">
                                             {currentIdea.description}
                                         </p>
 
                                         {currentIdea.whyItHelps && (
                                             <div className="flex flex-col gap-1 pt-1">
-                                                <span className="text-xs font-sans font-semibold text-stone-500">
+                                                <span className="text-sm font-sans font-semibold text-stone-500">
                                                     {t('learn.ideas_why_label')}
                                                 </span>
-                                                <p className="text-sm font-sans text-stone-400 leading-relaxed">
+                                                <p className="text-base font-sans text-stone-400 leading-relaxed">
                                                     {currentIdea.whyItHelps}
                                                 </p>
                                             </div>
                                         )}
 
                                         {currentIdea.example && (
-                                            <p className="text-sm font-sans text-stone-500 italic border-l-2 border-stone-200 pl-3">
+                                            <p className="text-base font-sans text-stone-500 italic border-l-2 border-stone-200 pl-3">
                                                 {currentIdea.example}
                                             </p>
                                         )}
@@ -334,12 +412,19 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                                         aria-pressed={isCurrentChecked}
                                         aria-label={t('learn.ideas_mark_done')}
                                         title={t('learn.ideas_mark_done')}
-                                        className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                                        className={`relative w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
                                             isCurrentChecked
                                                 ? 'bg-[#87b884] border-[#87b884] text-white shadow-sm'
                                                 : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
                                         }`}
                                     >
+                                        {showCheckGlow && (
+                                            <span
+                                                key={checkGlowKey}
+                                                aria-hidden
+                                                className="mind-power-glow-ring mind-power-glow-ring--quick"
+                                            />
+                                        )}
                                         <Check size={16} className="stroke-[3.5]" />
                                     </button>
 
@@ -350,18 +435,21 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                                         {t('learn.ideas_send_to_canvas')}
                                     </Link>
                                 </div>
-                            </motion.div>
-                        </AnimatePresence>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Deck navigation */}
                     <div className="shrink-0 flex items-center justify-center gap-6">
+                        {/* Arrows point the way the deck moves, matching the swipe. */}
                         <button
                             onClick={goPrev}
                             disabled={!hasPrev}
-                            className="px-6 py-3 bg-stone-200/70 hover:bg-stone-300/70 text-stone-700 text-sm font-semibold rounded-full transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                            aria-label={t('learn.back')}
+                            title={t('learn.back')}
+                            className="w-11 h-11 rounded-full bg-white border border-stone-200 hover:border-stone-400 text-stone-600 hover:text-stone-900 shadow-sm flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-stone-200 cursor-pointer active:scale-95"
                         >
-                            {t('learn.back')}
+                            <ArrowUp size={18} strokeWidth={2} />
                         </button>
                         <span className="text-xs text-stone-400 font-sans tabular-nums select-none">
                             {index + 1} / {visibleIdeas.length}
@@ -369,9 +457,11 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         <button
                             onClick={goNext}
                             disabled={!hasNext}
-                            className="px-6 py-3 bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] text-sm font-semibold rounded-full transition-all shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none cursor-pointer"
+                            aria-label={t('learn.next')}
+                            title={t('learn.next')}
+                            className="w-11 h-11 rounded-full bg-white border border-stone-200 hover:border-stone-400 text-stone-600 hover:text-stone-900 shadow-sm flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-stone-200 cursor-pointer active:scale-95"
                         >
-                            {t('learn.next')}
+                            <ArrowDown size={18} strokeWidth={2} />
                         </button>
                     </div>
                 </div>
