@@ -29,7 +29,7 @@ export function renderLayout({ preheader, bodyHtml }: RenderLayoutOptions): stri
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
         <tr>
           <td align="center" style="padding-bottom:32px;">
-            <span style="font-size:20px; font-weight:600; letter-spacing:0.02em; color:${INK};">Veinote</span>
+            ${emailLogo(148, { center: true })}
           </td>
         </tr>
         <tr>
@@ -62,9 +62,12 @@ export function renderLayout({ preheader, bodyHtml }: RenderLayoutOptions): stri
  * site's SVG: Gmail and Outlook both strip SVG. Width and height are set as
  * attributes as well as styles because Outlook ignores the styles.
  */
-export function emailLogo(width = 132): string {
+export function emailLogo(width = 132, options?: { center?: boolean }): string {
     const height = Math.round((width * 100) / 420); // the asset is 420x100
-    return `<img src="https://veinote.com/assets/veinote-logo-email.png" alt="Veinote" width="${width}" height="${height}" style="display:block; border:0; outline:none; text-decoration:none; width:${width}px; height:${height}px;" />`;
+    // display:block prevents the phantom baseline gap; block elements ignore the
+    // cell's align="center", so header placement needs the margin instead.
+    const margin = options?.center ? " margin:0 auto;" : "";
+    return `<img src="https://veinote.com/assets/veinote-logo-email.png" alt="Veinote" width="${width}" height="${height}" style="display:block;${margin} border:0; outline:none; text-decoration:none; width:${width}px; height:${height}px;" />`;
 }
 
 export function emailButton(label: string, url: string): string {
