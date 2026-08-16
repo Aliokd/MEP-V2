@@ -418,6 +418,18 @@ service cloud.firestore {
     // ---------------------------------------------------------------------
     // Announcements, feature flags, config
     // ---------------------------------------------------------------------
+    // Bulk email campaigns. Server-written throughout — an admin drives them
+    // through /api/admin/email, never by writing here.
+    match /email_campaigns/{campaignId} {
+      allow read: if hasRole(["superadmin", "editor"]);
+      allow write: if false;
+
+      match /failures/{failureId} {
+        allow read: if hasRole(["superadmin", "editor"]);
+        allow write: if false;
+      }
+    }
+
     match /announcements/{announcementId} {
       allow read: if isSignedIn() && (isPublished() || isEditor());
       allow write: if false;

@@ -1,5 +1,5 @@
 import "server-only";
-import { tServer, type EmailLocale } from "@/lib/email/locale";
+import { tServer, type EmailCopyOverrides, type EmailLocale } from "@/lib/email/locale";
 import { renderLayout, emailButton, escapeHtml } from "@/lib/email/layout";
 
 export interface WelcomeEmailParams {
@@ -11,8 +11,13 @@ function interpolate(template: string, vars: Record<string, string>): string {
     return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
 }
 
-export function welcomeEmail(locale: EmailLocale, { name, appUrl }: WelcomeEmailParams) {
-    const t = (key: string) => interpolate(tServer(locale, `email.welcome.${key}`), { name });
+export function welcomeEmail(
+    locale: EmailLocale,
+    { name, appUrl }: WelcomeEmailParams,
+    /** Admin-authored wording, when an editor has changed this email. */
+    overrides?: EmailCopyOverrides,
+) {
+    const t = (key: string) => interpolate(tServer(locale, `email.welcome.${key}`, overrides), { name });
 
     const subject = t("subject");
     const greeting = t("greeting");

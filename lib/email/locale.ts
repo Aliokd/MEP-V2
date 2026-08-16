@@ -23,9 +23,23 @@ function lookup(tree: TranslationTree, keys: string[]): string | undefined {
     return typeof value === "string" ? value : undefined;
 }
 
+/**
+ * Admin-authored overrides keyed by translation path, from lib/siteCopy.ts.
+ * Passing these lets an editor change email wording without a deploy, using the
+ * same store that already overrides on-site copy — rather than a second,
+ * parallel template system that would drift from it.
+ */
+export type EmailCopyOverrides = Record<string, Partial<Record<EmailLocale, string>>>;
+
 // Server-safe re-implementation of context/LanguageContext.tsx's t() dot-notation lookup —
 // that hook is "use client"/localStorage-bound and can't run in an API route.
-export function tServer(locale: EmailLocale, keyPath: string): string {
+export function tServer(locale: EmailLocale, keyPath: string, overrides?: EmailCopyOverrides): string {
+    // An override wins, but only in the language asked for or English: a
+    // Norwegian rewrite must not surface in a Swedish email just because it exists.
+    const override = overrides?.[keyPath];
+    const overridden = override?.[locale] || override?.en;
+    if (typeof overridden === "string" && overridden.trim()) return overridden;
+
     const keys = keyPath.split(".");
     return lookup(translations[locale] ?? translations.en, keys) ?? lookup(translations.en, keys) ?? keyPath;
 }

@@ -9,7 +9,7 @@ import { useAdmin } from "@/context/AdminContext";
 import { ROLE_LABELS, type AdminPermission } from "@/lib/admin/roles";
 import {
     LayoutDashboard, Inbox, Users, Flag, MessagesSquare, BookOpen, ClipboardList, FileText,
-    Megaphone, BarChart3, CreditCard, SlidersHorizontal, ScrollText,
+    Megaphone, Mail, BarChart3, CreditCard, SlidersHorizontal, ScrollText,
     Shield, LogOut, Menu, X, ExternalLink,
 } from "lucide-react";
 import { Spinner } from "./ui";
@@ -44,6 +44,7 @@ const NAV: NavGroup[] = [
             { href: "/admin/content", label: "Content", icon: BookOpen, permission: "content.read" },
             { href: "/admin/pages", label: "Pages", icon: FileText, permission: "content.read" },
             { href: "/admin/announcements", label: "Announcements", icon: Megaphone, permission: "announcements.read" },
+            { href: "/admin/email", label: "Email", icon: Mail, permission: "announcements.read" },
         ],
     },
     {

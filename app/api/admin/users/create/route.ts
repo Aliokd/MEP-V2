@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCopyOverrides } from "@/lib/siteCopy";
 import { withAdmin } from "@/lib/admin/auth";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import { auditContext, writeAudit } from "@/lib/admin/audit";
@@ -147,16 +148,21 @@ export const POST = withAdmin("users.create", async (request, admin) => {
             // entry, not in a log line.
             const { subject, html, text } =
                 emailType === "beta"
-                    ? betaWelcomeEmail(resolveLocale(locale), {
-                          name: displayName,
-                          loginEmail: cleanEmail,
-                          password: String(password),
-                          signInUrl: `${appUrl}/signin`,
-                      })
-                    : welcomeEmail(resolveLocale(locale), {
-                          name: displayName,
-                          appUrl: `${appUrl}/platform/create`,
-                      });
+                    ? betaWelcomeEmail(
+                          resolveLocale(locale),
+                          {
+                              name: displayName,
+                              loginEmail: cleanEmail,
+                              password: String(password),
+                              signInUrl: `${appUrl}/signin`,
+                          },
+                          await getCopyOverrides(),
+                      )
+                    : welcomeEmail(
+                          resolveLocale(locale),
+                          { name: displayName, appUrl: `${appUrl}/platform/create` },
+                          await getCopyOverrides(),
+                      );
             await sendMail({ to: cleanEmail, subject, html, text });
             await adminDb.collection("users").doc(user.uid).set(
                 { billing: { welcomeEmailSent: true } },

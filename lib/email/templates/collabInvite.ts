@@ -1,5 +1,5 @@
 import "server-only";
-import { tServer, tServerList, type EmailLocale } from "@/lib/email/locale";
+import { tServer, tServerList, type EmailCopyOverrides, type EmailLocale } from "@/lib/email/locale";
 import { renderLayout, emailButton, escapeHtml, emailColors } from "@/lib/email/layout";
 
 export interface CollabInviteEmailParams {
@@ -32,9 +32,11 @@ function interpolate(template: string, vars: Record<string, string>): string {
 export function collabInviteEmail(
     locale: EmailLocale,
     { inviter, project, joinUrl, trialDays, waitlistMode }: CollabInviteEmailParams,
+    /** Admin-authored wording, when an editor has changed this email. */
+    overrides?: EmailCopyOverrides,
 ) {
     const vars = { inviter, project, days: String(trialDays) };
-    const t = (key: string) => interpolate(tServer(locale, `email.collab_invite.${key}`), vars);
+    const t = (key: string) => interpolate(tServer(locale, `email.collab_invite.${key}`, overrides), vars);
 
     const subject = t("subject");
     const preheader = t("preheader");

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCopyOverrides } from "@/lib/siteCopy";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requireUser } from "@/lib/apiAuth";
 import { sendMail } from "@/lib/email/send";
@@ -90,13 +91,17 @@ export async function POST(request: Request) {
         // is, so an invite written in Norwegian doesn't drop the reader onto English.
         const landing = inviteLandingPath(inviteId);
         const [path, search] = landing.split("?");
-        const { subject, html, text } = collabInviteEmail(emailLocale, {
-            inviter,
-            project: invite.projectTitle || "a new song",
-            joinUrl: `${appUrl}${localizePath(path, emailLocale)}?${search}`,
-            trialDays: TRIAL_DAYS,
-            waitlistMode: !SIGNUPS_OPEN,
-        });
+        const { subject, html, text } = collabInviteEmail(
+            emailLocale,
+            {
+                inviter,
+                project: invite.projectTitle || "a new song",
+                joinUrl: `${appUrl}${localizePath(path, emailLocale)}?${search}`,
+                trialDays: TRIAL_DAYS,
+                waitlistMode: !SIGNUPS_OPEN,
+            },
+            await getCopyOverrides(),
+        );
 
         await sendMail({ to: invite.inviteeEmail, subject, html, text });
         await inviteRef.set({ inviteEmailSentAt: new Date().toISOString() }, { merge: true });

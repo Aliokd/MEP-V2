@@ -1,5 +1,5 @@
 import "server-only";
-import { tServer, type EmailLocale } from "@/lib/email/locale";
+import { tServer, type EmailCopyOverrides, type EmailLocale } from "@/lib/email/locale";
 import { renderLayout, emailButton, emailLogo, escapeHtml, emailColors } from "@/lib/email/layout";
 
 export interface BetaWelcomeEmailParams {
@@ -36,8 +36,10 @@ function interpolate(template: string, vars: Record<string, string>): string {
 export function betaWelcomeEmail(
     locale: EmailLocale,
     { name, loginEmail, password, signInUrl }: BetaWelcomeEmailParams,
+    /** Admin-authored wording, when an editor has changed this email. */
+    overrides?: EmailCopyOverrides,
 ) {
-    const t = (key: string) => interpolate(tServer(locale, `email.beta_welcome.${key}`), { name });
+    const t = (key: string) => interpolate(tServer(locale, `email.beta_welcome.${key}`, overrides), { name });
 
     const subject = t("subject");
     const preheader = t("preheader");

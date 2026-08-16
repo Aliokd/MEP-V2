@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCopyOverrides } from "@/lib/siteCopy";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { sendMail } from "@/lib/email/send";
 import { welcomeEmail } from "@/lib/email/templates/welcome";
@@ -34,10 +35,11 @@ export async function POST(request: Request) {
         }
 
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://veinote.com";
-        const { subject, html, text } = welcomeEmail(resolveLocale(locale), {
-            name: userData.name || "there",
-            appUrl: `${appUrl}/platform/create`,
-        });
+        const { subject, html, text } = welcomeEmail(
+            resolveLocale(locale),
+            { name: userData.name || "there", appUrl: `${appUrl}/platform/create` },
+            await getCopyOverrides(),
+        );
 
         await sendMail({ to: userData.email, subject, html, text });
 
