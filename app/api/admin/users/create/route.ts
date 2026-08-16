@@ -154,7 +154,9 @@ export const POST = withAdmin("users.create", async (request, admin) => {
                               name: displayName,
                               loginEmail: cleanEmail,
                               password: String(password),
-                              signInUrl: `${appUrl}/signin`,
+                              // Prefills the sign-in form, so the password is the
+                              // only thing left to copy out of the email.
+                              signInUrl: `${appUrl}/signin?email=${encodeURIComponent(cleanEmail)}`,
                           },
                           await getCopyOverrides(),
                       )

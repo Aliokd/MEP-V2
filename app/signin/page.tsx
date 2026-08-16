@@ -39,6 +39,14 @@ function SignInPageInner() {
     const router = useRouter();
     const { language, t } = useLanguage();
 
+    // Invite emails link here with ?email= so the recipient only has to copy the
+    // password. Read from window rather than useSearchParams: this page has no
+    // Suspense boundary, and a prefill is not worth adding one for.
+    useEffect(() => {
+        const prefilled = new URLSearchParams(window.location.search).get('email');
+        if (prefilled) setEmail((current) => current || prefilled);
+    }, []);
+
     const handleAuthError = (err: any) => {
         console.error('Google Sign-In error details:', err);
         if (err.code === 'auth/user-disabled') {

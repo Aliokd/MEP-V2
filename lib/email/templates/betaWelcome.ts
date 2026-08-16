@@ -52,6 +52,7 @@ export function betaWelcomeEmail(
     const credentialsNote = t("credentials_note");
     const cta = t("cta");
     const tasksTitle = t("tasks_title");
+    const earlyNote = t("early_note");
     const feedback = t("feedback");
     const signoff = t("signoff");
     const team = t("team");
@@ -105,7 +106,8 @@ export function betaWelcomeEmail(
         <tr><td colspan="2" style="padding:0 0 14px; font-size:13px; font-weight:600; color:${emailColors.MUTED};">${escapeHtml(tasksTitle)}</td></tr>
         ${tasksHtml}
       </table>
-      <p style="margin:8px 0 0; font-size:14px; line-height:1.6; color:${emailColors.INK};">${escapeHtml(feedback)}</p>
+      <p style="margin:8px 0 16px; font-size:13px; line-height:1.6; color:${emailColors.MUTED};">${escapeHtml(earlyNote)}</p>
+      <p style="margin:0; font-size:14px; line-height:1.6; color:${emailColors.INK};">${escapeHtml(feedback)}</p>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0; border-top:1px solid ${emailColors.BORDER}; width:100%;">
         <tr>
           <td style="padding:24px 0 0;">
@@ -138,6 +140,8 @@ export function betaWelcomeEmail(
         "",
         tasksTitle,
         ...tasks.flatMap((task, index) => [`${index + 1}. ${task.title}`, `   ${task.body}`, ""]),
+        earlyNote,
+        "",
         feedback,
         "",
         signoff,
