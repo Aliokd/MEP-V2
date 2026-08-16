@@ -103,13 +103,30 @@ jobs:
           fi
           echo "All required secrets are present."
 
+      # Secrets reach this step as real environment variables and are written with
+      # printf — never spliced into the shell script text. The old form,
+      # `echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"`, let bash expand a $-sequence
+      # inside the password itself, deterministically corrupting it on every deploy
+      # while every secret "update" appeared to change nothing (four deploys chased
+      # a "stale secret" that was never stale, 2026-08-16). Values are single-quoted
+      # so neither firebase-tools' env parser nor dotenv-expand touches a $ inside.
       - name: Create environment configuration
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: |
-          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
-          echo "SMTP_HOST=${{ secrets.SMTP_HOST }}" >> .env
-          echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env
-          echo "SMTP_USER=${{ secrets.SMTP_USER }}" >> .env
-          echo "SMTP_PASS=${{ secrets.SMTP_PASS }}" >> .env
+          : > .env
+          for NAME in GEMINI_API_KEY SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS; do
+            VALUE="${!NAME}"
+            case "$VALUE" in *"'"*)
+              echo "::error::$NAME contains a single quote, which this quoted .env write cannot carry. Rotate the value or extend this step to escape it."
+              exit 1;;
+            esac
+            printf "%s='%s'\n" "$NAME" "$VALUE" >> .env
+          done
       - run: npm run build
       - name: Clear pre-built .next so Firebase's own build (which wires up .env) runs fresh
         run: rm -rf .next

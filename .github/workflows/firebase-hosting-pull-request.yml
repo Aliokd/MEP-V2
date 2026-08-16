@@ -14,13 +14,26 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
+      # Written via env vars + printf, not textual splicing — see the same step in
+      # firebase-hosting-merge.yml for why (a $ inside a secret gets expanded by
+      # bash and silently corrupts the value).
       - name: Create environment configuration
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: |
-          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
-          echo "SMTP_HOST=${{ secrets.SMTP_HOST }}" >> .env
-          echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env
-          echo "SMTP_USER=${{ secrets.SMTP_USER }}" >> .env
-          echo "SMTP_PASS=${{ secrets.SMTP_PASS }}" >> .env
+          : > .env
+          for NAME in GEMINI_API_KEY SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS; do
+            VALUE="${!NAME}"
+            case "$VALUE" in *"'"*)
+              echo "::error::$NAME contains a single quote, which this quoted .env write cannot carry. Rotate the value or extend this step to escape it."
+              exit 1;;
+            esac
+            printf "%s='%s'\n" "$NAME" "$VALUE" >> .env
+          done
       - run: npm run build
       - name: Deploy to Firebase Hosting Channel (CLI)
         env:
