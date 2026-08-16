@@ -60,31 +60,39 @@ test.describe('Practice Page', () => {
     await expect(menu.getByText('Coming soon')).toHaveCount(13);
   });
 
-  test('starting a practice opens it, and the back link returns to its card', async ({ page }) => {
+  test('starting a practice lands on the song chooser, and back returns to the card', async ({ page }) => {
     await page.goto('/platform/practice');
 
     await page.getByRole('button', { name: 'Start' }).click();
 
-    // The song picker of "Master song structure" replaces the card
-    await expect(page.getByText('Castle on the Hill')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(0);
+    // Our songs plus the bring-your-own tile, with Next locked until a pick is made
+    await expect(page.getByText('Pick a song to practise with', { exact: false })).toBeVisible();
+    await expect(page.locator('[data-song-choice]')).toHaveCount(5);
+    await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
+
+    await page.locator('[data-song-choice="do-you-love"]').click();
+    await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeEnabled();
 
     await page.locator('main').getByRole('button', { name: 'Back', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
   });
 
-  test('breaks the song down into a labelled timeline', async ({ page }) => {
+  test('draws the authored timeline for a chosen song', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
-    await page.getByRole('button', { name: /^Song 2/ }).click();
+    await page.locator('[data-song-choice="do-you-love"]').click();
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
 
     const timeline = page.locator('[data-song-timeline]');
-    await expect(timeline).toBeVisible();
+    await expect(timeline).toBeVisible({ timeout: 20000 });
 
-    // Sections come out of the lyric timings, in order, with the gaps marked
-    const labels = await timeline.locator('button[title]').allInnerTexts();
+    // Sections come straight from the hand-authored structure map. Narrow spans
+    // drop their inline label, so read the always-present title attribute.
+    const labels = await timeline.locator('button[title]').evaluateAll(
+      els => els.map(e => (e.getAttribute('title') || '').split(' · ')[0])
+    );
     expect(labels.filter(Boolean)).toEqual([
-      'Intro', 'Verse', 'Pre-chorus', 'Instrumental', 'Bridge', 'Instrumental', 'Chorus',
+      'Intro', 'Verse', 'Chorus', 'Verse', 'Chorus', 'Bridge', 'Chorus',
     ]);
 
     // The timeline is the player: it carries the play control and a scrub track
@@ -95,36 +103,81 @@ test.describe('Practice Page', () => {
     const track = timeline.locator('div.touch-none');
     const box = (await track.boundingBox())!;
     await page.mouse.click(box.x + box.width * 0.5, box.y + box.height / 2);
-    await expect(timeline.getByText(/^0:3\d$/)).toBeVisible();
+    await expect(timeline.getByText(/^1:[12]\d$/)).toBeVisible();
   });
 
-  test('naming a section: right answer turns green, wrong one shakes', async ({ page }) => {
+  test('an uploaded song plays, with decomposition marked as pending', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
-    await page.getByRole('button', { name: /^Song 2/ }).click();
+
+    // A tiny valid WAV: 44-byte header + a second of silence at 8kHz
+    const rate = 8000;
+    const dataSize = rate * 2;
+    const header = Buffer.alloc(44);
+    header.write('RIFF', 0); header.writeUInt32LE(36 + dataSize, 4); header.write('WAVE', 8);
+    header.write('fmt ', 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20);
+    header.writeUInt16LE(1, 22); header.writeUInt32LE(rate, 24); header.writeUInt32LE(rate * 2, 28);
+    header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34);
+    header.write('data', 36); header.writeUInt32LE(dataSize, 40);
+    const wav = Buffer.concat([header, Buffer.alloc(dataSize)]);
+
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'my-demo.wav', mimeType: 'audio/wav', buffer: wav,
+    });
+    await expect(page.getByText('my-demo')).toBeVisible();
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+
+    // The analyser gives a 1-second silent file an honest no.
+    await expect(page.getByText("We couldn't map this song yet.")).toBeVisible({ timeout: 30000 });
+  });
+
+  test('a song without a hand-made map gets analysed into a timeline', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await page.locator('[data-song-choice="another-ride"]').click();
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+
+    // The analyser announces itself, then delivers a real section map.
+    await expect(page.getByText('Listening through the song…')).toBeVisible({ timeout: 20000 });
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 90000 });
+
+    const labels = await timeline.locator('button[title]').evaluateAll(
+      els => els.map(e => (e.getAttribute('title') || '').split(' · ')[0])
+    );
+    expect(labels.length).toBeGreaterThanOrEqual(3);
+    expect(labels).toContain('Chorus');
+  });
+
+  test('naming a part: right answer turns green, wrong one shakes', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await page.locator('[data-song-choice="do-you-love"]').click();
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
 
     const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 20000 });
 
-    // Blocks are shuffled, so find them by a word only that section contains
+    // Parts are shuffled, so find them by a line only that part contains
     const blocks = page.locator('[data-section-block]');
-    await expect(blocks).toHaveCount(4);
+    await expect(blocks).toHaveCount(7);
     const texts = await blocks.allInnerTexts();
-    const verseBlock = blocks.nth(texts.findIndex(x => x.includes('club')));
-    const notVerseBlock = blocks.nth(texts.findIndex(x => !x.includes('club')));
+    const verseBlock = blocks.nth(texts.findIndex(x => x.includes('spend a day')));
+    const notVerseBlock = blocks.nth(texts.findIndex(x => x.includes('from above')));
 
-    // Nothing named yet — every block wears the placeholder chip
-    await expect(page.getByText('?', { exact: true })).toHaveCount(4);
+    // Nothing named yet — every part wears the placeholder chip
+    await expect(page.getByText('?', { exact: true })).toHaveCount(7);
 
-    // Arm "Verse" from the timeline, then answer with the wrong block
-    await timeline.locator('button[title^="Verse"]').click();
+    // Arm "Verse" from the timeline, then answer with a chorus
+    await timeline.locator('button[title^="Verse"]').first().click();
     await notVerseBlock.click();
     await expect(notVerseBlock).toHaveClass(/animate-shake/);
-    await expect(page.getByText('?', { exact: true })).toHaveCount(4);
+    await expect(page.getByText('?', { exact: true })).toHaveCount(7);
 
-    // A wrong answer keeps the type armed, so the right block still lands
+    // A wrong answer keeps the type armed, so the right part still lands
     await verseBlock.click();
     await expect(verseBlock).toHaveClass(/border-\[#86BE7F\]/);
-    await expect(page.getByText('?', { exact: true })).toHaveCount(3);
+    await expect(page.getByText('?', { exact: true })).toHaveCount(6);
   });
 
   test('the card play button opens the intro video', async ({ page }) => {

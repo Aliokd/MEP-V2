@@ -11,6 +11,19 @@ export interface TourStep {
     video?: string;
     /** Poster frame for a video step — avoids a blank box before the first frame decodes. */
     poster?: string;
+    /**
+     * Video steps: skip the docked resting state and open centered at 85% width,
+     * with the blurred app still visible around it. The welcome film opens this
+     * way — it's the moment, not a corner player — while the demo video that
+     * follows rests in its corner until played.
+     */
+    openLarge?: boolean;
+    /**
+     * On leaving this step, take the tour off screen for this long before the next
+     * one appears. Lets the app itself land — after the welcome the user gets a
+     * clear look at Create before the guide resumes.
+     */
+    holdAfterMs?: number;
     /** Spotlight steps only — the intro video step renders no copy. */
     title?: string;
     description?: string;
@@ -63,8 +76,12 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
     // Once playback has begun the video stays centered/large even while paused —
     // only the pristine "haven't pressed play yet" state docks it small in the corner.
     // A replay skips that state: the "Play demo" click was the play intent.
-    const [hasStarted, setHasStarted] = useState(autoPlayVideo);
+    const [hasStarted, setHasStarted] = useState(false);
     const [progress, setProgress] = useState(0);
+    // The deliberate gap between two steps (see TourStep.holdAfterMs).
+    const [isHolding, setIsHolding] = useState(false);
+    const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+    useEffect(() => () => { if (holdTimerRef.current) clearTimeout(holdTimerRef.current); }, []);
     const attemptsRef = useRef(0);
     const cancelledRef = useRef(false);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -156,6 +173,9 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
         }
         setIsPlaying(false);
         setProgress(0);
+        // Each clip earns its own expansion: the demo video rests docked in the
+        // corner even though the welcome film before it was played.
+        setHasStarted(false);
     }, [video]);
 
     // Replay: open the intro centered and start it. `autoPlayVideo` can arrive a
@@ -167,11 +187,12 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
     // may still refuse an unmuted autoplay. That's survivable: the card is already
     // centered and large with its play button showing, which is the state this is
     // really here to produce.
+    // Only the welcome film auto-starts. The demo video that follows is meant to
+    // rest in its corner until the user plays it.
     useEffect(() => {
-        if (!autoPlayVideo || !video) return;
-        setHasStarted(true);
+        if (!autoPlayVideo || !video || !step?.openLarge) return;
         videoRef.current?.play().catch(() => { /* user presses play instead */ });
-    }, [autoPlayVideo, video]);
+    }, [autoPlayVideo, video, step?.openLarge]);
 
     // Below `md` the 70% maths would *shrink* the card below its resting size, so
     // narrow screens keep the near-full-width treatment instead. Listening to `resize`
@@ -191,11 +212,26 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
     }, []);
 
     if (!mounted || !step) return null;
+    // Holding: the previous step asked for a beat of nothing so the user can take
+    // the app in. Render no overlay, but stay mounted — the timer lives here.
+    if (isHolding) return null;
     // A spotlight step isn't renderable until its target has been located and measured.
     if (!video && !rect) return null;
 
     const isLast = stepIndex === steps.length - 1;
-    const goNext = () => (isLast ? onFinish() : setStepIndex(i => i + 1));
+    const goNext = () => {
+        if (isLast) { onFinish(); return; }
+        // Pause the video before the screen clears, or its audio keeps playing
+        // over the app during the hold.
+        videoRef.current?.pause();
+        const hold = step.holdAfterMs;
+        setStepIndex(i => i + 1);
+        if (hold) {
+            setIsHolding(true);
+            if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+            holdTimerRef.current = setTimeout(() => setIsHolding(false), hold);
+        }
+    };
     const goBack = () => setStepIndex(i => Math.max(0, i - 1));
 
     const togglePlay = () => {
@@ -292,12 +328,16 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
      * states are inline styles: arbitrary Tailwind classes with min()/calc() never
      * get emitted by the JIT scanner and would sit inert in the DOM.
      */
-    const videoWrapStyle: React.CSSProperties = hasStarted
+    // A step that opens large is already at its resting size; a docked one grows into
+    // the same centered 85% on first play, leaving the blurred app visible around it.
+    const opensLarge = Boolean(video && step?.openLarge);
+    const isLargeVideo = hasStarted || opensLarge;
+    const videoWrapStyle: React.CSSProperties = isLargeVideo
         ? {
             right: '50%',
             bottom: '50%',
             transform: 'translate(50%, 50%)',
-            width: isWideViewport ? 'min(70vw, calc((100vh - 140px) * 1.7778))' : 'calc(100vw - 2rem)',
+            width: isWideViewport ? 'min(85vw, calc((100vh - 140px) * 1.7778))' : 'calc(100vw - 2rem)',
             maxWidth: 'calc(100vw - 2rem)',
         }
         : {
@@ -350,9 +390,9 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
                                 className="absolute inset-0 flex items-center justify-center cursor-pointer group"
                             >
                                 <div className={`rounded-full bg-white/95 shadow-[0_4px_24px_rgba(0,0,0,0.25)] flex items-center justify-center group-hover:scale-105 transition-all ${
-                                    hasStarted ? 'w-[84px] h-[84px]' : 'w-14 h-14'
+                                    isLargeVideo ? 'w-[84px] h-[84px]' : 'w-14 h-14'
                                 }`}>
-                                    <Play className={`fill-stone-900 text-stone-900 stroke-none ml-1 ${hasStarted ? 'w-9 h-9' : 'w-6 h-6'}`} />
+                                    <Play className={`fill-stone-900 text-stone-900 stroke-none ml-1 ${isLargeVideo ? 'w-9 h-9' : 'w-6 h-6'}`} />
                                 </div>
                             </div>
                         )}

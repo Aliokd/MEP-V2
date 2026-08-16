@@ -61,6 +61,7 @@ const ACCOUNT_SCOPED_KEYS = [
     'mep-completed-lessons',
     'mep-completed-songs',
     'mep-completed-practices',
+    'mep-community-shared-count',
     'songwriting-progress',
     'songwriting-progress-quote',
     'songwriting-progress-confetti',

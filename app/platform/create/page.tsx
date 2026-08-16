@@ -3915,8 +3915,14 @@ export default function CreatePage() {
         notesRef.current = notes;
     }, [notes]);
 
-    // Calculate total words typed and total saved recording duration across all notes and sync to localStorage
+    // Calculate total words typed and total saved recording duration across all notes and sync to localStorage.
+    // Gated on isDataLoaded: `notes` is empty until the cache/Firestore load resolves, and publishing
+    // that empty state wrote a 0 word count to the shared counter the header's Mind Power bar reads.
+    // Leaving Create before the load finished left that 0 behind, so the bar then appeared to drop on
+    // its own the next time any other tab dispatched a progress update.
     useEffect(() => {
+        if (!isDataLoaded) return;
+
         const totalWords = notes.reduce((sum, note) => {
             const words = (note.content || '').trim().split(/\s+/).filter(w => w.length > 0).length;
             return sum + words;
@@ -3934,7 +3940,7 @@ export default function CreatePage() {
         safeLocalStorageSetItem('mep-create-recording-seconds', nextSeconds.toString());
 
         window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
-    }, [notes]);
+    }, [notes, isDataLoaded]);
 
     const [activeFolderIdFilter, setActiveFolderIdFilter] = useState<string | null>(null);
     /** Narrows the one shelf by who a project is shared with. */

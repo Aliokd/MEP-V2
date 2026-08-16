@@ -58,6 +58,14 @@ tsconfig.tsbuildinfo
 public/videos/Master fundamentals/
 *.compressed.mp4
 
+# Practice song masters and their working documents. The app plays the .mp3
+# renders only (see app/platform/practice/data/practiceSongs.ts), so the .wav
+# masters are 174MB of source material nothing ever requests — and git keeps
+# them forever, in every clone and every CI checkout. Keep the masters in
+# whatever holds the rest of the session files, not here.
+public/Practice/**/*.wav
+public/Practice/**/*.docx
+
 
 
 

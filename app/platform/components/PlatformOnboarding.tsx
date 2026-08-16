@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
@@ -82,6 +82,23 @@ export default function PlatformOnboarding() {
         }
     }, [seen, pathname, router]);
 
+    /*
+     * Being *shown* the guide is the once-in-a-lifetime event — not finishing it.
+     * Marking only on finish meant anyone who refreshed, navigated away or closed
+     * the tab mid-tour was never recorded, so the guide came back at every login
+     * until they happened to click through to the end. It is recorded here instead,
+     * the moment it first appears; the way back is the Demo row in profile.
+     *
+     * `seen` stays false locally so the tour this user is looking at keeps running.
+     */
+    const markedRef = useRef(false);
+    useEffect(() => {
+        if (seen === false && pathname === GUIDE_ROUTE && user && !markedRef.current) {
+            markedRef.current = true;
+            markGuideSeen(user.uid);
+        }
+    }, [seen, pathname, user]);
+
     const handleFinish = useCallback(() => {
         setSeen(true);
         if (user) markGuideSeen(user.uid);
@@ -93,6 +110,11 @@ export default function PlatformOnboarding() {
         {
             video: WELCOME_VIDEO_SRC,
             poster: WELCOME_VIDEO_POSTER,
+            openLarge: true,
+            // Then the tour gets out of the way for a beat: the canvas they were
+            // just told about lands on screen, unobstructed, before the guide
+            // resumes with the demo video docked in the corner.
+            holdAfterMs: 2000,
         },
         {
             video: INTRO_VIDEO_SRC,

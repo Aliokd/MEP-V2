@@ -172,9 +172,8 @@ export default function ProfilePage() {
      * Replaying the guide slides the profile away to reveal the Create canvas the
      * guide runs on, rather than hard-cutting to it.
      *
-     * resetGuide isn't awaited: it writes the local cache synchronously before its
-     * first await, and that's what PlatformOnboarding reads on arrival — the Firestore
-     * write settles in the background, so the slide can start immediately.
+     * resetGuide only touches local storage (see its note on why it deliberately
+     * leaves the account's "seen" stamp alone), so the slide can start immediately.
      */
     const handleReplayGuide = () => {
         void resetGuide(user.uid);

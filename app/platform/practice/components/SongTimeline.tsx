@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import type { LyricSection } from '../data/songs';
+import type { AuthoredSection } from '../data/practiceSongs';
 import { KIND_BG, KIND_LABEL_KEY, SECTION_TEXT, classifySection, formatTime, type SectionKind } from '../data/sections';
 
 interface Segment {
@@ -19,7 +20,10 @@ const MIN_GAP = 2;
 interface SongTimelineProps {
     /** Shown above the bar — the song being worked on. */
     title: string;
-    sections: LyricSection[];
+    /** Word-timed lyric sections; the bar is derived from their timings. */
+    sections?: LyricSection[];
+    /** Hand-authored structure. Takes precedence — drawn exactly as given. */
+    authored?: AuthoredSection[];
     /** Audio duration; falls back to the last lyric timestamp when the file hasn't loaded. */
     duration: number;
     currentTime: number;
@@ -40,6 +44,7 @@ interface SongTimelineProps {
 export default function SongTimeline({
     title,
     sections,
+    authored,
     duration,
     currentTime,
     isPlaying,
@@ -55,7 +60,21 @@ export default function SongTimeline({
     const [dragTime, setDragTime] = useState<number | null>(null);
 
     const { segments, total } = useMemo(() => {
-        const timed = sections
+        /*
+         * An authored map is the truth: render it exactly, every span pickable,
+         * no gap-filling. `total` prefers the audio length so the bar covers the
+         * whole master even when the map's last span ends a hair early.
+         */
+        if (authored && authored.length > 0) {
+            const spans = [...authored].sort((a, b) => a.start - b.start);
+            const lastEnd = spans[spans.length - 1].end;
+            return {
+                segments: spans.map(s => ({ kind: s.kind, start: s.start, end: s.end, fromLyrics: true })),
+                total: Math.max(duration || 0, lastEnd),
+            };
+        }
+
+        const timed = (sections ?? [])
             .map((section) => {
                 const words = section.lines.flatMap(l => l.words);
                 if (words.length === 0) return null;
@@ -102,7 +121,7 @@ export default function SongTimeline({
         }
 
         return { segments: out, total };
-    }, [sections, duration]);
+    }, [sections, authored, duration]);
 
     if (segments.length === 0 || total <= 0) return null;
 

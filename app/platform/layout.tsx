@@ -172,8 +172,14 @@ function PlatformLayoutInner({
     // Practice section sub-metrics
     const [practiceMinutes, setPracticeMinutes] = useState(0);
 
-    // Community section sub-metrics (projects shared in Connect)
-    const [communityCount, setCommunityCount] = useState(0);
+    // Community section sub-metrics (projects shared in Connect).
+    // Seeded from the last known count because the real value comes from an async Firestore
+    // count: starting at 0 made the bar render a quarter short and then jump when the count
+    // landed, and left it permanently short whenever that request failed (offline/rules).
+    const [communityCount, setCommunityCount] = useState(() => {
+        if (typeof window === 'undefined') return 0;
+        return parseInt(localStorage.getItem('mep-community-shared-count') || '0');
+    });
 
     // Level milestone criteria (Level 1 → Level 2)
     const L1_WORDS   = 200;  // words
@@ -324,14 +330,18 @@ function PlatformLayoutInner({
         setPracticeMinutes(pracMins);
     };
 
-    // Community: how many projects the user has shared in Connect (Firestore-backed)
+    // Community: how many projects the user has shared in Connect (Firestore-backed).
+    // Only a successful count updates the value — a failed request leaves the cached count
+    // in place rather than collapsing the Community ring to zero.
     const fetchCommunityCount = async () => {
         if (!user) return;
         try {
             const snapshot = await getCountFromServer(
                 query(collection(db, 'connect_posts'), where('authorId', '==', user.uid))
             );
-            setCommunityCount(snapshot.data().count);
+            const count = snapshot.data().count;
+            setCommunityCount(count);
+            safeLocalStorageSetItem('mep-community-shared-count', count.toString());
         } catch (error) {
             console.error('Error fetching community post count:', error);
         }

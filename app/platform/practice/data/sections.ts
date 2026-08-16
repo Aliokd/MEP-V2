@@ -5,7 +5,7 @@
  * a "Pre-chorus" in the other.
  */
 
-export type SectionKind = 'intro' | 'verse' | 'prechorus' | 'chorus' | 'bridge' | 'outro' | 'other';
+export type SectionKind = 'intro' | 'verse' | 'prechorus' | 'chorus' | 'bridge' | 'solo' | 'outro' | 'other';
 
 /**
  * A single beige ramp: the more a section carries the song, the deeper the
@@ -20,6 +20,7 @@ export const KIND_BG: Record<SectionKind, string> = {
     verse: '#D2D2C6',
     prechorus: '#C9C8BE',
     bridge: '#BDBBAC',
+    solo: '#B7B3A3',
     chorus: '#B0AD9A',
 };
 
@@ -32,6 +33,7 @@ export const KIND_LABEL_KEY: Record<SectionKind, string> = {
     prechorus: 'practice.section_prechorus',
     chorus: 'practice.section_chorus',
     bridge: 'practice.section_bridge',
+    solo: 'practice.section_solo',
     outro: 'practice.section_outro',
     other: 'practice.section_other',
 };
@@ -43,6 +45,7 @@ export function classifySection(title: string): SectionKind {
     if (lower.includes('chorus')) return 'chorus';
     if (lower.includes('verse')) return 'verse';
     if (lower.includes('bridge') || lower.includes('build')) return 'bridge';
+    if (lower.includes('solo')) return 'solo';
     if (lower.includes('outro')) return 'outro';
     return 'other';
 }

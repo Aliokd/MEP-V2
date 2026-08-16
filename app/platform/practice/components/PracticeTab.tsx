@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { SAMPLE_SONGS, type Song } from '../data/songs';
-import { fetchPracticeSongs } from '@/lib/contentClient';
-import LyricsPlayer from './LyricsPlayer';
-import SongCard from './SongCard';
 import PracticeCard from './PracticeCard';
 import PracticeVideoModal from './PracticeVideoModal';
+import SongChooser, { type ChosenSong } from './SongChooser';
+import StructurePlayer from './StructurePlayer';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
 import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, Play } from 'lucide-react';
 import Tooltip from '@/components/Tooltip';
@@ -26,30 +24,6 @@ const CARD_SLIDE = {
 
 export default function PracticeTab() {
     const { t } = useLanguage();
-
-    // Songs are managed in the admin CMS. The bundled SAMPLE_SONGS stay as the
-    // fallback until the content migration has been committed, so the practice
-    // library is never empty mid-rollout.
-    const [songs, setSongs] = useState<Song[]>(SAMPLE_SONGS);
-
-    useEffect(() => {
-        let cancelled = false;
-        fetchPracticeSongs()
-            .then(published => {
-                if (!cancelled && published.length > 0) {
-                    setSongs(published.map(song => ({
-                        id: song.id,
-                        title: song.title,
-                        artist: song.artist,
-                        audioUrl: song.audioUrl,
-                        coverUrl: song.coverUrl || undefined,
-                        lyrics: song.lyrics,
-                    })));
-                }
-            })
-            .catch(err => console.warn('Falling back to bundled practice songs:', err));
-        return () => { cancelled = true; };
-    }, []);
 
     const getTranslatedPracticeName = (name: string) => t(getPractice(name).nameKey);
 
@@ -72,10 +46,9 @@ export default function PracticeTab() {
     // Which way the card carousel should travel on the next switch.
     const [direction, setDirection] = useState(1);
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [selectedSongId, setSelectedSongId] = useState('song-1');
+    // Master song structure: null → the chooser pre-step; set once Next is clicked.
+    const [chosenSong, setChosenSong] = useState<ChosenSong | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
-    // The carousel starts open on entering a practice and folds away once a song is picked.
-    const [carouselMinimized, setCarouselMinimized] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Composing Verses (Practice 2) State
@@ -88,7 +61,6 @@ export default function PracticeTab() {
     const [sentences, setSentences] = useState<string[]>(Array(5).fill(''));
 
     const currentMeta = getPractice(selectedPractice);
-    const currentSong = songs.find(s => s.id === selectedSongId) || songs[0];
 
     /**
      * Switching practice from the header. Staying inside a practice only makes
@@ -104,10 +76,10 @@ export default function PracticeTab() {
     };
 
     // Stop playback when moving between practices or back to the overview card,
-    // and open the carousel again for the next run through.
+    // and return to the song chooser for the next run through.
     useEffect(() => {
         setIsPlaying(false);
-        setCarouselMinimized(false);
+        setChosenSong(null);
     }, [selectedPractice, openedPractice]);
 
     // Handle cycling practices
@@ -123,18 +95,6 @@ export default function PracticeTab() {
 
     const handleTogglePlay = () => {
         setIsPlaying(!isPlaying);
-    };
-
-    // Clicking the selected song toggles playback; clicking another switches to it.
-    // Either way the choice is made, so the carousel gets out of the way.
-    const handleSongSelect = (id: string) => {
-        if (id === selectedSongId) {
-            setIsPlaying(prev => !prev);
-        } else {
-            setSelectedSongId(id);
-            setIsPlaying(true);
-        }
-        setCarouselMinimized(true);
     };
 
     const handleWordChange = (type: 'noun' | 'verb', index: number, value: string) => {
@@ -331,65 +291,41 @@ export default function PracticeTab() {
                             transition={{ duration: 0.2, ease: "easeInOut" }}
                             className="w-full"
                         >
-                            {/* Song carousel — collapses to a strip once a song is picked,
-                                so the exercise gets the room. */}
-                            <AnimatePresence mode="wait" initial={false}>
-                                {carouselMinimized ? (
-                                    <motion.div
-                                        key="songs-strip"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        transition={{ duration: 0.15 }}
-                                        className="w-full max-w-6xl mx-auto mb-8"
-                                    >
+                            {/* Pre-step: pick one of ours or bring your own, then Next */}
+                            {!chosenSong ? (
+                                <SongChooser onNext={(choice) => setChosenSong(choice)} />
+                            ) : (
+                                <>
+                                    {/* The chosen song, and the way back to choosing */}
+                                    <div className="w-full max-w-6xl mx-auto mb-8">
                                         <button
-                                            onClick={() => setCarouselMinimized(false)}
+                                            onClick={() => { setIsPlaying(false); setChosenSong(null); }}
                                             aria-label={t('practice.change_song')}
                                             className="flex items-center gap-3 pl-5 pr-4 py-2.5 rounded-full bg-white border border-stone-200 hover:border-stone-400 transition-colors max-w-full"
                                         >
-                                            <span className="text-xs font-sans text-stone-400 shrink-0">
-                                                Song {songs.findIndex(s => s.id === selectedSongId) + 1}
-                                            </span>
                                             <span className="text-sm font-sans font-medium text-stone-900 truncate">
-                                                {currentSong.title}
+                                                {chosenSong.source === 'library' ? chosenSong.song.title : chosenSong.title}
                                             </span>
-                                            <span className="text-sm font-sans text-stone-500 truncate hidden sm:inline">
-                                                {currentSong.artist}
-                                            </span>
+                                            {chosenSong.source === 'library' && (
+                                                <span className="text-sm font-sans text-stone-500 truncate hidden sm:inline">
+                                                    {chosenSong.song.artist}
+                                                </span>
+                                            )}
                                             <ChevronDown size={16} className="stroke-[2] text-stone-400 shrink-0" />
                                         </button>
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        key="songs-carousel"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        transition={{ duration: 0.15 }}
-                                        className="w-full max-w-6xl mx-auto flex gap-4 overflow-x-auto no-scrollbar pb-2 mb-8"
-                                    >
-                                        {songs.map((song, idx) => (
-                                            <div key={song.id} className="w-[130px] shrink-0">
-                                                <SongCard
-                                                    song={song}
-                                                    index={idx}
-                                                    isSelected={selectedSongId === song.id}
-                                                    isPlaying={selectedSongId === song.id && isPlaying}
-                                                    onClick={() => handleSongSelect(song.id)}
-                                                />
-                                            </div>
-                                        ))}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                                    </div>
 
-                            <LyricsPlayer
-                                key={currentSong.id}
-                                song={currentSong}
-                                isPlaying={isPlaying}
-                                onTogglePlay={handleTogglePlay}
-                            />
+                                    <StructurePlayer
+                                        key={chosenSong.source === 'library' ? chosenSong.song.id : chosenSong.audioUrl}
+                                        songId={chosenSong.source === 'library' ? chosenSong.song.id : 'upload'}
+                                        title={chosenSong.source === 'library' ? chosenSong.song.title : chosenSong.title}
+                                        audioUrl={chosenSong.source === 'library' ? chosenSong.song.audioUrl : chosenSong.audioUrl}
+                                        sections={chosenSong.source === 'library' ? chosenSong.song.sections : undefined}
+                                        isPlaying={isPlaying}
+                                        onTogglePlay={handleTogglePlay}
+                                    />
+                                </>
+                            )}
                         </motion.div>
                     )}
 

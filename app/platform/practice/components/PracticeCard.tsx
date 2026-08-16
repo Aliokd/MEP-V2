@@ -2,6 +2,7 @@
 
 import { ArrowRight, Play } from 'lucide-react';
 import Tooltip from '@/components/Tooltip';
+import PracticeIllustration from './PracticeIllustration';
 import type { PracticeDefinition } from '../data/practices';
 
 interface PracticeCardProps {
@@ -67,8 +68,18 @@ export default function PracticeCard({
                 {goal}
             </p>
 
-            {/* Action, bottom right */}
-            <div className="mt-auto pt-10 flex justify-end">
+            {/* Bottom row: the practice's illustration on the left, the action on the
+                right. Unbuilt practices stay bare — the visual arrives with the work. */}
+            <div className="mt-auto pt-10 flex items-end justify-between gap-6">
+                {available ? (
+                    <PracticeIllustration
+                        name={practice.name}
+                        className="w-72 h-72 md:w-96 md:h-96 text-stone-800 opacity-60 shrink-0 -ml-6 -mb-6 select-none"
+                    />
+                ) : (
+                    <span aria-hidden="true" />
+                )}
+
                 {available ? (
                     <button
                         type="button"
@@ -79,7 +90,7 @@ export default function PracticeCard({
                         <ArrowRight size={20} className="stroke-[2]" />
                     </button>
                 ) : (
-                    <span className="px-10 py-5 rounded-full bg-stone-100 text-stone-400 text-lg font-sans select-none">
+                    <span className="px-10 py-5 rounded-full bg-stone-100 text-stone-400 text-lg font-sans select-none shrink-0">
                         {comingSoonLabel}
                     </span>
                 )}

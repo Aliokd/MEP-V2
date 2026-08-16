@@ -78,17 +78,20 @@ export function consumeGuideReplayIntent(): boolean {
     }
 }
 
-/** Clear the flag so the guide plays again — used by the "Demo" option in settings. */
+/**
+ * Play the guide again now — used by the "Demo" option in settings.
+ *
+ * Deliberately local-only. "Replay" means *show it to me now*, not "un-see it
+ * forever": clearing the device cache is enough for this component to run the
+ * guide on arrival, and the account keeps its `guideSeenAt` stamp so the guide
+ * still never returns unbidden at the next login.
+ *
+ * Writing `guideSeenAt: null` here used to race the stamp that PlatformOnboarding
+ * writes when the guide appears (~2s later, after the navigation). If the null
+ * landed second, the account was left un-onboarded and the guide came back on
+ * every login — the exact thing this is all guarding against.
+ */
 export async function resetGuide(uid: string): Promise<void> {
     safeLocalStorageSetItem(localKey(uid), 'false');
     try { sessionStorage.setItem(REPLAY_KEY, 'true'); } catch { /* private mode */ }
-    try {
-        await setDoc(
-            doc(db, 'users', uid),
-            { onboarding: { guideSeenAt: null } },
-            { merge: true }
-        );
-    } catch (err) {
-        console.error('[Guide] Failed to reset guide state:', err);
-    }
 }
