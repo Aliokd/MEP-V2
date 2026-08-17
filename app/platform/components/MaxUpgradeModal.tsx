@@ -74,7 +74,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                 role="dialog"
                 aria-modal="true"
                 aria-label={t('connect.pro.modal_title')}
-                className="bg-white rounded-[24px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full max-h-[90vh] overflow-y-auto p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative"
+                className="bg-white rounded-[24px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full max-h-[90dvh] overflow-y-auto p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button

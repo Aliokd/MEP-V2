@@ -126,7 +126,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
             )}
 
             <div
-                className={`h-viewport fixed inset-y-0 left-0 md:sticky md:top-0 z-50 flex flex-col py-8 select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-y-auto overflow-x-visible no-scrollbar transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
+                className={`h-viewport fixed inset-y-0 left-0 md:sticky md:top-0 z-50 flex flex-col pt-8 pb-[calc(2rem+env(safe-area-inset-bottom))] select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-y-auto overflow-x-visible no-scrollbar overscroll-contain transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
                     isMobileOpen ? 'translate-x-0' : '-translate-x-[110%]'
                 } md:translate-x-0 ${
                     isCollapsed && !isMobile ? 'w-[100px] pl-[10px] pr-0' : 'w-[260px] px-6'
@@ -144,7 +144,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                 {/* Expand icon: appears to the right of the badge, outside the logo, never overlapping */}
                                 <button
                                     onClick={toggleSidebar}
-                                    className="absolute left-full ml-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/logoarea:opacity-100 transition-opacity duration-150 w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 text-stone-700 hover:text-stone-950 shadow-xs shrink-0"
+                                    className="touch-reveal absolute left-full ml-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/logoarea:opacity-100 transition-opacity duration-150 w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 text-stone-700 hover:text-stone-950 shadow-xs shrink-0"
                                     aria-label={t('navigation.expand_sidebar')}
                                 >
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -242,7 +242,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                 ) : (
                                     <button
                                         onClick={toggleSidebar}
-                                        className="opacity-0 group-hover/logoarea:opacity-100 transition-opacity duration-150 w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 text-stone-700 hover:text-stone-950 shadow-xs shrink-0"
+                                        className="touch-reveal opacity-0 group-hover/logoarea:opacity-100 transition-opacity duration-150 w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 text-stone-700 hover:text-stone-950 shadow-xs shrink-0"
                                         aria-label={t('navigation.collapse_sidebar')}
                                     >
                                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

@@ -52,9 +52,17 @@ export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps
                     data-tour="learn-fundamentals"
                     className="group relative text-left w-full min-h-[200px] rounded-[24px] overflow-hidden border border-stone-300/60 transition-all cursor-pointer active:scale-[0.995] shadow-[0_4px_20px_rgba(0,0,0,0.015)]"
                 >
+                    {/* WebP, not the source PNG: these are grainy full-bleed
+                        artworks, which lossless PNG stores terribly (1.8MB for
+                        737x1313). next/image cannot help — images.unoptimized is
+                        on — so the files themselves are the optimisation. */}
                     <img
-                        src="/assets/Learn/fundementals.png"
+                        src="/assets/Learn/fundamentals.webp"
                         alt=""
+                        width={737}
+                        height={1313}
+                        fetchPriority="high"
+                        decoding="async"
                         className="absolute inset-0 w-full h-full object-cover opacity-70 transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                     <div className="relative h-full flex flex-col justify-between p-7 md:p-8">
@@ -73,11 +81,15 @@ export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps
                     button: it shows the countdown but does not navigate anywhere. */}
                 <div
                     aria-disabled="true"
-                    className="relative w-full min-h-[200px] rounded-[24px] overflow-hidden border border-stone-300/60 select-none"
+                    className="group relative w-full min-h-[200px] rounded-[24px] overflow-hidden border border-stone-300/60 select-none"
                 >
                     <img
-                        src="/assets/Learn/Deep%20dive.png"
+                        src="/assets/Learn/deep-dive.webp"
                         alt=""
+                        width={736}
+                        height={1313}
+                        fetchPriority="high"
+                        decoding="async"
                         className="absolute inset-0 w-full h-full object-cover opacity-70"
                     />
                     <div className="relative h-full flex flex-col justify-between p-7 md:p-8">
@@ -85,7 +97,12 @@ export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps
                             <h2 className="text-3xl md:text-4xl font-sans font-medium text-stone-900 leading-tight">
                                 {t('learn.deep_dive')}
                             </h2>
-                            <span className="text-base font-sans text-stone-600">
+                            {/* Reads as plain text until the card is hovered, then
+                                fills in as the brand yellow pill so it is obvious
+                                why nothing happens on click. The negative margin
+                                cancels the padding, so the label keeps its exact
+                                position and only the pill grows around it. */}
+                            <span className="self-start -mx-3 -my-1 px-3 py-1 rounded-full text-base font-sans text-stone-600 bg-transparent group-hover:bg-[#E5FE6C] group-hover:text-stone-950 transition-colors duration-200">
                                 {t('learn.coming_soon')}
                             </span>
                         </div>
@@ -105,8 +122,11 @@ export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps
                 className="group relative text-left w-full flex-1 min-h-[110px] rounded-[24px] overflow-hidden border border-stone-300/60 transition-all cursor-pointer active:scale-[0.995] shadow-[0_4px_20px_rgba(0,0,0,0.015)]"
             >
                 <img
-                    src="/assets/Learn/bank%20of%20tips.png"
+                    src="/assets/Learn/bank-of-tips.webp"
                     alt=""
+                    width={1366}
+                    height={741}
+                    decoding="async"
                     className="absolute inset-0 w-full h-full object-cover opacity-70 transition-transform duration-700 group-hover:scale-[1.03]"
                 />
                 <div className="relative h-full flex items-center justify-between gap-6 px-7 md:px-10">

@@ -4,6 +4,7 @@ import MaestroSidebar from './components/MaestroSidebar';
 import SupportModal from './components/SupportModal';
 import FeedbackModal from './components/FeedbackModal';
 import MindPowerPanel from './components/MindPowerPanel';
+import MindPowerStatus from './components/MindPowerStatus';
 import PlatformOnboarding from './components/PlatformOnboarding';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -25,53 +26,6 @@ import { acknowledgeRemovalNotice } from './create/collabUtils';
  * motion, so cutting over reads as the end of the slide, not an interruption.
  */
 const PROFILE_EXIT_NAV_MS = 200;
-
-// Owns the focus-timer's 1s tick locally so it doesn't force the entire
-// PlatformLayoutInner tree to re-render every second while running.
-function FocusMindPowerPanel(props: Omit<React.ComponentProps<typeof MindPowerPanel>, 'isFocusRunning' | 'focusSeconds' | 'onToggleFocus'>) {
-    const [focusSeconds, setFocusSeconds] = useState(0);
-    const [isFocusRunning, setIsFocusRunning] = useState(false);
-    const focusIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-    useEffect(() => {
-        const storedSeconds = parseInt(localStorage.getItem('mep-focus-timer-seconds') || '0');
-        const storedRunning = localStorage.getItem('mep-focus-timer-running') === 'true';
-        setFocusSeconds(storedSeconds);
-        setIsFocusRunning(storedRunning);
-    }, []);
-
-    useEffect(() => {
-        if (isFocusRunning) {
-            focusIntervalRef.current = setInterval(() => {
-                setFocusSeconds(prev => {
-                    const next = prev + 1;
-                    safeLocalStorageSetItem('mep-focus-timer-seconds', next.toString());
-                    return next;
-                });
-            }, 1000);
-        }
-        return () => {
-            if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
-        };
-    }, [isFocusRunning]);
-
-    const toggleFocusTimer = () => {
-        setIsFocusRunning(prev => {
-            const next = !prev;
-            safeLocalStorageSetItem('mep-focus-timer-running', next.toString());
-            return next;
-        });
-    };
-
-    return (
-        <MindPowerPanel
-            {...props}
-            isFocusRunning={isFocusRunning}
-            focusSeconds={focusSeconds}
-            onToggleFocus={toggleFocusTimer}
-        />
-    );
-}
 
 /**
  * Shown instead of the app when the account has been disabled in Firebase Auth —
@@ -283,24 +237,6 @@ function PlatformLayoutInner({
 
     const visibleRemovalNotice = removalNotices[0] || null;
     const extraRemovalCount = visibleRemovalNotice ? removalNotices.length - 1 : 0;
-
-    // The Mind Power / "Progress saved..." label-swap keeps both strings mounted (for the
-    // slide transform), which by default reserves width for whichever is wider regardless
-    // of which is actually showing. Measure both and size the wrapper to just the active
-    // one instead, so the pill doesn't sit wider than its current content needs.
-    const mobileLabelRef = useRef<HTMLSpanElement>(null);
-    const mobileSavedLabelRef = useRef<HTMLSpanElement>(null);
-    const [mobileLabelWidth, setMobileLabelWidth] = useState<number | undefined>(undefined);
-    const desktopLabelRef = useRef<HTMLSpanElement>(null);
-    const desktopSavedLabelRef = useRef<HTMLSpanElement>(null);
-    const [desktopLabelWidth, setDesktopLabelWidth] = useState<number | undefined>(undefined);
-
-    useEffect(() => {
-        const mobileEl = isQuickGlow ? mobileSavedLabelRef.current : mobileLabelRef.current;
-        const desktopEl = isQuickGlow ? desktopSavedLabelRef.current : desktopLabelRef.current;
-        if (mobileEl) setMobileLabelWidth(mobileEl.scrollWidth);
-        if (desktopEl) setDesktopLabelWidth(desktopEl.scrollWidth);
-    });
 
     const recalculateProgress = () => {
         // Learn: how many lessons checked (no cap)
@@ -702,34 +638,14 @@ function PlatformLayoutInner({
                         <div
                             onClick={() => setShowTooltip(!showTooltip)}
                             data-tour="mind-power"
+                            role="button"
+                            aria-label={t('progress.mind_power_label')}
                             className="relative flex items-center w-full bg-white/50 border border-stone-200/40 px-5 py-3 rounded-[20px] select-none cursor-pointer transition-all active:scale-[0.99] shadow-2xs font-sans text-xs text-stone-500 font-medium normal-case"
                         >
                             {showCollabCelebrate && <div className="collab-join-gradient-fill" />}
                             <div className="relative flex items-center gap-3">
                             <Brain size={16} className="text-stone-600 shrink-0" strokeWidth={1.5} />
-                            {/* Label swaps to "Progress saved" on a Complete, then slides back.
-                                The movement is the point: it pulls the eye to Mind Power so the
-                                canvas action visibly lands somewhere. */}
-                            <span
-                                className="relative block h-5 overflow-hidden shrink-0 leading-5 mr-1 transition-[width] duration-300 ease-out"
-                                style={{ width: mobileLabelWidth }}
-                                aria-live="polite"
-                            >
-                                <span
-                                    ref={mobileLabelRef}
-                                    className="block font-medium text-stone-600 whitespace-nowrap leading-5 transition-transform duration-500 ease-out"
-                                    style={{ transform: isQuickGlow ? 'translateY(-20px)' : 'translateY(0)' }}
-                                >
-                                    {t('progress.mind_power_label')}
-                                </span>
-                                <span
-                                    ref={mobileSavedLabelRef}
-                                    className="block font-medium text-[#5f8f58] whitespace-nowrap leading-5 transition-transform duration-500 ease-out"
-                                    style={{ transform: isQuickGlow ? 'translateY(-20px)' : 'translateY(0)' }}
-                                >
-                                    {t('progress.progress_saved')}
-                                </span>
-                            </span>
+                            <MindPowerStatus t={t} isSaving={isQuickGlow} size="sm" />
                             </div>
                             <div className="flex-1 h-2 bg-stone-200/70 rounded-full overflow-hidden relative">
                                 <div
@@ -743,7 +659,7 @@ function PlatformLayoutInner({
                         {showTooltip && (
                             <div className="absolute top-12 left-1/2 mind-power-panel-enter z-50">
                                 <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#F5F4EE] border-l border-t border-stone-200/70 rotate-45 z-10" />
-                                <FocusMindPowerPanel
+                                <MindPowerPanel
                                     t={t}
                                     progressLevel={progressLevel}
                                     levelProgress={levelProgress}
@@ -787,34 +703,14 @@ function PlatformLayoutInner({
                             <div
                                 onClick={() => setShowTooltip(!showTooltip)}
                                 data-tour="mind-power"
+                                role="button"
+                                aria-label={t('progress.mind_power_label')}
                                 className="relative flex items-center bg-white/50 hover:bg-white/70 border border-stone-200/80 px-6 py-3 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-sm text-stone-650 font-bold normal-case tracking-normal"
                             >
                                 {showCollabCelebrate && <div className="collab-join-gradient-fill" />}
                                 <div className="relative flex items-center gap-3">
                                 <Brain size={19} className="text-stone-600 shrink-0" strokeWidth={1.5} />
-                            {/* Label swaps to "Progress saved" on a Complete, then slides back.
-                                The movement is the point: it pulls the eye to Mind Power so the
-                                canvas action visibly lands somewhere. */}
-                            <span
-                                className="relative block h-5 overflow-hidden shrink-0 leading-5 mr-1 transition-[width] duration-300 ease-out"
-                                style={{ width: desktopLabelWidth }}
-                                aria-live="polite"
-                            >
-                                <span
-                                    ref={desktopLabelRef}
-                                    className="block font-medium text-stone-600 whitespace-nowrap leading-5 transition-transform duration-500 ease-out"
-                                    style={{ transform: isQuickGlow ? 'translateY(-20px)' : 'translateY(0)' }}
-                                >
-                                    {t('progress.mind_power_label')}
-                                </span>
-                                <span
-                                    ref={desktopSavedLabelRef}
-                                    className="block font-medium text-[#5f8f58] whitespace-nowrap leading-5 transition-transform duration-500 ease-out"
-                                    style={{ transform: isQuickGlow ? 'translateY(-20px)' : 'translateY(0)' }}
-                                >
-                                    {t('progress.progress_saved')}
-                                </span>
-                            </span>
+                                <MindPowerStatus t={t} isSaving={isQuickGlow} />
                                 </div>
                                 <div className="w-28 h-2.5 bg-stone-200/70 rounded-full overflow-hidden relative">
                                     <div
@@ -828,7 +724,7 @@ function PlatformLayoutInner({
                             {showTooltip && (
                                 <div className="absolute top-14 left-1/2 mind-power-panel-enter z-50">
                                     <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#F5F4EE] border-l border-t border-stone-200/70 rotate-45 z-10" />
-                                    <FocusMindPowerPanel
+                                    <MindPowerPanel
                                         t={t}
                                         progressLevel={progressLevel}
                                         levelProgress={levelProgress}

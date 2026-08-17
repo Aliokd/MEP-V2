@@ -1817,7 +1817,7 @@ const PhraseRow = React.memo(function PhraseRow({
                                             onTranscribeDocBlock(docId, phrase.id);
                                         }}
                                         aria-label={t('card.extract_text')}
-                                        className="w-9 h-9 rounded-full bg-stone-100 hover:bg-emerald-50 hover:text-emerald-600 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none disabled:opacity-35"
+                                        className="touch-reveal w-9 h-9 rounded-full bg-stone-100 hover:bg-emerald-50 hover:text-emerald-600 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none disabled:opacity-35"
                                     >
                                         {transcribingDocId === phrase.id.replace('p-docheader-', '') ? (
                                             <div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -1838,7 +1838,7 @@ const PhraseRow = React.memo(function PhraseRow({
                                             onDeleteDocBlock(docId, phrase.id);
                                         }}
                                         aria-label={t('card.delete_document_block')}
-                                        className="w-9 h-9 rounded-full bg-stone-100 hover:bg-red-50 hover:text-red-500 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none"
+                                        className="touch-reveal w-9 h-9 rounded-full bg-stone-100 hover:bg-red-50 hover:text-red-500 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none"
                                     >
                                         <Trash2 size={13} />
                                     </button>
@@ -14947,7 +14947,7 @@ export default function CreatePage() {
                                             <>
                                                 <div className="fixed inset-0 z-[59]" onClick={() => setActiveTrackDropdownId(null)} />
                                                 <div
-                                                    className="fixed w-[min(320px,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto no-scrollbar bg-white border border-stone-200/80 rounded-[36px] shadow-[0_15px_50px_rgba(0,0,0,0.12)] p-6 z-[60] animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col gap-3.5 pointer-events-auto"
+                                                    className="fixed w-[min(320px,calc(100vw-2rem))] max-h-[70dvh] overflow-y-auto no-scrollbar bg-white border border-stone-200/80 rounded-[36px] shadow-[0_15px_50px_rgba(0,0,0,0.12)] p-6 z-[60] animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col gap-3.5 pointer-events-auto"
                                                     style={{ top: trackDropdownAnchor.top, left: trackDropdownAnchor.left }}
                                                 >
                                                 {(() => {
@@ -15644,7 +15644,7 @@ export default function CreatePage() {
                         onClick={() => setShowWiredHeadphonesBanner(false)}
                     >
                         <div
-                            className="bg-[#DCDDD4] rounded-[32px] border border-stone-300/20 shadow-[0_25px_60px_rgba(0,0,0,0.18)] w-[92vw] sm:w-[90vw] max-w-[1400px] pt-2 pb-3 px-6 sm:pt-2.5 sm:pb-4 sm:px-8 md:pt-3 md:pb-4 md:px-10 flex flex-col gap-1.5 md:gap-2 animate-in zoom-in-95 duration-200 ease-out origin-center relative h-[90vh] max-h-[90vh] overflow-visible text-left text-stone-850 select-text"
+                            className="bg-[#DCDDD4] rounded-[32px] border border-stone-300/20 shadow-[0_25px_60px_rgba(0,0,0,0.18)] w-[92vw] sm:w-[90vw] max-w-[1400px] pt-2 pb-3 px-6 sm:pt-2.5 sm:pb-4 sm:px-8 md:pt-3 md:pb-4 md:px-10 flex flex-col gap-1.5 md:gap-2 animate-in zoom-in-95 duration-200 ease-out origin-center relative h-[90dvh] max-h-[90dvh] overflow-visible text-left text-stone-850 select-text"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Top Section: Side-by-Side Layout */}
@@ -16864,7 +16864,7 @@ export default function CreatePage() {
                     <div 
                         className={`bg-[#E5E4DE] flex flex-col overflow-hidden transition-all duration-300 ease-out relative z-10 ${
                             showStudioLyrics 
-                                ? 'w-[300px] opacity-100 p-8 md:p-10 pr-6 border-t border-b border-l border-stone-200/80 border-r border-[#D2D1C9] rounded-l-[24px] sm:rounded-l-[36px] md:rounded-l-[45px]' 
+                                ? 'w-[min(300px,75vw)] opacity-100 p-5 sm:p-8 md:p-10 pr-6 border-t border-b border-l border-stone-200/80 border-r border-[#D2D1C9] rounded-l-[24px] sm:rounded-l-[36px] md:rounded-l-[45px]' 
                                 : 'w-0 opacity-0 p-0 border-t-transparent border-b-transparent border-l-transparent border-r-transparent pointer-events-none'
                         }`}
                     >
@@ -17126,7 +17126,7 @@ export default function CreatePage() {
                 </span>
                 <span className="text-[12px] text-stone-400">{count}</span>
 
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <div className="touch-reveal flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                     <Tooltip label={t('workspace.rename_folder')}>
                         <button
                             onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id); }}
@@ -17173,7 +17173,7 @@ export default function CreatePage() {
                     {folder.name}
                     <span className="text-[12px] text-stone-400 font-normal">{count}</span>
                 </span>
-                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                <div className="touch-reveal flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
                     <Tooltip label={t('workspace.rename_folder')}>
                         <button
                             onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id); }}
@@ -17260,7 +17260,7 @@ export default function CreatePage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <div className="touch-reveal flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                     <Tooltip label={t('workspace.duplicate_note')}>
                         <button
                             onClick={(e) => handleDuplicateNote(note.id, e)}
@@ -17312,7 +17312,7 @@ export default function CreatePage() {
                     {collabBadge(note)}
                 </span>
 
-                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                <div className="touch-reveal flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
                     <Tooltip label={t('workspace.duplicate_note')}>
                         <button
                             onClick={(e) => handleDuplicateNote(note.id, e)}
@@ -19243,7 +19243,7 @@ export default function CreatePage() {
                                             setIsFocused(false);
                                             setTimeout(updateScrollbarInfo, 50);
                                         }}
-                                        className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[34px] lg:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[60vh] md:max-h-[70vh] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
+                                        className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[34px] lg:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[60dvh] md:max-h-[70dvh] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
                                         placeholder=""
                                         style={{ 
                                             height: 'auto',
@@ -19615,10 +19615,12 @@ export default function CreatePage() {
                                 // No background and no backdrop-blur: the empty state's whole
                                 // point is the artwork, so the toolbar's own white pill buttons
                                 // float directly over it rather than behind a panel or a haze.
-                                ? "px-2 md:px-8 mt-auto pb-2 md:pb-8 sticky bottom-0"
+                                // pb uses max(...) so notched iPhones (env safe-area) get extra
+                                // clearance above the home indicator when the bar is pinned.
+                                ? "px-2 md:px-8 mt-auto pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-8 sticky bottom-0"
                                 // Extra breathing room on a written-in canvas: the toolbar sits
                                 // right against the card's bottom edge otherwise.
-                                : "transition-all duration-300 px-2 md:px-8 mt-auto pb-8 md:pb-12 sticky bottom-0 bg-white/90 backdrop-blur-md"
+                                : "transition-all duration-300 px-2 md:px-8 mt-auto pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] md:pb-12 sticky bottom-0 bg-white/90 backdrop-blur-md"
                     }`}
                     style={(isMobile && (editingPhraseId !== null || isFocused)) ? {
                         bottom: 'auto',
@@ -20205,7 +20207,7 @@ export default function CreatePage() {
                             <div
                                 className={`fixed z-[70] bg-white border border-stone-200/80 shadow-[0_20px_60px_rgba(0,0,0,0.12)] flex flex-col animate-in duration-200 rounded-[24px] ${
                                     isMobile
-                                        ? 'left-3 right-3 fade-in slide-in-from-bottom-4 max-h-[60vh]'
+                                        ? 'left-3 right-3 fade-in slide-in-from-bottom-4 max-h-[60dvh]'
                                         : 'w-[380px] fade-in slide-in-from-top-2'
                                 }`}
                                 style={isMobile
@@ -20241,7 +20243,7 @@ export default function CreatePage() {
                                                 <p className="text-[13.5px] text-stone-700 leading-relaxed whitespace-pre-wrap break-words mt-0.5">
                                                     {c.text}
                                                 </p>
-                                                <div className="flex items-center gap-3 mt-1.5 opacity-0 group-hover/comment:opacity-100 transition-opacity">
+                                                <div className="touch-reveal flex items-center gap-3 mt-1.5 opacity-0 group-hover/comment:opacity-100 transition-opacity">
                                                     <button
                                                         type="button"
                                                         onClick={() => handleResolveComment(c.id)}
@@ -20318,7 +20320,7 @@ export default function CreatePage() {
                 >
                     <form
                         onSubmit={handleInviteCollaborator}
-                        className="bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-8 animate-in zoom-in-95 duration-200 relative max-h-[90vh] overflow-y-auto no-scrollbar"
+                        className="bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-8 animate-in zoom-in-95 duration-200 relative max-h-[90dvh] overflow-y-auto no-scrollbar"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h3 className="text-3xl md:text-[38px] leading-[1.25] font-sans font-light text-stone-600 tracking-[-0.035em]">
@@ -20783,7 +20785,7 @@ export default function CreatePage() {
                      <img 
                          src={previewImageUrl} 
                          alt="Preview" 
-                         className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200"
+                         className="max-w-full max-h-[90dvh] object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200"
                          onClick={(e) => e.stopPropagation()}
                      />
                  </div>,
@@ -20797,7 +20799,7 @@ export default function CreatePage() {
                     onClick={() => setIsStudioInfoOpen(false)}
                 >
                     <div 
-                        className="bg-white rounded-[28px] border border-stone-200/80 shadow-[0_25px_60px_rgba(0,0,0,0.15)] max-w-[480px] w-full p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative max-h-[90vh] overflow-y-auto no-scrollbar text-left"
+                        className="bg-white rounded-[28px] border border-stone-200/80 shadow-[0_25px_60px_rgba(0,0,0,0.15)] max-w-[480px] w-full p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative max-h-[90dvh] overflow-y-auto no-scrollbar text-left"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Close button X */}

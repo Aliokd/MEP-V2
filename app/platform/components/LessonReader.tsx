@@ -22,6 +22,9 @@ interface FlatLesson {
 
 interface LessonReaderProps {
     chapters: ReaderChapter[];
+    /** True while the curriculum is still being fetched, so an empty
+     *  `chapters` means "not here yet" rather than "there is nothing". */
+    isLoading?: boolean;
     onComplete: (lessonId: string) => void;
     onBackToLanding: () => void;
     onOpenDeepDive: () => void;
@@ -30,6 +33,7 @@ interface LessonReaderProps {
 
 export default function LessonReader({
     chapters,
+    isLoading = false,
     onComplete,
     onBackToLanding,
     onOpenDeepDive,
@@ -67,6 +71,18 @@ export default function LessonReader({
         if (!atStart) setIndex(i => i - 1);
     };
 
+    if (!currentLesson && isLoading) {
+        return (
+            <div className="w-full flex-1 min-h-0 flex flex-col gap-4 animate-pulse">
+                <div className="shrink-0 h-6 w-52 bg-stone-300/25 rounded-full" />
+                <div className="flex-1 min-h-0 flex flex-col gap-6">
+                    <div className="h-9 w-2/3 max-w-md bg-stone-300/25 rounded-full" />
+                    <div className="flex-1 min-h-[200px] bg-stone-300/20 rounded-[20px]" />
+                </div>
+            </div>
+        );
+    }
+
     if (!currentLesson) {
         return (
             <div className="w-full mb-20 flex flex-col items-center justify-center py-24 gap-4 text-stone-500">
@@ -83,17 +99,26 @@ export default function LessonReader({
 
     return (
         <div className="w-full flex-1 min-h-0 flex flex-col gap-4">
-            {/* Same treatment as the Practice section's back control, so leaving a
-                lesson looks the same as leaving a practice. */}
-            <button
-                onClick={onBackToLanding}
-                className="shrink-0 self-start flex items-center gap-2 text-sm font-sans text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
-            >
-                <ArrowLeft size={16} className="stroke-[2]" />
-                {t('learn.back')}
-            </button>
+            {/* The chapter name sits beside the arrow rather than inside the
+                content, so it reads as where-you-are and frees the body for the
+                lesson itself. */}
+            <div className="shrink-0 flex items-center gap-3 select-none">
+                <button
+                    onClick={onBackToLanding}
+                    aria-label={t('learn.back')}
+                    title={t('learn.back')}
+                    className="text-stone-500 hover:text-stone-900 transition-colors cursor-pointer shrink-0"
+                >
+                    <ArrowLeft size={18} className="stroke-[2]" />
+                </button>
+                <h2 className="text-base md:text-lg font-sans font-medium text-stone-700 truncate">
+                    {currentLesson.chapterTitle}
+                </h2>
+            </div>
 
-            <div className="w-full flex-1 min-h-0 bg-[#FAF9F5] border border-stone-300/85 rounded-[20px] p-8 flex flex-col gap-8 shadow-[0_4px_20px_rgba(0,0,0,0.015)]">
+            {/* No card around the lesson — the content sits straight on the panel
+                so the video and notes get the full width and height. */}
+            <div className="w-full flex-1 min-h-0 flex flex-col gap-8">
                 {isFinished ? (
                     <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center gap-8 px-4">
                         <div className="flex flex-col gap-2">
@@ -137,10 +162,8 @@ export default function LessonReader({
                     </div>
                 ) : (
                 <>
-                <div className="shrink-0 flex flex-col gap-1">
-                    <span className="text-sm text-stone-400 font-sans">{currentLesson.chapterTitle}</span>
-                    <h1 className="text-3xl font-sans font-light text-stone-900">{currentLesson.title}</h1>
-                </div>
+                {/* Chapter name lives in the header now, so only the lesson title here. */}
+                <h1 className="shrink-0 text-3xl font-sans font-light text-stone-900">{currentLesson.title}</h1>
 
                 {/* Video and notes scroll together inside the card so the Back/Next
                     controls stay pinned on screen no matter how long the summary is. */}

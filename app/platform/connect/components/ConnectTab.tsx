@@ -1121,7 +1121,7 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.96 }}
         transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-        className="w-full max-w-3xl bg-[#FAF9F5] border border-stone-255/20 rounded-[28px] overflow-hidden flex flex-col shadow-2xl h-[85vh]"
+        className="w-full max-w-3xl bg-[#FAF9F5] border border-stone-255/20 rounded-[28px] overflow-hidden flex flex-col shadow-2xl h-[85dvh]"
       >
         {/* Modal Header */}
         <div className="px-8 py-5 border-b border-stone-200/40 flex justify-between items-center bg-white shrink-0">
@@ -2030,7 +2030,7 @@ export default function ConnectTab() {
                 {/* Fades in gently on hover. Both lines come from the user's own
                     record — the specialty is their onboarding answer, so a user
                     who skipped the quiz shows only the join date. */}
-                <div className="opacity-0 group-hover:opacity-100 mt-2 transition-opacity duration-350 pointer-events-none flex flex-col gap-0.5 text-sm text-stone-400 font-sans">
+                <div className="touch-reveal opacity-0 group-hover:opacity-100 mt-2 transition-opacity duration-350 pointer-events-none flex flex-col gap-0.5 text-sm text-stone-400 font-sans">
                   {specialty && <div className="leading-snug">{specialty}</div>}
                   {sw.createdAt > 0 && (
                     <div className="leading-snug">

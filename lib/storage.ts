@@ -73,8 +73,13 @@ const ACCOUNT_SCOPED_KEYS = [
     'mep-tour-create-seen',
     'mep_studio_info_banner_shown',
     // Session-ish account state
-    'mep-focus-timer-seconds',
+    'mep-focus-timer-duration',
+    'mep-focus-timer-ends-at',
+    'mep-focus-timer-remaining',
     'mep-focus-timer-running',
+    // Superseded by the countdown keys above; still purged so an old count-up value
+    // left on a shared browser can't outlive the account that created it.
+    'mep-focus-timer-seconds',
     'veinote-inspiration-answers',
     'mep-connect-posts-v4',
 ];

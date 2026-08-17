@@ -46,6 +46,11 @@ export default function Tooltip({ label, children, side = 'top', disabled = fals
     }, [side]);
 
     const open = useCallback((el: HTMLElement) => {
+        // Touch-primary devices get no tooltips at all. There, a tap fires the same
+        // mouseenter/focus events that open one — but nothing ever fires to close it,
+        // so it lingers over the UI until the next tap lands somewhere else. Native
+        // `title` hints don't show on touch either; suppressing is the platform norm.
+        if (typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches) return;
         setPos(computePosition(el));
         setIsOpen(true);
     }, [computePosition]);

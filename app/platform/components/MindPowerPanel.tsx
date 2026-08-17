@@ -1,5 +1,13 @@
 "use client";
-import { Brain, Play, Pause } from 'lucide-react';
+import { Brain, Play, Pause, RotateCcw } from 'lucide-react';
+import {
+    useFocusTimer,
+    toggleFocusTimer,
+    resetFocusTimer,
+    setFocusDuration,
+    formatFocusTime,
+    FOCUS_PRESET_MINUTES,
+} from '@/lib/focusTimer';
 
 interface MindPowerPanelProps {
     t: (key: string) => string;
@@ -16,15 +24,77 @@ interface MindPowerPanelProps {
     communityCount: number;
     communityGoal: number;
     activeQuote: string;
-    isFocusRunning: boolean;
-    focusSeconds: number;
-    onToggleFocus: () => void;
 }
 
-function formatTimer(totalSeconds: number) {
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+/**
+ * Kept as its own component so the countdown's per-second tick re-renders this row
+ * alone, leaving the rest of the panel (rings, brain, quote) untouched.
+ */
+function FocusTimerRow({ t }: { t: (key: string) => string }) {
+    const { durationSeconds, remainingSeconds, isRunning, isComplete, isPristine } = useFocusTimer();
+
+    return (
+        <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-stone-700">{t('progress.focus_timer')}</span>
+
+                <div className="flex items-center gap-2">
+                    {/* Reset is only meaningful once some of the clock has been used. */}
+                    {!isPristine && (
+                        <button
+                            onClick={resetFocusTimer}
+                            className="text-stone-400 hover:text-stone-700 transition-colors cursor-pointer p-1"
+                            aria-label={t('progress.focus_reset')}
+                            title={t('progress.focus_reset')}
+                        >
+                            <RotateCcw size={14} strokeWidth={1.5} />
+                        </button>
+                    )}
+                    <button
+                        onClick={toggleFocusTimer}
+                        className="flex items-center gap-2.5 text-stone-800 hover:text-stone-950 transition-colors cursor-pointer"
+                        aria-label={isRunning ? t('progress.focus_pause') : t('progress.focus_start')}
+                    >
+                        {isRunning ? <Pause size={16} strokeWidth={1.5} /> : <Play size={16} strokeWidth={1.5} />}
+                        <span
+                            className={`text-lg font-semibold tabular-nums ${
+                                isComplete ? 'text-[#3f6a3a]' : 'text-stone-800'
+                            }`}
+                        >
+                            {formatFocusTime(remainingSeconds)}
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            {isComplete && (
+                <p className="text-[11px] text-[#3f6a3a] font-medium">{t('progress.focus_done')}</p>
+            )}
+
+            {/* Length is only choosable from a clean clock — changing it mid-session
+                would silently throw away the time already put in. */}
+            {isPristine && (
+                <div className="flex items-center gap-1.5">
+                    {FOCUS_PRESET_MINUTES.map(minutes => {
+                        const selected = durationSeconds === minutes * 60;
+                        return (
+                            <button
+                                key={minutes}
+                                onClick={() => setFocusDuration(minutes)}
+                                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
+                                    selected
+                                        ? 'bg-stone-900 text-[#F5F4EE]'
+                                        : 'bg-stone-900/5 text-stone-500 hover:bg-stone-900/10'
+                                }`}
+                            >
+                                {minutes} {t('progress.focus_min')}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
 }
 
 function ProgressRing({ percent, size = 44, strokeWidth = 4 }: { percent: number; size?: number; strokeWidth?: number }) {
@@ -65,9 +135,6 @@ export default function MindPowerPanel({
     communityCount,
     communityGoal,
     activeQuote,
-    isFocusRunning,
-    focusSeconds,
-    onToggleFocus,
 }: MindPowerPanelProps) {
     return (
         <div className="w-80 bg-[#F5F4EE] rounded-[24px] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.14)] border border-stone-200/70 flex flex-col gap-5 normal-case text-stone-800">
@@ -94,16 +161,7 @@ export default function MindPowerPanel({
             <div className="h-px bg-stone-200/70 w-full" />
 
             {/* Focus timer */}
-            <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-stone-700">{t('progress.focus_timer')}</span>
-                <button
-                    onClick={onToggleFocus}
-                    className="flex items-center gap-2.5 text-stone-800 hover:text-stone-950 transition-colors cursor-pointer"
-                >
-                    {isFocusRunning ? <Pause size={16} strokeWidth={1.5} /> : <Play size={16} strokeWidth={1.5} />}
-                    <span className="text-lg font-semibold tabular-nums">{formatTimer(focusSeconds)}</span>
-                </button>
-            </div>
+            <FocusTimerRow t={t} />
 
             <div className="h-px bg-stone-200/70 w-full" />
 

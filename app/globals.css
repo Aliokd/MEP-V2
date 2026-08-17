@@ -42,6 +42,28 @@
     h6 {
         @apply font-sans tracking-tight;
     }
+
+    /* Mobile-browser polish, applied globally:
+       - tap-highlight: kills the gray/blue flash mobile WebKit/Blink paint over any
+         tapped element — every control here already has its own pressed styling
+         (active:scale etc.), so the OS flash just reads as jank on top of it.
+       - text-size-adjust: stops iOS/Android inflating text on orientation change.
+       - touch-action manipulation on interactive elements: removes the double-tap-zoom
+         wait, so taps fire immediately (double-tap zoom on a button is never wanted). */
+    html {
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+    button,
+    [role="button"],
+    a,
+    input,
+    select,
+    textarea,
+    label {
+        touch-action: manipulation;
+    }
 }
 
 @layer components {
@@ -476,6 +498,18 @@ input:-webkit-autofill:active {
 .h-viewport {
     height: 100vh;
     height: 100dvh;
+}
+
+/* Controls that reveal on hover (opacity-0 group-hover:opacity-100) are invisible on
+   touch devices — there is no hover to trigger them, so on phones and iPads the
+   affordance either needs a blind first tap or simply can't be found. Marking those
+   elements with .touch-reveal keeps the desktop hover choreography but shows them
+   outright wherever no hover pointer exists. !important is required to outrank the
+   opacity-0 utility that hides them at rest. */
+@media (hover: none) {
+    .touch-reveal {
+        opacity: 1 !important;
+    }
 }
 
 .mind-power-glow-ring {

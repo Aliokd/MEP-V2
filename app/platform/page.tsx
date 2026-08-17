@@ -1,8 +1,5 @@
 "use client";
 import { safeLocalStorageSetItem } from '@/lib/storage';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getUserConstellation, ConstellationData } from '@/app/actions/lesson-actions';
@@ -17,7 +14,6 @@ import DeepDive from './components/DeepDive';
 export default function PlatformPage() {
     const { user, loading: authLoading } = useAuth();
     const { t, language } = useLanguage();
-    const router = useRouter();
     const [data, setData] = useState<ConstellationData | null>(null);
     const [view, setView] = useState<'landing' | 'reader' | 'ideas' | 'deepDive'>('landing');
     const [cms, setCms] = useState<(LearnChapter & { lessons: LearnLesson[] })[] | null>(null);
@@ -82,19 +78,6 @@ export default function PlatformPage() {
         }
     }, [data]);
 
-    const translateCurriculum = (title: string): string => {
-        if (!title) return title;
-        const normalizedKey = title
-            .toLowerCase()
-            .replace(/\bthe\s+/g, '') // remove "the " prefix
-            .replace(/[^a-z0-9_]/g, ' ')
-            .trim()
-            .replace(/\s+/g, '_');
-        const translationKey = `curriculum.${normalizedKey}`;
-        const translated = t(translationKey);
-        return translated === translationKey ? title : translated;
-    };
-
     const chapters = useMemo(() => {
         // CMS content wins when there is any, and it is already localized —
         // no need for the title-matching translation lookup below.
@@ -119,6 +102,24 @@ export default function PlatformPage() {
 
         if (!data) return [];
 
+        // Data Connect titles are authored in English and go through the
+        // curriculum translation table. This lives inside the memo rather than in
+        // the component body on purpose: as a body-level function it was rebuilt
+        // every render, the memo's declared deps could not match the inferred
+        // ones, and React Compiler bailed out of optimising this entire page.
+        const translateCurriculum = (title: string): string => {
+            if (!title) return title;
+            const normalizedKey = title
+                .toLowerCase()
+                .replace(/\bthe\s+/g, '') // remove "the " prefix
+                .replace(/[^a-z0-9_]/g, ' ')
+                .trim()
+                .replace(/\s+/g, '_');
+            const translationKey = `curriculum.${normalizedKey}`;
+            const translated = t(translationKey);
+            return translated === translationKey ? title : translated;
+        };
+
         return data.movements.map(m => {
             const chapterLessons = data.lessonsList.filter(l =>
                 l.movement?.title === m.title ||
@@ -136,7 +137,12 @@ export default function PlatformPage() {
         });
     }, [cms, data, language, t]);
 
-    if (authLoading || !data) return (
+    // Only auth gates the section. The landing needs neither the CMS curriculum
+    // nor the Data Connect progress, so making it wait on `data` held the whole
+    // of Learn behind a skeleton for the length of a server-action round trip —
+    // up to the 5s fallback timeout above — every single visit. The curriculum
+    // keeps loading in the background and is awaited only where it is used.
+    if (authLoading) return (
         <div className="w-full max-w-6xl mx-auto mt-0 mb-20 flex flex-col gap-4 animate-pulse">
             {[...Array(3)].map((_, i) => (
                 <div 
@@ -162,18 +168,15 @@ export default function PlatformPage() {
     );
 
 
-    const handleLogout = async () => {
-        try {
-            await signOut(auth);
-            router.push('/');
-        } catch (error) {
-            console.error("Logout error:", error);
-        }
-    };
-
     const handleComplete = (lessonId: string) => {
         setData(prev => {
-            if (!prev) return prev;
+            // The reader can now open before the constellation lands, so record
+            // the completion against a fresh shell rather than dropping it.
+            if (!prev) return {
+                user: { id: user.uid, lessonProgress: [{ lessonId, status: 'MASTERED' as const }] },
+                lessonsList: [],
+                movements: [],
+            };
             const updatedProgress = [...prev.user.lessonProgress];
             const existingIndex = updatedProgress.findIndex(p => p.lessonId === lessonId);
             if (existingIndex >= 0) {
@@ -199,6 +202,9 @@ export default function PlatformPage() {
             {view === 'reader' && (
                 <LessonReader
                     chapters={chapters}
+                    // Distinguishes "still fetching" from "genuinely no lessons",
+                    // now that the reader can open before either source has landed.
+                    isLoading={cms === null || (cms.length === 0 && !data)}
                     onComplete={handleComplete}
                     onBackToLanding={() => setView('landing')}
                     onOpenDeepDive={() => setView('deepDive')}

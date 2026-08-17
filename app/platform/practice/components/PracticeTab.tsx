@@ -174,12 +174,14 @@ export default function PracticeTab() {
  
                     {/* Active Title + Dropdown Selector */}
                     <div ref={dropdownRef} className="relative">
-                        <button 
+                        {/* Fixed width, sized for the longest practice title, so the
+                            arrows either side never move when the title changes. */}
+                        <button
                             onClick={() => setDropdownOpen(!dropdownOpen)}
-                            className="flex items-center gap-2.5 bg-white hover:bg-stone-50 border border-stone-200/80 text-stone-900 font-serif text-xl md:text-2xl font-normal tracking-wide py-2.5 px-7 rounded-full transition-colors"
+                            className="flex items-center justify-center gap-2.5 w-[min(76vw,430px)] bg-white hover:bg-stone-50 border border-stone-200/80 text-stone-900 font-serif text-xl md:text-2xl font-normal tracking-wide py-2.5 px-6 rounded-full transition-colors"
                         >
-                            <span>{getTranslatedPracticeName(selectedPractice)}</span>
-                            <ChevronDown size={16} className={`stroke-[2.2] transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
+                            <span className="truncate">{getTranslatedPracticeName(selectedPractice)}</span>
+                            <ChevronDown size={16} className={`shrink-0 stroke-[2.2] transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
  
                         {/* Dropdown Menu — the wrapper owns the horizontal centering, because
