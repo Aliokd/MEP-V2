@@ -147,6 +147,8 @@ import { fitToFirestore } from '@/lib/projectPayload';
 // only needs the shape it stores.
 import { type ChordMark } from '@/lib/chords';
 import ChordCard, { PlacedChordCard } from './components/ChordCard';
+import TipCapsuleCard from './components/TipCapsuleCard';
+import { hasPendingCanvasTip, takePendingCanvasTip, type CanvasTip } from '@/lib/canvasTips';
 import WordChordSection from './components/WordChordSection';
 import PublishDialog, { type PublishSplit } from './components/PublishDialog';
 import Tooltip from '@/components/Tooltip';
@@ -599,6 +601,9 @@ interface SongNote {
      *  taking a slot in the flow. Unattached chords carry wordIndex -1 and render
      *  as a loose card waiting to be dragged onto a word. */
     chords?: ChordMark[];
+    /** Tips sent over from Learn > Bank of tips. Like images and documents, each
+     *  one occupies a line of its own through a `p-tip-…` placeholder phrase. */
+    tips?: CanvasTip[];
 }
 
 
@@ -1792,7 +1797,7 @@ const PhraseRow = React.memo(function PhraseRow({
                             </div>
                             
                             <div className="flex flex-col text-left">
-                                <span className="text-[14.5px] font-semibold text-stone-850 font-sans leading-tight">
+                                <span className="text-[14.5px] font-semibold text-stone-800 font-sans leading-tight">
                                     {phrase.text}
                                 </span>
                                 <span className="text-[11px] font-sans text-stone-400 font-medium">
@@ -3949,6 +3954,12 @@ export default function CreatePage() {
     const [projectViewStyle, setProjectViewStyle] = useState<'grid' | 'list'>('list');
     const [projectSortOption, setProjectSortOption] = useState<'date_desc' | 'date_asc' | 'az' | 'za'>('date_desc');
     const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
+    /** The project search folded down to an icon. Opening reveals the field on its
+     *  own row under the tabs; closing CLEARS the query too â€” a filter that stays
+     *  active behind a closed box invisibly hides projects, which reads as data
+     *  loss, not as a filter. */
+    const [isProjectSearchOpen, setIsProjectSearchOpen] = useState(false);
+    const closeProjectSearch = () => { setIsProjectSearchOpen(false); setSearchQuery(''); };
     const workspaceMenuBtnRef = useRef<HTMLButtonElement | null>(null);
     /** How tall the workspace menu may be, measured against the room actually below
      *  the button when it opens. A fixed cap cannot do this job: the row sits
@@ -4311,6 +4322,7 @@ export default function CreatePage() {
     const [draggedAudioId, setDraggedAudioId] = useState<string | null>(null);
     const [draggedImageId, setDraggedImageId] = useState<string | null>(null);
     const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
+    const [draggedTipId, setDraggedTipId] = useState<string | null>(null);
     const [touchGhostPos, setTouchGhostPos] = useState<{ x: number; y: number } | null>(null);
     const [touchGhostLabel, setTouchGhostLabel] = useState<string>('');
     // Bottom edge of the visually-visible viewport, in layout pixels (accounts for both the
@@ -4364,6 +4376,7 @@ export default function CreatePage() {
     const draggedAudioIdRef = useRef<string | null>(null);
     const draggedImageIdRef = useRef<string | null>(null);
     const draggedDocIdRef = useRef<string | null>(null);
+    const draggedTipIdRef = useRef<string | null>(null);
     const groupTouchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const groupIsTouchDraggingRef = useRef(false);
     const groupStartXRef = useRef(0);
@@ -5088,15 +5101,9 @@ export default function CreatePage() {
         savedTuningRef.current = savedTuning;
     }, [savedTuning]);
 
-    /** How many consecutive unanimous samples settle a reading. At the tuner's 50ms update
-     *  interval this is ~400ms of one steady note ON TOP of the 8 samples its history window
-     *  already needs to agree — roughly a second of held string, which a plucked note gives
-     *  easily and a passing noise does not. */
-    const TUNER_SETTLE_SAMPLES = 8;
-    const tunerSettleCountRef = useRef(0);
     // The smoothed values as of the latest sample. State can't be read back inside the tuner
-    // callback (its setters are async and the mirror refs lag a render), and locking a reading
-    // has to record exactly the numbers that just settled.
+    // callback (its setters are async and the mirror refs lag a render), so smoothing runs
+    // against these and the state mirrors them for the dial.
     const tunerSmoothFreqRef = useRef<number | null>(null);
     const tunerSmoothCentsRef = useRef(0);
 
@@ -5571,6 +5578,15 @@ export default function CreatePage() {
                                             type: d.type || 'other',
                                             size: d.size || 0,
                                             phraseId: d.phraseId || null
+                                        })),
+                                        tips: (cachedNote.tips || []).map((tp: CanvasTip) => ({
+                                            id: tp.id,
+                                            sourceId: tp.sourceId || '',
+                                            title: tp.title || '',
+                                            description: tp.description || '',
+                                            whyItHelps: tp.whyItHelps || '',
+                                            example: tp.example || '',
+                                            phraseId: tp.phraseId || null
                                         })),
                                         updatedAt: new Date().toISOString()
                                     }, { merge: true }).catch(console.error);
@@ -7458,25 +7474,10 @@ export default function CreatePage() {
         return { noteName, centsValue };
     };
 
-    /** Records a settled reading and releases the microphone. The tuner listens until it is
-     *  sure of a note, then holds that answer — it does not sit there re-reading the string
-     *  forever. Tuning again is an explicit click on the hub. */
-    const lockTuningReading = (reading: { note: string; freq: number; cents: number }) => {
-        const now = new Date();
-        setSavedTuning({
-            note: reading.note,
-            freq: reading.freq,
-            cents: reading.cents,
-            timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-        stopTunerMic();
-    };
-
     const startTunerMic = async () => {
         try {
             stopReferenceTone();
             tunerNoteHistoryRef.current = [];
-            tunerSettleCountRef.current = 0;
             tunerSmoothFreqRef.current = null;
             tunerSmoothCentsRef.current = 0;
 
@@ -7542,21 +7543,12 @@ export default function CreatePage() {
                     setTunerNote(nextNote);
                     setTunerCents(nextCents);
 
-                    // Settle: the history window must be full AND unanimous, then hold that
-                    // for a further TUNER_SETTLE_SAMPLES. Anything less — a note still
-                    // wavering, a knock, a neighbouring string ringing — resets the count.
-                    const isSettling =
-                        history.length >= 8 &&
-                        history.every(n => n === maxNote) &&
-                        nextNote !== '--' &&
-                        nextFreq > 0;
-
-                    tunerSettleCountRef.current = isSettling ? tunerSettleCountRef.current + 1 : 0;
-
-                    if (tunerSettleCountRef.current >= TUNER_SETTLE_SAMPLES) {
-                        tunerSettleCountRef.current = 0;
-                        lockTuningReading({ note: nextNote, freq: nextFreq, cents: nextCents });
-                    }
+                    // No auto-stop on a steady reading. This used to lock the first note
+                    // that held for ~a second and RELEASE THE MICROPHONE — but the string
+                    // that settles is usually settling out of tune, and the very next thing
+                    // the writer does is turn the peg and pluck again, now against a dead
+                    // dial. Tuning is continuous feedback; the tuner listens until the
+                    // panel closes or the hub is clicked, both of which save the reading.
                 },
                 updateInterval: 50,
                 clarityThreshold: 0.85
@@ -7585,6 +7577,12 @@ export default function CreatePage() {
             } catch (err) {
                 console.error("Error stopping Chordbook tuner:", err);
             }
+            // createTuner builds a fresh AudioContext every call and its stop() never
+            // closes it — only the interval and the mic tracks. Left open, every
+            // start/stop cycle leaks a running context for the life of the tab.
+            try {
+                chordbookTunerRef.current.context?.close();
+            } catch (err) { /* already closed is fine */ }
             chordbookTunerRef.current = null;
         }
         setTunerActive(false);
@@ -9953,6 +9951,17 @@ export default function CreatePage() {
                             wordIndex: typeof c.wordIndex === 'number' ? c.wordIndex : -1,
                             placed: !!c.placed,
                         })),
+                        // Explicitly mapped for the same reason as chords: Firestore
+                        // rejects `undefined`, and whyItHelps/example are optional.
+                        tips: (updatedNote.tips || []).map((tp: CanvasTip) => ({
+                            id: tp.id,
+                            sourceId: tp.sourceId || '',
+                            title: tp.title || '',
+                            description: tp.description || '',
+                            whyItHelps: tp.whyItHelps || '',
+                            example: tp.example || '',
+                            phraseId: tp.phraseId || null,
+                        })),
                         updatedAt: new Date().toISOString()
                     };
 
@@ -10341,6 +10350,23 @@ export default function CreatePage() {
         setBlockDropPosition(null);
     };
 
+    const handleTipDragStart = (e: React.DragEvent, tipId: string) => {
+        e.stopPropagation();
+        e.dataTransfer.setData('text/tip-id', tipId);
+        setDraggedTipId(tipId);
+        draggedTipIdRef.current = tipId;
+    };
+
+    const handleTipDragEnd = () => {
+        setDraggedTipId(null);
+        draggedTipIdRef.current = null;
+        setDragOverPhraseId(null);
+        setDropPosition(null);
+        setDragOverGroupId(null);
+        setDragOverBlockId(null);
+        setBlockDropPosition(null);
+    };
+
     const handleDocDragStart = (e: React.DragEvent, docId: string) => {
         e.stopPropagation();
         e.dataTransfer.setData('text/document-id', docId);
@@ -10510,6 +10536,99 @@ export default function CreatePage() {
     };
 
     // Move an image card to sit as its own line between lyric lines (mirrors handlePlaceAudioAsLineAt)
+    /**
+     * Places a tip sent over from Learn > Bank of tips.
+     *
+     * The hand-off is only *consumed* once there is a canvas to place it on —
+     * peeking first — so a tip is never taken out of storage without landing
+     * somewhere. With no project open at all, one is created and this runs again
+     * on the next render once it exists.
+     */
+    const pendingTipRun = useRef({ placed: false, askedForNote: false });
+    useEffect(() => {
+        if (!isDataLoaded) return;
+        const run = pendingTipRun.current;
+        if (run.placed) return;
+        if (!hasPendingCanvasTip(user?.uid)) return;
+
+        if (!activeNote) {
+            if (run.askedForNote) return;
+            run.askedForNote = true;
+            handleCreateNote();
+            return;
+        }
+        if (isCanvasReadOnly) return;
+
+        const tip = takePendingCanvasTip(user?.uid);
+        run.placed = true;
+        if (!tip) return;
+
+        const dedicatedPhraseId = `p-tip-${tip.id}`;
+        const appendedPhrases = [...(activeNote.phrases || []), { id: dedicatedPhraseId, text: '', groupId: null }];
+        const finalPhrases = cleanupAndEnsurePlaceholders(appendedPhrases, activeNote.verses || []);
+
+        handleUpdateNote(activeNote.id, {
+            tips: [...(activeNote.tips || []), { ...tip, phraseId: dedicatedPhraseId }],
+            phrases: finalPhrases,
+            content: finalPhrases.map(p => p.text).join('\n'),
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isDataLoaded, activeNote, user, isCanvasReadOnly]);
+
+    /** Same re-placement path as an image: pull the tip's placeholder out of the
+     *  flow and splice it back in at the drop point. */
+    const handlePlaceTipAsLineAt = (tipId: string, targetPhraseId: string, position: 'top' | 'bottom') => {
+        setDraggedTipId(null);
+        draggedTipIdRef.current = null;
+        setDragOverPhraseId(null);
+        setDropPosition(null);
+        setDragOverGroupId(null);
+        setDragOverBlockId(null);
+        setBlockDropPosition(null);
+
+        if (!selectedNoteId) return;
+        const targetNote = notesRef.current.find(n => n.id === selectedNoteId);
+        if (!targetNote) return;
+
+        const tips = targetNote.tips || [];
+        if (!tips.some(tp => tp.id === tipId)) return;
+
+        const dedicatedPhraseId = `p-tip-${tipId}`;
+        const currentPhrases = targetNote.phrases || [];
+        const updatedPhrases = currentPhrases.filter(p => p.id !== dedicatedPhraseId);
+
+        const newTargetIdx = updatedPhrases.findIndex(p => p.id === targetPhraseId);
+        if (newTargetIdx === -1) return;
+
+        const targetGroupId = updatedPhrases[newTargetIdx].groupId;
+        const spliceIdx = position === 'top' ? newTargetIdx : newTargetIdx + 1;
+        updatedPhrases.splice(spliceIdx, 0, { id: dedicatedPhraseId, text: '', groupId: targetGroupId });
+
+        const finalPhrases = cleanupAndEnsurePlaceholders(updatedPhrases, targetNote.verses || []);
+
+        handleUpdateNote(selectedNoteId, {
+            tips: tips.map(tp => tp.id === tipId ? { ...tp, phraseId: dedicatedPhraseId } : tp),
+            phrases: finalPhrases,
+            content: finalPhrases.map(p => p.text).join('\n'),
+        });
+    };
+
+    /** Delete a tip card and remove its in-flow placeholder phrase. */
+    const handleDeleteTip = (tipId: string) => {
+        if (!selectedNoteId) return;
+        const targetNote = notesRef.current.find(n => n.id === selectedNoteId);
+        if (!targetNote) return;
+
+        const filteredPhrases = (targetNote.phrases || []).filter(p => p.id !== `p-tip-${tipId}`);
+        const finalPhrases = cleanupAndEnsurePlaceholders(filteredPhrases, targetNote.verses || []);
+
+        handleUpdateNote(selectedNoteId, {
+            tips: (targetNote.tips || []).filter(tp => tp.id !== tipId),
+            phrases: finalPhrases,
+            content: finalPhrases.map(p => p.text).join('\n'),
+        });
+    };
+
     const handlePlaceImageAsLineAt = (imageId: string, targetPhraseId: string, position: 'top' | 'bottom') => {
         setDraggedImageId(null);
         draggedImageIdRef.current = null;
@@ -13046,6 +13165,13 @@ export default function CreatePage() {
         }
         return map;
     }, [activeNote?.documents]);
+    const tipByPhraseIdMap = useMemo(() => {
+        const map: Record<string, CanvasTip> = {};
+        for (const tip of (activeNote?.tips || [])) {
+            if (tip.phraseId) map[tip.phraseId] = tip;
+        }
+        return map;
+    }, [activeNote?.tips]);
 
     const renderBlocks = useMemo(() => getRenderBlocks(activePhrases, activeVerses), [activePhrases, activeVerses]);
 
@@ -13058,10 +13184,11 @@ export default function CreatePage() {
     };
 
     // A phrase id that is really an inline card placeholder rather than a lyric line
-    const flowCardKind = (id: string): 'image' | 'doc' | 'chord' | null => {
+    const flowCardKind = (id: string): 'image' | 'doc' | 'chord' | 'tip' | null => {
         if (id.startsWith('p-image-')) return 'image';
         if (id.startsWith('p-docblock-')) return 'doc';
         if (id.startsWith('p-chord-')) return 'chord';
+        if (id.startsWith('p-tip-')) return 'tip';
         return null;
     };
 
@@ -13092,7 +13219,7 @@ export default function CreatePage() {
         const onCardDragOver = (e: React.DragEvent) => {
             if (isCanvasReadOnly) return;
             const dt = e.dataTransfer.types;
-            const relevant = dt.includes('text/audio-note-id') || dt.includes('text/image-id') || dt.includes('text/document-id') || dt.includes('text/chord-id') || dt.includes('text/plain');
+            const relevant = dt.includes('text/audio-note-id') || dt.includes('text/image-id') || dt.includes('text/document-id') || dt.includes('text/chord-id') || dt.includes('text/tip-id') || dt.includes('text/plain');
             if (!relevant) return;
             e.preventDefault();
             e.stopPropagation();
@@ -13111,12 +13238,14 @@ export default function CreatePage() {
             const documentId = e.dataTransfer.getData('text/document-id') || draggedDocIdRef.current || draggedDocId;
             const audioNoteId = e.dataTransfer.getData('text/audio-note-id') || draggedAudioIdRef.current || draggedAudioId;
             const chordId = e.dataTransfer.getData('text/chord-id') || draggedChordIdRef.current || draggedChordId;
+            const tipId = e.dataTransfer.getData('text/tip-id') || draggedTipIdRef.current || draggedTipId;
             const phraseDraggedId = e.dataTransfer.getData('text/plain') || draggedPhraseIdRef.current || draggedPhraseId;
 
             if (imageId) handlePlaceImageAsLineAt(imageId, phrase.id, pos);
             else if (documentId) handlePlaceDocAsLineAt(documentId, phrase.id, pos);
             else if (audioNoteId) handlePlaceAudioAsLineAt(audioNoteId, phrase.id, pos);
             else if (chordId) handlePlaceChordCardAsLineAt(chordId, phrase.id, pos);
+            else if (tipId) handlePlaceTipAsLineAt(tipId, phrase.id, pos);
             else if (phraseDraggedId && phraseDraggedId !== phrase.id) handleInsertPhraseAt(phraseDraggedId, phrase.id, pos);
 
             setDragOverPhraseId(null);
@@ -13210,6 +13339,19 @@ export default function CreatePage() {
                             isScanning={scanningImageId === img.id}
                             onDragStart={isCanvasReadOnly ? undefined : (e) => handleImageDragStart(e, img.id)}
                             onDragEnd={handleImageDragEnd}
+                        />
+                    );
+                })() : kind === 'tip' ? (() => {
+                    const tip = tipByPhraseIdMap[phrase.id];
+                    if (!tip) return null;
+                    return (
+                        <TipCapsuleCard
+                            tip={tip}
+                            whyLabel={t('learn.ideas_why_label')}
+                            deleteLabel={t('card.delete_tip')}
+                            onDelete={() => handleDeleteTip(tip.id)}
+                            onDragStart={isCanvasReadOnly ? undefined : (e) => handleTipDragStart(e, tip.id)}
+                            onDragEnd={handleTipDragEnd}
                         />
                     );
                 })() : (() => {
@@ -14967,7 +15109,7 @@ export default function CreatePage() {
                                                                 className={`w-full h-14 flex items-center justify-between pl-6 relative overflow-hidden rounded-full group cursor-pointer border active:scale-[0.98] transition-all ${
                                                                     isSelected 
                                                                         ? 'bg-[#F9F8F6] border-transparent hover:bg-[#F3F1ED]' 
-                                                                        : 'bg-white border-stone-250 hover:bg-stone-50/50'
+                                                                        : 'bg-white border-stone-200 hover:bg-stone-50/50'
                                                                 }`}
                                                             >
                                                                 <span className={`text-[16px] tracking-wide select-none transition-colors whitespace-nowrap ${
@@ -15010,7 +15152,7 @@ export default function CreatePage() {
                                                                 className={`w-full h-14 flex items-center justify-between pl-6 relative overflow-hidden rounded-full group cursor-pointer border active:scale-[0.98] transition-all ${
                                                                     isCustomSelected 
                                                                         ? 'bg-[#F9F8F6] border-transparent hover:bg-[#F3F1ED]' 
-                                                                        : 'bg-white border-stone-250 hover:bg-stone-50/50'
+                                                                        : 'bg-white border-stone-200 hover:bg-stone-50/50'
                                                                 }`}
                                                             >
                                                                 <span className={`text-[16px] tracking-wide select-none transition-colors whitespace-nowrap ${
@@ -15204,7 +15346,7 @@ export default function CreatePage() {
                                                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] ${
                                                         track.muted
                                                             ? 'bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600'
-                                                            : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750'
+                                                            : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-700'
                                                     }`}
                                                     type="button"
                                                 >
@@ -15224,8 +15366,8 @@ export default function CreatePage() {
                                                 aria-label={t('studio.track_options')}
                                                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] focus:outline-none outline-none ${
                                                     activeTrackMenuId === track.id
-                                                        ? 'bg-stone-200 text-stone-750'
-                                                        : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-750'
+                                                        ? 'bg-stone-200 text-stone-700'
+                                                        : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-700'
                                                 }`}
                                                 type="button"
                                             >
@@ -15320,7 +15462,7 @@ export default function CreatePage() {
                                         ? 'w-[310px] pl-1 pr-2.5 justify-start gap-1.5 bg-white border-stone-200 text-stone-700 shadow-[0_4px_12px_rgba(0,0,0,0.08)]'
                                         : isStudioMetronomeOn
                                             ? 'w-[155px] px-4 justify-center gap-2 bg-white border-stone-200 text-stone-700 shadow-[0_4px_12px_rgba(0,0,0,0.08)] active:scale-98'
-                                            : 'w-[110px] pl-3.5 pr-3.5 justify-center gap-1.5 bg-stone-100/70 border-stone-250/20 text-stone-700/80 active:scale-98'
+                                            : 'w-[110px] pl-3.5 pr-3.5 justify-center gap-1.5 bg-stone-100/70 border-stone-200/20 text-stone-700/80 active:scale-98'
                                 }`}
                             >
                                 {(isMetronomeHovered && !isStudioMetronomeOn) ? (
@@ -15332,7 +15474,7 @@ export default function CreatePage() {
                                                     e.stopPropagation();
                                                     handleToggleStudioMetronome();
                                                 }}
-                                                className="h-8 bg-stone-900 hover:bg-stone-850 text-white text-[11px] font-bold px-3 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+                                                className="h-8 bg-stone-900 hover:bg-stone-800 text-white text-[11px] font-bold px-3 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
                                                 type="button"
                                             >
                                                 {t('studio.play_metronome')}
@@ -15346,7 +15488,7 @@ export default function CreatePage() {
                                                     setShowToolsPanel(true);
                                                     handleTapTempo(e);
                                                 }}
-                                                className="h-8 bg-white border border-stone-250/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-2.5 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+                                                className="h-8 bg-white border border-stone-200/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-2.5 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
                                                 type="button"
                                             >
                                                 Tap tempo &rarr;
@@ -15406,7 +15548,7 @@ export default function CreatePage() {
                                 } ${
                                     (tunerActive ? (tunerNote && tunerNote !== '--') : (savedTuning && savedTuning.note && savedTuning.note !== '--'))
                                         ? 'bg-white border-stone-200 text-stone-700 shadow-[0_4px_12px_rgba(0,0,0,0.08)]' 
-                                        : 'bg-stone-100/70 border-stone-250/20 text-stone-700/80'
+                                        : 'bg-stone-100/70 border-stone-200/20 text-stone-700/80'
                                 }`}
                             >
                                 {isTunerHovered && (
@@ -15416,7 +15558,7 @@ export default function CreatePage() {
                                             setActiveToolTab('tuner');
                                             setShowToolsPanel(true);
                                         }}
-                                        className="h-8 bg-white border border-stone-250/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-3 rounded-full flex items-center gap-1 transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+                                        className="h-8 bg-white border border-stone-200/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-3 rounded-full flex items-center gap-1 transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
                                         type="button"
                                     >
                                         {t('creative.guitar_tuning')} &rarr;
@@ -15440,7 +15582,7 @@ export default function CreatePage() {
                                     className={`w-10 h-10 border rounded-full flex items-center justify-center select-none shrink-0 transition-all duration-300 ease-in-out cursor-pointer active:scale-[0.98]
                                         ${isDirectMonitorEnabled
                                             ? 'bg-white border-stone-200 text-emerald-500 shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:bg-stone-50'
-                                            : 'bg-stone-100/70 border-stone-250/20 text-stone-500 hover:bg-stone-100'
+                                            : 'bg-stone-100/70 border-stone-200/20 text-stone-500 hover:bg-stone-100'
                                         }
                                     `}
                                 >
@@ -15450,7 +15592,7 @@ export default function CreatePage() {
                         </div>
 
                         {/* Right side: Timeline Seeker Capsule containing the actual time ruler */}
-                        <div className="flex-grow flex items-center relative h-10 rounded-full bg-stone-100/70 border border-stone-250/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                        <div className="flex-grow flex items-center relative h-10 rounded-full bg-stone-100/70 border border-stone-200/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
                             {/* Time Ruler with tick lines inside capsule (inline flex layout) */}
                             <div 
                                 className="w-full h-full flex justify-between items-center px-4 relative cursor-ew-resize select-none"
@@ -15644,7 +15786,7 @@ export default function CreatePage() {
                         onClick={() => setShowWiredHeadphonesBanner(false)}
                     >
                         <div
-                            className="bg-[#DCDDD4] rounded-[32px] border border-stone-300/20 shadow-[0_25px_60px_rgba(0,0,0,0.18)] w-[92vw] sm:w-[90vw] max-w-[1400px] pt-2 pb-3 px-6 sm:pt-2.5 sm:pb-4 sm:px-8 md:pt-3 md:pb-4 md:px-10 flex flex-col gap-1.5 md:gap-2 animate-in zoom-in-95 duration-200 ease-out origin-center relative h-[90dvh] max-h-[90dvh] overflow-visible text-left text-stone-850 select-text"
+                            className="bg-[#DCDDD4] rounded-[32px] border border-stone-300/20 shadow-[0_25px_60px_rgba(0,0,0,0.18)] w-[92vw] sm:w-[90vw] max-w-[1400px] pt-2 pb-3 px-6 sm:pt-2.5 sm:pb-4 sm:px-8 md:pt-3 md:pb-4 md:px-10 flex flex-col gap-1.5 md:gap-2 animate-in zoom-in-95 duration-200 ease-out origin-center relative h-[90dvh] max-h-[90dvh] overflow-visible text-left text-stone-800 select-text"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Top Section: Side-by-Side Layout */}
@@ -15675,7 +15817,7 @@ export default function CreatePage() {
                                         {/* Left Column: Before You Record */}
                                         <div className="flex flex-col gap-6">
                                             <div className="flex flex-col gap-1.5">
-                                                <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-850 tracking-tight">
+                                                <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-800 tracking-tight">
                                                     {t('studio_banner.before_you_record')}
                                                 </h4>
                                                 <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed">
@@ -15781,7 +15923,7 @@ export default function CreatePage() {
                                             {/* Recommended Setup */}
                                             <div className="flex flex-col gap-3">
                                                 <div className="flex flex-col gap-1.5">
-                                                    <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-850 tracking-tight">
+                                                    <h4 className="text-[16px] sm:text-[17px] font-sans font-bold text-stone-800 tracking-tight">
                                                         {t('studio_banner.recommended_setup')}
                                                     </h4>
                                                     <p className="text-[12.5px] text-stone-600 font-normal leading-relaxed">
@@ -15850,9 +15992,9 @@ export default function CreatePage() {
 
                 {isExporting && createPortal(
                     <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-md z-[110] flex items-center justify-center animate-in fade-in duration-200">
-                        <div className="bg-[#DCDDD4] rounded-3xl p-6 flex flex-col items-center gap-4 shadow-xl border border-stone-250/20 max-w-[280px]">
+                        <div className="bg-[#DCDDD4] rounded-3xl p-6 flex flex-col items-center gap-4 shadow-xl border border-stone-200/20 max-w-[280px]">
                             <Loader2 className="w-10 h-10 text-[#87b884] animate-spin" />
-                            <p className="text-stone-850 text-[14.5px] font-sans font-medium text-center leading-relaxed">
+                            <p className="text-stone-800 text-[14.5px] font-sans font-medium text-center leading-relaxed">
                                 Exporting project bundle, please wait...
                             </p>
                         </div>
@@ -17121,7 +17263,7 @@ export default function CreatePage() {
                     strokeWidth={1.2}
                     className={`transition-colors ${isDropTarget ? 'text-stone-600' : 'text-stone-300 group-hover:text-stone-400'}`}
                 />
-                <span className="w-full text-center font-sans text-[14px] text-stone-600 group-hover:text-stone-850 truncate transition-colors">
+                <span className="w-full text-center font-sans text-[14px] text-stone-600 group-hover:text-stone-800 truncate transition-colors">
                     {folder.name}
                 </span>
                 <span className="text-[12px] text-stone-400">{count}</span>
@@ -17131,7 +17273,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id); }}
                             aria-label={t('workspace.rename_folder')}
-                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
+                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-400 cursor-pointer"
                         >
                             <Pencil size={13} />
                         </button>
@@ -17140,7 +17282,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDeleteFolder(folder.id, e)}
                             aria-label={t('workspace.delete_folder_title')}
-                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
+                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-400 cursor-pointer"
                         >
                             <Trash2 size={13} />
                         </button>
@@ -17168,7 +17310,7 @@ export default function CreatePage() {
                         : 'bg-white/40 border-stone-200/70 hover:bg-white/70 hover:border-stone-300'
                 }`}
             >
-                <span className="font-sans text-[14px] text-stone-600 group-hover:text-stone-850 truncate flex items-center gap-2 transition-colors">
+                <span className="font-sans text-[14px] text-stone-600 group-hover:text-stone-800 truncate flex items-center gap-2 transition-colors">
                     <Folder size={15} strokeWidth={1.6} className="text-stone-400 shrink-0" />
                     {folder.name}
                     <span className="text-[12px] text-stone-400 font-normal">{count}</span>
@@ -17178,7 +17320,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id); }}
                             aria-label={t('workspace.rename_folder')}
-                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
+                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-400 cursor-pointer"
                         >
                             <Pencil size={13} />
                         </button>
@@ -17187,7 +17329,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDeleteFolder(folder.id, e)}
                             aria-label={t('workspace.delete_folder_title')}
-                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
+                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-400 cursor-pointer"
                         >
                             <Trash2 size={13} />
                         </button>
@@ -17228,7 +17370,7 @@ export default function CreatePage() {
             >
                 {/* Title — a locked project carries the same lime marker as the canvas,
                     so the state is recognisable before opening it. */}
-                <span className={`w-full text-center font-sans text-[14px] transition-colors truncate flex items-center justify-center gap-1.5 ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-850'}`}>
+                <span className={`w-full text-center font-sans text-[14px] transition-colors truncate flex items-center justify-center gap-1.5 ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-800'}`}>
                     {isLocked && (
                         <Lock size={12} className="text-stone-500 shrink-0" strokeWidth={2} aria-label={t('collab.locked')} />
                     )}
@@ -17265,7 +17407,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDuplicateNote(note.id, e)}
                             aria-label={t('workspace.duplicate_note')}
-                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
+                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-400 cursor-pointer"
                         >
                             <Copy size={13} />
                         </button>
@@ -17274,7 +17416,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDeleteNote(note.id, e)}
                             aria-label={t('workspace.delete_note')}
-                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
+                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-400 cursor-pointer"
                         >
                             <Trash2 size={13} />
                         </button>
@@ -17304,7 +17446,7 @@ export default function CreatePage() {
             >
                 {/* Same lime outline and lock glyph the canvas uses, so the state reads
                     identically in both places. */}
-                <span className={`font-sans text-[14px] transition-colors truncate flex items-center gap-1.5 ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-850'}`}>
+                <span className={`font-sans text-[14px] transition-colors truncate flex items-center gap-1.5 ${isSelected ? 'font-semibold text-stone-900' : 'text-stone-600 group-hover:text-stone-800'}`}>
                     {isLocked && (
                         <Lock size={12} className="text-stone-500 shrink-0" strokeWidth={2} aria-label={t('collab.locked')} />
                     )}
@@ -17317,7 +17459,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDuplicateNote(note.id, e)}
                             aria-label={t('workspace.duplicate_note')}
-                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-405 cursor-pointer"
+                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-400 cursor-pointer"
                         >
                             <Copy size={13} />
                         </button>
@@ -17326,7 +17468,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDeleteNote(note.id, e)}
                             aria-label={t('workspace.delete_note')}
-                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-655 transition-all text-stone-405 cursor-pointer"
+                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-400 cursor-pointer"
                         >
                             <Trash2 size={13} />
                         </button>
@@ -18589,7 +18731,7 @@ export default function CreatePage() {
                                                                                     setEditingGroupId(block.groupId);
                                                                                     setRenameGroupName(block.groupName || '');
                                                                                 }}
-                                                                                className="w-0 overflow-hidden opacity-0 group-hover/badge:w-4 group-hover/badge:opacity-100 transition-all duration-300 hover:text-stone-850 text-stone-400 hover:scale-110 active:scale-95 cursor-pointer flex items-center justify-center shrink-0 pointer-events-auto p-0 bg-transparent border-none outline-none"
+                                                                                className="w-0 overflow-hidden opacity-0 group-hover/badge:w-4 group-hover/badge:opacity-100 transition-all duration-300 hover:text-stone-800 text-stone-400 hover:scale-110 active:scale-95 cursor-pointer flex items-center justify-center shrink-0 pointer-events-auto p-0 bg-transparent border-none outline-none"
                                                                                 aria-label="Rename region"
                                                                             >
                                                                                 <Pencil size={11} className="stroke-[2.5]" />
@@ -19934,23 +20076,19 @@ export default function CreatePage() {
             {/* 2. DIRECTORY GRID AREA (Bottom Section) */}
             <div className="space-y-8 mt-1.5 px-4 md:px-0">
                 
-                {/* Header Controls. Left to right: which projects, then finding one,
-                    then how they are ordered and drawn, then everything else. The scope
-                    tabs lead because they say what you are looking at — that used to be
-                    a heading on its own line underneath, which spent a whole row
-                    restating what the selected tab already said. */}
-                <div className="flex items-center gap-3 w-full py-1.5 md:py-2 mb-4">
+                {/* Header Controls. The scope tabs sit centred â€” they say what you are
+                    looking at, and the middle is where a heading reads from. Everything
+                    else is two quiet icons on the right: search folded down to a button
+                    (writers scan the shelf far more often than they search it), and the
+                    menu. The grid's outer columns are equal, so the tabs sit on the true
+                    centreline rather than centred in the leftover space. */}
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center w-full py-1.5 md:py-2 mb-4">
+                    <div aria-hidden="true" />
+
                     {/* Personal / collab is a filter, not a place. It used to be two
                         accordions, which split one shelf in half and made a folder mean
                         something different on each side. */}
-                    {/* basis, not a fixed width: the group asks for 420px and gets it when
-                        the row is wide, and gives ground to the search field when it is
-                        not. No min-w-0 on purpose — flexbox then refuses to shrink it past
-                        its own labels, so the tabs get narrower but never squash the text.
-                        h-[48px] is explicit because the height used to come from the
-                        content, and the border would otherwise have pushed the group to
-                        50px and knocked it out of line with the controls beside it. */}
-                    <div className="flex items-center gap-1 h-[48px] bg-stone-100/70 border border-stone-200/60 p-1 rounded-[16px] basis-[420px] max-w-[46%] select-none">
+                    <div className="flex items-center gap-1 h-[52px] bg-stone-100/70 border border-stone-200/60 p-1 rounded-full select-none min-w-0">
                         {([
                             ['all', t('workspace.all_projects')],
                             ['personal', t('workspace.filter_personal')],
@@ -19960,7 +20098,7 @@ export default function CreatePage() {
                                 key={value}
                                 type="button"
                                 onClick={() => setProjectScopeFilter(value)}
-                                className={`flex-1 h-[40px] px-4 rounded-[12px] text-[14px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                                className={`h-[44px] px-6 rounded-full text-[15px] font-medium whitespace-nowrap transition-all cursor-pointer ${
                                     projectScopeFilter === value
                                         ? 'bg-white text-stone-800 shadow-2xs'
                                         : 'text-stone-500 hover:text-stone-800'
@@ -19968,31 +20106,35 @@ export default function CreatePage() {
                             >
                                 {label}
                                 {value === 'collab' && collabCount > 0 && (
-                                    <span className="ml-1.5 font-normal opacity-60">{collabCount}</span>
+                                    <span className="ml-1.5 opacity-60">{collabCount}</span>
                                 )}
                             </button>
                         ))}
                     </div>
 
-                    {/* Search Field */}
-                    <div className="flex items-center gap-3 bg-stone-50/40 hover:bg-stone-50/70 border border-stone-200 px-4 h-[48px] rounded-[16px] text-stone-750 flex-1 min-w-0 focus-within:bg-white focus-within:border-stone-400/80 transition-all duration-300 shadow-3xs">
-                        <Search size={16} className="text-stone-500 shrink-0" />
-                        <input
-                            type="text"
-                            placeholder={t('workspace.search_placeholder') || 'Search projects...'}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={handleSearchKeyDown}
-                            className="bg-transparent border-none outline-none w-full text-[13.5px] font-sans placeholder:text-stone-400 font-medium text-stone-800 focus:ring-0 focus:outline-none"
-                        />
-                    </div>
+                    <div className="flex items-center gap-3 justify-self-end">
+                        {/* Search, folded to an icon. Stays lit while the field is open or
+                            a query is live, so a filtered shelf is never a mystery. */}
+                        <Tooltip label={t('workspace.search_placeholder') || 'Search projects...'} disabled={isProjectSearchOpen}>
+                        <button
+                            type="button"
+                            onClick={() => (isProjectSearchOpen ? closeProjectSearch() : setIsProjectSearchOpen(true))}
+                            aria-label={t('workspace.search_placeholder') || 'Search projects...'}
+                            aria-expanded={isProjectSearchOpen}
+                            className={`w-[48px] h-[48px] flex items-center justify-center border rounded-[16px] transition-all cursor-pointer select-none active:scale-95 ${
+                                isProjectSearchOpen || searchQuery.trim() !== ''
+                                    ? 'bg-white border-stone-400/80 text-stone-800'
+                                    : 'bg-stone-100/70 hover:bg-stone-200/60 border-stone-200/60 text-stone-600 hover:text-stone-900'
+                            }`}
+                        >
+                            <Search size={17} />
+                        </button>
+                        </Tooltip>
 
-                    {/* One menu for everything that isn’t choosing a scope or typing a
-                        search: how the shelf is ordered, how it is drawn, and what folders
-                        exist. Sorting and the layout toggle each had their own control on
-                        this row — both are set once and then left alone for weeks, which is
-                        a poor trade for two permanent slots beside the search field. */}
-                    <div className="relative shrink-0">
+                        {/* One menu for everything that isnâ€™t choosing a scope or typing a
+                            search: how the shelf is ordered, how it is drawn, and what
+                            folders exist. */}
+                        <div className="relative shrink-0">
                         <Tooltip label={t('workspace.more_actions')} disabled={isWorkspaceMenuOpen}>
                         <button
                             type="button"
@@ -20117,7 +20259,36 @@ export default function CreatePage() {
                             </>
                         )}
                     </div>
+                    </div>
                 </div>
+
+                {/* The search field, revealed under the tabs and above the shelf it
+                    filters. autoFocus because the only reason it is open is to type. */}
+                {isProjectSearchOpen && (
+                    <div className="flex items-center gap-3 bg-white border border-stone-300 px-4 h-[48px] rounded-[16px] text-stone-700 w-full mb-4 shadow-3xs animate-in fade-in slide-in-from-top-2 duration-200">
+                        <Search size={16} className="text-stone-500 shrink-0" />
+                        <input
+                            autoFocus
+                            type="text"
+                            placeholder={t('workspace.search_placeholder') || 'Search projects...'}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Escape') { e.preventDefault(); closeProjectSearch(); return; }
+                                handleSearchKeyDown(e);
+                            }}
+                            className="bg-transparent border-none outline-none w-full text-[14px] font-sans placeholder:text-stone-400 font-medium text-stone-800 focus:ring-0 focus:outline-none"
+                        />
+                        <button
+                            type="button"
+                            onClick={closeProjectSearch}
+                            aria-label={t('common.cancel') || 'Close'}
+                            className="w-8 h-8 -mr-1 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer shrink-0"
+                        >
+                            <X size={15} strokeWidth={2.4} />
+                        </button>
+                    </div>
+                )}
 
                 {/* Only inside a folder. At the root this row read "All projects" directly
                     under a tab already reading "All projects" — the way back out is the
@@ -20386,7 +20557,7 @@ export default function CreatePage() {
                                 <button
                                     type="submit"
                                     disabled={isInviting || (!invitePick && !isEmailAddress(inviteEmail))}
-                                    className="px-8 py-3 bg-stone-900 hover:bg-stone-850 text-white rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                                    className="px-8 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     {isInviting ? t('collab.inviting') : t('collab.invite')}
                                 </button>
@@ -20635,7 +20806,7 @@ export default function CreatePage() {
                                         confirmOverwriteStudioRecord.onConfirm();
                                     }
                                 }}
-                                className="w-full py-3 bg-red-500 hover:bg-red-655 text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95 text-center"
+                                className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95 text-center"
                             >
                                 {t('studio.record_again')}
                             </button>
@@ -20681,13 +20852,13 @@ export default function CreatePage() {
                             {/* Title */}
                             <div className="flex flex-col">
                                 <span className="text-[13px] font-sans font-medium text-stone-500">Title</span>
-                                <span className="text-[15px] font-sans font-semibold text-stone-850 mt-0.5">{activeNote?.title || 'Untitled Project'}</span>
+                                <span className="text-[15px] font-sans font-semibold text-stone-800 mt-0.5">{activeNote?.title || 'Untitled Project'}</span>
                             </div>
 
                             {/* Modified Date */}
                             <div className="flex flex-col">
                                 <span className="text-[13px] font-sans font-medium text-stone-500">Last Modified</span>
-                                <span className="text-[15px] font-sans font-semibold text-stone-850 mt-0.5">
+                                <span className="text-[15px] font-sans font-semibold text-stone-800 mt-0.5">
                                     {(() => {
                                         if (!activeNote?.updatedAt) return 'N/A';
                                         const d = new Date(activeNote.updatedAt);
@@ -20699,7 +20870,7 @@ export default function CreatePage() {
                              {/* Owner */}
                              <div className="flex flex-col">
                                  <span className="text-[13px] font-sans font-medium text-stone-500">Owner / Responsible</span>
-                                 <span className="text-[15px] font-sans font-semibold text-stone-850 mt-0.5">
+                                 <span className="text-[15px] font-sans font-semibold text-stone-800 mt-0.5">
                                      {(() => {
                                          try {
                                              return activeNote?.ownerId === user?.uid ? 'You' : ((collaboratorProfiles || {})[activeNote?.ownerId || '']?.name || 'Owner');
@@ -20713,7 +20884,7 @@ export default function CreatePage() {
                              {/* Collaborators */}
                              <div className="flex flex-col">
                                  <span className="text-[13px] font-sans font-medium text-stone-500">Collaborators</span>
-                                 <span className="text-[15px] font-sans font-semibold text-stone-850 mt-0.5">
+                                 <span className="text-[15px] font-sans font-semibold text-stone-800 mt-0.5">
                                      {(() => {
                                          try {
                                              const collabList = collaborators || [];
@@ -20742,7 +20913,7 @@ export default function CreatePage() {
                                      <button 
                                          type="button"
                                          onClick={handleDetectLocation}
-                                         className="h-[40px] px-4 bg-stone-900/10 hover:bg-stone-900/15 active:bg-stone-900/25 text-stone-750 hover:text-stone-850 rounded-xl transition-all flex items-center justify-center font-sans font-medium text-[13px] border border-stone-400/20 cursor-pointer select-none"
+                                         className="h-[40px] px-4 bg-stone-900/10 hover:bg-stone-900/15 active:bg-stone-900/25 text-stone-700 hover:text-stone-800 rounded-xl transition-all flex items-center justify-center font-sans font-medium text-[13px] border border-stone-400/20 cursor-pointer select-none"
                                      >
                                          Locate Me
                                      </button>
@@ -20754,7 +20925,7 @@ export default function CreatePage() {
                          <div className="flex justify-end items-center gap-3 pt-3 border-t border-stone-400/10">
                              <button
                                  onClick={() => setShowDetailsModal(false)}
-                                 className="px-5 py-2.5 rounded-full text-stone-600 hover:text-stone-850 text-[14px] font-sans font-semibold hover:bg-stone-900/5 transition-all cursor-pointer"
+                                 className="px-5 py-2.5 rounded-full text-stone-600 hover:text-stone-800 text-[14px] font-sans font-semibold hover:bg-stone-900/5 transition-all cursor-pointer"
                              >
                                  Cancel
                              </button>
@@ -20815,7 +20986,7 @@ export default function CreatePage() {
                             <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 shrink-0">
                                 <Info size={18} className="stroke-[2.2]" />
                             </div>
-                            <h3 className="text-[22px] font-sans font-medium text-stone-850 tracking-tight">
+                            <h3 className="text-[22px] font-sans font-medium text-stone-800 tracking-tight">
                                 {t('studio_guide.title') || 'Studio Guide'}
                             </h3>
                         </div>

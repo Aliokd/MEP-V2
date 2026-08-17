@@ -82,6 +82,11 @@ const ACCOUNT_SCOPED_KEYS = [
     'mep-focus-timer-seconds',
     'veinote-inspiration-answers',
     'mep-connect-posts-v4',
+    // The unscoped fallback in lib/canvasTips.ts (written only when there is no
+    // uid). Reads there are scoped symmetrically, so nothing currently carries
+    // across accounts — this is listed so that stays true if a fallback read is
+    // ever added, the way the note cache already has one.
+    'veinote-pending-canvas-tip',
 ];
 
 /** Prefixes for account-scoped keys with dynamic suffixes (per-project markers). */

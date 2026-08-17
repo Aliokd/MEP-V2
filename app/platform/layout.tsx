@@ -647,7 +647,7 @@ function PlatformLayoutInner({
                             <Brain size={16} className="text-stone-600 shrink-0" strokeWidth={1.5} />
                             <MindPowerStatus t={t} isSaving={isQuickGlow} size="sm" />
                             </div>
-                            <div className="flex-1 h-2 bg-stone-200/70 rounded-full overflow-hidden relative">
+                            <div className="flex-1 h-2 bg-stone-200/70 rounded-full overflow-hidden relative ml-2">
                                 <div
                                     className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out"
                                     style={{ width: `${levelProgress}%` }}
@@ -712,7 +712,7 @@ function PlatformLayoutInner({
                                 <Brain size={19} className="text-stone-600 shrink-0" strokeWidth={1.5} />
                                 <MindPowerStatus t={t} isSaving={isQuickGlow} />
                                 </div>
-                                <div className="w-28 h-2.5 bg-stone-200/70 rounded-full overflow-hidden relative">
+                                <div className="w-28 h-2.5 bg-stone-200/70 rounded-full overflow-hidden relative ml-2">
                                     <div
                                         className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out"
                                         style={{ width: `${levelProgress}%` }}

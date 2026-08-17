@@ -1543,7 +1543,8 @@
     "dismiss": "Dismiss",
     "play": "Play",
     "pause": "Pause",
-    "drag_hint": "Drag to adjust, double-click to reset"
+    "drag_hint": "Drag to adjust, double-click to reset",
+    "delete_tip": "Remove tip"
   },
   "audio": {
     "no_lyrics_found": "No spoken lyrics found in this recording."

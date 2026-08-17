@@ -1,9 +1,11 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowUp, ArrowDown, Search, Heart, Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
+import { stashTipForCanvas } from '@/lib/canvasTips';
 import { Idea, IdeaCategory, LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE, VIBE_IDEAS_BY_LANGUAGE, CHORDS_IDEAS_BY_LANGUAGE } from '../data/ideas';
 import IdeaGlyph from './IdeaGlyph';
 import { fetchIdeas } from '@/lib/contentClient';
@@ -29,6 +31,8 @@ interface BankOfIdeasProps {
 
 export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     const { t, language } = useLanguage();
+    const { user } = useAuth();
+    const router = useRouter();
     const [likedIds, setLikedIds] = React.useState<Set<string>>(new Set());
     const [checkedIds, setCheckedIds] = React.useState<Set<string>>(new Set());
     const [showOnlyFavorites, setShowOnlyFavorites] = React.useState(false);
@@ -113,6 +117,24 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
         setShowCheckGlow(true);
         if (checkGlowTimeout.current) clearTimeout(checkGlowTimeout.current);
         checkGlowTimeout.current = setTimeout(() => setShowCheckGlow(false), 2000);
+    };
+
+    /** Hands the tip to the Create canvas, which places it as a card in the lyric
+     *  flow on arrival. A fresh id per send on purpose: the same tip can be sent
+     *  more than once, and each placed card is dismissed on its own. */
+    const sendToCanvas = (idea: Idea) => {
+        stashTipForCanvas(
+            {
+                id: `tip-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                sourceId: idea.id,
+                title: idea.title,
+                description: idea.description,
+                whyItHelps: idea.whyItHelps,
+                example: idea.example,
+            },
+            user?.uid,
+        );
+        router.push('/platform/create');
     };
 
     const allIdeas: Idea[] = React.useMemo(() => {
@@ -264,12 +286,13 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         <Check size={16} className="stroke-[3.5]" />
                     </button>
 
-                    <Link
-                        href="/platform/create"
-                        className="px-5 py-2.5 rounded-full bg-stone-100 hover:bg-stone-200/80 text-stone-700 text-sm font-sans font-medium transition-colors"
+                    <button
+                        type="button"
+                        onClick={() => sendToCanvas(idea)}
+                        className="px-5 py-2.5 rounded-full bg-stone-100 hover:bg-stone-200/80 text-stone-700 text-sm font-sans font-medium transition-colors cursor-pointer active:scale-95"
                     >
                         {t('learn.ideas_send_to_canvas')}
-                    </Link>
+                    </button>
                 </div>
             </>
         );

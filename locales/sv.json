@@ -1543,7 +1543,8 @@
     "dismiss": "Stäng",
     "play": "Spela upp",
     "pause": "Pausa",
-    "drag_hint": "Dra för att justera, dubbelklicka för att nollställa"
+    "drag_hint": "Dra för att justera, dubbelklicka för att nollställa",
+    "delete_tip": "Ta bort tipset"
   },
   "audio": {
     "no_lyrics_found": "Hittade ingen låttext i den här inspelningen."

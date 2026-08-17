@@ -1,6 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
+ * Which port the suite runs against. Overridable because this machine routinely
+ * has several `next dev` instances up at once (parallel working sessions), and a
+ * foreign server squatting on 3000 doesn't serve /platform — reuseExistingServer
+ * then waits on a health check that can never pass and the whole suite times out
+ * without running a single test. `PW_PORT=3005 npx playwright test` sidesteps
+ * whatever is running.
+ */
+const PORT = process.env.PW_PORT || '3000';
+
+/**
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
@@ -28,7 +38,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:3000',
+    baseURL: `http://localhost:${PORT}`,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -46,8 +56,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npx next dev',
-    url: 'http://localhost:3000/platform',
+    command: `npx next dev -p ${PORT}`,
+    url: `http://localhost:${PORT}/platform`,
     reuseExistingServer: true,
     timeout: 120000,
   },

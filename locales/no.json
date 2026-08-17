@@ -1543,7 +1543,8 @@
     "dismiss": "Lukk",
     "play": "Spill av",
     "pause": "Pause",
-    "drag_hint": "Dra for å justere, dobbeltklikk for å nullstille"
+    "drag_hint": "Dra for å justere, dobbeltklikk for å nullstille",
+    "delete_tip": "Fjern tipset"
   },
   "audio": {
     "no_lyrics_found": "Fant ingen sangtekst i dette opptaket."

@@ -19,12 +19,17 @@ test.describe('Create Page (Songwriting Workspace)', () => {
         { id: 'f-2', name: 'Melodic Ideas' }
       ]));
       window.localStorage.setItem('veinote-create-notes', JSON.stringify([
-        { 
-          id: 'n-1', 
-          title: 'Ocean Breeze Lyrics', 
-          content: 'Ocean Breeze Lyrics\n\nVerse 1:\nWalking down the sandy beach', 
-          folderId: 'f-1', 
-          updatedAt: new Date().toLocaleString() 
+        {
+          id: 'n-1',
+          title: 'Ocean Breeze Lyrics',
+          content: 'Ocean Breeze Lyrics\n\nVerse 1:\nWalking down the sandy beach',
+          folderId: 'f-1',
+          // The account binder adopts a legacy unscoped note only when it can PROVE
+          // the note belongs to the signing-in uid — that ownership filter is the
+          // fix for one account inheriting another's projects on a shared browser.
+          // An ownerless seed is exactly what it exists to drop.
+          ownerId: 'test-user-id',
+          updatedAt: new Date().toLocaleString()
         }
       ]));
     });
@@ -39,7 +44,13 @@ test.describe('Create Page (Songwriting Workspace)', () => {
     await expect(page.locator('a[href="/platform/practice"]').first()).toBeVisible();
     await expect(page.locator('a[href="/platform/connect"]').first()).toBeVisible();
 
-    // Check workspace title input or notes listing
+    // The workspace is one shelf of folders and projects, and a FILED project
+    // shows only inside its folder — at the root it would otherwise appear
+    // twice. So the folder card is what the root asserts, and opening it is
+    // what surfaces the note. This also exercises folder navigation itself.
+    const folderCard = page.locator('text=Summer Album').first();
+    await expect(folderCard).toBeVisible();
+    await folderCard.click();
     await expect(page.locator('text=Ocean Breeze Lyrics')).toBeVisible();
   });
 });
