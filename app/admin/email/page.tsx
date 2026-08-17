@@ -5,6 +5,7 @@ import { Mail, RefreshCw, Plus, Send, Pause, Play, TriangleAlert, Users, Eye } f
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, PanelHeader, Badge, Button, Input, Select, Textarea, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 import { LOCALES, LOCALE_LABELS } from "@/lib/content";
+import TemplatesTab from "./TemplatesTab";
 
 interface Campaign {
     id: string;
@@ -37,6 +38,7 @@ const STATUS_TONE: Record<string, "neutral" | "green" | "gold" | "red" | "blue">
 export default function EmailPage() {
     const { adminFetch, can } = useAdmin();
 
+    const [tab, setTab] = useState<"templates" | "campaigns">("templates");
     const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [composing, setComposing] = useState(false);
@@ -175,7 +177,7 @@ export default function EmailPage() {
                         <Button onClick={load} size="sm">
                             <RefreshCw className="w-3.5 h-3.5" /> Refresh
                         </Button>
-                        {can("announcements.write") && (
+                        {tab === "campaigns" && can("announcements.write") && (
                             <Button variant="primary" size="sm" onClick={() => setComposing((v) => !v)}>
                                 <Plus className="w-3.5 h-3.5" /> New campaign
                             </Button>
@@ -184,19 +186,38 @@ export default function EmailPage() {
                 }
             />
 
-            {error && (
+            <div className="flex flex-wrap items-center gap-1.5 border-b border-ink-600 pb-3">
+                {([
+                    { id: "templates" as const, label: "Templates" },
+                    { id: "campaigns" as const, label: "Campaigns" },
+                ]).map((option) => (
+                    <button
+                        key={option.id}
+                        onClick={() => setTab(option.id)}
+                        className={`px-3.5 py-1.5 rounded-full text-sm transition-colors ${
+                            tab === option.id ? "bg-ink-700 text-ink-100" : "text-ink-400 hover:text-ink-100 hover:bg-ink-800"
+                        }`}
+                    >
+                        {option.label}
+                    </button>
+                ))}
+            </div>
+
+            {tab === "templates" && <TemplatesTab />}
+
+            {error && tab === "campaigns" && (
                 <Panel className="p-4 border-red-500/30">
                     <p className="text-sm text-red-300">{error}</p>
                 </Panel>
             )}
 
-            {note && (
+            {note && tab === "campaigns" && (
                 <Panel className="p-3.5">
                     <p className="text-xs text-ink-300">{note}</p>
                 </Panel>
             )}
 
-            {composing && (
+            {composing && tab === "campaigns" && (
                 <Panel>
                     <PanelHeader title="New campaign" subtitle="Saved as a draft. Nothing sends until you press Send." />
                     <div className="p-5 flex flex-col gap-4">
@@ -309,6 +330,7 @@ export default function EmailPage() {
                 </Panel>
             )}
 
+            {tab === "campaigns" && (
             <Panel className="overflow-hidden">
                 <PanelHeader title="Campaigns" />
                 {!campaigns ? (
@@ -365,13 +387,16 @@ export default function EmailPage() {
                     </ul>
                 )}
             </Panel>
+            )}
 
+            {tab === "campaigns" && (
             <p className="text-[11px] text-ink-500 leading-relaxed max-w-2xl">
                 Sending runs in batches so it survives the server&apos;s request limit, and records how far it got.
                 Closing this tab stops it; pressing Resume continues from the same place rather than starting over,
                 so nobody is emailed twice. Every campaign email carries an unsubscribe link, and anyone who has
                 used one is excluded automatically.
             </p>
+            )}
         </div>
     );
 }
