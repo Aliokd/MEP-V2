@@ -3,20 +3,26 @@
 import React from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import LessonContent from './LessonContent';
+import LessonBlocks from './LessonBlocks';
 import { useLanguage } from '@/context/LanguageContext';
+import { isBlockRenderable, type LessonBlock } from '@/lib/lessonBlocks';
+
+interface ReaderLesson {
+    id: string;
+    title: string;
+    summary?: string;
+    blocks?: LessonBlock[];
+    videoUrl?: string;
+    posterUrl?: string | null;
+}
 
 interface ReaderChapter {
     id: string;
     title: string;
-    lessons: { id: string; title: string; summary?: string; videoUrl?: string; posterUrl?: string | null }[];
+    lessons: ReaderLesson[];
 }
 
-interface FlatLesson {
-    id: string;
-    title: string;
-    summary?: string;
-    videoUrl?: string;
-    posterUrl?: string | null;
+interface FlatLesson extends ReaderLesson {
     chapterTitle: string;
 }
 
@@ -39,7 +45,7 @@ export default function LessonReader({
     onOpenDeepDive,
     onOpenIdeas,
 }: LessonReaderProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     const flatLessons: FlatLesson[] = React.useMemo(() => {
         return chapters.flatMap(c => c.lessons.map(l => ({ ...l, chapterTitle: c.title })));
@@ -50,6 +56,12 @@ export default function LessonReader({
     const [isFinished, setIsFinished] = React.useState(false);
 
     const currentLesson = flatLessons[index];
+    // A block that would draw nothing must not count, or an editor who added a
+    // row and left it blank would silently replace the placeholder with a gap.
+    const visibleBlocks = React.useMemo(
+        () => (currentLesson?.blocks || []).filter(b => isBlockRenderable(b, language)),
+        [currentLesson, language],
+    );
     const atStart = index === 0;
     const atEnd = index >= flatLessons.length - 1;
 
@@ -179,26 +191,32 @@ export default function LessonReader({
                         isActive
                         onVideoEnd={goNext}
                     />
-                    <div className="w-full text-sm text-stone-700 leading-relaxed font-sans space-y-4">
-                        {currentLesson.summary?.trim() ? (
-                            // Blank lines separate paragraphs, so a summary written in
-                            // the admin reads the way it was typed.
-                            currentLesson.summary
-                                .split(/\n{2,}/)
-                                .map((paragraph, i) => (
-                                    <p key={i} className="whitespace-pre-line">{paragraph.trim()}</p>
-                                ))
-                        ) : (
-                            <>
-                                <p>{t('learn.placeholder_intro')}</p>
-                                <ul className="list-disc pl-5 space-y-2">
-                                    <li>{t('learn.placeholder_point_1')}</li>
-                                    <li>{t('learn.placeholder_point_2')}</li>
-                                    <li>{t('learn.placeholder_point_3')}</li>
-                                </ul>
-                            </>
-                        )}
-                    </div>
+                    {/* Blocks the editor arranged. They sit above the summary so a
+                        lesson can open with its own material and keep the summary
+                        as the closing note. */}
+                    {visibleBlocks.length > 0 && <LessonBlocks blocks={visibleBlocks} />}
+
+                    {currentLesson.summary?.trim() ? (
+                        <div className="w-full text-sm text-stone-700 leading-relaxed font-sans space-y-4">
+                            {/* Blank lines separate paragraphs, so a summary written in
+                                the admin reads the way it was typed. */}
+                            {currentLesson.summary.split(/\n{2,}/).map((paragraph, i) => (
+                                <p key={i} className="whitespace-pre-line">{paragraph.trim()}</p>
+                            ))}
+                        </div>
+                    ) : visibleBlocks.length === 0 ? (
+                        // Only when the lesson carries no written content at all —
+                        // blocks alone are a complete lesson and must not be followed
+                        // by generic filler.
+                        <div className="w-full text-sm text-stone-700 leading-relaxed font-sans space-y-4">
+                            <p>{t('learn.placeholder_intro')}</p>
+                            <ul className="list-disc pl-5 space-y-2">
+                                <li>{t('learn.placeholder_point_1')}</li>
+                                <li>{t('learn.placeholder_point_2')}</li>
+                                <li>{t('learn.placeholder_point_3')}</li>
+                            </ul>
+                        </div>
+                    ) : null}
                 </div>
 
                 <div className="shrink-0 flex items-center justify-between gap-4 border-t border-stone-200/60 pt-6">

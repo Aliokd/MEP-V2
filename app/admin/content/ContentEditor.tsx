@@ -7,6 +7,8 @@ import { Badge, Button, Input, Panel, Select, Spinner, Textarea } from "../compo
 import { LOCALES, LOCALE_LABELS, IDEA_CATEGORIES, type LocalizedText, type Locale } from "@/lib/content";
 import type { ContentItem } from "./page";
 import MediaUpload from "../components/MediaUpload";
+import BlockEditor from "./BlockEditor";
+import type { LessonBlock } from "@/lib/lessonBlocks";
 import { uploadContentMedia, type VideoProbe } from "@/lib/uploadContentMedia";
 
 type Collection = "chapters" | "lessons" | "ideas" | "songs";
@@ -238,6 +240,13 @@ export default function ContentEditor({
                                 label="Duration (seconds)"
                                 value={String(draft.durationSeconds ?? "")}
                                 onChange={(v) => setField("durationSeconds", Number(v) || 0)}
+                            />
+
+                            <BlockEditor
+                                blocks={(draft.blocks as LessonBlock[]) || []}
+                                locale={locale}
+                                nameHint={mediaNameHint}
+                                onChange={(blocks) => setField("blocks", blocks)}
                             />
                         </>
                     )}

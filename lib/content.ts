@@ -8,6 +8,10 @@
  * meant a deploy to change a sentence.
  */
 
+// Type-only, so this is erased at compile time and the fact that lessonBlocks
+// imports LocalizedText back from here stays a paper cycle rather than a real one.
+import type { LessonBlock } from "./lessonBlocks";
+
 export type Locale = "en" | "no" | "sv";
 export const LOCALES: Locale[] = ["en", "no", "sv"];
 export const LOCALE_LABELS: Record<Locale, string> = {
@@ -37,6 +41,9 @@ export interface LearnLesson {
     chapterId: string;
     title: LocalizedText;
     summary?: LocalizedText;
+    /** Ordered lesson content authored in the admin: prose, images, audio,
+     *  video and embeds. Absent on lessons written before the block editor. */
+    blocks?: LessonBlock[];
     videoUrl: string;
     posterUrl?: string | null;
     midiDataUrl?: string | null;

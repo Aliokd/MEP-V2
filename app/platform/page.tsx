@@ -91,6 +91,8 @@ export default function PlatformPage() {
                     // The written content an editor typed into Summary. Dropping it
                     // here is why published text never reached the lesson page.
                     summary: pickLocale(lesson.summary, language),
+                    // Structured content blocks — text, images, audio, embeds.
+                    blocks: lesson.blocks || [],
                     videoUrl: lesson.videoUrl,
                     posterUrl: lesson.posterUrl ?? null,
                     midiDataUrl: lesson.midiDataUrl ?? null,
