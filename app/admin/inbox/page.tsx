@@ -67,7 +67,10 @@ function InboxQueue() {
     const [selected, setSelected] = useState<InboxThread | null>(null);
 
     const [source, setSource] = useState(searchParams.get("source") || "");
-    const [status, setStatus] = useState("unresolved");
+    // Every status by default. Opening on "unresolved" hid resolved threads, so
+    // an admin couldn't see what a colleague had already answered without
+    // knowing to change the filter first.
+    const [status, setStatus] = useState(searchParams.get("status") || "");
     const [assignee, setAssignee] = useState("");
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -141,8 +144,8 @@ function InboxQueue() {
                     <option value="support">Support</option>
                 </Select>
                 <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-                    <option value="unresolved">Unresolved</option>
                     <option value="">Any status</option>
+                    <option value="unresolved">Unresolved</option>
                     <option value="new">New</option>
                     <option value="open">Open</option>
                     <option value="pending">Pending</option>

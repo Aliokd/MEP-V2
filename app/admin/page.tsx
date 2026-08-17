@@ -132,8 +132,12 @@ export default function AdminOverviewPage() {
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                             <StatTile label="Songs in progress" value={data.content.projectsTotal} hint={`+${data.content.projects7d} this week`} />
                             <StatTile label="Community posts" value={data.content.postsTotal} hint={`+${data.content.posts7d} this week`} href="/admin/community" />
-                            <StatTile label="Feedback threads" value={data.inbox.feedbackOpen} hint="open" href="/admin/inbox?source=feedback" />
-                            <StatTile label="Support tickets" value={data.inbox.supportOpen} hint="open" href="/admin/inbox?source=support" />
+                            {/* These tiles count unresolved threads, so they carry the
+                                filter with them — the Inbox itself now opens on every
+                                status, and landing on a different number than the tile
+                                showed would read as a bug. */}
+                            <StatTile label="Feedback threads" value={data.inbox.feedbackOpen} hint="open" href="/admin/inbox?source=feedback&status=unresolved" />
+                            <StatTile label="Support tickets" value={data.inbox.supportOpen} hint="open" href="/admin/inbox?source=support&status=unresolved" />
                         </div>
                     </section>
 
