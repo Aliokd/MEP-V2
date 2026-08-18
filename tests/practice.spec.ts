@@ -73,6 +73,12 @@ test.describe('Practice Page', () => {
     await expect(page.locator('[data-song-choice]')).toHaveCount(4);
     await expect(page.getByRole('button', { name: 'Next', exact: true })).toHaveCount(0);
 
+    // Only the first song is ready; the rest sit locked behind "Coming soon"
+    await expect(page.locator('[data-song-locked]')).toHaveCount(3);
+    await expect(page.locator('[data-song-choice="do-you-love"]')).toBeEnabled();
+    await expect(page.locator('[data-song-choice="closer"]')).toBeDisabled();
+    await expect(page.getByText('Coming soon')).toHaveCount(3);
+
     await page.locator('main').getByRole('button', { name: 'Back', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
   });
@@ -106,7 +112,10 @@ test.describe('Practice Page', () => {
     await expect(timeline.getByText(/^1:[12]\d$/)).toBeVisible();
   });
 
-  test('a song without a hand-made map gets analysed into a timeline', async ({ page }) => {
+  // Every song lacking a hand-authored map is locked for now, and the upload
+  // tile is hidden, so the analyser has no way in from the UI. The pipeline is
+  // still there — unlock a song in practiceSongs.ts to bring this back.
+  test.skip('a song without a hand-made map gets analysed into a timeline', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
     await page.locator('[data-song-choice="another-ride"]').click();

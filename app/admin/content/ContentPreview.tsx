@@ -110,7 +110,7 @@ function IdeaPreview({ draft, text }: { draft: ContentItem; text: (key: string) 
         <div className="bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-5">
             <div className="flex gap-5">
                 <div className="w-24 h-24 shrink-0 flex items-center justify-center">
-                    <IdeaGlyph seed={draft.id || "preview"} category={draft.category} className="w-full h-full" />
+                    <IdeaGlyph seed={draft.id || "preview"} className="w-full h-full text-stone-500 opacity-70" />
                 </div>
 
                 <div className="flex-1 flex flex-col gap-3 min-w-0">

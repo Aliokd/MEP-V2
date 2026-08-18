@@ -25,6 +25,12 @@ export interface PracticeSong {
     audioUrl: string;
     coverUrl?: string;
     sections?: AuthoredSection[];
+    /**
+     * Whether the song can be practised yet. The locked ones still appear in the
+     * chooser, greyed and marked "coming soon", so the library reads as a
+     * library rather than a single lonely card.
+     */
+    available: boolean;
 }
 
 const DIR = '/Practice/Songs/Beginner%20level';
@@ -32,6 +38,7 @@ const DIR = '/Practice/Songs/Beginner%20level';
 export const PRACTICE_SONGS: PracticeSong[] = [
     {
         id: 'do-you-love',
+        available: true,
         title: 'Do You Love',
         artist: 'Peter Nordberg',
         audioUrl: `${DIR}/Do%20You%20Love/Do%20You%20Love%20-%20Peter%20Nordberg.mp3`,
@@ -102,6 +109,7 @@ export const PRACTICE_SONGS: PracticeSong[] = [
     },
     {
         id: 'closer',
+        available: false,
         title: 'Closer',
         artist: 'Peter Nordberg',
         audioUrl: `${DIR}/Closer/Closer_Master%202026.mp3`,
@@ -118,6 +126,7 @@ export const PRACTICE_SONGS: PracticeSong[] = [
     },
     {
         id: 'beautiful-day',
+        available: false,
         title: 'Beautiful Day',
         artist: 'Peter Nordberg',
         audioUrl: `${DIR}/Beautiful%20Day/Beautiful.mp3`,
@@ -137,6 +146,7 @@ export const PRACTICE_SONGS: PracticeSong[] = [
         // No structure mapping yet — listen-only until it gets one (or the
         // automatic analysis pipeline lands).
         id: 'another-ride',
+        available: false,
         title: 'Another Ride',
         artist: 'Peter Nordberg',
         audioUrl: `${DIR}/Another%20Ride/Another%20Ride%20-%20master.mp3`,

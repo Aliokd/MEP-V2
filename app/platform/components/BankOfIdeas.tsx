@@ -199,12 +199,9 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         card's left, so the drawing spans top to bottom instead of
                         floating small in a fixed-width strip. */}
                     <div className="w-full sm:w-auto sm:aspect-square shrink-0 h-48 sm:h-full flex items-center justify-center">
-                        {/* Full opacity, no tint: the artwork is flat fills in the
-                            brand palette now, and muting it just reads as faded. */}
                         <IdeaGlyph
                             seed={idea.id}
-                            category={idea.category}
-                            className="w-full h-full"
+                            className="w-full h-full text-stone-500 opacity-70"
                         />
                     </div>
 

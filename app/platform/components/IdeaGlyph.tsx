@@ -3,223 +3,268 @@
 import React from 'react';
 
 /**
- * Generative Bauhaus-style artwork for Bank of tips cards.
+ * Minimal geometric artwork for Bank of tips cards.
  *
- * One visual family, after the reference the tips design came from: a large
- * flat accent circle at the back, thin ink line-work through the middle, and a
- * solid ink circle on top. What the line-work IS comes from the tip's category,
- * so the artwork says what kind of tip this is at a glance:
+ * Sixteen line-art glyphs in one visual family — thin uniform stroke, centred
+ * composition, occasional sage-green or gold accent dot. There are far more tips than
+ * glyphs, so each tip is mapped onto one by a hash of its id: the pairing is
+ * arbitrary but stable, so a given tip always shows the same picture no matter
+ * how the deck is filtered or ordered.
  *
- *   chords → vertical strings        lyrics → a written stanza
- *   melody → a wave with note heads  vibe   → resonance rings
- *
- * Within a category every tip draws its own composition: sizes, positions,
- * counts and the accent colour all come from a PRNG seeded by the tip's id, so
- * the artwork is unique per tip but identical every time that tip is shown.
- * Compositions are constructed to fill the 120-unit box, which is what let the
- * old getBBox measure-and-refit machinery go.
+ * Strokes use `currentColor`, so the colour comes from the parent's text class.
  */
 
-type Rand = () => number;
-
-/** Veinote's palette — near-black ink on the beige card, sage and gold accents. */
-const INK = '#1C1917';
+/** Veinote's own accents — the sage green and gold, not the reference's blue/amber. */
 const ACCENT_GREEN = '#86BE7F';
 const ACCENT_GOLD = '#C5A059';
 
-/** The thin ink stroke the whole family shares. */
-const LINE = { stroke: INK, strokeWidth: 1.1 } as const;
+/** Points for a regular polygon, used by the hexagon glyphs. */
+function polygonPoints(sides: number, radius: number, cx = 60, cy = 60, rotation = -90): string {
+    return Array.from({ length: sides }, (_, i) => {
+        const angle = ((360 / sides) * i + rotation) * (Math.PI / 180);
+        return `${(cx + radius * Math.cos(angle)).toFixed(2)},${(cy + radius * Math.sin(angle)).toFixed(2)}`;
+    }).join(' ');
+}
 
-function hashSeed(str: string): number {
-    let h = 1779033703 ^ str.length;
-    for (let i = 0; i < str.length; i += 1) {
-        h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
-        h = (h << 13) | (h >>> 19);
+const GLYPHS: ((key: string) => React.ReactElement)[] = [
+    // 1 — nested diamond and squares
+    () => (
+        <>
+            <rect x="24" y="24" width="72" height="72" transform="rotate(45 60 60)" />
+            <rect x="30" y="30" width="60" height="60" />
+            <rect x="42" y="42" width="36" height="36" transform="rotate(45 60 60)" />
+            <rect x="48" y="48" width="24" height="24" />
+        </>
+    ),
+    // 2 — three overlapping circles
+    () => (
+        <>
+            <circle cx="60" cy="44" r="24" />
+            <circle cx="46" cy="70" r="24" />
+            <circle cx="74" cy="70" r="24" />
+        </>
+    ),
+    // 3 — four overlapping circles
+    () => (
+        <>
+            <circle cx="46" cy="46" r="24" />
+            <circle cx="74" cy="46" r="24" />
+            <circle cx="46" cy="74" r="24" />
+            <circle cx="74" cy="74" r="24" />
+        </>
+    ),
+    // 4 — circles nesting downward
+    () => (
+        <>
+            <circle cx="60" cy="52" r="36" />
+            <circle cx="60" cy="62" r="26" />
+            <circle cx="60" cy="72" r="16" />
+            <circle cx="60" cy="80" r="8" />
+        </>
+    ),
+    // 5 — star lattice over a standing bar
+    () => (
+        <>
+            <rect x="48" y="20" width="24" height="80" />
+            <rect x="30" y="42" width="60" height="36" transform="rotate(30 60 60)" />
+            <rect x="30" y="42" width="60" height="36" transform="rotate(-30 60 60)" />
+            <rect x="30" y="42" width="60" height="36" transform="rotate(90 60 60)" />
+        </>
+    ),
+    // 6 — fan spraying from a point
+    () => (
+        <>
+            <path d="M22 60 C 52 60, 74 40, 96 24" />
+            <path d="M22 60 C 52 60, 78 46, 98 36" />
+            <path d="M22 60 C 52 60, 80 54, 100 50" />
+            <path d="M22 60 C 52 60, 80 64, 100 70" />
+            <path d="M22 60 C 52 60, 78 74, 98 84" />
+            <path d="M22 60 C 52 60, 74 80, 96 96" />
+            <circle cx="22" cy="60" r="2" fill="currentColor" />
+        </>
+    ),
+    // 7 — ring with a small satellite
+    () => (
+        <>
+            <circle cx="58" cy="64" r="32" />
+            <circle cx="58" cy="64" r="16" />
+            <circle cx="90" cy="32" r="7" />
+        </>
+    ),
+    // 8 — molecule of linked nodes
+    () => (
+        <>
+            <path d="M32 44 L 54 58 L 76 44 L 92 62" />
+            <path d="M54 58 L 58 82" />
+            <circle cx="30" cy="42" r="8" />
+            <circle cx="56" cy="60" r="8" />
+            <circle cx="78" cy="42" r="8" />
+            <circle cx="94" cy="64" r="8" />
+            <circle cx="58" cy="86" r="8" />
+        </>
+    ),
+    // 9 — radial burst
+    () => (
+        <>
+            {Array.from({ length: 28 }).map((_, i) => {
+                const a = (i * (360 / 28)) * (Math.PI / 180);
+                const inner = i % 2 === 0 ? 16 : 22;
+                const outer = i % 2 === 0 ? 40 : 34;
+                return (
+                    <line
+                        key={i}
+                        x1={(60 + inner * Math.cos(a)).toFixed(2)}
+                        y1={(60 + inner * Math.sin(a)).toFixed(2)}
+                        x2={(60 + outer * Math.cos(a)).toFixed(2)}
+                        y2={(60 + outer * Math.sin(a)).toFixed(2)}
+                    />
+                );
+            })}
+        </>
+    ),
+    // 10 — looping wave threaded with nodes
+    () => (
+        <>
+            <path d="M24 78 C 30 40, 56 34, 60 60 C 64 86, 90 80, 96 44" />
+            <circle cx="24" cy="78" r="4" />
+            <circle cx="46" cy="44" r="4" />
+            <circle cx="60" cy="60" r="4" />
+            <circle cx="76" cy="80" r="4" />
+            <circle cx="96" cy="44" r="4" />
+        </>
+    ),
+    // 11 — crop marks framing an ellipse
+    () => (
+        <>
+            <path d="M28 44 L 28 28 L 44 28" />
+            <path d="M92 76 L 92 92 L 76 92" />
+            <ellipse cx="60" cy="60" rx="26" ry="18" transform="rotate(-35 60 60)" />
+            <line x1="60" y1="22" x2="60" y2="98" />
+            <line x1="22" y1="66" x2="98" y2="66" />
+        </>
+    ),
+    // 12 — stacked layers
+    () => (
+        <>
+            {[0, 1, 2, 3].map(i => {
+                const y = 36 + i * 16;
+                return (
+                    <polygon key={i} points={`60,${y - 12} 96,${y} 60,${y + 12} 24,${y}`} />
+                );
+            })}
+        </>
+    ),
+    // 13 — plotted square with accent points
+    () => (
+        <>
+            <rect x="24" y="24" width="72" height="72" />
+            <circle cx="60" cy="60" r="20" strokeDasharray="3 4" />
+            <line x1="24" y1="24" x2="96" y2="96" strokeDasharray="3 4" />
+            <line x1="96" y1="24" x2="24" y2="96" strokeDasharray="3 4" />
+            <circle cx="60" cy="60" r="3.5" fill={ACCENT_GREEN} stroke="none" />
+            <circle cx="76" cy="60" r="3" fill={ACCENT_GOLD} stroke="none" />
+        </>
+    ),
+    // 14 — nested orbits
+    () => (
+        <>
+            <circle cx="60" cy="60" r="36" />
+            <circle cx="58" cy="62" r="24" strokeDasharray="3 4" />
+            <circle cx="56" cy="64" r="14" strokeDasharray="3 4" />
+            <circle cx="56" cy="64" r="6" />
+            <circle cx="56" cy="64" r="3" fill={ACCENT_GREEN} stroke="none" />
+            <circle cx="72" cy="80" r="3" fill={ACCENT_GREEN} stroke="none" />
+        </>
+    ),
+    // 15 — sphere crossed by arcs
+    () => (
+        <>
+            <circle cx="60" cy="60" r="36" />
+            <path d="M28 44 C 48 68, 72 84, 94 78" strokeDasharray="3 4" />
+            <path d="M34 84 C 54 60, 76 42, 92 40" />
+            <circle cx="72" cy="46" r="3.5" fill={ACCENT_GREEN} stroke="none" />
+            <circle cx="54" cy="72" r="3" fill={ACCENT_GOLD} stroke="none" />
+        </>
+    ),
+    // 16 — nested hexagons
+    () => (
+        <>
+            <polygon points={polygonPoints(6, 38)} />
+            <polygon points={polygonPoints(6, 24)} />
+            <circle cx="60" cy="60" r="12" strokeDasharray="3 4" />
+            <line x1="60" y1="36" x2="60" y2="60" />
+            <circle cx="60" cy="60" r="3" fill={ACCENT_GREEN} stroke="none" />
+        </>
+    ),
+];
+
+/** Stable, order-independent mapping from a tip id onto one of the glyphs. */
+function glyphIndexFor(seed: string): number {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i += 1) {
+        hash = (hash * 31 + seed.charCodeAt(i)) | 0;
     }
-    return h >>> 0;
+    return Math.abs(hash) % GLYPHS.length;
 }
-
-/** Small deterministic PRNG — same seed, same drawing, on every render. */
-function mulberry32(seed: number): Rand {
-    let a = seed;
-    return () => {
-        a |= 0;
-        a = (a + 0x6d2b79f5) | 0;
-        let t = Math.imul(a ^ (a >>> 15), 1 | a);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-}
-
-/** Keeps a circle of radius `r` fully inside the box. */
-const clampCentre = (v: number, r: number) => Math.min(Math.max(v, r + 2), 118 - r);
-
-/* Layer order in every motif: accent circle (back), ink lines, ink circle
-   (front) — the lines run over the colour and vanish under the ink, exactly
-   as in the reference. */
-
-function chordsMotif(r: Rand, accent: string): React.ReactElement {
-    const count = 6 + Math.floor(r() * 4); // 6–9 strings
-    const spacing = 3.6 + r() * 1.2;
-    const bandCx = 56 + r() * 10;
-    const x0 = bandCx - ((count - 1) * spacing) / 2;
-
-    const aR = 28 + r() * 7;
-    const aCx = clampCentre(58 + r() * 14, aR);
-    const aCy = clampCentre(74 + r() * 10, aR);
-
-    const dR = 23 + r() * 7;
-    const dCx = clampCentre(50 + r() * 16, dR);
-    const dCy = clampCentre(36 + r() * 14, dR);
-
-    return (
-        <>
-            <circle cx={aCx} cy={aCy} r={aR} fill={accent} />
-            {Array.from({ length: count }, (_, i) => (
-                <line key={i} x1={x0 + i * spacing} y1={4} x2={x0 + i * spacing} y2={116} {...LINE} />
-            ))}
-            <circle cx={dCx} cy={dCy} r={dR} fill={INK} />
-        </>
-    );
-}
-
-function lyricsMotif(r: Rand, accent: string): React.ReactElement {
-    const count = 5 + Math.floor(r() * 3); // 5–7 lines of "text"
-    const spacing = 10 + r() * 2.5;
-    const top = 60 - ((count - 1) * spacing) / 2;
-    const left = 22;
-    const widths = Array.from({ length: count }, (_, i) =>
-        // the stanza's last line runs short, like a line of verse
-        i === count - 1 ? 26 + r() * 16 : 50 + r() * 26,
-    );
-
-    const aR = 27 + r() * 7;
-    const aCx = clampCentre(76 + r() * 10, aR);
-    const aCy = clampCentre(36 + r() * 34, aR);
-
-    const dR = 13 + r() * 5;
-    const dCx = 32 + r() * 12;
-    const dCy = clampCentre(top - 4 + r() * 20, dR);
-
-    const lastY = top + (count - 1) * spacing;
-
-    return (
-        <>
-            <circle cx={aCx} cy={aCy} r={aR} fill={accent} />
-            {widths.map((w, i) => (
-                <line key={i} x1={left} y1={top + i * spacing} x2={left + w} y2={top + i * spacing} {...LINE} />
-            ))}
-            {/* the stanza's full stop */}
-            <circle cx={left + widths[count - 1] + 6} cy={lastY} r={2.4} fill={INK} />
-            <circle cx={dCx} cy={dCy} r={dR} fill={INK} />
-        </>
-    );
-}
-
-function melodyMotif(r: Rand, accent: string): React.ReactElement {
-    const amp = 16 + r() * 9;
-    const baseline = 54 + r() * 12;
-    const halfWaves = 2 + Math.floor(r() * 2); // 2–3 half-periods
-    const phase = r() * Math.PI * 2;
-
-    const waveY = (x: number) =>
-        baseline + amp * Math.sin(phase + ((x - 8) / 104) * halfWaves * Math.PI);
-    let d = '';
-    for (let x = 8; x <= 112; x += 2) {
-        d += `${x === 8 ? 'M' : 'L'}${x} ${waveY(x).toFixed(1)} `;
-    }
-
-    // Accent on the left, note head on the right — separated by construction,
-    // or the two circles could land near-concentric and read as a target
-    // instead of a note travelling through colour.
-    const aR = 28 + r() * 7;
-    const aCx = clampCentre(34 + r() * 22, aR);
-    const aCy = clampCentre(44 + r() * 32, aR);
-
-    // The big ink circle sits ON the wave, like a note head on its staff.
-    const dR = 16 + r() * 6;
-    const dX = 72 + r() * 18;
-    const dCx = clampCentre(dX, dR);
-    const dCy = clampCentre(waveY(dX), dR);
-
-    const noteX = 20 + r() * 24;
-
-    return (
-        <>
-            <circle cx={aCx} cy={aCy} r={aR} fill={accent} />
-            <path d={d} fill="none" {...LINE} strokeWidth={1.3} />
-            <circle cx={noteX} cy={waveY(noteX)} r={3.2} fill={INK} />
-            <circle cx={dCx} cy={dCy} r={dR} fill={INK} />
-        </>
-    );
-}
-
-function vibeMotif(r: Rand, accent: string): React.ReactElement {
-    const cx = 54 + r() * 12;
-    const cy = 54 + r() * 12;
-    const rings = 3 + Math.floor(r() * 2); // 3–4 rings
-    const r0 = 13 + r() * 4;
-    // The outermost ring reaches as far as the box allows from this centre.
-    const maxR = Math.min(cx, cy, 118 - cx, 118 - cy) - 2;
-    const step = (maxR - r0) / (rings - 1);
-
-    const side = r() < 0.5 ? -1 : 1;
-    const aR = 26 + r() * 7;
-    const aCx = clampCentre(cx + side * (26 + r() * 12), aR);
-    const aCy = clampCentre(cy + (r() * 40 - 20), aR);
-
-    return (
-        <>
-            <circle cx={aCx} cy={aCy} r={aR} fill={accent} />
-            {Array.from({ length: rings }, (_, i) => (
-                <circle key={i} cx={cx} cy={cy} r={r0 + i * step} fill="none" {...LINE} />
-            ))}
-            <circle cx={cx} cy={cy} r={r0 * 0.62} fill={INK} />
-        </>
-    );
-}
-
-const MOTIFS = {
-    lyrics: lyricsMotif,
-    melody: melodyMotif,
-    chords: chordsMotif,
-    vibe: vibeMotif,
-} as const;
-
-type MotifKey = keyof typeof MOTIFS;
-const MOTIF_KEYS = Object.keys(MOTIFS) as MotifKey[];
 
 interface IdeaGlyphProps {
-    /** Tip id — the seed: the same tip always draws the same composition. */
+    /** Tip id — decides which glyph is shown, and keeps it stable. */
     seed: string;
-    /** Bank category; picks the motif. Unknown values fall back by hash. */
-    category?: string;
     className?: string;
 }
 
-export default function IdeaGlyph({ seed, category, className }: IdeaGlyphProps) {
-    const art = React.useMemo(() => {
-        const hash = hashSeed(seed);
-        const rand = mulberry32(hash);
-        const accent = rand() < 0.6 ? ACCENT_GREEN : ACCENT_GOLD;
-        const key: MotifKey =
-            category && category in MOTIFS
-                ? (category as MotifKey)
-                : MOTIF_KEYS[hash % MOTIF_KEYS.length];
-        return MOTIFS[key](rand, accent);
-    }, [seed, category]);
+/** How much of the 120-unit box the drawing is scaled to occupy — a little
+    under the full box so hairline strokes never kiss the frame. */
+const FILL_TARGET = 114;
+
+export default function IdeaGlyph({ seed, className }: IdeaGlyphProps) {
+    const render = GLYPHS[glyphIndexFor(seed)];
+    const groupRef = React.useRef<SVGGElement>(null);
+    const [fit, setFit] = React.useState({ cx: 60, cy: 60, scale: 1 });
+
+    // The glyphs are drawn at different sizes and not always symmetrically
+    // around the viewBox midpoint. Measure each drawing once it's in the DOM,
+    // then centre it and scale it up to fill the box, so every tip's artwork
+    // fills its column identically. getBBox ignores the group's own transform,
+    // so this settles in one pass rather than feeding back.
+    React.useLayoutEffect(() => {
+        const el = groupRef.current;
+        if (!el) return;
+        const b = el.getBBox();
+        if (b.width === 0 || b.height === 0) return;
+        setFit({
+            cx: b.x + b.width / 2,
+            cy: b.y + b.height / 2,
+            scale: FILL_TARGET / Math.max(b.width, b.height),
+        });
+    }, [seed]);
 
     return (
         <svg
             viewBox="0 0 120 120"
+            /* `meet` (contain): the whole drawing stays visible and centred in
+               its column. The earlier `slice` cover-crop pushed shapes against
+               the frame edges and read as misaligned. */
             preserveAspectRatio="xMidYMid meet"
             role="presentation"
             aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            /* The 120-unit viewBox is drawn around 3x that on screen, so the stroke
+               is kept thin to preserve the hairline weight the style depends on —
+               divided by the fill scale so every glyph lands at the same weight
+               regardless of how much it was enlarged. */
+            strokeWidth={0.6 / fit.scale}
             strokeLinecap="round"
             strokeLinejoin="round"
             className={className}
         >
-            {art}
+            <g
+                ref={groupRef}
+                transform={`translate(60 60) scale(${fit.scale.toFixed(4)}) translate(${(-fit.cx).toFixed(2)} ${(-fit.cy).toFixed(2)})`}
+            >
+                {render(seed)}
+            </g>
         </svg>
     );
 }

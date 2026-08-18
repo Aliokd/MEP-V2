@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } fro
 import { Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import SongTimeline from './SongTimeline';
-import { KIND_BG, KIND_LABEL_KEY, SECTION_TEXT, SOLVED_BG, SOLVED_TEXT, sectionOrdinals, type SectionKind } from '../data/sections';
+import { KIND_LABEL_KEY, SECTION_TEXT, SOLVED_BG, SOLVED_TEXT, TAG_BG, sectionOrdinals, type SectionKind } from '../data/sections';
 import type { AuthoredSection } from '../data/practiceSongs';
 import { analyzeSongUrl } from '../lib/analyzeSong';
 
@@ -90,9 +90,9 @@ interface StructurePlayerProps {
 
 /**
  * The identify exercise on top of an authored song map: the timeline is the
- * palette of section types, and the shuffled, unlabelled parts below are the
- * answers — each with its own listen button, since hearing the part is how
- * you're meant to solve it.
+ * palette of sections, and the unlabelled parts below — listed in playing
+ * order — are the answers. Hearing the part is how you're meant to solve it,
+ * so the part under the playhead is highlighted as the song runs.
  *
  * Mounted with `key={songId}` so a song switch starts the exercise clean.
  */
@@ -149,19 +149,16 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
         [resolvedSections],
     );
 
-    // Exercise state. Parts are shuffled so their order doesn't mirror the bar —
-    // deterministically, seeded by the song, so render stays pure.
-    const shuffled = useMemo(() => {
-        const items = (resolvedSections ?? []).map((section, originalIdx) => ({ section, originalIdx }));
-        let seed = 2166136261;
-        for (let i = 0; i < songId.length; i++) seed = (seed ^ songId.charCodeAt(i)) * 16777619 | 0;
-        for (let i = items.length - 1; i > 0; i--) {
-            seed = (seed * 1664525 + 1013904223) | 0;
-            const j = Math.abs(seed) % (i + 1);
-            [items[i], items[j]] = [items[j], items[i]];
-        }
-        return items;
-    }, [resolvedSections, songId]);
+    /*
+     * The parts in playing order, so the list reads down the song the way the
+     * timeline reads across it. They were shuffled once, to stop the order
+     * itself from giving the answer away, but following along matters more
+     * here than making the match hard to guess.
+     */
+    const parts = useMemo(
+        () => (resolvedSections ?? []).map((section, originalIdx) => ({ section, originalIdx })),
+        [resolvedSections],
+    );
     /*
      * The one band armed on the timeline, held as its start time so arming
      * "Verse 2" highlights that band alone. Its kind rides along because that
@@ -302,7 +299,7 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
         const done = [...identified, originalIdx];
         // Queue the next unsolved part, continuing from the one just named
         // and wrapping around, so the user never has to hunt for their place.
-        const order = shuffled.map(b => b.originalIdx);
+        const order = parts.map(b => b.originalIdx);
         const pos = order.indexOf(originalIdx);
         const rotated = [...order.slice(pos + 1), ...order.slice(0, pos)];
         scrollToRef.current = rotated.find(i => !done.includes(i)) ?? null;
@@ -455,9 +452,9 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                 />
             </div>
 
-            {/* The parts, shuffled and unnamed until identified */}
+            {/* The parts in playing order, unnamed until identified */}
             <div className="parts-scroll w-full max-w-6xl mx-auto flex flex-col gap-6 overflow-y-auto min-h-[280px] max-h-[calc(100vh-26rem)] pr-3 -mr-3">
-                {shuffled.map(({ section, originalIdx }) => {
+                {parts.map(({ section, originalIdx }) => {
                     const isIdentified = identified.includes(originalIdx);
                     const isWrong = wrongIdx === originalIdx;
                     const isArmed = selectedBlock === originalIdx;
@@ -481,24 +478,11 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                                 ${isCurrent ? 'is-playing' : ''}
                             `}
                         >
-                            {/*
-                             * The part the playhead is inside. Drawn as an edge marker
-                             * rather than a fill, so it reads the same on a part that is
-                             * still blank, armed, or already solved green. Inset from the
-                             * corners to stay clear of the card's radius.
-                             */}
-                            {isCurrent && (
-                                <span
-                                    aria-hidden="true"
-                                    className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full bg-stone-900"
-                                />
-                            )}
-
                             {/* Its name, or the blank waiting for one, out of the lyrics' way */}
                             <div className="absolute top-4 right-5 md:right-6">
                                 {isIdentified ? (
                                     <span
-                                        style={{ backgroundColor: KIND_BG[section.kind], color: SECTION_TEXT }}
+                                        style={{ backgroundColor: TAG_BG, color: SECTION_TEXT }}
                                         className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-sans"
                                     >
                                         {ordinals[originalIdx]
@@ -507,7 +491,10 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                                         <Check size={12} className="stroke-[3]" />
                                     </span>
                                 ) : (
-                                    <span className="inline-block rounded-full bg-[#E4E4DF] text-stone-500 px-3.5 py-1 text-xs font-sans">
+                                    <span
+                                        style={{ backgroundColor: TAG_BG }}
+                                        className="inline-block rounded-full text-stone-500 px-3.5 py-1 text-xs font-sans"
+                                    >
                                         ?
                                     </span>
                                 )}

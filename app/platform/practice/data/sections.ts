@@ -27,6 +27,13 @@ export const KIND_BG: Record<SectionKind, string> = {
 /** One colour and one weight for every label on the timeline. */
 export const SECTION_TEXT = '#44403C';
 
+/**
+ * The one beige every name tag wears, named or still blank. The per-kind ramp
+ * above belongs to the timeline bands, where the shades do the distinguishing;
+ * on a tag the words already say which section it is.
+ */
+export const TAG_BG = '#E4E4DF';
+
 /** Success: a section the user has correctly named, in the platform's green. */
 export const SOLVED_BG = '#86BE7F';
 export const SOLVED_TEXT = '#1C2B1A';
