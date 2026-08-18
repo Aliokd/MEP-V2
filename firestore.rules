@@ -50,16 +50,21 @@ service cloud.firestore {
      * A mute with no expiry stamp is treated as still in force; it is lifted
      * from the console, not by a clock nobody set.
      */
-    function activeMute() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("sanction", {});
+    function sanctionOf(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.get("sanction", {});
     }
+    function blocksPosting(sanction) {
+      return sanction.get("active", false) == true
+        && sanction.get("type", "") == "mute"
+        && (sanction.get("expiresAtMillis", 0) == 0
+            || request.time.toMillis() < sanction.get("expiresAtMillis", 0));
+    }
+    // The sanction is read through a single function call so this costs one
+    // document read, not one per condition.
     function isMuted() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && activeMute().get("active", false) == true
-        && activeMute().get("type", "") == "mute"
-        && (activeMute().get("expiresAtMillis", 0) == 0
-            || request.time.toMillis() < activeMute().get("expiresAtMillis", 0));
+        && blocksPosting(sanctionOf(request.auth.uid));
     }
 
     // ---------------------------------------------------------------------
