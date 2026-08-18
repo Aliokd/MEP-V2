@@ -276,12 +276,23 @@
   },
   "collab": {
     "invite_title": "Invite someone to collaborate with you in this project",
+    "invite_heading": "Write it together",
+    "people_on_song": "{count} people on this song",
+    "just_you_so_far": "Just you so far",
+    "leave_project": "Leave project",
     "pending_invites": "Pending invites",
     "invited_you": "invited you",
     "to_collaborate_on": "to collaborate on",
     "accept": "Accept",
     "decline": "Decline",
     "inviting": "Inviting...",
+    "add_another": "Next",
+    "invite_all": "Invite {count} people",
+    "invite_sent": "Invite successfully sent",
+    "share_link_title": "Send them this link to join",
+    "copy_link": "Copy link",
+    "link_copied": "Copied",
+    "invites_sent": "{count} invites successfully sent",
     "invite": "Invite",
     "whos_in": "Who's in?",
     "me": "Me",
@@ -1577,7 +1588,7 @@
   },
   "meta": {
     "title": "Veinote: The home of human songwriting",
-    "description": "No AI-generated songs. You create them. You own them."
+    "description": "Veinote is a songwriting platform for writing lyrics, finishing songs and learning the craft — creative tools, lessons and exercises from platinum-selling songwriters. No AI-generated songs. You create them. You own them."
   },
   "about": {
     "eyebrow": "About Veinote",
@@ -1707,5 +1718,10 @@
     "remove_credit": "Remove",
     "rename_credit": "Edit name",
     "needs_ownership": "Confirm the ownership split first"
+  },
+  "not_found": {
+    "code": "404",
+    "title": "This page isn't here",
+    "home": "Go to the home page"
   }
 }

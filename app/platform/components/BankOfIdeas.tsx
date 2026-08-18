@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowUp, ArrowDown, Search, Heart, Check } from 'lucide-reac
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import { stashTipForCanvas } from '@/lib/canvasTips';
+import { toggleTipMark, useTipMarks } from '@/lib/tipMarks';
 import { Idea, IdeaCategory, LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE, VIBE_IDEAS_BY_LANGUAGE, CHORDS_IDEAS_BY_LANGUAGE } from '../data/ideas';
 import IdeaGlyph from './IdeaGlyph';
 import { fetchIdeas } from '@/lib/contentClient';
@@ -33,8 +34,9 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     const { t, language } = useLanguage();
     const { user } = useAuth();
     const router = useRouter();
-    const [likedIds, setLikedIds] = React.useState<Set<string>>(new Set());
-    const [checkedIds, setCheckedIds] = React.useState<Set<string>>(new Set());
+    // Shared with the canvas rather than local to this deck: a favourite or a
+    // tick belongs to the tip, so it has to read the same in both places.
+    const { liked: likedIds, checked: checkedIds } = useTipMarks(user?.uid);
     const [showOnlyFavorites, setShowOnlyFavorites] = React.useState(false);
     const [isSearchOpen, setIsSearchOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState('');
@@ -87,25 +89,11 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     }, []);
 
     const toggleLike = (id: string) => {
-        setLikedIds(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
-            return next;
-        });
+        toggleTipMark('liked', id, user?.uid);
     };
 
     const toggleChecked = (id: string) => {
-        const willCheck = !checkedIds.has(id);
-        setCheckedIds(prev => {
-            const next = new Set(prev);
-            if (willCheck) next.add(id);
-            else next.delete(id);
-            return next;
-        });
+        const willCheck = toggleTipMark('checked', id, user?.uid);
 
         // Ticking a tip off is progress, so it lights the same travelling ring the
         // Create canvas uses. `veinote-celebrate` glows every time (unlike the
@@ -115,8 +103,10 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
         window.dispatchEvent(new CustomEvent('veinote-celebrate'));
         setCheckGlowKey(key => key + 1);
         setShowCheckGlow(true);
+        // Matches the 1.15s round-ring animation. Leaving it mounted past the end
+        // of its own animation is what made the effect read as sluggish.
         if (checkGlowTimeout.current) clearTimeout(checkGlowTimeout.current);
-        checkGlowTimeout.current = setTimeout(() => setShowCheckGlow(false), 2000);
+        checkGlowTimeout.current = setTimeout(() => setShowCheckGlow(false), 1200);
     };
 
     /** Hands the tip to the Create canvas, which places it as a card in the lyric
@@ -209,9 +199,12 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         card's left, so the drawing spans top to bottom instead of
                         floating small in a fixed-width strip. */}
                     <div className="w-full sm:w-auto sm:aspect-square shrink-0 h-48 sm:h-full flex items-center justify-center">
+                        {/* Full opacity, no tint: the artwork is flat fills in the
+                            brand palette now, and muting it just reads as faded. */}
                         <IdeaGlyph
                             seed={idea.id}
-                            className="w-full h-full text-stone-500 opacity-70"
+                            category={idea.category}
+                            className="w-full h-full"
                         />
                     </div>
 
@@ -254,13 +247,21 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         aria-pressed={liked}
                         aria-label={t('learn.ideas_like')}
                         title={t('learn.ideas_like')}
-                        className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                        /* Liked drops the outline. border-transparent rather than
+                           border-0: the 1px stays in the box model, so the button
+                           keeps its size and the row beside it does not shift. */
+                        className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95 ${
                             liked
-                                ? 'border-red-200 bg-red-50 text-red-500'
+                                ? 'border-transparent bg-red-50 text-red-500'
                                 : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
                         }`}
                     >
-                        <Heart size={18} strokeWidth={2} fill={liked ? 'currentColor' : 'none'} />
+                        <Heart
+                            size={18}
+                            strokeWidth={2}
+                            fill={liked ? 'currentColor' : 'none'}
+                            className={`tip-heart ${liked ? 'tip-heart--liked' : ''}`}
+                        />
                     </button>
 
                     {/* Checked state borrows the Create section's marker:
@@ -270,9 +271,13 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         aria-pressed={checked}
                         aria-label={t('learn.ideas_mark_done')}
                         title={t('learn.ideas_mark_done')}
-                        className={`relative w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                        /* Two beats, in order: the ring travels to its end, and only
+                           then does the fill settle to green — see
+                           .mind-power-fill-after-ring. Applied while checked only, so
+                           unticking reverts at once instead of hanging. */
+                        className={`relative w-10 h-10 rounded-full border flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95 ${
                             checked
-                                ? 'bg-[#87b884] border-[#87b884] text-white shadow-sm'
+                                ? 'bg-[#87b884] border-[#87b884] text-white shadow-sm mind-power-fill-after-ring'
                                 : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
                         }`}
                     >
@@ -280,7 +285,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                             <span
                                 key={checkGlowKey}
                                 aria-hidden
-                                className="mind-power-glow-ring mind-power-glow-ring--quick"
+                                className="mind-power-glow-ring mind-power-glow-ring--round"
                             />
                         )}
                         <Check size={16} className="stroke-[3.5]" />
@@ -444,7 +449,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                                     );
                                 }}
                             >
-                                <div className="h-full bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-6">
+                                <div className="select-none h-full bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-6">
                                     {renderCardBody(deckTransition.from)}
                                 </div>
                             </div>
@@ -471,7 +476,14 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                                    pointer while dragging, with resistance so it never
                                    runs away from the cursor. */
                                 onPointerDown={e => {
-                                    if ((e.target as HTMLElement)?.closest('[data-notes-scroller]')) {
+                                    // Controls are excluded as well as the scrolling
+                                    // notes column. setPointerCapture below retargets
+                                    // every later pointer event — pointerup included —
+                                    // to this card, and a button whose pointerup lands
+                                    // somewhere else never gets a click. That is why
+                                    // the heart, the tick and Send to canvas did not
+                                    // respond to a press that started on them.
+                                    if ((e.target as HTMLElement)?.closest('button, a, input, textarea, [data-notes-scroller]')) {
                                         swipeStartY.current = null;
                                         return;
                                     }
@@ -509,7 +521,10 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                                     // tracks it exactly; springs back on release.
                                     transition: isDragging ? 'none' : 'transform 220ms cubic-bezier(0.23, 1, 0.32, 1)',
                                 }}
-                                className="h-full bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-6 cursor-grab active:cursor-grabbing touch-none"
+                                /* select-none: the card is a drag handle, so dragging
+                                   it must move the card rather than sweep a text
+                                   selection across the tip. */
+                                className="select-none h-full bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-6 cursor-grab active:cursor-grabbing touch-none"
                             >
                                 {renderCardBody(currentIdea)}
                             </div>

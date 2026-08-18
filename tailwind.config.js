@@ -66,11 +66,15 @@ export default {
           900: '#3D6D37',
         },
       },
+      // One self-hosted family for the whole app (see app/layout.tsx). The four
+      // aliases are kept because the codebase uses them interchangeably; the
+      // local-font names stay as a fallback for the moment before the webfont
+      // paints.
       fontFamily: {
-        serif: ["'Helvetica Neue'", "Helvetica", "Arial", "sans-serif"],
-        sans: ["'Helvetica Neue'", "Helvetica", "Arial", "sans-serif"],
-        display: ["'Helvetica Neue'", "Helvetica", "Arial", "sans-serif"],
-        caveat: ["'Helvetica Neue'", "Helvetica", "Arial", "sans-serif"],
+        serif: ["var(--font-app)", "'Helvetica Neue'", "Helvetica", "Arial", "sans-serif"],
+        sans: ["var(--font-app)", "'Helvetica Neue'", "Helvetica", "Arial", "sans-serif"],
+        display: ["var(--font-app)", "'Helvetica Neue'", "Helvetica", "Arial", "sans-serif"],
+        caveat: ["var(--font-app)", "'Helvetica Neue'", "Helvetica", "Arial", "sans-serif"],
       },
       backgroundImage: {
         'glass-gradient': 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%)',

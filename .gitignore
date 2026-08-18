@@ -76,3 +76,16 @@ vendor/lexicon/nst/
 # repo AND off the deployed site: everything under public/ is served publicly,
 # and only the derivatives are ever referenced by the app.
 /public/Onboarding assets/
+
+# 404 / empty-state source master (the 1 MB PNG the avif+webp in
+# public/assets/404 are generated from). Same rule as the onboarding masters:
+# everything under public/ is served publicly, and only the derivatives are
+# ever referenced by the app.
+/public/404 - empty states/
+
+# Create demo-video masters. Same rule again, but listed by file rather than by
+# directory because public/Create holds the derivatives the app DOES play
+# (collab-loop.mp4, publish-loop.mp4) in the same folder. Only these two
+# originals are unreferenced.
+/public/Create/Invite collab.mp4
+/public/Create/Publish song.mp4

@@ -45,9 +45,9 @@ test.describe('Practice Page', () => {
     await page.locator('button[aria-label="Next Practice"]').click();
     await expect(page.getByText('Find melodies that sit naturally', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(0);
-    // The unbuilt card promises a date and counts down to it
-    await expect(page.getByText(/^Coming /)).toBeVisible();
-    await expect(page.getByText(/^in \d+ days?$/)).toBeVisible();
+    // The unbuilt card counts down in days, and offers no intro clip
+    await expect(page.getByText(/^Coming in \d+ days?$/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Why / })).toHaveCount(0);
   });
 
   test('the menu lists the roadmap, marking what is not built yet', async ({ page }) => {
@@ -67,13 +67,11 @@ test.describe('Practice Page', () => {
 
     await page.getByRole('button', { name: 'Start' }).click();
 
-    // Our songs plus the bring-your-own tile, with Next locked until a pick is made
+    // Our songs only — the upload tile is hidden for now, and there is no
+    // confirm step: clicking a song is the choice.
     await expect(page.getByText('Pick a song to practise with', { exact: false })).toBeVisible();
-    await expect(page.locator('[data-song-choice]')).toHaveCount(5);
-    await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
-
-    await page.locator('[data-song-choice="do-you-love"]').click();
-    await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeEnabled();
+    await expect(page.locator('[data-song-choice]')).toHaveCount(4);
+    await expect(page.getByRole('button', { name: 'Next', exact: true })).toHaveCount(0);
 
     await page.locator('main').getByRole('button', { name: 'Back', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
@@ -83,7 +81,6 @@ test.describe('Practice Page', () => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
     await page.locator('[data-song-choice="do-you-love"]').click();
-    await page.getByRole('button', { name: 'Next', exact: true }).click();
 
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
@@ -93,8 +90,9 @@ test.describe('Practice Page', () => {
     const labels = await timeline.locator('button[title]').evaluateAll(
       els => els.map(e => (e.getAttribute('title') || '').split(' · ')[0])
     );
+    // Repeated kinds are numbered in playing order; a kind that happens once is not
     expect(labels.filter(Boolean)).toEqual([
-      'Intro', 'Verse', 'Chorus', 'Verse', 'Chorus', 'Bridge', 'Chorus',
+      'Intro', 'Verse 1', 'Chorus 1', 'Verse 2', 'Chorus 2', 'Bridge', 'Chorus 3',
     ]);
 
     // The timeline is the player: it carries the play control and a scrub track
@@ -108,54 +106,28 @@ test.describe('Practice Page', () => {
     await expect(timeline.getByText(/^1:[12]\d$/)).toBeVisible();
   });
 
-  test('an uploaded song plays, with decomposition marked as pending', async ({ page }) => {
-    await page.goto('/platform/practice');
-    await page.getByRole('button', { name: 'Start' }).first().click();
-
-    // A tiny valid WAV: 44-byte header + a second of silence at 8kHz
-    const rate = 8000;
-    const dataSize = rate * 2;
-    const header = Buffer.alloc(44);
-    header.write('RIFF', 0); header.writeUInt32LE(36 + dataSize, 4); header.write('WAVE', 8);
-    header.write('fmt ', 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20);
-    header.writeUInt16LE(1, 22); header.writeUInt32LE(rate, 24); header.writeUInt32LE(rate * 2, 28);
-    header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34);
-    header.write('data', 36); header.writeUInt32LE(dataSize, 40);
-    const wav = Buffer.concat([header, Buffer.alloc(dataSize)]);
-
-    await page.locator('input[type="file"]').setInputFiles({
-      name: 'my-demo.wav', mimeType: 'audio/wav', buffer: wav,
-    });
-    await expect(page.getByText('my-demo')).toBeVisible();
-    await page.getByRole('button', { name: 'Next', exact: true }).click();
-
-    // The analyser gives a 1-second silent file an honest no.
-    await expect(page.getByText("We couldn't map this song yet.")).toBeVisible({ timeout: 30000 });
-  });
-
   test('a song without a hand-made map gets analysed into a timeline', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
     await page.locator('[data-song-choice="another-ride"]').click();
-    await page.getByRole('button', { name: 'Next', exact: true }).click();
 
     // The analyser announces itself, then delivers a real section map.
     await expect(page.getByText('Listening through the song…')).toBeVisible({ timeout: 20000 });
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 90000 });
 
-    const labels = await timeline.locator('button[title]').evaluateAll(
-      els => els.map(e => (e.getAttribute('title') || '').split(' · ')[0])
+    // Drop any occurrence number ("Chorus 2" → "Chorus") to compare kinds
+    const kinds = await timeline.locator('button[title]').evaluateAll(
+      els => els.map(e => (e.getAttribute('title') || '').split(' · ')[0].replace(/ \d+$/, ''))
     );
-    expect(labels.length).toBeGreaterThanOrEqual(3);
-    expect(labels).toContain('Chorus');
+    expect(kinds.length).toBeGreaterThanOrEqual(3);
+    expect(kinds).toContain('Chorus');
   });
 
   test('naming a part: right answer turns green, wrong one shakes', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
     await page.locator('[data-song-choice="do-you-love"]').click();
-    await page.getByRole('button', { name: 'Next', exact: true }).click();
 
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
@@ -176,10 +148,132 @@ test.describe('Practice Page', () => {
     await expect(notVerseBlock).toHaveClass(/animate-shake/);
     await expect(page.getByText('?', { exact: true })).toHaveCount(7);
 
-    // A wrong answer keeps the type armed, so the right part still lands
+    // A wrong answer keeps the type armed, so the right part still lands, and
+    // both the part and its band on the timeline fill green.
     await verseBlock.click();
-    await expect(verseBlock).toHaveClass(/border-\[#86BE7F\]/);
+    await expect(verseBlock).toHaveCSS('background-color', 'rgb(134, 190, 127)');
+    await expect(timeline.locator('button[title^="Verse"]').first())
+        .toHaveCSS('background-color', 'rgb(134, 190, 127)');
     await expect(page.getByText('?', { exact: true })).toHaveCount(6);
+
+    // Matching works the other way too: arm a lyrics block, answer on the timeline
+    await notVerseBlock.click();
+    await expect(notVerseBlock).toHaveCSS('background-color', 'rgb(220, 221, 212)');
+    await timeline.locator('button[title^="Chorus"]').first().click();
+    await expect(notVerseBlock).toHaveCSS('background-color', 'rgb(134, 190, 127)');
+    await expect(page.getByText('?', { exact: true })).toHaveCount(5);
+  });
+
+  test('the playhead still tracks when the file reports no length', async ({ page }) => {
+    // A still-streaming file reports Infinity for its duration. That used to
+    // become the denominator of the playhead, pinning the marker at the start
+    // while the clock counted on.
+    await page.addInitScript(() => {
+      Object.defineProperty(window.HTMLMediaElement.prototype, 'duration', {
+        get() { return Infinity; },
+        configurable: true,
+      });
+    });
+
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await page.locator('[data-song-choice="do-you-love"]').click();
+
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 20000 });
+
+    // The structure's own end stands in for the unknown length
+    await expect(timeline.getByText('2:48')).toBeVisible();
+
+    const playhead = timeline.locator('div.h-11 > div[aria-hidden="true"]');
+    await timeline.getByRole('button', { name: 'Play' }).click();
+    await page.waitForTimeout(6000);
+
+    const left = await playhead.evaluate(el => parseFloat((el as HTMLElement).style.left));
+    expect(left).toBeGreaterThan(1);
+  });
+
+  test('the playhead really moves on screen, not just in its style attribute', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await page.locator('[data-song-choice="do-you-love"]').click();
+
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 20000 });
+    await timeline.getByRole('button', { name: 'Play' }).click();
+    await page.waitForTimeout(1500);
+
+    // Measure where the playhead is actually painted, not what left% it claims.
+    // A CSS transition on `left` once held the painted position still while the
+    // declared value advanced 60 times a second.
+    const painted = () => page.evaluate(() => {
+      const t = document.querySelector('[data-song-timeline]')!;
+      const line = t.querySelector('div.h-11 > div[aria-hidden="true"]') as HTMLElement;
+      const bar = t.querySelector('div.h-11') as HTMLElement;
+      return line.getBoundingClientRect().left - bar.getBoundingClientRect().left;
+    });
+
+    const before = await painted();
+    await page.waitForTimeout(2000);
+    const after = await painted();
+
+    // ~6px per second on a 992px bar; allow plenty of slack for a loaded machine
+    expect(after - before).toBeGreaterThan(4);
+  });
+
+  test('arming a band lights that one band, not every band of its kind', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await page.locator('[data-song-choice="do-you-love"]').click();
+
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 20000 });
+    const bands = timeline.locator('div.h-11 > button');
+
+    // The ring is a box-shadow; count the bands wearing one
+    const armedNames = () => bands.evaluateAll(els => els
+      .filter(e => getComputedStyle(e).boxShadow !== 'none')
+      .map(e => (e.getAttribute('title') || '').split(' · ')[0]));
+
+    await timeline.locator('button[title^="Verse 2"]').click();
+    await expect.poll(armedNames).toEqual(['Verse 2']);
+
+    // Arming another replaces it rather than adding to it
+    await timeline.locator('button[title^="Chorus 3"]').click();
+    await expect.poll(armedNames).toEqual(['Chorus 3']);
+
+    // Clicking the armed band again disarms
+    await timeline.locator('button[title^="Chorus 3"]').click();
+    await expect.poll(armedNames).toEqual([]);
+  });
+
+  test('the playing part is highlighted, and follows the marker mid-scrub', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await page.locator('[data-song-choice="do-you-love"]').click();
+
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 20000 });
+
+    const playing = page.locator('[data-section-block].is-playing');
+    // Exactly one part is ever marked, and at 0:00 it is the intro
+    await expect(playing).toHaveCount(1);
+    await expect(playing).toContainText('No lyrics in this part');
+
+    // Past the intro (0–7s) the first verse takes over
+    await timeline.getByRole('button', { name: 'Play' }).click();
+    await expect(playing).toContainText('I want to spend a day with you', { timeout: 20000 });
+
+    // Dragging the marker moves the highlight during the drag, not on release
+    const track = timeline.locator('div.touch-none');
+    const box = (await track.boundingBox())!;
+    await page.mouse.move(box.x + 4, box.y + 4);
+    await page.mouse.down();
+    // 75% of a 2:48 song lands at ~2:06, inside the bridge (123–142s)
+    await page.mouse.move(box.x + box.width * 0.75, box.y + 4, { steps: 5 });
+    await expect(playing).toContainText('Do you love Do you love Do you love');
+    await expect(playing).toHaveCount(1);
+    await page.mouse.up();
   });
 
   test('the card play button opens the intro video', async ({ page }) => {

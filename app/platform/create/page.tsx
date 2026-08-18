@@ -4109,6 +4109,18 @@ export default function CreatePage() {
     const [inviteEmail, setInviteEmail] = useState('');
     // Set once they pick a connection by name, which invites by uid instead of address.
     const [invitePick, setInvitePick] = useState<InvitePick | null>(null);
+    /** People lined up to be invited, before anything is sent.
+     *
+     *  Inviting a band one address at a time meant re-opening this dialog for each
+     *  person and re-reading the same form. The field now fills a list, and one
+     *  action sends the lot — the common case (a single invite) is unaffected,
+     *  because Invite sends whatever is in the field even if the list is empty. */
+    const [inviteQueue, setInviteQueue] = useState<Array<{ key: string; uid?: string; email?: string; label: string }>>([]);
+    /** Set when an invite goes to someone with no account yet. Outbound mail is not
+     *  configured, so the sender carries the invitation themselves — see
+     *  inviteCollaboratorByEmail. */
+    const [inviteLink, setInviteLink] = useState<string | null>(null);
+    const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
     // Uids this project already has an outstanding invitation out to — suggesting them
     // again just sends the same person a second copy of the same notice.
     const [sentInviteUids, setSentInviteUids] = useState<string[]>([]);
@@ -6882,12 +6894,46 @@ export default function CreatePage() {
         return () => { cancelled = true; };
     }, [showShareModal, user, selectedNoteId]);
 
+    /** Moves whatever the field is holding onto the list. Returns false when there
+     *  is nothing usable there, so the caller can leave the field alone. */
+    const queueCurrentInvite = (): boolean => {
+        const email = inviteEmail.trim();
+        if (invitePick) {
+            const key = `uid:${invitePick.uid}`;
+            setInviteQueue(prev => prev.some(q => q.key === key)
+                ? prev
+                : [...prev, { key, uid: invitePick.uid, label: invitePick.name }]);
+        } else if (isEmailAddress(email)) {
+            const key = `email:${email.toLowerCase()}`;
+            setInviteQueue(prev => prev.some(q => q.key === key)
+                ? prev
+                : [...prev, { key, email, label: email }]);
+        } else {
+            return false;
+        }
+        setInvitePick(null);
+        setInviteEmail('');
+        setInviteStatus({ type: '', message: '' });
+        return true;
+    };
+
     const handleInviteCollaborator = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedNoteId || !user) return;
-        // Either a connection picked by name, or a typed address. A half-typed name is
-        // neither, and inviting it as an email would mail nobody.
-        if (!invitePick && !isEmailAddress(inviteEmail)) return;
+
+        // Everything on the list, plus whatever is still sitting in the field — so a
+        // single invite never requires pressing Next first, and a typed address is
+        // never silently dropped because the writer went straight for Invite.
+        const trailingEmail = inviteEmail.trim();
+        const recipients = [...inviteQueue];
+        if (invitePick && !recipients.some(r => r.uid === invitePick.uid)) {
+            recipients.push({ key: `uid:${invitePick.uid}`, uid: invitePick.uid, label: invitePick.name });
+        } else if (!invitePick && isEmailAddress(trailingEmail)
+            && !recipients.some(r => (r.email || '').toLowerCase() === trailingEmail.toLowerCase())) {
+            recipients.push({ key: `email:${trailingEmail.toLowerCase()}`, email: trailingEmail, label: trailingEmail });
+        }
+        if (recipients.length === 0) return;
+
         setIsInviting(true);
         setInviteStatus({ type: '', message: '' });
 
@@ -6915,32 +6961,78 @@ export default function CreatePage() {
 
         
         const senderName = user.displayName || user.email?.split('@')[0] || 'Collaborator';
-        const res = invitePick
-            ? await inviteCollaboratorByUid(selectedNoteId, invitePick.uid, user.uid, senderName)
-            : await inviteCollaboratorByEmail(selectedNoteId, inviteEmail, user.uid, senderName);
-        if (res.success) {
-            if (invitePick) setSentInviteUids(prev => prev.includes(invitePick.uid) ? prev : [...prev, invitePick.uid]);
+
+        // Sequentially, not in parallel: each invite writes to the same project
+        // document, and firing them together makes them race for it.
+        const sentUids: string[] = [];
+        const failures: string[] = [];
+        const links: string[] = [];
+        for (const person of recipients) {
+            // Split rather than a ternary: only the email path can return a link to
+            // hand over, and keeping the two apart lets that stay typed.
+            if (person.uid) {
+                const res = await inviteCollaboratorByUid(selectedNoteId, person.uid, user.uid, senderName);
+                if (res.success) sentUids.push(person.uid);
+                else failures.push(`${person.label}: ${res.message}`);
+            } else {
+                const res = await inviteCollaboratorByEmail(selectedNoteId, person.email || '', user.uid, senderName);
+                if (res.success) {
+                    if (res.inviteUrl) links.push(res.inviteUrl);
+                } else {
+                    failures.push(`${person.label}: ${res.message}`);
+                }
+            }
+        }
+
+        const sentCount = recipients.length - failures.length;
+        if (sentUids.length > 0) {
+            setSentInviteUids(prev => [...prev, ...sentUids.filter(uid => !prev.includes(uid))]);
+        }
+
+        if (failures.length === 0) {
+            // Say it landed, THEN close. Closing the instant it succeeded left no
+            // trace that anything had happened — with several invites going out at
+            // once there is a result worth reading before the dialog goes away.
+            setInviteQueue([]);
             setInvitePick(null);
             setInviteEmail('');
-            // The invite is away, so the dialog has nothing left to ask. It closes rather than
-            // holding a success line in front of the writer, and the toast the invitee receives
-            // is the real confirmation that anything happened.
-            setInviteStatus({ type: '', message: '' });
-            setShowShareModal(false);
-            // Refetch profiles to update list
-            try {
-                const projectDoc = await getDoc(doc(db, "projects", selectedNoteId));
-                if (projectDoc.exists()) {
-                    const collabList = projectDoc.data().collaborators || [];
-                    setCollaborators(collabList);
-                    const profiles = await getCollaboratorProfiles(collabList);
-                    setCollaboratorProfiles(profiles);
-                }
-            } catch (err) {
-                console.error("Error updating collaborators list after invite:", err);
+            setInviteStatus({
+                type: 'success',
+                message: sentCount > 1
+                    ? t('collab.invites_sent').replace('{count}', String(sentCount))
+                    : t('collab.invite_sent'),
+            });
+            // A link only exists when someone invited has no account yet, and it is
+            // the ONLY way they will hear about this — so the dialog stays put until
+            // it has been handed over. With nothing to pass on, it closes as before.
+            if (links.length > 0) {
+                setInviteLink(links[0]);
+                setInviteLinkCopied(false);
+            } else {
+                window.setTimeout(() => {
+                    setShowShareModal(false);
+                    setInviteStatus({ type: '', message: '' });
+                }, 1800);
             }
         } else {
-            setInviteStatus({ type: 'error', message: res.message });
+            // Whoever did go out is off the list; what is left is what still needs
+            // attention, so a retry doesn't invite the same person twice.
+            const failedLabels = failures.map(f => f.split(':')[0]);
+            setInviteQueue(prev => prev.filter(q => failedLabels.includes(q.label)));
+            setInviteStatus({ type: 'error', message: failures.join(' · ') });
+        }
+
+        // Refetch profiles to update list
+        try {
+            const projectDoc = await getDoc(doc(db, "projects", selectedNoteId));
+            if (projectDoc.exists()) {
+                const collabList = projectDoc.data().collaborators || [];
+                setCollaborators(collabList);
+                const profiles = await getCollaboratorProfiles(collabList);
+                setCollaboratorProfiles(profiles);
+            }
+        } catch (err) {
+            console.error("Error updating collaborators list after invite:", err);
         }
         setIsInviting(false);
     };
@@ -7092,6 +7184,11 @@ export default function CreatePage() {
             (!activeNote.audioNotes || activeNote.audioNotes.length === 0) &&
             (!activeNote.images || activeNote.images.length === 0) &&
             (!activeNote.documents || activeNote.documents.length === 0) &&
+            // A placed tip is content too. Its placeholder phrase has empty text,
+            // so without this line a tip sent to a fresh project left the note
+            // counting as blank — the onboarding empty state kept rendering and
+            // the card, though placed, was never drawn.
+            (!activeNote.tips || activeNote.tips.length === 0) &&
             (!activeNote.verses || activeNote.verses.length === 0) &&
             (!activeNote.phrases || activeNote.phrases.filter(p => p.text.trim() !== '').length === 0)
         )
@@ -10606,6 +10703,9 @@ export default function CreatePage() {
      * somewhere. With no project open at all, one is created and this runs again
      * on the next render once it exists.
      */
+    /** Phrase id of a just-placed card waiting to be scrolled into view. */
+    const scrollToPhraseIdRef = useRef<string | null>(null);
+
     const pendingTipRun = useRef({ placed: false, askedForNote: false });
     useEffect(() => {
         if (!isDataLoaded) return;
@@ -10634,8 +10734,32 @@ export default function CreatePage() {
             phrases: finalPhrases,
             content: finalPhrases.map(p => p.text).join('\n'),
         });
+        // The card lands at the end of the flow, which on any song longer than a
+        // screen is below the fold — a tip the writer never sees may as well not
+        // have been sent. Handed to the effect below, which scrolls to it once it
+        // has actually rendered.
+        scrollToPhraseIdRef.current = dedicatedPhraseId;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isDataLoaded, activeNote, user, isCanvasReadOnly]);
+
+    /**
+     * Scrolls a just-placed card into view.
+     *
+     * Deliberately has no dependency array: the element does not exist on the
+     * render that requests the scroll, so this re-checks after each one and acts
+     * on the first where the node is in the DOM. The ref guard makes the common
+     * case a single read, and clearing it means this fires exactly once.
+     */
+    useEffect(() => {
+        const phraseId = scrollToPhraseIdRef.current;
+        if (!phraseId) return;
+        const el = document.querySelector(`[data-phrase-id="${phraseId}"]`);
+        if (!el) return;
+        scrollToPhraseIdRef.current = null;
+        const prefersReduced = typeof window !== 'undefined'
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        el.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'center' });
+    });
 
     /** Same re-placement path as an image: pull the tip's placeholder out of the
      *  flow and splice it back in at the drop point. */
@@ -13170,10 +13294,23 @@ export default function CreatePage() {
         }
     }), [notes, projectSortOption, t]);
 
-    const filteredNotes = useMemo(() => notesFilteredByMode.filter(n =>
-        n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        n.content.toLowerCase().includes(searchQuery.toLowerCase())
-    ), [notesFilteredByMode, searchQuery]);
+    // Search matches PROJECT NAMES, nothing else. It used to look inside the
+    // lyrics too, which surfaced projects with no visible connection to the query —
+    // two letters that happened to sit inside a word of a song read as nonsense
+    // results, because the thing that matched is not the thing the card shows.
+    // Matching the displayed title as well as the stored one keeps a hit like
+    // "Projekt - 01/08" findable in the language the card is actually shown in.
+    const filteredNotes = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return notesFilteredByMode;
+        return notesFilteredByMode.filter(n => {
+            const raw = (n.title || '').toLowerCase();
+            if (raw.includes(q)) return true;
+            const shown = getTranslatedTitle(n.title || '').toLowerCase();
+            return shown !== raw && shown.includes(q);
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [notesFilteredByMode, searchQuery, t]);
 
     // Filter notes based on search state (folders are removed)
     const displayNotes = filteredNotes;
@@ -17561,7 +17698,9 @@ export default function CreatePage() {
     if (!isMounted) return null;
 
     return (
-        <div className="w-full flex flex-col gap-0 md:gap-10 text-stone-900 font-sans min-h-[calc(100dvh-12rem)] pt-0 pb-10 md:py-2">
+        // py only from xl: below that the canvas is full-bleed, so even the 8px this
+        // used to add from md up read as an unwanted seam above the card.
+        <div className="w-full flex flex-col gap-0 md:gap-10 text-stone-900 font-sans min-h-[calc(100dvh-12rem)] pt-0 pb-10 xl:py-2">
             
             
             {/* Notification toast — one quiet white card that says its piece and leaves.
@@ -17853,7 +17992,7 @@ export default function CreatePage() {
                         handleMovePhraseToGroup(phraseId, null);
                     }
                 }}
-                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-5 lg:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
+                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none xl:rounded-[32px] p-4 md:p-5 xl:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
                     isCanvasLocked
                         ? 'border-2 border-[#EDFF8E] shadow-[0_0_0_4px_rgba(237,255,142,0.35),0_12px_40px_rgba(0,0,0,0.03)] cursor-default'
                         // The I-beam is only honest over the region that actually starts a
@@ -20575,48 +20714,100 @@ export default function CreatePage() {
             {/* Real-Time Collaboration Share Modal Overlay */}
             {showShareModal && createPortal(
                 <div
-                    className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
-                    // Click-away to dismiss, matching the Close button. The form below already
-                    // stopped propagation for this, but the backdrop handler was never wired up.
+                    // Same shell as the publish dialog: blurred backdrop, the panel the
+                    // only thing in focus. Click-away dismisses, matching Close.
+                    className="fixed inset-0 z-[130] bg-stone-900/40 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto no-scrollbar animate-in fade-in duration-200"
                     onClick={() => {
                         setShowShareModal(false);
                         setInviteStatus({ type: '', message: '' });
                         setInvitePick(null);
                         setInviteEmail('');
+                        setInviteQueue([]);
+                        setInviteLink(null);
                     }}
                 >
                     <form
                         onSubmit={handleInviteCollaborator}
-                        className="bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-8 animate-in zoom-in-95 duration-200 relative max-h-[90dvh] overflow-y-auto no-scrollbar"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={t('collab.invite_title')}
+                        className="w-full max-w-[560px] my-auto bg-[#FAF8F4] rounded-[32px] shadow-[0_28px_80px_rgba(0,0,0,0.22)] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h3 className="text-3xl md:text-[38px] leading-[1.25] font-sans font-light text-stone-600 tracking-[-0.035em]">
-                            {t('collab.invite_title')}
-                        </h3>
+                        {/* ── Header loop ───────────────────────────────────────────
+                            Two people playing to each other on a cliff — the thing the
+                            invite is actually for, said before a word of copy. Muted,
+                            looping, decorative, so `aria-hidden`; the poster paints the
+                            first frame immediately so the header is never blank while
+                            the video is still arriving. */}
+                        <div className="relative h-[230px] shrink-0 bg-[#EFE7DE] overflow-hidden">
+                            {/* Framed so the players sit above the fade below — object-top
+                                keeps them there when the panel is wider than the clip. */}
+                            <video
+                                src="/Create/collab-loop.mp4"
+                                poster="/Create/collab-loop-poster.webp"
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                preload="auto"
+                                aria-hidden="true"
+                                // 70% over the header's own beige: the clip sets a mood
+                                // behind the words rather than competing with them.
+                                className="absolute inset-0 w-full h-full object-cover object-top opacity-70"
+                            />
+                            {/* The beige shade that hands the video over to the content —
+                                opaque at the bottom so the type starts on solid ground,
+                                clear at the top so the sea is untouched. Pulled a pixel
+                                past the header's edge: on a fractional device pixel ratio
+                                the two boxes round differently and a hairline of video
+                                survives exactly where the title sits. */}
+                            <div
+                                className="absolute inset-x-0 -bottom-px h-[64%] pointer-events-none"
+                                style={{ background: 'linear-gradient(to bottom, rgba(250,248,244,0) 0%, rgba(250,248,244,0.72) 52%, #FAF8F4 88%, #FAF8F4 100%)' }}
+                            />
+                        </div>
 
-                        {/* Pending Invites List */}
-                        {pendingInvites.length > 0 && (
-                            <div className="flex flex-col gap-3 pb-6 border-b border-stone-100">
-                                <h4 className="text-[14px] font-sans font-medium text-stone-400">{t('collab.pending_invites')}</h4>
+                        <div className="px-7 md:px-9 pb-7 md:pb-8 -mt-10 relative flex flex-col gap-6">
+                            <div className="flex flex-col gap-3">
+                                {/* Who is already here, in the line above the title — the
+                                    same slot the publish dialog uses for its step count.
+                                    It answers "is anyone in this yet?" before the form
+                                    asks for another name. */}
+                                <span className="text-[12.5px] font-medium text-stone-400 tracking-tight">
+                                    {collaborators.length > 0
+                                        ? t('collab.people_on_song').replace('{count}', String(collaborators.length + 1))
+                                        : t('collab.just_you_so_far')}
+                                </span>
+                                <h2 className="text-balance text-[34px] md:text-[40px] leading-[1.05] font-bold text-stone-800 tracking-[-0.02em]">
+                                    {t('collab.invite_heading')}
+                                </h2>
+                            </div>
+
+                            {/* Invites waiting on YOU — someone else's project asking for
+                                an answer. Above the invite form because a decision that is
+                                already pending outranks starting a new one. */}
+                            {pendingInvites.length > 0 && (
                                 <div className="flex flex-col gap-2.5">
+                                    <h4 className="text-[13px] font-semibold text-stone-500">{t('collab.pending_invites')}</h4>
                                     {pendingInvites.map(invite => (
-                                        <div key={invite.id} className="flex items-center justify-between bg-stone-50 p-4 rounded-xl border border-stone-150/40">
-                                            <div className="flex flex-col">
-                                                <span className="text-sm text-stone-700 font-medium">{invite.senderName} {t('collab.invited_you')}</span>
-                                                <span className="text-[10px] text-stone-400">{t('collab.to_collaborate_on')} {invite.projectTitle || "Project"}</span>
+                                        <div key={invite.id} className="flex items-center justify-between gap-3 bg-white border border-stone-200/70 p-4 rounded-[18px]">
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[14px] text-stone-800 font-semibold truncate">{invite.senderName} {t('collab.invited_you')}</span>
+                                                <span className="text-[12px] text-stone-400 truncate">{t('collab.to_collaborate_on')} {invite.projectTitle || "Project"}</span>
                                             </div>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 shrink-0">
                                                 <button
                                                     type="button"
                                                     onClick={() => handleAcceptInvite(invite)}
-                                                    className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-full transition-colors cursor-pointer"
+                                                    className="px-4 h-9 bg-[#86BE7F] hover:bg-[#78B673] text-stone-900 text-[13px] font-semibold rounded-full transition-colors cursor-pointer active:scale-[0.98]"
                                                 >
                                                     {t('collab.accept')}
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => handleDeclineInvite(invite)}
-                                                    className="px-4 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-700 text-xs font-semibold rounded-full transition-colors cursor-pointer"
+                                                    className="px-4 h-9 text-stone-500 hover:text-stone-800 text-[13px] font-semibold rounded-full transition-colors cursor-pointer"
                                                 >
                                                     {t('collab.decline')}
                                                 </button>
@@ -20624,20 +20815,125 @@ export default function CreatePage() {
                                         </div>
                                     ))}
                                 </div>
+                            )}
+
+                            <div className="flex flex-col gap-3">
+                                {/* items-start, not items-end: the field carries a helper
+                                    line beneath it, and aligning to the bottom pushed Next
+                                    down past the input it belongs to. */}
+                                <div className="flex items-start gap-2.5">
+                                    <div className="flex-1 min-w-0">
+                                        <InviteCollaboratorField
+                                            query={inviteEmail}
+                                            onQueryChange={setInviteEmail}
+                                            picked={invitePick}
+                                            onPick={setInvitePick}
+                                            excludeUids={[
+                                                ...allCollabMembers.map(m => m.uid),
+                                                ...sentInviteUids,
+                                                // Already queued: suggesting them again would
+                                                // invite the same person twice.
+                                                ...inviteQueue.map(q => q.uid).filter((u): u is string => !!u),
+                                            ]}
+                                            disabled={isInviting}
+                                        />
+                                    </div>
+                                    {/* Adds this one to the list and empties the field for the
+                                        next name. Not the primary action — that is Invite — so
+                                        it reads as the quieter of the two. */}
+                                    <button
+                                        type="button"
+                                        onClick={queueCurrentInvite}
+                                        disabled={isInviting || (!invitePick && !isEmailAddress(inviteEmail))}
+                                        className="h-[50px] px-5 shrink-0 rounded-full bg-white border border-stone-300 text-stone-700 text-[15px] font-semibold hover:border-stone-400 hover:text-stone-900 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        {t('collab.add_another')}
+                                    </button>
+                                </div>
+
+                                {/* Everyone lined up, each removable — the list IS the record
+                                    of who is about to be invited, so it has to be editable
+                                    before the one action that sends them all. */}
+                                {inviteQueue.length > 0 && (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {inviteQueue.map(person => (
+                                            <span
+                                                key={person.key}
+                                                className="flex items-center gap-1.5 bg-white border border-stone-200/70 rounded-full py-1.5 pl-4 pr-2 max-w-full"
+                                            >
+                                                <span className="text-[14px] font-medium text-stone-800 truncate">{person.label}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setInviteQueue(prev => prev.filter(q => q.key !== person.key))}
+                                                    aria-label={`${t('publish.remove_credit')} ${person.label}`}
+                                                    disabled={isInviting}
+                                                    className="w-6 h-6 rounded-full hover:bg-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-700 transition-all active:scale-90 shrink-0 cursor-pointer disabled:opacity-40"
+                                                >
+                                                    <X size={13} className="stroke-[2.5]" />
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        )}
 
-                        <div className="flex flex-col gap-6">
-                            <InviteCollaboratorField
-                                query={inviteEmail}
-                                onQueryChange={setInviteEmail}
-                                picked={invitePick}
-                                onPick={setInvitePick}
-                                excludeUids={[...allCollabMembers.map(m => m.uid), ...sentInviteUids]}
-                                disabled={isInviting}
-                            />
+                            {/* Status Message */}
+                            {inviteStatus.message && (
+                                <p
+                                    role="status"
+                                    aria-live="polite"
+                                    className={`flex items-center gap-2 text-[13px] font-semibold -mt-2 ${
+                                        inviteStatus.type === 'success' ? 'text-[#4e7a49]' : 'text-red-600'
+                                    }`}
+                                >
+                                    {inviteStatus.type === 'success' && <Check size={15} className="stroke-[3] shrink-0" />}
+                                    {inviteStatus.message}
+                                </p>
+                            )}
 
-                            <div className="flex items-center justify-end gap-3.5 mt-2">
+                            {/* The link for someone who has no account yet. It appears only
+                                when an invite actually produced one, and it is the ONLY way
+                                that person hears about this — outbound mail is not configured
+                                yet — so it is put in front of the sender rather than left for
+                                them to go looking for. */}
+                            {inviteLink && (
+                                <div className="flex flex-col gap-2 bg-white border border-stone-200/70 rounded-[18px] p-4">
+                                    <span className="text-[13px] font-semibold text-stone-600">{t('collab.share_link_title')}</span>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            readOnly
+                                            value={inviteLink}
+                                            onFocus={(e) => e.currentTarget.select()}
+                                            className="flex-1 min-w-0 bg-stone-50 border border-stone-200 rounded-full px-4 h-11 text-[13px] text-stone-700 font-medium outline-none focus:border-stone-400"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                try {
+                                                    await navigator.clipboard.writeText(inviteLink);
+                                                    setInviteLinkCopied(true);
+                                                    window.setTimeout(() => setInviteLinkCopied(false), 2000);
+                                                } catch {
+                                                    // Clipboard blocked (insecure origin, or permission
+                                                    // refused) — the field is selectable, so say to copy
+                                                    // it by hand rather than claiming it was copied.
+                                                    setInviteLinkCopied(false);
+                                                }
+                                            }}
+                                            className="h-11 px-5 shrink-0 rounded-full bg-stone-900 hover:bg-stone-800 text-white text-[13.5px] font-semibold transition-colors cursor-pointer active:scale-[0.98] flex items-center gap-1.5"
+                                        >
+                                            {inviteLinkCopied
+                                                ? <><Check size={14} className="stroke-[3]" />{t('collab.link_copied')}</>
+                                                : t('collab.copy_link')}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── Actions ───────────────────────────────────────────
+                                Same shape as publish: a quiet text button that leaves, and
+                                one green action that carries the weight. */}
+                            <div className="flex items-center gap-4 pt-1">
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -20645,87 +20941,34 @@ export default function CreatePage() {
                                         setInviteStatus({ type: '', message: '' });
                                         setInvitePick(null);
                                         setInviteEmail('');
+                                        setInviteQueue([]);
+                                        setInviteLink(null);
                                     }}
-                                    className="px-8 py-3 bg-stone-100/75 hover:bg-stone-200/50 text-stone-600 rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer"
+                                    className="h-[54px] px-4 rounded-full text-[16px] font-medium text-stone-500 hover:text-stone-800 transition-colors cursor-pointer shrink-0"
                                 >
                                     {t('common.close')}
                                 </button>
-                                <button
-                                    type="submit"
-                                    disabled={isInviting || (!invitePick && !isEmailAddress(inviteEmail))}
-                                    className="px-8 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-                                >
-                                    {isInviting ? t('collab.inviting') : t('collab.invite')}
-                                </button>
+                                {/* Counts the field as well as the list, so the label matches
+                                    what pressing it will actually do. */}
+                                {(() => {
+                                    const pendingFromField = invitePick || isEmailAddress(inviteEmail.trim()) ? 1 : 0;
+                                    const total = inviteQueue.length + pendingFromField;
+                                    return (
+                                        <button
+                                            type="submit"
+                                            disabled={isInviting || total === 0}
+                                            className="flex-1 h-[54px] rounded-full text-[17px] font-semibold bg-[#86BE7F] text-stone-900 hover:bg-[#78B673] shadow-sm transition-all cursor-pointer active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
+                                        >
+                                            {isInviting
+                                                ? t('collab.inviting')
+                                                : total > 1
+                                                    ? t('collab.invite_all').replace('{count}', String(total))
+                                                    : t('collab.invite')}
+                                        </button>
+                                    );
+                                })()}
                             </div>
                         </div>
-
-                        {/* Status Message */}
-                        {inviteStatus.message && (
-                            <p className={`text-xs font-semibold text-center -mt-2 px-1 ${
-                                inviteStatus.type === 'success' ? 'text-emerald-600' : 'text-red-600'
-                            }`}>
-                                {inviteStatus.message}
-                            </p>
-                        )}
-
-                        {/* Access/Collaborators List */}
-                        {selectedNoteId && (
-                            <div className="flex flex-col gap-3 pt-6 border-t border-stone-100">
-                                <h4 className="text-[14px] font-sans font-medium text-stone-400">{t('collab.whos_in')}</h4>
-                                <div className="flex flex-wrap items-center gap-2 mt-1 max-h-36 overflow-y-auto no-scrollbar">
-                                    {/* Owner Tag */}
-                                    <div className="flex items-center gap-1.5 py-1.5 pr-3">
-                                        <span className="text-sm font-sans font-medium text-stone-700">
-                                            {activeNote?.ownerId === user?.uid ? t('collab.me') : (collaboratorProfiles[activeNote?.ownerId || '']?.name || t('collab.owner'))}
-                                        </span>
-                                        <span className="text-[10px] text-stone-400 font-sans bg-stone-100/80 px-1.5 py-0.5 rounded-md font-medium">{t('collab.owner')}</span>
-                                    </div>
-
-                                    {/* Collaborators Tags */}
-                                    {collaborators.map((collabUid) => {
-                                        const profile = collaboratorProfiles[collabUid] || { name: 'Collaborator', email: '' };
-                                        const canRemove = (activeNote?.ownerId === user?.uid) || (collabUid === user?.uid);
-                                        return (
-                                            <div key={collabUid} className={`flex items-center gap-1.5 bg-stone-50 border border-stone-200/60 rounded-full py-1.5 ${canRemove ? 'pl-4 pr-2' : 'px-4'}`}>
-                                                <span className="text-sm font-sans font-medium text-stone-700">{profile.name}</span>
-                                                {canRemove && (
-                                                    <Tooltip label={activeNote?.ownerId === user?.uid ? `Remove ${profile.name}` : 'Leave project'}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (activeNote?.ownerId === user?.uid) {
-                                                                setConfirmCloseCollab({
-                                                                    isOpen: true,
-                                                                    type: 'remove_collaborator',
-                                                                    projectId: selectedNoteId,
-                                                                    collaboratorUid: collabUid,
-                                                                    collaboratorName: profile.name
-                                                                });
-                                                            } else {
-                                                                setConfirmCloseCollab({
-                                                                    isOpen: true,
-                                                                    type: 'leave_project',
-                                                                    projectId: selectedNoteId,
-                                                                    collaboratorUid: collabUid,
-                                                                    collaboratorName: profile.name
-                                                                });
-                                                            }
-                                                        }}
-                                                        aria-label={activeNote?.ownerId === user?.uid ? `Remove ${profile.name}` : 'Leave project'}
-                                                        className="w-6 h-6 rounded-full hover:bg-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-700 transition-all active:scale-90 shrink-0 cursor-pointer"
-                                                    >
-                                                        <X size={13} className="stroke-[2.5]" />
-                                                    </button>
-                                                    </Tooltip>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
                     </form>
                 </div>,
                 document.body

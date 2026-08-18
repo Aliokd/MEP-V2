@@ -21,7 +21,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { slug } = await params;
     const [page, { language }] = await Promise.all([getPublishedPage(slug), resolveServerLocale()]);
 
-    if (!page) return { title: "Not found | Veinote" };
+    // The route answers 404 here, so keep the miss out of the index and out of
+    // link previews rather than letting it inherit the site-level OG card.
+    if (!page) return { title: "Not found | Veinote", robots: { index: false, follow: true } };
 
     const title = pickLocale(page.title, language);
     const description = pickLocale(page.description, language);

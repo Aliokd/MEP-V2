@@ -27,6 +27,34 @@ export const KIND_BG: Record<SectionKind, string> = {
 /** One colour and one weight for every label on the timeline. */
 export const SECTION_TEXT = '#44403C';
 
+/** Success: a section the user has correctly named, in the platform's green. */
+export const SOLVED_BG = '#86BE7F';
+export const SOLVED_TEXT = '#1C2B1A';
+
+/**
+ * The "armed, waiting for its match" outline. A deep greige from the same warm
+ * family as the section fills — black read as an error state on these panels.
+ */
+export const ARMED_LINE = '#8C8878';
+
+/**
+ * Occurrence numbers for a song's sections, in playing order: the first verse
+ * is 1, the second is 2. A kind that only happens once stays unnumbered — a
+ * lone "Intro 1" reads as though a second one went missing.
+ */
+export function sectionOrdinals(kinds: SectionKind[]): (number | null)[] {
+    const totals = new Map<SectionKind, number>();
+    for (const kind of kinds) totals.set(kind, (totals.get(kind) ?? 0) + 1);
+
+    const seen = new Map<SectionKind, number>();
+    return kinds.map(kind => {
+        if ((totals.get(kind) ?? 0) < 2) return null;
+        const n = (seen.get(kind) ?? 0) + 1;
+        seen.set(kind, n);
+        return n;
+    });
+}
+
 export const KIND_LABEL_KEY: Record<SectionKind, string> = {
     intro: 'practice.section_intro',
     verse: 'practice.section_verse',

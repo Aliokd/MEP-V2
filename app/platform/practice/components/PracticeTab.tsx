@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import PracticeCard from './PracticeCard';
 import PracticeVideoModal from './PracticeVideoModal';
 import SongChooser, { type ChosenSong } from './SongChooser';
 import StructurePlayer from './StructurePlayer';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
-import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, Play } from 'lucide-react';
-import Tooltip from '@/components/Tooltip';
+import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -32,25 +31,52 @@ export default function PracticeTab() {
      * until it. Null once the date has slipped past — better a plain "coming
      * soon" than a countdown standing at zero.
      */
-    const releaseInfo = (p: PracticeDefinition, monthStyle: 'long' | 'short') => {
+    // Sampled once per mount: the countdown ticks in days, not seconds.
+    const [now] = useState(() => Date.now());
+
+    const releaseInfo = (p: PracticeDefinition) => {
         if (p.available || !p.releaseAt) return null;
         const date = new Date(`${p.releaseAt}T00:00:00Z`);
-        const days = Math.ceil((date.getTime() - Date.now()) / 86400000);
+        const days = Math.ceil((date.getTime() - now) / 86400000);
         if (days <= 0) return null;
-        const intlLocale = language === 'no' ? 'nb-NO' : language === 'sv' ? 'sv-SE' : 'en-GB';
-        const sameYear = date.getUTCFullYear() === new Date().getFullYear();
-        const dateLabel = new Intl.DateTimeFormat(intlLocale, {
-            day: 'numeric',
-            month: monthStyle,
-            timeZone: 'UTC',
-            ...(sameYear ? {} : { year: 'numeric' }),
-        }).format(date);
+
+        const day = date.getUTCDate();
+        const sameYear = date.getUTCFullYear() === new Date(now).getFullYear();
+        const year = sameYear ? '' : ` ${date.getUTCFullYear()}`;
+
+        // "Sep, 1st" in English. The Nordic locales keep their own shape —
+        // an English ordinal reads as a foreign body in "1. sep".
+        let dateLabel: string;
+        if (language === 'no' || language === 'sv') {
+            dateLabel = new Intl.DateTimeFormat(language === 'no' ? 'nb-NO' : 'sv-SE', {
+                day: 'numeric',
+                month: 'short',
+                timeZone: 'UTC',
+                ...(sameYear ? {} : { year: 'numeric' }),
+            }).format(date);
+        } else {
+            // en-US, not en-GB: the latter abbreviates September to "Sept".
+            const month = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' }).format(date);
+            const tens = day % 100;
+            const suffix = tens >= 11 && tens <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][day % 10] ?? 'th');
+            dateLabel = `${month}, ${day}${suffix}${year}`;
+        }
         return { dateLabel, days };
     };
 
-    const comingLabel = (p: PracticeDefinition, monthStyle: 'long' | 'short') => {
-        const info = releaseInfo(p, monthStyle);
+    /** The menu's date stamp: "Coming Sep, 1st". */
+    const comingLabel = (p: PracticeDefinition) => {
+        const info = releaseInfo(p);
         return info ? t('practice.coming_on').replace('{date}', info.dateLabel) : t('common.coming_soon');
+    };
+
+    /** The card's countdown: "Coming in 14 days". */
+    const countdownLabel = (p: PracticeDefinition) => {
+        const info = releaseInfo(p);
+        if (!info) return t('common.coming_soon');
+        return info.days === 1
+            ? t('practice.coming_in_one_day')
+            : t('practice.coming_in_days').replace('{days}', String(info.days));
     };
 
     const getTranslatedLevel = (lvl: string) => {
@@ -119,9 +145,10 @@ export default function PracticeTab() {
         selectPractice(practices[(currentIndex + 1) % practices.length], 1);
     };
 
-    const handleTogglePlay = () => {
-        setIsPlaying(!isPlaying);
-    };
+    // Stable across renders: the player keys its audio element off this.
+    const handleTogglePlay = useCallback(() => {
+        setIsPlaying(playing => !playing);
+    }, []);
 
     const handleWordChange = (type: 'noun' | 'verb', index: number, value: string) => {
         if (type === 'noun') {
@@ -215,7 +242,7 @@ export default function PracticeTab() {
                                                     <span className="truncate">{getTranslatedPracticeName(p)}</span>
                                                     {!meta.available && (
                                                         <span className="shrink-0 whitespace-nowrap rounded-full bg-stone-100 text-stone-400 px-3 py-0.5 text-xs font-sans">
-                                                            {comingLabel(meta, 'short')}
+                                                            {comingLabel(meta)}
                                                         </span>
                                                     )}
                                                 </button>
@@ -255,18 +282,6 @@ export default function PracticeTab() {
                             {getTranslatedPracticeName(openedPractice)}
                         </h2>
 
-                        {/* Walkthrough for this practice — the intro clip for now */}
-                        {currentMeta.videoUrl && (
-                            <Tooltip label={t('practice.why_practice').replace('{practice}', getTranslatedPracticeName(openedPractice))}>
-                                <button
-                                    onClick={() => setVideoPractice(currentMeta)}
-                                    aria-label={t('practice.why_practice').replace('{practice}', getTranslatedPracticeName(openedPractice))}
-                                    className="ml-auto w-9 h-9 shrink-0 rounded-full border border-stone-200 hover:border-stone-400 hover:bg-white flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
-                                >
-                                    <Play className="w-3.5 h-3.5 fill-stone-700 text-stone-700 stroke-none ml-0.5" />
-                                </button>
-                            </Tooltip>
-                        )}
                     </div>
                 )}
 
@@ -300,14 +315,7 @@ export default function PracticeTab() {
                                         goal={t(currentMeta.goalKey)}
                                         level={getTranslatedLevel(currentMeta.level)}
                                         startLabel={t('practice.start_practice')}
-                                        comingSoonLabel={comingLabel(currentMeta, 'long')}
-                                        countdownLabel={(() => {
-                                            const info = releaseInfo(currentMeta, 'long');
-                                            if (!info) return null;
-                                            return info.days === 1
-                                                ? t('practice.in_one_day')
-                                                : t('practice.in_days').replace('{days}', String(info.days));
-                                        })()}
+                                        comingSoonLabel={countdownLabel(currentMeta)}
                                         videoLabel={t('practice.why_practice').replace('{practice}', t(currentMeta.nameKey))}
                                         onStart={() => setOpenedPractice(currentMeta.name)}
                                         onPlayVideo={() => setVideoPractice(currentMeta)}
@@ -326,13 +334,19 @@ export default function PracticeTab() {
                             transition={{ duration: 0.2, ease: "easeInOut" }}
                             className="w-full"
                         >
-                            {/* Pre-step: pick one of ours or bring your own, then Next */}
+                            {/* Pre-step: pick a song, then the practice on it */}
                             {!chosenSong ? (
                                 <SongChooser onNext={(choice) => setChosenSong(choice)} />
                             ) : (
-                                <>
-                                    {/* The chosen song, and the way back to choosing */}
-                                    <div className="w-full max-w-6xl mx-auto mb-8">
+                                <StructurePlayer
+                                    key={chosenSong.source === 'library' ? chosenSong.song.id : chosenSong.audioUrl}
+                                    songId={chosenSong.source === 'library' ? chosenSong.song.id : 'upload'}
+                                    audioUrl={chosenSong.source === 'library' ? chosenSong.song.audioUrl : chosenSong.audioUrl}
+                                    sections={chosenSong.source === 'library' ? chosenSong.song.sections : undefined}
+                                    isPlaying={isPlaying}
+                                    onTogglePlay={handleTogglePlay}
+                                    headerSlot={
+                                        /* The song pill doubles as the way back to choosing */
                                         <button
                                             onClick={() => { setIsPlaying(false); setChosenSong(null); }}
                                             aria-label={t('practice.change_song')}
@@ -348,18 +362,8 @@ export default function PracticeTab() {
                                             )}
                                             <ChevronDown size={16} className="stroke-[2] text-stone-400 shrink-0" />
                                         </button>
-                                    </div>
-
-                                    <StructurePlayer
-                                        key={chosenSong.source === 'library' ? chosenSong.song.id : chosenSong.audioUrl}
-                                        songId={chosenSong.source === 'library' ? chosenSong.song.id : 'upload'}
-                                        title={chosenSong.source === 'library' ? chosenSong.song.title : chosenSong.title}
-                                        audioUrl={chosenSong.source === 'library' ? chosenSong.song.audioUrl : chosenSong.audioUrl}
-                                        sections={chosenSong.source === 'library' ? chosenSong.song.sections : undefined}
-                                        isPlaying={isPlaying}
-                                        onTogglePlay={handleTogglePlay}
-                                    />
-                                </>
+                                    }
+                                />
                             )}
                         </motion.div>
                     )}

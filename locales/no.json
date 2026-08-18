@@ -276,12 +276,23 @@
   },
   "collab": {
     "invite_title": "Inviter noen til å samarbeide med deg på dette prosjektet",
+    "invite_heading": "Skriv den sammen",
+    "people_on_song": "{count} personer på denne sangen",
+    "just_you_so_far": "Bare deg så langt",
+    "leave_project": "Forlat prosjektet",
     "pending_invites": "Ventende invitasjoner",
     "invited_you": "inviterte deg",
     "to_collaborate_on": "til å samarbeide på",
     "accept": "Godta",
     "decline": "Avslå",
     "inviting": "Inviterer...",
+    "add_another": "Neste",
+    "invite_all": "Inviter {count} personer",
+    "invite_sent": "Invitasjonen er sendt",
+    "share_link_title": "Send dem denne lenken for å bli med",
+    "copy_link": "Kopier lenke",
+    "link_copied": "Kopiert",
+    "invites_sent": "{count} invitasjoner er sendt",
     "invite": "Inviter",
     "whos_in": "Hvem er med?",
     "me": "Meg",
@@ -1577,7 +1588,7 @@
   },
   "meta": {
     "title": "Veinote: hjemmet for menneskeskapt låtskriving",
-    "description": "Ingen AI-genererte sanger. Du lager dem. Du eier dem."
+    "description": "Veinote er en plattform for låtskriving — skriv tekster, fullfør låter og lær håndverket med kreative verktøy, leksjoner og øvelser fra platinaselgende låtskrivere. Ingen AI-genererte sanger. Du lager dem. Du eier dem."
   },
   "about": {
     "eyebrow": "Om Veinote",
@@ -1707,5 +1718,10 @@
     "remove_credit": "Fjern",
     "rename_credit": "Endre navn",
     "needs_ownership": "Bekreft fordelingen først"
+  },
+  "not_found": {
+    "code": "404",
+    "title": "Denne siden finnes ikke",
+    "home": "Gå til forsiden"
   }
 }

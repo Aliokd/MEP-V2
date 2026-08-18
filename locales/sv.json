@@ -276,12 +276,23 @@
   },
   "collab": {
     "invite_title": "Bjud in någon att samarbeta med dig i det här projektet",
+    "invite_heading": "Skriv den tillsammans",
+    "people_on_song": "{count} personer på den här låten",
+    "just_you_so_far": "Bara du än så länge",
+    "leave_project": "Lämna projektet",
     "pending_invites": "Väntande inbjudningar",
     "invited_you": "bjöd in dig",
     "to_collaborate_on": "att samarbeta på",
     "accept": "Acceptera",
     "decline": "Avböj",
     "inviting": "Bjuder in...",
+    "add_another": "Nästa",
+    "invite_all": "Bjud in {count} personer",
+    "invite_sent": "Inbjudan har skickats",
+    "share_link_title": "Skicka den här länken så kan de gå med",
+    "copy_link": "Kopiera länk",
+    "link_copied": "Kopierad",
+    "invites_sent": "{count} inbjudningar har skickats",
     "invite": "Bjud in",
     "whos_in": "Vilka är med?",
     "me": "Jag",
@@ -1577,7 +1588,7 @@
   },
   "meta": {
     "title": "Veinote: hemmet för mänskligt låtskrivande",
-    "description": "Inga AI-genererade låtar. Du skapar dem. Du äger dem."
+    "description": "Veinote är en plattform för låtskrivande — skriv texter, färdigställ låtar och lär dig hantverket med kreativa verktyg, lektioner och övningar från platinasäljande låtskrivare. Inga AI-genererade låtar. Du skapar dem. Du äger dem."
   },
   "about": {
     "eyebrow": "Om Veinote",
@@ -1707,5 +1718,10 @@
     "remove_credit": "Ta bort",
     "rename_credit": "Ändra namn",
     "needs_ownership": "Bekräfta fördelningen först"
+  },
+  "not_found": {
+    "code": "404",
+    "title": "Den här sidan finns inte",
+    "home": "Gå till startsidan"
   }
 }

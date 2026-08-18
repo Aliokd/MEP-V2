@@ -12,10 +12,8 @@ interface PracticeCardProps {
     goal: string;
     level: string;
     startLabel: string;
-    /** For unbuilt practices: "Coming 1 September" (or plain "Coming soon"). */
+    /** For unbuilt practices: "Coming in 14 days" (or plain "Coming soon"). */
     comingSoonLabel: string;
-    /** The countdown under the date, e.g. "in 16 days". */
-    countdownLabel?: string | null;
     /** Names the intro clip, e.g. "Why Master song structure?". */
     videoLabel: string;
     onStart: () => void;
@@ -29,7 +27,6 @@ export default function PracticeCard({
     level,
     startLabel,
     comingSoonLabel,
-    countdownLabel = null,
     videoLabel,
     onStart,
     onPlayVideo,
@@ -41,7 +38,11 @@ export default function PracticeCard({
         // is a plain scrolling column, so there is no height here to inherit. The
         // subtracted rem account for the platform header, panel padding and the
         // practice selector sitting above the card.
-        <div className="w-full max-w-5xl mx-auto min-h-[62vh] md:min-h-[calc(100vh-14rem)] bg-[#FAF9F5] border border-stone-200 rounded-[28px] p-8 md:p-12 flex flex-col">
+        <div
+            onClick={available ? onStart : undefined}
+            className={`w-full max-w-5xl mx-auto min-h-[62vh] md:min-h-[calc(100vh-14rem)] bg-[#FAF9F5] border border-stone-200 rounded-[28px] p-8 md:p-12 flex flex-col
+                ${available ? 'cursor-pointer hover:border-stone-300 transition-colors' : ''}`}
+        >
 
             {/* Title row — the intro clip sits opposite the title */}
             <div className="flex items-start justify-between gap-6">
@@ -54,11 +55,12 @@ export default function PracticeCard({
                     </h2>
                 </div>
 
-                {videoUrl && (
+                {/* The intro clip belongs to a practice you can actually start */}
+                {available && videoUrl && (
                     <Tooltip label={videoLabel}>
                         <button
                             type="button"
-                            onClick={onPlayVideo}
+                            onClick={(e) => { e.stopPropagation(); onPlayVideo(); }}
                             aria-label={videoLabel}
                             className="w-14 h-14 shrink-0 rounded-full border border-stone-300 hover:border-stone-500 hover:bg-stone-50 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
                         >
@@ -94,16 +96,9 @@ export default function PracticeCard({
                         <ArrowRight size={20} className="stroke-[2]" />
                     </button>
                 ) : (
-                    <div className="flex flex-col items-end gap-2 shrink-0 select-none">
-                        <span className="px-10 py-5 rounded-full bg-stone-100 text-stone-500 text-lg font-sans">
-                            {comingSoonLabel}
-                        </span>
-                        {countdownLabel && (
-                            <span className="pr-4 text-sm font-sans text-stone-400 tabular-nums">
-                                {countdownLabel}
-                            </span>
-                        )}
-                    </div>
+                    <span className="shrink-0 select-none px-10 py-5 rounded-full bg-[#FDE047] text-stone-900 text-lg font-sans tabular-nums">
+                        {comingSoonLabel}
+                    </span>
                 )}
             </div>
         </div>

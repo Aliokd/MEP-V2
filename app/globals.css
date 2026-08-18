@@ -64,6 +64,15 @@
     label {
         touch-action: manipulation;
     }
+
+    /* Screens that own the whole viewport — the 404 (components/ErrorScreen.tsx)
+       and any empty state built on it — set data-chromeless on <html>. The fixed
+       site nav is painted over by those screens anyway; this takes it out of the
+       tab order and the accessibility tree too, so the dead end really is one.
+       The attribute selector outranks the .flex utility the nav carries. */
+    html[data-chromeless] nav {
+        display: none;
+    }
 }
 
 @layer components {
@@ -521,6 +530,11 @@ input:-webkit-autofill:active {
     background: linear-gradient(90deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
     background-size: 220% 100%;
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    /* The standard property as well as the prefixed one. `mask-composite: exclude`
+       below has no effect without it, and a browser that honours the standard
+       property but not the -webkit- alias punches no hole at all — the ring then
+       renders as a solid filled disc covering the control. */
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     animation: mind-power-glow 3.4s ease-out forwards;
@@ -538,6 +552,11 @@ input:-webkit-autofill:active {
     background: linear-gradient(90deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
     background-size: 220% 100%;
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    /* The standard property as well as the prefixed one. `mask-composite: exclude`
+       below has no effect without it, and a browser that honours the standard
+       property but not the -webkit- alias punches no hole at all — the ring then
+       renders as a solid filled disc covering the control. */
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     animation: mind-power-glow 2s ease-out forwards;
@@ -617,6 +636,11 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     background: linear-gradient(90deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
     background-size: 220% 100%;
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    /* The standard property as well as the prefixed one. `mask-composite: exclude`
+       below has no effect without it, and a browser that honours the standard
+       property but not the -webkit- alias punches no hole at all — the ring then
+       renders as a solid filled disc covering the control. */
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     animation: invite-ring-travel 2.6s linear infinite;
@@ -668,6 +692,92 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
         linear-gradient(90deg, #86BE7F 0%, #8ec9f0 35%, #b79df0 65%, #f0a8c9 100%);
     background-size: 220% 100%;
     animation: mind-power-glow 2s ease-out forwards;
+}
+
+/* Round variant, for icon-sized circular buttons like the tip card's tick.
+ *
+ * The base ring paints a 90deg linear gradient and pans it sideways. Across the
+ * wide Mind Power pill that reads as a colour travelling along the border, which
+ * is the intent. Around a 36-40px circle it does not: colour there varies only
+ * with x, so the top and bottom of the ring are always the same shade and the
+ * whole outline just changes colour at once — the "outline is not consistent"
+ * look, and nothing like the pill it is supposed to match.
+ *
+ * A conic gradient varies colour with ANGLE, so every point on the circle differs
+ * and rotating the start angle sends the colour travelling around the ring the
+ * way it travels along the pill.
+ *
+ * The angle is a registered custom property so it interpolates (an unregistered
+ * one is a plain string and would jump), and the keyframes set it only at the two
+ * ends, under linear timing, so the rotation is continuous. The base animation
+ * instead pans to its end position at 55% and then holds motionless for the
+ * remaining 45% while fading — a visible stall mid-effect. */
+@property --mind-power-ring-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+@keyframes mind-power-ring-spin {
+    0%   { --mind-power-ring-angle: 0deg; opacity: 0; }
+    12%  { opacity: 1; }
+    70%  { opacity: 1; }
+    100% { --mind-power-ring-angle: 360deg; opacity: 0; }
+}
+/* One number drives both phases, so they cannot drift apart. */
+:root {
+    --mind-power-ring-duration: 1150ms;
+}
+.mind-power-glow-ring--round {
+    background: conic-gradient(
+        from var(--mind-power-ring-angle),
+        #86BE7F, #8ec9f0, #b79df0, #f0a8c9, #86BE7F
+    );
+    background-size: 100% 100%;
+    animation: mind-power-ring-spin var(--mind-power-ring-duration) linear forwards;
+}
+
+/* Tip card heart.
+ *
+ * Liking settles the heart 40% larger, but it arrives with a gentle overshoot
+ * instead of growing straight to its size — it swells past 1.4, eases back
+ * under it, then settles. The final keyframe and the resting transform are the
+ * same 1.4, so there is no jump when the animation hands back to the class.
+ *
+ * Unliking simply drops .tip-heart--liked: the animation goes with it and the
+ * transition below carries the heart back down. */
+@keyframes tip-heart-pop {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.58); }
+    62%  { transform: scale(1.28); }
+    82%  { transform: scale(1.46); }
+    100% { transform: scale(1.4); }
+}
+.tip-heart {
+    transition: transform 260ms ease-out;
+}
+.tip-heart--liked {
+    transform: scale(1.4);
+    animation: tip-heart-pop 540ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+    .tip-heart--liked { animation: none; }
+}
+
+/* Phase two: the tick's green fill waits for the ring to finish rather than
+ * fading up underneath it, so the two read as ordered beats.
+ *
+ * A class rather than `delay-[1150ms]`: tailwindcss-animate registers its own
+ * `delay` utility, which makes an arbitrary delay ambiguous and Tailwind drops
+ * the candidate silently — generating no CSS at all. Same trap as
+ * `duration-[Xms]` in this project.
+ *
+ * Applied only while checked, so unticking reverts immediately. */
+.mind-power-fill-after-ring {
+    transition-delay: var(--mind-power-ring-duration);
+}
+@media (prefers-reduced-motion: reduce) {
+    /* No ring to wait for — the fill should just land. */
+    .mind-power-fill-after-ring { transition-delay: 0ms; }
 }
 
 /* Reduced motion: drop the travelling gradient but still give the confirmation.
@@ -1309,6 +1419,11 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     inset: -2px;
     padding: 2px;
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    /* The standard property as well as the prefixed one. `mask-composite: exclude`
+       below has no effect without it, and a browser that honours the standard
+       property but not the -webkit- alias punches no hole at all — the ring then
+       renders as a solid filled disc covering the control. */
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
 }
@@ -1328,6 +1443,11 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     filter: blur(11px);
     opacity: 0.55;
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    /* The standard property as well as the prefixed one. `mask-composite: exclude`
+       below has no effect without it, and a browser that honours the standard
+       property but not the -webkit- alias punches no hole at all — the ring then
+       renders as a solid filled disc covering the control. */
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
 }

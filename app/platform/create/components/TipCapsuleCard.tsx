@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, Heart, Check } from 'lucide-react';
 import type { CanvasTip } from '@/lib/canvasTips';
 
 interface TipCapsuleCardProps {
@@ -9,6 +9,13 @@ interface TipCapsuleCardProps {
     onDelete: () => void;
     deleteLabel: string;
     whyLabel: string;
+    /** Favourite/tick state, shared with Learn — see lib/tipMarks. */
+    liked: boolean;
+    checked: boolean;
+    likeLabel: string;
+    checkLabel: string;
+    onToggleLike: () => void;
+    onToggleCheck: () => void;
     onDragStart?: (e: React.DragEvent) => void;
     onDragEnd?: () => void;
 }
@@ -27,15 +34,43 @@ export default function TipCapsuleCard({
     onDelete,
     deleteLabel,
     whyLabel,
+    liked,
+    checked,
+    likeLabel,
+    checkLabel,
+    onToggleLike,
+    onToggleCheck,
     onDragStart,
     onDragEnd,
 }: TipCapsuleCardProps) {
+    // The ring fires when the tick goes on, wherever that came from — this card,
+    // or the same tip ticked elsewhere — so the confirmation is identical to the
+    // Bank of tips deck rather than the canvas being the quiet surface.
+    const [prevChecked, setPrevChecked] = React.useState(checked);
+    const [glowKey, setGlowKey] = React.useState(0);
+    const [showGlow, setShowGlow] = React.useState(false);
+    if (prevChecked !== checked) {
+        setPrevChecked(checked);
+        if (checked) {
+            setGlowKey(key => key + 1);
+            setShowGlow(true);
+        }
+    }
+    React.useEffect(() => {
+        if (!showGlow) return;
+        const id = setTimeout(() => setShowGlow(false), 1200);
+        return () => clearTimeout(id);
+    }, [showGlow, glowKey]);
+
     return (
         <div
             draggable={!!onDragStart}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            className={`relative rounded-[32px] bg-white p-5 pr-12 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-2.5 w-full max-w-[440px] mx-auto select-none my-3 ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            /* Even padding all round. Only the title needs to keep clear of the ×,
+               so it carries that inset itself (below) — a card-wide pr-12 would
+               also push the right-aligned actions 48px short of the edge. */
+            className={`relative rounded-[32px] bg-white p-5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-2.5 w-full max-w-[440px] mx-auto select-none my-3 ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}
         >
             <button
                 type="button"
@@ -47,7 +82,8 @@ export default function TipCapsuleCard({
                 <X size={16} className="stroke-[2.5]" />
             </button>
 
-            <h4 className="font-sans font-semibold text-[15px] text-stone-900 leading-snug">
+            {/* pr-8 clears the × button, which reaches 46px in from the card edge. */}
+            <h4 className="font-sans font-semibold text-[15px] text-stone-900 leading-snug pr-8">
                 {tip.title}
             </h4>
 
@@ -71,6 +107,57 @@ export default function TipCapsuleCard({
                     {tip.example}
                 </p>
             )}
+
+            {/* Favourite and tick, in the same order, states and right-hand
+                placement as the Bank of tips deck, so the tip reads identically
+                wherever the writer meets it. */}
+            <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                    type="button"
+                    onClick={onToggleLike}
+                    aria-pressed={liked}
+                    aria-label={likeLabel}
+                    title={likeLabel}
+                    /* Matches the deck's heart: outline goes on like, and the icon
+                       grows 40%. See BankOfIdeas for why the border is kept but
+                       made transparent. */
+                    className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95 ${
+                        liked
+                            ? 'border-transparent bg-red-50 text-red-500'
+                            : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
+                    }`}
+                >
+                    <Heart
+                        size={16}
+                        strokeWidth={2}
+                        fill={liked ? 'currentColor' : 'none'}
+                        className={`tip-heart ${liked ? 'tip-heart--liked' : ''}`}
+                    />
+                </button>
+
+                <button
+                    type="button"
+                    onClick={onToggleCheck}
+                    aria-pressed={checked}
+                    aria-label={checkLabel}
+                    title={checkLabel}
+                    /* Ring runs to its end, then the green fill — see the deck's tick. */
+                    className={`relative w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95 ${
+                        checked
+                            ? 'bg-[#87b884] border-[#87b884] text-white shadow-sm mind-power-fill-after-ring'
+                            : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
+                    }`}
+                >
+                    {showGlow && (
+                        <span
+                            key={glowKey}
+                            aria-hidden
+                            className="mind-power-glow-ring mind-power-glow-ring--round"
+                        />
+                    )}
+                    <Check size={15} className="stroke-[3.5]" />
+                </button>
+            </div>
         </div>
     );
 }

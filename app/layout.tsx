@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import { Providers } from '@/context/Providers';
 import Navigation from '@/components/Navigation';
 import { SitePagesProvider } from '@/context/SitePagesContext';
@@ -10,6 +11,7 @@ import Script from 'next/script';
 import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
 import { SITE_URL, isLocalizedPath, localizePath } from '@/lib/i18n';
+import { pickLocale } from '@/lib/content';
 
 // Until now the app shipped Next's bare default viewport tag, which left three
 // mobile-browser problems open:
@@ -21,6 +23,22 @@ import { SITE_URL, isLocalizedPath, localizePath } from '@/lib/i18n';
 //   can pad themselves clear of the iPhone home indicator instead of sitting under it.
 // - themeColor tints Android Chrome / Safari 15+ browser chrome to the brand paper
 //   tone instead of default gray.
+/*
+ * Typography ships with the app instead of being borrowed from the visitor's
+ * machine. The stack used to start at 'Helvetica Neue', which most Windows
+ * installs don't have — and where it *is* installed it is often a Thin-only
+ * family, so the whole interface rendered hairline. Self-hosted Inter (bundled
+ * at build time, no runtime request, CSP-safe) gives every visitor the same
+ * correctly-weighted text. Swap the import here to change the typeface app-wide.
+ */
+const inter = Inter({
+    subsets: ['latin', 'latin-ext'],
+    weight: ['300', '400', '500', '600', '700'],
+    variable: '--font-app',
+    display: 'swap',
+    fallback: ['Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+});
+
 export const viewport: Viewport = {
     width: 'device-width',
     initialScale: 1,
@@ -29,15 +47,44 @@ export const viewport: Viewport = {
     themeColor: '#FAF9F5',
 };
 
+const OG_LOCALES = { en: 'en_US', no: 'nb_NO', sv: 'sv_SE' } as const;
+
 export async function generateMetadata(): Promise<Metadata> {
     const { language, path } = await resolveServerLocale();
     const t = getServerT(language);
     const canonical = SITE_URL + localizePath(path, language);
 
     const base: Metadata = {
+        metadataBase: new URL(SITE_URL),
         title: t('meta.title'),
         description: t('meta.description'),
+        applicationName: 'Veinote',
         icons: { icon: '/favicon.png' },
+        // Link previews (social, chat apps) and the picture AI assistants show
+        // when they cite the site. Pages with their own generateMetadata still
+        // inherit this block, so the site-level card is the floor, not the ceiling.
+        openGraph: {
+            type: 'website',
+            siteName: 'Veinote',
+            url: canonical,
+            title: t('meta.title'),
+            description: t('meta.description'),
+            locale: OG_LOCALES[language],
+            images: [
+                {
+                    url: '/assets/footer_bg_stockholm.png',
+                    width: 1024,
+                    height: 529,
+                    alt: 'Veinote — the home of human songwriting',
+                },
+            ],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: t('meta.title'),
+            description: t('meta.description'),
+            images: ['/assets/footer_bg_stockholm.png'],
+        },
         verification: { google: 'SSxN1LbKQDoJkun4cXEDtoKUb4dmIu_nU7Q58USxWYs' },
     };
 
@@ -46,7 +93,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
     return {
         ...base,
-        metadataBase: new URL(SITE_URL),
         alternates: {
             canonical,
             languages: {
@@ -86,9 +132,73 @@ export default async function RootLayout({
     // Cached for a minute; an empty map means the locale files are used as-is.
     const copyOverrides = await getCopyOverrides();
 
+    // Structured data for the homepage: who Veinote is, what kind of product it
+    // is, and the Q&A pairs the page visibly renders. This is what search
+    // engines and AI assistants parse to describe/recommend the product, so it
+    // must stay in lockstep with what the page actually shows — the FAQ list is
+    // the same CMS data the accordion below renders, not a separate copy.
+    let jsonLd: object | null = null;
+    if (path === '/') {
+        const t = getServerT(language, copyOverrides);
+        jsonLd = {
+            '@context': 'https://schema.org',
+            '@graph': [
+                {
+                    '@type': 'Organization',
+                    '@id': `${SITE_URL}/#organization`,
+                    name: 'Veinote',
+                    url: SITE_URL,
+                    logo: `${SITE_URL}/assets/Veinote%20logo%20TM.svg`,
+                    description: t('meta.description'),
+                },
+                {
+                    '@type': 'WebSite',
+                    '@id': `${SITE_URL}/#website`,
+                    name: 'Veinote',
+                    url: SITE_URL,
+                    publisher: { '@id': `${SITE_URL}/#organization` },
+                    inLanguage: ['en', 'nb', 'sv'],
+                },
+                {
+                    '@type': 'SoftwareApplication',
+                    name: 'Veinote',
+                    url: SITE_URL,
+                    applicationCategory: 'MultimediaApplication',
+                    operatingSystem: 'Web browser',
+                    description: t('meta.description'),
+                },
+                ...(faqs.length > 0
+                    ? [
+                          {
+                              '@type': 'FAQPage',
+                              mainEntity: faqs.map((faq) => ({
+                                  '@type': 'Question',
+                                  name: pickLocale(faq.question, language),
+                                  acceptedAnswer: {
+                                      '@type': 'Answer',
+                                      text: pickLocale(faq.answer, language),
+                                  },
+                              })),
+                          },
+                      ]
+                    : []),
+            ],
+        };
+    }
+
     return (
-        <html lang={language} suppressHydrationWarning>
+        <html lang={language} className={inter.variable} suppressHydrationWarning>
             <head>
+                {jsonLd && (
+                    <script
+                        type="application/ld+json"
+                        // CMS-authored text ends up in this string; escaping "<"
+                        // keeps a malicious answer from closing the script tag.
+                        dangerouslySetInnerHTML={{
+                            __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
+                        }}
+                    />
+                )}
                 <script
                     dangerouslySetInnerHTML={{
                         __html: `

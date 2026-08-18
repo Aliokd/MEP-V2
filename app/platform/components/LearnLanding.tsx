@@ -52,19 +52,24 @@ export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps
                     data-tour="learn-fundamentals"
                     className="group relative text-left w-full min-h-[200px] rounded-[24px] overflow-hidden border border-stone-300/60 transition-all cursor-pointer active:scale-[0.995] shadow-[0_4px_20px_rgba(0,0,0,0.015)]"
                 >
-                    {/* WebP, not the source PNG: these are grainy full-bleed
-                        artworks, which lossless PNG stores terribly (1.8MB for
-                        737x1313). next/image cannot help — images.unoptimized is
-                        on — so the files themselves are the optimisation. */}
-                    <img
-                        src="/assets/Learn/fundamentals.webp"
-                        alt=""
-                        width={737}
-                        height={1313}
-                        fetchPriority="high"
-                        decoding="async"
-                        className="absolute inset-0 w-full h-full object-cover opacity-70 transition-transform duration-700 group-hover:scale-[1.04]"
-                    />
+                    {/* AVIF first, WebP as the fallback for browsers without it.
+                        next/image cannot help here — images.unoptimized is on — so
+                        the files themselves are the optimisation. These are grainy
+                        full-bleed artworks and the grain is nearly all the bytes;
+                        AVIF is far better at it than WebP, and at 70% opacity behind
+                        text the texture it does smooth away is not visible. */}
+                    <picture>
+                        <source srcSet="/assets/Learn/fundamentals.avif" type="image/avif" />
+                        <img
+                            src="/assets/Learn/fundamentals.webp"
+                            alt=""
+                            width={737}
+                            height={1313}
+                            fetchPriority="high"
+                            decoding="async"
+                            className="absolute inset-0 w-full h-full object-cover opacity-70 transition-transform duration-700 group-hover:scale-[1.04]"
+                        />
+                    </picture>
                     <div className="relative h-full flex flex-col justify-between p-7 md:p-8">
                         <h2 className="text-3xl md:text-4xl font-sans font-medium text-stone-900 leading-tight max-w-[85%]">
                             {t('learn.master_fundamentals')}
@@ -83,15 +88,18 @@ export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps
                     aria-disabled="true"
                     className="group relative w-full min-h-[200px] rounded-[24px] overflow-hidden border border-stone-300/60 select-none"
                 >
-                    <img
-                        src="/assets/Learn/deep-dive.webp"
-                        alt=""
-                        width={736}
-                        height={1313}
-                        fetchPriority="high"
-                        decoding="async"
-                        className="absolute inset-0 w-full h-full object-cover opacity-70"
-                    />
+                    <picture>
+                        <source srcSet="/assets/Learn/deep-dive.avif" type="image/avif" />
+                        <img
+                            src="/assets/Learn/deep-dive.webp"
+                            alt=""
+                            width={736}
+                            height={1313}
+                            fetchPriority="high"
+                            decoding="async"
+                            className="absolute inset-0 w-full h-full object-cover opacity-70"
+                        />
+                    </picture>
                     <div className="relative h-full flex flex-col justify-between p-7 md:p-8">
                         <div className="flex flex-col gap-1">
                             <h2 className="text-3xl md:text-4xl font-sans font-medium text-stone-900 leading-tight">
@@ -121,14 +129,17 @@ export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps
                 data-tour="learn-ideas"
                 className="group relative text-left w-full flex-1 min-h-[110px] rounded-[24px] overflow-hidden border border-stone-300/60 transition-all cursor-pointer active:scale-[0.995] shadow-[0_4px_20px_rgba(0,0,0,0.015)]"
             >
-                <img
-                    src="/assets/Learn/bank-of-tips.webp"
-                    alt=""
-                    width={1366}
-                    height={741}
-                    decoding="async"
-                    className="absolute inset-0 w-full h-full object-cover opacity-70 transition-transform duration-700 group-hover:scale-[1.03]"
-                />
+                <picture>
+                    <source srcSet="/assets/Learn/bank-of-tips.avif" type="image/avif" />
+                    <img
+                        src="/assets/Learn/bank-of-tips.webp"
+                        alt=""
+                        width={1366}
+                        height={741}
+                        decoding="async"
+                        className="absolute inset-0 w-full h-full object-cover opacity-70 transition-transform duration-700 group-hover:scale-[1.03]"
+                    />
+                </picture>
                 <div className="relative h-full flex items-center justify-between gap-6 px-7 md:px-10">
                     <h2 className="text-3xl md:text-4xl font-sans font-medium text-stone-900 leading-tight">
                         {t('learn.bank_of_ideas')}

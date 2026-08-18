@@ -586,7 +586,7 @@ function PlatformLayoutInner({
                 flex-1 flex flex-col min-w-0
                 ${isProfile ? (isProfileExiting ? 'profile-view-exit' : 'profile-view-enter') : ''}
                 ${pathname?.startsWith('/platform/create')
-                    ? 'p-0 md:p-4 lg:p-8'
+                    ? 'p-0 xl:p-8'
                     : 'p-4 md:p-8'
                 }
             `}>
@@ -682,7 +682,12 @@ function PlatformLayoutInner({
                 </div>
 
                 {/* Desktop Top Header */}
-                <header className="hidden md:flex items-center justify-between px-8 pb-6 text-stone-600/70 font-sans text-xs tracking-wider z-40">
+                {/* Below xl the parent content area has no padding (the canvas claims it),
+                    so the header carries its own: pt-6/pb-6 centers the pill row in the
+                    top strip and lines its middle up with the sidebar logo (which sits at
+                    pt-8 + half its ~30px height ≈ the same 47px centerline). At xl the
+                    parent's p-8 returns and the original spacing takes back over. */}
+                <header className="hidden md:flex items-center justify-between px-4 xl:px-8 pt-6 xl:pt-0 pb-6 text-stone-600/70 font-sans text-xs tracking-wider z-40">
                     {/* Back button on Profile (which has no sidebar); plain spacer elsewhere */}
                     {isProfile ? (
                         <button
@@ -762,7 +767,9 @@ function PlatformLayoutInner({
                 <div className={`
                     flex-1
                     ${pathname?.startsWith('/platform/create')
-                        ? 'bg-transparent md:bg-[#FAF9F5] p-0 md:p-4 lg:p-8 rounded-none md:rounded-[32px] shadow-none'
+                        // Frame (beige panel + padding) only from xl up — below that the
+                        // canvas card claims the full width and the top gap itself.
+                        ? 'bg-transparent xl:bg-[#FAF9F5] p-0 xl:p-8 rounded-none xl:rounded-[32px] shadow-none'
                         // overflow-x-hidden: setting only overflow-y makes overflow-x compute
                         // to auto, so page transitions that translate sideways (the profile's
                         // slide-out to the guide) would flash a horizontal scrollbar.

@@ -123,14 +123,21 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                     </span>
                 </div>
 
-                <ul className="space-y-3">
-                    {maxOutcome.map((item, i) => (
-                        <li key={i} className="flex gap-3 text-[14px] font-medium leading-snug text-[#363636]/85">
-                            <Check size={16} className="mt-0.5 shrink-0 text-[#86BE7F]" />
-                            {item}
-                        </li>
-                    ))}
-                </ul>
+                {/* Same lead-in the paywall gives this list, so the points read
+                    as additions on top of Pro here too. */}
+                <div className="space-y-3">
+                    <p className="text-[13px] font-semibold text-stone-500">
+                        {t('onboarding.paywall.max_intro')}
+                    </p>
+                    <ul className="space-y-3">
+                        {maxOutcome.map((item, i) => (
+                            <li key={i} className="flex gap-3 text-[14px] font-medium leading-snug text-[#363636]/85">
+                                <Check size={16} className="mt-0.5 shrink-0 text-[#86BE7F]" />
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
 
                 {checkoutError && (
                     <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-left text-xs text-red-700">

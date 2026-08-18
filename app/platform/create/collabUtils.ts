@@ -1,7 +1,7 @@
 import { db, auth } from "@/lib/firebase";
 import { authedFetch } from "@/lib/authedFetch";
 import { LOCALE_COOKIE } from "@/lib/i18n";
-import { COLLAB_EMAIL_INVITES_ENABLED } from "@/lib/uiFlags";
+import { COLLAB_EMAIL_INVITES_ENABLED, inviteLandingPath } from "@/lib/uiFlags";
 import {
     doc,
     setDoc,
@@ -195,7 +195,7 @@ export async function inviteCollaboratorByEmail(
     email: string,
     senderId: string,
     senderName?: string
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; inviteUrl?: string }> {
     try {
         const cleanedEmail = email.toLowerCase().trim();
         const projectRef = doc(db, "projects", projectId);
@@ -208,28 +208,39 @@ export async function inviteCollaboratorByEmail(
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-            // Nobody on the platform holds this address, so the mail IS the invitation —
-            // there is no workspace for them to see a notification in. With the mailer
-            // unconfigured that invitation would be written and never announced, under a
-            // message promising an email that never left, so the branch is closed rather
-            // than made quietly untrue. See COLLAB_EMAIL_INVITES_ENABLED.
-            if (!COLLAB_EMAIL_INVITES_ENABLED) {
-                return {
-                    success: false,
-                    message: `${cleanedEmail} doesn't have a Veinote account yet, and invitations by email are turned off for now. Ask them to sign up first — once they have an account you can invite them straight away.`
-                };
-            }
-
-            // Record the invite against the email so it can be claimed at signup, and
-            // tell them about it by mail.
+            // Nobody on the platform holds this address yet. The invitation is still
+            // recorded against the email so it can be claimed the moment they sign up —
+            // that part never depended on mail and works today.
+            //
+            // What DOES depend on mail is telling them about it, and SMTP_PASS is not
+            // configured, so that send silently fails (see COLLAB_EMAIL_INVITES_ENABLED).
+            // This used to refuse the whole invite rather than promise an email that
+            // never left. Refusing was the honest half of the answer; the other half is
+            // that the sender can carry the invitation themselves. So the invite is
+            // written either way, the mail is attempted only when it can actually go,
+            // and the caller gets a link to hand over in person — which is what makes
+            // inviting someone from outside genuinely work rather than merely allowed.
             const inviteId = await writeInvitation({
                 projectId, projectTitle, senderId, senderName, inviteeId: "", inviteeEmail: cleanedEmail
             });
-            await sendInviteEmail(inviteId);
+
+            let mailed = false;
+            if (COLLAB_EMAIL_INVITES_ENABLED) {
+                await sendInviteEmail(inviteId);
+                mailed = true;
+            }
+
+            const inviteUrl = typeof window !== 'undefined'
+                ? `${window.location.origin}${inviteLandingPath(inviteId)}`
+                : inviteLandingPath(inviteId);
 
             return {
                 success: true,
-                message: `Invitation sent! An email has been sent to ${cleanedEmail}. Once they sign up, this project will appear in their workspace.`
+                // Never claims an email was sent unless one actually was.
+                message: mailed
+                    ? `Invitation sent! An email has been sent to ${cleanedEmail}. Once they sign up, this project will appear in their workspace.`
+                    : `${cleanedEmail} is invited. Send them the link to join — the project is waiting in their workspace as soon as they sign up.`,
+                inviteUrl,
             };
         }
 
