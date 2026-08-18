@@ -194,7 +194,7 @@ export default function LessonReader({
                     {/* Blocks the editor arranged. They sit above the summary so a
                         lesson can open with its own material and keep the summary
                         as the closing note. */}
-                    {visibleBlocks.length > 0 && <LessonBlocks blocks={visibleBlocks} />}
+                    {visibleBlocks.length > 0 && <LessonBlocks blocks={visibleBlocks} locale={language} />}
 
                     {currentLesson.summary?.trim() ? (
                         <div className="w-full text-sm text-stone-700 leading-relaxed font-sans space-y-4">

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { X, Save, Archive, Globe } from "lucide-react";
+import { X, Save, Archive, Globe, Eye } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { Badge, Button, Input, Panel, Select, Spinner, Textarea } from "../components/ui";
 import { LOCALES, LOCALE_LABELS, IDEA_CATEGORIES, type LocalizedText, type Locale } from "@/lib/content";
 import type { ContentItem } from "./page";
 import MediaUpload from "../components/MediaUpload";
 import BlockEditor from "./BlockEditor";
+import ContentPreview from "./ContentPreview";
 import type { LessonBlock } from "@/lib/lessonBlocks";
 import { uploadContentMedia, type VideoProbe } from "@/lib/uploadContentMedia";
 
@@ -48,6 +49,8 @@ export default function ContentEditor({
         item || ({ id: "", status: "draft", order: 0, title: {}, category: "lyrics" } as ContentItem),
     );
     const [locale, setLocale] = useState<Locale>("en");
+    // Only consulted below xl, where the two panes share the space.
+    const [pane, setPane] = useState<"edit" | "preview">("edit");
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -132,8 +135,11 @@ export default function ContentEditor({
         <div className="fixed inset-0 z-50 flex justify-end">
             <div className="absolute inset-0 bg-black/70" onClick={onClose} />
 
-            <aside className="relative w-full max-w-2xl bg-ink-900 border-l border-ink-600 h-full overflow-y-auto">
-                <header className="sticky top-0 z-10 bg-ink-900 border-b border-ink-600 px-5 py-4 flex items-start gap-3">
+            {/* Wide enough for the form and the preview to sit side by side. Below
+                xl there isn't room for both, so the two share the pane and the
+                header toggle swaps between them. */}
+            <aside className="relative w-full max-w-6xl bg-ink-900 border-l border-ink-600 h-full flex flex-col">
+                <header className="shrink-0 bg-ink-900 border-b border-ink-600 px-5 py-4 flex items-start gap-3">
                     <div className="flex flex-col gap-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                             <Badge tone={draft.status === "published" ? "green" : "gold"}>{draft.status}</Badge>
@@ -143,14 +149,27 @@ export default function ContentEditor({
                             {isNew ? `New ${collection.replace(/s$/, "")}` : "Edit"}
                         </h2>
                     </div>
+                    <button
+                        onClick={() => setPane(pane === "edit" ? "preview" : "edit")}
+                        className="xl:hidden flex items-center gap-1.5 text-xs text-ink-400 hover:text-ink-100 shrink-0 transition-colors"
+                    >
+                        <Eye className="w-3.5 h-3.5" />
+                        {pane === "edit" ? "Preview" : "Edit"}
+                    </button>
                     <button onClick={onClose} className="text-ink-500 hover:text-ink-100 shrink-0">
                         <X className="w-4 h-4" />
                     </button>
                 </header>
 
-                {error && <p className="mx-5 mt-4 text-sm text-red-300">{error}</p>}
+                <div className="flex-1 min-h-0 flex">
+                    {/* Each pane scrolls on its own, so the preview stays put while
+                        a long form is scrolled — and the other way round. */}
+                    <div
+                        className={`flex-1 min-w-0 overflow-y-auto ${pane === "preview" ? "hidden xl:block" : ""}`}
+                    >
+                        {error && <p className="mx-5 mt-4 text-sm text-red-300">{error}</p>}
 
-                <div className="p-5 flex flex-col gap-5">
+                        <div className="p-5 flex flex-col gap-5">
                     {/* Language switcher for the localized fields below */}
                     {localizedFields.length > 0 && (
                         <div className="flex items-center gap-2">
@@ -343,6 +362,16 @@ export default function ContentEditor({
                                 )}
                             </>
                         )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        className={`w-full xl:w-[460px] shrink-0 border-l border-ink-600 bg-ink-950 overflow-y-auto p-5 ${
+                            pane === "edit" ? "hidden xl:block" : ""
+                        }`}
+                    >
+                        <ContentPreview collection={collection} draft={draft} locale={locale} />
                     </div>
                 </div>
             </aside>

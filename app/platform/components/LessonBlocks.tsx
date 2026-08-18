@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import { useLanguage } from "@/context/LanguageContext";
-import { pickLocale } from "@/lib/content";
+import { pickLocale, type Locale } from "@/lib/content";
 import {
     isBlockRenderable,
     isSafeUrl,
@@ -18,9 +17,12 @@ import {
  * author types becomes markup: text is escaped and given a fixed set of inline
  * marks, embeds are rebuilt from a recognised id, and any URL that isn't http(s)
  * is refused. There is no path from the editor to arbitrary HTML.
+ *
+ * The locale is passed in rather than read from context so the admin preview can
+ * render a language the person editing is not currently browsing in.
  */
-export default function LessonBlocks({ blocks }: { blocks: LessonBlock[] }) {
-    const { language } = useLanguage();
+export default function LessonBlocks({ blocks, locale }: { blocks: LessonBlock[]; locale: Locale }) {
+    const language = locale;
 
     const visible = blocks.filter((block) => isBlockRenderable(block, language));
     if (visible.length === 0) return null;
