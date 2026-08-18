@@ -2,6 +2,7 @@
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useSanction } from '@/lib/useSanction';
 import { db } from '@/lib/firebase';
 import { useLanguage } from '@/context/LanguageContext';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
@@ -159,6 +160,9 @@ interface PostCardProps {
   onCommentToggle: (id: string) => void;
   onCommentChange: (id: string, val: string) => void;
   onCommentSubmit: (e: React.FormEvent, id: string) => void;
+  /** False while the reader is muted: the composer is hidden rather than
+   *  accepting text that firestore.rules will refuse. */
+  canComment?: boolean;
   onCommentDelete: (pid: string, cid: string) => void;
   onStartEdit: (post: Post) => void;
   onDeletePost: (id: string) => void;
@@ -191,6 +195,7 @@ function ConnectPostCard({
   onCommentToggle,
   onCommentChange,
   onCommentSubmit,
+  canComment = true,
   onCommentDelete,
   onStartEdit,
   onDeletePost,
@@ -970,6 +975,7 @@ function ConnectPostCard({
             )}
 
             {/* Comment Composer Box */}
+            {canComment && (
             <form onSubmit={(e) => onCommentSubmit(e, post.id)} className="mt-1 flex flex-col gap-2">
               <div className="bg-[#EBEBE3] rounded-[18px] p-4 flex flex-col focus-within:ring-1 focus-within:ring-stone-400/40">
                 <textarea
@@ -999,6 +1005,7 @@ function ConnectPostCard({
                 )}
               </div>
             </form>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -1320,6 +1327,8 @@ function ConnectSkeleton() {
 export default function ConnectTab() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { sanction } = useSanction();
+  const isMuted = sanction?.type === 'mute';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -1755,6 +1764,9 @@ export default function ConnectTab() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!postText.trim()) return;
+    // The Firestore rule refuses this write anyway; stopping here is what makes
+    // the refusal legible instead of a post that silently never appears.
+    if (sanction?.type === 'mute') return;
 
     const displayName = user?.displayName || user?.email?.split('@')[0] || 'Me';
     const initials = displayName
@@ -1907,6 +1919,9 @@ export default function ConnectTab() {
     e.preventDefault();
     const text = commentInputTexts[postId]?.trim();
     if (!text) return;
+    // Blocked in firestore.rules too — a mute that stopped posts but allowed
+    // comments would be no mute at all.
+    if (isMuted) return;
 
     const displayName = user?.displayName || user?.email?.split('@')[0] || 'Me';
     const initials = displayName
@@ -2083,6 +2098,31 @@ export default function ConnectTab() {
         </a>
       </div>
 
+      {/* A mute is otherwise invisible: the account works everywhere else, and
+          the writes just fail. Saying so — with the reason the moderator gave —
+          is the difference between a moderation decision and a broken feed. */}
+      {isMuted && (
+        <div className="w-full mb-8 rounded-[20px] border border-amber-200 bg-amber-50/90 p-5 flex flex-col gap-2">
+          <span className="text-[15px] font-semibold text-stone-800">{t('connect.muted_title')}</span>
+          <p className="text-[14px] text-stone-600 leading-relaxed">{t('connect.muted_body')}</p>
+
+          {sanction?.reason && (
+            <p className="text-[14px] text-stone-700 leading-relaxed">
+              <span className="font-semibold">{t('connect.muted_reason')}:</span> {sanction.reason}
+            </p>
+          )}
+
+          <p className="text-[13px] text-stone-500">
+            <span className="font-semibold">{t('connect.muted_until')}:</span>{' '}
+            {sanction?.expiresAt
+              ? new Date(sanction.expiresAt).toLocaleDateString()
+              : t('connect.muted_indefinite')}
+          </p>
+
+          <p className="text-[13px] text-stone-500">{t('connect.muted_contact')}</p>
+        </div>
+      )}
+
       {/* Community Feed - List Layout with space for peeking CD */}
       <div className="flex flex-col gap-12 w-full">
         <AnimatePresence initial={false}>
@@ -2130,6 +2170,7 @@ export default function ConnectTab() {
                 onCommentToggle={(id) => setExpandedCommentPostId(expandedCommentPostId === id ? null : id)}
                 onCommentChange={(id, val) => setCommentInputTexts(prev => ({ ...prev, [id]: val }))}
                 onCommentSubmit={handleAddComment}
+                canComment={!isMuted}
                 onCommentDelete={handleDeleteComment}
                 onStartEdit={handleStartEdit}
                 onDeletePost={handleDeletePost}

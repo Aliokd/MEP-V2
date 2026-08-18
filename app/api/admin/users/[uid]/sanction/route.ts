@@ -95,6 +95,11 @@ export const POST = withAdmin("users.sanction", async (request, admin, ctx: Ctx)
                 reason: String(reason).trim(),
                 sanctionId: sanction.id,
                 expiresAt: expiresAt ? expiresAt.toISOString() : null,
+                // The same instant as a number, because firestore.rules enforces
+                // the mute and cannot parse the ISO string. Without this the rule
+                // has no way to tell a live mute from an expired one.
+                expiresAtMillis: expiresAt ? expiresAt.getTime() : null,
+                issuedAtMillis: Date.now(),
             },
         });
     }

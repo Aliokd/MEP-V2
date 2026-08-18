@@ -439,7 +439,14 @@
     "no_songwriters": "No other songwriters yet. You're early — invite someone to write with you.",
     "member_since": "Member since",
     "connect_action": "Connect",
-    "connected": "Connected"
+    "connected": "Connected",
+    "muted_title": "Posting is paused",
+    "muted_body": "A moderator has paused your posting for now. You can still read the feed, and everything you have already shared stays where it is.",
+    "muted_reason": "Reason",
+    "muted_until": "Until",
+    "muted_indefinite": "Until a moderator lifts it",
+    "muted_contact": "Write to support@veinote.com if you think this is a mistake.",
+    "muted_publish_blocked": "Your posting is paused, so this song can't be shared to the community right now."
   },
   "creative": {
     "new_project": "New Project",
@@ -487,6 +494,7 @@
     "inspiration_doc": "a PDF, text file or Word document of your lyrics",
     "drop_files_here": "Drop your files here",
     "file_too_large_audio": "That audio is a bit too big. Try one under 30MB",
+    "file_too_large_image": "That image is too large to open. Try one under 25MB",
     "file_too_large": "That file is a bit too big. Try one under 3MB",
     "import_failed": "That file couldn't be read. Try again, or a different file",
     "save_failed": "Could not save to the cloud. Your work is safe on this device. Check your connection.",
@@ -686,14 +694,13 @@
     "section_chorus": "Chorus",
     "section_bridge": "Bridge",
     "section_solo": "Solo",
-    "pick_song": "Pick a song to practise with, or bring your own.",
+    "pick_song": "Pick a song to practise with.",
     "your_song": "Your song",
     "upload_song": "Upload your favourite song",
     "upload_replace": "Click to choose a different file",
     "upload_hint": "MP3 or WAV",
     "play_preview": "Listen",
     "pause_preview": "Pause",
-    "listen_part": "Listen to this part",
     "instrumental_part": "No lyrics in this part — trust your ears.",
     "mapping_pending": "We couldn't map this song yet.",
     "mapping_pending_desc": "It may be too short or too quiet for the analyser. You can still listen — accuracy improves with every update.",
@@ -781,8 +788,8 @@
     "analyzing": "Listening through the song…",
     "analyzing_desc": "We are mapping its structure — intro, verses, choruses and everything between. A few seconds.",
     "coming_on": "Coming {date}",
-    "in_days": "in {days} days",
-    "in_one_day": "in 1 day"
+    "coming_in_days": "Coming in {days} days",
+    "coming_in_one_day": "Coming in 1 day"
   },
   "curriculum": {
     "foundation": "Foundation",
@@ -1317,7 +1324,7 @@
           }
         },
         "max": {
-          "name": "Plus",
+          "name": "Max",
           "tagline": "For working songwriters and teams",
           "outcome": [
             "Everything Pro gives you, with the ceilings taken off",
@@ -1368,7 +1375,7 @@
       "outcome_label": "What's the outcome?",
       "no_ads": "No ads in Veinote. Ever.",
       "cancel_note": "Start free. Cancel any time.",
-      "see_max": "Check the Plus plan",
+      "see_max": "Check the Max plan",
       "see_pro": "Back to the Pro plan",
       "checkout_title": "Payment details",
       "checkout_secure": "Secure",

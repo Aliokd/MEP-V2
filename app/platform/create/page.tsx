@@ -149,11 +149,13 @@ import { type ChordMark } from '@/lib/chords';
 import ChordCard, { PlacedChordCard } from './components/ChordCard';
 import TipCapsuleCard from './components/TipCapsuleCard';
 import { hasPendingCanvasTip, takePendingCanvasTip, type CanvasTip } from '@/lib/canvasTips';
+import { toggleTipMark, useTipMarks } from '@/lib/tipMarks';
 import WordChordSection from './components/WordChordSection';
 import PublishDialog, { type PublishSplit } from './components/PublishDialog';
 import Tooltip from '@/components/Tooltip';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
+import { useSanction } from '@/lib/useSanction';
 import { authedFetch, authedFetchRetrying } from '@/lib/authedFetch';
 import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, updateDoc, writeBatch, arrayRemove, deleteDoc, arrayUnion, runTransaction } from 'firebase/firestore';
@@ -1078,10 +1080,13 @@ const PhraseRow = React.memo(function PhraseRow({
     transcribingDocId,
     handlePlaceImageAsLineAt,
     handlePlaceDocAsLineAt,
+    handlePlaceTipAsLineAt,
     draggedImageId,
     draggedImageIdRef,
     draggedDocId,
     draggedDocIdRef,
+    draggedTipId,
+    draggedTipIdRef,
     commentCount,
     commentTints,
     onOpenComments,
@@ -1149,10 +1154,13 @@ const PhraseRow = React.memo(function PhraseRow({
     transcribingDocId?: string | null;
     handlePlaceImageAsLineAt?: (imageId: string, targetPhraseId: string, position: 'top' | 'bottom') => void;
     handlePlaceDocAsLineAt?: (docId: string, targetPhraseId: string, position: 'top' | 'bottom') => void;
+    handlePlaceTipAsLineAt?: (tipId: string, targetPhraseId: string, position: 'top' | 'bottom') => void;
     draggedImageId?: string | null;
     draggedImageIdRef?: React.RefObject<string | null>;
     draggedDocId?: string | null;
     draggedDocIdRef?: React.RefObject<string | null>;
+    draggedTipId?: string | null;
+    draggedTipIdRef?: React.RefObject<string | null>;
     // Passed as primitives rather than the comment array so React.memo keeps working —
     // a fresh array identity every render would defeat it on every keystroke.
     /** Chords pinned to words on this line, keyed "phraseId:wordIndex". Passed as a
@@ -1282,6 +1290,16 @@ const PhraseRow = React.memo(function PhraseRow({
                         return;
                     }
 
+                    const droppedTipId = e.dataTransfer.getData('text/tip-id') || (draggedTipIdRef ? draggedTipIdRef.current : null) || draggedTipId;
+                    if (droppedTipId) {
+                        if (handlePlaceTipAsLineAt) handlePlaceTipAsLineAt(droppedTipId, phrase.id, 'bottom');
+                        setDragOverPhraseId(null);
+                        setDropPosition(null);
+                        if (setDragOverBlockId) setDragOverBlockId(null);
+                        if (setBlockDropPosition) setBlockDropPosition(null);
+                        return;
+                    }
+
                     const droppedDocId = e.dataTransfer.getData('text/document-id') || (draggedDocIdRef ? draggedDocIdRef.current : null) || draggedDocId;
                     if (droppedDocId) {
                         if (handlePlaceDocAsLineAt) handlePlaceDocAsLineAt(droppedDocId, phrase.id, 'bottom');
@@ -1404,10 +1422,11 @@ const PhraseRow = React.memo(function PhraseRow({
                     return;
                 }
 
-                // If it is an audio / image / document card drag
+                // If it is an audio / image / document / tip card drag
                 const isCardDrag = e.dataTransfer.types.includes('text/audio-note-id')
                     || e.dataTransfer.types.includes('text/image-id')
-                    || e.dataTransfer.types.includes('text/document-id');
+                    || e.dataTransfer.types.includes('text/document-id')
+                    || e.dataTransfer.types.includes('text/tip-id');
                 if (isCardDrag) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -1517,6 +1536,19 @@ const PhraseRow = React.memo(function PhraseRow({
                     e.stopPropagation();
                     const pos = (dropPosition === 'top' || dropPosition === 'bottom') ? dropPosition : 'bottom';
                     if (handlePlaceDocAsLineAt) handlePlaceDocAsLineAt(documentId, phrase.id, pos);
+                    setDragOverPhraseId(null);
+                    setDropPosition(null);
+                    if (setDragOverBlockId) setDragOverBlockId(null);
+                    if (setBlockDropPosition) setBlockDropPosition(null);
+                    return;
+                }
+
+                const tipId = e.dataTransfer.getData('text/tip-id') || (draggedTipIdRef ? draggedTipIdRef.current : null) || draggedTipId;
+                if (tipId) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const pos = (dropPosition === 'top' || dropPosition === 'bottom') ? dropPosition : 'bottom';
+                    if (handlePlaceTipAsLineAt) handlePlaceTipAsLineAt(tipId, phrase.id, pos);
                     setDragOverPhraseId(null);
                     setDropPosition(null);
                     if (setDragOverBlockId) setDragOverBlockId(null);
@@ -3819,6 +3851,10 @@ const prepareImageForCanvas = async (file: File): Promise<PreparedImage> => {
 export default function CreatePage() {
     const { user } = useAuth();
     const { language, t } = useLanguage();
+    // A muted account may write and record as normal — it just can't publish
+    // to the community. Checked here so the block is explained rather than
+    // arriving as a generic "couldn't publish, try again".
+    const { sanction } = useSanction();
 
     // Pre-populate from the bound account's cache so the workspace renders instantly on
     // first paint. Firestore listeners will silently merge fresher data in the background.
@@ -8889,6 +8925,18 @@ export default function CreatePage() {
                 triggerStudioNotification(t('creative.file_too_large_audio'), 'amber');
                 return null;
             }
+        } else if (uploadType === 'image') {
+            // Images are re-encoded to ~1400px WebP before anything stores them, so
+            // the raw size barely matters — a 12MB phone photo of handwritten lyrics
+            // lands around 300KB. This gate used to be the 3MB one below and fired
+            // BEFORE that compression ever ran, refusing exactly the photos the
+            // import exists for. The raw ceiling now only excludes files too big to
+            // safely decode; the real limit is checked on the COMPRESSED result in
+            // the image branch.
+            if (file.size > 25 * 1024 * 1024) {
+                triggerStudioNotification(t('creative.file_too_large_image'), 'amber');
+                return null;
+            }
         } else {
             if (file.size > 3 * 1024 * 1024) {
                 triggerStudioNotification(t('creative.file_too_large'), 'amber');
@@ -9123,6 +9171,15 @@ export default function CreatePage() {
         } else if (uploadType === 'image') {
             try {
                 const prepared = await prepareImageForCanvas(file);
+                // The real size gate, applied to what will actually be stored. Almost
+                // nothing trips it after compression — the cases that do are the ones
+                // compression deliberately leaves alone (animated GIFs, SVGs) plus
+                // anything pathological, and those genuinely are too big to keep.
+                if (prepared.blob.size > 3 * 1024 * 1024) {
+                    triggerStudioNotification(t('creative.file_too_large'), 'amber');
+                    cleanupUpload();
+                    return null;
+                }
                 const compressedBase64 = prepared.dataUrl;
                 // Generated out here so the background Storage upload can address this
                 // exact image once state has been updated.
@@ -9556,6 +9613,11 @@ export default function CreatePage() {
         );
         if (uploadingNow) {
             triggerStudioNotification(t('collab.publish_wait_upload'), 'amber');
+            return;
+        }
+
+        if (sanction?.type === 'mute') {
+            triggerStudioNotification(t('connect.muted_publish_blocked'), 'rose');
             return;
         }
 
@@ -13165,6 +13227,18 @@ export default function CreatePage() {
         }
         return map;
     }, [activeNote?.documents]);
+    // Favourites/ticks live outside the project: they belong to the tip, so the
+    // same marks show in Learn's Bank of tips and on every card of that tip here.
+    const tipMarks = useTipMarks(user?.uid);
+    const toggleTipLike = (sourceId: string) => toggleTipMark('liked', sourceId, user?.uid);
+    const toggleTipChecked = (sourceId: string) => {
+        // Same beat as the Bank: ticking is progress, so it lights the Mind Power
+        // ring, which the platform layout listens for on this route too.
+        if (toggleTipMark('checked', sourceId, user?.uid)) {
+            window.dispatchEvent(new CustomEvent('veinote-celebrate'));
+        }
+    };
+
     const tipByPhraseIdMap = useMemo(() => {
         const map: Record<string, CanvasTip> = {};
         for (const tip of (activeNote?.tips || [])) {
@@ -13349,6 +13423,12 @@ export default function CreatePage() {
                             tip={tip}
                             whyLabel={t('learn.ideas_why_label')}
                             deleteLabel={t('card.delete_tip')}
+                            likeLabel={t('learn.ideas_like')}
+                            checkLabel={t('learn.ideas_mark_done')}
+                            liked={tipMarks.liked.has(tip.sourceId)}
+                            checked={tipMarks.checked.has(tip.sourceId)}
+                            onToggleLike={() => toggleTipLike(tip.sourceId)}
+                            onToggleCheck={() => toggleTipChecked(tip.sourceId)}
                             onDelete={() => handleDeleteTip(tip.id)}
                             onDragStart={isCanvasReadOnly ? undefined : (e) => handleTipDragStart(e, tip.id)}
                             onDragEnd={handleTipDragEnd}
@@ -17649,11 +17729,18 @@ export default function CreatePage() {
                         // click's Y. Placeholder rows are skipped — they are 4px drop targets,
                         // not lyrics, and would give a meaningless anchor.
                         //
+                        // `.canvas-flow-card` is scanned alongside the lyric rows: an image,
+                        // document, chord or tip card occupies a line of the song just as a
+                        // lyric does, so it has to be able to anchor a new one. Without it a
+                        // click below a card searched past it to the last lyric ABOVE, and the
+                        // new line appeared over the card instead of under it — which is what
+                        // made typing after a card feel impossible.
+                        //
                         // Any line that was being edited has already been committed by its own
                         // blur, which fires on this click's mousedown. An empty one is removed
                         // by that same path, so repeated clicks can't pile up blank lines.
                         const rows = (Array.from(
-                            e.currentTarget.querySelectorAll('.phrase-row-container[data-phrase-id]')
+                            e.currentTarget.querySelectorAll('.phrase-row-container[data-phrase-id], .canvas-flow-card[data-phrase-id]')
                         ) as HTMLElement[]).filter(
                             row => !(row.dataset.phraseId || '').startsWith('placeholder-')
                         );
@@ -18419,7 +18506,7 @@ export default function CreatePage() {
                                                     const currentDraggedGroupId = draggedGroupId || (draggedGroupIdRef ? draggedGroupIdRef.current : null);
                                                     const currentDraggedPhraseId = draggedPhraseId || (draggedPhraseIdRef ? draggedPhraseIdRef.current : null);
                                                     const dt = e.dataTransfer.types;
-                                                    const isCardDrag = dt.includes('text/audio-note-id') || dt.includes('text/image-id') || dt.includes('text/document-id');
+                                                    const isCardDrag = dt.includes('text/audio-note-id') || dt.includes('text/image-id') || dt.includes('text/document-id') || dt.includes('text/tip-id');
 
                                                     if (currentDraggedGroupId || currentDraggedPhraseId || isCardDrag) {
                                                         if (block.type === 'group' && currentDraggedGroupId === block.groupId) return;
@@ -18444,6 +18531,7 @@ export default function CreatePage() {
                                                     const audioNoteId = e.dataTransfer.getData('text/audio-note-id') || draggedAudioIdRef.current || draggedAudioId;
                                                     const imageId = e.dataTransfer.getData('text/image-id') || draggedImageIdRef.current || draggedImageId;
                                                     const documentId = e.dataTransfer.getData('text/document-id') || draggedDocIdRef.current || draggedDocId;
+                                                    const tipId = e.dataTransfer.getData('text/tip-id') || draggedTipIdRef.current || draggedTipId;
                                                     const dropPos = blockDropPosition || 'bottom';
 
                                                     setDragOverBlockId(null);
@@ -18463,7 +18551,7 @@ export default function CreatePage() {
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                         handleInsertPhraseAtBlockLevel(currentDraggedPhraseId, blockId, blockDropPosition);
-                                                    } else if (imageId || documentId || audioNoteId) {
+                                                    } else if (imageId || documentId || audioNoteId || tipId) {
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                         const targetPhraseId = getBlockEdgePhraseId(blockId, dropPos);
@@ -18471,6 +18559,7 @@ export default function CreatePage() {
                                                             if (imageId) handlePlaceImageAsLineAt(imageId, targetPhraseId, dropPos);
                                                             else if (documentId) handlePlaceDocAsLineAt(documentId, targetPhraseId, dropPos);
                                                             else if (audioNoteId) handlePlaceAudioAsLineAt(audioNoteId, targetPhraseId, dropPos);
+                                                            else if (tipId) handlePlaceTipAsLineAt(tipId, targetPhraseId, dropPos);
                                                         }
                                                     }
                                                 }}
@@ -18588,8 +18677,8 @@ export default function CreatePage() {
                                                                         e.stopPropagation();
                                                                         return;
                                                                     }
-                                                                    if (e.dataTransfer.types.includes('text/image-id') || e.dataTransfer.types.includes('text/document-id')) {
-                                                                        // Let this bubble to the block-level handler, which owns image/doc
+                                                                    if (e.dataTransfer.types.includes('text/image-id') || e.dataTransfer.types.includes('text/document-id') || e.dataTransfer.types.includes('text/tip-id')) {
+                                                                        // Let this bubble to the block-level handler, which owns image/doc/tip
                                                                         // placement and its own top/bottom drop indicator.
                                                                         return;
                                                                     }
@@ -18623,7 +18712,7 @@ export default function CreatePage() {
                                                                         handleUpdateAudioNoteGroup(activeNote.id, audioNoteId, block.groupId);
                                                                         return;
                                                                     }
-                                                                    if (e.dataTransfer.types.includes('text/image-id') || e.dataTransfer.types.includes('text/document-id')) {
+                                                                    if (e.dataTransfer.types.includes('text/image-id') || e.dataTransfer.types.includes('text/document-id') || e.dataTransfer.types.includes('text/tip-id')) {
                                                                         // Don't swallow this drop — let it bubble to the block-level
                                                                         // handler so the card lands at this group's top/bottom edge.
                                                                         setDragOverGroupId(null);
@@ -18868,10 +18957,13 @@ export default function CreatePage() {
                                                                                             transcribingDocId={transcribingDocId}
                                                                                             handlePlaceImageAsLineAt={handlePlaceImageAsLineAt}
                                                                                             handlePlaceDocAsLineAt={handlePlaceDocAsLineAt}
+                                                                                            handlePlaceTipAsLineAt={handlePlaceTipAsLineAt}
                                                                                             draggedImageId={draggedImageId}
                                                                                             draggedImageIdRef={draggedImageIdRef}
                                                                                             draggedDocId={draggedDocId}
                                                                                             draggedDocIdRef={draggedDocIdRef}
+                                                                                            draggedTipId={draggedTipId}
+                                                                                            draggedTipIdRef={draggedTipIdRef}
                                                                                             commentCount={commentMarkers[phrase.id]?.count || 0}
                                                                                             commentTints={commentMarkers[phrase.id]?.tints}
                                                                                             onOpenComments={handleOpenCommentThread}
@@ -19146,10 +19238,13 @@ export default function CreatePage() {
                                                                         transcribingDocId={transcribingDocId}
                                                                         handlePlaceImageAsLineAt={handlePlaceImageAsLineAt}
                                                                         handlePlaceDocAsLineAt={handlePlaceDocAsLineAt}
+                                                                        handlePlaceTipAsLineAt={handlePlaceTipAsLineAt}
                                                                         draggedImageId={draggedImageId}
                                                                         draggedImageIdRef={draggedImageIdRef}
                                                                         draggedDocId={draggedDocId}
                                                                         draggedDocIdRef={draggedDocIdRef}
+                                                                        draggedTipId={draggedTipId}
+                                                                        draggedTipIdRef={draggedTipIdRef}
                                                                         commentCount={commentMarkers[phrase.id]?.count || 0}
                                                                         commentTints={commentMarkers[phrase.id]?.tints}
                                                                         onOpenComments={handleOpenCommentThread}
@@ -20170,6 +20265,40 @@ export default function CreatePage() {
                                     style={{ maxHeight: `${workspaceMenuMaxH}px` }}
                                     className="absolute right-0 top-full mt-2 bg-white border border-stone-200/80 rounded-[18px] shadow-[0_10px_30px_rgba(0,0,0,0.08)] py-2 min-w-[230px] overflow-y-auto no-scrollbar z-50 animate-in fade-in zoom-in-95 duration-150"
                                 >
+                                    <button
+                                        type="button"
+                                        onClick={() => { setIsWorkspaceMenuOpen(false); handleCreateFolder(); }}
+                                        className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer flex items-center gap-2.5"
+                                    >
+                                        <span className="w-3.5 shrink-0" />
+                                        <Plus size={14} className="stroke-[2.4] shrink-0" />
+                                        {t('workspace.new_folder')}
+                                    </button>
+                                    {openFolder && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setIsWorkspaceMenuOpen(false); handleRenameFolder(openFolder.id); }}
+                                                className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer flex items-center gap-2.5"
+                                            >
+                                                <span className="w-3.5 shrink-0" />
+                                                <Pencil size={13} className="shrink-0" />
+                                                {t('workspace.rename_folder')}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setIsWorkspaceMenuOpen(false); handleDeleteFolder(openFolder.id); }}
+                                                className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer flex items-center gap-2.5"
+                                            >
+                                                <span className="w-3.5 shrink-0" />
+                                                <Trash2 size={13} className="shrink-0" />
+                                                {t('workspace.delete_folder_title')}
+                                            </button>
+                                        </>
+                                    )}
+
+                                    <div className="h-px bg-stone-100 my-1.5 mx-3" />
+
                                     {/* Sentence case, not caps — a section marker, not a shout. */}
                                     <div className="px-4 pt-1 pb-1.5 text-[11.5px] font-semibold text-stone-400 select-none">
                                         {t('workspace.sort_label')}
@@ -20222,39 +20351,6 @@ export default function CreatePage() {
                                         </button>
                                     ))}
 
-                                    <div className="h-px bg-stone-100 my-1.5 mx-3" />
-
-                                    <button
-                                        type="button"
-                                        onClick={() => { setIsWorkspaceMenuOpen(false); handleCreateFolder(); }}
-                                        className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer flex items-center gap-2.5"
-                                    >
-                                        <span className="w-3.5 shrink-0" />
-                                        <Plus size={14} className="stroke-[2.4] shrink-0" />
-                                        {t('workspace.new_folder')}
-                                    </button>
-                                    {openFolder && (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={() => { setIsWorkspaceMenuOpen(false); handleRenameFolder(openFolder.id); }}
-                                                className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer flex items-center gap-2.5"
-                                            >
-                                                <span className="w-3.5 shrink-0" />
-                                                <Pencil size={13} className="shrink-0" />
-                                                {t('workspace.rename_folder')}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => { setIsWorkspaceMenuOpen(false); handleDeleteFolder(openFolder.id); }}
-                                                className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer flex items-center gap-2.5"
-                                            >
-                                                <span className="w-3.5 shrink-0" />
-                                                <Trash2 size={13} className="shrink-0" />
-                                                {t('workspace.delete_folder_title')}
-                                            </button>
-                                        </>
-                                    )}
                                 </div>
                             </>
                         )}

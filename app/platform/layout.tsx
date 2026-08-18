@@ -6,6 +6,7 @@ import FeedbackModal from './components/FeedbackModal';
 import MindPowerPanel from './components/MindPowerPanel';
 import MindPowerStatus from './components/MindPowerStatus';
 import PlatformOnboarding from './components/PlatformOnboarding';
+import AnnouncementBanner from './components/AnnouncementBanner';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
@@ -768,6 +769,12 @@ function PlatformLayoutInner({
                         : 'overflow-y-auto overflow-x-hidden bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] p-4 md:p-8 shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)]'
                     }
                 `}>
+                    {/* Announcements published in the admin console. Above the
+                        section rather than floating over it — a banner that covers
+                        the thing you came for gets dismissed unread. Not on the
+                        Create canvas, which is a full-bleed workspace with its own
+                        banner region, the same exception the collab toasts make. */}
+                    {!pathname?.startsWith('/platform/create') && <AnnouncementBanner />}
                     {children}
                 </div>
             </div>

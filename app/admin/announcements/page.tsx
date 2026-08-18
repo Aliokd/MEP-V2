@@ -145,6 +145,9 @@ function Composer({ onClose, onSaved }: { onClose: () => void; onSaved: () => vo
     const [locales, setLocales] = useState<string[]>([]);
     const [ctaLabel, setCtaLabel] = useState("");
     const [ctaHref, setCtaHref] = useState("");
+    // Honoured by the banner: an announcement past its end date stops showing
+    // without anyone remembering to take it down.
+    const [expiresAt, setExpiresAt] = useState("");
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -167,6 +170,9 @@ function Composer({ onClose, onSaved }: { onClose: () => void; onSaved: () => vo
                     audience: { tiers, locales },
                     ctaLabel: ctaLabel || null,
                     ctaHref: ctaHref || null,
+                    // Local midnight of the day after, so "ends 4 Sep" means the
+                    // banner is still up all of 4 Sep.
+                    expiresAt: expiresAt ? new Date(`${expiresAt}T23:59:59`).toISOString() : null,
                 }),
             });
             if (!res.ok) throw new Error((await res.json()).error || "Save failed");
@@ -269,6 +275,15 @@ function Composer({ onClose, onSaved }: { onClose: () => void; onSaved: () => vo
                             <Input value={ctaHref} onChange={(e) => setCtaHref(e.target.value)} />
                         </label>
                     </div>
+
+                    <label className="flex flex-col gap-1.5">
+                        <span className="text-xs text-ink-400">Last day shown (optional)</span>
+                        <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+                        <span className="text-[11px] text-ink-500">
+                            Leave blank to show it until you unpublish. A maintenance notice
+                            nobody remembers to take down is worse than none at all.
+                        </span>
+                    </label>
 
                     <div className="flex gap-2 pt-2 border-t border-ink-600">
                         <Button onClick={() => save("draft")} disabled={saving}>

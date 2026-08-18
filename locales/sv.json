@@ -439,7 +439,14 @@
     "no_songwriters": "Inga andra låtskrivare än. Du är tidig — bjud in någon att skriva med dig.",
     "member_since": "Medlem sedan",
     "connect_action": "Anslut",
-    "connected": "Ansluten"
+    "connected": "Ansluten",
+    "muted_title": "Publicering är pausad",
+    "muted_body": "En moderator har pausat din publicering. Du kan fortfarande läsa flödet, och allt du redan delat ligger kvar.",
+    "muted_reason": "Anledning",
+    "muted_until": "Till",
+    "muted_indefinite": "Tills en moderator häver den",
+    "muted_contact": "Skriv till support@veinote.com om du tror att det här är ett misstag.",
+    "muted_publish_blocked": "Din publicering är pausad, så den här låten kan inte delas med gemenskapen just nu."
   },
   "creative": {
     "new_project": "Nytt projekt",
@@ -487,6 +494,7 @@
     "inspiration_doc": "en PDF, textfil eller ett Word-dokument med din låttext",
     "drop_files_here": "Släpp dina filer här",
     "file_too_large_audio": "Den ljudfilen är lite för stor. Prova en under 30MB",
+    "file_too_large_image": "Den bilden är för stor att öppna. Prova en under 25 MB",
     "file_too_large": "Den filen är lite för stor. Prova en under 3MB",
     "import_failed": "Filen kunde inte läsas. Försök igen, eller med en annan fil",
     "save_failed": "Kunde inte spara till molnet. Ditt arbete är tryggt på den här enheten. Kontrollera anslutningen.",
@@ -686,14 +694,13 @@
     "section_chorus": "Refräng",
     "section_bridge": "Stick",
     "section_solo": "Solo",
-    "pick_song": "Välj en låt att öva med, eller ta med din egen.",
+    "pick_song": "Välj en låt att öva med.",
     "your_song": "Din låt",
     "upload_song": "Ladda upp din favoritlåt",
     "upload_replace": "Klicka för att välja en annan fil",
     "upload_hint": "MP3 eller WAV",
     "play_preview": "Lyssna",
     "pause_preview": "Paus",
-    "listen_part": "Lyssna på den här delen",
     "instrumental_part": "Ingen text i den här delen — lita på öronen.",
     "mapping_pending": "Vi kunde inte kartlägga den här låten ännu.",
     "mapping_pending_desc": "Den kan vara för kort eller för tyst för analysen. Du kan fortfarande lyssna — träffsäkerheten blir bättre för varje uppdatering.",
@@ -781,8 +788,8 @@
     "analyzing": "Lyssnar igenom låten…",
     "analyzing_desc": "Vi kartlägger strukturen — intro, verser, refränger och allt däremellan. Några sekunder.",
     "coming_on": "Kommer {date}",
-    "in_days": "om {days} dagar",
-    "in_one_day": "om 1 dag"
+    "coming_in_days": "Kommer om {days} dagar",
+    "coming_in_one_day": "Kommer om 1 dag"
   },
   "curriculum": {
     "foundation": "Grund",
@@ -1317,7 +1324,7 @@
           }
         },
         "max": {
-          "name": "Plus",
+          "name": "Max",
           "tagline": "För låtskrivare som lever på det",
           "outcome": [
             "Allt du får i Pro, utan taken",
@@ -1368,7 +1375,7 @@
       "outcome_label": "Vad får du ut av det?",
       "no_ads": "Ingen reklam i Veinote. Aldrig.",
       "cancel_note": "Börja gratis. Avsluta när du vill.",
-      "see_max": "Se Plus-planen",
+      "see_max": "Se Max-planen",
       "see_pro": "Tillbaka till Pro-planen",
       "checkout_title": "Betaluppgifter",
       "checkout_secure": "Säker",

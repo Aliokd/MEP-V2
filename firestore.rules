@@ -36,6 +36,32 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
+    /**
+     * True while the signed-in account is under an active mute.
+     *
+     * Suspension and ban are enforced at the Auth layer — the account is
+     * disabled, so no request gets this far. A mute leaves the account usable
+     * everywhere except the feed, which means it has to be enforced here: until
+     * this existed, a muted user carried on posting exactly as before and the
+     * sanction was decoration.
+     *
+     * `expiresAtMillis` is written alongside the ISO date by the sanction route
+     * precisely so this rule can compare it — rules cannot parse a date string.
+     * A mute with no expiry stamp is treated as still in force; it is lifted
+     * from the console, not by a clock nobody set.
+     */
+    function activeMute() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("sanction", {});
+    }
+    function isMuted() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && activeMute().get("active", false) == true
+        && activeMute().get("type", "") == "mute"
+        && (activeMute().get("expiresAtMillis", 0) == 0
+            || request.time.toMillis() < activeMute().get("expiresAtMillis", 0));
+    }
+
     // ---------------------------------------------------------------------
     // Admin identities and the audit log
     // ---------------------------------------------------------------------
@@ -233,11 +259,15 @@ service cloud.firestore {
       // `moderated_posts` (see /api/admin/moderation) rather than flagging it.
       allow read: if isSignedIn();
 
-      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      // A muted account can read the feed and keep its own posts — it just
+      // cannot add to it. Posting and commenting are both blocked; a mute that
+      // only stopped top-level posts would be trivially routed around by
+      // replying instead.
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid && !isMuted();
 
       allow update: if isModerator() ||
-        (isAuthor() && authorEditable()) ||
-        (isSignedIn() && engagementOnly());
+        (isAuthor() && authorEditable() && !isMuted()) ||
+        (isSignedIn() && engagementOnly() && !(changedKeys().hasAny(["comments"]) && isMuted()));
 
       allow delete: if isAuthor() || isModerator();
     }
