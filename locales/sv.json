@@ -1669,6 +1669,10 @@
       "contact": {
         "title": "Kontakta oss",
         "body": "Frågor om den här policyn eller dina uppgifter? Nå oss när som helst på support@veinote.com."
+      },
+      "session_recording": {
+        "title": "Inspelning av sessionen",
+        "body": "Om du accepterar analys spelar Microsoft Clarity och PostHog också in en uppspelning av hur du använder webbplatsen och plattformen: sidorna du öppnar, var du klickar och skrollar, dina musrörelser och vad som visas på skärmen just då. Det är inte en video av din skärm eller kamera, och mikrofonen spelas aldrig in – ljud du spelar in i Veinote är aldrig en del av det.\n\nText du skriver i fält maskeras innan den lämnar din webbläsare, så lösenord och formulärinnehåll syns inte. Text du redan skrivit på din canvas är en del av det sidan visar, och syns därför i en inspelning av den sidan.\n\nVi använder inspelningar bara för att hitta var produkten är förvirrande eller trasig. De förvaras av Clarity (Microsoft) och PostHog som personuppgiftsbiträden för vår räkning, säljs inte, och raderas enligt dessa leverantörers lagringstider.\n\nInspelning sker bara efter att du accepterat analys. Vill du stoppa den, välj ”Bara nödvändiga” i kakraden, eller ändra ditt svar med ”Kakinställningar” längst ned på den här sidan."
       }
     }
   },

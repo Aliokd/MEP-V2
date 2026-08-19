@@ -1669,6 +1669,10 @@
       "contact": {
         "title": "Contact us",
         "body": "Questions about this policy or your data? Reach us any time at support@veinote.com."
+      },
+      "session_recording": {
+        "title": "Session recording",
+        "body": "If you accept analytics, Microsoft Clarity and PostHog also record a playback of how you use the site and the platform: the pages you open, where you click and scroll, your mouse movement, and what is displayed on screen at the time. It is not a video of your screen or camera, and it never captures your microphone — audio you record in Veinote is never part of it.\n\nText you type into fields is masked before it leaves your browser, so passwords and form entries do not appear. Lyrics already written on your canvas are part of what the page displays, so they are visible in a recording of that page.\n\nWe use recordings only to find where the product is confusing or broken. They are held by Clarity (Microsoft) and PostHog as processors on our behalf, are not sold, and are deleted on those providers' retention schedules.\n\nRecording only ever runs after you accept analytics. To stop it, choose \"Only necessary\" in the cookie bar, or change your answer with \"Cookie settings\" at the bottom of this page."
       }
     }
   },

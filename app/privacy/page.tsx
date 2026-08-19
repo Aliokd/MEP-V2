@@ -42,6 +42,7 @@ const SECTION_IDS = [
     'how_we_use',
     'your_content',
     'cookies_analytics',
+    'session_recording',
     'third_party',
     'data_security',
     'data_retention',

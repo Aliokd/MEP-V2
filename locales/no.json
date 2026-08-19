@@ -1669,6 +1669,10 @@
       "contact": {
         "title": "Kontakt oss",
         "body": "Spørsmål om denne erklæringen eller dataene dine? Ta kontakt med oss når som helst på support@veinote.com."
+      },
+      "session_recording": {
+        "title": "Opptak av økten",
+        "body": "Hvis du godtar analyse, tar Microsoft Clarity og PostHog også opp en avspilling av hvordan du bruker nettstedet og plattformen: sidene du åpner, hvor du klikker og blar, musebevegelsene dine, og hva som vises på skjermen der og da. Det er ikke en video av skjermen eller kameraet ditt, og mikrofonen tas aldri opp – lyd du spiller inn i Veinote er aldri en del av det.\n\nTekst du skriver i felt maskeres før den forlater nettleseren din, så passord og skjemainnhold vises ikke. Tekst du allerede har skrevet på lerretet, er en del av det siden viser, og er derfor synlig i et opptak av den siden.\n\nVi bruker opptak bare til å finne ut hvor produktet er forvirrende eller ødelagt. De oppbevares av Clarity (Microsoft) og PostHog som databehandlere på våre vegne, selges ikke, og slettes etter disse leverandørenes lagringsfrister.\n\nOpptak skjer bare etter at du har godtatt analyse. Vil du stoppe det, velg «Bare nødvendige» i informasjonskapsel-linjen, eller endre svaret ditt med «Innstillinger for informasjonskapsler» nederst på denne siden."
       }
     }
   },
