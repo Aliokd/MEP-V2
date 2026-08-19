@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Providers } from '@/context/Providers';
 import Navigation from '@/components/Navigation';
+import MobileLaptopBanner from '@/components/MobileLaptopBanner';
 import AnalyticsGate from '@/components/AnalyticsGate';
 import CookieBanner from '@/components/CookieBanner';
 import { SitePagesProvider } from '@/context/SitePagesContext';
@@ -11,7 +12,8 @@ import { getPublishedFaqs } from '@/lib/faqs';
 import { getCopyOverrides } from '@/lib/siteCopy';
 import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
-import { SITE_URL, isLocalizedPath, localizePath } from '@/lib/i18n';
+import { NONCE_HEADER, SITE_URL, isLocalizedPath, localizePath } from '@/lib/i18n';
+import { headers } from 'next/headers';
 import { pickLocale } from '@/lib/content';
 
 // Until now the app shipped Next's bare default viewport tag, which left three
@@ -60,7 +62,13 @@ export async function generateMetadata(): Promise<Metadata> {
         title: t('meta.title'),
         description: t('meta.description'),
         applicationName: 'Veinote',
-        icons: { icon: '/favicon.png' },
+        // apple-touch-icon is what Safari, iOS home screens and Applebot (Siri
+        // and Spotlight results) look for; without it Apple surfaces render a
+        // screenshot of the page instead of the mark.
+        icons: {
+            icon: '/favicon.png',
+            apple: '/favicon.png',
+        },
         // Link previews (social, chat apps) and the picture AI assistants show
         // when they cite the site. Pages with their own generateMetadata still
         // inherit this block, so the site-level card is the floor, not the ceiling.
@@ -86,7 +94,19 @@ export async function generateMetadata(): Promise<Metadata> {
             description: t('meta.description'),
             images: ['/assets/footer_bg_stockholm.png'],
         },
-        verification: { google: 'SSxN1LbKQDoJkun4cXEDtoKUb4dmIu_nU7Q58USxWYs' },
+        // Google's token is committed because it was already live. Bing's and
+        // Yandex's come from the environment so they can be added after their
+        // webmaster accounts exist without another code change — an unset one
+        // simply emits no tag, which is the same as not being verified yet.
+        verification: {
+            google: 'SSxN1LbKQDoJkun4cXEDtoKUb4dmIu_nU7Q58USxWYs',
+            ...(process.env.YANDEX_SITE_VERIFICATION
+                ? { yandex: process.env.YANDEX_SITE_VERIFICATION }
+                : {}),
+            ...(process.env.BING_SITE_VERIFICATION
+                ? { other: { 'msvalidate.01': process.env.BING_SITE_VERIFICATION } }
+                : {}),
+        },
     };
 
     // hreflang only makes sense on the pages that actually have locale URLs.
@@ -112,6 +132,12 @@ export default async function RootLayout({
     children: React.ReactNode;
 }) {
     const { language, fromUrl, path } = await resolveServerLocale();
+
+    // Minted per request in proxy.ts. Undefined only for a response that never
+    // passed through the proxy, in which case React omits the attribute and the
+    // inline scripts below are simply not rendered as allowed — which is the
+    // safe direction to fail.
+    const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
 
     // Fetched here rather than in the footer so the links land in the
     // server-rendered HTML — legal pages have to be crawlable. Cached for a
@@ -193,6 +219,7 @@ export default async function RootLayout({
                 {jsonLd && (
                     <script
                         type="application/ld+json"
+                        nonce={nonce}
                         // CMS-authored text ends up in this string; escaping "<"
                         // keeps a malicious answer from closing the script tag.
                         dangerouslySetInnerHTML={{
@@ -201,6 +228,10 @@ export default async function RootLayout({
                     />
                 )}
                 <script
+                    // Carries the per-request nonce from proxy.ts — the CSP allows
+                    // inline script by nonce and nothing else, so an inline block
+                    // without this attribute is silently dropped by the browser.
+                    nonce={nonce}
                     dangerouslySetInnerHTML={{
                         __html: `
                             if (window.location.hostname === 'mep-v2.web.app' || window.location.hostname === 'mep-v2.firebaseapp.com') {
@@ -215,6 +246,7 @@ export default async function RootLayout({
                 <Providers initialLanguage={language} localeFromUrl={fromUrl} copyOverrides={copyOverrides}>
                     <SitePagesProvider links={footerLinks} faqs={faqs}>
                         <div className="min-h-screen flex flex-col">
+                            <MobileLaptopBanner />
                             <Navigation />
                             <main className="flex-grow">
                                 {children}

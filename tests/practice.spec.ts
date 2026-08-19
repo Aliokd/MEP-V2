@@ -73,11 +73,27 @@ test.describe('Practice Page', () => {
     await expect(page.locator('[data-song-choice]')).toHaveCount(4);
     await expect(page.getByRole('button', { name: 'Next', exact: true })).toHaveCount(0);
 
-    // Only the first song is ready; the rest sit locked behind "Coming soon"
-    await expect(page.locator('[data-song-locked]')).toHaveCount(3);
+    // Songs with a hand-authored structure are playable; Another Ride has none
+    // yet, so it sits locked behind "Coming soon".
+    await expect(page.locator('[data-song-locked]')).toHaveCount(1);
     await expect(page.locator('[data-song-choice="do-you-love"]')).toBeEnabled();
-    await expect(page.locator('[data-song-choice="closer"]')).toBeDisabled();
-    await expect(page.getByText('Coming soon')).toHaveCount(3);
+    await expect(page.locator('[data-song-choice="closer"]')).toBeEnabled();
+    await expect(page.locator('[data-song-choice="beautiful-day"]')).toBeEnabled();
+    await expect(page.locator('[data-song-choice="another-ride"]')).toBeDisabled();
+    // Scoped to the chooser on purpose. PracticeTab renders its own "Coming
+    // soon" for a locked practice on the same screen, so an unscoped match
+    // counts that too and the number moves whenever the roadmap does.
+    await expect(page.locator('[data-song-choice] >> text=Coming soon')).toHaveCount(1);
+
+    // Credits, and proof every cover actually resolves — the song folders are
+    // named "<Title> - <Artist>", so recrediting one silently 404s its assets.
+    await expect(page.getByText('Lounge Club', { exact: true })).toHaveCount(2);
+    await expect(page.getByText('Lounge Club feat. Lucas Kay')).toBeVisible();
+    const covers = await page.locator('[data-song-choice] img').evaluateAll(
+      els => els.map(e => (e as HTMLImageElement).naturalWidth)
+    );
+    expect(covers.length).toBe(3);
+    expect(covers.every(w => w > 0)).toBe(true);
 
     await page.locator('main').getByRole('button', { name: 'Back', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
@@ -112,9 +128,9 @@ test.describe('Practice Page', () => {
     await expect(timeline.getByText(/^1:[12]\d$/)).toBeVisible();
   });
 
-  // Every song lacking a hand-authored map is locked for now, and the upload
-  // tile is hidden, so the analyser has no way in from the UI. The pipeline is
-  // still there — unlock a song in practiceSongs.ts to bring this back.
+  // Another Ride is the only song without a hand-authored map, and it is locked
+  // because the analyser misreads it badly. With the upload tile hidden too, the
+  // analyser has no way in from the UI. Unlock it in practiceSongs.ts to restore.
   test.skip('a song without a hand-made map gets analysed into a timeline', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
@@ -269,13 +285,19 @@ test.describe('Practice Page', () => {
     await expect(playing).toHaveCount(1);
     await expect(playing).toContainText('No lyrics in this part');
 
-    // Past the intro (0–7s) the first verse takes over
-    await timeline.getByRole('button', { name: 'Play' }).click();
-    await expect(playing).toContainText('I want to spend a day with you', { timeout: 20000 });
-
-    // Dragging the marker moves the highlight during the drag, not on release
+    // Seeking past the intro (0–7s) hands the highlight to the first verse.
+    // Driven by a seek rather than by waiting out real playback: Chromium pauses
+    // itself after a few seconds when its audio output is unavailable, which
+    // would make a wall-clock wait here depend on the machine's sound device.
     const track = timeline.locator('div.touch-none');
     const box = (await track.boundingBox())!;
+    await timeline.getByRole('button', { name: 'Play' }).click();
+    // 15% of a 2:48 song is ~0:25, inside verse 1 (7–41s)
+    await page.mouse.click(box.x + box.width * 0.15, box.y + 4);
+    await expect(playing).toContainText('I want to spend a day with you');
+    await expect(playing).toHaveCount(1);
+
+    // Dragging the marker moves the highlight during the drag, not on release
     await page.mouse.move(box.x + 4, box.y + 4);
     await page.mouse.down();
     // 75% of a 2:48 song lands at ~2:06, inside the bridge (123–142s)

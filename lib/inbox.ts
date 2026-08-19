@@ -33,6 +33,10 @@ export interface CreateInboxThreadInput {
     userAgent?: string | null;
     /** True when the caller's Firebase ID token was verified against userId. */
     verified: boolean;
+    /** The uid the request asked to be filed under. Only meaningful when
+     *  `verified` is false — it is a claim, not an identity, and must never be
+     *  used for access control. Kept so support can see what was asserted. */
+    claimedUid?: string | null;
 }
 
 /**
@@ -43,16 +47,29 @@ export interface CreateInboxThreadInput {
 export async function verifyClaimedUser(
     request: Request,
     claimedUid: string,
-): Promise<{ uid: string; email: string | null; verified: boolean }> {
+): Promise<{ uid: string; claimedUid: string; email: string | null; verified: boolean }> {
     const header = request.headers.get("authorization") || "";
     const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
-    if (!token) return { uid: claimedUid, email: null, verified: false };
+
+    // SECURITY: an unverified caller is never given the uid they asked for.
+    //
+    // This used to fall back to `uid: claimedUid`, so an anonymous POST carrying
+    // someone else's uid produced an inbox thread stored under that uid. Two
+    // things followed: the thread showed up in the victim's account (the
+    // Firestore rule keys on `userId == request.auth.uid`, as do the admin
+    // replies beneath it), and support saw a request that appeared to come from
+    // a real account. `verified: false` was recorded but nothing acted on it.
+    //
+    // The claim is kept — it is useful context on a genuine anonymous report —
+    // but only as an unprivileged field that grants no access.
+    const anonymous = { uid: "anonymous", claimedUid, email: null, verified: false };
+    if (!token) return anonymous;
 
     try {
         const decoded = await adminAuth.verifyIdToken(token);
-        return { uid: decoded.uid, email: decoded.email || null, verified: true };
+        return { uid: decoded.uid, claimedUid, email: decoded.email || null, verified: true };
     } catch {
-        return { uid: claimedUid, email: null, verified: false };
+        return anonymous;
     }
 }
 
@@ -65,6 +82,8 @@ export async function createInboxThread(input: CreateInboxThreadInput): Promise<
         userName: input.userName || "Anonymous User",
         userEmail: input.userEmail,
         verified: input.verified,
+        // Null on a verified thread — there is nothing to disambiguate there.
+        claimedUid: input.verified ? null : input.claimedUid || null,
         subject: input.subject.trim(),
         message: input.message.trim(),
         attachmentUrl: input.attachmentUrl || null,

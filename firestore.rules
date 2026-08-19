@@ -36,6 +36,17 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
+    // Membership of an arbitrary project, by id. Needed outside the /projects
+    // match block — the invitations rule has to establish that whoever is issuing
+    // an invitation actually belongs to the project they are inviting someone to.
+    function isProjectMemberOf(projectId) {
+      let projectRef = /databases/$(database)/documents/projects/$(projectId);
+      return exists(projectRef) && (
+        get(projectRef).data.get("ownerId", "") == request.auth.uid ||
+        request.auth.uid in get(projectRef).data.get("collaborators", [])
+      );
+    }
+
     /**
      * True while the signed-in account is under an active mute.
      *
@@ -89,17 +100,46 @@ service cloud.firestore {
     // User profiles
     // ---------------------------------------------------------------------
     match /users/{userId} {
-      // NOTE: read stays open to any signed-in user because collabUtils.ts looks
-      // up other users' docs by uid to show collaborator names/avatars in shared
-      // projects. That also exposes `email` and `billing` to any signed-in user —
-      // Firestore has no field-level read control, so closing this properly means
-      // splitting public profile fields into a `publicProfiles/{uid}` mirror.
-      allow read: if isSignedIn();
+      // Private. This document carries the account's email address, its `billing`
+      // object (Paddle customer and subscription ids), the onboarding answers and
+      // any sanction on the account.
+      //
+      // It used to be readable by any signed-in user, because showing a
+      // collaborator's name meant reading their user document and Firestore has
+      // no field-level read control — so the name lookup handed over the email
+      // and the billing record too, for every account, to anyone who could sign
+      // up. The public fields now live in publicProfiles/{uid} (below) and every
+      // cross-user read goes there instead, which lets this close.
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isSignedIn() && request.auth.uid == userId;
       // A user owns their profile, but must not be able to grant themselves a
       // paid tier or lift a sanction — those fields are server-written only.
       allow update: if isSignedIn() && request.auth.uid == userId &&
         !changedKeys().hasAny(["tier", "billing", "sanction", "suspendedUntil", "bannedAt"]);
+      allow delete: if false;
+    }
+
+    // The public slice of a user account: display name, avatar, songwriter type
+    // and activity stamps. Mirrored from users/{uid} by lib/publicProfile.ts and
+    // seeded by scripts/backfill-public-profiles.mjs.
+    //
+    // Readable by any signed-in user — that is the point, it is what collaborator
+    // names and the Connect roster read. Writable only by the account it
+    // describes, and only with the fields listed here, so nobody can mint a
+    // profile for someone else or smuggle an extra field into a document that is
+    // world-readable by design.
+    match /publicProfiles/{userId} {
+      function allowedFieldsOnly() {
+        return request.resource.data.keys().hasOnly([
+          "uid", "name", "photoURL", "songwriterType", "createdAt", "lastActiveAt"
+        ]);
+      }
+
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.get("uid", userId) == userId &&
+        allowedFieldsOnly();
       allow delete: if false;
     }
 
@@ -119,9 +159,27 @@ service cloud.firestore {
       // Lets an invitee read the project (to preview it, see the pending-invite listener in
       // create/page.tsx) and add themself as a collaborator when accepting, before they show
       // up in `collaborators` themselves.
-      function isInvited() {
-        return exists(/databases/$(database)/documents/invitations/$(projectId + "_" + request.auth.uid)) &&
-          get(/databases/$(database)/documents/invitations/$(projectId + "_" + request.auth.uid)).data.inviteeId == request.auth.uid;
+      //
+      // SECURITY: this used to check only that the invitation names the caller as
+      // invitee. Invitation ids are `{projectId}_{inviteeId}` — fully predictable —
+      // and the invitations rule let anyone create a doc naming themself as invitee,
+      // so any signed-in user could mint `invitations/{someProjectId}_{ownUid}` and
+      // thereby read, and then join, a project that was never shared with them.
+      //
+      // Three things are now required, and the last is the one that actually closes
+      // it: the invitation must be for THIS project (the id is not trusted on its
+      // own, since the `projectId` field could disagree with it), and whoever sent
+      // it must themselves be a member of this project. A self-minted invite fails
+      // the sender check, including any that were planted before this fix.
+      function isInvitedTo(project) {
+        let inviteRef = /databases/$(database)/documents/invitations/$(projectId + "_" + request.auth.uid);
+        return exists(inviteRef) &&
+          get(inviteRef).data.get("inviteeId", "") == request.auth.uid &&
+          get(inviteRef).data.get("projectId", "") == projectId &&
+          (
+            get(inviteRef).data.get("senderId", "") == project.get("ownerId", "") ||
+            get(inviteRef).data.get("senderId", "") in project.get("collaborators", [])
+          );
       }
       // A user accepting a pending invite adds themself to `collaborators` before the
       // invitation doc is flipped to "accepted" (see handleAcceptInvite in create/page.tsx),
@@ -130,7 +188,7 @@ service cloud.firestore {
         return changedKeys().hasOnly(["collaborators"]) &&
           request.resource.data.collaborators.size() == resource.data.get("collaborators", []).size() + 1 &&
           request.auth.uid in request.resource.data.collaborators &&
-          isInvited();
+          isInvitedTo(resource.data);
       }
 
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
@@ -138,7 +196,7 @@ service cloud.firestore {
       // flagged song requires seeing it. Private unreported work stays private.
       allow read: if isSignedIn() && (
         isMember(resource.data) ||
-        isInvited() ||
+        isInvitedTo(resource.data) ||
         (isModerator() && resource.data.get("reportCount", 0) > 0)
       );
       // Cap total project membership at 5 (owner + 4 collaborators).
@@ -229,8 +287,22 @@ service cloud.firestore {
       }
 
       allow read, update, delete: if isSignedIn() && isSenderOrInvitee(resource.data);
+
+      // Only a member of the project may issue an invitation to it, and only in
+      // their own name.
+      //
+      // SECURITY: the previous rule also accepted `inviteeId == request.auth.uid`,
+      // which let anyone create an invitation addressed to themself for a project
+      // they had nothing to do with — and the projects rule then treated that
+      // self-issued doc as proof of an invitation. Nothing in the app creates an
+      // invitation where the caller is the invitee (createInvitation and
+      // sendRemovalNotice are both written by the sender), so that branch bought
+      // no functionality and gave away every project whose id could be guessed
+      // or observed.
       allow create: if isSignedIn() &&
-        (request.resource.data.senderId == request.auth.uid || request.resource.data.inviteeId == request.auth.uid);
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.projectId is string &&
+        isProjectMemberOf(request.resource.data.projectId);
     }
 
     // ---------------------------------------------------------------------

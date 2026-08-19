@@ -13,7 +13,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { Menu, User, X, Brain, ChevronRight, ChevronLeft, ShieldOff, UsersRound, UserMinus, ArrowRight, Laptop } from 'lucide-react';
+import { Menu, User, X, Brain, ChevronRight, ChevronLeft, ShieldOff, UsersRound, UserMinus, ArrowRight } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getCountFromServer, onSnapshot } from 'firebase/firestore';
@@ -597,16 +597,8 @@ function PlatformLayoutInner({
                     : 'p-4 md:p-8'
                 }
             `}>
-                {/* Mobile-only hint bar, pinned to the top of every platform screen.
-                    sticky (not fixed) so it occupies real layout space — nothing needs a
-                    compensating offset — yet stays on screen while the page scrolls.
-                    z-40 keeps it under the drawer (z-50) and its backdrop (z-49), so the
-                    open menu still covers it. Dark bar for unmissable contrast; top
-                    padding grows into the notch inset when Safari extends under it. */}
-                <div className="md:hidden sticky top-0 z-40 flex items-center justify-center gap-2 bg-stone-900 text-white text-[11px] font-semibold tracking-wide px-4 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] select-none">
-                    <Laptop size={13} className="shrink-0" strokeWidth={2.2} />
-                    <span>{t('navigation.laptop_hint')}</span>
-                </div>
+                {/* The mobile laptop-hint banner is mounted once in the root layout
+                    (components/MobileLaptopBanner) and covers platform screens too. */}
 
                 {/* Mobile Top Header */}
                 <header className={`flex md:hidden items-center justify-between px-6 pt-6 pb-4 text-stone-655 font-sans z-40 mb-0 relative transition-colors duration-205 ${

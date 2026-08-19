@@ -3,6 +3,7 @@
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { safeLocalStorageGetItem, safeLocalStorageSetItem } from "@/lib/storage";
+import { writePublicProfile } from "@/lib/publicProfile";
 
 /**
  * Keeps `users/{uid}.lastActiveAt` current.
@@ -41,7 +42,11 @@ export async function touchLastActive(uid: string): Promise<void> {
         // updateDoc, not setDoc — an account with no profile document is a
         // problem to fix at signup, not something to paper over by creating a
         // half-made user doc from here.
-        await updateDoc(doc(db, "users", uid), { lastActiveAt: new Date().toISOString() });
+        const stamp = new Date().toISOString();
+        await updateDoc(doc(db, "users", uid), { lastActiveAt: stamp });
+        // Mirrored too: the Connect roster sorts on this, and it reads the
+        // public profile rather than users/{uid}.
+        await writePublicProfile(uid, { lastActiveAt: stamp });
     } catch {
         // Offline, or no profile doc yet. Neither is worth surfacing: this is
         // bookkeeping, not something the songwriter asked for.

@@ -39,6 +39,14 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
     'extract-text': { limit: 24, windowMs: 60_000 },
     'classify-instrument': { limit: 24, windowMs: 60_000 },
     spellcheck: { limit: 90, windowMs: 60_000 },
+    // Not an AI route and not billed, but it makes the server fetch and return
+    // bytes on the caller's behalf, so it gets a ceiling too. Loading a studio
+    // session decodes every track at once, hence the roomy limit.
+    'download-audio': { limit: 60, windowMs: 60_000 },
+    // Resolves an email to an account for invites. Tight, because "does this
+    // address have an account" is exactly the answer it gives — enough to invite
+    // a band, nowhere near enough to test a leaked address list.
+    'collab-lookup': { limit: 10, windowMs: 60_000 },
     // Unauthenticated by design (see app/api/health/ai), so it gets the tightest
     // ceiling of all — enough to debug with, not enough to prod upstreams for free.
     health: { limit: 10, windowMs: 60_000 },

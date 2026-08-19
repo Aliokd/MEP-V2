@@ -30,6 +30,8 @@
     "support": "Support",
     "logout": "Log out",
     "my_profile": "My profile",
+    "laptop_hint": "Use a laptop for the best experience",
+    "mobile_soon": "Mobile web version coming soon",
     "enter_platform": "Enter Platform",
     "expand_sidebar": "Expand Sidebar",
     "collapse_sidebar": "Collapse Sidebar"
@@ -1640,7 +1642,11 @@
       },
       "cookies_analytics": {
         "title": "Cookies & analytics",
-        "body": "Essential cookies keep you signed in and remember basic preferences such as your language. These are needed for the site to work, so they are always on.\n\nAnalytics are different: they only run if you choose \"Accept all\" in the cookie bar. Until you do, no analytics load and no analytics cookies are set. If you choose \"Only necessary\", they never load at all.\n\nWhen you do accept, we use Microsoft Clarity, PostHog and Google Analytics (through Firebase) to understand how the site is used so we can improve it. Once you are signed in, these tools record your account identifier so we can see how features are used across a session. Analytics data is used in aggregate and is not sold to third parties.\n\nYour choice is stored in your browser, not in your account, and it applies to that browser on that device. You can change it at any time using the \"Cookie settings\" button at the bottom of this page — changing it to \"Only necessary\" stops analytics from loading again."
+        "body": "Essential cookies keep you signed in and remember basic preferences such as your language. These are needed for the site to work, so they are always on.\n\nAnalytics are different: they only run if you choose \"Accept all\" in the cookie bar. Until you do, no analytics load and no analytics cookies are set. If you choose \"Only necessary\", they never load at all.\n\nWhen you do accept, we use Microsoft Clarity, PostHog and Google Analytics (through Firebase) to understand how the site is used so we can improve it. Once you are signed in, these tools record your account identifier so we can see how features are used across a session.\n\nClarity and PostHog also record sessions — a replay of how a page was used, covering clicks, scrolling and navigation. Anything you type is masked before it leaves your browser, so your lyrics and other written work never appear in a recording. Analytics data is used in aggregate and is not sold to third parties.\n\nYour choice is stored in your browser, not in your account, and it applies to that browser on that device. You can change it at any time using the \"Cookie settings\" button at the bottom of this page — changing it to \"Only necessary\" stops analytics from loading again."
+      },
+      "session_recording": {
+        "title": "Session recording",
+        "body": "If you accept analytics, Microsoft Clarity and PostHog also record a playback of how you use the site and the platform: the pages you open, where you click and scroll, your mouse movement, and what is displayed on screen at the time. It is not a video of your screen or camera, and it never captures your microphone — audio you record in Veinote is never part of it.\n\nText you type into fields is masked before it leaves your browser, so passwords and form entries do not appear. Lyrics already written on your canvas are part of what the page displays, so they are visible in a recording of that page.\n\nWe use recordings only to find where the product is confusing or broken. They are held by Clarity (Microsoft) and PostHog as processors on our behalf, are not sold, and are deleted on those providers' retention schedules.\n\nRecording only ever runs after you accept analytics. To stop it, choose \"Only necessary\" in the cookie bar, or change your answer with \"Cookie settings\" at the bottom of this page."
       },
       "third_party": {
         "title": "Third-party services",
@@ -1669,10 +1675,6 @@
       "contact": {
         "title": "Contact us",
         "body": "Questions about this policy or your data? Reach us any time at support@veinote.com."
-      },
-      "session_recording": {
-        "title": "Session recording",
-        "body": "If you accept analytics, Microsoft Clarity and PostHog also record a playback of how you use the site and the platform: the pages you open, where you click and scroll, your mouse movement, and what is displayed on screen at the time. It is not a video of your screen or camera, and it never captures your microphone — audio you record in Veinote is never part of it.\n\nText you type into fields is masked before it leaves your browser, so passwords and form entries do not appear. Lyrics already written on your canvas are part of what the page displays, so they are visible in a recording of that page.\n\nWe use recordings only to find where the product is confusing or broken. They are held by Clarity (Microsoft) and PostHog as processors on our behalf, are not sold, and are deleted on those providers' retention schedules.\n\nRecording only ever runs after you accept analytics. To stop it, choose \"Only necessary\" in the cookie bar, or change your answer with \"Cookie settings\" at the bottom of this page."
       }
     }
   },

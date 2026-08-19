@@ -2777,28 +2777,53 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
     );
 }
 
-function AudioCapsuleSkeleton() {
+/**
+ * The shape of an audio card before there is an audio card.
+ *
+ * `recording` marks the version shown WHILE a take is being recorded, rather than
+ * afterwards while it saves. Both are the same outline in the same place, which is
+ * the point: the card appears the moment recording starts, so the connection between
+ * the REC button and the thing being made is visible instead of inferred — and the
+ * card does not seem to arrive from nowhere when recording ends.
+ *
+ * The live one is not pulsed. A pulse says "waiting"; a recording is not waiting, so
+ * it carries the same red the REC button does and leaves the fade to the saving state.
+ */
+function AudioCapsuleSkeleton({ recording = false }: { recording?: boolean }) {
     return (
-        <div className="bg-white border border-stone-200/60 rounded-full px-5 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3 sm:gap-4 z-30 animate-pulse select-none shrink-0 h-[42px]">
+        <div className={`bg-white border rounded-full px-5 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3 sm:gap-4 z-30 select-none shrink-0 h-[42px] ${
+            recording ? 'border-[#FF6B6B]/40' : 'border-stone-200/60 animate-pulse'
+        }`}>
+            {/* A live take says so, where the title will be. */}
+            {recording && (
+                <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF6B6B] opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D32F2F]" />
+                </span>
+            )}
             {/* Title Placeholder */}
-            <div className="bg-stone-200 h-4 w-20 rounded" />
+            <div className={`h-4 w-20 rounded ${recording ? 'bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
             <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
             {/* Play Button Placeholder */}
-            <div className="bg-stone-200 h-4 w-12 rounded" />
+            <div className={`h-4 w-12 rounded ${recording ? 'bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
             <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
-            {/* Waveform Placeholder */}
+            {/* Waveform Placeholder. While live the bars breathe on staggered delays,
+                so the row reads as sound arriving rather than as a loading bar. */}
             <div className="flex items-center gap-[2px] h-6 px-1.5 shrink-0" style={{ width: 'clamp(70px, 22vw, 130px)' }}>
                 {Array.from({ length: 24 }).map((_, idx) => (
-                    <div 
-                        key={idx} 
-                        className="w-[1.5px] bg-stone-200 rounded-full flex-shrink-0" 
-                        style={{ height: `${4 + Math.abs(Math.sin(idx * 0.45)) * 10}px` }} 
+                    <div
+                        key={idx}
+                        className={`w-[1.5px] rounded-full flex-shrink-0 ${recording ? 'bg-[#FF6B6B]/60 animate-pulse' : 'bg-stone-200'}`}
+                        style={{
+                            height: `${4 + Math.abs(Math.sin(idx * 0.45)) * 10}px`,
+                            ...(recording ? { animationDelay: `${(idx % 6) * 110}ms`, animationDuration: '900ms' } : {}),
+                        }}
                     />
                 ))}
             </div>
             <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
             {/* Timer Placeholder */}
-            <div className="bg-stone-200 h-3 w-8 rounded" />
+            <div className={`h-3 w-8 rounded ${recording ? 'bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
         </div>
     );
 }
@@ -3463,23 +3488,13 @@ const TrackWaveform = ({
             className="w-full h-full flex items-center justify-between bg-transparent px-3 select-none relative"
         >
             {isRecording ? (
-                <div 
-                    className="absolute inset-0 overflow-hidden rounded-full flex items-center justify-center"
-                    style={{
-                        backgroundImage: 'linear-gradient(90deg, #FF6B6B 0%, #D32F2F 50%, #FF6B6B 100%)',
-                        backgroundSize: '200% 100%',
-                        animation: 'gradientMove 3s linear infinite',
-                    }}
-                >
+                // The gradient and its keyframes now live in globals.css as
+                // .recording-gradient — the canvas REC button wears the same one, and a
+                // <style> block mounted only while a track records could not be reused.
+                <div className="recording-gradient absolute inset-0 overflow-hidden rounded-full flex items-center justify-center">
                     <span className="text-white/85 text-[13px] font-normal tracking-wide relative z-10 animate-pulse">
                         {formattedName}
                     </span>
-                    <style>{`
-                        @keyframes gradientMove {
-                            0% { background-position: 0% 0% }
-                            100% { background-position: -200% 0% }
-                        }
-                    `}</style>
                 </div>
             ) : peaks.length === 0 ? (
                 <div className="w-full flex items-center justify-between h-[28px] px-1 relative">
@@ -4904,7 +4919,8 @@ export default function CreatePage() {
                     ? track.url!
                     : `/api/download-audio?url=${encodeURIComponent(track.url!)}`;
 
-                const response = await fetch(fetchUrl);
+                // authedFetch: /api/download-audio now requires a signed-in caller.
+                const response = await authedFetch(fetchUrl);
                 if (!response.ok) throw new Error("Fetch failed");
                 const arrayBuffer = await response.arrayBuffer();
                 
@@ -11561,7 +11577,7 @@ export default function CreatePage() {
             try {
                 // Fetch audio via client or server proxy for reliable WAV transcoding
                 const fetchUrl = audioUrl.startsWith('blob:') ? audioUrl : `/api/download-audio?url=${encodeURIComponent(audioUrl)}`;
-                const res = await fetch(fetchUrl);
+                const res = await authedFetch(fetchUrl);
                 if (res.ok) {
                     fetchedBlob = await res.blob();
                 }
@@ -12022,7 +12038,7 @@ export default function CreatePage() {
                     
                     // 2. For remote files, request via our server-side API proxy to bypass CORS
                     const proxyUrl = `/api/download-audio?url=${encodeURIComponent(url)}`;
-                    const response = await fetch(proxyUrl, { signal: controller.signal });
+                    const response = await authedFetch(proxyUrl, { signal: controller.signal });
                     clearTimeout(timeoutId);
                     if (response.ok) {
                         return await response.blob();
@@ -17166,7 +17182,7 @@ export default function CreatePage() {
         if (activeToolTab === 'inspiration') {
             return (
                 <div 
-                    className="w-full max-w-[856px] mb-3 sm:mb-5 flex flex-col items-center justify-center pointer-events-auto"
+                    className="w-full sm:max-w-[856px] max-sm:mb-0 mb-3 sm:mb-5 max-sm:max-h-[85dvh] max-sm:overflow-y-auto no-scrollbar flex flex-col items-center justify-center pointer-events-auto"
                     onClick={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
                     onPointerDown={(e) => e.stopPropagation()}
@@ -17218,7 +17234,7 @@ export default function CreatePage() {
             return (
                 // dvh, not vh: iOS Safari's 100vh excludes the URL bar, so a vh-capped
                 // panel still overflows the visible screen and clips its own controls.
-                <div className="flex w-full max-h-[calc(100dvh-6rem)] sm:max-h-[calc(100dvh-8rem)] text-left items-stretch mb-3 sm:mb-5 pointer-events-auto select-none relative">
+                <div className="flex w-full max-h-[85dvh] sm:max-h-[calc(100dvh-8rem)] text-left items-stretch max-sm:mb-0 mb-3 sm:mb-5 pointer-events-auto select-none relative">
                     {/* Left Gray Lyrics Panel with smooth width transition */}
                     <div 
                         className={`bg-[#E5E4DE] flex flex-col overflow-hidden transition-all duration-300 ease-out relative z-10 ${
@@ -17285,10 +17301,10 @@ export default function CreatePage() {
                         onDragStart={(e) => e.stopPropagation()}
                         onDragOver={(e) => e.stopPropagation()}
                         onDrop={(e) => e.stopPropagation()}
-                        className={`flex-grow min-w-0 bg-white border border-stone-200/80 p-4 sm:p-6 md:p-7 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all duration-300 ease-out relative z-20 overflow-hidden ${
+                        className={`flex-grow min-w-0 bg-white border border-stone-200/80 p-4 sm:p-6 md:p-7 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all duration-300 ease-out relative z-20 overflow-y-auto no-scrollbar ${
                             showStudioLyrics
-                                ? 'rounded-r-[24px] sm:rounded-r-[36px] md:rounded-r-[45px] rounded-l-none border-l-0'
-                                : 'rounded-[24px] sm:rounded-[36px] md:rounded-[45px]'
+                                ? 'rounded-r-[24px] sm:rounded-r-[36px] md:rounded-r-[45px] rounded-l-none border-l-0 max-sm:rounded-tr-[20px] max-sm:rounded-br-none'
+                                : 'rounded-[24px] sm:rounded-[36px] md:rounded-[45px] max-sm:rounded-t-[20px] max-sm:rounded-b-none'
                         } gap-4 sm:gap-6`}
                     >
                         {/* Content area.
@@ -17319,7 +17335,7 @@ export default function CreatePage() {
                 onDrop={(e) => e.stopPropagation()}
                 className={`w-full ${
                     (activeToolTab as string) === 'studio' ? 'flex-grow min-w-0 max-w-none' : 'max-w-[856px]'
-                } bg-white border border-stone-200/80 rounded-[24px] sm:rounded-[36px] md:rounded-[45px] p-4 sm:p-6 md:p-7 mb-3 sm:mb-5 flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all ${
+                } bg-white border border-stone-200/80 rounded-[24px] sm:rounded-[36px] md:rounded-[45px] max-sm:rounded-t-[20px] max-sm:rounded-b-none p-4 sm:p-6 md:p-7 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))] max-sm:mb-0 mb-3 sm:mb-5 max-sm:max-h-[85dvh] max-sm:overflow-y-auto no-scrollbar flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all ${
                     (activeToolTab as string) === 'studio' && showStudioLyrics ? 'rounded-l-none border-l-0 mb-0 sm:mb-0' : ''
                 } ${
                     (activeToolTab as string) === 'tuner' ? 'gap-0' : (activeToolTab as string) === 'studio' ? 'gap-4 sm:gap-5' : 'gap-4 sm:gap-6'
@@ -18102,7 +18118,7 @@ export default function CreatePage() {
                     onTouchStart={(e) => e.stopPropagation()}
                     onTouchEnd={(e) => e.stopPropagation()}
                 >
-                    <div className="flex-1 min-w-0 flex items-center justify-start gap-2 group relative">
+                    <div className="flex-1 min-w-0 flex items-center justify-start gap-1 group relative">
                         <input
                             key="project-title-input"
                             id="project-title-input"
@@ -18136,7 +18152,19 @@ export default function CreatePage() {
                                     setLocalTitleText(e.target.value);
                                 }
                             }}
-                            className={`bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-600 placeholder:text-stone-400 transition-colors min-w-0 shrink ${isCanvasReadOnly ? "cursor-default select-none pointer-events-none" : "cursor-text select-text focus:text-stone-900"}`}
+                            // The transition is scoped to opacity and colour ON PURPOSE.
+                            // `transition-all` also animates the inline `width` below, which is
+                            // recomputed in `ch` from the title text — so every keystroke set the
+                            // box sliding, and the constant restarts left the opacity fade stuck
+                            // part-way (measured: computed 0.65 while the cascade resolved to 1).
+                            // Dimmed at rest. The title is a label for a page you are already
+                            // on — it answers a question nobody is asking while they write, and
+                            // at full strength it competes with the lyrics for the first look.
+                            // Hovering the row or focusing the field brings it back, so it is
+                            // legible the moment anyone actually goes to read or change it.
+                            // Held at full strength while editing: watching your own typing
+                            // through 65% opacity reads as the field being disabled.
+                            className={`bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-600 placeholder:text-stone-400 transition-[opacity,color] duration-300 min-w-0 shrink opacity-65 group-hover:opacity-100 group-focus-within:opacity-100 ${isCanvasReadOnly ? "cursor-default select-none pointer-events-none" : "cursor-text select-text focus:text-stone-900"}`}
                             style={{
                                 // Size to the text rather than filling the row, so the save check
                                 // and the BPM pill sit right beside the title instead of being
@@ -18173,7 +18201,11 @@ export default function CreatePage() {
                                 </button>
                             </Tooltip>
                         )}
-                        <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 bg-stone-100 text-stone-600 border border-stone-200 rounded-full px-3 py-1 text-[11px] font-medium tracking-wide flex items-center gap-1.5 pointer-events-none shadow-3xs select-none shrink-0">
+                        {/* Tempo and the last tuning, revealed with the title they belong to.
+                            They travel in from further out and land flush against it — set
+                            once and then just confirmation, so they read as an annotation on
+                            the title rather than as two more controls on the bar. */}
+                        <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 group-focus-within:translate-x-0 bg-stone-100 text-stone-600 border border-stone-200 rounded-full px-3 py-1 text-[11px] font-medium tracking-wide flex items-center gap-1.5 pointer-events-none shadow-3xs select-none shrink-0">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             <span>
                                 {metronomeBpm} BPM
@@ -19416,9 +19448,12 @@ export default function CreatePage() {
                             </div>
                         </div>
 
-                                {(isRecordingSaving || uploadingFiles.some(f => f.type === 'audio' || f.type === 'image' || f.type === 'document')) && (
+                                {(isRecording || isRecordingSaving || uploadingFiles.some(f => f.type === 'audio' || f.type === 'image' || f.type === 'document')) && (
                                     <div className="flex flex-col gap-2 justify-center w-full py-1.5 select-none z-20 items-center">
-                                        {isRecordingSaving && <AudioCapsuleSkeleton />}
+                                        {/* One card across both phases — live while the take runs,
+                                            then the saving skeleton — so it never blinks out and
+                                            back between recording and saving. */}
+                                        {(isRecording || isRecordingSaving) && <AudioCapsuleSkeleton recording={isRecording} />}
                                         {uploadingFiles.filter(f => f.type === 'audio').map(f => (
                                             <AudioCapsuleSkeleton key={f.id} />
                                         ))}
@@ -19957,15 +19992,21 @@ export default function CreatePage() {
                 )}
 
                 {/* Creative Tools Panel */}
+                {/* Below sm this is a bottom sheet — full-width, pinned to the bottom
+                    edge, sliding up from below — because a scaled, centered floating
+                    panel on a phone leaves the tools squeezed in a strip of dead space.
+                    From sm up it stays the centered modal it always was: the same
+                    element swaps anchoring (bottom-0 → left/top-1/2) and its motion
+                    (translate-y slide → scale pop) per breakpoint. */}
                 <div
-                    className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full ${
+                    className={`fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 w-full ${
                         activeToolTab === 'studio'
-                            ? 'max-w-[1560px] px-6 sm:px-10 md:px-16'
-                            : 'max-w-[952px] px-4'
+                            ? 'sm:max-w-[1560px] px-0 sm:px-10 md:px-16'
+                            : 'sm:max-w-[952px] px-0 sm:px-4'
                     } z-[60] transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] transform origin-center pointer-events-none ${
                         showToolsPanel
-                            ? "scale-100 opacity-100 visible"
-                            : "scale-95 opacity-0 invisible"
+                            ? "translate-y-0 sm:translate-y-[-50%] sm:scale-100 opacity-100 visible"
+                            : "translate-y-full sm:translate-y-[-50%] sm:scale-95 opacity-0 invisible"
                     }`}
                 >
                     {renderToolsPanel()}
@@ -20108,19 +20149,21 @@ export default function CreatePage() {
                                     isCanvasLocked && !isRecording
                                         ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
                                         : isRecording
-                                            ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer active:scale-95'
+                                            ? 'recording-gradient border-transparent shadow-[0_6px_20px_rgba(211,47,47,0.28)] cursor-pointer active:scale-95'
                                             : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer active:scale-95'
                                 }`}
                             >
                                 {isRecording ? (
                                     <>
-                                        {/* Square inside pulsing circle on the left */}
+                                        {/* White on the red, where it used to be red on white:
+                                            the pill itself now carries the colour, so the mark
+                                            has to read against it rather than repeat it. */}
                                         <div className="relative flex items-center justify-center shrink-0 w-4 h-4">
-                                            <div className="w-4 h-4 rounded-full bg-[#FF4040] animate-ping absolute" />
-                                            <Square size={12} className="fill-[#FF4040] text-[#FF4040] shrink-0 z-10" />
+                                            <div className="w-4 h-4 rounded-full bg-white/60 animate-ping absolute" />
+                                            <Square size={12} className="fill-white text-white shrink-0 z-10" />
                                         </div>
-                                        <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '15px', color: '#FF4040', letterSpacing: '0.02em' }} className="whitespace-nowrap">
-                                            Recording <span style={{ fontWeight: 400 }}>{formatTime(recordingTime)}</span>
+                                        <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '15px', letterSpacing: '0.02em' }} className="whitespace-nowrap text-white">
+                                            {t('studio.recording') || 'Recording'} <span style={{ fontWeight: 400 }} className="text-white/85 tabular-nums">{formatTime(recordingTime)}</span>
                                         </span>
                                     </>
                                 ) : (

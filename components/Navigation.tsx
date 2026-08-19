@@ -48,7 +48,9 @@ const Navigation = () => {
     // the full nav it rendered a second logo and a second switcher over the page's.
     const isAuthPage = pathname === '/signin' || pathname === '/reset-password' || pathname === '/waiting-list';
 
-    const navClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+    // top-16 below md: the mobile laptop-hint banner (components/MobileLaptopBanner)
+    // is fixed at the true top with h-16, so the nav pins directly beneath it there.
+    const navClasses = `fixed top-16 md:top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
             ? "py-4 px-6 md:px-[10%] bg-[#E6E3DB]/85 backdrop-blur-lg border-b border-stone-300/10 shadow-sm" 
             : "py-8 px-6 md:px-[10%] bg-transparent"

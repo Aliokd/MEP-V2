@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "build:lexicon": "node scripts/build-lexicon.mjs",
-    "key:fingerprint": "node scripts/key-fingerprint.mjs"
+    "key:fingerprint": "node scripts/key-fingerprint.mjs",
+    "seo:indexnow": "node scripts/indexnow-submit.mjs"
   },
   "browserslist": [
     "> 0.5%",
@@ -43,12 +44,12 @@
     "matter-js": "^0.20.0",
     "next": "^16.1.3",
     "nodemailer": "^9.0.3",
-    "protobufjs": "7.2.4",
+    "posthog-js": "^1.418.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.12.0",
     "server-only": "^0.0.1",
-    "swiper": "^11.2.2",
+    "swiper": "^14.1.0",
     "tailwind-merge": "^3.4.0",
     "tesseract.js": "^7.0.0",
     "tonal": "^6.4.3",

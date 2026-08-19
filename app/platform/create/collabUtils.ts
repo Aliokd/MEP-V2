@@ -2,13 +2,13 @@ import { db, auth } from "@/lib/firebase";
 import { authedFetch } from "@/lib/authedFetch";
 import { LOCALE_COOKIE } from "@/lib/i18n";
 import { COLLAB_EMAIL_INVITES_ENABLED, inviteLandingPath } from "@/lib/uiFlags";
+import { fetchPublicProfiles } from "@/lib/publicProfile";
 import {
     doc,
     setDoc,
     getDoc,
     collection,
     query,
-    where,
     orderBy,
     limit,
     onSnapshot,
@@ -202,12 +202,26 @@ export async function inviteCollaboratorByEmail(
         const projectDoc = await getDoc(projectRef);
         const projectTitle = projectDoc.exists() ? (projectDoc.data()?.title || "Untitled Song") : "Untitled Song";
 
-        // Query users collection for this email
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("email", "==", cleanedEmail));
-        const querySnapshot = await getDocs(q);
+        // Resolved server-side. Querying users/{uid} by email from the browser
+        // required that collection to be readable by every signed-in account,
+        // which exposed everyone's email and billing record; the route returns
+        // just a uid and a name. See app/api/collab/lookup-user/route.ts.
+        const lookupRes = await authedFetch("/api/collab/lookup-user", {
+            method: "POST",
+            body: JSON.stringify({ email: cleanedEmail }),
+        });
 
-        if (querySnapshot.empty) {
+        if (!lookupRes.ok) {
+            const detail = await lookupRes.json().catch(() => ({}));
+            return {
+                success: false,
+                message: detail.error || "Could not look up that address. Please try again.",
+            };
+        }
+
+        const lookup = await lookupRes.json();
+
+        if (!lookup.found) {
             // Nobody on the platform holds this address yet. The invitation is still
             // recorded against the email so it can be claimed the moment they sign up —
             // that part never depended on mail and works today.
@@ -244,7 +258,7 @@ export async function inviteCollaboratorByEmail(
             };
         }
 
-        const collaboratorId = querySnapshot.docs[0].id;
+        const collaboratorId = lookup.uid as string;
 
         const rejection = projectDoc.exists() ? rejectIneligibleInvitee(projectDoc.data(), collaboratorId) : null;
         if (rejection) return rejection;
@@ -281,8 +295,12 @@ export async function inviteCollaboratorByUid(
         const rejection = projectDoc.exists() ? rejectIneligibleInvitee(projectDoc.data(), inviteeUid) : null;
         if (rejection) return rejection;
 
-        const inviteeSnap = await getDoc(doc(db, "users", inviteeUid));
-        if (!inviteeSnap.exists()) {
+        // Existence is checked against the public mirror; users/{uid} is private.
+        // The invitee's email is not read at all — it was only ever stored on the
+        // invitation so a pending invite could be claimed by address, and an
+        // invite that already names a uid has no use for that path.
+        const inviteeProfiles = await fetchPublicProfiles([inviteeUid]);
+        if (!inviteeProfiles[inviteeUid]) {
             return { success: false, message: "That account no longer exists." };
         }
 
@@ -292,7 +310,7 @@ export async function inviteCollaboratorByUid(
             senderId,
             senderName,
             inviteeId: inviteeUid,
-            inviteeEmail: (inviteeSnap.data()?.email || "").toLowerCase()
+            inviteeEmail: ""
         });
 
         return { success: true, message: "Invitation sent successfully! They will see a notification in their workspace." };
@@ -369,46 +387,22 @@ export async function acknowledgeRemovalNotice(noticeId: string): Promise<void> 
 }
 
 /**
- * Fetches user profile info (name, photo) for collaborator list display
+ * Fetches user profile info (name, photo) for collaborator list display.
+ *
+ * Reads publicProfiles rather than users: this only ever needed a display name,
+ * but taking it from users/{uid} meant a collaborator list also read everyone's
+ * email and billing record. `email` is kept on the returned shape because the
+ * caller still destructures it, but it is no longer populated — the UI used it
+ * only as a fallback label when the name was missing, and the mirror always
+ * carries a name. See lib/publicProfile.ts.
  */
 export async function getCollaboratorProfiles(userIds: string[]): Promise<{[uid: string]: { name: string; email: string }}> {
     const profiles: {[uid: string]: { name: string; email: string }} = {};
     if (!userIds || userIds.length === 0) return profiles;
-    try {
-        // Firestore 'in' query has a limit of 30 items. If we have more, we can chunk them.
-        const chunk = <T>(arr: T[], size: number): T[][] =>
-            Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
-                arr.slice(i * size, i * size + size)
-            );
-        const chunks = chunk(userIds, 30);
-        for (const chunkIds of chunks) {
-            const q = query(collection(db, "users"), where("__name__", "in", chunkIds));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach(docSnap => {
-                const data = docSnap.data();
-                profiles[docSnap.id] = {
-                    name: data.displayName || data.name || "Collaborator",
-                    email: data.email || ""
-                };
-            });
-        }
-    } catch (err) {
-        console.error("Error fetching collaborator profiles:", err);
-        // Fallback to individual fetches in case of errors
-        for (const uid of userIds) {
-            try {
-                const userDoc = await getDoc(doc(db, "users", uid));
-                if (userDoc.exists()) {
-                    const data = userDoc.data();
-                    profiles[uid] = {
-                        name: data.displayName || data.name || "Collaborator",
-                        email: data.email || ""
-                    };
-                }
-            } catch (innerErr) {
-                console.error("Error in fallback fetch for", uid, innerErr);
-            }
-        }
+
+    const publicProfiles = await fetchPublicProfiles(userIds);
+    for (const [uid, profile] of Object.entries(publicProfiles)) {
+        profiles[uid] = { name: profile.name || "Collaborator", email: "" };
     }
     return profiles;
 }

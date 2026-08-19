@@ -30,6 +30,8 @@
     "support": "Hjelp og support",
     "logout": "Logg ut",
     "my_profile": "Min profil",
+    "laptop_hint": "Bruk en laptop for best opplevelse",
+    "mobile_soon": "Mobilversjonen kommer snart",
     "enter_platform": "Gå til plattformen",
     "expand_sidebar": "Vis sidepanel",
     "collapse_sidebar": "Skjul sidepanel"
@@ -1640,7 +1642,11 @@
       },
       "cookies_analytics": {
         "title": "Informasjonskapsler og analyse",
-        "body": "Nødvendige informasjonskapsler holder deg innlogget og husker grunnleggende innstillinger, som språket ditt. De trengs for at nettstedet skal fungere, og er derfor alltid på.\n\nAnalyse er noe annet: den kjører bare hvis du velger «Godta alle» i informasjonskapsel-linjen. Før du gjør det, lastes ingen analyseverktøy, og ingen analyse-informasjonskapsler settes. Velger du «Bare nødvendige», lastes de aldri.\n\nNår du sier ja, bruker vi Microsoft Clarity, PostHog og Google Analytics (via Firebase) for å forstå hvordan nettstedet brukes, slik at vi kan forbedre det. Når du er innlogget, registrerer disse verktøyene kontoidentifikatoren din, slik at vi kan se hvordan funksjonene brukes gjennom en økt. Analysedata brukes i aggregert form og selges ikke til tredjeparter.\n\nValget ditt lagres i nettleseren din, ikke på kontoen din, og gjelder den nettleseren på den enheten. Du kan endre det når som helst med knappen «Innstillinger for informasjonskapsler» nederst på denne siden – endrer du til «Bare nødvendige», lastes ikke analyse igjen."
+        "body": "Nødvendige informasjonskapsler holder deg innlogget og husker grunnleggende innstillinger, som språket ditt. De trengs for at nettstedet skal fungere, og er derfor alltid på.\n\nAnalyse er noe annet: den kjører bare hvis du velger «Godta alle» i informasjonskapsel-linjen. Før du gjør det, lastes ingen analyseverktøy, og ingen analyse-informasjonskapsler settes. Velger du «Bare nødvendige», lastes de aldri.\n\nNår du sier ja, bruker vi Microsoft Clarity, PostHog og Google Analytics (via Firebase) for å forstå hvordan nettstedet brukes, slik at vi kan forbedre det. Når du er innlogget, registrerer disse verktøyene kontoidentifikatoren din, slik at vi kan se hvordan funksjonene brukes gjennom en økt.\n\nClarity og PostHog tar også opp økter – et opptak av hvordan en side ble brukt, med klikk, rulling og navigasjon. Alt du skriver, maskeres før det forlater nettleseren din, så tekstene dine og annet skriftlig arbeid havner aldri i et opptak. Analysedata brukes i aggregert form og selges ikke til tredjeparter.\n\nValget ditt lagres i nettleseren din, ikke på kontoen din, og gjelder den nettleseren på den enheten. Du kan endre det når som helst med knappen «Innstillinger for informasjonskapsler» nederst på denne siden – endrer du til «Bare nødvendige», lastes ikke analyse igjen."
+      },
+      "session_recording": {
+        "title": "Opptak av økten",
+        "body": "Hvis du godtar analyse, tar Microsoft Clarity og PostHog også opp en avspilling av hvordan du bruker nettstedet og plattformen: sidene du åpner, hvor du klikker og blar, musebevegelsene dine, og hva som vises på skjermen der og da. Det er ikke en video av skjermen eller kameraet ditt, og mikrofonen tas aldri opp – lyd du spiller inn i Veinote er aldri en del av det.\n\nTekst du skriver i felt maskeres før den forlater nettleseren din, så passord og skjemainnhold vises ikke. Tekst du allerede har skrevet på lerretet, er en del av det siden viser, og er derfor synlig i et opptak av den siden.\n\nVi bruker opptak bare til å finne ut hvor produktet er forvirrende eller ødelagt. De oppbevares av Clarity (Microsoft) og PostHog som databehandlere på våre vegne, selges ikke, og slettes etter disse leverandørenes lagringsfrister.\n\nOpptak skjer bare etter at du har godtatt analyse. Vil du stoppe det, velg «Bare nødvendige» i informasjonskapsel-linjen, eller endre svaret ditt med «Innstillinger for informasjonskapsler» nederst på denne siden."
       },
       "third_party": {
         "title": "Tredjepartstjenester",
@@ -1669,10 +1675,6 @@
       "contact": {
         "title": "Kontakt oss",
         "body": "Spørsmål om denne erklæringen eller dataene dine? Ta kontakt med oss når som helst på support@veinote.com."
-      },
-      "session_recording": {
-        "title": "Opptak av økten",
-        "body": "Hvis du godtar analyse, tar Microsoft Clarity og PostHog også opp en avspilling av hvordan du bruker nettstedet og plattformen: sidene du åpner, hvor du klikker og blar, musebevegelsene dine, og hva som vises på skjermen der og da. Det er ikke en video av skjermen eller kameraet ditt, og mikrofonen tas aldri opp – lyd du spiller inn i Veinote er aldri en del av det.\n\nTekst du skriver i felt maskeres før den forlater nettleseren din, så passord og skjemainnhold vises ikke. Tekst du allerede har skrevet på lerretet, er en del av det siden viser, og er derfor synlig i et opptak av den siden.\n\nVi bruker opptak bare til å finne ut hvor produktet er forvirrende eller ødelagt. De oppbevares av Clarity (Microsoft) og PostHog som databehandlere på våre vegne, selges ikke, og slettes etter disse leverandørenes lagringsfrister.\n\nOpptak skjer bare etter at du har godtatt analyse. Vil du stoppe det, velg «Bare nødvendige» i informasjonskapsel-linjen, eller endre svaret ditt med «Innstillinger for informasjonskapsler» nederst på denne siden."
       }
     }
   },

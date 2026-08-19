@@ -1489,3 +1489,29 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     .deck-enter-from-top,
     .deck-enter-from-bottom { animation: none; }
 }
+
+/* A recording actually in progress.
+   The travelling red the Demo Studio uses on a track being recorded, lifted out of
+   that component so the canvas REC button can wear the same thing — one definition,
+   so the two can never drift into being nearly-the-same red.
+   The gradient is twice the box's width and slides continuously, which reads as
+   ongoing rather than as a state that has simply been switched on. */
+@keyframes recording-gradient-move {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: -200% 0%; }
+}
+
+.recording-gradient {
+    background-image: linear-gradient(90deg, #FF6B6B 0%, #D32F2F 50%, #FF6B6B 100%);
+    background-size: 200% 100%;
+    animation: recording-gradient-move 3s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* Hold the gradient still — the surface still reads as recording, without a
+       loop running in the corner of the eye for the length of a take. */
+    .recording-gradient {
+        animation: none;
+        background-position: 50% 0;
+    }
+}

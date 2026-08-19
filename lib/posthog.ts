@@ -45,6 +45,21 @@ export function initPostHog(): void {
          * actually follow across sessions.
          */
         person_profiles: 'identified_only',
+        /*
+         * Session replay is enabled in the PostHog project, deliberately — we
+         * want to watch real sessions. Masking is pinned here rather than left
+         * to the SDK default, which is a moving target across versions.
+         *
+         * maskAllInputs matters more here than in a typical app: what users type
+         * into this product is original song lyrics. That is their creative work
+         * — the thing the privacy policy promises we do not mine — so it must
+         * not end up sitting in a replay archive. Everything that makes replay
+         * useful (navigation, clicks, hesitation, rage-clicks) is unaffected;
+         * only the literal characters typed into fields are obscured.
+         */
+        session_recording: {
+            maskAllInputs: true,
+        },
     });
 }
 

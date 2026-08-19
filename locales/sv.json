@@ -30,6 +30,8 @@
     "support": "Hjälp & support",
     "logout": "Logga ut",
     "my_profile": "Min profil",
+    "laptop_hint": "Använd en laptop för bästa upplevelse",
+    "mobile_soon": "Mobilversionen kommer snart",
     "enter_platform": "Gå till plattformen",
     "expand_sidebar": "Visa sidopanelen",
     "collapse_sidebar": "Dölj sidopanelen"
@@ -1640,7 +1642,11 @@
       },
       "cookies_analytics": {
         "title": "Cookies och analys",
-        "body": "Nödvändiga kakor håller dig inloggad och kommer ihåg grundläggande inställningar, som ditt språk. De behövs för att webbplatsen ska fungera och är därför alltid på.\n\nAnalys är något annat: den körs bara om du väljer ”Acceptera alla” i kakraden. Innan dess laddas inga analysverktyg och inga analyskakor sätts. Väljer du ”Bara nödvändiga” laddas de aldrig.\n\nNär du säger ja använder vi Microsoft Clarity, PostHog och Google Analytics (via Firebase) för att förstå hur webbplatsen används så att vi kan förbättra den. När du är inloggad registrerar dessa verktyg din kontoidentifierare så att vi kan se hur funktionerna används under en session. Analysdata används i aggregerad form och säljs inte till tredje part.\n\nDitt val sparas i din webbläsare, inte på ditt konto, och gäller den webbläsaren på den enheten. Du kan ändra det när som helst med knappen ”Kakinställningar” längst ned på den här sidan – ändrar du till ”Bara nödvändiga” laddas analys inte igen."
+        "body": "Nödvändiga kakor håller dig inloggad och kommer ihåg grundläggande inställningar, som ditt språk. De behövs för att webbplatsen ska fungera och är därför alltid på.\n\nAnalys är något annat: den körs bara om du väljer ”Acceptera alla” i kakraden. Innan dess laddas inga analysverktyg och inga analyskakor sätts. Väljer du ”Bara nödvändiga” laddas de aldrig.\n\nNär du säger ja använder vi Microsoft Clarity, PostHog och Google Analytics (via Firebase) för att förstå hur webbplatsen används så att vi kan förbättra den. När du är inloggad registrerar dessa verktyg din kontoidentifierare så att vi kan se hur funktionerna används under en session.\n\nClarity och PostHog spelar också in sessioner – en uppspelning av hur en sida användes, med klick, scrollning och navigering. Allt du skriver maskeras innan det lämnar din webbläsare, så dina låttexter och annat skrivet arbete hamnar aldrig i en inspelning. Analysdata används i aggregerad form och säljs inte till tredje part.\n\nDitt val sparas i din webbläsare, inte på ditt konto, och gäller den webbläsaren på den enheten. Du kan ändra det när som helst med knappen ”Kakinställningar” längst ned på den här sidan – ändrar du till ”Bara nödvändiga” laddas analys inte igen."
+      },
+      "session_recording": {
+        "title": "Inspelning av sessionen",
+        "body": "Om du accepterar analys spelar Microsoft Clarity och PostHog också in en uppspelning av hur du använder webbplatsen och plattformen: sidorna du öppnar, var du klickar och skrollar, dina musrörelser och vad som visas på skärmen just då. Det är inte en video av din skärm eller kamera, och mikrofonen spelas aldrig in – ljud du spelar in i Veinote är aldrig en del av det.\n\nText du skriver i fält maskeras innan den lämnar din webbläsare, så lösenord och formulärinnehåll syns inte. Text du redan skrivit på din canvas är en del av det sidan visar, och syns därför i en inspelning av den sidan.\n\nVi använder inspelningar bara för att hitta var produkten är förvirrande eller trasig. De förvaras av Clarity (Microsoft) och PostHog som personuppgiftsbiträden för vår räkning, säljs inte, och raderas enligt dessa leverantörers lagringstider.\n\nInspelning sker bara efter att du accepterat analys. Vill du stoppa den, välj ”Bara nödvändiga” i kakraden, eller ändra ditt svar med ”Kakinställningar” längst ned på den här sidan."
       },
       "third_party": {
         "title": "Tredjepartstjänster",
@@ -1669,10 +1675,6 @@
       "contact": {
         "title": "Kontakta oss",
         "body": "Frågor om den här policyn eller dina uppgifter? Nå oss när som helst på support@veinote.com."
-      },
-      "session_recording": {
-        "title": "Inspelning av sessionen",
-        "body": "Om du accepterar analys spelar Microsoft Clarity och PostHog också in en uppspelning av hur du använder webbplatsen och plattformen: sidorna du öppnar, var du klickar och skrollar, dina musrörelser och vad som visas på skärmen just då. Det är inte en video av din skärm eller kamera, och mikrofonen spelas aldrig in – ljud du spelar in i Veinote är aldrig en del av det.\n\nText du skriver i fält maskeras innan den lämnar din webbläsare, så lösenord och formulärinnehåll syns inte. Text du redan skrivit på din canvas är en del av det sidan visar, och syns därför i en inspelning av den sidan.\n\nVi använder inspelningar bara för att hitta var produkten är förvirrande eller trasig. De förvaras av Clarity (Microsoft) och PostHog som personuppgiftsbiträden för vår räkning, säljs inte, och raderas enligt dessa leverantörers lagringstider.\n\nInspelning sker bara efter att du accepterat analys. Vill du stoppa den, välj ”Bara nödvändiga” i kakraden, eller ändra ditt svar med ”Kakinställningar” längst ned på den här sidan."
       }
     }
   },

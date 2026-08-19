@@ -30,6 +30,7 @@ export async function POST(request: Request) {
                 locale: locale || null,
                 userAgent: request.headers.get('user-agent'),
                 verified: caller.verified,
+                claimedUid: caller.claimedUid,
             });
         } catch (dbError) {
             // Losing the email too would leave the user with no path in at all,

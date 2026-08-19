@@ -4,15 +4,22 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { sendMail } from "@/lib/email/send";
 import { welcomeEmail } from "@/lib/email/templates/welcome";
 import { resolveLocale } from "@/lib/email/locale";
+import { requireUser } from "@/lib/apiAuth";
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { uid, locale } = body;
+        const { locale } = body;
 
-        if (!uid) {
-            return NextResponse.json({ error: "Missing uid" }, { status: 400 });
-        }
+        // SECURITY: the uid used to come from the request body, unauthenticated.
+        // That let anyone send mail from our domain to any account they could
+        // name, and the three distinct replies ("user not found" / "already
+        // sent" / success) answered whether a given uid existed and how far
+        // through onboarding it was. The token is the identity now; the body's
+        // uid is ignored, and a caller can only ever trigger their own welcome.
+        const auth = await requireUser(request);
+        if (auth instanceof Response) return auth;
+        const uid = auth.uid;
 
         const userRef = adminDb.doc(`users/${uid}`);
         const userSnap = await userRef.get();

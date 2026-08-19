@@ -15,6 +15,12 @@ export const LOCALE_COOKIE = 'veinote-lang';
 export const LANG_HEADER = 'x-veinote-lang';
 export const PATH_HEADER = 'x-veinote-path';
 
+/**
+ * Per-request CSP nonce, minted in proxy.ts and read by the root layout so its
+ * inline scripts can be allowed by name instead of by 'unsafe-inline'.
+ */
+export const NONCE_HEADER = 'x-nonce';
+
 export const SITE_URL = 'https://veinote.com';
 
 /**

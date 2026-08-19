@@ -6,3 +6,39 @@ env:
     secret: GEMINI_API_KEY
   - variable: SMTP_PASS
     secret: SMTP_PASS
+
+  # Search-engine ownership tokens. Public values (they end up in a <meta> tag),
+  # so they are plain values rather than secrets. Uncomment and fill in once the
+  # webmaster accounts exist — until then no tag is emitted and nothing breaks.
+  #
+  # Bing Webmaster Tools > Settings > Verify ownership > "msvalidate.01" content.
+  # Bing's index also serves DuckDuckGo, Ecosia and Yahoo.
+  # - variable: BING_SITE_VERIFICATION
+  #   value: ""
+  #   availability: [RUNTIME]
+  #
+  # Yandex Webmaster > Site settings > Verification.
+  # - variable: YANDEX_SITE_VERIFICATION
+  #   value: ""
+  #   availability: [RUNTIME]
+
+  # PostHog product analytics (project 252223, EU Cloud). Plain values rather
+  # than secrets: the project token is write-only and ships in the browser
+  # bundle, so it is public by design — PostHog labels it "safe to use in
+  # public apps". Nothing here can read data out of the project.
+  #
+  # availability MUST include BUILD: NEXT_PUBLIC_* vars are inlined into the
+  # bundle at build time, so a RUNTIME-only entry leaves them undefined in the
+  # browser and analytics silently never start — in production only.
+  #
+  # Both are also mirrored in .env.local for development; that file is
+  # gitignored and never reaches a deploy, which is why they must live here too.
+  - variable: NEXT_PUBLIC_POSTHOG_KEY
+    value: "phc_uNXWvwU4j3NfZDTyCQRSg9evK2SnL9WTyazigET9YmHw"
+    availability: [BUILD, RUNTIME]
+
+  # Must match the project's region — EU Cloud for project 252223. The wrong
+  # region fails silently, because the other region has no such project.
+  - variable: NEXT_PUBLIC_POSTHOG_HOST
+    value: "https://eu.i.posthog.com"
+    availability: [BUILD, RUNTIME]

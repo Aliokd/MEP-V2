@@ -4,51 +4,26 @@ import { useEffect, useState } from 'react';
 import {
     arrayRemove,
     arrayUnion,
-    collection,
     doc,
-    getDoc,
-    getDocs,
-    limit,
     onSnapshot,
-    query,
     updateDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
+import {
+    fetchPublicProfileRoster,
+    fetchPublicProfiles,
+    type PublicProfile,
+} from '@/lib/publicProfile';
 
-/** A real platform user, reduced to the fields Connect and the profile display. */
-export interface PlatformUser {
-    uid: string;
-    name: string;
-    /** Onboarding answer id — resolves to onboarding.questions.songwriter_type.options.<id>.title */
-    songwriterType: string | null;
-    /** Epoch ms, 0 when unknown. */
-    createdAt: number;
-    lastActiveAt: number;
-}
+/** A real platform user, reduced to the fields Connect and the profile display.
+ *  Structurally the public profile — kept as its own name because Connect and the
+ *  profile page are written against it. */
+export type PlatformUser = PublicProfile;
 
 // The roster is a browse list, not a directory — a bounded page keeps one big
 // read off a page that already loads the whole feed.
 const ROSTER_LIMIT = 60;
-
-function parseTime(value: unknown): number {
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string') {
-        const parsed = Date.parse(value);
-        return isNaN(parsed) ? 0 : parsed;
-    }
-    return 0;
-}
-
-function toPlatformUser(uid: string, data: Record<string, any>): PlatformUser {
-    return {
-        uid,
-        name: (data.name || '').trim(),
-        songwriterType: data.answers?.songwriter_type ?? null,
-        createdAt: parseTime(data.createdAt),
-        lastActiveAt: parseTime(data.lastActiveAt),
-    };
-}
 
 /**
  * Everyone else on the platform, most recently active first.
@@ -58,16 +33,10 @@ function toPlatformUser(uid: string, data: Record<string, any>): PlatformUser {
  * `lastActiveAt` was written. Sorting client-side keeps those users visible.
  */
 export async function fetchPlatformUsers(excludeUid: string | null): Promise<PlatformUser[]> {
-    const snap = await getDocs(query(collection(db, 'users'), limit(ROSTER_LIMIT)));
-
-    const users: PlatformUser[] = [];
-    snap.forEach((docSnap) => {
-        if (docSnap.id === excludeUid) return;
-        const u = toPlatformUser(docSnap.id, docSnap.data());
-        // An account that never finished signup has nothing to show on a card.
-        if (!u.name) return;
-        users.push(u);
-    });
+    // publicProfiles, not users: the roster only ever showed a name and a
+    // songwriter type, but reading it out of users/{uid} meant every account's
+    // email and billing record came along with it. See lib/publicProfile.ts.
+    const users = await fetchPublicProfileRoster(excludeUid, ROSTER_LIMIT);
 
     users.sort((a, b) => b.lastActiveAt - a.lastActiveAt || b.createdAt - a.createdAt);
     return users;
@@ -83,13 +52,11 @@ export async function fetchPlatformUsers(excludeUid: string | null): Promise<Pla
 export async function fetchUsersByUid(uids: string[]): Promise<PlatformUser[]> {
     if (uids.length === 0) return [];
 
-    const snaps = await Promise.all(uids.map((uid) => getDoc(doc(db, 'users', uid))));
+    const profiles = await fetchPublicProfiles(uids);
 
-    // Preserves the order the user connected in, and drops any uid whose account
-    // no longer exists.
-    return snaps
-        .filter((snap) => snap.exists())
-        .map((snap) => toPlatformUser(snap.id, snap.data() as Record<string, any>));
+    // Preserves the order the user connected in, and drops any uid with no
+    // public profile — a deleted account, or one the backfill has not reached.
+    return uids.map((uid) => profiles[uid]).filter((profile): profile is PlatformUser => Boolean(profile));
 }
 
 /**

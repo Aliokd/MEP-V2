@@ -35,14 +35,26 @@ export interface PracticeSong {
 
 const DIR = '/Practice/Songs/Beginner%20level';
 
+/**
+ * One folder per song under public/, named "<Title> - <Artist>". Kept here as
+ * constants because the artist is part of the path: renaming a folder to credit
+ * a different act silently 404s the audio otherwise.
+ */
+const FOLDER = {
+    doYouLove: `${DIR}/Do%20You%20Love%20-%20Peter%20Nordberg`,
+    closer: `${DIR}/Closer%20-%20Lounge%20Club`,
+    beautifulDay: `${DIR}/Beautiful%20Day%20-%20Lounge%20Club%20feat.%20Lucas%20Kay`,
+    anotherRide: `${DIR}/Another%20Ride%20-%20Lounge%20Club`,
+};
+
 export const PRACTICE_SONGS: PracticeSong[] = [
     {
         id: 'do-you-love',
         available: true,
         title: 'Do You Love',
         artist: 'Peter Nordberg',
-        audioUrl: `${DIR}/Do%20You%20Love/Do%20You%20Love%20-%20Peter%20Nordberg.mp3`,
-        coverUrl: `${DIR}/Do%20You%20Love/DoYouLove.jpg`,
+        audioUrl: `${FOLDER.doYouLove}/Do%20You%20Love%20-%20Peter%20Nordberg.mp3`,
+        coverUrl: `${FOLDER.doYouLove}/DoYouLove.jpg`,
         sections: [
             { kind: 'intro', start: 0, end: 7 },
             {
@@ -109,11 +121,11 @@ export const PRACTICE_SONGS: PracticeSong[] = [
     },
     {
         id: 'closer',
-        available: false,
+        available: true,
         title: 'Closer',
-        artist: 'Peter Nordberg',
-        audioUrl: `${DIR}/Closer/Closer_Master%202026.mp3`,
-        coverUrl: `${DIR}/Closer/Closer.jpg`,
+        artist: 'Lounge Club',
+        audioUrl: `${FOLDER.closer}/Closer_Master%202026.mp3`,
+        coverUrl: `${FOLDER.closer}/Closer.jpg`,
         sections: [
             { kind: 'intro', start: 0, end: 12 },
             { kind: 'verse', start: 12, end: 29 },
@@ -126,11 +138,11 @@ export const PRACTICE_SONGS: PracticeSong[] = [
     },
     {
         id: 'beautiful-day',
-        available: false,
+        available: true,
         title: 'Beautiful Day',
-        artist: 'Peter Nordberg',
-        audioUrl: `${DIR}/Beautiful%20Day/Beautiful.mp3`,
-        coverUrl: `${DIR}/Beautiful%20Day/Beautiful.jpg`,
+        artist: 'Lounge Club feat. Lucas Kay',
+        audioUrl: `${FOLDER.beautifulDay}/Beautiful.mp3`,
+        coverUrl: `${FOLDER.beautifulDay}/Beautiful.jpg`,
         sections: [
             { kind: 'intro', start: 0, end: 7 },
             { kind: 'verse', start: 7, end: 37 },
@@ -143,12 +155,16 @@ export const PRACTICE_SONGS: PracticeSong[] = [
         ],
     },
     {
-        // No structure mapping yet — listen-only until it gets one (or the
-        // automatic analysis pipeline lands).
+        /*
+         * The only song missing from "Song Structure Time Mapping_.docx", so it
+         * has no hand-authored map. The analyser's attempt is not usable as a
+         * stand-in — it reads this track as eight choruses against one verse —
+         * so it stays locked until a real mapping is written for it.
+         */
         id: 'another-ride',
         available: false,
         title: 'Another Ride',
-        artist: 'Peter Nordberg',
-        audioUrl: `${DIR}/Another%20Ride/Another%20Ride%20-%20master.mp3`,
+        artist: 'Lounge Club',
+        audioUrl: `${FOLDER.anotherRide}/Another%20Ride%20-%20master.mp3`,
     },
 ];

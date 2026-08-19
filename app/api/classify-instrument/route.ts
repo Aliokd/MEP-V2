@@ -3,6 +3,7 @@ import { featureGuard } from '@/lib/featureFlags';
 import { GEMINI_AUDIO_MODELS } from '@/lib/geminiModels';
 import { requireUser } from '@/lib/apiAuth';
 import { rateLimitGuard } from '@/lib/rateLimit';
+import { fetchAllowedUrl, vetRemoteUrl } from '@/lib/safeRemoteUrl';
 
 const ALLOWED_INSTRUMENTS = ['guitar', 'piano', 'drums', 'vocals', 'synth', 'custom'] as const;
 type Instrument = typeof ALLOWED_INSTRUMENTS[number];
@@ -49,10 +50,15 @@ export async function POST(request: Request) {
 
         if (contentType.includes('application/json')) {
             const { audioUrl } = await request.json();
-            if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.startsWith('blob:')) {
+            // Vetted against an allowlist rather than fetched as given: the caller
+            // chose this string, so an unchecked fetch here would let a signed-in
+            // user point the server at the metadata service or anything else
+            // reachable from inside the VPC. See lib/safeRemoteUrl.ts.
+            const vetted = vetRemoteUrl(audioUrl);
+            if (!vetted.ok) {
                 return NextResponse.json({ instrument: 'custom' as Instrument });
             }
-            const audioResponse = await fetch(audioUrl);
+            const audioResponse = await fetchAllowedUrl(vetted.url!);
             if (!audioResponse.ok) {
                 return NextResponse.json({ instrument: 'custom' as Instrument });
             }

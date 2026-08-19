@@ -5,8 +5,32 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { auditContext, writeAudit } from "@/lib/admin/audit";
 import { roleHasPermission } from "@/lib/admin/roles";
 import { CONTENT_STATUSES } from "@/lib/content";
+import { localeUrlsFor, submitToIndexNow } from "@/lib/indexnow";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Which public URLs a content change invalidates, for the IndexNow ping.
+ *
+ * Only the collections that actually render on the public marketing site are
+ * listed — lessons, ideas and songs live behind auth in /platform, which is
+ * noindex, so pinging for them would submit URLs no crawler is allowed to see.
+ */
+function publicUrlsFor(collection: string, doc: Record<string, any>): string[] {
+    switch (collection) {
+        case "site_pages": {
+            const slug = doc.slug || doc.id;
+            return slug ? localeUrlsFor(`/${slug}`) : [];
+        }
+        // The Q&A accordion and the code-page copy overrides both render on the
+        // homepage, so a change to either is a change to "/".
+        case "faqs":
+        case "site_copy":
+            return localeUrlsFor("/");
+        default:
+            return [];
+    }
+}
 
 type Ctx = { params: Promise<{ collection: string; id: string }> };
 
@@ -86,6 +110,16 @@ export const PATCH = withAdmin("content.write", async (request, admin, ctx: Ctx)
         after: { status: body.status ?? current.status, fields: Object.keys(fields) },
         ...auditContext(request),
     });
+
+    // Tell Bing/Yandex/Seznam/Naver to re-crawl what just changed. Awaited (not
+    // fire-and-forget) because a serverless instance can be frozen the moment
+    // the response is returned, which would drop a detached promise — but the
+    // helper swallows its own failures, so a slow or broken IndexNow can only
+    // cost this request a little latency, never its success.
+    if (body.status === "published" || current.status === "published") {
+        const urls = publicUrlsFor(entry.collection, { ...current, ...fields, id });
+        if (urls.length > 0) await submitToIndexNow(urls);
+    }
 
     return NextResponse.json({ success: true });
 });

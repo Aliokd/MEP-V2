@@ -12,6 +12,7 @@ import SongCards from './components/SongCards';
 import ConnectionList, { useConnectionPeople } from './components/ConnectionList';
 import { useMySongs, leaveProfileTo, openSongInCreate, formatSongDate } from './useMySongs';
 import { resetGuide } from '@/lib/onboardingGuide';
+import { writePublicProfile } from '@/lib/publicProfile';
 
 /** How many recent songs / connections the profile shelf shows before "See all". */
 const RECENT_SONGS = 6;
@@ -145,6 +146,9 @@ export default function ProfilePage() {
             // Mirror onto the users doc (like name/email) so other surfaces —
             // connections, collab — can show the avatar without an Auth lookup.
             setDoc(doc(db, 'users', user.uid), { photoURL: url }, { merge: true }).catch(console.error);
+            // And onto the public profile, which is what those other surfaces
+            // actually read now that users/{uid} is private.
+            void writePublicProfile(user.uid, { photoURL: url });
 
             setPhotoUrl(url);
             showPhotoNotice(t('profile.photo_updated'));
@@ -209,6 +213,10 @@ export default function ProfilePage() {
             const { auth } = await import('@/lib/firebase');
             if (auth.currentUser) {
                 await updateProfile(auth.currentUser, { displayName: newDisplayName });
+                // Keep the name other people see in step with the one this user
+                // just set — the collaborator list and Connect roster read the
+                // public profile, not the Auth record.
+                void writePublicProfile(auth.currentUser.uid, { name: newDisplayName });
             }
         } catch (error) {
             console.error("Error updating display name:", error);

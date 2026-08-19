@@ -1,6 +1,8 @@
 import { doc, setDoc } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import { db } from "@/lib/firebase";
+import { authedFetch } from "@/lib/authedFetch";
+import { writePublicProfile } from "@/lib/publicProfile";
 import type { Language } from "@/context/LanguageContext";
 
 interface CreateUserProfileOptions {
@@ -38,9 +40,21 @@ export async function createUserProfile(user: User, options: CreateUserProfileOp
         },
     });
 
-    fetch("/api/emails/welcome", {
+    // The public slice of the account, mirrored so collaborator names and the
+    // Connect roster can be read without users/{uid} being world-readable.
+    await writePublicProfile(user.uid, {
+        name,
+        photoURL: user.photoURL || null,
+        songwriterType: (options.answers?.songwriter_type as string) ?? null,
+        createdAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
+    });
+
+    // The route takes the uid from the verified token, not from this body — it
+    // only ever sends the caller their own welcome email. authedFetch is what
+    // supplies that token; a plain fetch here now gets a 401.
+    authedFetch("/api/emails/welcome", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user.uid, locale: options.locale }),
+        body: JSON.stringify({ locale: options.locale }),
     }).catch((err) => console.error("Failed to trigger welcome email:", err));
 }

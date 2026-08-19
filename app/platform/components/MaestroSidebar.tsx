@@ -126,7 +126,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
             )}
 
             <div
-                className={`h-viewport fixed inset-y-0 left-0 md:sticky md:top-0 z-50 flex flex-col pt-8 pb-[calc(2rem+env(safe-area-inset-bottom))] select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-y-auto no-scrollbar overscroll-contain md:overflow-visible transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
+                className={`fixed top-16 bottom-0 left-0 md:h-viewport md:sticky md:top-0 z-50 flex flex-col pt-8 pb-[calc(2rem+env(safe-area-inset-bottom))] select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-y-auto no-scrollbar overscroll-contain md:overflow-visible transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
                     isMobileOpen ? 'translate-x-0' : '-translate-x-[110%]'
                 } md:translate-x-0 ${
                     isCollapsed && !isMobile ? 'w-[100px] pl-[10px] pr-0' : 'w-[260px] px-6'

@@ -3,8 +3,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { hasAnalyticsConsent } from '@/lib/cookieConsent';
 import { bindLocalStateToAccount } from '@/lib/storage';
+import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog';
+import { hasAnalyticsConsent } from '@/lib/cookieConsent';
 
 interface AuthContextType {
     user: User | null;
@@ -43,6 +44,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [blocked, setBlocked] = useState(false);
     const isMockUserRef = useRef(false);
     const lastCheckRef = useRef(0);
+    /**
+     * Whether PostHog currently holds an identified account. Needed so sign-out
+     * can be told apart from "no one has signed in yet" — resetting on the
+     * latter would churn a fresh anonymous id on every page load and fragment
+     * every pre-sign-in funnel.
+     */
+    const posthogIdentifiedRef = useRef(false);
 
     /**
      * Asks Firebase whether this account may still hold a session, and ends the
@@ -127,6 +135,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             window.removeEventListener('focus', recheckOnReturn);
         };
     }, [user, enforceAccountStatus]);
+
+    // PostHog: attach events to the account, and detach again on sign-out so a
+    // shared browser does not credit the next person's session to this one.
+    useEffect(() => {
+        if (loading) return;
+
+        if (user) {
+            identifyPostHogUser(user.uid, { email: user.email, name: user.displayName });
+            posthogIdentifiedRef.current = true;
+        } else if (posthogIdentifiedRef.current) {
+            resetPostHogUser();
+            posthogIdentifiedRef.current = false;
+        }
+    }, [user, loading]);
 
     useEffect(() => {
         // Without this check the identify below still ran, creating Clarity's
