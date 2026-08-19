@@ -90,5 +90,16 @@ export const GET = withAdmin("waitlist.read", async (request) => {
         });
     }
 
-    return NextResponse.json({ entries, total: entries.length });
+    // Counted, not measured off the page: `entries` stops at `limit`, so the
+    // headline figure used to freeze at 200 however long the list actually got —
+    // and the one number a pre-launch waiting list exists to report would have
+    // been quietly wrong from the 201st person on.
+    const total = await adminDb
+        .collection("waitlist")
+        .count()
+        .get()
+        .then((snap) => snap.data().count)
+        .catch(() => entries.length);
+
+    return NextResponse.json({ entries, total });
 });

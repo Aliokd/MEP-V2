@@ -130,7 +130,9 @@ export default function AdminOverviewPage() {
                     <section className="flex flex-col gap-3">
                         <h2 className="text-xs font-medium text-ink-400">Creation & community</h2>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                            <StatTile label="Songs in progress" value={data.content.projectsTotal} hint={`+${data.content.projects7d} this week`} />
+                            {/* "Edited", not "+new": a song has no recorded creation
+                                instant, so this is what the data can honestly answer. */}
+                            <StatTile label="Songs in progress" value={data.content.projectsTotal} hint={`${data.content.projects7d} edited this week`} />
                             <StatTile label="Community posts" value={data.content.postsTotal} hint={`+${data.content.posts7d} this week`} href="/admin/community" />
                             {/* These tiles count unresolved threads, so they carry the
                                 filter with them — the Inbox itself now opens on every

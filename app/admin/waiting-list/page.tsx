@@ -19,6 +19,8 @@ export default function WaitlistPage() {
     const { adminFetch } = useAdmin();
 
     const [entries, setEntries] = useState<WaitlistEntry[] | null>(null);
+    // The real size of the list, which is not the length of the page shown.
+    const [total, setTotal] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [exporting, setExporting] = useState(false);
@@ -29,7 +31,9 @@ export default function WaitlistPage() {
         try {
             const res = await adminFetch("/api/admin/waitlist");
             if (!res.ok) throw new Error((await res.json()).error || "Failed to load the waitlist");
-            setEntries((await res.json()).entries);
+            const data = await res.json();
+            setEntries(data.entries);
+            setTotal(data.total ?? data.entries.length);
         } catch (err: any) {
             setError(err.message);
             setEntries([]);
@@ -91,7 +95,8 @@ export default function WaitlistPage() {
 
             {entries && entries.length > 0 && (
                 <p className="text-xs text-ink-500">
-                    {entries.length} {entries.length === 1 ? "person" : "people"} waiting
+                    {total} {total === 1 ? "person" : "people"} waiting
+                    {entries.length < total && ` · showing the first ${entries.length}`}
                 </p>
             )}
 

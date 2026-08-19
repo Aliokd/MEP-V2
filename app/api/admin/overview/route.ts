@@ -25,10 +25,11 @@ async function count(
 export const GET = withAdmin("overview.read", async () => {
     const now = Date.now();
     const since = (days: number) => new Date(now - days * DAY).toISOString();
-    const sinceDate = (days: number) => new Date(now - days * DAY);
 
-    // `users` stores createdAt/lastActiveAt as ISO strings (see lib/userProfile.ts),
-    // while the newer admin collections use Firestore timestamps. Hence two forms.
+    // `users` and `projects` store their timestamps as ISO strings (see
+    // lib/userProfile.ts) while connect_posts store epoch milliseconds. Both
+    // forms appear below, and comparing the wrong one against a field matches
+    // nothing without raising anything — a tile that reads 0 rather than fails.
     const [
         usersTotal,
         signups24h,
@@ -64,7 +65,13 @@ export const GET = withAdmin("overview.read", async () => {
         count((c) => c.where("tier", "==", "pro"), "users"),
         count((c) => c.where("tier", "==", "max"), "users"),
         count((c) => c, "projects"),
-        count((c) => c.where("createdAt", ">=", sinceDate(7)), "projects"),
+        // Projects carry `updatedAt` and no `createdAt` — a song is created in the
+        // browser and only reaches Firestore once it is saved, so there is no
+        // creation instant to record. This counts songs *touched* this week, and
+        // the tile says so. The previous version filtered on a field that does
+        // not exist, which is not an error in Firestore: it silently matched
+        // nothing, so the tile read +0 no matter how much writing was going on.
+        count((c) => c.where("updatedAt", ">=", since(7)), "projects"),
         count((c) => c, "connect_posts"),
         count((c) => c.where("createdAt", ">=", now - 7 * DAY), "connect_posts"),
         count((c) => c.where("status", "in", ["new", "open", "pending"]), "user_feedback"),
