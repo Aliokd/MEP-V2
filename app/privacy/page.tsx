@@ -4,6 +4,7 @@ import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
 import { getCopyOverrides } from '@/lib/siteCopy';
 import SiteFooterStrip from '@/components/SiteFooterStrip';
+import CookieSettingsButton from '@/components/CookieSettingsButton';
 import { getPublishedPage, renderPageBody } from '@/lib/sitePages';
 import { pickLocale } from '@/lib/content';
 
@@ -76,6 +77,10 @@ export default async function PrivacyPolicyPage() {
                             dangerouslySetInnerHTML={{ __html: renderPageBody(cmsPage, language) }}
                         />
 
+                        {/* Lives outside the CMS body on purpose: the control has to
+                            work whichever version of the policy is being served, and
+                            an editor should not be able to delete it by accident. */}
+                        <CookieSettingsButton />
                     </div>
                 </section>
 
@@ -104,6 +109,7 @@ export default async function PrivacyPolicyPage() {
                         ))}
                     </div>
 
+                    <CookieSettingsButton />
                 </div>
             </section>
 

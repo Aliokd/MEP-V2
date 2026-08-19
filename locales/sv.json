@@ -914,7 +914,11 @@
     "message": "Vi använder kakor för att förstå hur Veinote används, så att vi kan göra den bättre. Ingenting mäts förrän du säger ja.",
     "accept": "Acceptera alla",
     "necessary": "Bara nödvändiga",
-    "privacy": "Integritet"
+    "privacy": "Integritet",
+    "settings": "Kakinställningar",
+    "current_all": "Du har accepterat alla kakor i den här webbläsaren.",
+    "current_necessary": "Du har bara tillåtit nödvändiga kakor i den här webbläsaren.",
+    "current_unanswered": "Du har inte valt än i den här webbläsaren."
   },
   "home": {
     "nav": {
@@ -1636,7 +1640,7 @@
       },
       "cookies_analytics": {
         "title": "Cookies och analys",
-        "body": "Vi använder nödvändiga cookies för att hålla dig inloggad och komma ihåg grundläggande inställningar. Vi använder också analysverktyg, inklusive Microsoft Clarity, för att förstå hur webbplatsen används så att vi kan förbättra den. Analysdata används i aggregerad form och säljs inte till tredje part."
+        "body": "Nödvändiga kakor håller dig inloggad och kommer ihåg grundläggande inställningar, som ditt språk. De behövs för att webbplatsen ska fungera och är därför alltid på.\n\nAnalys är något annat: den körs bara om du väljer ”Acceptera alla” i kakraden. Innan dess laddas inga analysverktyg och inga analyskakor sätts. Väljer du ”Bara nödvändiga” laddas de aldrig.\n\nNär du säger ja använder vi Microsoft Clarity, PostHog och Google Analytics (via Firebase) för att förstå hur webbplatsen används så att vi kan förbättra den. När du är inloggad registrerar dessa verktyg din kontoidentifierare så att vi kan se hur funktionerna används under en session. Analysdata används i aggregerad form och säljs inte till tredje part.\n\nDitt val sparas i din webbläsare, inte på ditt konto, och gäller den webbläsaren på den enheten. Du kan ändra det när som helst med knappen ”Kakinställningar” längst ned på den här sidan – ändrar du till ”Bara nödvändiga” laddas analys inte igen."
       },
       "third_party": {
         "title": "Tredjepartstjänster",

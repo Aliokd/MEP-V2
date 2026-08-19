@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { Cookie } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizePath } from '@/lib/i18n';
-import { readConsent, writeConsent, type ConsentChoice } from '@/lib/cookieConsent';
+import {
+    getConsentSnapshot,
+    getServerConsentSnapshot,
+    subscribeConsent,
+    writeConsent,
+    type ConsentChoice,
+} from '@/lib/cookieConsent';
 
 /**
  * Consent bar, pinned to the bottom until answered.
@@ -16,24 +22,25 @@ import { readConsent, writeConsent, type ConsentChoice } from '@/lib/cookieConse
  */
 export default function CookieBanner() {
     const { language, t } = useLanguage();
-    const [visible, setVisible] = useState(false);
 
+    // Rendering straight from the store would put the bar in the server HTML —
+    // the server can only assume "not answered" — so everyone who already chose
+    // would see it flash before hydration removed it. Gating on mount instead
+    // costs new visitors a beat and costs everyone else nothing.
+    const [mounted, setMounted] = useState(false);
     useEffect(() => {
-        // Reading the store during render instead (useSyncExternalStore) would
-        // put the bar in the server HTML, since the server can only assume "not
-        // answered" — so everyone who already chose would see it flash before
-        // hydration removed it. Appearing a beat late for new visitors is the
-        // better trade.
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (readConsent() === null) setVisible(true);
+        setMounted(true);
     }, []);
 
-    if (!visible) return null;
+    // Read through the store, not mirrored into state, so the bar comes back
+    // when the privacy page clears the choice — and disappears here when it is
+    // answered in another tab.
+    const consent = useSyncExternalStore(subscribeConsent, getConsentSnapshot, getServerConsentSnapshot);
 
-    const choose = (choice: ConsentChoice) => {
-        writeConsent(choice);
-        setVisible(false);
-    };
+    if (!mounted || consent !== null) return null;
+
+    const choose = (choice: ConsentChoice) => writeConsent(choice);
 
     return (
         <div

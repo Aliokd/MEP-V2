@@ -914,7 +914,11 @@
     "message": "Vi bruker informasjonskapsler for å forstå hvordan Veinote blir brukt, så vi kan gjøre den bedre. Ingenting måles før du sier ja.",
     "accept": "Godta alle",
     "necessary": "Bare nødvendige",
-    "privacy": "Personvern"
+    "privacy": "Personvern",
+    "settings": "Innstillinger for informasjonskapsler",
+    "current_all": "Du har godtatt alle informasjonskapsler i denne nettleseren.",
+    "current_necessary": "Du har bare tillatt nødvendige informasjonskapsler i denne nettleseren.",
+    "current_unanswered": "Du har ikke valgt ennå i denne nettleseren."
   },
   "home": {
     "nav": {
@@ -1636,7 +1640,7 @@
       },
       "cookies_analytics": {
         "title": "Informasjonskapsler og analyse",
-        "body": "Vi bruker nødvendige informasjonskapsler for å holde deg innlogget og huske grunnleggende innstillinger. Vi bruker også analyseverktøy, inkludert Microsoft Clarity, for å forstå hvordan nettstedet brukes, slik at vi kan forbedre det. Analysedata brukes i aggregert form og selges ikke til tredjeparter."
+        "body": "Nødvendige informasjonskapsler holder deg innlogget og husker grunnleggende innstillinger, som språket ditt. De trengs for at nettstedet skal fungere, og er derfor alltid på.\n\nAnalyse er noe annet: den kjører bare hvis du velger «Godta alle» i informasjonskapsel-linjen. Før du gjør det, lastes ingen analyseverktøy, og ingen analyse-informasjonskapsler settes. Velger du «Bare nødvendige», lastes de aldri.\n\nNår du sier ja, bruker vi Microsoft Clarity, PostHog og Google Analytics (via Firebase) for å forstå hvordan nettstedet brukes, slik at vi kan forbedre det. Når du er innlogget, registrerer disse verktøyene kontoidentifikatoren din, slik at vi kan se hvordan funksjonene brukes gjennom en økt. Analysedata brukes i aggregert form og selges ikke til tredjeparter.\n\nValget ditt lagres i nettleseren din, ikke på kontoen din, og gjelder den nettleseren på den enheten. Du kan endre det når som helst med knappen «Innstillinger for informasjonskapsler» nederst på denne siden – endrer du til «Bare nødvendige», lastes ikke analyse igjen."
       },
       "third_party": {
         "title": "Tredjepartstjenester",

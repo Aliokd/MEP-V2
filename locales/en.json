@@ -914,7 +914,11 @@
     "message": "We use cookies to understand how Veinote is used, so we can make it better. Nothing is measured until you agree.",
     "accept": "Accept all",
     "necessary": "Only necessary",
-    "privacy": "Privacy"
+    "privacy": "Privacy",
+    "settings": "Cookie settings",
+    "current_all": "You accepted all cookies on this browser.",
+    "current_necessary": "You allowed only necessary cookies on this browser.",
+    "current_unanswered": "You haven't chosen yet on this browser."
   },
   "home": {
     "nav": {
@@ -1636,7 +1640,7 @@
       },
       "cookies_analytics": {
         "title": "Cookies & analytics",
-        "body": "We use essential cookies to keep you signed in and to remember basic preferences. We also use analytics tools, including Microsoft Clarity, to understand how the site is used so we can improve it. Analytics data is used in aggregate and is not sold to third parties."
+        "body": "Essential cookies keep you signed in and remember basic preferences such as your language. These are needed for the site to work, so they are always on.\n\nAnalytics are different: they only run if you choose \"Accept all\" in the cookie bar. Until you do, no analytics load and no analytics cookies are set. If you choose \"Only necessary\", they never load at all.\n\nWhen you do accept, we use Microsoft Clarity, PostHog and Google Analytics (through Firebase) to understand how the site is used so we can improve it. Once you are signed in, these tools record your account identifier so we can see how features are used across a session. Analytics data is used in aggregate and is not sold to third parties.\n\nYour choice is stored in your browser, not in your account, and it applies to that browser on that device. You can change it at any time using the \"Cookie settings\" button at the bottom of this page — changing it to \"Only necessary\" stops analytics from loading again."
       },
       "third_party": {
         "title": "Third-party services",

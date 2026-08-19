@@ -61,6 +61,22 @@ export function writeConsent(choice: ConsentChoice): void {
     window.dispatchEvent(new CustomEvent<ConsentChoice>(CONSENT_EVENT, { detail: choice }));
 }
 
+/**
+ * Forgets the stored choice, which brings the bar back so it can be answered
+ * again. Withdrawing consent has to be as easy as giving it, and the privacy
+ * policy points people here.
+ */
+export function clearConsent(): void {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.removeItem(CONSENT_KEY);
+    } catch {
+        /* nothing stored is the same outcome */
+    }
+    cachedSnapshot = null;
+    window.dispatchEvent(new CustomEvent(CONSENT_EVENT, { detail: null }));
+}
+
 /** Subscribe to consent changes. Returns an unsubscribe function. */
 export function onConsentChange(handler: (choice: ConsentChoice) => void): () => void {
     const listener = (event: Event) => handler((event as CustomEvent<ConsentChoice>).detail);
