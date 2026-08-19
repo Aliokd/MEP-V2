@@ -70,6 +70,10 @@ export const GET = withAdmin("users.read", async (_request, _admin, ctx: Ctx) =>
             name: d.name || null,
             email: d.email || null,
             tier: d.tier || null,
+            // Written by /api/admin/users/create and, until now, read by nothing:
+            // the console could not tell an account it made itself from one that
+            // signed itself up, which is the first question asked of a new row.
+            createdByAdmin: d.createdByAdmin || null,
             locale: d.locale || null,
             answers: d.answers || {},
             createdAt: toMillis(d.createdAt),

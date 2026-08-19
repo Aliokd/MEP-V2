@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { motion, useAnimationControls } from 'framer-motion';
-import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail, signInWithRedirect, getRedirectResult, getAdditionalUserInfo, signOut, type UserCredential } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/userProfile';
 import { clearOpenProject } from '@/lib/storage';
 import { useLanguage } from '@/context/LanguageContext';
+import { SIGNUPS_OPEN } from '@/lib/uiFlags';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function SignInPage() {
@@ -64,19 +65,52 @@ function SignInPageInner() {
         }
     };
 
+    /**
+     * What happens after Google hands back a credential — shared by the popup
+     * and the redirect fallback, because a gate on only one of them is no gate.
+     *
+     * Google has no sign-up/sign-in distinction: by the time this runs, Firebase
+     * has already created the account. So an account with no profile document is
+     * a *signup*, and while signups are closed it has to be undone rather than
+     * refused in advance. Signing in an account that already has a profile is
+     * untouched — the wall is around new accounts, not existing songwriters.
+     */
+    const completeGoogleSignIn = async (result: UserCredential) => {
+        const user = result.user;
+        const profile = await getDoc(doc(db, "users", user.uid));
+
+        if (!profile.exists() && !SIGNUPS_OPEN) {
+            // Only delete what this sign-in just created. An older account that
+            // has somehow lost its profile document is a repair job, not a
+            // trespasser, and deleting its auth record would take its identity
+            // with it — so that case is signed out and left alone.
+            const isNewAccount = getAdditionalUserInfo(result)?.isNewUser === true;
+            try {
+                if (isNewAccount) await user.delete();
+                else await signOut(auth);
+            } catch {
+                await signOut(auth).catch(() => {});
+            }
+            // `from` is recorded on the waiting-list entry, so the console can
+            // see how many people arrive by trying to sign in with Google.
+            router.push('/waiting-list?from=google-signin');
+            return;
+        }
+
+        if (!profile.exists()) {
+            await createUserProfile(user, { locale: language });
+        }
+        clearOpenProject(user.uid);
+        router.push('/platform/create');
+    };
+
     useEffect(() => {
         const checkRedirectResult = async () => {
             try {
                 const result = await getRedirectResult(auth);
                 if (result) {
                     setIsLoading(true);
-                    const user = result.user;
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
-                    if (!userDoc.exists()) {
-                        await createUserProfile(user, { locale: language });
-                    }
-                    clearOpenProject(user.uid);
-                    router.push('/platform/create');
+                    await completeGoogleSignIn(result);
                 }
             } catch (err: any) {
                 console.error('Redirect sign-in error:', err);
@@ -86,6 +120,9 @@ function SignInPageInner() {
             }
         };
         checkRedirectResult();
+        // completeGoogleSignIn is stable enough for this one-shot check: it only
+        // closes over the router and the language, both of which are in the deps.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [router, language]);
 
     const handlePasswordSignIn = async (e: React.FormEvent) => {
@@ -152,15 +189,7 @@ function SignInPageInner() {
         setError('');
         setIsLoading(true);
         try {
-            const result = await signInWithPopup(auth, googleProvider);
-            const user = result.user;
-
-            const userDoc = await getDoc(doc(db, "users", user.uid));
-            if (!userDoc.exists()) {
-                await createUserProfile(user, { locale: language });
-            }
-            clearOpenProject(user.uid);
-            router.push('/platform/create');
+            await completeGoogleSignIn(await signInWithPopup(auth, googleProvider));
         } catch (err: any) {
             console.error('Google Sign-In error:', err);
             if (

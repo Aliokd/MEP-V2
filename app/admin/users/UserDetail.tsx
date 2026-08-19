@@ -10,6 +10,8 @@ interface Detail {
         uid: string; name: string | null; email: string | null; tier: string | null;
         locale: string | null; answers: Record<string, string>;
         createdAt: number | null; lastActiveAt: number | null;
+        /** Set only on accounts made from the console — the admin's email. */
+        createdByAdmin: string | null;
         billing: Record<string, any> | null;
         sanction: Record<string, any> | null;
     };
@@ -124,6 +126,14 @@ export default function UserDetail({
                         {/* Facts */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             <Fact label="Joined" value={timeAgo(u!.createdAt)} />
+                            {/* Where this account came from. Both halves were already
+                                stored and neither was shown, so "how did they get in?"
+                                had to be answered by reading Firestore by hand. */}
+                            <Fact
+                                label="Created by"
+                                value={u!.createdByAdmin || "self-signup"}
+                            />
+                            <Fact label="Signed up with" value={describeProviders(detail.auth?.providers)} />
                             <Fact label="Last active" value={timeAgo(u!.lastActiveAt)} />
                             <Fact label="Last sign-in" value={timeAgo(detail.auth?.lastSignInAt)} />
                             <Fact label="Songs" value={String(detail.stats.projects)} />
@@ -324,11 +334,24 @@ export default function UserDetail({
     );
 }
 
+/** Firebase's provider ids, in the words an admin would use. */
+function describeProviders(providers: string[] | undefined): string {
+    if (!providers || providers.length === 0) return "—";
+    const names: Record<string, string> = {
+        "google.com": "Google",
+        password: "Email + password",
+        "apple.com": "Apple",
+        "facebook.com": "Facebook",
+    };
+    return providers.map((p) => names[p] || p).join(", ");
+}
+
 function Fact({ label, value, tone }: { label: string; value: string; tone?: "red" }) {
     return (
         <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-ink-850 border border-ink-600">
             <span className="text-[11px] text-ink-500">{label}</span>
-            <span className={`text-sm ${tone === "red" ? "text-red-300" : "text-ink-100"}`}>{value}</span>
+            {/* break-words: an email address as a value overflows a grid cell otherwise. */}
+            <span className={`text-sm break-words ${tone === "red" ? "text-red-300" : "text-ink-100"}`}>{value}</span>
         </div>
     );
 }
