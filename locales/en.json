@@ -909,6 +909,13 @@
   "language": {
     "change": "Change language"
   },
+  "cookies": {
+    "aria_label": "Cookie consent",
+    "message": "We use cookies to understand how Veinote is used, so we can make it better. Nothing is measured until you agree.",
+    "accept": "Accept all",
+    "necessary": "Only necessary",
+    "privacy": "Privacy"
+  },
   "home": {
     "nav": {
       "qa": "Q&A",

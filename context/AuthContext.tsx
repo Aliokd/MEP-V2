@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { hasAnalyticsConsent } from '@/lib/cookieConsent';
 import { bindLocalStateToAccount } from '@/lib/storage';
 
 interface AuthContextType {
@@ -128,6 +129,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, [user, enforceAccountStatus]);
 
     useEffect(() => {
+        // Without this check the identify below still ran, creating Clarity's
+        // queue stub and pushing the user's uid, name and email into it before
+        // anyone answered the consent bar. The queue flushes the moment Clarity
+        // loads, so declining has to stop the queueing too, not just the script.
+        if (!hasAnalyticsConsent()) return;
+
         if (user && typeof window !== 'undefined') {
             try {
                 const clarity = (window as any).clarity;

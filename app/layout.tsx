@@ -3,11 +3,12 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Providers } from '@/context/Providers';
 import Navigation from '@/components/Navigation';
+import AnalyticsGate from '@/components/AnalyticsGate';
+import CookieBanner from '@/components/CookieBanner';
 import { SitePagesProvider } from '@/context/SitePagesContext';
 import { getFooterPages } from '@/lib/sitePages';
 import { getPublishedFaqs } from '@/lib/faqs';
 import { getCopyOverrides } from '@/lib/siteCopy';
-import Script from 'next/script';
 import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
 import { SITE_URL, isLocalizedPath, localizePath } from '@/lib/i18n';
@@ -210,6 +211,7 @@ export default async function RootLayout({
                 />
             </head>
             <body className="font-sans antialiased bg-white text-stone-900 transition-colors duration-300">
+                <AnalyticsGate />
                 <Providers initialLanguage={language} localeFromUrl={fromUrl} copyOverrides={copyOverrides}>
                     <SitePagesProvider links={footerLinks} faqs={faqs}>
                         <div className="min-h-screen flex flex-col">
@@ -219,16 +221,8 @@ export default async function RootLayout({
                             </main>
                         </div>
                     </SitePagesProvider>
+                    <CookieBanner />
                 </Providers>
-                <Script id="microsoft-clarity" strategy="afterInteractive">
-                    {`
-                        (function(c,l,a,r,i,t,y){
-                            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-                        })(window, document, "clarity", "script", "xovh69ah42");
-                    `}
-                </Script>
             </body>
         </html>
     );

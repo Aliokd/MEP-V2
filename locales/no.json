@@ -909,6 +909,13 @@
   "language": {
     "change": "Bytt språk"
   },
+  "cookies": {
+    "aria_label": "Samtykke til informasjonskapsler",
+    "message": "Vi bruker informasjonskapsler for å forstå hvordan Veinote blir brukt, så vi kan gjøre den bedre. Ingenting måles før du sier ja.",
+    "accept": "Godta alle",
+    "necessary": "Bare nødvendige",
+    "privacy": "Personvern"
+  },
   "home": {
     "nav": {
       "qa": "Spørsmål",

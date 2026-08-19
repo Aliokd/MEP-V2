@@ -909,6 +909,13 @@
   "language": {
     "change": "Byt språk"
   },
+  "cookies": {
+    "aria_label": "Samtycke till kakor",
+    "message": "Vi använder kakor för att förstå hur Veinote används, så att vi kan göra den bättre. Ingenting mäts förrän du säger ja.",
+    "accept": "Acceptera alla",
+    "necessary": "Bara nödvändiga",
+    "privacy": "Integritet"
+  },
   "home": {
     "nav": {
       "qa": "Frågor",

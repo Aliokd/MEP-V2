@@ -22,9 +22,24 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Initialize Analytics client-side only (not during SSR) and only if supported in browser environment
-export const analytics = typeof window !== 'undefined'
-    ? isSupported().then(supported => supported ? getAnalytics(app) : null)
-    : null;
+/**
+ * Firebase Analytics (GA4).
+ *
+ * Deliberately not started on import. It used to be, which meant _ga cookies
+ * were set on every page load before anyone saw the consent bar — and nothing
+ * in the app ever consumed the result, so it was tracking with no reader.
+ * AnalyticsGate calls this only after an explicit "accept all".
+ */
+let analyticsPromise: Promise<unknown> | null = null;
+
+export function initFirebaseAnalytics(): Promise<unknown> {
+    if (typeof window === 'undefined') return Promise.resolve(null);
+    if (!analyticsPromise) {
+        analyticsPromise = isSupported()
+            .then(supported => (supported ? getAnalytics(app) : null))
+            .catch(() => null);
+    }
+    return analyticsPromise;
+}
 
 export default app;
