@@ -16,6 +16,13 @@ export interface AuthoredSection {
     end: number;
     /** Lyric lines sung in this section, when we have them. Display only. */
     lines?: string[];
+    /**
+     * When each line starts, in seconds into the master — one per entry in
+     * `lines`, always increasing and always inside the section. Derived from the
+     * vocal stem's word timestamps, so the read-along follows the singer rather
+     * than dividing the section evenly. Absent means no read-along for the part.
+     */
+    lineTimes?: number[];
 }
 
 export interface PracticeSong {
@@ -69,6 +76,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'And maybe hold each other tight',
                     'All night',
                 ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    7.0, 9.34, 13.0, 17.8, 24.0, 27.18, 30.74, 36.96,
+                ],
             },
             {
                 kind: 'chorus', start: 41, end: 65,
@@ -77,6 +88,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'Do you feel it from above',
                     'Is it coming from below',
                     'From the deepest of you soul',
+                ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    41.0, 46.0, 51.18, 56.12,
                 ],
             },
             {
@@ -91,6 +106,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'Just let it out and let it flow',
                     'Let go',
                 ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    66.18, 67.48, 72.16, 77.32, 83.34, 86.58, 90.22, 95.64,
+                ],
             },
             {
                 kind: 'chorus', start: 102, end: 123,
@@ -100,12 +119,20 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'Is it coming from below',
                     'From the deepest of you soul',
                 ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    102.0, 105.3, 110.66, 115.62,
+                ],
             },
             {
                 kind: 'bridge', start: 123, end: 142,
                 lines: [
                     'Do you love Do you love Do you love',
                     'Do you love Do you love Do you love',
+                ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    123.0, 138.32,
                 ],
             },
             {
@@ -115,6 +142,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'Do you feel it from above',
                     'Is it coming from below',
                     'From the deepest of you soul',
+                ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    145.13, 148.26, 152.65, 157.04,
                 ],
             },
         ],
@@ -141,6 +172,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'Come over here drop your phone',
                     "Let's fool around",
                 ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    12.0, 16.4, 18.88, 26.3,
+                ],
             },
             {
                 kind: 'chorus', start: 29, end: 52,
@@ -149,6 +184,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'Come on hold me tight',
                     'Come on hold me stronger',
                     'Come on do it right',
+                ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    29.0, 34.62, 39.48, 44.3,
                 ],
             },
             {
@@ -159,6 +198,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'You know I love your velvet skin',
                     'And your smile',
                 ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    52.0, 57.42, 59.42, 65.32,
+                ],
             },
             {
                 kind: 'chorus', start: 70, end: 92,
@@ -167,6 +210,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'Come on hold me tight',
                     'Come on hold me stronger',
                     'Come on do it right',
+                ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    70.0, 74.96, 79.76, 84.7,
                 ],
             },
             { kind: 'solo', start: 92, end: 132 },
@@ -183,6 +230,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'Hold me tight',
                     'Hold me stronger',
                     'Come on do it right',
+                ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    132.0, 132.84, 140.48, 145.26, 151.12, 156.2, 161.28, 165.56,
                 ],
             },
         ],
@@ -207,6 +258,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     "Don't travel down too far inside",
                     'It is out here that the world resides',
                 ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    7.0, 12.5, 15.86, 19.08, 27.88, 30.42,
+                ],
             },
             {
                 kind: 'chorus', start: 37, end: 51,
@@ -215,6 +270,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     "I wouldn't like it any other way",
                     "It's a beautiful beautiful day",
                     "I couldn't take it any other way",
+                ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    37.0, 38.8, 42.96, 46.54,
                 ],
             },
             {
@@ -227,6 +286,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'Let me see it in your eyes',
                     'All we really have is time',
                 ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    51.0, 56.52, 60.12, 63.0, 72.18, 75.2,
+                ],
             },
             {
                 kind: 'chorus', start: 80, end: 96,
@@ -236,6 +299,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     "It's a beautiful beautiful day",
                     "I couldn't take it any other way",
                 ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    80.01, 83.11, 87.29, 90.59,
+                ],
             },
             {
                 kind: 'verse', start: 96, end: 110,
@@ -243,6 +310,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     "Hey you, tell me what you're longing for",
                     "I wonder what you're dreaming of",
                     'What is it that you most dearly love',
+                ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    96.0, 101.57, 103.55,
                 ],
             },
             {
@@ -256,6 +327,10 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     'And the blood flowing through your veins',
                     'If you look at the world this way',
                     "You'll never feel the same",
+                ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    110.19, 111.91, 117.05, 120.15, 124.47, 126.69, 132.37, 134.85,
                 ],
             },
             {
@@ -272,6 +347,11 @@ export const PRACTICE_SONGS: PracticeSong[] = [
                     "It's a beautiful beautiful day",
                     "I couldn't take it any other way",
                     'Hey you',
+                ],
+                // Line onsets, from the vocal stem's word timestamps
+                lineTimes: [
+                    141.0, 143.41, 145.73, 149.95, 153.29, 157.88, 160.67, 164.81, 168.13,
+                    172.53,
                 ],
             },
         ],

@@ -18,7 +18,11 @@
     "reset": "Återställ",
     "coming_soon": "Kommer snart",
     "save_changes": "Spara ändringar",
-    "add": "Lägg till"
+    "add": "Lägg till",
+    "minimize": "Minimera",
+    "on": "På",
+    "off": "Av",
+    "open": "Öppna"
   },
   "navigation": {
     "create": "Skapa",
@@ -72,7 +76,27 @@
     "studio_badge": "Studio",
     "reopen_in_studio": "Öppna igen i Demo Studio",
     "add_to_studio": "Lägg till i Demo Studio",
-    "take_upload_failed": "Uppladdningen misslyckades. Dina samarbetspartner kan inte höra den här tagningen ännu. Kontrollera anslutningen och spela in igen."
+    "take_upload_failed": "Uppladdningen misslyckades. Dina samarbetspartner kan inte höra den här tagningen ännu. Kontrollera anslutningen och spela in igen.",
+    "settings": "Studioinställningar",
+    "settings_subtitle": "Metronom, stämning och medhörning",
+    "metronome": "Metronom",
+    "tempo": "Tempo",
+    "tempo_hint": "Slag per minut för klickspåret",
+    "metronome_volume": "Metronomvolym",
+    "last_note": "Senaste ton:",
+    "no_tuning_yet": "Inte stämd än",
+    "direct_monitoring": "Medhörning",
+    "direct_monitoring_hint": "Hör dig själv i hörlurarna medan du spelar in",
+    "track_settings": "Spårinställningar",
+    "track_settings_subtitle": "Instrument, nivåer och effekter",
+    "instrument": "Instrument",
+    "volume": "Volym",
+    "pan": "Panorering",
+    "eq": "EQ",
+    "reverb": "Efterklang",
+    "compressor": "Kompressor",
+    "compressor_hint": "Jämnar ut starka och svaga partier",
+    "recording_box": "Inspelning"
   },
   "canvas": {
     "tuner": "Stämapparat",
@@ -275,7 +299,8 @@
     "back": "tillbaka",
     "next": "nästa",
     "add_to_canvas": "Lägg till på canvasen",
-    "no_response": "Inget svar än"
+    "no_response": "Inget svar än",
+    "answer_placeholder": "Skriv ditt svar"
   },
   "collab": {
     "invite_title": "Bjud in någon att samarbeta med dig i det här projektet",
@@ -336,7 +361,9 @@
     "invite_all_in": "Alla du är kopplad till är redan med i det här projektet.",
     "invite_no_match": "Ingen med det namnet. Skriv deras e-postadress så bjuder vi in dem.",
     "invite_not_on_veinote": "Vi skickar inbjudan till den här adressen.",
-    "invite_clear": "Rensa"
+    "invite_clear": "Rensa",
+    "lock_project": "Lås projektet",
+    "unlock_project": "Lås upp projektet"
   },
   "workspace": {
     "my_projects": "Mina projekt",
@@ -805,7 +832,11 @@
     "coming_in_days": "Kommer om {days} dagar",
     "coming_in_one_day": "Kommer om 1 dag",
     "demo_title": "Så fungerar det",
-    "demo_desc": "Välj en del på tidslinjen och klicka sedan på texten den hör till. Rätt par blir gröna."
+    "demo_desc": "Vi namnger en del av låten. Bläddra i texten, hitta den och klicka — rätt svar gör båda gröna.",
+    "find_section": "Hitta {section}",
+    "start_over": "Börja om",
+    "prev_song": "Föregående låt",
+    "next_song": "Nästa låt"
   },
   "curriculum": {
     "foundation": "Grund",
@@ -916,14 +947,15 @@
   },
   "cookies": {
     "aria_label": "Samtycke till kakor",
-    "message": "Vi använder kakor för att förstå hur Veinote används, så att vi kan göra den bättre. Ingenting mäts förrän du säger ja.",
+    "message": "Vi använder kakor för att förstå hur Veinote används, så att vi kan göra den bättre.",
     "accept": "Acceptera alla",
     "necessary": "Bara nödvändiga",
     "privacy": "Integritet",
     "settings": "Kakinställningar",
     "current_all": "Du har accepterat alla kakor i den här webbläsaren.",
     "current_necessary": "Du har bara tillåtit nödvändiga kakor i den här webbläsaren.",
-    "current_unanswered": "Du har inte valt än i den här webbläsaren."
+    "current_unanswered": "Du har inte valt än i den här webbläsaren.",
+    "reject": "Avvisa"
   },
   "home": {
     "nav": {

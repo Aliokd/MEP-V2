@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import Link from 'next/link';
 import { Cookie } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { localizePath } from '@/lib/i18n';
 import {
     getConsentSnapshot,
     getServerConsentSnapshot,
@@ -21,7 +19,7 @@ import {
  * people who already answered, or mismatch on hydration.
  */
 export default function CookieBanner() {
-    const { language, t } = useLanguage();
+    const { t } = useLanguage();
 
     // Rendering straight from the store would put the bar in the server HTML —
     // the server can only assume "not answered" — so everyone who already chose
@@ -67,7 +65,12 @@ export default function CookieBanner() {
     return (
         <div
             ref={barRef}
-            className="fixed inset-x-0 bottom-0 z-[100] bg-white border-t border-stone-200/70 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] animate-in slide-in-from-bottom-4 fade-in duration-500"
+            // floating-sheet-enter, not `animate-in slide-in-from-bottom-4`: without
+            // tailwindcss-animate installed those utilities compile to nothing, so
+            // the bar simply appeared. This is the rise-and-fade they described, and
+            // unlike .bottom-sheet-enter it isn't gated off above md — the consent
+            // bar is a full-width bar at every width, not a phone-only sheet.
+            className="fixed inset-x-0 bottom-0 z-[100] bg-white border-t border-stone-200/70 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] floating-sheet-enter"
             role="dialog"
             aria-live="polite"
             aria-label={t('cookies.aria_label')}
@@ -80,15 +83,23 @@ export default function CookieBanner() {
                     </p>
                 </div>
 
-                {/* Accept and decline sit side by side at the same weight — a
-                    decline that is harder to find than accept is not a choice. */}
+                {/* Three controls, left to right: "Reject" (tertiary), "Only
+                    necessary" (secondary), "Accept all" (primary). Weight and
+                    order are both product decisions.
+
+                    "Only necessary" and "Reject" both write the same choice —
+                    there is no third state to store, since the essential cookies
+                    are what keep someone signed in and cannot be turned off. They
+                    are two labels for the same decline, kept because some people
+                    look for one wording and some for the other. */}
                 <div className="flex items-center gap-2 shrink-0 self-end md:self-auto">
-                    <Link
-                        href={localizePath('/privacy', language)}
+                    <button
+                        type="button"
+                        onClick={() => choose('necessary')}
                         className="px-3 py-2 text-[13px] font-medium text-stone-500 hover:text-stone-900 transition-colors"
                     >
-                        {t('cookies.privacy')}
-                    </Link>
+                        {t('cookies.reject')}
+                    </button>
                     <button
                         type="button"
                         onClick={() => choose('necessary')}
@@ -99,7 +110,7 @@ export default function CookieBanner() {
                     <button
                         type="button"
                         onClick={() => choose('all')}
-                        className="px-4 py-2 text-[13px] font-semibold text-stone-900 bg-[#86BE7F] hover:opacity-90 rounded-full transition-all active:scale-95"
+                        className="px-4 py-2 text-[13px] font-semibold text-white bg-stone-900 hover:bg-stone-800 rounded-full transition-all active:scale-95"
                     >
                         {t('cookies.accept')}
                     </button>

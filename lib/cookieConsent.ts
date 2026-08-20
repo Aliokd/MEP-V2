@@ -10,8 +10,17 @@
  */
 
 const CONSENT_KEY = 'veinote-cookie-consent';
-/** Bump when the set of things we ask about changes; an old choice then re-asks. */
-const CONSENT_VERSION = 1;
+/**
+ * Bump when the set of things we ask about changes; an old choice then re-asks.
+ *
+ * v1 -> v2 (2026-08-20): session replay. v1 was answered when the bar covered
+ * analytics events only. Recording a session — a replay of how the page was
+ * actually used — is a materially wider thing to agree to than being counted,
+ * so a v1 "accept all" cannot stand in for consent to it. Everyone is asked
+ * again, including anyone who previously declined, and nothing is recorded in
+ * the meantime because an unanswered bar reads as no consent.
+ */
+const CONSENT_VERSION = 2;
 
 /** Fired on the window so analytics can start (or stay off) without a reload. */
 export const CONSENT_EVENT = 'veinote-cookie-consent-changed';

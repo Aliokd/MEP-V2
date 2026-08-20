@@ -450,6 +450,74 @@ function PlatformLayoutInner({
 
     const handleBack = () => exitProfile();
 
+    /**
+     * Tabs that drop the beige panel below md and go straight onto the page.
+     * Both are stacks of full-width surfaces that already read as panels, so the
+     * frame around them only ate horizontal room on a phone. Each supplies its
+     * own edge gutter — that is the requirement for joining this list, since the
+     * outer content-area inset goes to 0 for them too.
+     */
+    const isBareMobilePanel = pathname === '/platform'
+        || !!pathname?.startsWith('/platform/connect')
+        || !!pathname?.startsWith('/platform/practice');
+
+    /**
+     * Mind Power, as it appears inside the mobile sidebar drawer.
+     *
+     * The panel renders IN FLOW here rather than as the absolutely-positioned
+     * popover the desktop header uses: the drawer is a 260px rail with
+     * overflow-y-auto, which implicitly clips overflow-x too, so a centred 320px
+     * popover would be sliced down its side. In flow it just pushes the nav down
+     * and the drawer scrolls, which is what a drawer is for.
+     */
+    const mobileMindPower = (
+        <div className="relative flex flex-col items-center w-full" ref={popupRef}>
+            {showProgressGlow && <div className={`mind-power-glow-ring ${isQuickGlow ? "mind-power-glow-ring--quick" : ""}`} />}
+            {showCollabCelebrate && <div className="mind-power-glow-ring mind-power-glow-ring--collab" />}
+            <div
+                onClick={() => setShowTooltip(!showTooltip)}
+                data-tour="mind-power"
+                role="button"
+                aria-label={t('progress.mind_power_label')}
+                className="relative flex items-center w-full bg-white/60 border border-stone-200/50 px-4 py-3 rounded-[20px] select-none cursor-pointer transition-all active:scale-[0.99] shadow-2xs font-sans text-xs text-stone-500 font-medium normal-case"
+            >
+                {showCollabCelebrate && <div className="collab-join-gradient-fill" />}
+                <div className="relative flex items-center gap-2.5">
+                    <Brain size={16} className="text-stone-600 shrink-0" strokeWidth={1.5} />
+                    <MindPowerStatus t={t} isSaving={isQuickGlow} size="sm" />
+                </div>
+                <div className="flex-1 h-2 bg-stone-200/70 rounded-full overflow-hidden relative ml-2">
+                    <div
+                        className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${levelProgress}%` }}
+                    />
+                </div>
+            </div>
+
+            {showTooltip && (
+                <div className="w-full mt-3">
+                    <MindPowerPanel
+                        fullWidth
+                        t={t}
+                        progressLevel={progressLevel}
+                        levelProgress={levelProgress}
+                        wordsTyped={wordsTyped}
+                        songsCompleted={songsCompleted}
+                        recordingMinutes={recordingMinutes}
+                        wordsGoal={L1_WORDS}
+                        completedLessonsCount={completedLessonsCount}
+                        lessonsGoal={L1_LESSONS}
+                        practiceMinutes={practiceMinutes}
+                        practiceGoal={L1_PRACTICE}
+                        communityCount={communityCount}
+                        communityGoal={L1_COMMUNITY}
+                        activeQuote={activeQuote}
+                    />
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <div className={`min-h-screen flex text-stone-900 font-sans selection:bg-stone-900/10 selection:text-stone-900 transition-colors duration-200 ${
             pathname?.startsWith('/platform/create') ? 'bg-[#FAF9F5] md:bg-[#E4E4DF]' : 'bg-[#E4E4DF]'
@@ -574,6 +642,7 @@ function PlatformLayoutInner({
                     onClose={() => setIsMobileMenuOpen(false)}
                     onSupportClick={() => setIsSupportOpen(true)}
                     onFeedbackClick={() => setIsFeedbackOpen(true)}
+                    mobileTopSlot={mobileMindPower}
                 />
             )}
 
@@ -594,18 +663,21 @@ function PlatformLayoutInner({
                 ${isProfile ? (isProfileExiting ? 'profile-view-exit' : 'profile-view-enter') : ''}
                 ${pathname?.startsWith('/platform/create')
                     ? 'p-0 xl:p-8'
-                    // Connect drops its panel below md and brings its own edge gutter,
-                    // so this outer inset would just stack a second margin outside a
-                    // frame that isn't there. The other tabs keep their panel, which
-                    // needs this inset to sit off the screen edge.
-                    : pathname?.startsWith('/platform/connect') ? 'p-0 md:p-8' : 'p-4 md:p-8'
+                    // Connect and Learn drop their panel below md and bring their own
+                    // edge gutter, so this outer inset would just stack a second margin
+                    // outside a frame that isn't there. The other tabs keep their panel,
+                    // which needs this inset to sit off the screen edge.
+                    : isBareMobilePanel ? 'p-0 md:p-8' : 'p-4 md:p-8'
                 }
             `}>
                 {/* The mobile laptop-hint banner is mounted once in the root layout
                     (components/MobileLaptopBanner) and covers platform screens too. */}
 
                 {/* Mobile Top Header */}
-                <header className={`flex md:hidden items-center justify-between px-6 pt-6 pb-4 text-stone-655 font-sans z-40 mb-0 relative transition-colors duration-205 ${
+                {/* pt-3/pb-3 rather than pt-6/pb-4: with the Mind Power band gone from
+                    under it, this header is the entire top chrome, and 40px of padding
+                    around a 30px logo was pushing the canvas down for nothing. */}
+                <header className={`flex md:hidden items-center justify-between px-6 pt-3 pb-3 text-stone-655 font-sans z-40 mb-0 relative transition-colors duration-205 ${
                     pathname?.startsWith('/platform/create') ? 'bg-[#F5F4EE] border-none' : 'bg-[#E4E4DF] border-b border-stone-250/20'
                 }`}>
                     {isProfile ? (
@@ -643,57 +715,10 @@ function PlatformLayoutInner({
                     </div>
                 </header>
 
-                {/* Mobile Progress Bar Bar */}
-                <div className={`flex md:hidden items-center justify-center w-full px-6 pb-4 z-40 transition-colors duration-205 ${
-                    pathname?.startsWith('/platform/create') ? 'bg-[#F5F4EE] border-none mb-0' : 'bg-[#E4E4DF] border-b border-stone-250/10 mb-4'
-                }`}>
-                    <div className="relative flex flex-col items-center w-full" ref={popupRef}>
-                        {showProgressGlow && <div className={`mind-power-glow-ring ${isQuickGlow ? "mind-power-glow-ring--quick" : ""}`} />}
-                        {showCollabCelebrate && <div className="mind-power-glow-ring mind-power-glow-ring--collab" />}
-                        <div
-                            onClick={() => setShowTooltip(!showTooltip)}
-                            data-tour="mind-power"
-                            role="button"
-                            aria-label={t('progress.mind_power_label')}
-                            className="relative flex items-center w-full bg-white/50 border border-stone-200/40 px-5 py-3 rounded-[20px] select-none cursor-pointer transition-all active:scale-[0.99] shadow-2xs font-sans text-xs text-stone-500 font-medium normal-case"
-                        >
-                            {showCollabCelebrate && <div className="collab-join-gradient-fill" />}
-                            <div className="relative flex items-center gap-3">
-                            <Brain size={16} className="text-stone-600 shrink-0" strokeWidth={1.5} />
-                            <MindPowerStatus t={t} isSaving={isQuickGlow} size="sm" />
-                            </div>
-                            <div className="flex-1 h-2 bg-stone-200/70 rounded-full overflow-hidden relative ml-2">
-                                <div
-                                    className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out"
-                                    style={{ width: `${levelProgress}%` }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Mind Power panel — appears below the progress pill */}
-                        {showTooltip && (
-                            <div className="absolute top-12 left-1/2 mind-power-panel-enter z-50">
-                                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#F5F4EE] border-l border-t border-stone-200/70 rotate-45 z-10" />
-                                <MindPowerPanel
-                                    t={t}
-                                    progressLevel={progressLevel}
-                                    levelProgress={levelProgress}
-                                    wordsTyped={wordsTyped}
-                                    songsCompleted={songsCompleted}
-                                    recordingMinutes={recordingMinutes}
-                                    wordsGoal={L1_WORDS}
-                                    completedLessonsCount={completedLessonsCount}
-                                    lessonsGoal={L1_LESSONS}
-                                    practiceMinutes={practiceMinutes}
-                                    practiceGoal={L1_PRACTICE}
-                                    communityCount={communityCount}
-                                    communityGoal={L1_COMMUNITY}
-                                    activeQuote={activeQuote}
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
+                {/* Mind Power used to sit in a band right here, under the phone header.
+                    It cost ~70px of permanent vertical space above every screen for
+                    something checked occasionally, so it moved into the sidebar drawer
+                    (see mobileMindPower below, passed to MaestroSidebar). */}
 
                 {/* Desktop Top Header */}
                 {/* Below xl the parent content area has no padding (the canvas claims it),
@@ -806,8 +831,10 @@ function PlatformLayoutInner({
                         // horizontal room. Connect brings its own edge gutter — the
                         // other tabs don't, so they keep the panel at every width.
                         : `overflow-y-auto overflow-x-hidden ${
-                            pathname?.startsWith('/platform/connect')
-                                ? 'bg-transparent md:bg-[#F0F0EA] rounded-none md:rounded-[32px] shadow-none md:shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)] p-0 md:p-3 lg:p-4'
+                            isBareMobilePanel
+                                ? `bg-transparent md:bg-[#F0F0EA] rounded-none md:rounded-[32px] shadow-none md:shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)] p-0 ${
+                                    pathname?.startsWith('/platform/connect') ? 'md:p-3 lg:p-4' : 'md:p-4 lg:p-8'
+                                }`
                                 : 'bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)] p-4 lg:p-8'
                         }`
                     }

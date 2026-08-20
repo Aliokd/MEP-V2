@@ -92,12 +92,12 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
 
     return createPortal(
         <div 
-            className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[1000] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="sheet-shell fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[1000] flex items-center justify-center p-4 animate-in fade-in duration-200"
             onClick={onClose}
         >
             <form 
                 onSubmit={handleSubmitSupportTicket}
-                className="bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-8 animate-in zoom-in-95 duration-200 relative max-h-[90dvh] overflow-y-auto no-scrollbar"
+                className="sheet-panel bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-8 animate-in zoom-in-95 duration-200 relative max-h-[90dvh] overflow-y-auto no-scrollbar"
                 onClick={(e) => e.stopPropagation()}
             >
                 <h3 className="text-3xl md:text-[38px] leading-[1.25] font-sans font-light text-stone-600 tracking-[-0.035em]">
@@ -120,7 +120,7 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
                         placeholder={t('support.subject_placeholder') || 'Subject / What is this about?'}
                         value={subject}
                         onChange={(e) => setSubject(e.target.value)}
-                        className="w-full bg-stone-50 border border-stone-200 rounded-full px-6 py-4 text-[17px] font-sans font-medium outline-none focus:bg-white focus:border-stone-400 transition-all placeholder:text-stone-300"
+                        className="w-full bg-stone-50 border border-stone-200 rounded-full px-6 py-4 text-[17px] font-sans font-medium outline-none focus:bg-white focus:border-stone-400 transition-all placeholder:text-stone-500"
                         disabled={isSending}
                     />
 
@@ -130,7 +130,7 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
                         placeholder={t('support.message_placeholder') || 'Write your message or complaint here...'}
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
-                        className="w-full bg-stone-50 border border-stone-200 rounded-[20px] px-6 py-4 text-[17px] font-sans font-medium outline-none focus:bg-white focus:border-stone-400 transition-all placeholder:text-stone-300 min-h-[160px] resize-none"
+                        className="w-full bg-stone-50 border border-stone-200 rounded-[20px] px-6 py-4 text-[17px] font-sans font-medium outline-none focus:bg-white focus:border-stone-400 transition-all placeholder:text-stone-500 min-h-[160px] resize-none"
                         disabled={isSending}
                     />
 

@@ -461,7 +461,7 @@ export default function PublishDialog({
     return (
         <div
             // Blurred backdrop so the dialog is the only thing in focus.
-            className="fixed inset-0 z-[130] bg-stone-900/40 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto no-scrollbar animate-in fade-in duration-200"
+            className="sheet-shell fixed inset-0 z-[130] bg-stone-900/40 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto no-scrollbar animate-in fade-in duration-200"
             onClick={() => { if (!isPublishing) onCancel(); }}
         >
             <div
@@ -469,7 +469,7 @@ export default function PublishDialog({
                 aria-modal="true"
                 aria-label={t('publish.title') || 'Protecting your song'}
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-[560px] my-auto bg-[#FAF8F4] rounded-[32px] shadow-[0_28px_80px_rgba(0,0,0,0.22)] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+                className="sheet-panel w-full max-w-[560px] my-auto bg-[#FAF8F4] rounded-[32px] shadow-[0_28px_80px_rgba(0,0,0,0.22)] overflow-hidden flex flex-col"
             >
                 {/* ── Header loop ───────────────────────────────────────────────
                     Muted, looping, decorative — `aria-hidden` because it carries no
@@ -507,7 +507,7 @@ export default function PublishDialog({
 
                 </div>
 
-                <div className="px-7 md:px-9 pb-7 md:pb-8 -mt-10 relative flex flex-col gap-6">
+                <div className="sheet-panel-body px-5 md:px-9 pb-7 md:pb-8 -mt-10 relative flex flex-col gap-6">
                     <div className="flex flex-col gap-3">
                         {/* ── Where we are ────────────────────────────────────
                             Small and grey, directly above the heading and flush with its
@@ -889,7 +889,15 @@ export default function PublishDialog({
                         split it returns to the legal line, and only from there does it
                         close the dialog. Leaving from step 2 is what Escape and the
                         backdrop are for. */}
-                    <div className="flex items-center gap-4 pt-1">
+                    {/* On the phone sheet this row is lifted out of the scrolling body
+                        and pinned, so Continue can't end up below the fold on a tall
+                        step — which is exactly where it was. */}
+                    {/* Sticky rather than a flex footer: this row lives inside the
+                        scrolling body, not beside it, so pinning it needs sticky —
+                        moving it out would mean restructuring the step markup. On the
+                        phone sheet it holds the bottom edge so Continue can't end up
+                        below the fold on a tall step, which is where it was. */}
+                    <div className="flex items-center gap-3 md:gap-4 pt-1 max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-5 max-md:px-5 max-md:pt-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:border-t max-md:border-stone-200/70 max-md:bg-[#FAF8F4]">
                         <button
                             type="button"
                             onClick={() => { if (step === 2) goToStep(1); else onCancel(); }}

@@ -84,6 +84,13 @@ test.describe('Practice Page', () => {
     await expect(menu.locator('[data-song-option="another-ride"]')).toBeDisabled();
     await expect(menu.getByText('Coming soon')).toHaveCount(1);
 
+    // Artwork on every row that has some; a note stands in where there is none
+    const art = await menu.locator('[data-song-option]').evaluateAll(els => els.map(e => {
+      const img = e.querySelector('img') as HTMLImageElement | null;
+      return img ? (img.naturalWidth > 0 ? 'cover' : 'broken') : 'note';
+    }));
+    expect(art).toEqual(['cover', 'cover', 'cover', 'note']);
+
     // Switching happens in place — no step in between
     await menu.locator('[data-song-option="closer"]').click();
     await expect(page.locator('[data-song-pill]')).toContainText('Closer');
@@ -100,15 +107,20 @@ test.describe('Practice Page', () => {
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
 
-    // Sections come straight from the hand-authored structure map. Narrow spans
-    // drop their inline label, so read the always-present title attribute.
-    const labels = await timeline.locator('button[title]').evaluateAll(
-      els => els.map(e => (e.getAttribute('title') || '').split(' · ')[0])
+    // Sections come straight from the hand-authored structure map. The bands are
+    // nameless while the task runs, so read the structure off the data attributes.
+    const bands = await timeline.locator('[data-band-start]').evaluateAll(
+      els => els.map(e => `${e.getAttribute('data-band-kind')}@${e.getAttribute('data-band-start')}`)
     );
-    // Repeated kinds are numbered in playing order; a kind that happens once is not
-    expect(labels.filter(Boolean)).toEqual([
-      'Intro', 'Verse 1', 'Chorus 1', 'Verse 2', 'Chorus 2', 'Bridge', 'Chorus 3',
+    expect(bands).toEqual([
+      'intro@0', 'verse@7', 'chorus@41', 'verse@65', 'chorus@102', 'bridge@123', 'chorus@142',
     ]);
+
+    // Nothing on the bar names a section — not the label, not the tooltip
+    const titles = await timeline.locator('[data-band-start]').evaluateAll(
+      els => els.map(e => e.getAttribute('title'))
+    );
+    expect(titles).toEqual(['0:00', '0:07', '0:41', '1:05', '1:42', '2:03', '2:22']);
 
     // The timeline is the player: it carries the play control and a scrub track
     const playBtn = timeline.getByRole('button', { name: 'Play' }).or(timeline.getByRole('button', { name: 'Pause' }));
@@ -143,43 +155,360 @@ test.describe('Practice Page', () => {
     expect(kinds).toContain('Chorus');
   });
 
-  test('naming a part: right answer turns green, wrong one shakes', async ({ page }) => {
+  // A line that appears in exactly one kind of part, so a card can be picked by
+  // the kind it belongs to whatever the task happens to ask for. The intro is
+  // wordless — it shows a music note — so it is found by that instead.
+  const LINE_BY_KIND: Record<string, string> = {
+    verse: 'spend a day',
+    chorus: 'from above',
+    bridge: 'Do you love Do you love Do you love',
+  };
+  const ALL_KINDS = ['intro', ...Object.keys(LINE_BY_KIND)];
+  // A named part is green; it deepens while the playhead is inside it, so both
+  // shades mean "solved".
+  const SOLVED_GREENS = ['rgb(134, 190, 127)', 'rgb(107, 168, 98)'];
+
+  test('answering the task: right answer turns green, wrong one shakes', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
 
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
 
-    // Parts are shuffled, so find them by a line only that part contains
     const blocks = page.locator('[data-section-block]');
     await expect(blocks).toHaveCount(7);
     const texts = await blocks.allInnerTexts();
-    const verseBlock = blocks.nth(texts.findIndex(x => x.includes('spend a day')));
-    const notVerseBlock = blocks.nth(texts.findIndex(x => x.includes('from above')));
 
-    // Nothing named yet — every part wears the placeholder chip
-    await expect(page.getByText('?', { exact: true })).toHaveCount(7);
+    // Solved parts are the green ones; nothing is placed yet
+    const solvedCount = () => blocks.evaluateAll(
+      (els, greens) => els.filter(e => greens.includes(getComputedStyle(e).backgroundColor)).length,
+      SOLVED_GREENS);
+    await expect.poll(solvedCount).toBe(0);
 
-    // Arm "Verse" from the timeline, then answer with a chorus
-    await timeline.locator('button[title^="Verse"]').first().click();
-    await notVerseBlock.click();
-    await expect(notVerseBlock).toHaveClass(/animate-shake/);
-    await expect(page.getByText('?', { exact: true })).toHaveCount(7);
+    // The task names one section at random, so read it and answer accordingly
+    const prompt = page.locator('[data-timeline-prompt]');
+    const ask = (await prompt.textContent()) || '';
+    const askedKind = ALL_KINDS.find(k => ask.toLowerCase().includes(k))!;
+    expect(askedKind).toBeTruthy();
 
-    // A wrong answer keeps the type armed, so the right part still lands, and
-    // both the part and its band on the timeline fill green.
-    await verseBlock.click();
-    await expect(verseBlock).toHaveCSS('background-color', 'rgb(134, 190, 127)');
-    await expect(timeline.locator('button[title^="Verse"]').first())
-        .toHaveCSS('background-color', 'rgb(134, 190, 127)');
-    await expect(page.getByText('?', { exact: true })).toHaveCount(6);
+    const cardOf = (kind: string) => kind === 'intro'
+      ? blocks.filter({ has: page.locator('[data-instrumental]') }).first()
+      : blocks.nth(texts.findIndex(x => x.includes(LINE_BY_KIND[kind])));
+    const wrongKind = ALL_KINDS.find(k => k !== askedKind)!;
 
-    // Matching works the other way too: arm a lyrics block, answer on the timeline
-    await notVerseBlock.click();
-    await expect(notVerseBlock).toHaveCSS('background-color', 'rgb(220, 221, 212)');
-    await timeline.locator('button[title^="Chorus"]').first().click();
-    await expect(notVerseBlock).toHaveCSS('background-color', 'rgb(134, 190, 127)');
-    await expect(page.getByText('?', { exact: true })).toHaveCount(5);
+    // A card of the wrong kind shakes, and the ask stands
+    await cardOf(wrongKind).click();
+    await expect(cardOf(wrongKind)).toHaveClass(/animate-shake/);
+    await expect(prompt).toHaveText(ask);
+    await expect.poll(solvedCount).toBe(0);
+
+    // The right kind fills green, its band fills green and gets its name back.
+    const right = cardOf(askedKind);
+    await right.click();
+    await expect.poll(() => right.evaluate(e => getComputedStyle(e).backgroundColor))
+      .toMatch(/rgb\(134, 190, 127\)|rgb\(107, 168, 98\)/);
+    await expect.poll(solvedCount).toBe(1);
+
+    // The band that was black goes green with the answer and settles back to
+    // its own size, rather than staying black through the celebration.
+    // Green, at whatever weight its kind carries — a chorus lands solid, an
+    // intro lighter — so match the colour rather than one exact alpha.
+    const target = timeline.locator('[data-band-target]');
+    await expect.poll(() => target.evaluate(el => getComputedStyle(el).backgroundColor))
+      .toMatch(/^rgba?\(134, 190, 127/);
+    await expect(target).toHaveCSS('animation-name', 'none');
+
+    // The answer is marked with a burst over the ask, and the ask itself holds
+    // while that plays rather than flipping the moment the card turns green.
+    await expect(page.locator('.confetti-piece').first()).toBeVisible();
+    await expect(prompt).toHaveText(ask);
+    // Then it retires and a different section is asked for
+    await expect(page.locator('.confetti-piece')).toHaveCount(0, { timeout: 5000 });
+    await expect(prompt).not.toHaveText(ask);
+
+    // Its band gets its name back. Read from the title, not the drawn label —
+    // a narrow band (the intro is 4% wide) is named but has no room to show it.
+    await expect.poll(() => timeline.locator(`[data-band-kind="${askedKind}"]`).evaluateAll(
+      els => els.filter(e => (e.getAttribute('title') || '').includes('·')).length
+    )).toBeGreaterThan(0);
+  });
+
+  test('a named section can be replayed, and its lyrics follow along', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 20000 });
+
+    // Answer whatever is asked, so one section becomes named
+    const ask = (await page.locator('[data-timeline-prompt]').textContent()) || '';
+    const askedKind = ALL_KINDS.find(k => ask.toLowerCase().includes(k))!;
+    const blocks = page.locator('[data-section-block]');
+    const texts = await blocks.allInnerTexts();
+    await (askedKind === 'intro'
+      ? blocks.filter({ has: page.locator('[data-instrumental]') }).first()
+      : blocks.nth(texts.findIndex(x => x.includes(LINE_BY_KIND[askedKind])))).click();
+    await expect(page.locator('.confetti-piece')).toHaveCount(0, { timeout: 5000 });
+
+    // A named band stays lit and clickable even while another is the focus.
+    // Found by its title, which gains the name; the drawn label needs width
+    // the intro band does not have.
+    const named = timeline.locator('[data-band-start][title*="·"]').first();
+    await expect(named).toHaveCSS('opacity', '1');
+    await expect(named).toBeEnabled();
+
+    // Clicking it jumps there and plays, and its lyrics take the playing green
+    await named.click();
+    await expect(timeline.getByRole('button', { name: 'Pause' })).toBeVisible();
+    await expect.poll(async () => (await blocks.evaluateAll(
+      els => els.filter(e => getComputedStyle(e).backgroundColor === 'rgb(107, 168, 98)').length
+    ))).toBe(1);
+  });
+
+  test('start over clears the board and deals a fresh ask', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 20000 });
+    const blocks = page.locator('[data-section-block]');
+    const restart = page.locator('[data-start-over]');
+
+    // Nothing to reset yet, so no way to
+    await expect(restart).toHaveCount(0);
+
+    // Answer one ask
+    const ask = (await page.locator('[data-timeline-prompt]').textContent()) || '';
+    const askedKind = ALL_KINDS.find(k => ask.toLowerCase().includes(k))!;
+    const texts = await blocks.allInnerTexts();
+    await (askedKind === 'intro'
+      ? blocks.filter({ has: page.locator('[data-instrumental]') }).first()
+      : blocks.nth(texts.findIndex(x => x.includes(LINE_BY_KIND[askedKind])))).click();
+    await expect(page.locator('.confetti-piece')).toHaveCount(0, { timeout: 5000 });
+
+    const solvedCount = () => blocks.evaluateAll(
+      (els, greens) => els.filter(e => greens.includes(getComputedStyle(e).backgroundColor)).length,
+      SOLVED_GREENS);
+    const namedBands = () => timeline.locator('[data-band-start]').evaluateAll(
+      els => els.filter(e => (e.getAttribute('title') || '').includes('·')).length);
+
+    await expect.poll(solvedCount).toBe(1);
+    await expect.poll(namedBands).toBe(1);
+    await expect(restart).toBeVisible();
+
+    // Starting over puts every part back, and the button retires with the progress
+    await restart.click();
+    await expect.poll(solvedCount).toBe(0);
+    await expect.poll(namedBands).toBe(0);
+    await expect(restart).toHaveCount(0);
+    // A task is dealt again rather than the board sitting idle
+    await expect(page.locator('[data-timeline-prompt]')).toBeVisible();
+    await expect(timeline.locator('[data-band-target]')).toHaveCount(1);
+  });
+
+  test('naming every part finishes the song and lights Mind Power', async ({ page }) => {
+    // Both verses are listed: they have different words, so a single probe
+    // would stall once the first was solved.
+    const CARDS_BY_KIND: Record<string, string[]> = {
+      verse: ['spend a day', 'Stay'],
+      chorus: ['from above'],
+      bridge: ['Do you love Do you love Do you love'],
+    };
+
+    await page.goto('/platform/practice');
+    await page.evaluate(() => {
+      window.localStorage.setItem('mep-completed-practices', '[]');
+      // Spend today's milestone slots, so any glow has to come from the
+      // completion itself rather than from "first action of the day".
+      window.localStorage.setItem('mep-last-auto-pop-first-action-date', new Date().toDateString());
+      window.localStorage.setItem('mep-last-auto-pop-major-task-date', new Date().toDateString());
+    });
+    await page.reload();
+
+    await page.evaluate(() => {
+      (window as unknown as { __ev: string[] }).__ev = [];
+      for (const name of ['songwriting-progress-updated', 'veinote-celebrate']) {
+        window.addEventListener(name, e => {
+          const d = (e as CustomEvent).detail;
+          (window as unknown as { __ev: string[] }).__ev.push(name + (d ? ` ${JSON.stringify(d)}` : ''));
+        });
+      }
+    });
+
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await expect(page.locator('[data-song-timeline]')).toBeVisible({ timeout: 20000 });
+
+    // Work through every ask
+    for (let i = 0; i < 8; i++) {
+      const ask = await page.locator('[data-timeline-prompt]')
+        .textContent({ timeout: 2000 }).catch(() => null);
+      if (!ask) break;
+      const kind = ALL_KINDS.find(k => ask.toLowerCase().includes(k))!;
+      const clicked = await page.evaluate(({ lines, greens }) => {
+        const blocks = [...document.querySelectorAll('[data-section-block]')] as HTMLElement[];
+        const open = (b: HTMLElement) => !greens.includes(getComputedStyle(b).backgroundColor);
+        const hit = lines
+          ? blocks.find(b => open(b) && lines.some(l => (b.textContent || '').includes(l)))
+          : blocks.find(b => open(b) && b.querySelector('[data-instrumental]'));
+        if (!hit) return false;
+        hit.click();
+        return true;
+      }, { lines: CARDS_BY_KIND[kind] ?? null, greens: SOLVED_GREENS });
+      expect(clicked).toBe(true);
+      await expect(page.locator('.confetti-piece')).toHaveCount(0, { timeout: 5000 });
+    }
+
+    // Every part named, and nothing left to ask for
+    await expect.poll(() => page.locator('[data-section-block]').evaluateAll(
+      (els, greens) => els.filter(e => greens.includes(getComputedStyle(e).backgroundColor)).length,
+      SOLVED_GREENS,
+    )).toBe(7);
+    await expect(page.locator('[data-timeline-prompt]')).toHaveCount(0);
+
+    // The completion is recorded, and Mind Power is told twice: once to recount
+    // the metrics, once to light the ring.
+    expect(await page.evaluate(() => localStorage.getItem('mep-completed-practices')))
+      .toContain('do-you-love');
+    const events = await page.evaluate(() => (window as unknown as { __ev: string[] }).__ev);
+    expect(events).toContain('songwriting-progress-updated {"triggerType":"major-task"}');
+    expect(events).toContain('veinote-celebrate');
+
+    // And the way on to the next song appears at the end of the lyrics
+    const nav = page.locator('[data-song-nav]');
+    await expect(nav).toHaveCount(1);
+    await nav.getByRole('button', { name: 'Next song' }).click();
+    await expect(page.locator('[data-song-pill]')).toContainText('Closer');
+    // The new song is unfinished, so the nav stands down again
+    await expect(page.locator('[data-song-timeline]')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('[data-song-nav]')).toHaveCount(0);
+  });
+
+  test('the lyrics line up with the timeline at every width', async ({ page }) => {
+    const edges = async () => page.evaluate(() => {
+      const bar = document.querySelector('[data-song-timeline] div.h-11') as HTMLElement;
+      const card = document.querySelector('[data-section-block]') as HTMLElement;
+      const b = bar.getBoundingClientRect(), c = card.getBoundingClientRect();
+      return { left: Math.round(c.left - b.left), right: Math.round(b.right - c.right) };
+    });
+
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await expect(page.locator('[data-song-timeline]')).toBeVisible({ timeout: 20000 });
+
+    // The scrollbar lives in the margin, so the cards themselves span the bar —
+    // and they stay centred with it however much room the screen has.
+    for (const width of [1280, 1920, 2560]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect.poll(edges).toEqual({ left: 0, right: 0 });
+    }
+  });
+
+  test('a finished song reads along: the sung line lifts and the list follows', async ({ page }) => {
+    const CARDS_BY_KIND: Record<string, string[]> = {
+      verse: ['spend a day', 'Stay'],
+      chorus: ['from above'],
+      bridge: ['Do you love Do you love Do you love'],
+    };
+
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 20000 });
+
+    // Nothing reads along until the song is finished — following the words
+    // would say which part is playing.
+    await expect(page.locator('[data-line-current]')).toHaveCount(0);
+
+    for (let i = 0; i < 8; i++) {
+      const ask = await page.locator('[data-timeline-prompt]')
+        .textContent({ timeout: 2000 }).catch(() => null);
+      if (!ask) break;
+      const kind = ALL_KINDS.find(k => ask.toLowerCase().includes(k))!;
+      const clicked = await page.evaluate(({ lines, greens }) => {
+        const blocks = [...document.querySelectorAll('[data-section-block]')] as HTMLElement[];
+        const open = (b: HTMLElement) => !greens.includes(getComputedStyle(b).backgroundColor);
+        const hit = lines
+          ? blocks.find(b => open(b) && lines.some(l => (b.textContent || '').includes(l)))
+          : blocks.find(b => open(b) && b.querySelector('[data-instrumental]'));
+        if (!hit) return false;
+        hit.click();
+        return true;
+      }, { lines: CARDS_BY_KIND[kind] ?? null, greens: SOLVED_GREENS });
+      expect(clicked).toBe(true);
+      await expect(page.locator('.confetti-piece')).toHaveCount(0, { timeout: 5000 });
+    }
+
+    // Verse 1's third line starts at 13.0s, its sixth at 27.18s
+    const track = timeline.locator('div.touch-none');
+    const width = (await track.boundingBox())!.width;
+    const seekTo = (secs: number) => track.click({ position: { x: width * (secs / 168), y: 4 } });
+
+    await timeline.getByRole('button', { name: 'Play' }).click();
+    await seekTo(14);
+    await expect(page.locator('[data-line-current]')).toHaveText("And I don't care just we do");
+    await seekTo(28);
+    await expect(page.locator('[data-line-current]')).toHaveText('We stay at home turn down the light');
+
+    // Jumping to the bridge carries the list along with the playhead
+    const scrollTop = () => page.locator('.parts-scroll').evaluate(el => el.scrollTop);
+    const before = await scrollTop();
+    await seekTo(130);
+    await expect(page.locator('[data-line-current]')).toHaveText('Do you love Do you love Do you love');
+    await expect.poll(scrollTop).toBeGreaterThan(before + 100);
+  });
+
+  test('the task points at one band at a time, and it pulses', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 20000 });
+
+    // Exactly one band is the target, and the ask names that band's kind
+    const target = timeline.locator('[data-band-target]');
+    await expect(target).toHaveCount(1);
+    const ask = ((await page.locator('[data-timeline-prompt]').textContent()) || '').toLowerCase();
+    expect(ask).toContain((await target.getAttribute('data-band-kind'))!);
+
+    // It draws the eye by going black and pulsing, rather than by being labelled
+    await expect(target).toHaveCSS('background-color', 'rgb(28, 25, 23)');
+    await expect(target).toHaveCSS('animation-name', 'band-pulse');
+    await expect(target).toHaveCSS('animation-iteration-count', 'infinite');
+
+    // Clicking it settles the pulse — it has been found. Forced, because
+    // Playwright waits for an element to stop moving and this one never would.
+    await target.click({ force: true });
+    await expect(target).toHaveCSS('animation-name', 'none');
+    await expect(target).toHaveCSS('background-color', 'rgb(28, 25, 23)');
+
+    // ...and holds the focus alone. The others stop responding but keep their
+    // colour — the ring and the pulse do the work, not a wash of grey.
+    await expect(target).toBeEnabled();
+    const others = timeline.locator('[data-band-start]:not([data-band-target])');
+    await expect(others).toHaveCount(6);
+    for (const band of await others.all()) {
+      await expect(band).toHaveCSS('opacity', '1');
+      await expect(band).toBeDisabled();
+    }
+    await expect(target).toHaveCSS('opacity', '1');
+
+    // Each band after the first carries a gap to divide it from its neighbour
+    await expect(timeline.locator('[data-band-start] > span.absolute')).toHaveCount(6);
+  });
+
+  test('every lyrics card wears the same colour, words or note', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await expect(page.locator('[data-song-timeline]')).toBeVisible({ timeout: 20000 });
+    // Park the pointer away so no card is caught mid-hover
+    await page.mouse.move(2, 2);
+
+    const looks = () => page.locator('[data-section-block]').evaluateAll(els => els.map(e => {
+      const body = e.querySelector('[data-instrumental], p.font-serif') as HTMLElement;
+      return `${getComputedStyle(e).backgroundColor}|${getComputedStyle(body).color}`;
+    }));
+    // One background and one ink across all seven, the music note included
+    await expect.poll(async () => new Set(await looks()).size).toBe(1);
   });
 
   test('the playhead still tracks when the file reports no length', async ({ page }) => {
@@ -217,7 +546,7 @@ test.describe('Practice Page', () => {
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
     await timeline.getByRole('button', { name: 'Play' }).click();
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(400);
 
     // Measure where the playhead is actually painted, not what left% it claims.
     // A CSS transition on `left` once held the painted position still while the
@@ -229,40 +558,21 @@ test.describe('Practice Page', () => {
       return line.getBoundingClientRect().left - bar.getBoundingClientRect().left;
     });
 
+    // The whole measurement sits inside the first ~3s of playback on purpose:
+    // Chromium pauses itself a few seconds in when its audio output is
+    // unavailable, and a longer window would be measuring the sound device.
     const before = await painted();
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(1200);
     const after = await painted();
 
-    // ~6px per second on a 992px bar; allow plenty of slack for a loaded machine
-    expect(after - before).toBeGreaterThan(4);
+    // ~6px per second on a 1050px bar, so ~7px over this window
+    expect(after - before).toBeGreaterThan(2);
   });
 
-  test('arming a band lights that one band, not every band of its kind', async ({ page }) => {
-    await page.goto('/platform/practice');
-    await page.getByRole('button', { name: 'Start' }).first().click();
-
-    const timeline = page.locator('[data-song-timeline]');
-    await expect(timeline).toBeVisible({ timeout: 20000 });
-    const bands = timeline.locator('div.h-11 > button');
-
-    // The ring is a box-shadow; count the bands wearing one
-    const armedNames = () => bands.evaluateAll(els => els
-      .filter(e => getComputedStyle(e).boxShadow !== 'none')
-      .map(e => (e.getAttribute('title') || '').split(' · ')[0]));
-
-    await timeline.locator('button[title^="Verse 2"]').click();
-    await expect.poll(armedNames).toEqual(['Verse 2']);
-
-    // Arming another replaces it rather than adding to it
-    await timeline.locator('button[title^="Chorus 3"]').click();
-    await expect.poll(armedNames).toEqual(['Chorus 3']);
-
-    // Clicking the armed band again disarms
-    await timeline.locator('button[title^="Chorus 3"]').click();
-    await expect.poll(armedNames).toEqual([]);
-  });
-
-  test('the playing part is highlighted, and follows the marker mid-scrub', async ({ page }) => {
+  // The marker is tracked but no longer painted: every card wears the same
+  // colour, and lighting up the one under the playhead would have handed over
+  // the answer to whatever the task is asking for.
+  test('the part under the playhead is tracked, and follows the marker mid-scrub', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
 
@@ -270,9 +580,10 @@ test.describe('Practice Page', () => {
     await expect(timeline).toBeVisible({ timeout: 20000 });
 
     const playing = page.locator('[data-section-block].is-playing');
-    // Exactly one part is ever marked, and at 0:00 it is the intro
+    // Exactly one part is ever marked, and at 0:00 it is the intro — wordless,
+    // so it carries the music note rather than any lyrics.
     await expect(playing).toHaveCount(1);
-    await expect(playing).toContainText('No lyrics in this part');
+    await expect(playing.locator('[data-instrumental]')).toHaveCount(1);
 
     // Seeking past the intro (0–7s) hands the highlight to the first verse.
     // Driven by a seek rather than by waiting out real playback: Chromium pauses
@@ -310,8 +621,15 @@ test.describe('Practice Page', () => {
     const demo = page.locator('[data-structure-demo]');
     await expect(demo).toBeVisible({ timeout: 20000 });
     await expect(demo.getByText('How it works')).toBeVisible();
-    await expect(demo.getByText('Pick a part on the timeline', { exact: false })).toBeVisible();
-    await expect(demo.locator('.demo-scene')).toBeVisible();
+    await expect(demo.getByText('We name a part of the song', { exact: false })).toBeVisible();
+
+    // The scene mirrors the real thing: a named band, four lyric cards that
+    // scroll, and the third one as the answer.
+    const scene = demo.locator('.demo-scene');
+    await expect(scene).toBeVisible();
+    await expect(scene.locator('.demo-list > div')).toHaveCount(4);
+    await expect(scene.locator('.demo-band')).toHaveCSS('animation-name', 'demo-band');
+    await expect(scene.locator('.demo-list')).toHaveCSS('animation-name', 'demo-scroll');
 
     // "Got it" dismisses it and it stays dismissed
     await demo.getByRole('button', { name: 'Got it' }).click();
@@ -319,6 +637,12 @@ test.describe('Practice Page', () => {
     await page.reload();
     await page.getByRole('button', { name: 'Start' }).first().click();
     await expect(page.locator('[data-song-timeline]')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('[data-structure-demo]')).toHaveCount(0);
+
+    // ...and the info icon brings it back on demand
+    await page.locator('[data-demo-replay]').click();
+    await expect(page.locator('[data-structure-demo]')).toBeVisible();
+    await page.locator('[data-structure-demo]').getByRole('button', { name: 'Got it' }).click();
     await expect(page.locator('[data-structure-demo]')).toHaveCount(0);
   });
 

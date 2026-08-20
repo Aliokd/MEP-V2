@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Music4 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import type { AuthoredSection } from '../data/practiceSongs';
-import { ARMED_LINE, KIND_BG, KIND_LABEL_KEY, SECTION_TEXT, SOLVED_BG, SOLVED_TEXT, formatTime, sectionOrdinals, type SectionKind } from '../data/sections';
+import Confetti from '@/app/onboarding/components/Confetti';
+import { KIND_BG, KIND_LABEL_KEY, SECTION_TEXT, SOLVED_TEXT, formatTime, sectionOrdinals, solvedFill, type SectionKind } from '../data/sections';
 
 interface Segment {
     kind: SectionKind;
@@ -16,6 +18,8 @@ interface Segment {
 interface SongTimelineProps {
     /** Rendered above the bar, opposite the legend — typically the song pill. */
     heading?: ReactNode;
+    /** Far right of the heading row, where the legend sits when there is one. */
+    trailing?: ReactNode;
     /** The song's structure — authored by hand or by the analyser. */
     authored: AuthoredSection[];
     /** Audio duration; falls back to the last lyric timestamp when the file hasn't loaded. */
@@ -31,12 +35,20 @@ interface SongTimelineProps {
      */
     onScrub?: (time: number | null) => void;
     /**
-     * Start time of the one segment armed for the identify exercise. Held as a
-     * start rather than a kind so arming "Verse 2" lights that band alone,
-     * instead of every verse in the song at once.
+     * Task mode. The bands go nameless so the structure has to be heard rather
+     * than read, and the legend goes with them — a colour key would give back
+     * exactly what hiding the labels takes away. Solved bands are named again,
+     * as the reward for placing them.
      */
-    selectedStart?: number | null;
-    onSelectSegment?: (start: number, kind: SectionKind) => void;
+    hideLabels?: boolean;
+    /** Start time of the section the user is being asked to find. */
+    targetStart?: number | null;
+    /** The ask itself, e.g. "Find Verse 2" — drawn pointing at the target band. */
+    promptLabel?: string | null;
+    /** Fires the burst over the ask, marking the answer just given. */
+    celebrate?: boolean;
+    /** Clicking a band moves the playhead there, so the part can be heard. */
+    onSeekToSegment?: (start: number) => void;
     /**
      * Start times of the sections already named, matched by start rather than
      * index so a re-sort here can never light up the wrong band.
@@ -51,6 +63,7 @@ interface SongTimelineProps {
  */
 export default function SongTimeline({
     heading,
+    trailing,
     authored,
     duration,
     currentTime,
@@ -58,12 +71,26 @@ export default function SongTimeline({
     onTogglePlay,
     onSeek,
     onScrub,
-    selectedStart = null,
-    onSelectSegment,
+    hideLabels = false,
+    targetStart = null,
+    promptLabel = null,
+    celebrate = false,
+    onSeekToSegment,
     solvedStarts,
 }: SongTimelineProps) {
     const { t } = useLanguage();
     const trackRef = useRef<HTMLDivElement>(null);
+    const promptRowRef = useRef<HTMLDivElement>(null);
+    const pillRef = useRef<HTMLSpanElement>(null);
+    /** Bubble offset and, within it, where the tail sits — both in px. */
+    const [prompt, setPrompt] = useState<{ left: number; tail: number } | null>(null);
+    /**
+     * The pulse is there to be found. Once the user has clicked the band they
+     * have found it, so it settles — a marker that keeps moving after you have
+     * acknowledged it is just noise. Reset whenever a new section is asked for.
+     */
+    const [pulseSettled, setPulseSettled] = useState(false);
+    useEffect(() => { setPulseSettled(false); }, [targetStart]);
 
     // While scrubbing, the marker follows the pointer, not the audio.
     const [dragTime, setDragTime] = useState<number | null>(null);
@@ -85,6 +112,38 @@ export default function SongTimeline({
             total: Math.max(measured, lastEnd),
         };
     }, [authored, duration]);
+
+    // Mid-point of the band being asked for, so the prompt can point at it.
+    const targetSeg = targetStart === null ? undefined : segments.find(s => s.start === targetStart);
+    const targetPct = targetSeg && total > 0
+        ? ((targetSeg.start + targetSeg.end) / 2 / total) * 100
+        : null;
+
+    /*
+     * Place the bubble and its tail. The tail wants the band's centre; the bubble
+     * wants to stay on screen. Measured rather than done in CSS because it needs
+     * the rendered pill width, which changes with the wording and the language.
+     */
+    useLayoutEffect(() => {
+        const row = promptRowRef.current;
+        const pill = pillRef.current;
+        if (!row || !pill || targetPct === null) { setPrompt(null); return; }
+
+        const place = () => {
+            const rowW = row.offsetWidth;
+            const pillW = pill.offsetWidth;
+            if (!rowW || !pillW) return;
+            const centre = (targetPct / 100) * rowW;
+            const left = Math.max(0, Math.min(rowW - pillW, centre - pillW / 2));
+            setPrompt({ left, tail: centre - left });
+        };
+        place();
+
+        const ro = new ResizeObserver(place);
+        ro.observe(row);
+        ro.observe(pill);
+        return () => ro.disconnect();
+    }, [targetPct, promptLabel]);
 
     if (segments.length === 0 || total <= 0) return null;
 
@@ -133,11 +192,47 @@ export default function SongTimeline({
 
     return (
         <section data-song-timeline className="w-full max-w-6xl mx-auto flex flex-col gap-3 select-none">
-            {/* Song pill left, colour key right */}
+            {/* Song pill and transport left, colour key right. The play button sits
+                up here rather than beside the bar so the bar gets the full width. */}
             <div className="flex items-center justify-between gap-6 flex-wrap">
-                <div className="min-w-0">{heading}</div>
+                <div className="flex items-center gap-3 min-w-0">
+                    <button
+                        type="button"
+                        onClick={onTogglePlay}
+                        aria-label={isPlaying ? 'Pause' : 'Play'}
+                        className="w-11 h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 text-stone-900 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+                    >
+                        {/*
+                         * Both glyphs are drawn to the edges of their viewBox, so the
+                         * flex centring lands them dead centre — no optical nudge, which
+                         * a triangle inset in a square box would otherwise need.
+                         */}
+                        {isPlaying ? (
+                            <svg width="15" height="17" viewBox="0 0 16 18" fill="currentColor" aria-hidden="true">
+                                <rect x="0" y="0" width="5" height="18" rx="1" />
+                                <rect x="11" y="0" width="5" height="18" rx="1" />
+                            </svg>
+                        ) : (
+                            /*
+                             * Corners softened by stroking the outline with a round join,
+                             * the path inset by the stroke's half-width so the glyph keeps
+                             * its size. Nudged a pixel right: a triangle's visual mass sits
+                             * left of its bounding box, so true centring reads as too far left.
+                             */
+                            <svg
+                                width="15" height="17" viewBox="0 0 16 18"
+                                fill="currentColor" stroke="currentColor"
+                                strokeWidth="3" strokeLinejoin="round"
+                                className="translate-x-[1px]" aria-hidden="true"
+                            >
+                                <path d="M1.75 1.75 L14.25 9 L1.75 16.25 Z" />
+                            </svg>
+                        )}
+                    </button>
+                    <div className="min-w-0">{heading}</div>
+                </div>
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                    {legendKinds.map(kind => (
+                    {!hideLabels && legendKinds.map(kind => (
                         <span key={kind} className="flex items-center gap-2 text-xs font-sans" style={{ color: SECTION_TEXT }}>
                             <span
                                 className="w-2.5 h-2.5 rounded-full border border-stone-300/60"
@@ -146,80 +241,133 @@ export default function SongTimeline({
                             {t(KIND_LABEL_KEY[kind])}
                         </span>
                     ))}
+                    {trailing}
                 </div>
             </div>
 
-            <div className="w-full flex items-start gap-4">
-                {/* Play / pause */}
-                <button
-                    type="button"
-                    onClick={onTogglePlay}
-                    aria-label={isPlaying ? 'Pause' : 'Play'}
-                    className="w-11 h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 text-stone-900 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
-                >
+            <div className="w-full">
+                <div className="min-w-0">
                     {/*
-                     * Both glyphs are drawn to the edges of their viewBox, so the
-                     * flex centring lands them dead centre — no optical nudge, which
-                     * a triangle inset in a square box would otherwise need.
+                     * The ask, with its tail on the centre of the band it refers to.
+                     * The bubble slides to stay inside the timeline while the tail
+                     * holds its place, so a prompt on a 4%-wide intro still points at
+                     * the intro instead of being nudged onto its neighbour.
                      */}
-                    {isPlaying ? (
-                        <svg width="15" height="17" viewBox="0 0 16 18" fill="currentColor" aria-hidden="true">
-                            <rect x="0" y="0" width="5" height="18" rx="1" />
-                            <rect x="11" y="0" width="5" height="18" rx="1" />
-                        </svg>
-                    ) : (
-                        /*
-                         * Corners softened by stroking the outline with a round join,
-                         * the path inset by the stroke's half-width so the glyph keeps
-                         * its size. Nudged a pixel right: a triangle's visual mass sits
-                         * left of its bounding box, so true centring reads as too far left.
-                         */
-                        <svg
-                            width="15" height="17" viewBox="0 0 16 18"
-                            fill="currentColor" stroke="currentColor"
-                            strokeWidth="3" strokeLinejoin="round"
-                            className="translate-x-[1px]" aria-hidden="true"
-                        >
-                            <path d="M1.75 1.75 L14.25 9 L1.75 16.25 Z" />
-                        </svg>
+                    {promptLabel && (
+                        <div ref={promptRowRef} className="relative h-10">
+                            <div
+                                className="absolute bottom-0 flex flex-col items-start"
+                                style={{ left: prompt ? `${prompt.left}px` : '50%' }}
+                            >
+                                <span className="relative">
+                                    {/*
+                                     * The burst for a correct answer lands here rather
+                                     * than on the card: the lyrics list is a scroll
+                                     * region, and it clipped the paper at its edges.
+                                     * Above the bubble, on the page's own background,
+                                     * nothing crops it and the original palette reads.
+                                     */}
+                                    {celebrate && (
+                                        <span className="pointer-events-none absolute inset-0 isolate z-20">
+                                            <Confetti />
+                                        </span>
+                                    )}
+                                    <span
+                                        ref={pillRef}
+                                        data-timeline-prompt
+                                        className="relative block rounded-full bg-stone-900 text-[#FAF9F5] px-4 py-1.5 text-xs font-sans whitespace-nowrap shadow-sm"
+                                    >
+                                        {promptLabel}
+                                    </span>
+                                </span>
+                                <svg
+                                    width="13" height="7" viewBox="0 0 13 7" aria-hidden="true"
+                                    className="-mt-px"
+                                    style={{ marginLeft: prompt ? `${prompt.tail - 6.5}px` : 0 }}
+                                >
+                                    <path d="M6.5 7 L13 0 H0 Z" fill="#1C1917" />
+                                </svg>
+                            </div>
+                        </div>
                     )}
-                </button>
 
-                <div className="flex-1 min-w-0">
-                    {/* Section bar — also the palette of answers while identifying */}
-                    <div className="relative w-full h-11 overflow-hidden flex bg-stone-100">
+                    {/* Section bar. overflow-visible so the target band can swell past
+                        it; nothing else here escapes its bounds. */}
+                    <div className="relative w-full h-11 overflow-visible flex bg-stone-100">
                         {segments.map((segment, i) => {
                             const widthPct = ((segment.end - segment.start) / total) * 100;
                             const kindLabel = t(KIND_LABEL_KEY[segment.kind]);
                             const label = segment.ordinal ? `${kindLabel} ${segment.ordinal}` : kindLabel;
-                            const pickable = !!onSelectSegment;
-                            const isArmed = pickable && selectedStart === segment.start;
                             const isSolved = !!solvedStarts?.includes(segment.start);
+                            const isTarget = targetStart === segment.start;
+                            // Named once solved, whatever the mode
+                            const named = !hideLabels || isSolved;
+                            /*
+                             * While one band is being asked for, the unsolved rest stop
+                             * responding — the black fill carries the focus, so they
+                             * keep their colour. Named bands stay live: they are
+                             * finished, not competing, and playing one back is how you
+                             * re-read its lyrics.
+                             */
+                            const inactive = targetStart !== null && !isTarget && !isSolved;
+                            const seekable = !!onSeekToSegment && !inactive;
 
                             return (
                                 <button
                                     key={`${segment.kind}-${segment.start}`}
                                     type="button"
-                                    disabled={!pickable}
-                                    onClick={() => onSelectSegment?.(segment.start, segment.kind)}
-                                    title={`${label} · ${formatTime(segment.start)}`}
+                                    data-band-start={segment.start}
+                                    data-band-kind={segment.kind}
+                                    data-band-target={isTarget ? '' : undefined}
+                                    disabled={!seekable}
+                                    onClick={() => {
+                                        if (isTarget) setPulseSettled(true);
+                                        onSeekToSegment?.(segment.start);
+                                    }}
+                                    // The time alone while nameless — a tooltip would
+                                    // hand over the very answer the task is asking for.
+                                    title={named ? `${label} · ${formatTime(segment.start)}` : formatTime(segment.start)}
                                     style={{
                                         width: `${widthPct}%`,
-                                        backgroundColor: isSolved ? SOLVED_BG : KIND_BG[segment.kind],
-                                        color: isSolved ? SOLVED_TEXT : SECTION_TEXT,
-                                        ...(isArmed ? { boxShadow: `inset 0 0 0 2px ${ARMED_LINE}` } : {}),
+                                        /*
+                                         * The band being asked for goes solid black — it is
+                                         * never a named one, so no label is lost to it. The
+                                         * moment its ask is answered it turns green with
+                                         * everything else, rather than staying black through
+                                         * the celebration.
+                                         */
+                                        backgroundColor: isTarget && !celebrate
+                                            ? '#1C1917'
+                                            : (isSolved || isTarget) ? solvedFill(segment.kind) : KIND_BG[segment.kind],
+                                        color: (isSolved || (isTarget && celebrate)) ? SOLVED_TEXT : SECTION_TEXT,
                                     }}
-                                    className={`relative h-full flex items-center justify-center overflow-hidden transition-all
-                                        ${pickable ? 'cursor-pointer hover:brightness-95' : 'cursor-default'}
+                                    className={`band relative h-full flex items-center justify-center overflow-hidden transition-colors duration-200
+                                        ${isTarget && !pulseSettled && !celebrate ? 'is-target z-10' : ''}
+                                        ${seekable ? 'cursor-pointer' : 'cursor-default'}
                                     `}
                                 >
-                                    {widthPct > 7 && (
-                                        <span className="px-1 text-xs font-sans truncate pointer-events-none">
+                                    {/*
+                                     * The intro takes the same music note the wordless
+                                     * lyric card wears, small enough to fit a band far too
+                                     * narrow for the word "Intro".
+                                     */}
+                                    {named && segment.kind === 'intro' ? (
+                                        <Music4 className="w-3 h-3 stroke-[2] shrink-0 pointer-events-none" aria-hidden="true" />
+                                    ) : named && widthPct > 7 && (
+                                        <span className="px-1 text-xs font-sans font-medium truncate pointer-events-none">
                                             {label}
                                         </span>
                                     )}
-                                    {/* Hairline between neighbours, drawn inside so the bar keeps its radius */}
-                                    {i > 0 && <span className="absolute left-0 inset-y-0 w-px bg-white/60" />}
+                                    {/*
+                                     * The gap between neighbours. Painted in the page's
+                                     * own background rather than a translucent hairline,
+                                     * so it reads as a real division between two beiges
+                                     * a shade apart. Drawn inside the band so it cannot
+                                     * change any band's width.
+                                     */}
+                                    {i > 0 && (
+                                        <span className="absolute left-0 inset-y-0 w-[3px] bg-[#F0F0EA] pointer-events-none" />
+                                    )}
                                 </button>
                             );
                         })}
@@ -269,6 +417,29 @@ export default function SongTimeline({
                     </div>
                 </div>
             </div>
+
+            <style jsx>{`
+                /*
+                 * The band being asked for breathes between its own size and 120%.
+                 * A transform, so the neighbours keep their places and only the
+                 * target appears to lift off the bar.
+                 */
+                .band.is-target {
+                    animation: band-pulse 1.6s ease-in-out infinite;
+                }
+                @keyframes band-pulse {
+                    0%, 100% { transform: scale(1); }
+                    50%      { transform: scale(1.2); }
+                }
+
+                /* Still findable without the motion: hold it at the larger size. */
+                @media (prefers-reduced-motion: reduce) {
+                    .band.is-target {
+                        animation: none;
+                        transform: scale(1.12);
+                    }
+                }
+            `}</style>
         </section>
     );
 }

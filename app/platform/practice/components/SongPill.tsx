@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Music4 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { PRACTICE_SONGS, type PracticeSong } from '../data/practiceSongs';
 
@@ -94,12 +94,22 @@ export default function SongPill({ title, artist, currentId, onSelect }: SongPil
                                                     : 'hover:bg-stone-50 cursor-pointer'
                                             }`}
                                     >
-                                        <span className="min-w-0">
-                                            <span className={`block text-sm font-sans font-medium truncate ${locked ? 'text-stone-400' : 'text-stone-900'}`}>
-                                                {song.title}
+                                        <span className="flex items-center gap-3 min-w-0">
+                                            {/* Artwork, or a note where a song has none */}
+                                            <span className={`w-10 h-10 shrink-0 rounded-[8px] overflow-hidden bg-stone-100 flex items-center justify-center ${locked ? 'grayscale opacity-50' : ''}`}>
+                                                {song.coverUrl ? (
+                                                    <img src={song.coverUrl} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <Music4 className="w-4 h-4 text-stone-400 stroke-[1.5]" aria-hidden="true" />
+                                                )}
                                             </span>
-                                            <span className={`block text-xs font-sans truncate ${locked ? 'text-stone-300' : 'text-stone-500'}`}>
-                                                {song.artist}
+                                            <span className="min-w-0">
+                                                <span className={`block text-sm font-sans font-medium truncate ${locked ? 'text-stone-400' : 'text-stone-900'}`}>
+                                                    {song.title}
+                                                </span>
+                                                <span className={`block text-xs font-sans truncate ${locked ? 'text-stone-300' : 'text-stone-500'}`}>
+                                                    {song.artist}
+                                                </span>
                                             </span>
                                         </span>
                                         {locked && (

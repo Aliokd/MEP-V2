@@ -243,6 +243,49 @@ input:-webkit-autofill:active {
     scrollbar-width: none;  /* Firefox */
 }
 
+/* Demo Studio's track list. It scrolls horizontally at every width — the track
+   row is wider than a phone — but below sm the drawn bar is a chunky grey slab
+   sitting under the tracks that reads as a control rather than an indicator, and
+   a thumb doesn't need a bar to drag. Hidden there, kept from sm up where a
+   pointer does need something to grab. These are hand-written classes, not
+   Tailwind utilities, so this can't be done with an `sm:` variant prefix. */
+.studio-tracks-scroll::-webkit-scrollbar {
+    display: none;
+}
+.studio-tracks-scroll {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+@media (min-width: 640px) {
+    .studio-tracks-scroll::-webkit-scrollbar {
+        display: block;
+        width: 6px;
+        height: 6px;
+        background: transparent;
+    }
+    .studio-tracks-scroll::-webkit-scrollbar-button {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+    .studio-tracks-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .studio-tracks-scroll::-webkit-scrollbar-thumb {
+        background-color: rgba(120, 120, 120, 0.25);
+        border-radius: 9999px;
+        border: 1px solid transparent;
+        background-clip: padding-box;
+    }
+    .studio-tracks-scroll::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(120, 120, 120, 0.45);
+    }
+    .studio-tracks-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(120, 120, 120, 0.25) transparent;
+    }
+}
+
 /* Styling to override line hover highlight when a word token inside it is hovered */
 @media (hover: hover) {
     /* If a word token inside the phrase-row-container is being hovered, transparent the phrase-row hover styling */
@@ -1493,14 +1536,144 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
 /* Bottom sheets. tailwindcss-animate isn't installed (plugins: [] in
    tailwind.config.js), so `animate-in slide-in-from-bottom-*` compiles to
    nothing — every sheet needs a real keyframe. Applied below md only: above
-   that these same components are centred dialogs and shouldn't slide up. */
+   that these same components are centred dialogs and shouldn't slide up.
+
+   Exit needs `forwards`: the animation owns the transform, so without it the
+   sheet snaps back to translateY(0) on the final frame and flashes at full
+   height before React unmounts it. Pair .bottom-sheet-exit with a delayed
+   unmount (hooks/useSheetPresence) or it never gets to play at all.
+
+   Easing is asymmetric on purpose — decelerate in (the sheet arrives and
+   settles), accelerate out (it leaves and is gone). */
 @keyframes bottom-sheet-enter {
     from { transform: translateY(100%); }
     to   { transform: translateY(0); }
 }
+@keyframes bottom-sheet-exit {
+    from { transform: translateY(0); }
+    to   { transform: translateY(100%); }
+}
 .bottom-sheet-enter { animation: bottom-sheet-enter 300ms cubic-bezier(0.23, 1, 0.32, 1); }
-@media (min-width: 768px), (prefers-reduced-motion: reduce) {
-    .bottom-sheet-enter { animation: none; }
+.bottom-sheet-exit  { animation: bottom-sheet-exit 260ms cubic-bezier(0.32, 0, 0.67, 0) forwards; }
+
+/* ── Scroll chaining ──────────────────────────────────────────────────────
+   When an inner scroller reaches its end, the browser hands the rest of the
+   gesture to whatever scrolls behind it. Inside a panel or a sheet that reads
+   as the page lurching underneath while you are still dragging the panel —
+   two scrolls fighting over one finger.
+
+   `overscroll-behavior: contain` stops the hand-off at the boundary. It is
+   applied by class rather than to every `overflow-y-auto` because a page-level
+   scroller SHOULD chain (that is what pull-to-refresh and the URL-bar collapse
+   ride on); only nested ones should not. These are the named inner scrollers
+   used across the app.
+
+   The `html, body` rule is the other half: it stops a gesture that began on a
+   fixed overlay from scrolling the document behind it. */
+html, body {
+    overscroll-behavior-y: none;
+}
+
+.no-scrollbar,
+.custom-canvas-scrollbar,
+.studio-tracks-scroll,
+.inspiration-scroll-container,
+.inspiration-textarea-scroll,
+.parts-scroll,
+.comments-scrollbar {
+    overscroll-behavior: contain;
+}
+
+/* ── Centred dialog → bottom sheet, below md ──────────────────────────────
+   Add `sheet-shell` to a modal's fixed backdrop wrapper and `sheet-panel` to
+   the panel inside it. Above md both are inert, so the dialog keeps whatever
+   width, rounding and centring it already had.
+
+   !important is deliberate here and is the reason this works as a drop-in:
+   every one of these panels already carries its own `max-w-*`, `rounded-*` and
+   `my-auto` utilities, which sit in the same cascade layer at the same
+   specificity. Without it, whether the sheet or the dialog wins would depend on
+   Tailwind's class ordering rather than on intent.
+
+   `sheet-panel-body` marks the part that scrolls, and `sheet-panel-footer` the
+   part that must not — that is what keeps a call to action on screen instead of
+   below the fold on a panel taller than the phone. */
+@media (max-width: 767px) {
+    .sheet-shell {
+        align-items: flex-end !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+    .sheet-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 26px 26px 0 0 !important;
+        max-height: 92dvh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        animation: bottom-sheet-enter 300ms cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .sheet-panel-body {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain !important;
+    }
+    .sheet-panel-footer {
+        flex: 0 0 auto !important;
+        padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+    }
+    /* Any button sitting directly in a pinned footer runs the full width — a
+       thumb-sized target is the point of moving it there. */
+    .sheet-panel-footer > button,
+    .sheet-panel-footer > a {
+        width: 100% !important;
+        min-height: 3.5rem !important;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sheet-panel { animation: none; }
+}
+
+/* For panels that rise from near the bottom edge but aren't flush to it (the
+   comment thread sits at `bottom: 16px` with a side inset). translateY(100%)
+   would leave a sliver of them showing above the viewport edge, so these travel
+   a short fixed distance and fade instead. */
+@keyframes floating-sheet-enter {
+    from { transform: translateY(24px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes floating-sheet-exit {
+    from { transform: translateY(0); opacity: 1; }
+    to   { transform: translateY(24px); opacity: 0; }
+}
+.floating-sheet-enter { animation: floating-sheet-enter 240ms cubic-bezier(0.23, 1, 0.32, 1); }
+.floating-sheet-exit  { animation: floating-sheet-exit 260ms cubic-bezier(0.32, 0, 0.67, 0) forwards; }
+
+/* The scrim behind a sheet, fading with it rather than cutting. */
+@keyframes sheet-backdrop-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-backdrop-exit  { from { opacity: 1; } to { opacity: 0; } }
+.sheet-backdrop-enter { animation: sheet-backdrop-enter 300ms ease-out; }
+.sheet-backdrop-exit  { animation: sheet-backdrop-exit 260ms ease-in forwards; }
+
+@media (min-width: 768px) {
+    /* Above md these are centred dialogs, not sheets — no vertical travel. */
+    .bottom-sheet-enter,
+    .bottom-sheet-exit { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .bottom-sheet-enter,
+    .floating-sheet-enter,
+    .sheet-backdrop-enter { animation: none; }
+    /* Exits keep running: they still carry `forwards`, and the delayed unmount
+       waits for them either way. Collapsed to a near-instant fade so the
+       element is gone without travelling. */
+    .bottom-sheet-exit,
+    .floating-sheet-exit,
+    .sheet-backdrop-exit { animation: sheet-backdrop-exit 1ms linear forwards; }
 }
 
 /* A recording actually in progress.

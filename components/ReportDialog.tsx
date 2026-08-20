@@ -74,10 +74,10 @@ export default function ReportDialog({
     };
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="sheet-shell fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative w-full max-w-md bg-white rounded-[22px] border border-stone-200 shadow-xl overflow-hidden">
+            <div className="sheet-panel relative w-full max-w-md bg-white rounded-[22px] border border-stone-200 shadow-xl overflow-hidden">
                 {sent ? (
                     <div className="p-8 flex flex-col items-center gap-3 text-center">
                         <div className="w-10 h-10 rounded-full bg-[#eaf5ec] flex items-center justify-center">

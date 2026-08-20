@@ -44,7 +44,7 @@ export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps
     }, []);
 
     return (
-        <div className="w-full flex-1 min-h-0 flex flex-col gap-4">
+        <div className="w-full flex-1 min-h-0 flex flex-col gap-4 px-4 md:px-0">
             {/* Top pair */}
             <div className="flex-[3] min-h-0 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button

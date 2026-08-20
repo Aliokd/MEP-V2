@@ -148,6 +148,22 @@ export default function PracticeTab() {
             return first ? { source: 'library' as const, song: first } : null;
         })();
 
+    /*
+     * Stepping through the library once a song is finished. Only the playable
+     * ones are in the ring, and it wraps — the end of the list should send you
+     * back to the start rather than to a dead button.
+     */
+    const stepSong = (delta: number) => {
+        const playable = PRACTICE_SONGS.filter(s => s.available);
+        if (playable.length === 0) return;
+        const current = activeSong?.source === 'library'
+            ? playable.findIndex(s => s.id === activeSong.song.id)
+            : -1;
+        const next = playable[(current + delta + playable.length) % playable.length];
+        setIsPlaying(false);
+        setChosenSong({ source: 'library', song: next });
+    };
+
     // Handle cycling practices
     const handlePrevPractice = () => {
         const currentIndex = practices.indexOf(selectedPractice);
@@ -197,7 +213,10 @@ export default function PracticeTab() {
     }, []);
 
     return (
-        <div className="w-full">
+        // px-4 below md: the beige panel that used to supply this page's edge
+        // gutter is gone on a phone (see isBareMobilePanel in the platform layout),
+        // so Practice carries its own.
+        <div className="w-full px-4 md:px-0">
 
             {/* Full-width content column */}
             <div className="w-full bg-transparent pb-6 relative overflow-visible">
@@ -207,7 +226,11 @@ export default function PracticeTab() {
                     {/* Previous Button */}
                     <button 
                         onClick={handlePrevPractice}
-                        className="w-9 h-9 rounded-full border border-stone-200/70 bg-white/50 opacity-60 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center text-stone-500 hover:text-stone-900"
+                        // Solid white, not bg-white/50 at opacity-60. Against the beige
+                        // panel that half-transparent fill read as a faint smudge at the
+                        // edge of the screen rather than a control; with the panel gone on
+                        // a phone it had almost nothing to sit against at all.
+                        className="w-10 h-10 md:w-9 md:h-9 shrink-0 rounded-full border border-stone-200 bg-white shadow-[0_1.5px_4px_rgba(0,0,0,0.06)] hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-600 hover:text-stone-900"
                         aria-label={t('practice.previous_practice')}
                     >
                         <ChevronLeft size={18} className="stroke-[2.2]" />
@@ -271,7 +294,11 @@ export default function PracticeTab() {
                     {/* Next Button */}
                     <button 
                         onClick={handleNextPractice}
-                        className="w-9 h-9 rounded-full border border-stone-200/70 bg-white/50 opacity-60 hover:opacity-100 active:scale-95 transition-all flex items-center justify-center text-stone-500 hover:text-stone-900"
+                        // Solid white, not bg-white/50 at opacity-60. Against the beige
+                        // panel that half-transparent fill read as a faint smudge at the
+                        // edge of the screen rather than a control; with the panel gone on
+                        // a phone it had almost nothing to sit against at all.
+                        className="w-10 h-10 md:w-9 md:h-9 shrink-0 rounded-full border border-stone-200 bg-white shadow-[0_1.5px_4px_rgba(0,0,0,0.06)] hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-600 hover:text-stone-900"
                         aria-label={t('practice.next_practice')}
                     >
                         <ChevronRight size={18} className="stroke-[2.2]" />
@@ -292,7 +319,9 @@ export default function PracticeTab() {
 
                         <span className="w-px h-4 bg-stone-300 shrink-0" />
 
-                        <h2 className="font-serif text-base md:text-lg font-normal tracking-wide text-stone-900 truncate">
+                        {/* Sized and set to match the Back button beside it — the two
+                            read as one quiet breadcrumb rather than a link and a heading. */}
+                        <h2 className="text-sm font-sans font-medium text-stone-900 truncate">
                             {getTranslatedPracticeName(openedPractice)}
                         </h2>
 
@@ -356,6 +385,8 @@ export default function PracticeTab() {
                                     sections={activeSong.source === 'library' ? activeSong.song.sections : undefined}
                                     isPlaying={isPlaying}
                                     onTogglePlay={handleTogglePlay}
+                                    onPrevSong={() => stepSong(-1)}
+                                    onNextSong={() => stepSong(1)}
                                     headerSlot={
                                         /* The song pill opens the library in place — switching
                                            songs never leaves the exercise */

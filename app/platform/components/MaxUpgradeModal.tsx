@@ -67,7 +67,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
 
     return createPortal(
         <div
-            className="fixed inset-0 bg-stone-900/30 backdrop-blur-lg z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="sheet-shell fixed inset-0 bg-stone-900/30 backdrop-blur-lg z-[100] flex items-center justify-center p-4"
             onClick={onClose}
         >
             {/* Beige gradient across the platform's own surface tones — cream at the
@@ -80,7 +80,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                 // Scrolls when the content is taller than the viewport, but without
                 // painting a scrollbar — the native one on Windows is a chunky
                 // stepper track that cuts across the rounded corner.
-                className="bg-gradient-to-b from-[#FAF9F5] via-[#F6F6F0] to-[#EBEBE3] rounded-[24px] border border-stone-200/70 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full max-h-[90dvh] overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative"
+                className="sheet-panel bg-gradient-to-b from-[#FAF9F5] via-[#F6F6F0] to-[#EBEBE3] rounded-[24px] border border-stone-200/70 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full max-h-[90dvh] overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-6 md:p-8 flex flex-col gap-6 relative"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
@@ -91,6 +91,10 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                     <X className="w-4 h-4" />
                 </button>
 
+                {/* md:contents dissolves these wrappers on desktop, so the dialog keeps
+                    the single flex column it has always been; below md they become the
+                    scrolling body and the pinned footer. */}
+                <div className="sheet-panel-body md:contents flex flex-col gap-6">
                 <div className="space-y-2 pr-10">
                     <span className="inline-block rounded-full bg-[#86BE7F]/20 px-3 py-1 text-[11px] font-bold text-[#3f6b3a]">
                         {t('onboarding.paywall.plans.max.name')}
@@ -152,6 +156,9 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                     </div>
                 )}
 
+                </div>
+
+                <div className="sheet-panel-footer md:contents">
                 {canCheckout ? (
                     <button
                         type="button"
@@ -173,6 +180,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                         {t('connect.pro.modal_cta')}
                     </a>
                 )}
+                </div>
             </div>
         </div>,
         document.body,

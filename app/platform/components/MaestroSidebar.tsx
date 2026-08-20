@@ -24,13 +24,19 @@ function tourAnchor(href: string): string | undefined {
 }
 
 interface MaestroSidebarProps {
+    /**
+     * Rendered between the logo and the nav, on the mobile drawer only. Mind
+     * Power lives here rather than in a band under the phone header, where it
+     * cost ~70px of permanent vertical space above every screen.
+     */
+    mobileTopSlot?: React.ReactNode;
     isMobileOpen?: boolean;
     onClose?: () => void;
     onSupportClick?: () => void;
     onFeedbackClick?: () => void;
 }
 
-export default function MaestroSidebar({ isMobileOpen = false, onClose, onSupportClick, onFeedbackClick }: MaestroSidebarProps) {
+export default function MaestroSidebar({ isMobileOpen = false, onClose, onSupportClick, onFeedbackClick, mobileTopSlot }: MaestroSidebarProps) {
     const { t } = useLanguage();
     const [isCollapsed, setIsCollapsed] = useState(false);
     // Green dot on the feedback button while a reply from the team is unread.
@@ -121,12 +127,17 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
             {isMobileOpen && (
                 <div 
                     onClick={onClose}
-                    className="fixed inset-0 bg-black/40 backdrop-blur-xs z-49 md:hidden transition-opacity duration-300"
+                    // z-[78]/[79] rather than 49/50. Plenty of page furniture sits at
+                    // z-50 and above (the Max pill, pinned headers, the practice song
+                    // pill), so at 49 the scrim dimmed everything except exactly the
+                    // things that draw the eye — they stayed lit while the rest went
+                    // dark. Still below 80, where the sheets and modals begin.
+                    className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[78] md:hidden transition-opacity duration-300"
                 />
             )}
 
             <div
-                className={`fixed top-16 bottom-0 left-0 md:h-viewport md:sticky md:top-0 z-50 flex flex-col pt-8 pb-[calc(2rem+env(safe-area-inset-bottom))] select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-y-auto no-scrollbar overscroll-contain md:overflow-visible transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
+                className={`fixed top-16 bottom-0 left-0 md:h-viewport md:sticky md:top-0 z-[79] md:z-50 flex flex-col pt-8 pb-[calc(2rem+env(safe-area-inset-bottom))] select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-y-auto no-scrollbar overscroll-contain md:overflow-visible transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
                     isMobileOpen ? 'translate-x-0' : '-translate-x-[110%]'
                 } md:translate-x-0 ${
                     // The rail scales with the viewport instead of holding one fixed
@@ -236,7 +247,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                 ) : (
                     /* Expanded / mobile layout */
                     <div className="flex flex-col gap-10 justify-between h-full">
-                        <div className="flex flex-col gap-10">
+                        <div className="flex flex-col gap-7 md:gap-10">
                             <div className="flex items-center justify-start gap-3 min-h-[40px] w-full group/logoarea">
                                 <Link href="/platform/create" className="opacity-95 hover:opacity-100 transition-opacity" onClick={onClose}>
                                     <Logo size="md" showBeta />
@@ -261,6 +272,11 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                     </button>
                                 )}
                             </div>
+
+                            {/* Mind Power — drawer only. See mobileTopSlot. */}
+                            {isMobile && mobileTopSlot && (
+                                <div className="w-full">{mobileTopSlot}</div>
+                            )}
 
                             {/* Navigation Menu */}
                             <nav className="flex flex-col gap-2.5 w-full">

@@ -24,6 +24,13 @@ interface MindPowerPanelProps {
     communityCount: number;
     communityGoal: number;
     activeQuote: string;
+    /**
+     * Fill the parent instead of the fixed 320px. Set when the panel renders in
+     * flow inside the mobile sidebar drawer, whose 260px rail leaves ~212px of
+     * content — a w-80 panel there overflows and gets clipped by the drawer's
+     * own overflow-y-auto.
+     */
+    fullWidth?: boolean;
 }
 
 /**
@@ -135,9 +142,10 @@ export default function MindPowerPanel({
     communityCount,
     communityGoal,
     activeQuote,
+    fullWidth = false,
 }: MindPowerPanelProps) {
     return (
-        <div className="w-80 bg-[#F5F4EE] rounded-[24px] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.14)] border border-stone-200/70 flex flex-col gap-5 normal-case text-stone-800">
+        <div className={`${fullWidth ? 'w-full p-5' : 'w-80 p-6'} bg-[#F5F4EE] rounded-[24px] shadow-[0_16px_40px_rgba(0,0,0,0.14)] border border-stone-200/70 flex flex-col gap-5 normal-case text-stone-800`}>
             {/* Header */}
             <div className="flex flex-col items-center text-center gap-1.5">
                 <span className="text-2xl font-serif text-stone-900 font-normal leading-tight">

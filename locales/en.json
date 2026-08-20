@@ -18,7 +18,11 @@
     "reset": "Reset",
     "coming_soon": "Coming soon",
     "save_changes": "Save Changes",
-    "add": "Add"
+    "add": "Add",
+    "minimize": "Minimize",
+    "on": "On",
+    "off": "Off",
+    "open": "Open"
   },
   "navigation": {
     "create": "Create",
@@ -72,7 +76,27 @@
     "studio_badge": "Studio",
     "reopen_in_studio": "Reopen in Demo Studio",
     "add_to_studio": "Add to Demo Studio",
-    "take_upload_failed": "Upload failed. Your collaborators can't hear this take yet. Check your connection and record again."
+    "take_upload_failed": "Upload failed. Your collaborators can't hear this take yet. Check your connection and record again.",
+    "settings": "Studio settings",
+    "settings_subtitle": "Metronome, tuning and monitoring",
+    "metronome": "Metronome",
+    "tempo": "Tempo",
+    "tempo_hint": "Beats per minute for the click track",
+    "metronome_volume": "Metronome volume",
+    "last_note": "Last note:",
+    "no_tuning_yet": "Not tuned yet",
+    "direct_monitoring": "Direct monitoring",
+    "direct_monitoring_hint": "Hear yourself through headphones while recording",
+    "track_settings": "Track settings",
+    "track_settings_subtitle": "Instrument, levels and effects",
+    "instrument": "Instrument",
+    "volume": "Volume",
+    "pan": "Pan",
+    "eq": "EQ",
+    "reverb": "Reverb",
+    "compressor": "Compressor",
+    "compressor_hint": "Evens out loud and quiet parts",
+    "recording_box": "Recording"
   },
   "canvas": {
     "tuner": "Guitar tuner",
@@ -275,7 +299,8 @@
     "back": "back",
     "next": "next",
     "add_to_canvas": "Add to canvas",
-    "no_response": "No answer yet"
+    "no_response": "No answer yet",
+    "answer_placeholder": "Write your answer"
   },
   "collab": {
     "invite_title": "Invite someone to collaborate with you in this project",
@@ -336,7 +361,9 @@
     "invite_all_in": "Everyone you're connected with is already in this project.",
     "invite_no_match": "No one by that name. Type their email and we'll invite them.",
     "invite_not_on_veinote": "We'll send the invitation to this address.",
-    "invite_clear": "Clear"
+    "invite_clear": "Clear",
+    "lock_project": "Lock project",
+    "unlock_project": "Unlock project"
   },
   "workspace": {
     "my_projects": "My Projects",
@@ -805,7 +832,11 @@
     "coming_in_days": "Coming in {days} days",
     "coming_in_one_day": "Coming in 1 day",
     "demo_title": "How it works",
-    "demo_desc": "Pick a part on the timeline, then click the lyrics it belongs to. Match them right and both turn green."
+    "demo_desc": "We name a part of the song. Scroll the lyrics, find it, and click it — get it right and both turn green.",
+    "find_section": "Find {section}",
+    "start_over": "Start over",
+    "prev_song": "Previous song",
+    "next_song": "Next song"
   },
   "curriculum": {
     "foundation": "Foundation",
@@ -916,14 +947,15 @@
   },
   "cookies": {
     "aria_label": "Cookie consent",
-    "message": "We use cookies to understand how Veinote is used, so we can make it better. Nothing is measured until you agree.",
+    "message": "We use cookies to understand how Veinote is used, so we can make it better.",
     "accept": "Accept all",
     "necessary": "Only necessary",
     "privacy": "Privacy",
     "settings": "Cookie settings",
     "current_all": "You accepted all cookies on this browser.",
     "current_necessary": "You allowed only necessary cookies on this browser.",
-    "current_unanswered": "You haven't chosen yet on this browser."
+    "current_unanswered": "You haven't chosen yet on this browser.",
+    "reject": "Reject"
   },
   "home": {
     "nav": {

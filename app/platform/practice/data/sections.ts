@@ -39,6 +39,35 @@ export const SOLVED_BG = '#86BE7F';
 export const SOLVED_TEXT = '#1C2B1A';
 
 /**
+ * A named section that the playhead is inside. Only named ones follow along —
+ * lighting an unnamed part as the song reaches it would answer the task for the
+ * user. A deeper cut of the same green, so it reads as the same state, further on.
+ */
+export const SOLVED_BG_PLAYING = '#6BA862';
+
+/**
+ * How solid a named band's green sits, by kind. Once everything is named the bar
+ * is one long stretch of the same colour; leaning on the same ordering as the
+ * beige ramp above keeps neighbours reading apart, and keeps the weight
+ * meaningful — a chorus lands heavier than an intro.
+ */
+const SOLVED_ALPHA: Record<SectionKind, number> = {
+    other: 0.74,
+    intro: 0.76,
+    outro: 0.80,
+    verse: 0.84,
+    prechorus: 0.88,
+    bridge: 0.91,
+    solo: 0.95,
+    chorus: 1,
+};
+
+/** The green a named band wears — the success colour, at that kind's weight. */
+export function solvedFill(kind: SectionKind): string {
+    return `rgba(134, 190, 127, ${SOLVED_ALPHA[kind]})`;
+}
+
+/**
  * The "armed, waiting for its match" outline. A deep greige from the same warm
  * family as the section fills — black read as an error state on these panels.
  */

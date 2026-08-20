@@ -536,12 +536,22 @@ function ConnectPostCard({
 
       {/* Peeking CD Record under/behind the card (moves slightly left, peeking out past sleeve) */}
       <div 
+        // On a phone the record rises out of the TOP edge instead of sliding out
+        // to the left — there is no horizontal room beside a full-width card, but
+        // there is room above it.
+        //
+        // The peek is deliberately sized to fit inside the gap between cards
+        // (24px out of the 28px gap-7 below): these wrappers are siblings at the
+        // same z-index, so a later card paints over an earlier one, and a record
+        // that reached higher than the gap would cover the bottom of the card
+        // above it rather than tucking behind it.
         className={`
-          absolute top-1 w-[230px] h-[230px] z-0 select-none pointer-events-none
+          absolute z-0 select-none pointer-events-none
+          w-[150px] h-[150px] md:w-[230px] md:h-[230px]
           transition-all duration-[950ms] ease-[cubic-bezier(0.25,1,0.5,1)]
-          ${isPlaying 
-            ? '-left-10 opacity-100 scale-100' 
-            : 'left-6 opacity-0 scale-75'
+          ${isPlaying
+            ? '-top-6 right-6 left-auto opacity-100 scale-100 md:top-1 md:-left-10 md:right-auto'
+            : 'top-10 right-6 left-auto opacity-0 scale-75 md:top-1 md:left-6 md:right-auto'
           }
         `}
       >
@@ -569,11 +579,15 @@ function ConnectPostCard({
       {/* Classic Record Player Tonearm (Needle Stick, rendered on top of CD, moves in sync with sleeve) */}
       {/* Classic Record Player Tonearm (Needle Stick, rendered on top of CD, moves in sync with sleeve) */}
       <div 
+        // Desktop only. The tonearm reaches onto the record from beside it, which
+        // only makes sense while the record comes out sideways; against the
+        // top-emerging phone version it would hang in empty space.
         className={`
+          hidden md:block
           absolute top-[0px] z-5 w-12 h-36 origin-[32px_20px] pointer-events-none
           transition-all duration-[950ms] ease-[cubic-bezier(0.25,1,0.5,1)]
-          ${isPlaying 
-            ? '-left-2 rotate-[10deg] opacity-100 scale-100' 
+          ${isPlaying
+            ? '-left-2 rotate-[10deg] opacity-100 scale-100'
             : 'left-6 rotate-[-35deg] opacity-0 scale-95'
           }
         `}
@@ -602,43 +616,56 @@ function ConnectPostCard({
 
       {/* Main card panel (moves slightly to the right) */}
       <div 
+        // Slides DOWN on a phone to uncover the record above it, RIGHT on desktop
+        // to uncover the one beside it — the sleeve always moves away from
+        // wherever the record is coming from.
         className={`relative z-10 bg-white border border-stone-200/60 rounded-[24px] overflow-hidden hover:shadow-[0_4px_24px_rgba(0,0,0,0.02)] cursor-pointer flex flex-col justify-between min-h-[220px] shadow-3xs transition-[transform,box-shadow] duration-[950ms] ease-[cubic-bezier(0.25,1,0.5,1)] ${
-          isPlaying ? 'translate-x-3' : 'translate-x-0'
+          isPlaying ? 'translate-y-2 md:translate-y-0 md:translate-x-3' : 'translate-y-0 md:translate-x-0'
         }`}
       >
         <div className="p-6 pb-2 flex-grow flex flex-col justify-between">
         
         {/* 1. Header Section: Project, Author, Tag Badge */}
-        <div className="flex items-start justify-between mb-4 relative">
-          <div className="flex flex-col">
-            <span className="font-sans text-[20px] font-medium text-[#2c2a29] tracking-tight leading-snug">
+        <div className="flex items-start justify-between gap-3 mb-4 relative">
+          {/* min-w-0 is what lets the title actually truncate: a flex child's
+              default min-width is auto, so without it the text sets the column's
+              width and pushes the play button off instead of ellipsising. */}
+          <div className="flex flex-col min-w-0">
+            <span className="font-sans text-[16px] md:text-[20px] font-medium text-[#2c2a29] tracking-tight leading-snug truncate">
               {post.projectName}
             </span>
-            <span className="text-[14px] text-stone-400 font-sans mt-0.5 font-normal">
+            <span className="text-[13px] md:text-[14px] text-stone-400 font-sans mt-0.5 font-normal truncate">
               {post.author}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {post.attachment && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onPauseToggle();
                 }}
-                className="w-7 h-7 rounded-full bg-stone-900 hover:bg-stone-800 text-white flex items-center justify-center shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer z-20"
+                // shrink-0 is the circle fix: without it this sat in a flex row
+                // beside a badge that wanted room, so it got squeezed narrower
+                // than it was tall and rendered as an oval. Bigger on the phone
+                // too, where it is the card's primary action.
+                className="w-11 h-11 md:w-7 md:h-7 shrink-0 rounded-full bg-stone-900 hover:bg-stone-800 text-white flex items-center justify-center shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer z-20"
                 title={isPlaying ? "Pause melody" : (playlist.length > 1 ? `Play playlist (Track ${currentAudioIndex + 1}/${playlist.length})` : "Play melody")}
                 type="button"
               >
                 {isPlaying ? (
-                  <Pause className="w-3.5 h-3.5 fill-white stroke-white" />
+                  <Pause className="w-5 h-5 md:w-3.5 md:h-3.5 fill-white stroke-white" />
                 ) : (
-                  <Play className="w-3.5 h-3.5 fill-white stroke-white ml-0.5" />
+                  <Play className="w-5 h-5 md:w-3.5 md:h-3.5 fill-white stroke-white ml-0.5" />
                 )}
               </button>
             )}
-            <span className="bg-[#F6F6F0] text-stone-500 px-3 py-1 rounded-full text-[13px] font-normal font-sans select-none leading-none">
-              {playlist.length > 1 
+            {/* The track-count badge moves into the ⋮ sheet on a phone — it is a
+                label, not an action, and it was taking a third of the header row
+                away from the title. */}
+            <span className="hidden md:inline bg-[#F6F6F0] text-stone-500 px-3 py-1 rounded-full text-[13px] font-normal font-sans select-none leading-none">
+              {playlist.length > 1
                 ? `Lyrics + ${playlist.length} Tracks`
                 : (playlist.length === 1 ? "Lyrics + melody" : "Lyrics only")}
             </span>
@@ -834,20 +861,58 @@ function ConnectPostCard({
                   e.stopPropagation();
                   onMenuToggle(activeMenuPostId === post.id ? null : post.id);
                 }}
-                className="p-1 rounded-full hover:bg-stone-50 text-stone-400 hover:text-stone-700 transition-colors"
+                className="w-11 h-11 md:w-auto md:h-auto md:p-1 shrink-0 flex items-center justify-center rounded-full hover:bg-stone-50 text-stone-500 hover:text-stone-700 transition-colors"
               >
-                <MoreHorizontal className="w-3.5 h-3.5" />
+                <MoreHorizontal className="w-5 h-5 md:w-3.5 md:h-3.5" />
               </button>
 
               <AnimatePresence>
                 {activeMenuPostId === post.id && (
+                  <>
+                    {/* Scrim, phone only — a bottom sheet needs something to tap
+                        away on, and the desktop dropdown has the outside-click
+                        handler on dropdownRef instead. */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.18 }}
+                      className="md:hidden fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[80]"
+                      onClick={(e) => { e.stopPropagation(); onMenuToggle(null); }}
+                    />
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                    transition={{ duration: 0.1 }}
-                    className="absolute right-0 bottom-8 bg-white border border-stone-200/60 rounded-xl shadow-md py-1.5 w-32 z-30"
+                    // No transform in the framer props: below md the motion comes
+                    // from .bottom-sheet-enter, and a framer scale/y on top of it
+                    // would fight the keyframe for the same property.
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.12 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="bottom-sheet-enter fixed inset-x-0 bottom-0 z-[85] w-full rounded-t-[24px] rounded-b-none px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white border-t border-stone-200/60 shadow-[0_-8px_40px_rgba(0,0,0,0.18)] flex flex-col gap-1
+                      md:absolute md:inset-x-auto md:right-0 md:bottom-8 md:z-30 md:w-32 md:rounded-xl md:border md:border-stone-200/60 md:shadow-md md:py-1.5 md:px-0 md:gap-0"
                   >
+                    {/* Phone-only sheet furniture and the two controls lifted off
+                        the card: the track-count label and Full view. */}
+                    <div className="md:hidden flex flex-col">
+                      <div className="self-center w-10 h-1 rounded-full bg-stone-300 mb-3" />
+                      <span className="px-4 pb-2 text-[13px] text-stone-400 font-sans select-none">
+                        {playlist.length > 1
+                          ? `Lyrics + ${playlist.length} Tracks`
+                          : (playlist.length === 1 ? "Lyrics + melody" : "Lyrics only")}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMenuToggle(null);
+                          if (isExpanded) onViewProject(post); else setIsExpanded(true);
+                        }}
+                        className="w-full text-left px-4 h-14 text-[16px] font-medium text-stone-800 hover:bg-stone-50 rounded-xl flex items-center gap-3"
+                      >
+                        {isExpanded ? t('connect.see_full_project') : t('connect.full_view')}
+                      </button>
+                      <div className="h-px bg-stone-200/70 my-1 mx-4" />
+                    </div>
                     {/* Ownership is the uid, not the display name — Firestore rules
                         gate edit/delete on authorId, so a name match would offer
                         actions the server rejects. Legacy posts written before
@@ -858,16 +923,16 @@ function ConnectPostCard({
                       <>
                         <button
                           onClick={(e) => { e.stopPropagation(); onStartEdit(post); }}
-                          className="w-full text-left px-4 py-2 text-xs font-medium text-stone-755 hover:bg-stone-50 flex items-center gap-2"
+                          className="w-full text-left px-4 h-14 text-[16px] md:h-auto md:py-2 md:text-xs font-medium text-stone-755 hover:bg-stone-50 rounded-xl md:rounded-none flex items-center gap-3 md:gap-2"
                         >
-                          <Edit className="w-3 h-3 text-stone-500" />
+                          <Edit className="w-4 h-4 md:w-3 md:h-3 text-stone-500 shrink-0" />
                           {t('connect.edit_post')}
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); onDeletePost(post.id); }}
-                          className="w-full text-left px-4 py-2 text-xs font-medium text-red-650 hover:bg-red-50/50 flex items-center gap-2"
+                          className="w-full text-left px-4 h-14 text-[16px] md:h-auto md:py-2 md:text-xs font-medium text-red-650 hover:bg-red-50/50 rounded-xl md:rounded-none flex items-center gap-3 md:gap-2"
                         >
-                          <Trash2 className="w-3 h-3 text-red-500" />
+                          <Trash2 className="w-4 h-4 md:w-3 md:h-3 text-red-500 shrink-0" />
                           {t('connect.delete_post')}
                         </button>
                       </>
@@ -875,19 +940,20 @@ function ConnectPostCard({
                       <>
                         <button
                           onClick={(e) => { e.stopPropagation(); alert("Post shared!"); onMenuToggle(null); }}
-                          className="w-full text-left px-4 py-2 text-xs font-medium text-stone-755 hover:bg-stone-50 flex items-center gap-2"
+                          className="w-full text-left px-4 h-14 text-[16px] md:h-auto md:py-2 md:text-xs font-medium text-stone-755 hover:bg-stone-50 rounded-xl md:rounded-none flex items-center gap-3 md:gap-2"
                         >
                           {t('connect.share_link')}
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); onReport(post); onMenuToggle(null); }}
-                          className="w-full text-left px-4 py-2 text-xs font-medium text-red-650 hover:bg-stone-50 flex items-center gap-2"
+                          className="w-full text-left px-4 h-14 text-[16px] md:h-auto md:py-2 md:text-xs font-medium text-red-650 hover:bg-stone-50 rounded-xl md:rounded-none flex items-center gap-3 md:gap-2"
                         >
                           {t('connect.report_post')}
                         </button>
                       </>
                     )}
                   </motion.div>
+                  </>
                 )}
               </AnimatePresence>
             </div>
@@ -902,7 +968,9 @@ function ConnectPostCard({
                   setIsExpanded(true);
                 }
               }}
-              className="border border-stone-200 hover:border-stone-400 text-stone-600 hover:text-stone-900 text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-stone-50 transition-all active:scale-95 select-none"
+              // Desktop only — on a phone this moves into the ⋮ sheet, so the
+              // action row is just the reactions and one menu.
+              className="hidden md:inline-block border border-stone-200 hover:border-stone-400 text-stone-600 hover:text-stone-900 text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-stone-50 transition-all active:scale-95 select-none"
             >
               {isExpanded ? t('connect.see_full_project') : t('connect.full_view')}
             </button>
@@ -1122,7 +1190,7 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs select-none">
+    <div className="sheet-shell fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs select-none">
       <motion.div 
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -1276,7 +1344,7 @@ function ConnectSkeleton() {
         <div className="h-9 w-32 bg-stone-300/25 rounded-full shrink-0" />
       </div>
 
-      <div className="flex flex-col gap-12 w-full">
+      <div className="flex flex-col gap-7 md:gap-12 w-full">
         {[...Array(2)].map((_, i) => (
           <div
             key={i}
@@ -2117,7 +2185,7 @@ export default function ConnectTab() {
       )}
 
       {/* Community Feed - List Layout with space for peeking CD */}
-      <div className="flex flex-col gap-12 w-full">
+      <div className="flex flex-col gap-7 md:gap-12 w-full">
         <AnimatePresence initial={false}>
           {filteredPosts.length === 0 ? (
             <motion.div

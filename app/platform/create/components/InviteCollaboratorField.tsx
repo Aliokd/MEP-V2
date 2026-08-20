@@ -111,7 +111,7 @@ export default function InviteCollaboratorField({
                 placeholder={t('collab.invite_search_placeholder')}
                 value={query}
                 onChange={(e) => onQueryChange(e.target.value)}
-                className="w-full bg-stone-50 border border-stone-200 rounded-full px-6 py-4 text-[17px] font-sans font-medium outline-none focus:bg-white focus:border-stone-400 transition-all placeholder:text-stone-300 disabled:opacity-60"
+                className="w-full bg-stone-50 border border-stone-200 rounded-full px-6 py-4 text-[17px] font-sans font-medium outline-none focus:bg-white focus:border-stone-400 transition-all placeholder:text-stone-500 disabled:opacity-60"
             />
 
             {/* Suggestions stay out of the way until there is something to suggest —

@@ -18,7 +18,11 @@
     "reset": "Nullstill",
     "coming_soon": "Kommer snart",
     "save_changes": "Lagre endringer",
-    "add": "Legg til"
+    "add": "Legg til",
+    "minimize": "Minimer",
+    "on": "På",
+    "off": "Av",
+    "open": "Åpne"
   },
   "navigation": {
     "create": "Lag",
@@ -72,7 +76,27 @@
     "studio_badge": "Studio",
     "reopen_in_studio": "Åpne igjen i Demo Studio",
     "add_to_studio": "Legg til i Demo Studio",
-    "take_upload_failed": "Opplastingen mislyktes. Samarbeidspartnerne dine kan ikke høre dette opptaket ennå. Sjekk tilkoblingen og spill inn på nytt."
+    "take_upload_failed": "Opplastingen mislyktes. Samarbeidspartnerne dine kan ikke høre dette opptaket ennå. Sjekk tilkoblingen og spill inn på nytt.",
+    "settings": "Studioinnstillinger",
+    "settings_subtitle": "Metronom, stemming og lytting",
+    "metronome": "Metronom",
+    "tempo": "Tempo",
+    "tempo_hint": "Slag per minutt for klikkesporet",
+    "metronome_volume": "Metronomvolum",
+    "last_note": "Siste tone:",
+    "no_tuning_yet": "Ikke stemt ennå",
+    "direct_monitoring": "Direkte lytting",
+    "direct_monitoring_hint": "Hør deg selv i hodetelefonene mens du spiller inn",
+    "track_settings": "Sporinnstillinger",
+    "track_settings_subtitle": "Instrument, nivåer og effekter",
+    "instrument": "Instrument",
+    "volume": "Volum",
+    "pan": "Panorering",
+    "eq": "EQ",
+    "reverb": "Klang",
+    "compressor": "Kompressor",
+    "compressor_hint": "Jevner ut sterke og svake partier",
+    "recording_box": "Opptak"
   },
   "canvas": {
     "tuner": "Gitarstemmer",
@@ -275,7 +299,8 @@
     "back": "tilbake",
     "next": "neste",
     "add_to_canvas": "Legg til på canvasen",
-    "no_response": "Ikke besvart ennå"
+    "no_response": "Ikke besvart ennå",
+    "answer_placeholder": "Skriv svaret ditt"
   },
   "collab": {
     "invite_title": "Inviter noen til å samarbeide med deg på dette prosjektet",
@@ -336,7 +361,9 @@
     "invite_all_in": "Alle du er knyttet til er allerede med i dette prosjektet.",
     "invite_no_match": "Ingen med det navnet. Skriv e-postadressen, så inviterer vi dem.",
     "invite_not_on_veinote": "Vi sender invitasjonen til denne adressen.",
-    "invite_clear": "Tøm"
+    "invite_clear": "Tøm",
+    "lock_project": "Lås prosjektet",
+    "unlock_project": "Lås opp prosjektet"
   },
   "workspace": {
     "my_projects": "Mine prosjekter",
@@ -805,7 +832,11 @@
     "coming_in_days": "Kommer om {days} dager",
     "coming_in_one_day": "Kommer om 1 dag",
     "demo_title": "Slik fungerer det",
-    "demo_desc": "Velg en del på tidslinjen, og klikk deretter på teksten den hører til. Treffer du riktig, blir begge grønne."
+    "demo_desc": "Vi navngir en del av låten. Bla i teksten, finn den og klikk — treffer du riktig, blir begge grønne.",
+    "find_section": "Finn {section}",
+    "start_over": "Start på nytt",
+    "prev_song": "Forrige låt",
+    "next_song": "Neste låt"
   },
   "curriculum": {
     "foundation": "Grunnlag",
@@ -916,14 +947,15 @@
   },
   "cookies": {
     "aria_label": "Samtykke til informasjonskapsler",
-    "message": "Vi bruker informasjonskapsler for å forstå hvordan Veinote blir brukt, så vi kan gjøre den bedre. Ingenting måles før du sier ja.",
+    "message": "Vi bruker informasjonskapsler for å forstå hvordan Veinote blir brukt, så vi kan gjøre den bedre.",
     "accept": "Godta alle",
     "necessary": "Bare nødvendige",
     "privacy": "Personvern",
     "settings": "Innstillinger for informasjonskapsler",
     "current_all": "Du har godtatt alle informasjonskapsler i denne nettleseren.",
     "current_necessary": "Du har bare tillatt nødvendige informasjonskapsler i denne nettleseren.",
-    "current_unanswered": "Du har ikke valgt ennå i denne nettleseren."
+    "current_unanswered": "Du har ikke valgt ennå i denne nettleseren.",
+    "reject": "Avvis"
   },
   "home": {
     "nav": {

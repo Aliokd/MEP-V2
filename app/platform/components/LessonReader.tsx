@@ -85,7 +85,7 @@ export default function LessonReader({
 
     if (!currentLesson && isLoading) {
         return (
-            <div className="w-full flex-1 min-h-0 flex flex-col gap-4 animate-pulse">
+            <div className="w-full flex-1 min-h-0 flex flex-col gap-4 px-4 md:px-0 animate-pulse">
                 <div className="shrink-0 h-6 w-52 bg-stone-300/25 rounded-full" />
                 <div className="flex-1 min-h-0 flex flex-col gap-6">
                     <div className="h-9 w-2/3 max-w-md bg-stone-300/25 rounded-full" />
@@ -110,7 +110,7 @@ export default function LessonReader({
     }
 
     return (
-        <div className="w-full flex-1 min-h-0 flex flex-col gap-4">
+        <div className="w-full flex-1 min-h-0 flex flex-col gap-4 px-4 md:px-0">
             {/* The chapter name sits beside the arrow rather than inside the
                 content, so it reads as where-you-are and frees the body for the
                 lesson itself. */}

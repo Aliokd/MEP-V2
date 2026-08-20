@@ -321,7 +321,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     const goNext = () => navigate(1);
 
     return (
-        <div className="w-full flex-1 min-h-0 flex flex-col gap-4">
+        <div className="w-full flex-1 min-h-0 flex flex-col gap-4 px-4 md:px-0">
             {/* Back arrow, centred tabs, and the search/favourites actions share one
                 row. The 1fr/auto/1fr grid keeps the tabs on the true centre line
                 regardless of how wide the two sides are. */}
