@@ -88,8 +88,14 @@ function buildCsp(nonce: string): string {
             'https://*.posthog.com',
         ].join(' '),
         // The lesson embeds (YouTube, Vimeo, Spotify) and the Paddle checkout
-        // overlay are the only things allowed to frame inside our pages.
-        "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://open.spotify.com https://*.paddle.com",
+        // overlay are the only things allowed to frame inside our pages —
+        // plus the Firebase Auth helper iframe. That last one is not optional:
+        // signInWithPopup/signInWithRedirect/getRedirectResult all load
+        // https://mep-v2.firebaseapp.com/__/auth/iframe (authDomain in
+        // lib/firebase.ts) to broker the handshake, so omitting it blocks the
+        // frame and Google sign-in fails — and it bites hardest on mobile, where
+        // popups are commonly blocked and the redirect path is the fallback.
+        "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://open.spotify.com https://*.paddle.com https://mep-v2.firebaseapp.com https://*.firebaseapp.com",
         "worker-src 'self' blob:",
     ].join('; ');
 }

@@ -126,14 +126,65 @@ export const PRACTICE_SONGS: PracticeSong[] = [
         artist: 'Lounge Club',
         audioUrl: `${FOLDER.closer}/Closer_Master%202026.mp3`,
         coverUrl: `${FOLDER.closer}/Closer.jpg`,
+        /*
+         * Lyrics transcribed from the master: Demucs vocal isolation, then
+         * three Whisper models cross-checked (medium, large-v3-turbo,
+         * large-v3), disagreements settled by large-v3 on clipped regions.
+         */
         sections: [
             { kind: 'intro', start: 0, end: 12 },
-            { kind: 'verse', start: 12, end: 29 },
-            { kind: 'chorus', start: 29, end: 52 },
-            { kind: 'verse', start: 52, end: 70 },
-            { kind: 'chorus', start: 70, end: 92 },
+            {
+                kind: 'verse', start: 12, end: 29,
+                lines: [
+                    'Come on baby lock the door',
+                    "Let's get down",
+                    'Come over here drop your phone',
+                    "Let's fool around",
+                ],
+            },
+            {
+                kind: 'chorus', start: 29, end: 52,
+                lines: [
+                    'Come on baby closer',
+                    'Come on hold me tight',
+                    'Come on hold me stronger',
+                    'Come on do it right',
+                ],
+            },
+            {
+                kind: 'verse', start: 52, end: 70,
+                lines: [
+                    'Come on baby let me in',
+                    "Don't you hide",
+                    'You know I love your velvet skin',
+                    'And your smile',
+                ],
+            },
+            {
+                kind: 'chorus', start: 70, end: 92,
+                lines: [
+                    'Come on baby closer',
+                    'Come on hold me tight',
+                    'Come on hold me stronger',
+                    'Come on do it right',
+                ],
+            },
             { kind: 'solo', start: 92, end: 132 },
-            { kind: 'chorus', start: 132, end: 190 },
+            {
+                // "CHORUS X2" in the mapping doc — sung twice, the second
+                // round in shortened call-backs, as transcribed.
+                kind: 'chorus', start: 132, end: 190,
+                lines: [
+                    'Come on baby closer',
+                    'Come on hold me tight',
+                    'Come on hold me stronger',
+                    'Come on do it right',
+                    'Baby closer',
+                    'Hold me tight',
+                    'Hold me stronger',
+                    'Come on do it right',
+                ],
+            },
         ],
     },
     {
@@ -143,15 +194,86 @@ export const PRACTICE_SONGS: PracticeSong[] = [
         artist: 'Lounge Club feat. Lucas Kay',
         audioUrl: `${FOLDER.beautifulDay}/Beautiful.mp3`,
         coverUrl: `${FOLDER.beautifulDay}/Beautiful.jpg`,
+        // Lyrics transcribed the same way as Closer's — see that note.
         sections: [
             { kind: 'intro', start: 0, end: 7 },
-            { kind: 'verse', start: 7, end: 37 },
-            { kind: 'chorus', start: 37, end: 51 },
-            { kind: 'verse', start: 51, end: 80 },
-            { kind: 'chorus', start: 80, end: 96 },
-            { kind: 'verse', start: 96, end: 110 },
-            { kind: 'bridge', start: 110, end: 141 },
-            { kind: 'chorus', start: 141, end: 179 },
+            {
+                kind: 'verse', start: 7, end: 37,
+                lines: [
+                    'Hey you, do you have another one',
+                    'Of those days you wish never begun',
+                    "Tell me what you're hiding from",
+                    'Hey you, tell me what is on your mind',
+                    "Don't travel down too far inside",
+                    'It is out here that the world resides',
+                ],
+            },
+            {
+                kind: 'chorus', start: 37, end: 51,
+                lines: [
+                    "It's a beautiful beautiful day",
+                    "I wouldn't like it any other way",
+                    "It's a beautiful beautiful day",
+                    "I couldn't take it any other way",
+                ],
+            },
+            {
+                kind: 'verse', start: 51, end: 80,
+                lines: [
+                    'Hey you, listen to the king that said',
+                    'Let that light inside you bring',
+                    "Out the passion you've been hiding",
+                    'Hey you, bring joy to this heart of mine',
+                    'Let me see it in your eyes',
+                    'All we really have is time',
+                ],
+            },
+            {
+                kind: 'chorus', start: 80, end: 96,
+                lines: [
+                    "It's a beautiful beautiful day",
+                    "I wouldn't like it any other way",
+                    "It's a beautiful beautiful day",
+                    "I couldn't take it any other way",
+                ],
+            },
+            {
+                kind: 'verse', start: 96, end: 110,
+                lines: [
+                    "Hey you, tell me what you're longing for",
+                    "I wonder what you're dreaming of",
+                    'What is it that you most dearly love',
+                ],
+            },
+            {
+                kind: 'bridge', start: 110, end: 141,
+                lines: [
+                    'Wake up in the early morning',
+                    'And be with me when the sun goes up',
+                    'Take a breath and feel this life is flowing',
+                    'Right through your lungs',
+                    'Feel the earth beneath your feet',
+                    'And the blood flowing through your veins',
+                    'If you look at the world this way',
+                    "You'll never feel the same",
+                ],
+            },
+            {
+                // "CHORUS X2" in the mapping doc, bookended by "Hey you"
+                kind: 'chorus', start: 141, end: 179,
+                lines: [
+                    'Hey you',
+                    "It's a beautiful beautiful day",
+                    "I wouldn't like it any other way",
+                    "It's a beautiful beautiful day",
+                    "I couldn't take it any other way",
+                    "It's a beautiful beautiful day",
+                    "I wouldn't like it any other way",
+                    "It's a beautiful beautiful day",
+                    "I couldn't take it any other way",
+                    'Hey you',
+                ],
+            },
         ],
     },
     {

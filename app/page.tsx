@@ -27,7 +27,9 @@ const TopNav = () => {
     }, []);
 
     return (
-        <nav className={`fixed top-0 left-0 right-0 flex items-center justify-between z-50 transition-all duration-300 ${
+        // top-16 below md clears the fixed mobile laptop-hint banner
+        // (components/MobileLaptopBanner, h-16); md+ pins to the very top as before.
+        <nav className={`fixed top-16 md:top-0 left-0 right-0 flex items-center justify-between z-50 transition-all duration-300 ${
             isScrolled 
                 ? "py-4 px-6 md:px-[10%] bg-[#E6E3DB]/85 backdrop-blur-lg border-b border-stone-300/10 shadow-sm" 
                 : "py-8 px-6 md:px-[10%] bg-transparent"

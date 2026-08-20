@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { Cookie } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -38,12 +38,35 @@ export default function CookieBanner() {
     // answered in another tab.
     const consent = useSyncExternalStore(subscribeConsent, getConsentSnapshot, getServerConsentSnapshot);
 
-    if (!mounted || consent !== null) return null;
+    const isVisible = mounted && consent === null;
+
+    // Publish the bar's height as --consent-h so bottom-anchored UI can sit clear
+    // of it. Without this the bar (fixed, z-100, and ~128px tall on a phone once
+    // it wraps to two rows) silently covers the Create canvas toolbar — REC, tools,
+    // Demo Studio and Inspirations are all unclickable until consent is answered,
+    // which is exactly when every new visitor meets them. Measured rather than
+    // hard-coded because the height moves with locale, font size and breakpoint.
+    const barRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const root = document.documentElement;
+        const clear = () => root.style.removeProperty('--consent-h');
+        if (!isVisible) { clear(); return; }
+        const el = barRef.current;
+        if (!el) return;
+        const apply = () => root.style.setProperty('--consent-h', `${el.offsetHeight}px`);
+        apply();
+        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(apply) : null;
+        ro?.observe(el);
+        return () => { ro?.disconnect(); clear(); };
+    }, [isVisible]);
+
+    if (!isVisible) return null;
 
     const choose = (choice: ConsentChoice) => writeConsent(choice);
 
     return (
         <div
+            ref={barRef}
             className="fixed inset-x-0 bottom-0 z-[100] bg-white border-t border-stone-200/70 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] animate-in slide-in-from-bottom-4 fade-in duration-500"
             role="dialog"
             aria-live="polite"

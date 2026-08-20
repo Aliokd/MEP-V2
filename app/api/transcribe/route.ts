@@ -3,6 +3,7 @@ import { featureGuard } from '@/lib/featureFlags';
 import { GEMINI_AUDIO_MODELS } from '@/lib/geminiModels';
 import { requireUser } from '@/lib/apiAuth';
 import { rateLimitGuard, withGeminiRetry, quotaError, createCallBudget } from '@/lib/rateLimit';
+import { fetchAllowedUrl, vetRemoteUrl } from '@/lib/safeRemoteUrl';
 
 export async function POST(request: Request) {
     // Kill switch: an admin can disable this endpoint from the console
@@ -27,9 +28,19 @@ export async function POST(request: Request) {
             if (!audioUrl) {
                 return NextResponse.json({ error: 'No audioUrl received in JSON body' }, { status: 400 });
             }
-            // Fetch audio on the server side (bypassing CORS)
-            const fetchUrl = audioUrl.startsWith('blob:') ? audioUrl : audioUrl;
-            const audioResponse = await fetch(fetchUrl);
+            // Vetted against an allowlist rather than fetched as given. This used to
+            // pass the caller's string straight to fetch(), which is the same SSRF
+            // that was closed in /api/download-audio and /api/classify-instrument and
+            // missed here: a signed-in user could point the server at the cloud
+            // metadata service or anything else reachable from inside the VPC.
+            // See lib/safeRemoteUrl.ts.
+            const vetted = vetRemoteUrl(audioUrl);
+            if (!vetted.ok) {
+                return NextResponse.json({ error: vetted.reason || 'That audio url is not allowed' }, { status: 400 });
+            }
+            // Generous timeout: this is a Storage read from inside the same cloud, but
+            // a whole song still has to come across before the model can start.
+            const audioResponse = await fetchAllowedUrl(vetted.url!, { timeoutMs: 20_000 });
             if (!audioResponse.ok) {
                 throw new Error(`Failed to fetch audio from remote URL: ${audioResponse.statusText}`);
             }

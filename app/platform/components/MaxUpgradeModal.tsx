@@ -67,20 +67,26 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
 
     return createPortal(
         <div
-            className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 bg-stone-900/30 backdrop-blur-lg z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
             onClick={onClose}
         >
+            {/* Beige gradient across the platform's own surface tones — cream at the
+                top falling to the deeper beige the containers use — so the dialog
+                is made of the same material as the page behind it. */}
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-label={t('connect.pro.modal_title')}
-                className="bg-white rounded-[24px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full max-h-[90dvh] overflow-y-auto p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative"
+                // Scrolls when the content is taller than the viewport, but without
+                // painting a scrollbar — the native one on Windows is a chunky
+                // stepper track that cuts across the rounded corner.
+                className="bg-gradient-to-b from-[#FAF9F5] via-[#F6F6F0] to-[#EBEBE3] rounded-[24px] border border-stone-200/70 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full max-h-[90dvh] overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
                     onClick={onClose}
                     aria-label={t('common.close')}
-                    className="absolute top-5 right-5 w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200/70 flex items-center justify-center transition-colors text-stone-600 active:scale-95"
+                    className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/70 hover:bg-white flex items-center justify-center transition-colors text-stone-600 hover:text-stone-900 active:scale-95"
                 >
                     <X className="w-4 h-4" />
                 </button>
@@ -98,7 +104,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                 </div>
 
                 {/* Billing period — yearly first, same default as the onboarding paywall */}
-                <div className="inline-flex items-center gap-1 rounded-full border border-stone-200/80 bg-[#F6F6F0] p-1.5 self-start">
+                <div className="inline-flex items-center gap-1 rounded-full border border-stone-200/70 bg-white/50 p-1.5 self-start">
                     {(['yearly', 'monthly'] as BillingPeriod[]).map((period) => (
                         <button
                             key={period}

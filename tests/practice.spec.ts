@@ -12,6 +12,8 @@ test.describe('Practice Page', () => {
         displayName: 'Test Artist',
       }));
       window.localStorage.setItem('mep-welcome-video-seen', 'true');
+      // Pre-dismiss the first-run exercise demo; it has its own test below.
+      window.localStorage.setItem('mep-structure-demo-seen', 'true');
     });
   });
 
@@ -62,38 +64,30 @@ test.describe('Practice Page', () => {
     await expect(menu.getByText(/^Coming /)).toHaveCount(13);
   });
 
-  test('starting a practice lands on the song chooser, and back returns to the card', async ({ page }) => {
+  test('starting a practice lands straight in the exercise, with the library on the pill', async ({ page }) => {
     await page.goto('/platform/practice');
 
     await page.getByRole('button', { name: 'Start' }).click();
 
-    // Our songs only — the upload tile is hidden for now, and there is no
-    // confirm step: clicking a song is the choice.
-    await expect(page.getByText('Pick a song to practise with', { exact: false })).toBeVisible();
-    await expect(page.locator('[data-song-choice]')).toHaveCount(4);
-    await expect(page.getByRole('button', { name: 'Next', exact: true })).toHaveCount(0);
+    // No pick-a-song pre-step: the first playable song is already on
+    await expect(page.locator('[data-song-timeline]')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('[data-song-pill]')).toContainText('Do You Love');
 
-    // Songs with a hand-authored structure are playable; Another Ride has none
-    // yet, so it sits locked behind "Coming soon".
-    await expect(page.locator('[data-song-locked]')).toHaveCount(1);
-    await expect(page.locator('[data-song-choice="do-you-love"]')).toBeEnabled();
-    await expect(page.locator('[data-song-choice="closer"]')).toBeEnabled();
-    await expect(page.locator('[data-song-choice="beautiful-day"]')).toBeEnabled();
-    await expect(page.locator('[data-song-choice="another-ride"]')).toBeDisabled();
-    // Scoped to the chooser on purpose. PracticeTab renders its own "Coming
-    // soon" for a locked practice on the same screen, so an unscoped match
-    // counts that too and the number moves whenever the roadmap does.
-    await expect(page.locator('[data-song-choice] >> text=Coming soon')).toHaveCount(1);
+    // The pill's dropdown is the library now: every song listed, with credits,
+    // and Another Ride locked behind "Coming soon" until it has a structure map.
+    await page.locator('[data-song-pill] > button').click();
+    const menu = page.locator('[data-song-menu]');
+    await expect(menu.locator('[data-song-option]')).toHaveCount(4);
+    await expect(menu.getByText('Lounge Club', { exact: true })).toHaveCount(2);
+    await expect(menu.getByText('Lounge Club feat. Lucas Kay')).toBeVisible();
+    await expect(menu.locator('[data-song-option="closer"]')).toBeEnabled();
+    await expect(menu.locator('[data-song-option="another-ride"]')).toBeDisabled();
+    await expect(menu.getByText('Coming soon')).toHaveCount(1);
 
-    // Credits, and proof every cover actually resolves — the song folders are
-    // named "<Title> - <Artist>", so recrediting one silently 404s its assets.
-    await expect(page.getByText('Lounge Club', { exact: true })).toHaveCount(2);
-    await expect(page.getByText('Lounge Club feat. Lucas Kay')).toBeVisible();
-    const covers = await page.locator('[data-song-choice] img').evaluateAll(
-      els => els.map(e => (e as HTMLImageElement).naturalWidth)
-    );
-    expect(covers.length).toBe(3);
-    expect(covers.every(w => w > 0)).toBe(true);
+    // Switching happens in place — no step in between
+    await menu.locator('[data-song-option="closer"]').click();
+    await expect(page.locator('[data-song-pill]')).toContainText('Closer');
+    await expect(page.locator('[data-song-timeline]')).toBeVisible({ timeout: 20000 });
 
     await page.locator('main').getByRole('button', { name: 'Back', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
@@ -102,7 +96,6 @@ test.describe('Practice Page', () => {
   test('draws the authored timeline for a chosen song', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
-    await page.locator('[data-song-choice="do-you-love"]').click();
 
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
@@ -134,7 +127,8 @@ test.describe('Practice Page', () => {
   test.skip('a song without a hand-made map gets analysed into a timeline', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
-    await page.locator('[data-song-choice="another-ride"]').click();
+    await page.locator('[data-song-pill] > button').click();
+    await page.locator('[data-song-option="another-ride"]').click();
 
     // The analyser announces itself, then delivers a real section map.
     await expect(page.getByText('Listening through the song…')).toBeVisible({ timeout: 20000 });
@@ -152,7 +146,6 @@ test.describe('Practice Page', () => {
   test('naming a part: right answer turns green, wrong one shakes', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
-    await page.locator('[data-song-choice="do-you-love"]').click();
 
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
@@ -202,7 +195,6 @@ test.describe('Practice Page', () => {
 
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
-    await page.locator('[data-song-choice="do-you-love"]').click();
 
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
@@ -221,7 +213,6 @@ test.describe('Practice Page', () => {
   test('the playhead really moves on screen, not just in its style attribute', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
-    await page.locator('[data-song-choice="do-you-love"]').click();
 
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
@@ -249,7 +240,6 @@ test.describe('Practice Page', () => {
   test('arming a band lights that one band, not every band of its kind', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
-    await page.locator('[data-song-choice="do-you-love"]').click();
 
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
@@ -275,7 +265,6 @@ test.describe('Practice Page', () => {
   test('the playing part is highlighted, and follows the marker mid-scrub', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
-    await page.locator('[data-song-choice="do-you-love"]').click();
 
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
@@ -290,14 +279,18 @@ test.describe('Practice Page', () => {
     // itself after a few seconds when its audio output is unavailable, which
     // would make a wall-clock wait here depend on the machine's sound device.
     const track = timeline.locator('div.touch-none');
-    const box = (await track.boundingBox())!;
     await timeline.getByRole('button', { name: 'Play' }).click();
-    // 15% of a 2:48 song is ~0:25, inside verse 1 (7–41s)
-    await page.mouse.click(box.x + box.width * 0.15, box.y + 4);
+    // 15% of a 2:48 song is ~0:25, inside verse 1 (7–41s). Clicked through the
+    // locator, not page.mouse at pre-measured coordinates — the layout can still
+    // settle (font swap) after measuring, and stale coordinates land on the bar.
+    const width = (await track.boundingBox())!.width;
+    await track.click({ position: { x: width * 0.15, y: 4 } });
     await expect(playing).toContainText('I want to spend a day with you');
     await expect(playing).toHaveCount(1);
 
-    // Dragging the marker moves the highlight during the drag, not on release
+    // Dragging the marker moves the highlight during the drag, not on release.
+    // Raw mouse events are unavoidable here, so measure right before using it.
+    const box = (await track.boundingBox())!;
     await page.mouse.move(box.x + 4, box.y + 4);
     await page.mouse.down();
     // 75% of a 2:48 song lands at ~2:06, inside the bridge (123–142s)
@@ -305,6 +298,28 @@ test.describe('Practice Page', () => {
     await expect(playing).toContainText('Do you love Do you love Do you love');
     await expect(playing).toHaveCount(1);
     await page.mouse.up();
+  });
+
+  test('a first-timer gets the one-step demo, once', async ({ page }) => {
+    // Undo the beforeEach pre-dismissal: this test IS the first run
+    await page.evaluate(() => window.localStorage.removeItem('mep-structure-demo-seen'));
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+
+    // The how-to sits over the exercise: title, description, scene, one button
+    const demo = page.locator('[data-structure-demo]');
+    await expect(demo).toBeVisible({ timeout: 20000 });
+    await expect(demo.getByText('How it works')).toBeVisible();
+    await expect(demo.getByText('Pick a part on the timeline', { exact: false })).toBeVisible();
+    await expect(demo.locator('.demo-scene')).toBeVisible();
+
+    // "Got it" dismisses it and it stays dismissed
+    await demo.getByRole('button', { name: 'Got it' }).click();
+    await expect(demo).toHaveCount(0);
+    await page.reload();
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await expect(page.locator('[data-song-timeline]')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('[data-structure-demo]')).toHaveCount(0);
   });
 
   test('the card play button opens the intro video', async ({ page }) => {

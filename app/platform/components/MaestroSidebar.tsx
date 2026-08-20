@@ -129,7 +129,16 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                 className={`fixed top-16 bottom-0 left-0 md:h-viewport md:sticky md:top-0 z-50 flex flex-col pt-8 pb-[calc(2rem+env(safe-area-inset-bottom))] select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-y-auto no-scrollbar overscroll-contain md:overflow-visible transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
                     isMobileOpen ? 'translate-x-0' : '-translate-x-[110%]'
                 } md:translate-x-0 ${
-                    isCollapsed && !isMobile ? 'w-[100px] pl-[10px] pr-0' : 'w-[260px] px-6'
+                    // The rail scales with the viewport instead of holding one fixed
+                    // width: below xl every pixel it keeps is taken straight from the
+                    // content beside it, which is where the priority sections live.
+                    // The mobile drawer is exempt (it overlays rather than competes)
+                    // and keeps the full 260px.
+                    isCollapsed && !isMobile
+                        ? 'w-[76px] lg:w-[88px] xl:w-[100px] pl-[8px] xl:pl-[10px] pr-0'
+                        : isMobile
+                            ? 'w-[260px] px-6'
+                            : 'w-[190px] lg:w-[220px] xl:w-[260px] px-4 lg:px-5 xl:px-6'
                 }`}
             >
                 {/* Collapsed layout: full-height flex centered */}
@@ -264,9 +273,9 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                                 key={item.label}
                                                 aria-disabled="true"
                                                 data-tour={tourAnchor(item.href)}
-                                                className="flex items-center gap-3 px-4 py-3 rounded-[12px] text-stone-500 select-none"
+                                                className="flex items-center gap-2 xl:gap-3 px-3 xl:px-4 py-2.5 xl:py-3 rounded-[12px] text-stone-500 select-none"
                                             >
-                                                <span className="font-sans text-[22px] font-medium tracking-wide whitespace-nowrap">
+                                                <span className="font-sans text-[18px] lg:text-[20px] xl:text-[22px] font-medium tracking-wide whitespace-nowrap">
                                                     {item.label}
                                                 </span>
                                                 {/* Same pill treatment as the locked Practice page itself */}
@@ -280,14 +289,14 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                     return (
                                         <Link key={item.label} href={item.href} onClick={onClose} data-tour={tourAnchor(item.href)}>
                                             <div className={`
-                                                flex items-center gap-4 px-4 py-3 rounded-[12px] transition-all group cursor-pointer
+                                                flex items-center gap-4 px-3 xl:px-4 py-2.5 xl:py-3 rounded-[12px] transition-all group cursor-pointer
                                                 ${isActive
                                                     ? 'bg-white text-stone-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)] border border-stone-200/40'
                                                     : 'text-stone-500 hover:text-stone-800 hover:bg-white/30'
                                                 }
                                             `}>
                                                 <div className="flex items-center gap-2 select-none">
-                                                    <span className="font-sans text-[22px] font-medium tracking-wide whitespace-nowrap">
+                                                    <span className="font-sans text-[18px] lg:text-[20px] xl:text-[22px] font-medium tracking-wide whitespace-nowrap">
                                                         {item.label}
                                                     </span>
                                                 </div>
@@ -310,8 +319,12 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                                 if (item.onClick) item.onClick();
                                                 if (onClose) onClose();
                                             }}
-                                            className={item.isBold 
-                                                ? `font-sans text-[13px] text-stone-655 hover:text-stone-950 transition-colors text-left font-bold mt-2 cursor-pointer`
+                                            className={item.isBold
+                                                // py-2.5/-my-1 gives Log out a ~40px tap height without
+                                                // moving it: the padding grows the hit area, the negative
+                                                // margin gives the extra height back to the layout. It was
+                                                // a 20px-tall text link — half the 44px touch guideline.
+                                                ? `font-sans text-[13px] text-stone-655 hover:text-stone-950 transition-colors text-left font-bold mt-2 py-2.5 -my-1 cursor-pointer`
                                                 : `flex items-center gap-2 font-sans text-[13px] bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-700 hover:text-stone-950 transition-all text-left rounded-[10px] px-3.5 py-2 font-medium group/btn cursor-pointer`
                                             }
                                         >

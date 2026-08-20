@@ -594,7 +594,11 @@ function PlatformLayoutInner({
                 ${isProfile ? (isProfileExiting ? 'profile-view-exit' : 'profile-view-enter') : ''}
                 ${pathname?.startsWith('/platform/create')
                     ? 'p-0 xl:p-8'
-                    : 'p-4 md:p-8'
+                    // Connect drops its panel below md and brings its own edge gutter,
+                    // so this outer inset would just stack a second margin outside a
+                    // frame that isn't there. The other tabs keep their panel, which
+                    // needs this inset to sit off the screen edge.
+                    : pathname?.startsWith('/platform/connect') ? 'p-0 md:p-8' : 'p-4 md:p-8'
                 }
             `}>
                 {/* The mobile laptop-hint banner is mounted once in the root layout
@@ -697,7 +701,15 @@ function PlatformLayoutInner({
                     top strip and lines its middle up with the sidebar logo (which sits at
                     pt-8 + half its ~30px height ≈ the same 47px centerline). At xl the
                     parent's p-8 returns and the original spacing takes back over. */}
-                <header className="hidden md:flex items-center justify-between px-4 xl:px-8 pt-6 xl:pt-0 pb-6 text-stone-600/70 font-sans text-xs tracking-wider z-40">
+                {/* Top strip: the Mind Power + profile pills line up with the sidebar
+                    logo across from them. How much top padding that needs depends on
+                    what the parent already contributed — Create runs full-bleed below xl
+                    (parent p-0, so the header supplies its own pt-6), every other route
+                    keeps the parent's p-4/p-8, and adding pt-6 on top of that pushed the
+                    pills ~27px below the logo's centreline. */}
+                <header className={`hidden md:flex items-center justify-between px-4 xl:px-8 pb-6 text-stone-600/70 font-sans text-xs tracking-wider z-40 ${
+                    pathname?.startsWith('/platform/create') ? 'pt-6 xl:pt-0' : 'pt-0'
+                }`}>
                     {/* Back button on Profile (which has no sidebar); plain spacer elsewhere */}
                     {isProfile ? (
                         <button
@@ -783,7 +795,21 @@ function PlatformLayoutInner({
                         // overflow-x-hidden: setting only overflow-y makes overflow-x compute
                         // to auto, so page transitions that translate sideways (the profile's
                         // slide-out to the guide) would flash a horizontal scrollbar.
-                        : 'overflow-y-auto overflow-x-hidden bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] p-4 md:p-8 shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)]'
+                        // p-8 only from lg: through the tablet range the sidebar has
+                        // already taken 260px, so a 32px inset on top of each page's
+                        // own padding squeezes the content that's left.
+                        // Connect runs tighter still, and below md loses the panel's
+                        // chrome entirely. The tinted ground, rounding and inset shadow
+                        // are a desktop device for separating content from the page;
+                        // Connect's content is already a stack of full-width surfaces
+                        // that read as panels, so on a phone the frame only ate
+                        // horizontal room. Connect brings its own edge gutter — the
+                        // other tabs don't, so they keep the panel at every width.
+                        : `overflow-y-auto overflow-x-hidden ${
+                            pathname?.startsWith('/platform/connect')
+                                ? 'bg-transparent md:bg-[#F0F0EA] rounded-none md:rounded-[32px] shadow-none md:shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)] p-0 md:p-3 lg:p-4'
+                                : 'bg-[#F0F0EA] rounded-[24px] md:rounded-[32px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.015)] p-4 lg:p-8'
+                        }`
                     }
                 `}>
                     {/* Announcements published in the admin console. Above the
@@ -796,7 +822,10 @@ function PlatformLayoutInner({
                 </div>
             </div>
 
-            <PlatformOnboarding />
+            {/* The guide drives the mobile drawer: open for the steps that point at
+                nav items inside it, closed for every other step so it isn't left
+                sitting over the canvas behind the tour card. */}
+            <PlatformOnboarding onRequestMobileSidebar={setIsMobileMenuOpen} />
         </div>
     );
 }

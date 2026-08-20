@@ -36,7 +36,19 @@ const WELCOME_VIDEO_POSTER =
 /** The guide runs on the Create canvas, where every highlighted feature lives. */
 const GUIDE_ROUTE = '/platform/create';
 
-export default function PlatformOnboarding() {
+interface PlatformOnboardingProps {
+    /**
+     * Opens/closes the mobile nav drawer. The tour drives it: steps that point at
+     * a sidebar item need the drawer open to have anything to spotlight, and every
+     * other step needs it shut so it isn't sitting over the canvas behind the card.
+     */
+    onRequestMobileSidebar?: (open: boolean) => void;
+}
+
+/** Tour targets that live inside the nav drawer, so it must be open to see them. */
+const SIDEBAR_TOUR_TARGETS = ['nav-create', 'nav-learn', 'nav-practice', 'nav-connect'];
+
+export default function PlatformOnboarding({ onRequestMobileSidebar }: PlatformOnboardingProps) {
     const pathname = usePathname();
     const router = useRouter();
     const { t } = useLanguage();
@@ -173,6 +185,11 @@ export default function PlatformOnboarding() {
             closeLabel={t('common.close')}
             closeDemoLabel={t('onboarding_tour.close_demo')}
             autoPlayVideo={isReplay}
+            onStepTargetChange={(target) => {
+                if (!onRequestMobileSidebar) return;
+                const needsSidebar = !!target && SIDEBAR_TOUR_TARGETS.some(name => target.includes(name));
+                onRequestMobileSidebar(needsSidebar);
+            }}
         />
     );
 }

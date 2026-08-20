@@ -76,6 +76,7 @@
   },
   "canvas": {
     "tuner": "Guitar tuner",
+    "chords": "Chords",
     "tap_tempo": "Tap tempo",
     "inspiration": "Inspiration",
     "rhyme_lexicon": "Rhyme Lexicon",
@@ -419,10 +420,10 @@
   "connect": {
     "connect_with_songwriters": "Connect with Songwriters",
     "pro": {
-      "title": "Connect with PROs",
+      "title": "Songwriter Room",
       "max_badge": "Max",
-      "locked_desc": "Available on Max. Upgrade to work directly with professional songwriters.",
-      "unlocked_desc": "We're onboarding professional songwriters now. You'll be first to know.",
+      "locked_desc": "Upgrade to ask your questions and work directly with professional songwriters.",
+      "unlocked_desc": "Ask your questions and work directly with professional songwriters.",
       "modal_title": "Connect with professional songwriters",
       "modal_subtitle": "Direct access to pro songwriters is part of the Max plan.",
       "modal_cta": "Upgrade to Max"
@@ -802,7 +803,9 @@
     "analyzing_desc": "We are mapping its structure — intro, verses, choruses and everything between. A few seconds.",
     "coming_on": "Coming {date}",
     "coming_in_days": "Coming in {days} days",
-    "coming_in_one_day": "Coming in 1 day"
+    "coming_in_one_day": "Coming in 1 day",
+    "demo_title": "How it works",
+    "demo_desc": "Pick a part on the timeline, then click the lyrics it belongs to. Match them right and both turn green."
   },
   "curriculum": {
     "foundation": "Foundation",

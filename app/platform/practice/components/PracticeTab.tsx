@@ -3,7 +3,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import PracticeCard from './PracticeCard';
 import PracticeVideoModal from './PracticeVideoModal';
-import SongChooser, { type ChosenSong } from './SongChooser';
+// SongChooser itself is retired — Start lands straight in the exercise — but its
+// ChosenSong shape still names what is being practised, uploads included.
+import { type ChosenSong } from './SongChooser';
+import SongPill from './SongPill';
+import { PRACTICE_SONGS } from '../data/practiceSongs';
 import StructurePlayer from './StructurePlayer';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
 import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft } from 'lucide-react';
@@ -128,11 +132,21 @@ export default function PracticeTab() {
     };
 
     // Stop playback when moving between practices or back to the overview card,
-    // and return to the song chooser for the next run through.
+    // and forget the song choice so the next run starts on the default again.
     useEffect(() => {
         setIsPlaying(false);
         setChosenSong(null);
     }, [selectedPractice, openedPractice]);
+
+    /*
+     * There is no pick-a-song pre-step: Start lands straight in the exercise on
+     * the first playable song, and the song pill's dropdown does the switching.
+     */
+    const activeSong: ChosenSong | null = chosenSong
+        ?? (() => {
+            const first = PRACTICE_SONGS.find(s => s.available);
+            return first ? { source: 'library' as const, song: first } : null;
+        })();
 
     // Handle cycling practices
     const handlePrevPractice = () => {
@@ -334,34 +348,26 @@ export default function PracticeTab() {
                             transition={{ duration: 0.2, ease: "easeInOut" }}
                             className="w-full"
                         >
-                            {/* Pre-step: pick a song, then the practice on it */}
-                            {!chosenSong ? (
-                                <SongChooser onNext={(choice) => setChosenSong(choice)} />
-                            ) : (
+                            {activeSong && (
                                 <StructurePlayer
-                                    key={chosenSong.source === 'library' ? chosenSong.song.id : chosenSong.audioUrl}
-                                    songId={chosenSong.source === 'library' ? chosenSong.song.id : 'upload'}
-                                    audioUrl={chosenSong.source === 'library' ? chosenSong.song.audioUrl : chosenSong.audioUrl}
-                                    sections={chosenSong.source === 'library' ? chosenSong.song.sections : undefined}
+                                    key={activeSong.source === 'library' ? activeSong.song.id : activeSong.audioUrl}
+                                    songId={activeSong.source === 'library' ? activeSong.song.id : 'upload'}
+                                    audioUrl={activeSong.source === 'library' ? activeSong.song.audioUrl : activeSong.audioUrl}
+                                    sections={activeSong.source === 'library' ? activeSong.song.sections : undefined}
                                     isPlaying={isPlaying}
                                     onTogglePlay={handleTogglePlay}
                                     headerSlot={
-                                        /* The song pill doubles as the way back to choosing */
-                                        <button
-                                            onClick={() => { setIsPlaying(false); setChosenSong(null); }}
-                                            aria-label={t('practice.change_song')}
-                                            className="flex items-center gap-3 pl-5 pr-4 py-2.5 rounded-full bg-white border border-stone-200 hover:border-stone-400 transition-colors max-w-full"
-                                        >
-                                            <span className="text-sm font-sans font-medium text-stone-900 truncate">
-                                                {chosenSong.source === 'library' ? chosenSong.song.title : chosenSong.title}
-                                            </span>
-                                            {chosenSong.source === 'library' && (
-                                                <span className="text-sm font-sans text-stone-500 truncate hidden sm:inline">
-                                                    {chosenSong.song.artist}
-                                                </span>
-                                            )}
-                                            <ChevronDown size={16} className="stroke-[2] text-stone-400 shrink-0" />
-                                        </button>
+                                        /* The song pill opens the library in place — switching
+                                           songs never leaves the exercise */
+                                        <SongPill
+                                            title={activeSong.source === 'library' ? activeSong.song.title : activeSong.title}
+                                            artist={activeSong.source === 'library' ? activeSong.song.artist : undefined}
+                                            currentId={activeSong.source === 'library' ? activeSong.song.id : undefined}
+                                            onSelect={(song) => {
+                                                setIsPlaying(false);
+                                                setChosenSong({ source: 'library', song });
+                                            }}
+                                        />
                                     }
                                 />
                             )}

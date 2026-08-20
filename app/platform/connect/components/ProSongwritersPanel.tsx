@@ -6,16 +6,14 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useUserPlan } from '@/lib/useUserPlan';
 import MaxUpgradeModal from '@/app/platform/components/MaxUpgradeModal';
 
-// Set as a CSS background rather than an <img> so a missing file degrades to the
-// dark panel colour underneath instead of a broken-image icon.
-const PRO_IMAGE = '/assets/pro_songwriters.jpg';
-
 /**
- * The Max-gated half of the "Connect with Songwriters" row.
+ * The Writers' Room banner: the Max-gated discussion room where members bring
+ * their questions to professional songwriters. Full-width above the Connect
+ * page's content at every breakpoint — a quiet greige gradient in the
+ * platform's own palette, not a photograph.
  *
- * Locked is the state almost everyone sees, so it is the one that carries the
- * design: the photograph, the pitch and the upgrade path. Max subscribers get the
- * same panel without the lock.
+ * Locked is the state almost everyone sees, so it carries the pitch and the
+ * upgrade path. Max subscribers get the same banner without the lock.
  */
 export default function ProSongwritersPanel() {
     const { t } = useLanguage();
@@ -30,44 +28,32 @@ export default function ProSongwritersPanel() {
                 type="button"
                 onClick={() => { if (locked) setShowUpgrade(true); }}
                 aria-haspopup={locked ? 'dialog' : undefined}
-                // rounded-[24px] matches the songwriters container it now sits beside,
-                // rather than the 22px of the cards it used to sit among.
-                className="group relative w-full min-h-[213px] h-full rounded-[24px] overflow-hidden bg-[#1c1b1a] text-left select-none transition-all duration-300 hover:shadow-[0_8px_28px_rgba(0,0,0,0.14)] active:scale-[0.995] cursor-pointer"
+                className="pro-banner group relative w-full rounded-[24px] overflow-hidden bg-gradient-to-br from-[#DFDED6] via-[#D2D1C5] to-[#C2C1B2] text-left select-none transition-all duration-300 active:scale-[0.995] cursor-pointer"
             >
-                {/* Photograph */}
-                <div
-                    className="absolute inset-0 bg-cover bg-center transition-transform duration-[900ms] ease-[cubic-bezier(0.25,1,0.5,1)] group-hover:scale-105"
-                    style={{ backgroundImage: `url('${PRO_IMAGE}')` }}
-                    aria-hidden="true"
-                />
-                {/* Legibility scrim — the photo is already dark, this just guarantees
-                    the copy holds up against the brighter upper-left corner. */}
-                <div
-                    className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/25"
-                    aria-hidden="true"
-                />
+                {/* A band of light crossing the panel every so often. Purely
+                    decorative and never under the pointer, so it can't swallow
+                    a click on the banner itself. */}
+                <span aria-hidden="true" className="pro-shine pointer-events-none absolute inset-0" />
 
-                <div className="relative z-10 h-full flex flex-col justify-between p-5">
+                <div className="relative flex flex-col p-6 md:p-8">
                     <div className="flex items-start justify-between gap-3">
-                        {/* Sized to match "Connect with Songwriters" on the other half —
-                            these are peer titles across the split, not a card label. */}
-                        <span className="text-[20px] font-sans font-medium text-white tracking-tight leading-snug">
-                            {t('connect.pro.title')}
-                        </span>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="text-2xl md:text-[26px] font-sans font-medium text-stone-900 tracking-tight leading-snug">
+                                {t('connect.pro.title')}
+                            </span>
+                            <ArrowUpRight className="w-5 h-5 text-stone-600 group-hover:text-stone-900 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 shrink-0" />
+                        </div>
                         {locked && !loading && (
-                            <span className="flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur-sm px-2.5 py-1 text-[11px] font-semibold text-white/90 shrink-0">
+                            <span className="flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[12px] font-semibold text-stone-900 shadow-sm shrink-0">
                                 <Lock className="w-3 h-3" />
                                 {t('connect.pro.max_badge')}
                             </span>
                         )}
                     </div>
 
-                    <div className="flex items-end justify-between gap-3">
-                        <p className="text-[13.5px] font-sans font-normal text-white/70 leading-snug max-w-[85%]">
-                            {locked ? t('connect.pro.locked_desc') : t('connect.pro.unlocked_desc')}
-                        </p>
-                        <ArrowUpRight className="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 shrink-0" />
-                    </div>
+                    <p className="mt-2.5 text-[15px] font-sans font-normal text-stone-600 leading-snug max-w-2xl">
+                        {locked ? t('connect.pro.locked_desc') : t('connect.pro.unlocked_desc')}
+                    </p>
                 </div>
             </button>
 
@@ -76,6 +62,42 @@ export default function ProSongwritersPanel() {
                 onClose={() => setShowUpgrade(false)}
                 reason={t('connect.pro.modal_subtitle')}
             />
+
+            <style jsx>{`
+                /*
+                 * The sweep is 1.4s of an 9s cycle, so the banner catches the
+                 * light now and then rather than shimmering constantly. Kept to
+                 * transform, which the compositor can carry on its own — the
+                 * banner sits above a scrolling feed.
+                 */
+                .pro-shine {
+                    /* Alpha is high because the panel underneath is already light:
+                       white on greige has little headroom, so a timid band reads
+                       as nothing at all. Measured, this lifts the peak ~45 RGB. */
+                    background: linear-gradient(
+                        105deg,
+                        transparent 38%,
+                        rgba(255, 255, 255, 0.30) 46%,
+                        rgba(255, 255, 255, 0.95) 50%,
+                        rgba(255, 255, 255, 0.30) 54%,
+                        transparent 62%
+                    );
+                    transform: translateX(-100%);
+                    animation: pro-shine 9s ease-in-out infinite;
+                    will-change: transform;
+                }
+                @keyframes pro-shine {
+                    0%              { transform: translateX(-100%); }
+                    15.5%           { transform: translateX(100%); }
+                    15.6%, 100%     { transform: translateX(100%); }
+                }
+
+                /* A banner that flashes on a loop is exactly what this setting
+                   is for — hold it still instead. */
+                @media (prefers-reduced-motion: reduce) {
+                    .pro-shine { animation: none; opacity: 0; }
+                }
+            `}</style>
         </>
     );
 }

@@ -24,8 +24,13 @@ test.describe('Connect Page (Community Feed)', () => {
     // Verify presence of "Connect with Songwriters" section
     await expect(page.locator('text=Connect with Songwriters')).toBeVisible();
 
-    // Verify presence of the Max-gated PRO panel beside it
-    await expect(page.locator('text=Connect with PROs')).toBeVisible();
+    // The Max-gated Writers' Room banner sits above it, full width at every
+    // breakpoint — it is the pitch, so nothing is ordered ahead of it.
+    const room = page.getByText('Songwriter Room');
+    await expect(room).toBeVisible();
+    const roomBox = (await room.locator('xpath=ancestor::button[1]').boundingBox())!;
+    const listBox = (await page.locator('text=Connect with Songwriters').boundingBox())!;
+    expect(roomBox.y).toBeLessThan(listBox.y);
 
     // Verify presence of the "Recent songs" section and its create button, which
     // replaced the old "Create your song" banner at the top of the page.

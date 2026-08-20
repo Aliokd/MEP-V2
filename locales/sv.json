@@ -76,6 +76,7 @@
   },
   "canvas": {
     "tuner": "Stämapparat",
+    "chords": "Ackord",
     "tap_tempo": "Hitta tempo",
     "inspiration": "Inspiration",
     "rhyme_lexicon": "Rimlexikon",
@@ -419,10 +420,10 @@
   "connect": {
     "connect_with_songwriters": "Kom i kontakt med låtskrivare",
     "pro": {
-      "title": "Kom i kontakt med proffsen",
+      "title": "Låtskrivarrummet",
       "max_badge": "Max",
-      "locked_desc": "Ingår i Max. Uppgradera för att jobba direkt med professionella låtskrivare.",
-      "unlocked_desc": "Vi tar in professionella låtskrivare nu. Du får veta först.",
+      "locked_desc": "Uppgradera för att ställa dina frågor och jobba direkt med professionella låtskrivare.",
+      "unlocked_desc": "Ställ dina frågor och jobba direkt med professionella låtskrivare.",
       "modal_title": "Kom i kontakt med professionella låtskrivare",
       "modal_subtitle": "Direktkontakt med professionella låtskrivare ingår i Max.",
       "modal_cta": "Uppgradera till Max"
@@ -802,7 +803,9 @@
     "analyzing_desc": "Vi kartlägger strukturen — intro, verser, refränger och allt däremellan. Några sekunder.",
     "coming_on": "Kommer {date}",
     "coming_in_days": "Kommer om {days} dagar",
-    "coming_in_one_day": "Kommer om 1 dag"
+    "coming_in_one_day": "Kommer om 1 dag",
+    "demo_title": "Så fungerar det",
+    "demo_desc": "Välj en del på tidslinjen och klicka sedan på texten den hör till. Rätt par blir gröna."
   },
   "curriculum": {
     "foundation": "Grund",

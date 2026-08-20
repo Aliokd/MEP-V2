@@ -1248,13 +1248,15 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
 // ==========================================
 function ConnectSkeleton() {
   return (
-    <div className="w-full max-w-[1000px] mx-auto py-4 px-4 font-sans mb-12 animate-pulse select-none">
-      {/* 1. Connect row — songwriters box and PRO banner as peers, matching the
-             loaded layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8 md:items-stretch">
-        <div className="min-w-0 bg-[#F6F6F0] border border-stone-200/50 rounded-[24px] py-6 px-0">
-          <div className="h-5 w-56 bg-stone-300/30 rounded-full mb-5 mx-6" />
-          <div className="flex gap-4 overflow-hidden px-6">
+    <div className="w-full max-w-[1000px] mx-auto py-3 px-4 sm:py-4 font-sans mb-12 animate-pulse select-none">
+      {/* 1. Connect row — one stack at every breakpoint, mirroring the loaded
+             layout: the PRO banner on top, songwriters sitting directly on the
+             page below it with no container of their own. */}
+      <div className="flex flex-col gap-8 mb-8">
+        <div className="min-h-[213px] rounded-[24px] bg-stone-300/25" />
+        <div className="min-w-0">
+          <div className="h-5 w-56 bg-stone-300/30 rounded-full mb-5" />
+          <div className="flex gap-4 overflow-hidden">
             {[...Array(3)].map((_, i) => (
               <div
                 key={i}
@@ -1265,9 +1267,6 @@ function ConnectSkeleton() {
               </div>
             ))}
           </div>
-        </div>
-        <div className="min-w-0 flex">
-          <div className="flex-1 min-h-[213px] rounded-[24px] bg-stone-300/25" />
         </div>
       </div>
 
@@ -1990,14 +1989,16 @@ export default function ConnectTab() {
   if (isLoadingPosts) return <ConnectSkeleton />;
 
   return (
-    <div className="w-full max-w-[1000px] mx-auto py-4 px-4 font-sans mb-12">
-      
-      {/* 1. Connect row — two peers side by side, not one box holding both: the
-             songwriters container on the left, the PRO banner standing on the page
-             background on the right. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8 select-none md:items-stretch">
-        <div className="min-w-0 bg-[#F6F6F0] border border-stone-200/50 rounded-[24px] py-6 px-0">
-        <h3 className="text-[20px] font-sans font-medium tracking-tight text-stone-850 mb-5 px-6">
+    <div className="w-full max-w-[1000px] mx-auto py-3 px-4 sm:py-4 font-sans mb-12">
+
+      {/* 1. The Writers' Room banner on top at every breakpoint — it's the pitch —
+             then the songwriters sitting directly on the page below it. One stack,
+             no side-by-side split to manage across breakpoints any more. */}
+      <div className="flex flex-col gap-8 mb-8 select-none">
+        <ProSongwritersPanel />
+
+        <div className="min-w-0">
+        <h3 className="text-[20px] font-sans font-medium tracking-tight text-stone-850 mb-5">
           {t('connect.connect_with_songwriters')}
         </h3>
         <div
@@ -2006,7 +2007,7 @@ export default function ConnectTab() {
           onMouseMove={handleSongwritersMouseMove}
           onMouseUp={handleSongwritersMouseUpOrLeave}
           onMouseLeave={handleSongwritersMouseUpOrLeave}
-          className={`flex gap-4 overflow-x-auto pb-1 px-6 scroll-px-6 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+          className={`flex gap-4 overflow-x-auto pb-1 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
             isDraggingSongwriters ? 'cursor-grabbing select-none scroll-auto' : 'cursor-grab snap-x snap-mandatory scroll-smooth'
           }`}
         >
@@ -2072,14 +2073,6 @@ export default function ConnectTab() {
             );
           })}
         </div>
-        </div>
-
-        {/* Right half — PRO songwriters, Max tier. No section heading and no light
-            container: the banner is its own surface, sitting directly on the page
-            beside the songwriters box. `flex` lets it stretch to match that box's
-            height, which the grid has already equalised. */}
-        <div className="min-w-0 flex">
-          <ProSongwritersPanel />
         </div>
       </div>
 

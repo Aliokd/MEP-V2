@@ -45,6 +45,11 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     const [rawIndex, setIndex] = React.useState(0);
     // Where a pointer-drag across the card began, for swipe-to-navigate.
     const swipeStartY = React.useRef<number | null>(null);
+    /** Set while a drag that began inside the notes column is still scrolling it
+     *  rather than moving the card. Cleared at the moment the card takes over. */
+    const dragScroller = React.useRef<HTMLElement | null>(null);
+    /** Previous pointer Y, for scrolling the notes column by the frame delta. */
+    const lastPointerY = React.useRef(0);
     // How far the card has been dragged so far, so it follows the pointer.
     const [dragY, setDragY] = React.useState(0);
     const [isDragging, setIsDragging] = React.useState(false);
@@ -467,45 +472,87 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         >
                             <div
                                 /* Vertical swipe, matching the way cards move: down goes
-                                   forward, up goes back. Drags starting inside the notes
-                                   column are ignored — that area scrolls, and scrolling
-                                   it should not also flip the card. The card tracks the
-                                   pointer while dragging, with resistance so it never
-                                   runs away from the cursor. */
+                                   forward, up goes back. The whole card is a handle — the
+                                   text included. The card tracks the pointer while
+                                   dragging, with resistance so it never runs away from
+                                   the cursor. */
                                 onPointerDown={e => {
-                                    // Controls are excluded as well as the scrolling
-                                    // notes column. setPointerCapture below retargets
-                                    // every later pointer event — pointerup included —
-                                    // to this card, and a button whose pointerup lands
-                                    // somewhere else never gets a click. That is why
-                                    // the heart, the tick and Send to canvas did not
-                                    // respond to a press that started on them.
-                                    if ((e.target as HTMLElement)?.closest('button, a, input, textarea, [data-notes-scroller]')) {
+                                    const target = e.target as HTMLElement | null;
+                                    // Controls keep their own pointer behaviour.
+                                    // setPointerCapture below retargets every later
+                                    // pointer event — pointerup included — to this card,
+                                    // and a button whose pointerup lands somewhere else
+                                    // never gets a click. That is why the heart, the tick
+                                    // and Send to canvas did not respond to a press that
+                                    // started on them.
+                                    if (target?.closest('button, a, input, textarea')) {
                                         swipeStartY.current = null;
                                         return;
                                     }
+                                    // A drag may start on the text. The notes column
+                                    // scrolls, though, so when it has somewhere left to
+                                    // scroll the drag moves IT first and only hands over
+                                    // to the card at the end of its travel — the usual
+                                    // nested-scroll bargain. It is scrolled by hand
+                                    // because the card sets touch-action: none, which
+                                    // stops the browser doing it for us.
+                                    const scroller = target?.closest('[data-notes-scroller]') as HTMLElement | null;
+                                    dragScroller.current =
+                                        scroller && scroller.scrollHeight > scroller.clientHeight + 1
+                                            ? scroller
+                                            : null;
                                     swipeStartY.current = e.clientY;
+                                    lastPointerY.current = e.clientY;
                                     setIsDragging(true);
                                     e.currentTarget.setPointerCapture(e.pointerId);
                                 }}
                                 onPointerMove={e => {
                                     if (swipeStartY.current === null) return;
+                                    const scroller = dragScroller.current;
+
+                                    if (scroller) {
+                                        const dy = e.clientY - swipeStartY.current;
+                                        const atTop = scroller.scrollTop <= 0;
+                                        const atBottom =
+                                            scroller.scrollTop >= scroller.scrollHeight - scroller.clientHeight - 1;
+                                        // Dragging down reveals what is above it, so the
+                                        // card only takes over once there is nothing above
+                                        // left to reveal — and the mirror image going up.
+                                        const handOver = (dy > 0 && atTop) || (dy < 0 && atBottom);
+                                        if (!handOver) {
+                                            scroller.scrollTop -= e.clientY - lastPointerY.current;
+                                            lastPointerY.current = e.clientY;
+                                            return;
+                                        }
+                                        // Rebase onto the hand-over point, or the card
+                                        // would jump by however far the text just scrolled.
+                                        dragScroller.current = null;
+                                        swipeStartY.current = e.clientY;
+                                        lastPointerY.current = e.clientY;
+                                        return;
+                                    }
+
                                     const dy = e.clientY - swipeStartY.current;
                                     // Damped, and capped so the card stays on screen.
                                     setDragY(Math.max(-140, Math.min(140, dy * 0.55)));
                                 }}
                                 onPointerUp={e => {
                                     const start = swipeStartY.current;
+                                    // Still set means the gesture only ever scrolled the
+                                    // text, so it must not also flip the card.
+                                    const onlyScrolled = dragScroller.current !== null;
+                                    dragScroller.current = null;
                                     swipeStartY.current = null;
                                     setIsDragging(false);
                                     setDragY(0);
-                                    if (start === null) return;
+                                    if (start === null || onlyScrolled) return;
                                     const dy = e.clientY - start;
                                     if (dy >= SWIPE_THRESHOLD_PX) goNext();
                                     else if (dy <= -SWIPE_THRESHOLD_PX) goPrev();
                                 }}
                                 onPointerCancel={() => {
                                     swipeStartY.current = null;
+                                    dragScroller.current = null;
                                     setIsDragging(false);
                                     setDragY(0);
                                 }}

@@ -1984,7 +1984,7 @@ const PhraseRow = React.memo(function PhraseRow({
             ) : (
                 <div
                     className={`
-                        phrase-row-text text-[30px] md:text-[34px] lg:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap select-none py-[2px] px-4 rounded-[12px] transition-all duration-200 w-full border border-transparent
+                        phrase-row-text text-[30px] md:text-[34px] lg:text-[42px] font-normal text-stone-700 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap [overflow-wrap:anywhere] select-none py-[2px] px-4 rounded-[12px] transition-all duration-200 w-full border border-transparent
                         ${isLockedByRemote ? 'cursor-not-allowed border-dashed opacity-70' : 'cursor-grab active:cursor-grabbing hover:border-stone-200/50 hover:bg-stone-50/30 group/line'}
                         ${draggedPhraseId === phrase.id ? 'opacity-30' : ''}
                         ${isCommentTarget ? 'bg-stone-100/80 border-stone-300/80 shadow-[0_0_0_3px_rgba(120,113,108,0.07)]' : ''}
@@ -4019,6 +4019,10 @@ export default function CreatePage() {
     const [workspaceMenuMaxH, setWorkspaceMenuMaxH] = useState(420);
     const [showNewItemMenu, setShowNewItemMenu] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
+    // Set by the textarea's onFocus/onBlur but currently read nowhere: it used to
+    // position the mobile dock, which now keys off the measured keyboard instead
+    // (see keyboardInset). Kept as the hook for anything that legitimately needs
+    // focus rather than keyboard state.
     const [isFocused, setIsFocused] = useState(false);
     const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
     const [isDragOverRoot, setIsDragOverRoot] = useState(false);
@@ -4301,6 +4305,10 @@ export default function CreatePage() {
     // Suggestion mode states
     const [isEditing, setIsEditing] = useState(true);
     const [clickedWord, setClickedWord] = useState<string | null>(null);
+    // Which pane the word sheet shows on a phone. Desktop puts the chord panel and the
+    // word list side by side; there is no room for that on a phone, so the same three
+    // things become tabs instead.
+    const [mobileWordTab, setMobileWordTab] = useState<'rhyme' | 'synonym' | 'chords'>('rhyme');
     // A reading view: chord symbols off across the whole canvas. A per-user preference rather
     // than project data — it is about how this person wants to read the song, not about the
     // song — so it is kept in uid-scoped local storage (see bindLocalStateToAccount).
@@ -4396,6 +4404,17 @@ export default function CreatePage() {
     // appear to float mid-screen instead of sitting above the keyboard.
     const [visualViewportBottom, setVisualViewportBottom] = useState<number | null>(null);
 
+    // How much of the layout viewport the on-screen keyboard is covering, and whether
+    // that counts as "open". This is deliberately measured rather than inferred from
+    // focus: the two come apart in both directions. Android's back button dismisses
+    // the keyboard while the field keeps focus (a focus-driven toolbar would stay
+    // pinned to a keyboard that is no longer there), and focus can be set
+    // programmatically without ever raising one. The viewport is the ground truth.
+    const [keyboardInset, setKeyboardInset] = useState(0);
+    // 120px: comfortably above the ~50-100px the collapsing URL bar accounts for on
+    // mobile Safari and Chrome, and far below the ~260px+ of any real keyboard.
+    const isKeyboardOpen = keyboardInset > 120;
+
     useEffect(() => {
         if (typeof window === 'undefined' || !window.visualViewport) return;
 
@@ -4403,6 +4422,7 @@ export default function CreatePage() {
             const vv = window.visualViewport;
             if (vv) {
                 setVisualViewportBottom(vv.offsetTop + vv.height);
+                setKeyboardInset(Math.max(0, window.innerHeight - (vv.offsetTop + vv.height)));
             }
         };
 
@@ -6494,6 +6514,12 @@ export default function CreatePage() {
      *  right-click would otherwise do here. */
     const handleCanvasContextMenu = (e: React.MouseEvent) => {
         if (!selectedNoteId || !user || isCanvasPreview) return;
+        // Pointer-driven feature only. On a touch screen there is no right-click —
+        // a long press fires contextmenu instead, so every attempt to select text or
+        // just rest a finger on the canvas popped this composer open over the lyrics.
+        // The bubble also tracks the mouse, which a finger doesn't have, so it stuck
+        // wherever it opened. Desktop keeps it; touch gets its normal long-press.
+        if (typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches) return;
         const target = writingCanvasRef.current;
         if (!target) return;
         e.preventDefault();
@@ -11573,16 +11599,26 @@ export default function CreatePage() {
             let body: any = null;
             const headers: any = {};
             let fetchedBlob: Blob | null = null;
-            
-            try {
-                // Fetch audio via client or server proxy for reliable WAV transcoding
-                const fetchUrl = audioUrl.startsWith('blob:') ? audioUrl : `/api/download-audio?url=${encodeURIComponent(audioUrl)}`;
-                const res = await authedFetch(fetchUrl);
-                if (res.ok) {
-                    fetchedBlob = await res.blob();
+
+            // A take already in Storage is sent BY URL. It used to be pulled down
+            // through /api/download-audio and posted straight back up, so the same
+            // song crossed the user's connection twice before the model saw it —
+            // three transfers of a 3-minute mp3 inside the ~60s the platform allows
+            // for the whole request, which is why longer imports failed with a
+            // gateway error rather than an answer. The server reads it from Storage
+            // inside the same cloud instead.
+            const isStoredRemotely = /^https?:\/\//i.test(audioUrl);
+
+            if (!isStoredRemotely) {
+                try {
+                    // A blob: URL exists only in this tab, so the bytes have to travel.
+                    const res = await authedFetch(audioUrl);
+                    if (res.ok) {
+                        fetchedBlob = await res.blob();
+                    }
+                } catch (fetchErr) {
+                    console.warn("Client-side audio fetch failed, falling back to server fetch:", fetchErr);
                 }
-            } catch (fetchErr) {
-                console.warn("Client-side audio fetch failed, falling back to server fetch:", fetchErr);
             }
 
             if (fetchedBlob) {
@@ -16015,11 +16051,16 @@ export default function CreatePage() {
 
                 {showWiredHeadphonesBanner && createPortal(
                     <div
-                        className="fixed inset-0 bg-stone-900/40 backdrop-blur-md z-[100] flex items-start md:items-center justify-center p-4 sm:p-6 md:p-10 animate-in fade-in duration-150 ease-out overflow-y-auto no-scrollbar pt-24 pb-12 md:py-10"
+                        // Bottom sheet below md — pinned to the bottom edge, no outer
+                        // padding, and the sheet itself owns the scrolling. Centred
+                        // dialog from md up, as before.
+                        className="fixed inset-0 bg-stone-900/40 backdrop-blur-md z-[100] flex items-end justify-center p-0 md:items-center md:p-10 md:py-10 md:overflow-y-auto md:no-scrollbar"
                         onClick={() => setShowWiredHeadphonesBanner(false)}
                     >
                         <div
-                            className="bg-[#DCDDD4] rounded-[32px] border border-stone-300/20 shadow-[0_25px_60px_rgba(0,0,0,0.18)] w-[92vw] sm:w-[90vw] max-w-[1400px] pt-2 pb-3 px-6 sm:pt-2.5 sm:pb-4 sm:px-8 md:pt-3 md:pb-4 md:px-10 flex flex-col gap-1.5 md:gap-2 animate-in zoom-in-95 duration-200 ease-out origin-center relative h-[90dvh] max-h-[90dvh] overflow-visible text-left text-stone-800 select-text"
+                            className="bg-[#DCDDD4] border border-stone-300/20 shadow-[0_25px_60px_rgba(0,0,0,0.18)] flex flex-col relative overflow-visible text-left text-stone-800 select-text
+                                w-full max-w-none rounded-t-[28px] rounded-b-none h-[94dvh] max-h-[94dvh] pt-3 px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] gap-1.5 bottom-sheet-enter
+                                md:w-[90vw] md:max-w-[1400px] md:rounded-[32px] md:h-[90dvh] md:max-h-[90dvh] md:pt-3 md:px-10 md:pb-4 md:gap-2"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Top Section: Side-by-Side Layout */}
@@ -16205,14 +16246,18 @@ export default function CreatePage() {
                                     </div>
                                 </div>
                                 {/* Bottom gradient fade overlay indicator */}
-                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#DCDDD4] via-[#DCDDD4]/85 to-transparent pointer-events-none z-30 rounded-b-[32px]" />
+                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#DCDDD4] via-[#DCDDD4]/85 to-transparent pointer-events-none z-30 rounded-b-none md:rounded-b-[32px]" />
                             </div>
 
-                            {/* Button Row */}
-                            <div className="w-full flex justify-end mt-1 pt-3 border-t border-stone-300/30 flex-shrink-0">
+                            {/* Button Row. On the sheet the button spans the full width
+                                and sits at a comfortable thumb height; it stays a
+                                right-aligned pill on the desktop dialog. */}
+                            <div className="w-full flex justify-stretch md:justify-end mt-1 pt-3 border-t border-stone-300/30 flex-shrink-0">
                                 <button
                                     onClick={() => setShowWiredHeadphonesBanner(false)}
-                                    className="bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-sans font-semibold text-[15px] px-10 py-2.5 rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-md hover:shadow-lg shadow-[#87b884]/20"
+                                    className="bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-sans font-semibold rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-md hover:shadow-lg shadow-[#87b884]/20
+                                        w-full text-[17px] px-6 py-4
+                                        md:w-auto md:text-[15px] md:px-10 md:py-2.5"
                                     type="button"
                                 >
                                     {t('studio_banner.got_it')}
@@ -17235,16 +17280,21 @@ export default function CreatePage() {
                 // dvh, not vh: iOS Safari's 100vh excludes the URL bar, so a vh-capped
                 // panel still overflows the visible screen and clips its own controls.
                 <div className="flex w-full max-h-[85dvh] sm:max-h-[calc(100dvh-8rem)] text-left items-stretch max-sm:mb-0 mb-3 sm:mb-5 pointer-events-auto select-none relative">
-                    {/* Left Gray Lyrics Panel with smooth width transition */}
-                    <div 
-                        className={`bg-[#E5E4DE] flex flex-col overflow-hidden transition-all duration-300 ease-out relative z-10 ${
-                            showStudioLyrics 
-                                ? 'w-[min(300px,75vw)] opacity-100 p-5 sm:p-8 md:p-10 pr-6 border-t border-b border-l border-stone-200/80 border-r border-[#D2D1C9] rounded-l-[24px] sm:rounded-l-[36px] md:rounded-l-[45px]' 
-                                : 'w-0 opacity-0 p-0 border-t-transparent border-b-transparent border-l-transparent border-r-transparent pointer-events-none'
+                    {/* Left Gray Lyrics Panel with smooth width transition.
+                        On a phone it is not a left column at all — a 300px column out of
+                        a 412px screen left the studio itself 268px wide, which is the
+                        opposite of what the sheet is for. Below sm it overlays the card
+                        full-width instead, toggled by the same Show/Hide lyrics button. */}
+                    <div
+                        className={`bg-[#E5E4DE] flex flex-col overflow-hidden transition-all duration-300 ease-out sm:relative sm:inset-auto z-30 sm:z-10 ${
+                            showStudioLyrics
+                                ? 'absolute inset-0 w-full rounded-t-[20px] rounded-b-none p-5 border border-stone-200/80 sm:static sm:w-[min(300px,75vw)] sm:rounded-none sm:rounded-l-[36px] md:rounded-l-[45px] sm:p-8 md:p-10 sm:pr-6 sm:border-t sm:border-b sm:border-l sm:border-r sm:border-r-[#D2D1C9] opacity-100'
+                                : 'hidden sm:flex w-0 opacity-0 p-0 border-t-transparent border-b-transparent border-l-transparent border-r-transparent pointer-events-none'
                         }`}
                     >
-                        {/* Fixed-width wrapper so content doesn't squeeze during animation */}
-                        <div className="w-[240px] sm:w-[260px] flex flex-col h-full min-h-0 shrink-0">
+                        {/* Fixed-width wrapper so content doesn't squeeze during animation.
+                            Full-width on the phone overlay, where there is no squeeze. */}
+                        <div className="w-full sm:w-[260px] flex flex-col h-full min-h-0 shrink-0">
                             <h3 className="font-sans font-medium text-stone-500 text-[26px] tracking-tight mb-8 shrink-0">{t('studio.lyrics_sidebar')}</h3>
 
                             <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-canvas-scrollbar flex flex-col gap-6 font-sans">
@@ -17301,10 +17351,13 @@ export default function CreatePage() {
                         onDragStart={(e) => e.stopPropagation()}
                         onDragOver={(e) => e.stopPropagation()}
                         onDrop={(e) => e.stopPropagation()}
-                        className={`flex-grow min-w-0 bg-white border border-stone-200/80 p-4 sm:p-6 md:p-7 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all duration-300 ease-out relative z-20 overflow-y-auto no-scrollbar ${
+                        // Always full-width and top-rounded on the phone: the lyrics
+                        // panel overlays this card there rather than sitting beside it,
+                        // so the split-corner treatment only applies from sm up.
+                        className={`flex-grow min-w-0 bg-white border border-stone-200/80 p-4 sm:p-6 md:p-7 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all duration-300 ease-out relative z-20 overflow-y-auto no-scrollbar rounded-t-[20px] rounded-b-none ${
                             showStudioLyrics
-                                ? 'rounded-r-[24px] sm:rounded-r-[36px] md:rounded-r-[45px] rounded-l-none border-l-0 max-sm:rounded-tr-[20px] max-sm:rounded-br-none'
-                                : 'rounded-[24px] sm:rounded-[36px] md:rounded-[45px] max-sm:rounded-t-[20px] max-sm:rounded-b-none'
+                                ? 'sm:rounded-none sm:rounded-r-[36px] md:rounded-r-[45px] sm:border-l-0'
+                                : 'sm:rounded-[36px] md:rounded-[45px]'
                         } gap-4 sm:gap-6`}
                     >
                         {/* Content area.
@@ -18008,7 +18061,9 @@ export default function CreatePage() {
                         handleMovePhraseToGroup(phraseId, null);
                     }
                 }}
-                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none xl:rounded-[32px] p-4 md:p-5 xl:p-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
+                // pb-36 below md reserves room for the fixed dock, so the last line of a
+                // song isn't left sitting underneath it.
+                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none xl:rounded-[32px] p-4 md:p-5 xl:p-8 pb-36 md:pb-5 xl:pb-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
                     isCanvasLocked
                         ? 'border-2 border-[#EDFF8E] shadow-[0_0_0_4px_rgba(237,255,142,0.35),0_12px_40px_rgba(0,0,0,0.03)] cursor-default'
                         // The I-beam is only honest over the region that actually starts a
@@ -18583,8 +18638,12 @@ export default function CreatePage() {
                 </div>
                     <div
                         data-tour="create-canvas"
+                        // Clearance for the dock while it's parked above the keyboard.
+                        // Same signal as the dock itself, so the two can't disagree —
+                        // keyed on focus, this padding appeared whenever a field was
+                        // focused, keyboard or not.
                         className={`w-full flex-grow flex-1 flex flex-col z-10 py-6 relative ${
-                            (isMobile && (editingPhraseId !== null || isFocused)) ? 'pb-16' : ''
+                            (isMobile && isKeyboardOpen) ? 'pb-16' : ''
                         }`}
                     >
                         {/* Drag and Drop Hover Overlay. The dashed box promises "drop anywhere in
@@ -19499,10 +19558,14 @@ export default function CreatePage() {
                                              lives in the card rather than in here, so the menu no longer has a
                                              tall variant to allow for. */}
                                          <div
+                                             // The open width is capped to the viewport as well as to
+                                             // 660px, and the taller mobile max-height allows for the
+                                             // rows wrapping — a flat 660/240 meant the section pills
+                                             // and the import row ran off the side of a phone.
                                              className={`flex flex-col items-center bg-white border rounded-[20px] overflow-hidden transition-all duration-500 ease-in-out ${
                                                  isAddMenuSticky
-                                                     ? "max-w-[660px] max-h-[240px] border-stone-300"
-                                                     : "max-w-[130px] max-h-9 border-stone-200 hover:border-stone-300 group-hover/add-menu:max-w-[660px] group-hover/add-menu:max-h-[240px] group-hover/add-menu:border-stone-300"
+                                                     ? "max-w-[min(660px,calc(100vw-2.5rem))] max-h-[420px] md:max-h-[240px] border-stone-300"
+                                                     : "max-w-[130px] max-h-9 border-stone-200 hover:border-stone-300 group-hover/add-menu:max-w-[min(660px,calc(100vw-2.5rem))] group-hover/add-menu:max-h-[420px] md:group-hover/add-menu:max-h-[240px] group-hover/add-menu:border-stone-300"
                                              }`}
                                          >
                                              {/* Line 1: "+ Add" trigger */}
@@ -19527,7 +19590,7 @@ export default function CreatePage() {
                                              }`}>
                                                  <div className="overflow-hidden min-h-0">
                                                      {/* Line 2: Add section */}
-                                                     <div className="flex items-center justify-center gap-1 px-2 pb-2">
+                                                     <div className="flex flex-wrap items-center justify-center gap-1 px-2 pb-2">
                                                          {([
                                                              ['Verse', t('creative.verse')],
                                                              ['Pre-Chorus', t('creative.prechorus')],
@@ -19588,7 +19651,7 @@ export default function CreatePage() {
                                                      <div className="h-px bg-stone-100 mx-4 mb-2" />
 
                                                      {/* Line 4: Import */}
-                                                     <div className="flex items-center justify-center gap-1 px-2 pb-2">
+                                                     <div className="flex flex-wrap items-center justify-center gap-1 px-2 pb-2">
                                                          {([
                                                              ['image/*,.png,.jpg,.jpeg,.gif,.webp', ImageIcon, t('creative.import_image')],
                                                              ['.pdf,.doc,.docx,.txt', FileText, t('creative.import_document')],
@@ -19760,8 +19823,16 @@ export default function CreatePage() {
                         <div
                             ref={suggestionsPopoverRef}
                             className={`
-                                suggestions-popover bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-[28px] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.12)] z-40 flex flex-row items-stretch gap-5 w-[540px] max-w-[95%] sm:w-[640px] md:w-[760px] animate-in fade-in zoom-in-95 duration-200
-                                ${isMobile ? 'absolute bottom-4 left-4 right-4 shadow-2xl mx-auto' : 'absolute'}
+                                suggestions-popover bg-white/95 backdrop-blur-md border border-stone-200/80 shadow-[0_20px_60px_rgba(0,0,0,0.12)] z-[60] animate-in fade-in duration-200
+                                ${isMobile
+                                    // A real bottom sheet: fixed to the viewport, full width,
+                                    // capped and scrollable. It used to be `absolute bottom-4`,
+                                    // which anchors to the canvas card — a 2000px-tall element —
+                                    // so the panel opened ~1300px above the fold and tapping a
+                                    // lyric looked like it did nothing at all.
+                                    ? 'fixed inset-x-0 bottom-0 rounded-t-[24px] rounded-b-none p-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[72dvh] overflow-y-auto no-scrollbar flex flex-col gap-3 slide-in-from-bottom-4'
+                                    : 'absolute rounded-[28px] p-6 flex flex-row items-stretch gap-5 w-[540px] max-w-[95%] sm:w-[640px] md:w-[760px] zoom-in-95'
+                                }
                             `}
                             style={isMobile ? undefined : {
                                 top: `${popoverPosition.top}px`,
@@ -19769,10 +19840,42 @@ export default function CreatePage() {
                                 transform: 'translateX(-50%)'
                             }}
                         >
+                            {/* Phone only: the three panes become tabs. Desktop shows the
+                                chord panel and the word list side by side, which needs
+                                width this screen doesn't have. */}
+                            {isMobile && (
+                                <div className="flex bg-stone-100/70 p-1 rounded-[14px] w-full select-none shrink-0">
+                                    {([
+                                        ['rhyme', t('canvas.rhyme_lexicon')],
+                                        ['synonym', t('lexicon.synonym')],
+                                        ['chords', t('canvas.chords') || 'Chords'],
+                                    ] as const).map(([value, label]) => (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            onClick={() => {
+                                                setMobileWordTab(value);
+                                                // Rhyme/Synonyms drive the same lexicon fetch, so keep
+                                                // that in step; Chords is a separate pane and leaves it be.
+                                                if (value !== 'chords') setLexiconMode(value);
+                                            }}
+                                            className={`flex-1 text-[13px] font-bold py-2.5 rounded-[11px] transition-all cursor-pointer ${
+                                                mobileWordTab === value
+                                                    ? 'bg-white text-stone-800 shadow-xs'
+                                                    : 'text-stone-400 hover:text-stone-600'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
                             {/* The chord on this word, above the words it rhymes with.
                                 One click on a lyric now answers both questions rather
                                 than making the writer click the word for one and the
                                 little symbol above it for the other. */}
+                            <div className={isMobile && mobileWordTab !== 'chords' ? 'hidden' : 'contents'}>
                             <WordChordSection
                                 // Keyed by word, so each one gets its own fresh suggestion
                                 // (and its own clean panel state) rather than inheriting
@@ -19806,14 +19909,16 @@ export default function CreatePage() {
                                     }
                                 } : undefined}
                             />
+                            </div>
 
                             {/* The words column. Wrapped so the chord panel can sit
                                 beside it rather than above it — min-w-0 so a long
                                 rhyme can't push the chord panel out of the popover. */}
-                            <div className="flex-1 min-w-0 flex flex-col gap-4">
+                            <div className={`flex-1 min-w-0 flex-col gap-4 ${isMobile && mobileWordTab === 'chords' ? 'hidden' : 'flex'}`}>
 
-                            {/* 2-way segment selector for Rhyme Lexicon vs Synonyms */}
-                            <div className="flex bg-stone-100/70 p-1 rounded-[14px] w-full select-none">
+                            {/* 2-way segment selector for Rhyme Lexicon vs Synonyms —
+                                desktop only; on a phone the 3-way tab bar above replaces it. */}
+                            <div className={`bg-stone-100/70 p-1 rounded-[14px] w-full select-none ${isMobile ? 'hidden' : 'flex'}`}>
                                 <button 
                                     onClick={() => setLexiconMode('rhyme')}
                                     className={`flex-1 text-[13px] font-bold py-2.5 rounded-[11px] transition-all cursor-pointer ${
@@ -20022,31 +20127,101 @@ export default function CreatePage() {
                     // state now carries no transition at all, so it simply has no background
                     // from the first frame.
                     className={`flex select-none z-20 justify-center ${
-                        (isMobile && (editingPhraseId !== null || isFocused))
-                            ? "transition-all duration-300 fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2 justify-center"
+                        // Keyed on the measured keyboard, not on focus — see keyboardInset.
+                        // No transition while it's docked to the keyboard: the keyboard
+                        // itself animates up over ~250ms, and a 300ms transition on top of
+                        // that made the bar visibly chase it and land late.
+                        (isMobile && isKeyboardOpen)
+                            ? "fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2 justify-center"
                             // Sticky (not just mt-auto) so the controls stay reachable on the
                             // viewport's bottom edge on a long canvas — mt-auto alone only pins
                             // them to the bottom of the card's own box, which can grow taller
                             // than the screen and scroll the toolbar out of view entirely.
-                            : isNoteBlank
-                                // No background and no backdrop-blur: the empty state's whole
-                                // point is the artwork, so the toolbar's own white pill buttons
-                                // float directly over it rather than behind a panel or a haze.
-                                // pb uses max(...) so notched iPhones (env safe-area) get extra
-                                // clearance above the home indicator when the bar is pinned.
-                                ? "px-2 md:px-8 mt-auto pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-8 sticky bottom-0"
-                                // Extra breathing room on a written-in canvas: the toolbar sits
-                                // right against the card's bottom edge otherwise.
-                                : "transition-all duration-300 px-2 md:px-8 mt-auto pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] md:pb-12 sticky bottom-0 bg-white/90 backdrop-blur-md"
+                            // On a phone the dock is FIXED to the viewport, not sticky.
+                            // Sticky only holds while its containing block is on screen, so on
+                            // a long canvas the toolbar drifted away with the card's bottom edge
+                            // (measured: 81px of drift over a 400px scroll). Fixed keeps the four
+                            // controls on screen the whole way down. md+ keeps the sticky layout,
+                            // where the card and the viewport bottom coincide anyway.
+                            : isMobile
+                                ? "fixed left-0 right-0 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2"
+                                : isNoteBlank
+                                    // No background and no backdrop-blur: the empty state's whole
+                                    // point is the artwork, so the toolbar's own white pill buttons
+                                    // float directly over it rather than behind a panel or a haze.
+                                    ? "px-2 md:px-8 mt-auto pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-8 sticky bottom-0"
+                                    // Extra breathing room on a written-in canvas: the toolbar sits
+                                    // right against the card's bottom edge otherwise.
+                                    : "transition-all duration-300 px-2 md:px-8 mt-auto pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] md:pb-12 sticky bottom-0 bg-white/90 backdrop-blur-md"
                     }`}
-                    style={(isMobile && (editingPhraseId !== null || isFocused)) ? {
+                    style={(isMobile && isKeyboardOpen) ? {
+                        // Anchored by top + translateY(-100%) rather than `bottom`, because
+                        // a fixed element's containing block is the LAYOUT viewport, which
+                        // the keyboard does not shrink — `bottom: 0` would sit behind it.
+                        // visualViewportBottom is the visual viewport's bottom edge
+                        // expressed in those same layout coordinates, so this lands the
+                        // bar's bottom edge exactly on the keyboard's top edge.
                         bottom: 'auto',
                         top: visualViewportBottom !== null ? `${visualViewportBottom}px` : '100%',
                         transform: 'translateY(-100%)'
-                    } : undefined}
+                    } : {
+                        // Sit clear of the cookie consent bar while it's up (it's fixed at
+                        // bottom-0 with z-100 and would otherwise swallow every tap on this
+                        // toolbar). --consent-h is published by components/CookieBanner and
+                        // removed once answered, so this collapses back to 0 on its own.
+                        bottom: 'var(--consent-h, 0px)'
+                    }}
                 >
-                    {/* Right Side: Button Row (✓ SAVE, REC, Tools, Inspiration) */}
-                    <div className="flex items-center gap-4">
+                    {/* Two stacked rows. Complete and undo/redo sit in their own row above
+                        the tools capsule: they act on the writing you already have, whereas
+                        the row below starts something new — and keeping them out of that
+                        capsule is what lets it run full width on a phone. */}
+                    <div className="flex flex-col items-center gap-2 w-full">
+
+                      {/* Row 1 — Complete, then the history pair */}
+                      <div className="flex items-center gap-2">
+                        {/* ✓ COMPLETE button — content auto-saves, so this is no longer a "save or
+                            lose it" action; it stays available as the deliberate "I'm done" beat
+                            that fires the celebration and awards progress.
+                            No post-click confirmation chip: the button just leaves, and the
+                            Publish → Mind Power cascade carries the confirmation instead. */}
+                        {activeNote && !isCanvasReadOnly
+                            && (isSavingNote || activeNote.content !== completedSnapshot) && (
+                            <Tooltip label={isActiveCollab ? 'Complete and save to Collab Projects' : t('common.complete')}>
+                            <button
+                                // The phrase editor is usually still focused when the user reaches
+                                // for Complete. Without this, mousedown blurs it → handleStopEditing
+                                // re-renders the canvas mid-gesture → the click never lands, so the
+                                // first press appeared to do nothing and only the second worked.
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={handleCheckmarkSaveClick}
+                                disabled={isSavingNote}
+                                aria-label={isSavingNote ? t('common.completing') : t('common.complete')}
+                                className="relative overflow-hidden w-[54px] h-[54px] flex items-center justify-center rounded-full border border-stone-200/60 bg-white shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer select-none active:scale-95 pointer-events-auto"
+                                style={{
+                                    // Inline rather than Tailwind classes: conditional utilities
+                                    // built into a template string aren't always generated by JIT.
+                                    transition: 'opacity 500ms ease-out, transform 500ms ease-out',
+                                    opacity: isSavingNote ? 0 : 1,
+                                    transform: isSavingNote ? 'scale(0.9)' : 'scale(1)',
+                                    pointerEvents: isSavingNote ? 'none' : 'auto',
+                                }}
+                            >
+                                {/* Resting mesh — makes the control feel alive before it's pressed */}
+                                <span className="save-gradient-idle" aria-hidden="true" />
+
+                                {/* Celebration sweep layers on top, in step with the canvas ring */}
+                                {showSaveGlow && <span key={saveGlowKey} className="save-gradient-fill" aria-hidden="true" />}
+
+                                <span className="relative z-10 flex items-center justify-center">
+                                    {isSavingNote
+                                        ? <Loader2 size={24} className="animate-spin text-stone-800" />
+                                        : <Check size={26} className="text-stone-900 stroke-[2.5]" />}
+                                </span>
+                            </button>
+                            </Tooltip>
+                        )}
+
                         {/* Undo / Redo action buttons (shown only when there are unsaved steps in history) */}
                         {(undoStack.length > 0 || redoStack.length > 0) && (
                             <div className="flex items-center gap-1 bg-white border border-stone-200/50 p-1.5 rounded-full shadow-2xs pointer-events-auto">
@@ -20080,51 +20255,17 @@ export default function CreatePage() {
                                 </Tooltip>
                             </div>
                         )}
+                      </div>
 
-                        {/* Primary actions capsule */}
-                        <div className="flex items-center gap-3.5 bg-white border border-stone-200/60 p-3 rounded-full shadow-[0_16px_48px_rgba(0,0,0,0.08)] w-fit pointer-events-auto">
-                            {/* ✓ COMPLETE button — content auto-saves, so this is no longer a "save or
-                                lose it" action; it stays available as the deliberate "I'm done" beat
-                                that fires the celebration and awards progress. */}
-            {/* No post-click confirmation chip: the button just leaves, and the
-                                Publish → Mind Power cascade carries the confirmation instead. */}
-                            {activeNote && !isCanvasReadOnly
-                                && (isSavingNote || activeNote.content !== completedSnapshot) && (
-                                <Tooltip label={isActiveCollab ? 'Complete and save to Collab Projects' : t('common.complete')}>
-                                <button
-                                    // The phrase editor is usually still focused when the user reaches
-                                    // for Complete. Without this, mousedown blurs it → handleStopEditing
-                                    // re-renders the canvas mid-gesture → the click never lands, so the
-                                    // first press appeared to do nothing and only the second worked.
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={handleCheckmarkSaveClick}
-                                    disabled={isSavingNote}
-                                    aria-label={isSavingNote ? t('common.completing') : t('common.complete')}
-                                    className="relative overflow-hidden w-[54px] h-[54px] flex items-center justify-center rounded-full border border-stone-200/60 bg-white shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer select-none active:scale-95"
-                                    style={{
-                                        // Inline rather than Tailwind classes: conditional utilities
-                                        // built into a template string aren't always generated by JIT.
-                                        transition: 'opacity 500ms ease-out, transform 500ms ease-out',
-                                        opacity: isSavingNote ? 0 : 1,
-                                        transform: isSavingNote ? 'scale(0.9)' : 'scale(1)',
-                                        pointerEvents: isSavingNote ? 'none' : 'auto',
-                                    }}
-                                >
-                                    {/* Resting mesh — makes the control feel alive before it's pressed */}
-                                    <span className="save-gradient-idle" aria-hidden="true" />
-
-                                    {/* Celebration sweep layers on top, in step with the canvas ring */}
-                                    {showSaveGlow && <span key={saveGlowKey} className="save-gradient-fill" aria-hidden="true" />}
-
-                                    <span className="relative z-10 flex items-center justify-center">
-                                        {isSavingNote
-                                            ? <Loader2 size={24} className="animate-spin text-stone-800" />
-                                            : <Check size={26} className="text-stone-900 stroke-[2.5]" />}
-                                    </span>
-                                </button>
-                                </Tooltip>
-                            )}
-
+                        {/* Row 2 — Primary actions capsule, the tools row. Spans the full
+                            width below sm so the four controls share the space evenly instead
+                            of huddling mid-screen; from sm up it hugs its content as before. */}
+                        {/* md:, not sm: — the dock's mobile mode is driven by `isMobile`
+                            (innerWidth < 768). At sm: the capsule shrank back to w-fit
+                            from 640px up while the dock was still in its phone layout, so
+                            640-767px devices (most Android phones in landscape, the larger
+                            iPhones, foldables) got a stranded half-width capsule. */}
+                        <div className="flex items-center justify-between md:justify-start gap-2 md:gap-3.5 bg-white border border-stone-200/60 p-2 md:p-3 rounded-full shadow-[0_16px_48px_rgba(0,0,0,0.08)] w-full md:w-fit pointer-events-auto">
                             {/* REC capsule button — hidden entirely while previewing someone else's
                                 pending invite (nothing to explain there). While locked it stays
                                 visible-but-disabled instead, since the lock icon itself is the
@@ -20150,7 +20291,7 @@ export default function CreatePage() {
                                         ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
                                         : isRecording
                                             ? 'recording-gradient border-transparent shadow-[0_6px_20px_rgba(211,47,47,0.28)] cursor-pointer active:scale-95'
-                                            : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer active:scale-95'
+                                            : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer active:scale-95'
                                 }`}
                             >
                                 {isRecording ? (
@@ -20188,7 +20329,7 @@ export default function CreatePage() {
                                         ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
                                         : showToolsPanel && activeToolTab !== 'inspiration'
                                             ? 'bg-[#F2F2F2] border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer'
-                                            : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer'
+                                            : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer'
                                 }`}
                                 aria-label="Creative Tools"
                                 type="button"
@@ -20212,7 +20353,7 @@ export default function CreatePage() {
                                 className={`h-[54px] px-3.5 lg:px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border ${
                                     showToolsPanel && (activeToolTab as string) === 'studio'
                                         ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
-                                        : 'bg-white border-stone-200/50 hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]'
+                                        : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]'
                                 }`}
                                 aria-label="Demo Studio"
                                 type="button"
@@ -20236,7 +20377,7 @@ export default function CreatePage() {
                                         ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
                                         : showToolsPanel && activeToolTab === 'inspiration'
                                             ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer'
-                                            : 'bg-white border-stone-200/50 hover:shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer'
+                                            : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer'
                                 }`}
                                 aria-label="Inspirations"
                                 type="button"
@@ -20359,13 +20500,18 @@ export default function CreatePage() {
                     (writers scan the shelf far more often than they search it), and the
                     menu. The grid's outer columns are equal, so the tabs sit on the true
                     centreline rather than centred in the leftover space. */}
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center w-full py-1.5 md:py-2 mb-4">
-                    <div aria-hidden="true" />
+                {/* Below md this stacks: the scope tabs take a row of their own, then
+                    search + menu sit on a second row beneath them. The 3-column grid
+                    only holds up when there's room either side of the tabs — on a phone
+                    the tabs alone are wider than the row, so the right-hand icons were
+                    landing on top of the Collab tab. */}
+                <div className="flex flex-col gap-2 md:grid md:grid-cols-[1fr_auto_1fr] md:gap-0 items-stretch md:items-center w-full py-1.5 md:py-2 mb-4">
+                    <div aria-hidden="true" className="hidden md:block" />
 
                     {/* Personal / collab is a filter, not a place. It used to be two
                         accordions, which split one shelf in half and made a folder mean
                         something different on each side. */}
-                    <div className="flex items-center gap-1 h-[52px] bg-stone-100/70 border border-stone-200/60 p-1 rounded-full select-none min-w-0">
+                    <div className="flex items-center justify-center gap-1 h-[52px] bg-stone-100/70 border border-stone-200/60 p-1 rounded-full select-none min-w-0 w-full md:w-auto">
                         {([
                             ['all', t('workspace.all_projects')],
                             ['personal', t('workspace.filter_personal')],
@@ -20375,7 +20521,7 @@ export default function CreatePage() {
                                 key={value}
                                 type="button"
                                 onClick={() => setProjectScopeFilter(value)}
-                                className={`h-[44px] px-6 rounded-full text-[15px] font-medium whitespace-nowrap transition-all cursor-pointer ${
+                                className={`h-[44px] flex-1 md:flex-none px-2 sm:px-4 md:px-6 rounded-full text-[14px] md:text-[15px] font-medium whitespace-nowrap transition-all cursor-pointer ${
                                     projectScopeFilter === value
                                         ? 'bg-white text-stone-800 shadow-2xs'
                                         : 'text-stone-500 hover:text-stone-800'
@@ -20389,7 +20535,9 @@ export default function CreatePage() {
                         ))}
                     </div>
 
-                    <div className="flex items-center gap-3 justify-self-end">
+                    {/* Second row on mobile: search stretches to fill, the menu button
+                        sits beside it. On md+ both stay compact and right-aligned. */}
+                    <div className="flex items-center gap-3 w-full md:w-auto md:justify-self-end">
                         {/* Search, folded to an icon. Stays lit while the field is open or
                             a query is live, so a filtered shelf is never a mystery. */}
                         <Tooltip label={t('workspace.search_placeholder') || 'Search projects...'} disabled={isProjectSearchOpen}>
@@ -20398,13 +20546,18 @@ export default function CreatePage() {
                             onClick={() => (isProjectSearchOpen ? closeProjectSearch() : setIsProjectSearchOpen(true))}
                             aria-label={t('workspace.search_placeholder') || 'Search projects...'}
                             aria-expanded={isProjectSearchOpen}
-                            className={`w-[48px] h-[48px] flex items-center justify-center border rounded-[16px] transition-all cursor-pointer select-none active:scale-95 ${
+                            className={`flex-1 md:flex-none w-auto md:w-[48px] h-[48px] flex items-center justify-center gap-2 border rounded-[16px] transition-all cursor-pointer select-none active:scale-95 ${
                                 isProjectSearchOpen || searchQuery.trim() !== ''
                                     ? 'bg-white border-stone-400/80 text-stone-800'
                                     : 'bg-stone-100/70 hover:bg-stone-200/60 border-stone-200/60 text-stone-600 hover:text-stone-900'
                             }`}
                         >
-                            <Search size={17} />
+                            <Search size={17} className="shrink-0" />
+                            {/* The icon alone reads as a mystery button once it's stretched
+                                across half a phone row, so it gets its label back there. */}
+                            <span className="md:hidden text-[14px] font-medium">
+                                {t('workspace.search_placeholder') || 'Search projects...'}
+                            </span>
                         </button>
                         </Tooltip>
 
@@ -20426,7 +20579,7 @@ export default function CreatePage() {
                                 setIsWorkspaceMenuOpen(prev => !prev);
                             }}
                             aria-label={t('workspace.more_actions')}
-                            className={`w-[48px] h-[48px] flex items-center justify-center border rounded-[16px] transition-all cursor-pointer select-none active:scale-95 ${
+                            className={`w-[48px] h-[48px] shrink-0 flex items-center justify-center border rounded-[16px] transition-all cursor-pointer select-none active:scale-95 ${
                                 isWorkspaceMenuOpen
                                     ? 'bg-white border-stone-400/80 text-stone-800'
                                     : 'bg-stone-100/70 hover:bg-stone-200/60 border-stone-200/60 text-stone-600 hover:text-stone-900'
@@ -20662,7 +20815,12 @@ export default function CreatePage() {
                                 style={isMobile
                                     // Sit above the action dock, which itself becomes keyboard-anchored
                                     // while a phrase is being edited.
-                                    ? { bottom: `${(visualViewportBottom || 0) + 16}px` }
+                                    //
+                                    // visualViewportBottom is an ABSOLUTE y (vv.offsetTop + vv.height),
+                                    // not a keyboard inset — using it directly as `bottom` put the panel
+                                    // a full viewport-height above the fold, i.e. invisible. The inset is
+                                    // the gap the keyboard leaves below the visual viewport.
+                                    ? { bottom: `${Math.max(0, window.innerHeight - (visualViewportBottom ?? window.innerHeight)) + 16}px` }
                                     : desktopStyle}
                                 onClick={(e) => e.stopPropagation()}
                             >

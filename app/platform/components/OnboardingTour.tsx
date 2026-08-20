@@ -46,6 +46,13 @@ interface OnboardingTourProps {
      * a first-time user clicks into.
      */
     autoPlayVideo?: boolean;
+    /**
+     * Fires with the active step's target selector (or undefined for the video
+     * step) whenever the step changes. Lets the host stage the app around the
+     * step — chiefly opening the mobile nav drawer for steps that point *into*
+     * it, and closing it again for every other step.
+     */
+    onStepTargetChange?: (target: string | undefined) => void;
 }
 
 interface Rect { top: number; left: number; width: number; height: number; }
@@ -68,7 +75,7 @@ function findVisibleElement(selector: string): HTMLElement | null {
     return null;
 }
 
-export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, nextLabel, doneLabel, closeLabel, closeDemoLabel, autoPlayVideo = false }: OnboardingTourProps) {
+export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, nextLabel, doneLabel, closeLabel, closeDemoLabel, autoPlayVideo = false, onStepTargetChange }: OnboardingTourProps) {
     const [mounted, setMounted] = useState(false);
     const [stepIndex, setStepIndex] = useState(0);
     const [rect, setRect] = useState<Rect | null>(null);
@@ -94,6 +101,16 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
     // otherwise they'd see a "new" step every render and never stop resetting.
     const target = step?.target;
     const video = step?.video;
+
+    // Tell the host which target this step points at, so it can stage the app
+    // around it (open/close the mobile drawer) *before* the measure effect below
+    // starts hunting for the element — otherwise a sidebar target is off-canvas
+    // when we look for it, and findVisibleElement rightly rejects it.
+    const notifyTargetRef = useRef(onStepTargetChange);
+    notifyTargetRef.current = onStepTargetChange;
+    useEffect(() => {
+        notifyTargetRef.current?.(target);
+    }, [target]);
 
     const measure = useCallback(() => {
         if (!target) return;

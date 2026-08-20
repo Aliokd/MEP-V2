@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } fro
 import { Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import SongTimeline from './SongTimeline';
+import StructureDemo from './StructureDemo';
 import { KIND_LABEL_KEY, SECTION_TEXT, SOLVED_BG, SOLVED_TEXT, TAG_BG, sectionOrdinals, type SectionKind } from '../data/sections';
 import type { AuthoredSection } from '../data/practiceSongs';
 import { analyzeSongUrl } from '../lib/analyzeSong';
@@ -111,6 +112,15 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
      * would put them in the lifecycle effect's deps, and a parent re-render
      * would then tear down the element mid-song.
      */
+    /*
+     * The first-run how-to. Decided in an effect rather than the initializer so
+     * the server render and the first client render agree on "hidden".
+     */
+    const [showDemo, setShowDemo] = useState(false);
+    useEffect(() => {
+        if (localStorage.getItem('mep-structure-demo-seen') !== 'true') setShowDemo(true);
+    }, []);
+
     // True between pointer-down and pointer-up on the scrub track.
     const scrubbingRef = useRef(false);
     const isPlayingRef = useRef(isPlaying);
@@ -427,6 +437,16 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
 
     return (
         <div className="w-full flex flex-col gap-10">
+
+            {/* First time on the exercise: the five-second how-to, once per account */}
+            {showDemo && (
+                <StructureDemo
+                    onDone={() => {
+                        setShowDemo(false);
+                        safeLocalStorageSetItem('mep-structure-demo-seen', 'true');
+                    }}
+                />
+            )}
 
             {/*
              * The timeline holds its place at the top while the parts scroll in
