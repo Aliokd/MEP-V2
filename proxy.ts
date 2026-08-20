@@ -15,11 +15,31 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 /**
  * Content-Security-Policy for document responses, with a fresh nonce per request.
  *
- * The static half of the policy (frame-ancestors, base-uri, object-src,
- * form-action) lives in next.config.ts so it also covers the paths this proxy
- * skips. What has to be built here is `script-src`: allowing inline scripts by
- * nonce is the whole point, and a nonce is only meaningful if it is unguessable
- * and never reused, so it cannot be a static config value.
+ * THE WHOLE POLICY LIVES HERE. It used to be split — the directives needing no
+ * per-request value (frame-ancestors, base-uri, object-src, form-action) were
+ * declared in next.config.ts `headers()` so they would also cover the paths this
+ * proxy skips, on the assumption that a browser receiving two CSP headers
+ * enforces each independently. That assumption never survived the deployment:
+ * firebase-tools translates next.config `headers()` into Firebase Hosting header
+ * rules, and Hosting *replaces* the header the backend set rather than appending
+ * to it. Production therefore served the four static directives and nothing
+ * else — script-src, connect-src, frame-src, media-src and worker-src were
+ * silently unenforced for as long as the split existed. One header, built in one
+ * place, is the only arrangement Hosting cannot quietly undo.
+ *
+ * The paths this proxy skips (API routes, static files, anything with an
+ * extension) now get no CSP at all. That costs little: those responses are JSON
+ * and assets, where base-uri/object-src/form-action have nothing to act on, and
+ * `X-Frame-Options: DENY` — still declared in next.config.ts, still applied by
+ * Hosting to every path — covers the framing that frame-ancestors was buying.
+ *
+ * The nonce is what forces this to be built per request, and Next reads it back
+ * out of the header we set here: middleware response headers are copied onto the
+ * request before the render (resolve-routes.js), and app-render parses
+ * `script-src` for a `'nonce-…'` to stamp on every script tag it emits. So the
+ * nonce must stay inside the `script-src` directive of this exact header — move
+ * it and Next's own chunks lose their nonce, which under 'strict-dynamic' means
+ * a blank page.
  *
  * Notes on the specific relaxations, none of which are incidental:
  *
@@ -86,6 +106,20 @@ function buildCsp(nonce: string): string {
             // this wrong drops every event with nothing but a console warning,
             // so it is deliberately broader than a single pinned host.
             'https://*.posthog.com',
+            // Paddle. frame-src already allows the checkout iframe, but Paddle.js
+            // runs in *our* page: initializePaddle pulls cdn.paddle.com and the
+            // checkout talks to checkout-service.paddle.com from here, not from
+            // inside the frame. Listed now because the policy was never enforced
+            // before — an omission that would have surfaced as a checkout that
+            // opens an empty box the first time this header actually applied.
+            'https://*.paddle.com',
+            // Reverse geocoding for "detect my location" (handleDetectLocation in
+            // app/platform/create/page.tsx). Currently unreachable in production:
+            // the Permissions-Policy in next.config.ts sends `geolocation=()`, so
+            // getCurrentPosition never resolves and this fetch never fires. Kept
+            // so re-enabling that permission is a one-line change rather than a
+            // one-line change plus a CSP violation nobody connects to it.
+            'https://nominatim.openstreetmap.org',
         ].join(' '),
         // The lesson embeds (YouTube, Vimeo, Spotify) and the Paddle checkout
         // overlay are the only things allowed to frame inside our pages —
@@ -97,6 +131,13 @@ function buildCsp(nonce: string): string {
         // popups are commonly blocked and the redirect path is the fallback.
         "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://open.spotify.com https://*.paddle.com https://mep-v2.firebaseapp.com https://*.firebaseapp.com",
         "worker-src 'self' blob:",
+        // The directives that need no per-request value. They were the "static
+        // half" declared in next.config.ts until Firebase Hosting turned that
+        // into a header that replaced this one — see the note above.
+        "base-uri 'self'",
+        "object-src 'none'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
     ].join('; ');
 }
 

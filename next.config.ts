@@ -38,21 +38,28 @@ const nextConfig: NextConfig = {
              * origin — a click on an invisible overlay lands on whatever control
              * sits under it, and the platform has destructive ones.
              *
-             * This is the STATIC half of the Content-Security-Policy — the
-             * directives that need no per-request value, so they can be stated
-             * here and therefore also cover the paths proxy.ts skips (API routes,
-             * static files). script-src and the rest are built per request in
-             * proxy.ts, because a nonce is only worth anything if it is fresh
-             * each time. Both policies are sent; a browser enforces each one
-             * independently, and they cover disjoint directives so neither
-             * loosens the other.
+             * DO NOT declare Content-Security-Policy here. It was, once: the
+             * static directives (frame-ancestors, base-uri, object-src,
+             * form-action) sat in this block while proxy.ts built the rest per
+             * request, on the assumption that both headers would be delivered and
+             * enforced side by side. On Firebase Hosting they are not.
+             * firebase-tools reads this list out of the routes manifest and emits
+             * it as Hosting header rules, and Hosting REPLACES the same-named
+             * header coming back from the Next backend. The static four were the
+             * only policy production ever saw; the nonce, 'strict-dynamic', the
+             * connect-src allowlist and frame-src were all dead letters. The
+             * whole policy now lives in buildCsp() in proxy.ts, and anything
+             * added back here would silently delete it again.
+             *
+             * Everything else in this block is safe precisely because proxy.ts
+             * does not also set it — one owner per header.
              */
             {
                 source: '/:path*',
                 headers: [
-                    // frame-ancestors is the modern control; X-Frame-Options is
-                    // kept alongside it for older browsers that ignore CSP.
-                    { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" },
+                    // Carries the framing ban onto the paths proxy.ts skips (API
+                    // routes, static files), which get no CSP at all, and covers
+                    // older browsers that ignore frame-ancestors.
                     { key: 'X-Frame-Options', value: 'DENY' },
                     // Stops a proxied file being re-interpreted as script/HTML
                     // because the browser guessed a type we did not send.
