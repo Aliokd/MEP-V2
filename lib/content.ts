@@ -11,6 +11,7 @@
 // Type-only, so this is erased at compile time and the fact that lessonBlocks
 // imports LocalizedText back from here stays a paper cycle rather than a real one.
 import type { LessonBlock } from "./lessonBlocks";
+import type { CmsPracticeSection } from "./practiceLibrary";
 
 export type Locale = "en" | "no" | "sv";
 export const LOCALES: Locale[] = ["en", "no", "sv"];
@@ -95,7 +96,22 @@ export interface PracticeSongDoc {
     artist: string;
     audioUrl: string;
     coverUrl?: string | null;
-    lyrics: PracticeSection[];
+    /**
+     * Word-level lyric timings from the original migration. Practice 1 no longer
+     * reads these — it works in sections — but they are the only copy, so they
+     * are left in place rather than dropped.
+     */
+    lyrics?: PracticeSection[];
+    /**
+     * The structure Practice 1 asks the songwriter to name: where each part of
+     * the recording begins and ends. A song without these can be listened to but
+     * not decomposed.
+     */
+    sections?: CmsPracticeSection[];
+    /** Length of the recording, filled in from the file on upload. */
+    durationSeconds?: number | null;
+    /** false → the chooser shows it greyed out as "coming soon". */
+    available?: boolean;
     order: number;
     status: ContentStatus;
     /**

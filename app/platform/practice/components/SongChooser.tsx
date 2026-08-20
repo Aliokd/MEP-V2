@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { PRACTICE_SONGS, type PracticeSong } from '../data/practiceSongs';
+import { type PracticeSong } from '../data/practiceSongs';
+import { usePracticeLibrary } from '../lib/library';
 import { SECTION_TEXT, TAG_BG } from '../data/sections';
 
 /**
@@ -26,6 +27,7 @@ interface SongChooserProps {
  */
 export default function SongChooser({ onNext }: SongChooserProps) {
     const { t } = useLanguage();
+    const songs = usePracticeLibrary();
 
     const [previewingId, setPreviewingId] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -68,7 +70,7 @@ export default function SongChooser({ onNext }: SongChooserProps) {
             <p className="text-sm font-sans text-stone-500 select-none">{t('practice.pick_song')}</p>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                {PRACTICE_SONGS.map(song => {
+                {songs.map(song => {
                     const isPreviewing = previewingId === song.id;
                     const locked = !song.available;
 

@@ -5,6 +5,13 @@ import LessonBlocks from "@/app/platform/components/LessonBlocks";
 import { pickLocale, type Locale, type LocalizedText } from "@/lib/content";
 import { isBlockRenderable, type LessonBlock } from "@/lib/lessonBlocks";
 import type { ContentItem } from "./page";
+import { KIND_BG, SECTION_TEXT } from "@/app/platform/practice/data/sections";
+import {
+    SECTION_LABELS,
+    formatTime,
+    sortSections,
+    type CmsPracticeSection,
+} from "@/lib/practiceLibrary";
 
 /**
  * Shows the draft the way a reader will see it.
@@ -151,20 +158,64 @@ function ChapterPreview({ text }: { text: (key: string) => string }) {
 }
 
 function SongPreview({ draft }: { draft: ContentItem }) {
+    const sections = sortSections((draft.sections as CmsPracticeSection[]) || []);
+    const duration = draft.durationSeconds || (sections.length ? sections[sections.length - 1].end : 0);
+
     return (
-        <div className="flex items-center gap-4 bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-4">
-            {draft.coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- Cloud Storage URL, no allowlisted host.
-                <img src={draft.coverUrl} alt="" className="w-16 h-16 rounded-[12px] object-cover border border-stone-200" />
-            ) : (
-                <div className="w-16 h-16 rounded-[12px] border border-dashed border-stone-300 bg-white/50" />
-            )}
-            <div className="flex flex-col gap-1 min-w-0">
-                <span className="text-base font-sans font-medium text-stone-800 truncate">
-                    {(draft.title as string) || "Untitled song"}
-                </span>
-                <span className="text-sm text-stone-500 font-sans truncate">{draft.artist || "Unknown artist"}</span>
+        <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4 bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-4">
+                {draft.coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- Cloud Storage URL, no allowlisted host.
+                    <img src={draft.coverUrl} alt="" className="w-16 h-16 rounded-[12px] object-cover border border-stone-200" />
+                ) : (
+                    <div className="w-16 h-16 rounded-[12px] border border-dashed border-stone-300 bg-white/50" />
+                )}
+                <div className="flex flex-col gap-1 min-w-0">
+                    <span className="text-base font-sans font-medium text-stone-800 truncate">
+                        {(draft.title as string) || "Untitled song"}
+                    </span>
+                    <span className="text-sm text-stone-500 font-sans truncate">{draft.artist || "Unknown artist"}</span>
+                    {!draft.available && (
+                        <span className="text-[11px] text-stone-400">Shown greyed out — coming soon</span>
+                    )}
+                </div>
             </div>
+
+            {/* The timeline as the exercise draws it: each part in its own shade,
+                which is also the quickest way to spot a gap you didn't mean. */}
+            {sections.length > 0 && duration > 0 && (
+                <div className="flex flex-col gap-2">
+                    <div className="flex h-9 w-full overflow-hidden rounded-[10px] border border-stone-200">
+                        {sections.map((section, i) => {
+                            const previous = sections[i - 1];
+                            const gap = previous ? section.start - previous.end : section.start;
+                            return (
+                                <div key={i} className="flex h-full" style={{ width: `${((section.end - section.start + Math.max(0, gap)) / duration) * 100}%` }}>
+                                    {gap > 0.5 && (
+                                        <div
+                                            className="h-full bg-[repeating-linear-gradient(45deg,#e7e5e4,#e7e5e4_4px,#fafaf9_4px,#fafaf9_8px)]"
+                                            style={{ width: `${(gap / (section.end - section.start + gap)) * 100}%` }}
+                                            title={`${formatTime(previous ? previous.end : 0)} – ${formatTime(section.start)} unmapped`}
+                                        />
+                                    )}
+                                    <div
+                                        className="h-full flex-1 flex items-center justify-center overflow-hidden"
+                                        style={{ backgroundColor: KIND_BG[section.kind] }}
+                                        title={`${SECTION_LABELS[section.kind]} · ${formatTime(section.start)}`}
+                                    >
+                                        <span className="text-[10px] font-sans truncate px-1" style={{ color: SECTION_TEXT }}>
+                                            {SECTION_LABELS[section.kind]}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <span className="text-[11px] text-stone-500">
+                        {sections.length} sections · {formatTime(duration)}
+                    </span>
+                </div>
+            )}
         </div>
     );
 }

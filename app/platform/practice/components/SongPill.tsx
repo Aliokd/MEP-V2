@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Music4 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { PRACTICE_SONGS, type PracticeSong } from '../data/practiceSongs';
+import { type PracticeSong } from '../data/practiceSongs';
+import { usePracticeLibrary } from '../lib/library';
 
 interface SongPillProps {
     /** Title shown on the pill; for uploads there is no matching library id. */
@@ -22,6 +23,7 @@ interface SongPillProps {
  */
 export default function SongPill({ title, artist, currentId, onSelect }: SongPillProps) {
     const { t } = useLanguage();
+    const songs = usePracticeLibrary();
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
@@ -73,7 +75,7 @@ export default function SongPill({ title, artist, currentId, onSelect }: SongPil
                             transition={{ duration: 0.16, ease: 'easeOut' }}
                             className="w-[min(88vw,360px)] max-h-[min(50vh,420px)] overflow-y-auto no-scrollbar bg-white/95 backdrop-blur-md border border-stone-200/60 rounded-[20px] p-2.5 shadow-[0_24px_60px_rgba(0,0,0,0.10)]"
                         >
-                            {PRACTICE_SONGS.map(song => {
+                            {songs.map(song => {
                                 const isCurrent = song.id === currentId;
                                 const locked = !song.available;
                                 return (

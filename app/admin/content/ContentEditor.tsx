@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Save, Archive, Globe, Eye } from "lucide-react";
+import { X, Save, Archive, Globe, Eye, Check } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { Badge, Button, Input, Panel, Select, Spinner, Textarea } from "../components/ui";
 import { LOCALES, LOCALE_LABELS, IDEA_CATEGORIES, type LocalizedText, type Locale } from "@/lib/content";
@@ -9,6 +9,8 @@ import type { ContentItem } from "./page";
 import MediaUpload from "../components/MediaUpload";
 import BlockEditor from "./BlockEditor";
 import ContentPreview from "./ContentPreview";
+import PracticeSectionEditor from "./PracticeSectionEditor";
+import type { CmsPracticeSection } from "@/lib/practiceLibrary";
 import type { LessonBlock } from "@/lib/lessonBlocks";
 import { uploadContentMedia, type VideoProbe } from "@/lib/uploadContentMedia";
 
@@ -289,6 +291,39 @@ export default function ContentEditor({
                                 nameHint={mediaNameHint}
                             />
 
+                            {/* Playable is a separate decision from published: a song
+                                can sit in the chooser as "coming soon" while its
+                                structure is still being mapped. */}
+                            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                                <span
+                                    className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                                        draft.available ? "bg-green-500 border-green-500" : "border-ink-500"
+                                    }`}
+                                >
+                                    {draft.available && <Check className="w-3 h-3 text-ink-950" />}
+                                </span>
+                                <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    checked={Boolean(draft.available)}
+                                    onChange={(e) => setField("available", e.target.checked)}
+                                />
+                                <span className="flex flex-col">
+                                    <span className="text-xs text-ink-300">Ready to practise with</span>
+                                    <span className="text-[11px] text-ink-500">
+                                        Off shows it greyed out in the chooser as coming soon.
+                                    </span>
+                                </span>
+                            </label>
+
+                            <PracticeSectionEditor
+                                sections={(draft.sections as CmsPracticeSection[]) || []}
+                                audioUrl={draft.audioUrl || ""}
+                                durationSeconds={draft.durationSeconds ?? null}
+                                onChange={(sections) => setField("sections", sections)}
+                                onDuration={(seconds) => setField("durationSeconds", seconds)}
+                            />
+
                             {/* Practice ships real commercial recordings — an unset
                                 licence is a takedown waiting to happen, so it is
                                 surfaced rather than buried. */}
@@ -320,8 +355,8 @@ export default function ContentEditor({
                             </Panel>
 
                             <p className="text-[11px] text-ink-500">
-                                Word-level lyric timings aren&apos;t editable here yet — they come from the
-                                migration. Editing them needs a timing tool, not a text box.
+                                Word-by-word timings from the original import are kept but not editable
+                                here — Practice works in sections, which are mapped above.
                             </p>
                         </>
                     )}

@@ -7,7 +7,7 @@ import PracticeVideoModal from './PracticeVideoModal';
 // ChosenSong shape still names what is being practised, uploads included.
 import { type ChosenSong } from './SongChooser';
 import SongPill from './SongPill';
-import { PRACTICE_SONGS } from '../data/practiceSongs';
+import { usePracticeLibrary } from '../lib/library';
 import StructurePlayer from './StructurePlayer';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
 import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft } from 'lucide-react';
@@ -27,6 +27,8 @@ const CARD_SLIDE = {
 
 export default function PracticeTab() {
     const { t, language } = useLanguage();
+    // Authored in the admin console; falls back to the bundled list.
+    const songs = usePracticeLibrary();
 
     const getTranslatedPracticeName = (name: string) => t(getPractice(name).nameKey);
 
@@ -144,7 +146,7 @@ export default function PracticeTab() {
      */
     const activeSong: ChosenSong | null = chosenSong
         ?? (() => {
-            const first = PRACTICE_SONGS.find(s => s.available);
+            const first = songs.find(s => s.available);
             return first ? { source: 'library' as const, song: first } : null;
         })();
 
@@ -154,7 +156,7 @@ export default function PracticeTab() {
      * back to the start rather than to a dead button.
      */
     const stepSong = (delta: number) => {
-        const playable = PRACTICE_SONGS.filter(s => s.available);
+        const playable = songs.filter(s => s.available);
         if (playable.length === 0) return;
         const current = activeSong?.source === 'library'
             ? playable.findIndex(s => s.id === activeSong.song.id)
@@ -319,9 +321,9 @@ export default function PracticeTab() {
 
                         <span className="w-px h-4 bg-stone-300 shrink-0" />
 
-                        {/* Sized and set to match the Back button beside it — the two
-                            read as one quiet breadcrumb rather than a link and a heading. */}
-                        <h2 className="text-sm font-sans font-medium text-stone-900 truncate">
+                        {/* Set to match the Back button beside it, colour included — the
+                            two read as one quiet breadcrumb, not a link and a heading. */}
+                        <h2 className="text-sm font-sans font-medium text-stone-500 truncate">
                             {getTranslatedPracticeName(openedPractice)}
                         </h2>
 
