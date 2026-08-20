@@ -16,6 +16,10 @@ export interface DirectoryUser {
     locale: string | null;
     createdAt: number | null;
     lastActiveAt: number | null;
+    /** Firebase Auth's record, which predates the in-app activity stamp. */
+    lastSignInAt?: number | null;
+    /** The later of the two — what "last active" actually means. */
+    activeAt?: number | null;
     plan: string | null;
     subscriptionStatus: string | null;
     trialEndsAt: string | null;
@@ -46,6 +50,10 @@ function UserDirectory() {
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [selectedUid, setSelectedUid] = useState<string | null>(searchParams.get("uid"));
+    // What the list is not showing, and why. Both come from the API.
+    const [total, setTotal] = useState(0);
+    const [hiddenBySort, setHiddenBySort] = useState(0);
+    const [sortField, setSortField] = useState("createdAt");
 
     const [search, setSearch] = useState("");
     const [debounced, setDebounced] = useState("");
@@ -68,7 +76,11 @@ function UserDirectory() {
 
             const res = await adminFetch(`/api/admin/users?${params}`);
             if (!res.ok) throw new Error((await res.json()).error || "Failed to load users");
-            setUsers((await res.json()).users);
+            const data = await res.json();
+            setUsers(data.users);
+            setTotal(data.total ?? data.users.length);
+            setHiddenBySort(data.hiddenBySort ?? 0);
+            setSortField(data.sortField ?? "createdAt");
         } catch (err: any) {
             setError(err.message);
             setUsers([]);
@@ -120,11 +132,35 @@ function UserDirectory() {
                 </Select>
                 <Select value={filter} onChange={(e) => setFilter(e.target.value)}>
                     <option value="">Newest first</option>
+                    <option value="recent">Recent activity</option>
                     <option value="trial-expiring">Trial ending in 7 days</option>
                     <option value="inactive">Inactive 30+ days</option>
                 </Select>
-                {users && <span className="text-xs text-ink-500 ml-auto">{users.length} shown</span>}
+                {users && (
+                    <span className="text-xs text-ink-500 ml-auto">
+                        {users.length} shown{total > users.length ? ` of ${total}` : ""}
+                    </span>
+                )}
             </div>
+
+            {/* An account with no value in the field this order sorts on is not
+                filtered out by Firestore — it is absent from the answer entirely,
+                with nothing raised. Saying so beats letting someone conclude a
+                person has no account. */}
+            {!search && hiddenBySort > 0 && (
+                <Panel className="p-4 border-gold-500/30">
+                    <p className="text-sm text-ink-200">
+                        {hiddenBySort} {hiddenBySort === 1 ? "account has" : "accounts have"} no{" "}
+                        <span className="font-mono text-xs text-ink-300">{sortField}</span> recorded, so
+                        {hiddenBySort === 1 ? " it is" : " they are"} missing from this order.
+                    </p>
+                    <p className="text-xs text-ink-500 mt-1">
+                        {sortField === "lastActiveAt"
+                            ? "Nobody has been recorded as active there yet — activity is only stamped when someone opens the platform."
+                            : "Search by full email address or uid to open them; search does not sort, so it finds them."}
+                    </p>
+                </Panel>
+            )}
 
             {error && (
                 <Panel className="p-4 border-red-500/30">
@@ -169,7 +205,10 @@ function UserDirectory() {
                                             <Badge tone={TIER_TONE[u.tier || ""] || "neutral"}>{u.tier || "none"}</Badge>
                                         </td>
                                         <td className="px-4 py-3 text-xs text-ink-400">{timeAgo(u.createdAt)}</td>
-                                        <td className="px-4 py-3 text-xs text-ink-400">{timeAgo(u.lastActiveAt)}</td>
+                                        {/* activeAt is the later of the in-app stamp and
+                                            Firebase Auth's last sign-in, so this reads
+                                            correctly for accounts that predate the stamp. */}
+                                        <td className="px-4 py-3 text-xs text-ink-400">{timeAgo(u.activeAt ?? u.lastActiveAt)}</td>
                                         <td className="px-4 py-3 text-xs text-ink-400">
                                             {u.trialEndsAt ? new Date(u.trialEndsAt).toLocaleDateString() : "—"}
                                         </td>
