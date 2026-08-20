@@ -168,6 +168,17 @@ test.describe('Practice Page', () => {
   // shades mean "solved".
   const SOLVED_GREENS = ['rgb(134, 190, 127)', 'rgb(107, 168, 98)'];
 
+  /**
+   * A song starts on its own when you land on it, so Play is usually already
+   * showing as Pause. Press it only if it is still offered, then confirm the
+   * song is actually running before the test leans on playback.
+   */
+  const ensurePlaying = async (timeline: import('@playwright/test').Locator) => {
+    const play = timeline.getByRole('button', { name: 'Play' });
+    if (await play.count()) await play.click();
+    await expect(timeline.getByRole('button', { name: 'Pause' })).toBeVisible();
+  };
+
   test('answering the task: right answer turns green, wrong one shakes', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
@@ -443,7 +454,7 @@ test.describe('Practice Page', () => {
     const width = (await track.boundingBox())!.width;
     const seekTo = (secs: number) => track.click({ position: { x: width * (secs / 168), y: 4 } });
 
-    await timeline.getByRole('button', { name: 'Play' }).click();
+    await ensurePlaying(timeline);
     await seekTo(14);
     await expect(page.locator('[data-line-current]')).toHaveText("And I don't care just we do");
     await seekTo(28);
@@ -455,6 +466,42 @@ test.describe('Practice Page', () => {
     await seekTo(130);
     await expect(page.locator('[data-line-current]')).toHaveText('Do you love Do you love Do you love');
     await expect.poll(scrollTop).toBeGreaterThan(before + 100);
+  });
+
+  test('landing on a song starts it, and so does switching', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 20000 });
+
+    // No Play to press — the song is already running
+    await expect(timeline.getByRole('button', { name: 'Pause' })).toBeVisible();
+    await expect(timeline.getByRole('button', { name: 'Play' })).toHaveCount(0);
+
+    // Picking another song starts that one too
+    await page.locator('[data-song-pill] > button').click();
+    await page.locator('[data-song-option="beautiful-day"]').click();
+    await expect(page.locator('[data-song-pill]')).toContainText('Beautiful Day');
+    await expect(timeline.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 20000 });
+  });
+
+  test('the first-run guide holds the song until it is dismissed', async ({ page }) => {
+    // This test is the first run, so undo the beforeEach pre-dismissal
+    await page.evaluate(() => window.localStorage.removeItem('mep-structure-demo-seen'));
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+
+    const demo = page.locator('[data-structure-demo]');
+    await expect(demo).toBeVisible({ timeout: 20000 });
+
+    // Nothing plays behind the guide
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline.getByRole('button', { name: 'Pause' })).toHaveCount(0);
+
+    // Dismissing it is what sets the song going
+    await demo.getByRole('button', { name: 'Got it' }).click();
+    await expect(timeline.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 20000 });
   });
 
   test('the task points at one band at a time, and it pulses', async ({ page }) => {
@@ -532,7 +579,7 @@ test.describe('Practice Page', () => {
     await expect(timeline.getByText('2:48')).toBeVisible();
 
     const playhead = timeline.locator('div.h-11 > div[aria-hidden="true"]');
-    await timeline.getByRole('button', { name: 'Play' }).click();
+    await ensurePlaying(timeline);
     await page.waitForTimeout(6000);
 
     const left = await playhead.evaluate(el => parseFloat((el as HTMLElement).style.left));
@@ -545,7 +592,7 @@ test.describe('Practice Page', () => {
 
     const timeline = page.locator('[data-song-timeline]');
     await expect(timeline).toBeVisible({ timeout: 20000 });
-    await timeline.getByRole('button', { name: 'Play' }).click();
+    await ensurePlaying(timeline);
     await page.waitForTimeout(400);
 
     // Measure where the playhead is actually painted, not what left% it claims.
@@ -590,7 +637,7 @@ test.describe('Practice Page', () => {
     // itself after a few seconds when its audio output is unavailable, which
     // would make a wall-clock wait here depend on the machine's sound device.
     const track = timeline.locator('div.touch-none');
-    await timeline.getByRole('button', { name: 'Play' }).click();
+    await ensurePlaying(timeline);
     // 15% of a 2:48 song is ~0:25, inside verse 1 (7–41s). Clicked through the
     // locator, not page.mouse at pre-measured coordinates — the layout can still
     // settle (font swap) after measuring, and stale coordinates land on the bar.

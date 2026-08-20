@@ -35,12 +35,19 @@ export default function StructureDemo({ onDone }: StructureDemoProps) {
 
     if (!mounted) return null;
 
-    // Four ghost parts; the third is the answer. Widths vary so the stack reads
-    // as lyrics rather than as a loading skeleton.
+    /*
+     * Four ghost parts; the third is the answer. Line counts differ so the cards
+     * stand at different heights, the way real verses and choruses do — a stack
+     * of identical boxes reads as a loading skeleton, not as lyrics. Every line
+     * is the same weight; only the widths and the counts vary.
+     *
+     * Heights follow from the counts: 5px a line, 6px between, 20px of padding.
+     * The scroll keyframes below are written against those numbers.
+     */
     const CARDS = [
         [70, 52],
-        [62, 78, 45],
-        [58, 74],
+        [62, 78, 45, 58],
+        [58, 74, 46],
         [66, 50],
     ];
 
@@ -79,12 +86,13 @@ export default function StructureDemo({ onDone }: StructureDemoProps) {
                     </div>
 
                     {/* The lyrics, in their own scroll viewport */}
-                    <div className="relative mt-3 h-[88px] overflow-hidden">
+                    <div className="relative mt-3 h-[92px] overflow-hidden">
                         <div className="demo-list absolute inset-x-0 top-0 flex flex-col gap-2">
                             {CARDS.map((lines, i) => (
+                                // No fixed height: each card stands as tall as its lines
                                 <div
                                     key={i}
-                                    className={`${i === 2 ? 'demo-answer' : ''} relative rounded-[10px] bg-white/60 px-3 py-2.5 h-10 flex flex-col justify-center gap-1.5`}
+                                    className={`${i === 2 ? 'demo-answer' : ''} relative rounded-[10px] bg-white/60 px-3 py-2.5 flex flex-col justify-center gap-1.5`}
                                 >
                                     {i === 2 && (
                                         <span
@@ -139,13 +147,17 @@ export default function StructureDemo({ onDone }: StructureDemoProps) {
                 .demo-cursor {
                     animation: demo-cursor-path 6s ease-in-out infinite;
                 }
+                /*
+                 * The cursor's y follows where each card actually sits as the list
+                 * scrolls: card 1 at ~90, the tall card 2 at ~105, the answer at ~98.
+                 */
                 @keyframes demo-cursor-path {
-                    0%       { transform: translate(250px, 150px); }
-                    12%      { transform: translate(150px, 104px); }
-                    28%      { transform: translate(128px, 116px); }
-                    44%      { transform: translate(112px, 100px); }
-                    50%, 92% { transform: translate(104px, 96px); }
-                    100%     { transform: translate(250px, 150px); }
+                    0%       { transform: translate(250px, 152px); }
+                    12%      { transform: translate(150px, 90px); }
+                    28%      { transform: translate(128px, 105px); }
+                    44%      { transform: translate(112px, 98px); }
+                    50%, 92% { transform: translate(104px, 98px); }
+                    100%     { transform: translate(250px, 152px); }
                 }
                 /* The click dip */
                 .demo-cursor svg {
@@ -170,10 +182,15 @@ export default function StructureDemo({ onDone }: StructureDemoProps) {
                 .demo-list {
                     animation: demo-scroll 6s ease-in-out infinite;
                 }
+                /*
+                 * Offsets are the cards' own tops, not a fixed pitch: 36 + 8 puts
+                 * card 2 at 44, and + 58 + 8 puts the answer at 110. Change a card's
+                 * line count and these have to move with it.
+                 */
                 @keyframes demo-scroll {
                     0%, 10%   { transform: translateY(0); }
-                    28%       { transform: translateY(-48px); }
-                    44%, 93%  { transform: translateY(-96px); }
+                    28%       { transform: translateY(-44px); }
+                    44%, 93%  { transform: translateY(-110px); }
                     100%      { transform: translateY(0); }
                 }
 
@@ -221,7 +238,7 @@ export default function StructureDemo({ onDone }: StructureDemoProps) {
                     .demo-list, .demo-band, .demo-answer, .demo-answer-line, .demo-tag {
                         animation: none;
                     }
-                    .demo-list { transform: translateY(-96px); }
+                    .demo-list { transform: translateY(-110px); }
                     .demo-band { background-color: ${SOLVED_BG} !important; }
                     .demo-answer { background-color: ${SOLVED_BG} !important; }
                     .demo-tag { opacity: 1; }

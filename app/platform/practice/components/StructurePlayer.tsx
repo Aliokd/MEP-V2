@@ -131,6 +131,23 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
     const onTogglePlayRef = useRef(onTogglePlay);
     useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
     useEffect(() => { onTogglePlayRef.current = onTogglePlay; }, [onTogglePlay]);
+
+    /*
+     * Landing on a song starts it. Once per mount, and the component is keyed by
+     * song, so switching songs starts the new one too. Held back while the
+     * first-run guide is up — music behind a modal is just confusing — which
+     * means dismissing it with "Got it" is what sets the song going.
+     *
+     * No autoplay worry: getting here always took a click (Start, a pill choice,
+     * Next), so the document is already user-activated. If a browser refuses
+     * anyway, the play() rejection below flips the state straight back.
+     */
+    const autoStartedRef = useRef(false);
+    useEffect(() => {
+        if (!isLoaded || showDemo || autoStartedRef.current) return;
+        autoStartedRef.current = true;
+        if (!isPlayingRef.current) onTogglePlayRef.current();
+    }, [isLoaded, showDemo]);
     // Each part's node, so a solved one can hand the view to the next.
     const blockRefs = useRef(new Map<number, HTMLDivElement>());
 
@@ -601,7 +618,8 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
              * centred on its own, without depending on the wrapper to do it.
              */}
             <div className="w-full max-w-6xl mx-auto">
-            <div className="parts-scroll flex flex-col gap-6 overflow-y-auto min-h-[280px] max-h-[calc(100dvh-22rem)] px-4 -mx-4">
+            <div className={`parts-scroll flex flex-col gap-6 overflow-y-auto min-h-[280px] px-4 -mx-4
+                ${allNamed ? 'max-h-[calc(100dvh-28rem)]' : 'max-h-[calc(100dvh-22rem)]'}`}>
                 {/* The read-along only runs on a finished song, and only while it plays */}
                 {parts.map(({ section, originalIdx }) => {
                     const readAlong = allNamed && isPlaying;
@@ -693,32 +711,36 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                     );
                 })}
 
-                {/* The song is done: the way on to the next one, at the end of the
-                    lyrics rather than over them. */}
-                {allNamed && (onPrevSong || onNextSong) && (
-                    <div data-song-nav className="flex items-center justify-between gap-4 pt-2 pb-1">
-                        <button
-                            type="button"
-                            onClick={onPrevSong}
-                            aria-label={t('practice.prev_song')}
-                            title={t('practice.prev_song')}
-                            className="w-11 h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
-                        >
-                            <ArrowLeft className="w-4 h-4 stroke-[2]" />
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={onNextSong}
-                            aria-label={t('practice.next_song')}
-                            className="flex items-center gap-2.5 pl-7 pr-6 py-3.5 rounded-full bg-stone-900 text-[#FAF9F5] text-[15px] font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors cursor-pointer"
-                        >
-                            {t('common.next')}
-                            <ArrowRight className="w-4 h-4 stroke-[2]" />
-                        </button>
-                    </div>
-                )}
             </div>
+
+            {/*
+             * The song is done: the way on to the next one. Sits below the scroller
+             * rather than inside it, so it stays in view wherever the lyrics are
+             * scrolled to — the list gives up the height for it instead.
+             */}
+            {allNamed && (onPrevSong || onNextSong) && (
+                <div data-song-nav className="flex items-center justify-between gap-4 mt-5">
+                    <button
+                        type="button"
+                        onClick={onPrevSong}
+                        aria-label={t('practice.prev_song')}
+                        title={t('practice.prev_song')}
+                        className="w-11 h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+                    >
+                        <ArrowLeft className="w-4 h-4 stroke-[2]" />
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={onNextSong}
+                        aria-label={t('practice.next_song')}
+                        className="flex items-center gap-2.5 pl-7 pr-6 py-3.5 rounded-full bg-stone-900 text-[#FAF9F5] text-[15px] font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors cursor-pointer"
+                    >
+                        {t('common.next')}
+                        <ArrowRight className="w-4 h-4 stroke-[2]" />
+                    </button>
+                </div>
+            )}
             </div>
 
             <style jsx>{`
