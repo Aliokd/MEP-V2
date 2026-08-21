@@ -14947,7 +14947,13 @@ export default function CreatePage() {
     const handlePlayheadLinePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
         if (e.button !== 0) return; // only left click
         
-        const timelineArea = document.getElementById('studio-playhead-timeline-area');
+        // The phone's lanes are their own element, not the desktop overlay's
+        // timeline column: measuring the drag against the desktop rect would map
+        // the finger to a box that isn't on screen. isMobile gates it rather than
+        // a plain `||` because the mobile block is display:none from sm up, and a
+        // hidden element's rect is all zeros — which would divide by zero below.
+        const timelineArea = (isMobile ? document.getElementById('studio-mobile-lanes') : null)
+            || document.getElementById('studio-playhead-timeline-area');
         if (!timelineArea) return;
         
         const rect = timelineArea.getBoundingClientRect();
@@ -15849,6 +15855,7 @@ export default function CreatePage() {
 
                                 {/* Lanes + the single playhead that crosses them */}
                                 <div
+                                    id="studio-mobile-lanes"
                                     className="relative w-full flex flex-col gap-2 cursor-ew-resize"
                                     onPointerDown={handleTimelinePointerDown}
                                 >
@@ -15894,13 +15901,27 @@ export default function CreatePage() {
                                         );
                                     })}
 
-                                    {/* The vertical red controller, spanning every lane */}
+                                    {/* The vertical red controller, spanning every lane.
+                                        Same structure as the desktop playhead — a wide
+                                        transparent grab column centred on a 2px line that
+                                        thickens while held — but 40px wide instead of 24,
+                                        because a thumb is not a cursor. It was
+                                        pointer-events-none before, so the line could only
+                                        be moved by tapping the lane it sits on rather than
+                                        by dragging the line itself. */}
                                     {studioState !== 'recording' && (
                                         <div
-                                            className="absolute top-0 bottom-0 w-[2px] bg-[#FF4040] z-30 pointer-events-none"
+                                            className="absolute top-0 bottom-0 w-10 -ml-5 z-30 pointer-events-auto touch-none cursor-ew-resize flex justify-center group/ph"
                                             style={{ left: `${playheadPercent}%` }}
+                                            onPointerDown={(e) => { e.stopPropagation(); handlePlayheadLinePointerDown(e); }}
                                         >
-                                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-[#FF4040] shadow-sm" />
+                                            <div className="h-full w-[2px] bg-[#FF4040] group-active/ph:w-[10px] transition-all duration-150 flex items-center justify-center relative">
+                                                {/* The white centre line, revealed while dragging —
+                                                    the desktop hover cue, moved onto press. */}
+                                                <div className="w-[1.5px] h-10 bg-white opacity-0 group-active/ph:opacity-100 transition-opacity duration-150" />
+                                            </div>
+                                            {/* Head. Big enough to read as the thing to grab. */}
+                                            <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-[#FF4040] shadow-[0_1px_4px_rgba(0,0,0,0.25)]" />
                                         </div>
                                     )}
                                 </div>
@@ -16294,19 +16315,23 @@ export default function CreatePage() {
                             <FileText size={24} className="stroke-[1.8]" />
                         </button>
 
-                        {/* Record — the widest of the five, because it is the one they came for */}
+                        {/* Record — the widest of the five, because it is the one they came
+                            for. flex-[2] against the others' fixed 60px, plus px-4 and
+                            whitespace-nowrap: at flex-1 the dot and the word were sharing
+                            barely more than a 60px circle and the label spilled out of it.
+
+                            Recording turns the whole pill red and drops to the timer alone.
+                            The label has nothing left to say at that point — the colour is
+                            saying it — and a running clock is the one thing worth reading. */}
                         {studioState === 'recording' ? (
                             <button
                                 onClick={() => { haptic('impact'); stopStudioRecording(); }}
                                 aria-label={t('studio.recording')}
-                                className="flex-1 h-[60px] min-w-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center gap-2 active:scale-95 transition-all"
+                                className="flex-[2] h-[60px] min-w-0 px-4 rounded-full bg-[#FF4040] border border-[#FF4040] shadow-[0_2px_10px_rgba(255,64,64,0.35)] flex items-center justify-center gap-2 active:scale-95 transition-all"
                                 type="button"
                             >
-                                <span className="relative flex items-center justify-center shrink-0">
-                                    <span className="w-5 h-5 rounded-full bg-[#FF4040] animate-ping absolute" />
-                                    <Square size={14} className="fill-[#FF4040] text-[#FF4040] shrink-0 z-10" />
-                                </span>
-                                <span className="text-[14px] font-bold text-[#FF4040] tabular-nums">
+                                <span className="w-2.5 h-2.5 rounded-full bg-white/90 shrink-0 animate-pulse" />
+                                <span className="text-[17px] font-bold text-white tabular-nums whitespace-nowrap">
                                     {formatTime(studioPlayhead)}
                                 </span>
                             </button>
@@ -16314,11 +16339,11 @@ export default function CreatePage() {
                             <button
                                 onClick={() => { haptic('impact'); startStudioRecording(); }}
                                 aria-label={t('studio.rec')}
-                                className="flex-1 h-[60px] min-w-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center gap-2 active:scale-95 transition-all"
+                                className="flex-[2] h-[60px] min-w-0 px-4 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center gap-2 active:scale-95 transition-all"
                                 type="button"
                             >
-                                <span className="w-4 h-4 bg-[#FF4040] rounded-full shrink-0" />
-                                <span className="text-[15px] font-bold text-[#FF4040]">{t('studio.rec')}</span>
+                                <span className="w-3.5 h-3.5 bg-[#FF4040] rounded-full shrink-0" />
+                                <span className="text-[15px] font-bold text-[#FF4040] whitespace-nowrap">{t('studio.rec')}</span>
                             </button>
                         )}
 
@@ -16400,7 +16425,7 @@ export default function CreatePage() {
                     onClose={() => setStudioSettingsOpen(false)}
                     title={t('studio.settings')}
                     subtitle={t('studio.settings_subtitle')}
-                    maxHeight="72dvh"
+                    maxHeight="90dvh"
                 >
                     <StudioSheetRow
                         title={t('studio.metronome')}
@@ -16458,17 +16483,22 @@ export default function CreatePage() {
 
                     <StudioSheetRow
                         title={t('studio.metronome_volume')}
-                        stacked
                         control={
-                            <input
-                                type="range"
-                                min={0}
-                                max={100}
-                                value={metronomeVolume}
-                                onChange={(e) => setMetronomeVolume(Number(e.target.value))}
-                                className="w-full accent-stone-900 h-11"
-                                aria-label={t('studio.metronome_volume')}
-                            />
+                            // The mixer's knob, same as the one that sits beside the
+                            // metronome pill on desktop — not a range input the studio
+                            // uses nowhere else.
+                            <div className="flex items-center gap-3">
+                                <StudioKnob
+                                    value={metronomeVolume}
+                                    min={0}
+                                    max={100}
+                                    defaultValue={80}
+                                    onChange={(val) => setMetronomeVolume(val)}
+                                />
+                                <span className="w-10 text-right text-[15px] font-semibold text-stone-800 tabular-nums">
+                                    {Math.round(metronomeVolume)}
+                                </span>
+                            </div>
                         }
                     />
 
@@ -16523,14 +16553,18 @@ export default function CreatePage() {
                     const sheetTrack = mobileTrackSheetId !== null
                         ? studioTracks.find(tr => tr && tr.id === mobileTrackSheetId)
                         : null;
-                    const instrumentOptions = ['vocals', 'drums', 'piano', 'guitar', 'synth', 'custom'] as const;
+                    // Four, not the desktop six. Drums and Synth are dropped from the
+                    // phone picker so the grid stays 2x2 and each cell is big enough to
+                    // carry the instrument's own artwork — they are still reachable from
+                    // the desktop dropdown.
+                    const instrumentOptions = ['guitar', 'piano', 'vocals', 'custom'] as const;
                     return (
                         <StudioActionSheet
                             open={isMobile && !!sheetTrack}
                             onClose={() => setMobileTrackSheetId(null)}
                             title={sheetTrack ? sheetTrack.name : t('studio.track_settings')}
                             subtitle={t('studio.track_settings_subtitle')}
-                            maxHeight="82dvh"
+                            maxHeight="92dvh"
                         >
                             {sheetTrack && (
                                 <>
@@ -16538,21 +16572,45 @@ export default function CreatePage() {
                                         title={t('studio.instrument')}
                                         stacked
                                         control={
-                                            <div className="grid grid-cols-3 gap-2">
+                                            // The same pills the desktop dropdown uses —
+                                            // artwork, tones and selected treatment all
+                                            // carried over, just laid out 2x2 instead of
+                                            // in a column.
+                                            <div className="grid grid-cols-2 gap-2.5">
                                                 {instrumentOptions.map(opt => {
                                                     const selected = sheetTrack.type === opt;
                                                     return (
                                                         <button
                                                             key={opt}
-                                                            onClick={() => { haptic('select'); handleSelectInstrumentType(sheetTrack.id, opt); }}
-                                                            className={`h-14 rounded-2xl border text-[14px] font-medium transition-all active:scale-[0.97] ${
-                                                                selected
-                                                                    ? 'bg-stone-900 border-stone-900 text-white'
-                                                                    : 'bg-white border-stone-300 text-stone-600'
-                                                            }`}
                                                             type="button"
+                                                            onClick={() => { haptic('select'); handleSelectInstrumentType(sheetTrack.id, opt); }}
+                                                            className={`w-full h-[84px] flex items-start pt-3 pl-4 relative overflow-hidden rounded-[20px] group cursor-pointer border active:scale-[0.98] transition-all ${
+                                                                selected
+                                                                    ? 'bg-[#F9F8F6] border-transparent ring-2 ring-stone-800'
+                                                                    : 'bg-white border-stone-200'
+                                                            }`}
                                                         >
-                                                            {instrumentLabels[opt]}
+                                                            <span className={`relative z-10 text-[15px] tracking-wide select-none whitespace-nowrap transition-colors ${
+                                                                selected ? 'font-semibold text-stone-700' : 'font-medium text-stone-400'
+                                                            }`}>
+                                                                {instrumentLabels[opt]}
+                                                            </span>
+                                                            <img
+                                                                src={instrumentImages[opt]}
+                                                                alt=""
+                                                                aria-hidden
+                                                                // Anchored bottom-right of the cell rather than
+                                                                // the row's right edge; the per-instrument nudges
+                                                                // keep each drawing sitting the way it does on
+                                                                // desktop instead of floating in the corner.
+                                                                className={`absolute bottom-0 right-0 object-contain select-none pointer-events-none transition-transform duration-200 group-active:scale-105 ${
+                                                                    opt === 'piano'
+                                                                        ? 'w-[86%] translate-x-3 translate-y-2'
+                                                                        : opt === 'guitar'
+                                                                        ? 'w-[70%] translate-x-2 translate-y-1'
+                                                                        : 'w-[62%] translate-x-2 translate-y-2'
+                                                                }`}
+                                                            />
                                                         </button>
                                                     );
                                                 })}
@@ -16560,105 +16618,77 @@ export default function CreatePage() {
                                         }
                                     />
 
-                                    <StudioSheetRow
-                                        title={t('studio.volume')}
-                                        stacked
-                                        control={
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="range" min={0} max={100}
-                                                    value={sheetTrack.volume}
-                                                    onChange={(e) => handleUpdateTrackParam(sheetTrack.id, 'volume', Number(e.target.value))}
-                                                    className="flex-1 min-w-0 accent-stone-900 h-11"
-                                                    aria-label={t('studio.volume')}
-                                                />
-                                                <span className="w-12 shrink-0 text-right text-[15px] font-semibold text-stone-900 tabular-nums">
-                                                    {Math.round(sheetTrack.volume)}
-                                                </span>
-                                            </div>
-                                        }
-                                    />
-
-                                    <StudioSheetRow
-                                        title={t('studio.pan')}
-                                        stacked
-                                        control={
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="range" min={-50} max={50}
-                                                    value={sheetTrack.pan}
-                                                    onChange={(e) => handleUpdateTrackParam(sheetTrack.id, 'pan', Number(e.target.value))}
-                                                    className="flex-1 min-w-0 accent-stone-900 h-11"
-                                                    aria-label={t('studio.pan')}
-                                                />
-                                                <span className="w-12 shrink-0 text-right text-[15px] font-semibold text-stone-900 tabular-nums">
-                                                    {(() => {
-                                                        const p = Math.round(sheetTrack.pan);
-                                                        return p === 0 ? 'C' : (p < 0 ? `L${Math.abs(p)}` : `R${p}`);
-                                                    })()}
-                                                </span>
-                                            </div>
-                                        }
-                                    />
-
-                                    <StudioSheetRow
-                                        title={t('studio.eq')}
-                                        stacked
-                                        control={
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="range" min={-12} max={12}
-                                                    value={sheetTrack.eq}
-                                                    onChange={(e) => handleUpdateTrackParam(sheetTrack.id, 'eq', Number(e.target.value))}
-                                                    className="flex-1 min-w-0 accent-stone-900 h-11"
-                                                    aria-label={t('studio.eq')}
-                                                />
-                                                <span className="w-12 shrink-0 text-right text-[15px] font-semibold text-stone-900 tabular-nums">
-                                                    {(() => {
-                                                        const v = Math.round(sheetTrack.eq);
-                                                        return v > 0 ? `+${v}` : `${v}`;
-                                                    })()}
-                                                </span>
-                                            </div>
-                                        }
-                                    />
-
-                                    <StudioSheetRow
-                                        title={t('studio.reverb')}
-                                        stacked
-                                        control={
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="range" min={0} max={100}
-                                                    value={sheetTrack.reverb}
-                                                    onChange={(e) => handleUpdateTrackParam(sheetTrack.id, 'reverb', Number(e.target.value))}
-                                                    className="flex-1 min-w-0 accent-stone-900 h-11"
-                                                    aria-label={t('studio.reverb')}
-                                                />
-                                                <span className="w-12 shrink-0 text-right text-[15px] font-semibold text-stone-900 tabular-nums">
-                                                    {Math.round(sheetTrack.reverb)}
-                                                </span>
-                                            </div>
-                                        }
-                                    />
+                                    {/* The knobs themselves, not sliders — same StudioKnob the
+                                        desktop mixer uses, so a value set here looks and drags
+                                        the way it does out there. 2x2 with the compressor
+                                        toggle below, because four dials and a switch do not
+                                        divide evenly. */}
+                                    <div className="py-4 border-b border-stone-200/70">
+                                        <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                                            {([
+                                                ['volume', t('studio.volume'), 0, 100, 80, Math.round(sheetTrack.volume)],
+                                                ['pan', t('studio.pan'), -50, 50, 0, Math.round(sheetTrack.pan)],
+                                                ['eq', t('studio.eq'), -12, 12, 0, Math.round(sheetTrack.eq)],
+                                                ['reverb', t('studio.reverb'), 0, 100, 0, Math.round(sheetTrack.reverb)],
+                                            ] as const).map(([key, label, min, max, def, shown]) => (
+                                                <div key={key} className="flex flex-col items-center gap-2">
+                                                    <span className="text-[13px] font-medium text-stone-500 tracking-wide">{label}</span>
+                                                    <StudioKnob
+                                                        value={sheetTrack[key] as number}
+                                                        min={min}
+                                                        max={max}
+                                                        defaultValue={def}
+                                                        onChange={(val) => handleUpdateTrackParam(sheetTrack.id, key, val)}
+                                                    />
+                                                    <span className="text-[13px] font-semibold text-stone-800 tabular-nums">
+                                                        {key === 'pan'
+                                                            ? (shown === 0 ? 'C' : (shown < 0 ? 'L' + Math.abs(shown) : 'R' + shown))
+                                                            : key === 'eq'
+                                                                ? (shown > 0 ? '+' + shown : String(shown))
+                                                                : shown}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
 
                                     <StudioSheetRow
                                         title={t('studio.compressor')}
                                         description={t('studio.compressor_hint')}
                                         control={
+                                            // The mixer's own switch: a bordered circle that
+                                            // reads ON/OFF, not a pill.
                                             <button
                                                 onClick={() => { haptic('select'); handleUpdateTrackParam(sheetTrack.id, 'compressor', !sheetTrack.compressor); }}
-                                                className={`h-11 px-6 rounded-full text-[15px] font-semibold border transition-all active:scale-95 ${
+                                                className={`w-14 h-14 rounded-full border-2 transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
                                                     sheetTrack.compressor
-                                                        ? 'bg-stone-900 border-stone-900 text-white'
-                                                        : 'bg-white border-stone-300 text-stone-700'
+                                                        ? 'bg-white border-stone-200/80 shadow-[0_2.5px_6px_rgba(0,0,0,0.07)]'
+                                                        : 'bg-[#F5F4F0] border-stone-200/40 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.06)]'
                                                 }`}
                                                 type="button"
                                             >
-                                                {sheetTrack.compressor ? t('common.on') : t('common.off')}
+                                                <span className={`text-[13px] font-bold tracking-wide select-none ${
+                                                    sheetTrack.compressor ? 'text-stone-600' : 'text-stone-400'
+                                                }`}>
+                                                    {sheetTrack.compressor ? 'ON' : 'OFF'}
+                                                </span>
                                             </button>
                                         }
                                     />
+
+                                    {/* Everything here writes straight through, so this closes
+                                        rather than commits — but a sheet with no way out but the
+                                        X reads unfinished, and it is the reachable end of a
+                                        list this long. */}
+                                    <div className="pt-4 pb-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => { haptic('tap'); setMobileTrackSheetId(null); }}
+                                            className="w-full h-14 rounded-full bg-stone-900 text-white text-[17px] font-semibold active:scale-[0.99] transition-transform"
+                                        >
+                                            {t('common.done')}
+                                        </button>
+                                    </div>
                                 </>
                             )}
                         </StudioActionSheet>
@@ -18851,7 +18881,12 @@ export default function CreatePage() {
                 }}
                 // pb-36 below md reserves room for the fixed dock, so the last line of a
                 // song isn't left sitting underneath it.
-                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none xl:rounded-[32px] p-4 md:p-5 xl:p-8 pb-36 md:pb-5 xl:pb-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
+                // Rounded from md, not xl. The artwork overlay inside is already
+                // clipped `md:rounded-[32px]`, so between md and xl the illustration
+                // curved while the card it sits in stayed square — the corner read as
+                // a cut rather than a shape. Below md it is deliberately square: the
+                // card runs edge to edge there and has no corner to show.
+                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-5 xl:p-8 pb-36 md:pb-5 xl:pb-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
                     isCanvasLocked
                         ? 'border-2 border-[#EDFF8E] shadow-[0_0_0_4px_rgba(237,255,142,0.35),0_12px_40px_rgba(0,0,0,0.03)] cursor-default'
                         // The I-beam is only honest over the region that actually starts a
@@ -19172,7 +19207,12 @@ export default function CreatePage() {
                                         }
                                         setShowShareModal(true);
                                     }}
-                                    className="relative flex items-center gap-2 px-5 py-1.5 bg-stone-100/65 hover:bg-stone-200/50 text-stone-700 hover:text-stone-900 border border-stone-200/40 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in"
+                                    // Hidden on a phone — this is the "start a collab" CTA and
+                                    // it moves into the ⋮ menu there, where it can be a named
+                                    // row instead of competing with the title for the header.
+                                    // The ACTIVE state (the avatar stack) stays out here: it
+                                    // shows who is in, which is worth the space.
+                                    className="relative hidden md:flex items-center gap-2 px-5 py-1.5 bg-stone-100/65 hover:bg-stone-200/50 text-stone-700 hover:text-stone-900 border border-stone-200/40 rounded-full text-[18px] font-sans font-medium tracking-wide transition-all cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none animate-fade-in"
                                 >
                                     <Users size={18} className="stroke-[1.6]" />
                                     <span>{t('collab.collab')}</span>
@@ -19348,6 +19388,19 @@ export default function CreatePage() {
                                                 as hover-to-reveal circles. */}
                                             {!isCanvasPreview && selectedNoteId && activeNote && (
                                                 <div className="sm:hidden flex flex-col gap-2 pb-2 mb-1 border-b border-stone-200/70">
+                                                    {!isActiveCollab && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setShowCanvasMenu(false);
+                                                                setShowShareModal(true);
+                                                            }}
+                                                            className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                        >
+                                                            <Users size={16} className="text-stone-500" />
+                                                            {t('collab.collab')}
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -20663,6 +20716,20 @@ export default function CreatePage() {
                 {/* Floating Suggestions Popover Overlay */}
                 {clickedWord && popoverPosition && (
                     <>
+                        {/* Scrim. This sheet had none — it relied on the document
+                            outside-click handler alone, so it opened over a page that
+                            stayed fully lit and it read as floating debris rather than a
+                            layer. Phone only: the desktop version is a small popover
+                            anchored to the word, and dimming the canvas behind it would
+                            hide the line being edited. */}
+                        {isMobile && (
+                            <div
+                                className={`fixed inset-0 z-[55] bg-stone-900/35 backdrop-blur-sm ${
+                                    wordSheetClosing ? 'sheet-backdrop-exit' : 'sheet-backdrop-enter'
+                                }`}
+                                onClick={() => closeWordPopover()}
+                            />
+                        )}
                         <div
                             ref={suggestionsPopoverRef}
                             className={`
@@ -20673,7 +20740,7 @@ export default function CreatePage() {
                                     // which anchors to the canvas card — a 2000px-tall element —
                                     // so the panel opened ~1300px above the fold and tapping a
                                     // lyric looked like it did nothing at all.
-                                    ? `fixed inset-x-0 bottom-0 rounded-t-[24px] rounded-b-none p-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[72dvh] overflow-y-auto no-scrollbar flex flex-col gap-3 ${
+                                    ? `fixed inset-x-0 bottom-0 rounded-t-[24px] rounded-b-none p-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[88dvh] overflow-y-auto no-scrollbar flex flex-col gap-3 ${
                                         wordSheetClosing ? 'bottom-sheet-exit pointer-events-none' : 'bottom-sheet-enter'
                                     }`
                                     : 'absolute rounded-[28px] p-6 flex flex-row items-stretch gap-5 w-[540px] max-w-[95%] sm:w-[640px] md:w-[760px]'
@@ -20704,10 +20771,13 @@ export default function CreatePage() {
                                                 // that in step; Chords is a separate pane and leaves it be.
                                                 if (value !== 'chords') setLexiconMode(value);
                                             }}
-                                            className={`flex-1 text-[13px] font-bold py-2.5 rounded-[11px] transition-all cursor-pointer ${
+                                            // 15px medium, not 13px bold: at bold these three read as
+                                            // three shouted labels competing with the words below,
+                                            // which are the actual content of the sheet.
+                                            className={`flex-1 text-[15px] py-3 rounded-[11px] transition-all cursor-pointer ${
                                                 mobileWordTab === value
-                                                    ? 'bg-white text-stone-800 shadow-xs'
-                                                    : 'text-stone-400 hover:text-stone-600'
+                                                    ? 'bg-white text-stone-800 font-semibold shadow-xs'
+                                                    : 'text-stone-500 font-medium hover:text-stone-700'
                                             }`}
                                         >
                                             {label}
@@ -20982,14 +21052,23 @@ export default function CreatePage() {
                             // viewport's bottom edge on a long canvas — mt-auto alone only pins
                             // them to the bottom of the card's own box, which can grow taller
                             // than the screen and scroll the toolbar out of view entirely.
-                            // On a phone the dock is FIXED to the viewport, not sticky.
+                            // On a phone the dock is STICKY inside the canvas card, not
+                            // fixed to the viewport. Fixed kept it on screen the whole way
+                            // down the page — including over the projects shelf below the
+                            // canvas, where it covered the files it has nothing to do with.
+                            // Sticky holds it to the viewport bottom for as long as the
+                            // canvas is on screen and then lets it leave with the canvas's
+                            // own bottom edge, which is where it belongs.
                             // Sticky only holds while its containing block is on screen, so on
                             // a long canvas the toolbar drifted away with the card's bottom edge
                             // (measured: 81px of drift over a 400px scroll). Fixed keeps the four
                             // controls on screen the whole way down. md+ keeps the sticky layout,
                             // where the card and the viewport bottom coincide anyway.
                             : isMobile
-                                ? "fixed left-0 right-0 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2"
+                                // -mx-4 cancels the canvas card's p-4 so the bar runs the
+                                // full width of the card, and pb-0 sits it flush on the
+                                // bottom edge with no margin under it.
+                                ? "sticky bottom-0 -mx-4 px-0 pt-2 pb-0"
                                 : isNoteBlank
                                     // No background and no backdrop-blur: the empty state's whole
                                     // point is the artwork, so the toolbar's own white pill buttons
@@ -21023,8 +21102,11 @@ export default function CreatePage() {
                         capsule is what lets it run full width on a phone. */}
                     <div className="flex flex-col items-center gap-2 w-full">
 
-                      {/* Row 1 — Complete, then the history pair */}
-                      <div className="flex items-center gap-2">
+                      {/* Row 1 — Complete, then the history pair. Right-aligned on a phone
+                          (centred from md up): these sit above a full-width bar, and a
+                          centred cluster floating over it read as unrelated to either edge.
+                          pr-4 lines them up with the bar's own right padding. */}
+                      <div className="flex items-center gap-2 w-full justify-end pr-4 md:w-auto md:justify-center md:pr-0">
                         {/* ✓ COMPLETE button — content auto-saves, so this is no longer a "save or
                             lose it" action; it stays available as the deliberate "I'm done" beat
                             that fires the celebration and awards progress.
@@ -21110,7 +21192,11 @@ export default function CreatePage() {
                             from 640px up while the dock was still in its phone layout, so
                             640-767px devices (most Android phones in landscape, the larger
                             iPhones, foldables) got a stranded half-width capsule. */}
-                        <div className="flex items-center justify-between md:justify-start gap-2 md:gap-3.5 bg-white border border-stone-200/60 p-2 md:p-3 rounded-full shadow-[0_16px_48px_rgba(0,0,0,0.08)] w-full md:w-fit pointer-events-auto">
+                        {/* Edge to edge and flush to the canvas's bottom on a phone, so it
+                            reads as a bar attached to the card rather than a pill floating
+                            over it. Only the top corners round — the bottom two would be
+                            curving against an edge that is already there. */}
+                        <div className="flex items-center justify-between md:justify-start gap-2 md:gap-3.5 bg-white border-t border-stone-200/60 md:border p-3 px-4 md:p-3 rounded-t-[24px] rounded-b-none md:rounded-full shadow-[0_-6px_28px_rgba(0,0,0,0.07)] md:shadow-[0_16px_48px_rgba(0,0,0,0.08)] w-full md:w-fit pointer-events-auto">
                             {/* REC capsule button — hidden entirely while previewing someone else's
                                 pending invite (nothing to explain there). While locked it stays
                                 visible-but-disabled instead, since the lock icon itself is the
@@ -21388,6 +21474,34 @@ export default function CreatePage() {
                     {/* Second row on mobile: search stretches to fill, the menu button
                         sits beside it. On md+ both stay compact and right-aligned. */}
                     <div className="flex items-center gap-3 w-full md:w-auto md:justify-self-end">
+                        {/* Phone: the field itself, always there and always live — no
+                            toggle, no reveal, tap and type. The icon-button version below
+                            is a desktop affordance, where the header row is shared with
+                            the tabs and a permanent field would crowd them; on a phone the
+                            row is the field's own, so folding it away only added a step. */}
+                        <div className="md:hidden flex-1 min-w-0 flex items-center gap-2 h-[48px] px-4 bg-white border border-stone-300 rounded-[16px] shadow-3xs">
+                            <Search size={17} className="text-stone-500 shrink-0" />
+                            <input
+                                type="text"
+                                inputMode="search"
+                                placeholder={t('workspace.search_placeholder') || 'Search projects...'}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={handleSearchKeyDown}
+                                className="flex-1 min-w-0 bg-transparent border-none outline-none text-[15px] font-sans font-medium text-stone-800 placeholder:text-stone-500 focus:ring-0 focus:outline-none"
+                            />
+                            {searchQuery.trim() !== '' && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchQuery('')}
+                                    aria-label={t('common.clear') || 'Clear'}
+                                    className="w-8 h-8 -mr-2 shrink-0 flex items-center justify-center rounded-full text-stone-400 active:bg-stone-100"
+                                >
+                                    <X size={16} className="stroke-[2.2]" />
+                                </button>
+                            )}
+                        </div>
+
                         {/* Search, folded to an icon. Stays lit while the field is open or
                             a query is live, so a filtered shelf is never a mystery. */}
                         <Tooltip label={t('workspace.search_placeholder') || 'Search projects...'} disabled={isProjectSearchOpen}>
@@ -21400,21 +21514,14 @@ export default function CreatePage() {
                             // plain icon toggle. Left as a labelled full-width button it
                             // was a second "Search projects..." bar sitting directly above
                             // the real one — two identical rows, only one of them typable.
-                            className={`h-[48px] flex items-center justify-center gap-2 border rounded-[16px] transition-all cursor-pointer select-none active:scale-95 md:flex-none md:w-[48px] ${
-                                isProjectSearchOpen ? 'flex-none w-[48px]' : 'flex-1 w-auto'
-                            } ${
+                            // Desktop only now — the phone has the real field above.
+                            className={`hidden md:flex h-[48px] items-center justify-center gap-2 border rounded-[16px] transition-all cursor-pointer select-none active:scale-95 flex-none w-[48px] ${
                                 isProjectSearchOpen || searchQuery.trim() !== ''
                                     ? 'bg-white border-stone-400/80 text-stone-800'
                                     : 'bg-stone-100/70 hover:bg-stone-200/60 border-stone-200/60 text-stone-600 hover:text-stone-900'
                             }`}
                         >
                             <Search size={17} className="shrink-0" />
-                            {/* The icon alone reads as a mystery button once it's stretched
-                                across half a phone row, so it gets its label back there —
-                                but only while it is the thing you press to search. */}
-                            <span className={`text-[14px] font-medium md:hidden ${isProjectSearchOpen ? 'hidden' : ''}`}>
-                                {t('workspace.search_placeholder') || 'Search projects...'}
-                            </span>
                         </button>
                         </Tooltip>
 
@@ -21568,8 +21675,10 @@ export default function CreatePage() {
 
                 {/* The search field, revealed under the tabs and above the shelf it
                     filters. autoFocus because the only reason it is open is to type. */}
+                {/* Desktop only: on a phone the field lives inline in the header row
+                    above, so rendering this too would put two of them on screen. */}
                 {isProjectSearchOpen && (
-                    <div className="flex items-center gap-3 bg-white border border-stone-300 px-4 h-[48px] rounded-[16px] text-stone-700 w-full mb-4 shadow-3xs animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="hidden md:flex items-center gap-3 bg-white border border-stone-300 px-4 h-[48px] rounded-[16px] text-stone-700 w-full mb-4 shadow-3xs">
                         <Search size={16} className="text-stone-500 shrink-0" />
                         <input
                             autoFocus
@@ -21676,7 +21785,13 @@ export default function CreatePage() {
                             {/* Click-away scrim. Transparent — this is a quiet side panel, not a
                                 modal, so it shouldn't dim the work being discussed. */}
                             <div
-                                className="fixed inset-0 z-[69]"
+                                // Transparent on desktop, where this is a quiet side panel
+                                // and dimming the line being discussed would defeat it.
+                                // On a phone it covers most of the screen, so it gets the
+                                // same scrim every other sheet has.
+                                className={`fixed inset-0 z-[69] max-md:bg-stone-900/30 max-md:backdrop-blur-sm ${
+                                    commentSheetClosing ? 'sheet-backdrop-exit' : 'sheet-backdrop-enter'
+                                }`}
                                 onClick={() => closeCommentThread(isMobile)}
                             />
                             <div

@@ -1,16 +1,29 @@
 import posthog from 'posthog-js';
 
 /**
- * PostHog product analytics.
+ * PostHog product analytics, in two tiers.
  *
- * Both values are inlined into the browser bundle at build time. When either is
- * missing the whole integration turns itself off rather than half-initialising:
- * local dev, CI and preview deploys then run with no analytics instead of
- * throwing, or worse, posting real events into the production project.
+ * Anonymous tier (everyone, no consent needed): initialised with
+ * `persistence: 'memory'`, so nothing — no cookie, no localStorage entry — is
+ * ever written to the device. That storage-free property is the entire legal
+ * basis for running before consent (ePrivacy's consent requirement attaches to
+ * storing or reading data on the device), so nothing in this tier may touch
+ * storage, identify anyone, or record sessions. Identity lasts exactly one
+ * page-session and is gone when the tab closes: the same person tomorrow is a
+ * new visitor, by design. What it yields is aggregate traffic — pageviews,
+ * referrers, device class, country.
  *
- * The host must match the region the PostHog project was created in
- * (https://eu.i.posthog.com or https://us.i.posthog.com) — pointing at the wrong
- * one fails silently, since the other region simply has no such project.
+ * Full tier (after "Accept all" in the consent bar): persistence moves to
+ * localStorage+cookie, identity survives across visits, identify() ties events
+ * to the account, and session replay starts. AnalyticsGate is the only caller
+ * of the upgrade/downgrade pair.
+ *
+ * Both env values are inlined into the browser bundle at build time. When
+ * either is missing the whole integration turns itself off rather than
+ * half-initialising: local dev, CI and preview deploys then run with no
+ * analytics instead of posting into the production project. The host must
+ * match the project's region (https://eu.i.posthog.com for this one) — the
+ * wrong region fails silently.
  */
 const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST;
@@ -19,6 +32,8 @@ export const isPostHogConfigured = Boolean(POSTHOG_KEY && POSTHOG_HOST);
 
 /** React 18 runs effects twice in dev; init is not idempotent, so gate it. */
 let initialised = false;
+/** True only between enableFullTracking() and disableFullTracking(). */
+let fullTracking = false;
 
 export function initPostHog(): void {
     if (!isPostHogConfigured || initialised || typeof window === 'undefined') return;
@@ -26,6 +41,13 @@ export function initPostHog(): void {
 
     posthog.init(POSTHOG_KEY!, {
         api_host: POSTHOG_HOST!,
+        // The anonymous tier's load-bearing line. Never change this default:
+        // consent upgrades it at runtime via enableFullTracking().
+        persistence: 'memory',
+        // Replay is consent-only. Enabled at runtime by enableFullTracking();
+        // this flag is what keeps it off for the anonymous tier even though
+        // the PostHog project has it switched on.
+        disable_session_recording: true,
         /*
          * 'history_change' makes posthog-js watch the History API itself.
          *
@@ -40,15 +62,15 @@ export function initPostHog(): void {
         capture_pageleave: true,
         /*
          * Anonymous visitors still send events — they just don't each create a
-         * billable person profile. Profiles are created on identify() at
-         * sign-in, which is the point at which a visitor becomes a person we can
-         * actually follow across sessions.
+         * billable person profile. Profiles are created on identify() after
+         * consent, which is the point at which a visitor becomes a person we
+         * can actually follow across sessions.
          */
         person_profiles: 'identified_only',
         /*
-         * Session replay is enabled in the PostHog project, deliberately — we
-         * want to watch real sessions. Masking is pinned here rather than left
-         * to the SDK default, which is a moving target across versions.
+         * Masking config for when replay runs (full tier only). Pinned here
+         * rather than left to the SDK default, which is a moving target across
+         * versions.
          *
          * maskAllInputs matters more here than in a typical app: what users type
          * into this product is original song lyrics. That is their creative work
@@ -64,6 +86,47 @@ export function initPostHog(): void {
 }
 
 /**
+ * Upgrade to the full tier after "Accept all": durable identity and session
+ * replay. Events from the anonymous tier stay orphaned — the memory-mode id is
+ * random and was never written anywhere, so there is nothing to stitch to.
+ * That is the promise of the anonymous tier, not a bug to fix.
+ */
+export function enableFullTracking(): void {
+    if (!isPostHogConfigured || !initialised || fullTracking) return;
+    fullTracking = true;
+    try {
+        posthog.set_config({
+            persistence: 'localStorage+cookie',
+            disable_session_recording: false,
+        });
+        posthog.startSessionRecording();
+    } catch (err) {
+        console.error('PostHog full-tracking upgrade failed:', err);
+    }
+}
+
+/**
+ * Back to the anonymous tier when consent is withdrawn (the privacy page's
+ * "Cookie settings" can clear or change the stored choice). reset() drops the
+ * identity and device id; moving persistence back to memory stops anything
+ * further from being written.
+ */
+export function disableFullTracking(): void {
+    if (!isPostHogConfigured || !initialised || !fullTracking) return;
+    fullTracking = false;
+    try {
+        posthog.stopSessionRecording();
+        posthog.reset();
+        posthog.set_config({
+            persistence: 'memory',
+            disable_session_recording: true,
+        });
+    } catch (err) {
+        console.error('PostHog downgrade failed:', err);
+    }
+}
+
+/**
  * Ties subsequent events to a real account. Safe to call repeatedly; PostHog
  * ignores an identify for the id that is already current.
  */
@@ -71,10 +134,9 @@ export function identifyPostHogUser(
     uid: string,
     traits: { email?: string | null; name?: string | null },
 ): void {
-    // `initialised` doubles as the consent check: init only ever happens after
-    // an explicit "accept all" (see AnalyticsGate), so identifying before it
-    // would mean naming a person to an SDK they never agreed to.
-    if (!isPostHogConfigured || !initialised) return;
+    // Full tier only. The anonymous tier's promise is that nobody is named to
+    // it — an identify before consent would break exactly that.
+    if (!isPostHogConfigured || !fullTracking) return;
     try {
         posthog.identify(uid, {
             ...(traits.email ? { email: traits.email } : {}),
@@ -91,7 +153,7 @@ export function identifyPostHogUser(
  * events are attributed to someone else.
  */
 export function resetPostHogUser(): void {
-    if (!isPostHogConfigured || !initialised) return;
+    if (!isPostHogConfigured || !fullTracking) return;
     try {
         posthog.reset();
     } catch (err) {

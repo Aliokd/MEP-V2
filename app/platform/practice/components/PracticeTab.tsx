@@ -10,9 +10,19 @@ import SongPill from './SongPill';
 import { usePracticeLibrary } from '../lib/library';
 import StructurePlayer from './StructurePlayer';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
-import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight } from 'lucide-react';
+import { SECTION_TEXT, TAG_BG } from '../data/sections';
 import { useLanguage } from '@/context/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
+
+/** Starting points for Composing verses. */
+const THEMES = [
+    'Nature', 'Sports', 'Urban life', 'Solitude', 'Memory', 'Ambition', 'Conflict', 'Harmony',
+    'Velocity', 'Starlight', 'The deep', 'Whispers', 'Machines', 'Ritual', 'Digital soul', 'The harvest',
+] as const;
+
+/** The two columns of the linking step, left to right. */
+const NOUN_VERB_SIDES = ['n', 'v'] as const;
 
 /**
  * Carousel slide for the practice card. Direction is +1 when moving forward
@@ -194,6 +204,20 @@ export default function PracticeTab() {
         }
     };
 
+    /**
+     * One line per step, and the only copy each step carries. What used to sit
+     * above these — a small-caps eyebrow and a sentence of description — said
+     * nothing the controls beneath it did not already say.
+     */
+    const STEP_ASKS: Record<number, string> = {
+        1: t('practice.choose_theme'),
+        2: t('practice.type_5_nouns'),
+        3: t('practice.type_5_verbs'),
+        4: t('practice.link_nouns_verbs'),
+        5: t('practice.complete_sentences'),
+        6: t('practice.story_ready'),
+    };
+
     const isStepComplete = (step: number) => {
         if (step === 1) return selectedTheme !== null;
         if (step === 2) return nouns.every(n => n.trim() !== '');
@@ -224,7 +248,7 @@ export default function PracticeTab() {
             <div className="w-full bg-transparent pb-6 relative overflow-visible">
 
                 {/* Top Practice Selector Header — swapped for the back row once a practice is open */}
-                <div className={`items-center justify-center gap-4 mb-6 relative z-30 select-none ${openedPractice ? 'hidden' : 'flex'}`}>
+                <div className={`items-center justify-center gap-2 md:gap-4 mb-6 relative z-30 select-none ${openedPractice ? 'hidden' : 'flex'}`}>
                     {/* Previous Button */}
                     <button 
                         onClick={handlePrevPractice}
@@ -239,12 +263,16 @@ export default function PracticeTab() {
                     </button>
  
                     {/* Active Title + Dropdown Selector */}
-                    <div ref={dropdownRef} className="relative">
-                        {/* Fixed width, sized for the longest practice title, so the
-                            arrows either side never move when the title changes. */}
+                    <div ref={dropdownRef} className="relative flex-1 min-w-0 md:flex-none">
+                        {/* Fills whatever the two arrows leave on a phone, rather than
+                            claiming a fixed 76vw — at that width the pill plus the two
+                            40px arrows and their gaps came to more than the row, so the
+                            arrows were pushed off both edges. Still one constant width,
+                            so they don't move when the title changes; it is just derived
+                            from the row now instead of guessed. Fixed width from md up. */}
                         <button
                             onClick={() => setDropdownOpen(!dropdownOpen)}
-                            className="flex items-center justify-center gap-2.5 w-[min(76vw,430px)] bg-white hover:bg-stone-50 border border-stone-200/80 text-stone-900 font-serif text-xl md:text-2xl font-normal tracking-wide py-2.5 px-6 rounded-full transition-colors"
+                            className="flex items-center justify-center gap-2.5 w-full md:w-[min(76vw,430px)] bg-white hover:bg-stone-50 border border-stone-200/80 text-stone-900 font-serif text-lg md:text-2xl font-normal tracking-wide py-2.5 px-4 md:px-6 rounded-full transition-colors"
                         >
                             <span className="truncate">{getTranslatedPracticeName(selectedPractice)}</span>
                             <ChevronDown size={16} className={`shrink-0 stroke-[2.2] transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
@@ -414,481 +442,245 @@ export default function PracticeTab() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -15 }}
                             transition={{ duration: 0.25, ease: "easeInOut" }}
-                            className="w-full flex flex-col items-center"
+                            className="w-full"
                         >
-                            {/* Centered Step Navigation Bar */}
-                            <div className="flex items-center justify-center gap-4 mb-10 select-none">
-                                <button 
-                                    disabled={currentStep === 1}
-                                    onClick={() => setCurrentStep(prev => prev - 1)}
-                                    className="w-8 h-8 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center justify-center text-stone-500"
-                                    aria-label={t('practice.previous_step')}
-                                >
-                                    <ChevronLeft size={16} className="stroke-[2.2]" />
-                                </button>
-                                <span className="text-sm font-sans text-stone-500">
-                                    {t('practice.step')} {currentStep} {t('practice.of')} 6
-                                </span>
-                                <button 
-                                    disabled={currentStep === 6 || !isStepComplete(currentStep)}
-                                    onClick={() => setCurrentStep(prev => prev + 1)}
-                                    className="w-8 h-8 rounded-full border border-stone-200 bg-white hover:bg-stone-50 active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center justify-center text-stone-500"
-                                    aria-label={t('practice.next_step')}
-                                >
-                                    <ChevronRight size={16} className="stroke-[2.2]" />
-                                </button>
-                            </div>
-
-                            {/* Step 1: Theme Selector */}
-                            {currentStep === 1 && (
-                                <div className="w-full flex flex-col items-center animate-in fade-in duration-500">
-                                    <div className="text-center mb-10 space-y-2 select-none">
-                                        <p className="text-stone-400 text-xs font-sans">{t('practice.step_1_header')}</p>
-                                        <h2 className="text-3xl font-serif text-stone-900 font-normal">{t('practice.choose_theme')}</h2>
-                                        <p className="text-stone-500 text-sm font-sans">{t('practice.select_theme_desc')}</p>
-                                    </div>
-                                    <div className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
-                                        {['Nature', 'Sports', 'Urban Life', 'Solitude', 'Memory', 'Ambition', 'Conflict', 'Harmony', 'Velocity', 'Starlight', 'The Deep', 'Whispers', 'Machines', 'Ritual', 'Digital Soul', 'The Harvest'].map((theme, idx) => (
-                                            <button
-                                                key={idx}
-                                                onClick={() => {
-                                                    setSelectedTheme(theme);
-                                                    setCurrentStep(2);
-                                                }}
-                                                className="group aspect-video bg-white border border-stone-200 hover:border-stone-400 transition-colors duration-200 rounded-[16px] flex items-center justify-center"
+                            {/*
+                             * Same shape as Master song structure: one line saying what
+                             * to do, the work below it on translucent cards, and the way
+                             * forward at the bottom. That instruction is the only copy —
+                             * the eyebrow and the paragraph under each heading were
+                             * restating what the controls already show.
+                             */}
+                            <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
+                                <div className="flex items-center justify-between gap-6 select-none">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <p className="text-sm font-sans font-medium text-stone-900 truncate">
+                                            {STEP_ASKS[currentStep]}
+                                        </p>
+                                        {selectedTheme && currentStep > 1 && (
+                                            <span
+                                                style={{ backgroundColor: TAG_BG, color: SECTION_TEXT }}
+                                                className="shrink-0 rounded-full px-3 py-1 text-xs font-sans"
                                             >
-                                                <span className="text-sm font-sans text-stone-600 group-hover:text-stone-900 transition-colors">
-                                                    {theme}
-                                                </span>
-                                            </button>
+                                                {selectedTheme}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Progress as dots rather than "Step 3 of 6" */}
+                                    <div
+                                        className="flex items-center gap-1.5 shrink-0"
+                                        aria-label={`${t('practice.step')} ${currentStep} ${t('practice.of')} 6`}
+                                    >
+                                        {[1, 2, 3, 4, 5, 6].map(n => (
+                                            <span
+                                                key={n}
+                                                className="w-1.5 h-1.5 rounded-full transition-colors"
+                                                style={{ backgroundColor: n <= currentStep ? '#1C1917' : TAG_BG }}
+                                            />
                                         ))}
                                     </div>
                                 </div>
-                            )}
 
-                            {/* Step 2 & 3: Drafting Nouns/Verbs */}
-                            {(currentStep === 2 || currentStep === 3) && (
-                                <div className="w-full flex flex-col items-center animate-in fade-in duration-500">
-                                    <div className="text-center mb-10 space-y-2 select-none">
-                                        <p className="text-stone-400 text-xs font-sans">
-                                            {currentStep === 2 ? t('practice.step_2_header') : t('practice.step_3_header')}
-                                        </p>
-                                        <h2 className="text-3xl font-serif text-stone-900 font-normal">
-                                            {currentStep === 2 ? t('practice.type_5_nouns') : t('practice.type_5_verbs')}
-                                        </h2>
-                                        <p className="text-stone-500 text-sm font-sans">
-                                            Focus on sensory details related to {selectedTheme}
-                                        </p>
+                                {/* Step 1 — pick a theme */}
+                                {currentStep === 1 && (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
+                                        {THEMES.map(theme => (
+                                            <button
+                                                key={theme}
+                                                onClick={() => { setSelectedTheme(theme); setCurrentStep(2); }}
+                                                className="verse-card h-24 rounded-[20px] flex items-center justify-center text-sm font-sans text-stone-700"
+                                            >
+                                                {theme}
+                                            </button>
+                                        ))}
                                     </div>
+                                )}
 
-                                    <div className="w-full flex flex-col lg:flex-row gap-8 items-start">
-                                        {/* Sidebar Info card */}
-                                        <div className="flex flex-col gap-4 w-full lg:w-60 shrink-0">
-                                            <div className="p-5 bg-white border border-stone-200 rounded-[16px]">
-                                                <span className="text-xs font-sans text-stone-400 block mb-1">{t('practice.theme')}</span>
-                                                <span className="text-stone-800 font-serif text-lg font-normal">{selectedTheme}</span>
+                                {/* Steps 2 and 3 — five words */}
+                                {(currentStep === 2 || currentStep === 3) && (
+                                    <div className="verse-card is-static rounded-[20px] px-6 md:px-8 py-6 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-2 animate-in fade-in duration-300">
+                                        {Array.from({ length: 5 }).map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className="flex items-center gap-3 border-b border-stone-300/50 focus-within:border-stone-800 transition-colors py-2.5"
+                                            >
+                                                <span className="text-[11px] font-sans tabular-nums text-stone-400 w-4 shrink-0">
+                                                    {i + 1}
+                                                </span>
+                                                <input
+                                                    type="text"
+                                                    placeholder={currentStep === 2 ? t('practice.enter_noun') : t('practice.enter_verb')}
+                                                    value={currentStep === 2 ? nouns[i] : verbs[i]}
+                                                    onChange={(e) => handleWordChange(currentStep === 2 ? 'noun' : 'verb', i, e.target.value)}
+                                                    className="bg-transparent border-none outline-none w-full font-serif text-lg text-stone-900 placeholder:text-stone-400"
+                                                />
                                             </div>
+                                        ))}
+                                    </div>
+                                )}
 
-                                            {currentStep === 3 && (
-                                                <div className="p-5 bg-white border border-stone-200 rounded-[16px]">
-                                                    <div className="flex justify-between items-center mb-3">
-                                                        <span className="text-xs font-sans text-stone-400">{t('practice.nouns')}</span>
-                                                        <button 
-                                                            onClick={() => setCurrentStep(2)} 
-                                                            className="text-xs font-sans text-stone-500 hover:text-stone-900 underline underline-offset-2 transition-colors"
-                                                        >
-                                                            {t('practice.edit')}
-                                                        </button>
+                                {/* Step 4 — link them up */}
+                                {currentStep === 4 && (
+                                    <div className="animate-in fade-in duration-300">
+                                        <div className="relative flex justify-between items-start gap-10 md:gap-32 px-2 md:px-16">
+                                            <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" aria-hidden="true">
+                                                {connections.map((conn, idx) => (
+                                                    <line
+                                                        key={idx}
+                                                        x1="30%"
+                                                        y1={`${conn.n * 19.4 + 9.7}%`}
+                                                        x2="70%"
+                                                        y2={`${conn.v * 19.4 + 9.7}%`}
+                                                        stroke="#1C1917"
+                                                        strokeWidth="1.4"
+                                                        strokeOpacity="0.45"
+                                                    />
+                                                ))}
+                                            </svg>
+
+                                            {NOUN_VERB_SIDES.map(side => {
+                                                const words = side === 'n' ? nouns : verbs;
+                                                return (
+                                                    <div key={side} className="flex flex-col gap-3 w-1/2 max-w-[260px] z-10">
+                                                        {words.map((word, i) => {
+                                                            const linked = connections.some(c => (side === 'n' ? c.n : c.v) === i);
+                                                            const armed = side === 'n' && pendingNounIndex === i;
+                                                            return (
+                                                                <button
+                                                                    key={i}
+                                                                    onClick={() => {
+                                                                        const existing = connections.find(c => (side === 'n' ? c.n : c.v) === i);
+                                                                        if (existing) {
+                                                                            setConnections(connections.filter(c => c !== existing));
+                                                                            return;
+                                                                        }
+                                                                        if (side === 'n') {
+                                                                            setPendingNounIndex(armed ? null : i);
+                                                                        } else if (pendingNounIndex !== null) {
+                                                                            setConnections([...connections, { n: pendingNounIndex, v: i }]);
+                                                                            setPendingNounIndex(null);
+                                                                        }
+                                                                    }}
+                                                                    className={`verse-card h-14 w-full px-5 rounded-[16px] flex items-center font-serif text-base text-stone-800 truncate
+                                                                        ${armed ? 'is-armed' : ''} ${linked ? 'is-linked' : ''}`}
+                                                                >
+                                                                    {word}
+                                                                </button>
+                                                            );
+                                                        })}
                                                     </div>
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {nouns.filter(n => n.trim() !== '').map((n, i) => (
-                                                            <span 
-                                                                key={i} 
-                                                                className="px-2.5 py-1 bg-stone-100 text-stone-600 rounded-[8px] text-xs font-sans"
-                                                            >
-                                                                {n}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
+                                                );
+                                            })}
                                         </div>
 
-                                        {/* Input Panel */}
-                                        <div className="flex-grow w-full bg-transparent overflow-hidden">
-                                            <div className="p-8 md:p-10 space-y-8">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-2">
-                                                    {Array.from({ length: 5 }).map((_, i) => (
-                                                        <div key={i} className="group relative">
-                                                            <div className="absolute -left-6 top-1/2 -translate-y-1/2 text-[9px] text-stone-400 font-mono">
-                                                                {(i + 1).toString().padStart(2, '0')}
-                                                            </div>
-                                                            <div className="flex items-center gap-4 border-b border-stone-300/60 group-focus-within:border-stone-800 transition-all duration-300 py-2.5">
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder={currentStep === 2 ? t('practice.enter_noun') : t('practice.enter_verb')}
-                                                                    value={currentStep === 2 ? nouns[i] : verbs[i]}
-                                                                    onChange={(e) => handleWordChange(currentStep === 2 ? 'noun' : 'verb', i, e.target.value)}
-                                                                    className="bg-transparent border-none outline-none w-full font-serif text-stone-900 placeholder:text-stone-400 text-base"
-                                                                />
-                                                            </div>
-                                                        </div>
+                                        {connections.length > 0 && (
+                                            <button
+                                                onClick={() => { setConnections([]); setPendingNounIndex(null); }}
+                                                className="mt-5 mx-auto block text-xs font-sans text-stone-400 hover:text-stone-900 transition-colors cursor-pointer"
+                                            >
+                                                {t('common.reset')}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Step 5 — write the lines */}
+                                {currentStep === 5 && (
+                                    <div className="flex flex-col gap-4 animate-in fade-in duration-300">
+                                        {connections.map((conn, idx) => (
+                                            <div
+                                                key={idx}
+                                                className="verse-card is-static rounded-[20px] px-6 md:px-8 py-5 flex flex-col sm:flex-row sm:items-center gap-4"
+                                            >
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {[nouns[conn.n], verbs[conn.v]].map((word, w) => (
+                                                        <button
+                                                            key={w}
+                                                            onClick={() => {
+                                                                const next = [...sentences];
+                                                                const current = (next[idx] || '').trim();
+                                                                next[idx] = current === '' ? word : `${current} ${word}`;
+                                                                setSentences(next);
+                                                            }}
+                                                            style={{ backgroundColor: TAG_BG, color: SECTION_TEXT }}
+                                                            className="rounded-full px-3.5 py-1 text-xs font-sans hover:brightness-95 transition-all cursor-pointer"
+                                                        >
+                                                            {word}
+                                                        </button>
                                                     ))}
                                                 </div>
-                                            </div>
-
-                                            <button
-                                                disabled={!isStepComplete(currentStep)}
-                                                onClick={() => setCurrentStep(currentStep === 2 ? 3 : 4)}
-                                                className={`
-                                                    w-full py-4 rounded-[14px] flex items-center justify-center gap-3 group transition-colors duration-200
-                                                    ${isStepComplete(currentStep)
-                                                        ? 'bg-stone-900 text-[#FAF9F5] hover:bg-stone-800 active:scale-[0.99]'
-                                                        : 'bg-stone-100 text-stone-400 cursor-not-allowed'}
-                                                `}
-                                            >
-                                                <span className="text-sm font-sans font-medium">
-                                                    {isStepComplete(currentStep) 
-                                                        ? t('practice.next_movement') 
-                                                        : `${t('practice.fill_more_prefix')} ${5 - (currentStep === 2 ? nouns : verbs).filter(x => x.trim() !== '').length} ${t('practice.fill_more_suffix')}`}
-                                                </span>
-                                                {isStepComplete(currentStep) && (
-                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="group-hover:translate-x-1 transition-transform duration-300">
-                                                        <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                                                    </svg>
+                                                <input
+                                                    type="text"
+                                                    value={sentences[idx] || ''}
+                                                    onChange={(e) => {
+                                                        const next = [...sentences];
+                                                        next[idx] = e.target.value;
+                                                        setSentences(next);
+                                                    }}
+                                                    placeholder={t('practice.sentence_placeholder')}
+                                                    className="flex-1 min-w-0 bg-transparent border-b border-stone-300/60 focus:border-stone-800 outline-none py-1.5 font-serif text-lg text-stone-900 placeholder:text-stone-400 transition-colors"
+                                                />
+                                                {(sentences[idx] || '').trim() !== '' && (
+                                                    <Check size={16} className="shrink-0 text-stone-700 stroke-[2.5]" />
                                                 )}
-                                            </button>
-                                        </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* Step 4: Link Nouns & Verbs */}
-                            {currentStep === 4 && (
-                                <div className="w-full flex flex-col items-center animate-in fade-in duration-500">
-                                    <div className="w-full bg-transparent overflow-hidden relative">
-                                        <div className="p-8 md:p-12 relative">
-                                            <div className="text-center mb-12 space-y-2">
-                                                <p className="text-stone-400 text-xs font-sans">{t('practice.step_4_header')}</p>
-                                                <h2 className="text-3xl font-serif text-stone-900 font-normal">{t('practice.link_nouns_verbs')}</h2>
-                                                <p className="text-stone-500 text-sm font-sans">{t('practice.link_desc')}</p>
-                                            </div>
-
-                                            <div className="flex justify-between items-start gap-12 md:gap-32 relative h-[480px] px-4 md:px-24 pt-10 pb-10 select-none">
-                                                {/* SVG Connections Canvas */}
-                                                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                                                    {connections.map((conn, idx) => {
-                                                        const isActive = idx === connections.length - 1;
-                                                        return (
-                                                            <line
-                                                                key={idx}
-                                                                x1="32%"
-                                                                y1={`${(conn.n * 15.83) + 15}%`}
-                                                                x2="68%"
-                                                                y2={`${(conn.v * 15.83) + 15}%`}
-                                                                stroke="#1C1917"
-                                                                strokeWidth={isActive ? "1.8" : "1.2"}
-                                                                strokeOpacity={isActive ? "0.7" : "0.3"}
-                                                                className="animate-in fade-in duration-500"
-                                                            />
-                                                        );
-                                                    })}
-                                                </svg>
-
-                                                {/* Nouns Column (Left) */}
-                                                <div className="flex flex-col gap-3 w-1/3 max-w-[220px] z-10">
-                                                    {nouns.map((n, i) => {
-                                                        const isConnected = connections.some(c => c.n === i);
-                                                        const isSelected = pendingNounIndex === i;
-                                                        return (
-                                                            <button
-                                                                key={i}
-                                                                onClick={() => {
-                                                                    const existingConn = connections.find(c => c.n === i);
-                                                                    if (existingConn) {
-                                                                        setConnections(connections.filter(c => c.n !== i));
-                                                                        return;
-                                                                    }
-                                                                    setPendingNounIndex(isSelected ? null : i);
-                                                                }}
-                                                                className={`
-                                                                    group relative h-16 w-full px-4 md:px-6 transition-colors duration-200 rounded-[14px] flex items-center border
-                                                                    ${isConnected
-                                                                        ? 'bg-white border-stone-400 text-stone-900'
-                                                                        : isSelected
-                                                                            ? 'bg-stone-900 border-stone-900 text-[#FAF9F5]'
-                                                                            : 'bg-white border-stone-200 hover:border-stone-400 text-stone-700'}
-                                                                `}
-                                                            >
-                                                                <div className="flex items-center justify-between w-full pointer-events-none text-xs md:text-sm">
-                                                                    <span className={`font-serif tracking-wide truncate ${isSelected ? 'text-[#FAF9F5]' : 'text-stone-800'}`}>{n}</span>
-                                                                    <div className={`w-1.5 h-1.5 rounded-full border transition-all duration-200 shrink-0 ml-2
-                                                                        ${isConnected
-                                                                            ? 'bg-stone-900 border-stone-900'
-                                                                            : isSelected
-                                                                                ? 'bg-white border-white scale-125'
-                                                                                : 'bg-transparent border-stone-300 group-hover:border-stone-500'}`}
-                                                                    />
-                                                                </div>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-
-                                                {/* Verbs Column (Right) */}
-                                                <div className="flex flex-col gap-3 w-1/3 max-w-[220px] z-10">
-                                                    {verbs.map((v, i) => {
-                                                        const isConnected = connections.some(c => c.v === i);
-                                                        const canConnect = pendingNounIndex !== null;
-                                                        return (
-                                                            <button
-                                                                key={i}
-                                                                onClick={() => {
-                                                                    const existingConn = connections.find(c => c.v === i);
-                                                                    if (existingConn) {
-                                                                        setConnections(connections.filter(c => c.v !== i));
-                                                                        return;
-                                                                    }
-                                                                    if (pendingNounIndex !== null) {
-                                                                        setConnections([...connections, { n: pendingNounIndex, v: i }]);
-                                                                        setPendingNounIndex(null);
-                                                                    }
-                                                                }}
-                                                                className={`
-                                                                    group relative h-16 w-full px-4 md:px-6 transition-colors duration-200 rounded-[14px] flex items-center border
-                                                                    ${isConnected
-                                                                        ? 'bg-white border-stone-400 text-stone-900'
-                                                                        : canConnect
-                                                                            ? 'bg-stone-50 border-stone-400 hover:border-stone-600 text-stone-700'
-                                                                            : 'bg-white border-stone-200 hover:border-stone-400 text-stone-700'}
-                                                                `}
-                                                            >
-                                                                <div className="flex items-center gap-2 w-full justify-between pointer-events-none text-xs md:text-sm">
-                                                                    <div className={`w-1.5 h-1.5 rounded-full border transition-all duration-200 shrink-0 mr-2
-                                                                         ${isConnected
-                                                                            ? 'bg-stone-900 border-stone-900'
-                                                                            : canConnect
-                                                                                ? 'bg-transparent border-stone-600 group-hover:scale-125'
-                                                                                : 'bg-transparent border-stone-300'}`}
-                                                                    />
-                                                                    <span className="font-serif tracking-wide truncate text-stone-800">{v}</span>
-                                                                </div>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Bottom Status bar */}
-                                        <div className="p-6 md:p-8 bg-white border border-stone-200 flex flex-col md:flex-row gap-4 justify-between items-center px-8 md:px-10 rounded-[16px]">
-                                            <div className="flex flex-col text-center md:text-left">
-                                                <span className="text-xs font-sans text-stone-400 mb-0.5">{t('practice.status')}</span>
-                                                <span className="text-stone-800 text-sm font-medium">{connections.length} of 5 links made</span>
-                                            </div>
-                                            <div className="flex items-center gap-6">
-                                                <button
-                                                    onClick={() => { setConnections([]); setPendingNounIndex(null); }}
-                                                    className="text-sm font-sans text-stone-500 hover:text-stone-900 transition-colors"
-                                                >
-                                                    {t('common.reset')}
-                                                </button>
-                                                <button
-                                                    disabled={connections.length < 5}
-                                                    onClick={() => setCurrentStep(5)}
-                                                    className={`
-                                                        px-8 py-3 rounded-full text-sm font-sans font-medium transition-colors
-                                                        ${connections.length >= 5
-                                                            ? 'bg-stone-900 text-[#FAF9F5] hover:bg-stone-800 active:scale-98'
-                                                            : 'bg-stone-100 text-stone-400 cursor-not-allowed'}
-                                                    `}
-                                                >
-                                                    {t('practice.apply_connections')}
-                                                </button>
-                                            </div>
-                                        </div>
+                                {/* Step 6 — the verse */}
+                                {currentStep === 6 && (
+                                    <div className="verse-card is-static rounded-[20px] px-6 md:px-10 py-8 flex flex-col gap-4 animate-in fade-in duration-300">
+                                        {sentences.filter(s => s && s.trim() !== '').map((sentence, i) => (
+                                            <p key={i} className="font-serif text-xl md:text-2xl leading-relaxed text-stone-800">
+                                                {sentence}
+                                            </p>
+                                        ))}
                                     </div>
+                                )}
+
+                                {/* The way on, in the same shape as the song nav */}
+                                <div className="flex items-center justify-between gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
+                                        disabled={currentStep === 1}
+                                        aria-label={t('practice.previous_step')}
+                                        title={t('practice.previous_step')}
+                                        className="w-11 h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-0 disabled:pointer-events-none cursor-pointer"
+                                    >
+                                        <ArrowLeft className="w-4 h-4 stroke-[2]" />
+                                    </button>
+
+                                    {currentStep === 6 ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setCurrentStep(1);
+                                                setNouns(Array(5).fill(''));
+                                                setVerbs(Array(5).fill(''));
+                                                setConnections([]);
+                                                setSentences(Array(5).fill(''));
+                                                setSelectedTheme(null);
+                                            }}
+                                            className="flex items-center gap-2.5 pl-7 pr-6 py-3.5 rounded-full bg-stone-900 text-[#FAF9F5] text-[15px] font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors cursor-pointer"
+                                        >
+                                            {t('practice.start_new_practice')}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentStep(prev => prev + 1)}
+                                            disabled={!isStepComplete(currentStep)}
+                                            className="flex items-center gap-2.5 pl-7 pr-6 py-3.5 rounded-full bg-stone-900 text-[#FAF9F5] text-[15px] font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors disabled:bg-stone-200 disabled:text-stone-400 disabled:pointer-events-none cursor-pointer"
+                                        >
+                                            {t('common.next')}
+                                            <ArrowRight className="w-4 h-4 stroke-[2]" />
+                                        </button>
+                                    )}
                                 </div>
-                            )}
-
-                            {/* Step 5: Complete the Sentences */}
-                            {currentStep === 5 && (
-                                <div className="w-full flex flex-col items-center animate-in fade-in duration-500">
-                                    <div className="w-full max-w-4xl">
-                                        <div className="text-center mb-10 space-y-2">
-                                            <p className="text-stone-400 text-xs font-sans">{t('practice.step_5_header')}</p>
-                                            <h2 className="text-3xl font-serif text-stone-900 font-normal">{t('practice.complete_sentences')}</h2>
-                                            <p className="text-stone-500 text-sm font-sans">(don't overthink, just connect them naturally)</p>
-                                        </div>
-
-                                        {/* Example Box */}
-                                        <div className="bg-white border border-stone-200 rounded-[16px] p-6 mb-8 flex items-center justify-center gap-6 select-none">
-                                            <span className="text-xs font-sans text-stone-400">{t('practice.example')}</span>
-                                            <div className="flex items-center gap-3">
-                                                <span className="font-serif text-lg md:text-xl text-stone-400 italic">{t('practice.example_love')}</span>
-                                                <div className="bg-stone-100 px-3 py-1 rounded-[8px] flex items-center">
-                                                    <span className="text-stone-900 font-serif text-sm font-medium">{t('practice.example_noun')}</span>
-                                                </div>
-                                                <div className="bg-stone-900 px-3 py-1 rounded-[8px] flex items-center">
-                                                    <span className="text-[#FAF9F5] font-serif text-sm font-medium">{t('practice.example_verb')}</span>
-                                                </div>
-                                                <span className="font-serif text-lg md:text-xl text-stone-400 italic">{t('practice.example_winter')}</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Scrollable list */}
-                                        <div className="flex flex-col gap-6 mb-12 max-h-[640px] overflow-y-auto pr-2 no-scrollbar">
-                                            {connections.map((conn, idx) => (
-                                                <div key={idx} className="bg-transparent rounded-[24px] p-8 md:p-10 flex flex-col items-center gap-6">
-                                                    <div className="flex items-center gap-4 select-none">
-                                                        <button
-                                                            onClick={() => {
-                                                                const newSentences = [...sentences];
-                                                                const current = newSentences[idx] || '';
-                                                                const word = nouns[conn.n];
-                                                                newSentences[idx] = current.trim() === '' ? word : `${current.trim()} ${word}`;
-                                                                setSentences(newSentences);
-                                                            }}
-                                                            className="bg-white border border-stone-200 text-stone-800 px-5 py-2.5 rounded-[12px] min-w-[110px] hover:border-stone-400 transition-colors"
-                                                        >
-                                                            <span className="text-stone-900 font-serif text-base">{nouns[conn.n]}</span>
-                                                        </button>
-                                                        <div className="w-6 h-px bg-stone-300" />
-                                                        <button
-                                                            onClick={() => {
-                                                                const newSentences = [...sentences];
-                                                                const current = newSentences[idx] || '';
-                                                                const word = verbs[conn.v];
-                                                                newSentences[idx] = current.trim() === '' ? word : `${current.trim()} ${word}`;
-                                                                setSentences(newSentences);
-                                                            }}
-                                                            className="bg-stone-900 text-[#FAF9F5] px-5 py-2.5 rounded-[12px] min-w-[110px] hover:bg-stone-800 transition-colors"
-                                                        >
-                                                            <span className="text-[#FAF9F5] font-serif text-base">{verbs[conn.v]}</span>
-                                                        </button>
-                                                    </div>
-
-                                                    <div className="w-full max-w-xl relative group">
-                                                        <input
-                                                            type="text"
-                                                            value={sentences[idx] || ''}
-                                                            onChange={(e) => {
-                                                                const newSentences = [...sentences];
-                                                                newSentences[idx] = e.target.value;
-                                                                setSentences(newSentences);
-                                                            }}
-                                                            placeholder={t('practice.sentence_placeholder')}
-                                                            className="w-full bg-transparent border-b border-stone-300 py-3.5 px-4 text-lg font-serif text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-stone-800 text-center"
-                                                        />
-                                                        <div className="absolute right-2 bottom-3">
-                                                            {(sentences[idx] || '').trim() !== '' && <Check size={18} className="text-stone-800 stroke-[2.2]" />}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Bottom Status bar */}
-                                        <div className="p-6 md:p-8 bg-white border border-stone-200 rounded-[16px] flex flex-col md:flex-row gap-4 justify-between items-center px-8 md:px-10">
-                                            <div className="flex flex-col text-center md:text-left">
-                                                <span className="text-xs font-sans text-stone-400 mb-0.5">{t('practice.status')}</span>
-                                                <span className="text-stone-800 text-sm font-medium">
-                                                    {sentences.filter(s => s && s.trim() !== '').length} of {connections.length} sentences written
-                                                </span>
-                                            </div>
-                                            <button
-                                                onClick={() => setCurrentStep(6)}
-                                                disabled={sentences.filter(s => s && s.trim() !== '').length < Math.min(5, connections.length)}
-                                                className={`px-8 py-3 rounded-full text-sm font-sans font-medium transition-colors
-                                                    ${sentences.filter(s => s && s.trim() !== '').length >= Math.min(5, connections.length)
-                                                        ? 'bg-stone-900 text-[#FAF9F5] hover:bg-stone-800 active:scale-98'
-                                                        : 'bg-stone-100 text-stone-400 cursor-not-allowed'}`}
-                                            >
-                                                {t('practice.finalize_lyrics')}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Step 6: Story Revelation */}
-                            {currentStep === 6 && (
-                                <div className="w-full flex flex-col items-center animate-in fade-in duration-500">
-                                    <div className="w-full max-w-3xl">
-                                        <div className="text-center mb-10 space-y-2">
-                                            <p className="text-stone-400 text-xs font-sans">{t('practice.step_6_header')}</p>
-                                            <h2 className="text-3xl font-serif text-stone-900 font-normal">{t('practice.story_ready')}</h2>
-                                        </div>
-
-                                        <div className="bg-transparent rounded-[28px] p-10 md:p-14 mb-10 relative overflow-hidden group">
-                                            {/* Abstract background icon */}
-                                            <div className="absolute top-0 right-0 p-8 opacity-[0.02] select-none pointer-events-none">
-                                                <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.5">
-                                                    <path d="M12 2L2 7L12 12L22 7L12 2Z" />
-                                                    <path d="M2 17L12 22L22 17" />
-                                                    <path d="M2 12L12 17L22 12" />
-                                                </svg>
-                                            </div>
-
-                                            <div className="space-y-8 relative z-10 max-h-[500px] overflow-y-auto pr-4 no-scrollbar">
-                                                {sentences.filter(s => s && s.trim() !== '').map((sentence, sIdx) => {
-                                                    const conn = connections[sIdx];
-                                                    const noun = nouns[conn?.n] || '';
-                                                    const verb = verbs[conn?.v] || '';
-
-                                                    return (
-                                                        <div key={sIdx} className="flex flex-wrap items-center justify-center gap-x-2 md:gap-x-3 gap-y-2 text-center">
-                                                            {sentence.split(' ').map((word, wIdx) => {
-                                                                const cleanWord = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").toLowerCase();
-                                                                const isNoun = cleanWord === noun.toLowerCase();
-                                                                const isVerb = cleanWord === verb.toLowerCase();
-
-                                                                if (isNoun) {
-                                                                    return (
-                                                                        <div key={wIdx} className="bg-stone-100 px-3 py-1 rounded-[8px] inline-flex items-center select-none">
-                                                                            <span className="text-stone-900 font-serif text-sm font-medium">{word}</span>
-                                                                        </div>
-                                                                    );
-                                                                }
-                                                                if (isVerb) {
-                                                                    return (
-                                                                        <div key={wIdx} className="bg-stone-900 px-3 py-1 rounded-[8px] inline-flex items-center select-none">
-                                                                            <span className="text-[#FAF9F5] font-serif text-sm font-medium">{word}</span>
-                                                                        </div>
-                                                                    );
-                                                                }
-                                                                return <span key={wIdx} className="font-serif text-xl md:text-2xl text-stone-600 italic leading-snug">{word}</span>;
-                                                            })}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex justify-center items-center gap-8 mb-12">
-                                            <button className="text-sm font-sans text-stone-500 hover:text-stone-900 transition-colors">{t('practice.share_community')}</button>
-                                            <div className="w-[1px] h-3 bg-stone-200" />
-                                            <button className="text-sm font-sans text-stone-500 hover:text-stone-900 transition-colors">{t('practice.save_draft')}</button>
-                                        </div>
-
-                                        <div className="flex justify-center mb-8">
-                                            <button 
-                                                onClick={() => {
-                                                    setCurrentStep(1);
-                                                    setNouns(Array(5).fill(''));
-                                                    setVerbs(Array(5).fill(''));
-                                                    setConnections([]);
-                                                    setSentences(Array(5).fill(''));
-                                                    setSelectedTheme(null);
-                                                }} 
-                                                className="px-10 py-3.5 bg-stone-900 text-[#FAF9F5] hover:bg-stone-800 rounded-full text-sm font-sans font-medium active:scale-98 transition-colors"
-                                            >
-                                                {t('practice.start_new_practice')}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                            </div>
                         </motion.div>
                     )}
 
@@ -913,6 +705,33 @@ export default function PracticeTab() {
                 .no-scrollbar {
                     -ms-overflow-style: none;
                     scrollbar-width: none;
+                }
+
+                /*
+                 * Composing verses borrows the lyric card from Master song
+                 * structure: a half-veil of white on the beige panel, no border,
+                 * deepening a shade under the cursor. "is-static" marks the ones
+                 * that are containers rather than choices.
+                 */
+                .verse-card {
+                    background-color: rgba(255, 255, 255, 0.5);
+                    transition: background-color 0.2s;
+                }
+                .verse-card:not(.is-static) {
+                    cursor: pointer;
+                }
+                .verse-card:not(.is-static):hover {
+                    background-color: #E7E6DF;
+                }
+                /* Picked, waiting for the verb that completes the pair */
+                .verse-card.is-armed,
+                .verse-card.is-armed:hover {
+                    background-color: #DCDDD4;
+                }
+                /* Paired up — the same green a named section wears next door */
+                .verse-card.is-linked,
+                .verse-card.is-linked:hover {
+                    background-color: rgba(134, 190, 127, 0.85);
                 }
             `}</style>
         </div>

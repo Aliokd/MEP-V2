@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertCircle, Check, X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -17,6 +17,55 @@ import { openCheckout } from '@/lib/paddle/checkout';
 // reads the same list rather than forking a second copy of the same selling
 // points — and stays in step when that one is rewritten.
 const MAX_OUTCOME_KEY = 'onboarding.paywall.plans.max.outcome';
+
+// The modal is still server-rendered as part of the client bundle, and
+// useLayoutEffect warns there. Same measurement, no console noise.
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+const BILLING_PERIODS: BillingPeriod[] = ['yearly', 'monthly'];
+
+/**
+ * Counts the displayed figure from wherever it currently sits to `target`.
+ *
+ * Eases from the last *painted* value rather than the previous target, so
+ * flipping the toggle mid-count continues from what's on screen instead of
+ * snapping back to the old price and starting over.
+ */
+function useAnimatedPrice(target: number, duration = 450): number {
+    const [display, setDisplay] = useState(target);
+    const displayRef = useRef(target);
+    const frameRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        const from = displayRef.current;
+        if (from === target) return;
+
+        // A number sprinting between two values is exactly what reduced-motion
+        // asks us to drop — show the new price outright.
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            displayRef.current = target;
+            setDisplay(target);
+            return;
+        }
+
+        const started = performance.now();
+        const step = (now: number) => {
+            const progress = Math.min(1, (now - started) / duration);
+            const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+            const next = Math.round(from + (target - from) * eased);
+            displayRef.current = next;
+            setDisplay(next);
+            if (progress < 1) frameRef.current = requestAnimationFrame(step);
+        };
+        frameRef.current = requestAnimationFrame(step);
+
+        return () => {
+            if (frameRef.current) cancelAnimationFrame(frameRef.current);
+        };
+    }, [target, duration]);
+
+    return display;
+}
 
 interface MaxUpgradeModalProps {
     isOpen: boolean;
@@ -37,10 +86,51 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
     const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
     const [checkoutError, setCheckoutError] = useState('');
 
+    // Above the early return — hooks can't sit behind a conditional bail-out.
+    const price = FALLBACK_PRICING.max[billing];
+    const animatedPrice = useAnimatedPrice(price);
+
+    // Sliding indicator behind the billing tabs. Measured rather than assumed:
+    // the two labels are different widths, and more so in Norwegian and Swedish,
+    // so a fixed 50% translate would sit wrong in every language but English.
+    const tabsRef = useRef<HTMLDivElement>(null);
+    const tabRefs = useRef<Partial<Record<BillingPeriod, HTMLButtonElement | null>>>({});
+    const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
+    // Suppresses the transition on the first measurement, so the pill appears
+    // under the active tab instead of sliding in from the left on open.
+    const [indicatorReady, setIndicatorReady] = useState(false);
+
+    useIsomorphicLayoutEffect(() => {
+        if (!isOpen) {
+            setIndicatorReady(false);
+            return;
+        }
+
+        const measure = () => {
+            const el = tabRefs.current[billing];
+            if (!el) return;
+            setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
+        };
+
+        measure();
+
+        // Label widths can change after mount — a late webfont swap, or the user
+        // switching language with the modal open.
+        const track = tabsRef.current;
+        if (!track || typeof ResizeObserver === 'undefined') return;
+        const observer = new ResizeObserver(measure);
+        observer.observe(track);
+        return () => observer.disconnect();
+    }, [billing, isOpen, language]);
+
+    // Runs after the position above is committed, so the first paint is static.
+    useEffect(() => {
+        if (indicator && isOpen) setIndicatorReady(true);
+    }, [indicator, isOpen]);
+
     if (!isOpen || typeof document === 'undefined') return null;
 
     const maxOutcome = tList<string>(MAX_OUTCOME_KEY);
-    const price = FALLBACK_PRICING.max[billing];
     const priceId = getPriceId('max', billing);
     const canCheckout = isPlanPurchasable('max', billing) && Boolean(user);
 
@@ -108,17 +198,32 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                 </div>
 
                 {/* Billing period — yearly first, same default as the onboarding paywall */}
-                <div className="inline-flex items-center gap-1 rounded-full border border-stone-200/70 bg-white/50 p-1.5 self-start">
-                    {(['yearly', 'monthly'] as BillingPeriod[]).map((period) => (
+                <div
+                    ref={tabsRef}
+                    className="relative inline-flex items-center gap-1 rounded-full border border-stone-200/70 bg-white/50 p-1.5 self-start"
+                >
+                    {/* One pill that travels between the tabs, rather than a
+                        background that blinks off one button and onto the other. */}
+                    {indicator && (
+                        <span
+                            aria-hidden="true"
+                            className={`absolute top-1.5 bottom-1.5 rounded-full bg-white shadow-sm ${
+                                indicatorReady
+                                    ? 'transition-[left,width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none'
+                                    : ''
+                            }`}
+                            style={{ left: indicator.left, width: indicator.width }}
+                        />
+                    )}
+                    {BILLING_PERIODS.map((period) => (
                         <button
                             key={period}
+                            ref={(el) => { tabRefs.current[period] = el; }}
                             type="button"
                             onClick={() => setBilling(period)}
                             aria-pressed={billing === period}
-                            className={`rounded-full px-4 py-2 text-[13px] font-semibold transition-all ${
-                                billing === period
-                                    ? 'bg-white text-stone-900 shadow-sm'
-                                    : 'text-stone-500 hover:text-stone-900'
+                            className={`relative z-10 rounded-full px-4 py-2 text-[13px] font-semibold transition-colors duration-200 ${
+                                billing === period ? 'text-stone-900' : 'text-stone-500 hover:text-stone-900'
                             }`}
                         >
                             {t(`onboarding.paywall.billing.${period}`)}
@@ -127,7 +232,11 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                 </div>
 
                 <div className="flex items-baseline gap-1.5">
-                    <span className="text-4xl font-sans font-bold text-stone-900">${price}</span>
+                    {/* tabular-nums so the digits don't jitter the layout as the
+                        figure counts through intermediate values. */}
+                    <span className="text-4xl font-sans font-bold text-stone-900 tabular-nums">
+                        ${animatedPrice}
+                    </span>
                     <span className="text-xs font-medium text-stone-500">
                         {t(`onboarding.paywall.billing.billed_${billing}`)}
                     </span>

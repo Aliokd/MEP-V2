@@ -76,11 +76,15 @@ export default function PracticeCard({
 
             {/* Bottom row: the practice's illustration on the left, the action on the
                 right. Unbuilt practices stay bare — the visual arrives with the work. */}
-            <div className="mt-auto pt-10 flex items-end justify-between gap-6">
+            {/* flex-col-reverse on a phone puts Start directly under the goal and the
+                illustration below it, so the action is on screen without scrolling —
+                at md's row layout it sat past the bottom of a 288px illustration that
+                mt-auto had already pushed to the end of a 62vh card. */}
+            <div className="mt-6 pt-0 flex flex-col-reverse items-stretch gap-5 md:mt-auto md:pt-10 md:flex-row md:items-end md:justify-between md:gap-6">
                 {available ? (
                     <PracticeIllustration
                         name={practice.name}
-                        className="w-72 h-72 md:w-96 md:h-96 text-stone-800 opacity-60 shrink-0 -ml-6 -mb-6 select-none"
+                        className="w-56 h-56 md:w-96 md:h-96 text-stone-800 opacity-60 shrink-0 self-center md:self-auto -ml-0 md:-ml-6 -mb-6 select-none"
                     />
                 ) : (
                     <span aria-hidden="true" />
@@ -90,7 +94,7 @@ export default function PracticeCard({
                     <button
                         type="button"
                         onClick={onStart}
-                        className="flex items-center gap-3 pl-10 pr-8 py-5 rounded-full bg-stone-900 text-[#FAF9F5] text-lg font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors"
+                        className="w-full md:w-auto justify-center md:justify-start flex items-center gap-3 px-8 md:pl-10 md:pr-8 h-16 md:h-auto md:py-5 rounded-full bg-stone-900 text-[#FAF9F5] text-lg font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors"
                     >
                         {startLabel}
                         <ArrowRight size={20} className="stroke-[2]" />

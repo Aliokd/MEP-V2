@@ -318,6 +318,14 @@ test.describe('Practice Page', () => {
   });
 
   test('naming every part finishes the song and lights Mind Power', async ({ page }) => {
+    // This one names every part of a song rather than probing one, so it runs
+    // ~14s on its own against the default 30s budget. Three workers sharing one
+    // `next dev` push it past that, and it failed two of three parallel runs
+    // while passing every serial and isolated run. The work is genuinely long,
+    // so the budget is raised to match it — trimming the test would cost the
+    // coverage, and a test that fails on load teaches people to ignore red.
+    test.setTimeout(90_000);
+
     // Both verses are listed: they have different words, so a single probe
     // would stall once the first was solved.
     const CARDS_BY_KIND: Record<string, string[]> = {
@@ -502,6 +510,84 @@ test.describe('Practice Page', () => {
     // Dismissing it is what sets the song going
     await demo.getByRole('button', { name: 'Got it' }).click();
     await expect(timeline.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 20000 });
+  });
+
+  test('the scrub line is graduated, ten seconds a mark', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    const timeline = page.locator('[data-song-timeline]');
+    await expect(timeline).toBeVisible({ timeout: 20000 });
+
+    const marks = timeline.locator('div.touch-none span.absolute.top-0.w-px');
+    // Do You Love runs 2:48, so 10s apart gives 16 marks, two of them minutes
+    await expect(marks).toHaveCount(16);
+    const tall = await marks.evaluateAll(
+      els => els.filter(e => Math.round(e.getBoundingClientRect().height) === 8).length);
+    expect(tall).toBe(2);
+
+    // They march evenly across the track rather than bunching
+    const lefts = await marks.evaluateAll(els => els.map(e => parseFloat((e as HTMLElement).style.left)));
+    const gaps = lefts.slice(1).map((v, i) => +(v - lefts[i]).toFixed(3));
+    expect(new Set(gaps).size).toBe(1);
+  });
+
+  test('Composing verses runs on one line of copy a step', async ({ page }) => {
+    await page.goto('/platform/practice');
+    await page.locator('button[aria-label="Next Practice"]').click();
+    await page.getByRole('button', { name: 'Start' }).first().click();
+
+    const ask = page.locator('main p.font-medium').first();
+    const next = page.getByRole('button', { name: 'Next', exact: true });
+    const dots = page.locator('main div[aria-label*="Step"] span');
+
+    // One instruction, six progress dots, and nothing else to read
+    await expect(ask).toHaveText('Choose a theme');
+    await expect(dots).toHaveCount(6);
+    await expect(page.locator('main').getByText(/Focus on sensory|don't overthink|Status/)).toHaveCount(0);
+
+    // Next stays shut until the step is done
+    await expect(next).toBeDisabled();
+    await page.getByRole('button', { name: 'Solitude' }).click();
+    await expect(ask).toHaveText('Type five nouns');
+    // The theme carries forward as a tag rather than its own card
+    await expect(page.locator('main').getByText('Solitude')).toBeVisible();
+
+    const fill = async (words: string[]) => {
+      for (let i = 0; i < words.length; i++) {
+        await page.locator('main input').nth(i).fill(words[i]);
+      }
+    };
+    await expect(next).toBeDisabled();
+    await fill(['rain', 'window', 'clock', 'door', 'street']);
+    await expect(next).toBeEnabled();
+    await next.click();
+
+    await expect(ask).toHaveText('Type five verbs');
+    await fill(['falls', 'waits', 'turns', 'opens', 'sleeps']);
+    await next.click();
+
+    // Linking: pick a noun, then a verb, five times
+    await expect(ask).toHaveText('Link each noun to a verb');
+    await expect(next).toBeDisabled();
+    const cards = page.locator('.verse-card');
+    for (let i = 0; i < 5; i++) {
+      await cards.nth(i).click();
+      await cards.nth(5 + i).click();
+    }
+    await expect(page.locator('main svg line')).toHaveCount(5);
+    await expect(next).toBeEnabled();
+    await next.click();
+
+    await expect(ask).toHaveText('Turn each pair into a line');
+    for (let i = 0; i < 5; i++) {
+      await page.locator('.verse-card').nth(i).locator('input').fill(`line ${i + 1}`);
+    }
+    await next.click();
+
+    // The verse, and the way to run it again
+    await expect(ask).toHaveText('Your verse');
+    await expect(page.locator('.verse-card p')).toHaveCount(5);
+    await expect(page.getByRole('button', { name: 'Start a new practice' })).toBeVisible();
   });
 
   test('the task points at one band at a time, and it pulses', async ({ page }) => {

@@ -22,7 +22,9 @@
     "minimize": "Minimize",
     "on": "On",
     "off": "Off",
-    "open": "Open"
+    "open": "Open",
+    "clear": "Clear",
+    "done": "Done"
   },
   "navigation": {
     "create": "Create",
@@ -781,16 +783,16 @@
     "level_intermediate": "Intermediate",
     "level_advanced": "Advanced",
     "level_all": "All levels",
-    "choose_theme": "Choose a Theme",
+    "choose_theme": "Choose a theme",
     "select_theme_desc": "Select the emotional anchor for your verses",
     "theme": "Theme",
     "nouns": "Nouns",
-    "link_nouns_verbs": "Link Nouns with Verbs",
+    "link_nouns_verbs": "Link each noun to a verb",
     "link_desc": "Connect nouns with verbs 1 by 1 (order doesn't matter)",
     "status": "Status",
-    "complete_sentences": "Complete the sentences",
+    "complete_sentences": "Turn each pair into a line",
     "example": "Example",
-    "story_ready": "Story ready now",
+    "story_ready": "Your verse",
     "share_community": "Share with community",
     "save_draft": "Save draft",
     "example_love": "I love",
@@ -802,8 +804,8 @@
     "next_movement": "Next Movement",
     "input_required": "Input Required",
     "edit": "Edit",
-    "type_5_nouns": "Type 5 Nouns",
-    "type_5_verbs": "Type 5 Verbs",
+    "type_5_nouns": "Type five nouns",
+    "type_5_verbs": "Type five verbs",
     "fill_more_prefix": "Fill",
     "fill_more_suffix": "more",
     "step_1_header": "Step 01: Theme",
@@ -1216,7 +1218,7 @@
       "submitting": "One moment…",
       "invalid": "We'll need a full address, like you@example.com.",
       "consent": "I agree to Veinote's {terms} and {privacy}.",
-      "consent_terms": "Terms & Conditions",
+      "consent_terms": "Terms and Conditions",
       "consent_privacy": "Privacy Policy",
       "consent_required": "Tick the box and we can keep going.",
       "change_title": "What's your email?",
@@ -1677,7 +1679,7 @@
       },
       "cookies_analytics": {
         "title": "Cookies & analytics",
-        "body": "Essential cookies keep you signed in and remember basic preferences such as your language. These are needed for the site to work, so they are always on.\n\nAnalytics are different: they only run if you choose \"Accept all\" in the cookie bar. Until you do, no analytics load and no analytics cookies are set. If you choose \"Only necessary\", they never load at all.\n\nWhen you do accept, we use Microsoft Clarity, PostHog and Google Analytics (through Firebase) to understand how the site is used so we can improve it. Once you are signed in, these tools record your account identifier so we can see how features are used across a session.\n\nClarity and PostHog also record sessions — a replay of how a page was used, covering clicks, scrolling and navigation. Anything you type is masked before it leaves your browser, so your lyrics and other written work never appear in a recording. Analytics data is used in aggregate and is not sold to third parties.\n\nYour choice is stored in your browser, not in your account, and it applies to that browser on that device. You can change it at any time using the \"Cookie settings\" button at the bottom of this page — changing it to \"Only necessary\" stops analytics from loading again."
+        "body": "Essential cookies keep you signed in and remember basic preferences such as your language. These are needed for the site to work, so they are always on.\n\nBefore you make a choice in the cookie bar, we measure visits anonymously and without cookies: our analytics tool (PostHog) counts pageviews, the page you came from, your device type and your country, but stores nothing on your device and cannot recognise you across visits. Each visit is a new, unnamed visitor, and nothing from before a consent can ever be connected to you after one.\n\nIf you choose \"Accept all\", we additionally use Microsoft Clarity, PostHog and Google Analytics (through Firebase) with cookies, so we can understand how the site is used across visits. Once you are signed in, these tools record your account identifier so we can see how features are used across a session.\n\nWith \"Accept all\", Clarity and PostHog also record sessions — a replay of how a page was used, covering clicks, scrolling and navigation. Anything you type is masked before it leaves your browser, so your lyrics and other written work never appear in a recording. Analytics data is used in aggregate and is not sold to third parties.\n\nYour choice is stored in your browser, not in your account, and it applies to that browser on that device. You can change it at any time using the \"Cookie settings\" button at the bottom of this page — changing it to \"Only necessary\" stops cookie-based analytics and returns to anonymous counting only."
       },
       "session_recording": {
         "title": "Session recording",

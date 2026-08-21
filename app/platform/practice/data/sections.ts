@@ -39,6 +39,16 @@ export const SOLVED_BG = '#86BE7F';
 export const SOLVED_TEXT = '#1C2B1A';
 
 /**
+ * Wrong answer. Red, because that is what the rest of the app says "no" in —
+ * the amber this replaced read as a caution, not a mistake. Muted to sit with
+ * the beiges rather than shout over them, and pitched at the same weight as the
+ * success green so the two read as a pair. It only shows for the 450ms of the
+ * shake, so it never has to be lived with.
+ */
+export const WRONG_BG = '#E0938B';
+export const WRONG_TEXT = '#3B1F1C';
+
+/**
  * A named section that the playhead is inside. Only named ones follow along —
  * lighting an unnamed part as the song reaches it would answer the task for the
  * user. A deeper cut of the same green, so it reads as the same state, further on.

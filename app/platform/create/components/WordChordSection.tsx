@@ -162,7 +162,7 @@ export default function WordChordSection({
             onPickChord(normalizeChord(customDraft));
         };
         return (
-            <div className="w-[195px] shrink-0 self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
+            <div className="relative w-full md:w-[195px] md:shrink-0 self-stretch md:self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
                 <div className="flex flex-col gap-3">
                     <div className="flex items-start justify-between gap-1 min-w-0">
                         <div className="min-w-0">
@@ -191,7 +191,7 @@ export default function WordChordSection({
                         not resize as you move through the grid. */}
                     {browsePosition && (
                         <div className="relative flex items-center justify-center bg-white rounded-[14px] py-1.5">
-                            <Fretboard position={browsePosition} scale={0.8} />
+                            <><span className="md:hidden"><Fretboard position={browsePosition} scale={1.2} /></span><span className="hidden md:block"><Fretboard position={browsePosition} scale={0.8} /></span></>
                             <button
                                 type="button"
                                 onClick={() => stepBrowseVariation(-1)}
@@ -316,7 +316,7 @@ export default function WordChordSection({
         // picker returns to the same one rather than snapping to the chord's first.
         const ghostPosition = browsePosition;
         return (
-            <div className="w-[195px] shrink-0 self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
+            <div className="relative w-full md:w-[195px] md:shrink-0 self-stretch md:self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
                 {/* The suggestion IS the way in — clicking it opens the palette right here,
                     so the writer never leaves the word they are looking at. Ghosted because
                     it is an offer, not a chord this word has. */}
@@ -338,7 +338,7 @@ export default function WordChordSection({
                         padding — so it is the width, not spare height, that sizes it. */}
                     {ghostPosition && (
                         <div className="flex items-center justify-center bg-white rounded-[14px] py-2">
-                            <Fretboard position={ghostPosition} scale={0.95} />
+                            <><span className="md:hidden"><Fretboard position={ghostPosition} scale={1.3} /></span><span className="hidden md:block"><Fretboard position={ghostPosition} scale={0.95} /></span></>
                         </div>
                     )}
                 </button>
@@ -359,7 +359,10 @@ export default function WordChordSection({
     }
 
     return (
-        <div className="w-[195px] shrink-0 self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
+        // Full width on a phone: this is a 195px column because on desktop it sits
+        // beside the word list, but in the mobile sheet it is the whole Chords tab
+        // and a fixed narrow column left half the sheet empty.
+        <div className="relative w-full md:w-[195px] md:shrink-0 self-stretch md:self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
             {/* The chord's own actions live in a menu beside its name, where the thing
                 they act on is. The remove action used to sit as a bare bin next to the
                 voicing pager — two unrelated controls sharing a row, with the destructive
@@ -373,15 +376,23 @@ export default function WordChordSection({
                 </div>
 
                 {(onRemove || onToggleChordsHidden) && (
-                    <div className="relative shrink-0" ref={menuRef}>
+                    // Below md this is lifted out of the header and dropped into the
+                    // action row at the bottom, so play / swap / menu read as one group.
+                    // `order` can't do it — the header is a different flex container —
+                    // so it is absolutely positioned into that row instead, and the row
+                    // reserves a matching 47px gap for it to land in.
+                    <div
+                        className="absolute md:static right-4 bottom-4 md:right-auto md:bottom-auto shrink-0 z-10 md:z-auto"
+                        ref={menuRef}
+                    >
                         <button
                             type="button"
                             onClick={() => setMenuOpen(open => !open)}
                             aria-label={t('creative.chord_options') || 'Chord options'}
                             aria-haspopup="menu"
                             aria-expanded={menuOpen}
-                            className={`w-9 h-9 -mr-1.5 rounded-full flex items-center justify-center transition-colors cursor-pointer active:scale-95 ${
-                                menuOpen ? 'text-stone-800 bg-stone-200/70' : 'text-stone-400 hover:text-stone-800 hover:bg-stone-200/60'
+                            className={`w-[47px] h-[47px] rounded-[16px] border border-stone-200 bg-white shadow-sm md:w-9 md:h-9 md:-mr-1.5 md:rounded-full md:border-0 md:bg-transparent md:shadow-none flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98] ${
+                                menuOpen ? 'text-stone-800 md:bg-stone-200/70' : 'text-stone-500 md:text-stone-400 hover:text-stone-800 md:hover:bg-stone-200/60'
                             }`}
                         >
                             <MoreVertical size={19} />
@@ -390,7 +401,9 @@ export default function WordChordSection({
                         {menuOpen && (
                             <div
                                 role="menu"
-                                className="absolute right-0 top-10 z-40 w-[168px] bg-white border border-stone-200/80 rounded-[14px] shadow-[0_8px_25px_rgba(0,0,0,0.08)] p-1"
+                                // Opens upward on the phone, where the trigger sits at the
+                                // bottom of the card and a downward menu would fall off it.
+                                className="absolute right-0 bottom-[55px] md:bottom-auto md:top-10 z-40 w-[168px] bg-white border border-stone-200/80 rounded-[14px] shadow-[0_8px_25px_rgba(0,0,0,0.08)] p-1"
                             >
                                 {/* Canvas-wide, not per-chord: this turns every chord symbol
                                     above the lyrics on or off, for reading the words clean. */}
@@ -434,18 +447,28 @@ export default function WordChordSection({
             </div>
 
             {current && (
-                <div className="flex items-center justify-center bg-white rounded-[18px] py-2">
-                    <Fretboard position={current} scale={0.81} />
+                <div className="flex items-center justify-center bg-white rounded-[18px] py-4 md:py-2">
+                    {/* Bigger on the phone, where the sheet gives it the width the
+                        desktop column never had. */}
+                    <span className="md:hidden"><Fretboard position={current} scale={1.25} /></span>
+                    <span className="hidden md:block"><Fretboard position={current} scale={0.81} /></span>
                 </div>
             )}
 
-            <div className="flex flex-col gap-2">
+            {/* On the phone the order is visual → stepper → buttons: the stepper
+                belongs to the diagram it pages through, and the three actions read as
+                one group when they sit together at the bottom. flex-col-reverse swaps
+                the two child rows below md without moving them in the DOM. */}
+            <div className="flex flex-col-reverse md:flex-col gap-2">
                     {/* Hearing the chord and swapping it are the two things a writer does
                         with a chord that is already placed, so they share the row as a
                         matched pair of squares. Both icon-only: a play triangle and a
                         two-way arrow need no caption, and the label was the only thing
                         making the row's two halves different sizes. */}
-                    <div className="flex items-center justify-center gap-2">
+                    {/* pr on the phone reserves the 47px the absolutely-positioned menu
+                        button occupies at this row's right end, so play and swap centre
+                        against the space that is actually left rather than sliding under it. */}
+                    <div className="flex items-center justify-center gap-2 pr-[55px] md:pr-0">
                     {current ? (
                         <button
                             type="button"

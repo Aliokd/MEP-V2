@@ -184,6 +184,17 @@ export default function SongTimeline({
         onScrub?.(null);
     };
 
+    /*
+     * Scrub graduations. Ten seconds apart, which lands between roughly 15 and 25
+     * marks on the songs here — enough to read distance by, few enough not to turn
+     * the line into a ruler. The final mark is dropped so it cannot collide with
+     * the song-length label sitting at the right end.
+     */
+    const ticks: { at: number; minute: boolean }[] = [];
+    for (let at = 10; at < total - 6; at += 10) {
+        ticks.push({ at, minute: at % 60 === 0 });
+    }
+
     // Legend covers the kinds actually on this song, in the order they first appear.
     const legendKinds = segments.reduce<SectionKind[]>((acc, s) => {
         if (!acc.includes(s.kind)) acc.push(s.kind);
@@ -229,9 +240,12 @@ export default function SongTimeline({
                             </svg>
                         )}
                     </button>
-                    <div className="min-w-0">{heading}</div>
+                    {/* flex-1 so the song pill gets the room the row actually has:
+                        min-w-0 alone let it shrink to its content and sit hard against
+                        the icons to its right, with no gap between them. */}
+                    <div className="flex-1 min-w-0">{heading}</div>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 shrink-0 ml-3 md:ml-0">
                     {!hideLabels && legendKinds.map(kind => (
                         <span key={kind} className="flex items-center gap-2 text-xs font-sans" style={{ color: SECTION_TEXT }}>
                             <span
@@ -254,7 +268,7 @@ export default function SongTimeline({
                      * the intro instead of being nudged onto its neighbour.
                      */}
                     {promptLabel && (
-                        <div ref={promptRowRef} className="relative h-10">
+                        <div ref={promptRowRef} className="relative h-12 md:h-10">
                             <div
                                 className="absolute bottom-0 flex flex-col items-start"
                                 style={{ left: prompt ? `${prompt.left}px` : '50%' }}
@@ -275,7 +289,10 @@ export default function SongTimeline({
                                     <span
                                         ref={pillRef}
                                         data-timeline-prompt
-                                        className="relative block rounded-full bg-stone-900 text-[#FAF9F5] px-4 py-1.5 text-xs font-sans whitespace-nowrap shadow-sm"
+                                        // Bigger on a phone: this is the instruction the
+                                        // whole exercise turns on, and at text-xs it was
+                                        // the smallest thing on the screen.
+                                        className="relative block rounded-full bg-stone-900 text-[#FAF9F5] px-5 py-2.5 text-sm md:px-4 md:py-1.5 md:text-xs font-sans whitespace-nowrap shadow-sm"
                                     >
                                         {promptLabel}
                                     </span>
@@ -394,6 +411,21 @@ export default function SongTimeline({
                         className="relative w-full h-9 mt-1.5 cursor-pointer touch-none"
                     >
                         <div className="absolute inset-x-0 top-0 h-px bg-stone-200" />
+
+                        {/*
+                         * Graduations hanging off the hairline, so the distance the
+                         * marker has travelled can be read at a glance instead of
+                         * only from the clock. Every ten seconds, with a longer,
+                         * darker mark on the minute to count by.
+                         */}
+                        {ticks.map(({ at, minute }) => (
+                            <span
+                                key={at}
+                                aria-hidden="true"
+                                className={`absolute top-0 w-px pointer-events-none ${minute ? 'h-[8px] bg-stone-500' : 'h-[4px] bg-stone-400'}`}
+                                style={{ left: `${(at / total) * 100}%` }}
+                            />
+                        ))}
 
                         <div
                             className="absolute top-0 flex flex-col items-center"

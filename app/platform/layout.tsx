@@ -662,7 +662,12 @@ function PlatformLayoutInner({
                 flex-1 flex flex-col min-w-0
                 ${isProfile ? (isProfileExiting ? 'profile-view-exit' : 'profile-view-enter') : ''}
                 ${pathname?.startsWith('/platform/create')
-                    ? 'p-0 xl:p-8'
+                    // md:p-5 fills the gap between the phone (p-0, where the canvas
+                    // claims the full width on purpose) and xl (p-8). Without it the
+                    // whole md–xl range ran the canvas and the projects shelf hard into
+                    // the right edge of the window, with nothing between the card and
+                    // the viewport for its corners to sit against.
+                    ? 'p-0 md:p-5 xl:p-8'
                     // Connect and Learn drop their panel below md and bring their own
                     // edge gutter, so this outer inset would just stack a second margin
                     // outside a frame that isn't there. The other tabs keep their panel,

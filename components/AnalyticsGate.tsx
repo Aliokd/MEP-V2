@@ -2,40 +2,65 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import Script from 'next/script';
-import { initPostHog } from '@/lib/posthog';
+import { initPostHog, enableFullTracking, disableFullTracking } from '@/lib/posthog';
 import { initFirebaseAnalytics } from '@/lib/firebase';
 import { getConsentSnapshot, getServerConsentSnapshot, subscribeConsent } from '@/lib/cookieConsent';
 
 const CLARITY_PROJECT_ID = 'xovh69ah42';
 
 /**
- * Loads PostHog and Clarity only after an explicit "accept all".
+ * Two-tier analytics, keyed off the consent bar.
  *
- * Both used to boot unconditionally in the root layout, which made the consent
- * bar decorative — the tracking had already started by the time anyone read it.
- * Nothing here runs until consent is granted, and granting it starts both
- * without a reload (the banner dispatches, this listens).
+ * PostHog starts for every visitor — but in its anonymous tier: memory-only
+ * persistence, nothing written to the device, no identity across visits, no
+ * replay (lib/posthog.ts documents why that is the pre-consent line). "Accept
+ * all" upgrades it in place — durable identity plus session replay, no reload
+ * needed — and withdrawing consent downgrades it the same way.
  *
- * Declining is permanent for the session and the browser: there is no path that
- * initialises either SDK without `hasAnalyticsConsent()` being true first.
+ * Clarity and Firebase Analytics have no storage-free mode, so they stay fully
+ * consent-gated and load only after "accept all". Neither can be unloaded
+ * again once running: on withdrawal they persist until the next full page
+ * load, at which point this component simply doesn't start them.
  */
-export default function AnalyticsGate() {
+/**
+ * `nonce` comes from the root layout, which reads it off the request header
+ * proxy.ts sets. It cannot be read here: this is a client component, and the
+ * nonce is per-request server state.
+ *
+ * Passed explicitly rather than relied upon. script-src is
+ * `'nonce-…' 'strict-dynamic'`, and next/script injects the Clarity tag from
+ * already-trusted bundle code, so strict-dynamic arguably covers it — but
+ * "arguably" is the wrong footing for a tag that fails silently when it is
+ * wrong. With the nonce attached it is allowed under the nonce rule directly,
+ * whichever way that argument goes.
+ */
+export default function AnalyticsGate({ nonce }: { nonce?: string }) {
     // The stored choice is external state, so it is read through the store API
     // rather than mirrored into component state: no cascading render on mount,
     // and a choice made in another tab settles this one too.
     const consent = useSyncExternalStore(subscribeConsent, getConsentSnapshot, getServerConsentSnapshot);
     const allowed = consent === 'all';
 
+    // Anonymous tier for everyone, before and regardless of any answer.
     useEffect(() => {
-        if (!allowed) return;
         initPostHog();
-        initFirebaseAnalytics();
+    }, []);
+
+    useEffect(() => {
+        if (allowed) {
+            enableFullTracking();
+            initFirebaseAnalytics();
+        } else {
+            // No-op unless a previous grant is being withdrawn — the function
+            // guards itself, so the initial unanswered state costs nothing.
+            disableFullTracking();
+        }
     }, [allowed]);
 
     if (!allowed) return null;
 
     return (
-        <Script id="microsoft-clarity" strategy="afterInteractive">
+        <Script id="microsoft-clarity" strategy="afterInteractive" nonce={nonce}>
             {`
                 (function(c,l,a,r,i,t,y){
                     c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};

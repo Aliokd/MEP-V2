@@ -22,7 +22,9 @@
     "minimize": "Minimer",
     "on": "På",
     "off": "Av",
-    "open": "Åpne"
+    "open": "Åpne",
+    "clear": "Tøm",
+    "done": "Ferdig"
   },
   "navigation": {
     "create": "Lag",
@@ -785,12 +787,12 @@
     "select_theme_desc": "Velg det følelsesmessige ankeret for versene dine",
     "theme": "Tema",
     "nouns": "Substantiv",
-    "link_nouns_verbs": "Koble sammen substantiv og verb",
+    "link_nouns_verbs": "Koble hvert substantiv til et verb",
     "link_desc": "Koble sammen substantiv og verb, ett par om gangen (rekkefølgen spiller ingen rolle)",
     "status": "Status",
-    "complete_sentences": "Fullfør setningene",
+    "complete_sentences": "Gjør hvert par om til en linje",
     "example": "Eksempel",
-    "story_ready": "Historien er klar nå",
+    "story_ready": "Verset ditt",
     "share_community": "Del med fellesskapet",
     "save_draft": "Lagre utkast",
     "example_love": "Jeg elsker",
@@ -802,8 +804,8 @@
     "next_movement": "Neste sats",
     "input_required": "Du må fylle inn noe",
     "edit": "Rediger",
-    "type_5_nouns": "Skriv 5 substantiv",
-    "type_5_verbs": "Skriv 5 verb",
+    "type_5_nouns": "Skriv fem substantiv",
+    "type_5_verbs": "Skriv fem verb",
     "fill_more_prefix": "Fyll inn",
     "fill_more_suffix": "til",
     "step_1_header": "Trinn 01: Tema",
@@ -1216,7 +1218,7 @@
       "submitting": "Et øyeblikk…",
       "invalid": "Vi trenger en fullstendig adresse, for eksempel deg@eksempel.no.",
       "consent": "Jeg godtar Veinotes {terms} og {privacy}.",
-      "consent_terms": "vilkår",
+      "consent_terms": "vilkår og betingelser",
       "consent_privacy": "personvernerklæring",
       "consent_required": "Huk av boksen, så går vi videre.",
       "change_title": "Hva er e-postadressen din?",
@@ -1677,7 +1679,7 @@
       },
       "cookies_analytics": {
         "title": "Informasjonskapsler og analyse",
-        "body": "Nødvendige informasjonskapsler holder deg innlogget og husker grunnleggende innstillinger, som språket ditt. De trengs for at nettstedet skal fungere, og er derfor alltid på.\n\nAnalyse er noe annet: den kjører bare hvis du velger «Godta alle» i informasjonskapsel-linjen. Før du gjør det, lastes ingen analyseverktøy, og ingen analyse-informasjonskapsler settes. Velger du «Bare nødvendige», lastes de aldri.\n\nNår du sier ja, bruker vi Microsoft Clarity, PostHog og Google Analytics (via Firebase) for å forstå hvordan nettstedet brukes, slik at vi kan forbedre det. Når du er innlogget, registrerer disse verktøyene kontoidentifikatoren din, slik at vi kan se hvordan funksjonene brukes gjennom en økt.\n\nClarity og PostHog tar også opp økter – et opptak av hvordan en side ble brukt, med klikk, rulling og navigasjon. Alt du skriver, maskeres før det forlater nettleseren din, så tekstene dine og annet skriftlig arbeid havner aldri i et opptak. Analysedata brukes i aggregert form og selges ikke til tredjeparter.\n\nValget ditt lagres i nettleseren din, ikke på kontoen din, og gjelder den nettleseren på den enheten. Du kan endre det når som helst med knappen «Innstillinger for informasjonskapsler» nederst på denne siden – endrer du til «Bare nødvendige», lastes ikke analyse igjen."
+        "body": "Nødvendige informasjonskapsler holder deg innlogget og husker grunnleggende innstillinger som språket ditt. De trengs for at nettstedet skal fungere, så de er alltid på.\n\nFør du gjør et valg i samtykkelinjen, måler vi besøk anonymt og uten informasjonskapsler: analyseverktøyet vårt (PostHog) teller sidevisninger, siden du kom fra, enhetstypen din og landet ditt, men lagrer ingenting på enheten din og kan ikke kjenne deg igjen mellom besøk. Hvert besøk er en ny, navnløs besøkende, og ingenting fra før et samtykke kan noen gang knyttes til deg etterpå.\n\nVelger du «Godta alle», bruker vi i tillegg Microsoft Clarity, PostHog og Google Analytics (gjennom Firebase) med informasjonskapsler, slik at vi kan forstå hvordan nettstedet brukes på tvers av besøk. Når du er innlogget, registrerer disse verktøyene kontoidentifikatoren din, slik at vi kan se hvordan funksjonene brukes gjennom en økt.\n\nMed «Godta alle» tar Clarity og PostHog også opp økter – et opptak av hvordan en side ble brukt, med klikk, rulling og navigasjon. Alt du skriver, maskeres før det forlater nettleseren din, så tekstene dine og annet skriftlig arbeid havner aldri i et opptak. Analysedata brukes i aggregert form og selges ikke til tredjeparter.\n\nValget ditt lagres i nettleseren din, ikke på kontoen din, og gjelder den nettleseren på den enheten. Du kan endre det når som helst med knappen «Innstillinger for informasjonskapsler» nederst på denne siden – endrer du til «Bare nødvendige», stopper analyse med informasjonskapsler, og vi går tilbake til bare anonym telling."
       },
       "session_recording": {
         "title": "Opptak av økten",

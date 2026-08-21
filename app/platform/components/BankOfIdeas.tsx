@@ -213,7 +213,12 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                     {/* Scrolls inside the card so a long idea never pushes the deck
                         controls off screen — without a visible scrollbar, which read
                         as clutter. */}
-                    <div data-notes-scroller className="flex-1 flex flex-col gap-4 min-w-0 overflow-y-auto no-scrollbar">
+                    {/* select-none so a finger-drag across the copy flicks the card
+                        instead of starting a native text selection, which cancels the
+                        pointer sequence mid-gesture. overflow-visible below md: the
+                        phone drags the card rather than this column, so a scroller here
+                        would only hide the end of an idea with no way to reach it. */}
+                    <div data-notes-scroller className="flex-1 flex flex-col gap-4 min-w-0 select-none overflow-visible md:overflow-y-auto no-scrollbar">
                         <h3 className="text-2xl md:text-3xl font-sans font-normal text-stone-800">
                             {idea.title}
                         </h3>
@@ -243,7 +248,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                 {/* Both actions sit together on the right. The heart is the same
                     lucide icon as the favourites filter in the header, so a liked
                     idea reads identically in both. */}
-                <div className="shrink-0 flex items-center justify-end gap-3 pt-2">
+                <div className="shrink-0 flex items-center justify-between md:justify-end gap-3 pt-2">
                     <button
                         onClick={() => toggleLike(idea.id)}
                         aria-pressed={liked}
@@ -296,7 +301,10 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                     <button
                         type="button"
                         onClick={() => sendToCanvas(idea)}
-                        className="px-5 py-2.5 rounded-full bg-stone-100 hover:bg-stone-200/80 text-stone-700 text-sm font-sans font-medium transition-colors cursor-pointer active:scale-95"
+                        // Takes the rest of the row on a phone: it is the card's actual
+                        // outcome, and at its desktop width it sat as the smallest of
+                        // three controls next to two icon circles.
+                        className="flex-1 min-w-0 h-12 md:flex-none md:h-auto md:px-5 md:py-2.5 text-[16px] md:text-sm px-5 rounded-full bg-stone-100 hover:bg-stone-200/80 text-stone-700 font-sans font-medium transition-colors cursor-pointer active:scale-95"
                     >
                         {t('learn.ideas_send_to_canvas')}
                     </button>
@@ -321,7 +329,10 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
     const goNext = () => navigate(1);
 
     return (
-        <div className="w-full flex-1 min-h-0 flex flex-col gap-4 px-4 md:px-0">
+        // py-4 on a phone: with the Learn panel gone below md this sits straight on
+        // the page, so the tabs were hard against the header above and the deck
+        // controls hard against the browser chrome below.
+        <div className="w-full flex-1 min-h-0 flex flex-col gap-4 px-4 py-4 md:px-0 md:py-0">
             {/* Back arrow, centred tabs, and the search/favourites actions share one
                 row. The 1fr/auto/1fr grid keeps the tabs on the true centre line
                 regardless of how wide the two sides are. */}
@@ -338,14 +349,20 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                     <ArrowLeft size={20} strokeWidth={2} />
                 </button>
 
-                <div className="self-end flex items-center gap-5 sm:gap-7 text-base sm:text-xl font-sans">
+                {/* self-center below md, not self-end: the row also holds a back arrow
+                    and a search icon, and bottom-aligning the tabs against those left
+                    them sitting low and off-axis from both. */}
+                <div className="self-center md:self-end flex items-center justify-center gap-5 sm:gap-7 text-base sm:text-xl font-sans">
                     {CATEGORIES.map(cat => {
                         const isActive = activeCategory === cat.id;
                         return (
                             <button
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
-                                className={`pb-3 -mb-px border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
+                                // pb-1 on a phone: at pb-3 the underline sat 12px under
+                                // the word and read as belonging to the row rather than
+                                // to the tab it marks.
+                                className={`pb-1 md:pb-3 -mb-px border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
                                     isActive
                                         ? 'border-stone-900 text-stone-900 font-semibold'
                                         : 'border-transparent text-stone-400 hover:text-stone-700'
@@ -496,7 +513,16 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                                     // nested-scroll bargain. It is scrolled by hand
                                     // because the card sets touch-action: none, which
                                     // stops the browser doing it for us.
-                                    const scroller = target?.closest('[data-notes-scroller]') as HTMLElement | null;
+                                    // Not on a phone. There the card IS the gesture — a
+                                    // finger landing on the copy is trying to flick to the
+                                    // next idea, not to scroll two lines of it — and
+                                    // handing the drag to the notes column made the deck
+                                    // feel stuck whenever the text happened to overflow.
+                                    // The notes are unclipped below md instead (see the
+                                    // scroller's own classes), so nothing is lost.
+                                    const scroller = window.matchMedia('(min-width: 768px)').matches
+                                        ? (target?.closest('[data-notes-scroller]') as HTMLElement | null)
+                                        : null;
                                     dragScroller.current =
                                         scroller && scroller.scrollHeight > scroller.clientHeight + 1
                                             ? scroller

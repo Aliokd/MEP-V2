@@ -197,7 +197,7 @@ export default function LessonReader({
                     {visibleBlocks.length > 0 && <LessonBlocks blocks={visibleBlocks} locale={language} />}
 
                     {currentLesson.summary?.trim() ? (
-                        <div className="w-full text-sm text-stone-700 leading-relaxed font-sans space-y-4">
+                        <div className="w-full text-[17px] md:text-sm text-stone-700 leading-relaxed font-sans space-y-5 md:space-y-4">
                             {/* Blank lines separate paragraphs, so a summary written in
                                 the admin reads the way it was typed. */}
                             {currentLesson.summary.split(/\n{2,}/).map((paragraph, i) => (
@@ -208,7 +208,7 @@ export default function LessonReader({
                         // Only when the lesson carries no written content at all —
                         // blocks alone are a complete lesson and must not be followed
                         // by generic filler.
-                        <div className="w-full text-sm text-stone-700 leading-relaxed font-sans space-y-4">
+                        <div className="w-full text-[17px] md:text-sm text-stone-700 leading-relaxed font-sans space-y-5 md:space-y-4">
                             <p>{t('learn.placeholder_intro')}</p>
                             <ul className="list-disc pl-5 space-y-2">
                                 <li>{t('learn.placeholder_point_1')}</li>
@@ -223,7 +223,9 @@ export default function LessonReader({
                     <button
                         onClick={goBack}
                         disabled={atStart}
-                        className="px-6 py-3 bg-stone-200/70 hover:bg-stone-300/70 text-stone-700 text-sm font-semibold rounded-full transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                        // 56px tall and 17px on a phone, where these two are the only way
+                        // through the lesson and were sitting at a desktop's 40px.
+                        className="h-14 px-8 text-[17px] md:h-auto md:px-6 md:py-3 md:text-sm bg-stone-200/70 hover:bg-stone-300/70 text-stone-700 font-semibold rounded-full transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95"
                     >
                         {t('learn.back')}
                     </button>
@@ -233,7 +235,7 @@ export default function LessonReader({
                         it here meant the final lesson could never be completed. */}
                     <button
                         onClick={goNext}
-                        className="px-6 py-3 bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] text-sm font-semibold rounded-full transition-all shadow-sm hover:shadow-md cursor-pointer"
+                        className="h-14 px-8 text-[17px] md:h-auto md:px-6 md:py-3 md:text-sm bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-semibold rounded-full transition-all shadow-sm hover:shadow-md cursor-pointer"
                     >
                         {atEnd ? t('common.complete') : t('learn.next')}
                     </button>

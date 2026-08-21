@@ -81,7 +81,12 @@ export default function LessonContent({
                     ref={videoRef}
                     key={lesson.videoUrl}
                     src={lesson.videoUrl}
-                    controls
+                    // Native controls only once it is running. While the poster is up
+                    // the custom overlay below is the play button; `controls` there put
+                    // a second one in the control bar — and on Android Chrome a third,
+                    // its own large centre button drawn over the poster. One poster,
+                    // one thing to press.
+                    controls={hasStarted}
                     preload="auto"
                     poster={lesson.posterUrl}
                     className="w-full h-full object-cover"

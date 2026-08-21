@@ -545,12 +545,19 @@ function ConnectPostCard({
         // same z-index, so a later card paints over an earlier one, and a record
         // that reached higher than the gap would cover the bottom of the card
         // above it rather than tucking behind it.
+        //
+        // The sideways overhang is bounded the same way, by what the platform
+        // shell allows: layout.tsx puts overflow-x-hidden on the scrolling
+        // content panel, so anything past its padding box is cut. The room to
+        // the left is the panel's own padding plus this page's gutter — 12+16 at
+        // md, 16+16 at lg — and -left-7/-left-8 spend exactly that. Reaching
+        // further (it used to be -left-10) just clips the record's edge.
         className={`
           absolute z-0 select-none pointer-events-none
           w-[150px] h-[150px] md:w-[230px] md:h-[230px]
           transition-all duration-[950ms] ease-[cubic-bezier(0.25,1,0.5,1)]
           ${isPlaying
-            ? '-top-6 right-6 left-auto opacity-100 scale-100 md:top-1 md:-left-10 md:right-auto'
+            ? '-top-6 right-6 left-auto opacity-100 scale-100 md:top-1 md:-left-7 lg:-left-8 md:right-auto'
             : 'top-10 right-6 left-auto opacity-0 scale-75 md:top-1 md:left-6 md:right-auto'
           }
         `}
@@ -981,10 +988,29 @@ function ConnectPostCard({
       <AnimatePresence>
         {expandedCommentPostId === post.id && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            /*
+             * Height is a layout property: every frame of this reflows the thread
+             * AND every post below it in the feed. At 450ms that was ~27 such
+             * frames, which is what made opening and closing feel slow on a long
+             * feed. Three changes, all aimed at the frame count and its cost:
+             *
+             *  - 220ms instead of 450: half the expensive frames, and a drawer
+             *    this size reads as immediate rather than rushed at that length.
+             *  - No opacity alongside it. Fading while measuring meant a second
+             *    animated property on the same subtree for no legibility gain —
+             *    the drawer opening already reads as the drawer arriving.
+             *  - contain: paint scopes repaints to this box, so the feed below is
+             *    re-laid-out but not repainted along with it.
+             *
+             * If it is still heavy on a very long feed, the remaining cost is the
+             * feed itself reflowing, and the fix there is windowing the list
+             * rather than anything on this element.
+             */
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            style={{ willChange: 'height', contain: 'paint' }}
             className="overflow-hidden w-full bg-[#F6F6F0] border-t border-stone-200/60 px-6 pt-5 pb-6 text-left flex flex-col gap-4"
           >
             <style dangerouslySetInnerHTML={{__html: `
@@ -2075,7 +2101,12 @@ export default function ConnectTab() {
           onMouseMove={handleSongwritersMouseMove}
           onMouseUp={handleSongwritersMouseUpOrLeave}
           onMouseLeave={handleSongwritersMouseUpOrLeave}
-          className={`flex gap-4 overflow-x-auto pb-1 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+          // -mr-4 spends the page's right gutter on content instead of whitespace,
+          // so the row is cut off mid-card rather than ending on a clean edge —
+          // that sliver of a card is what tells you the section scrolls. The
+          // matching pr-4 gives the last card its gutter back at the scroll end,
+          // so the bleed only shows while there is genuinely more to reach.
+          className={`flex gap-4 overflow-x-auto pb-1 -mr-4 pr-4 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
             isDraggingSongwriters ? 'cursor-grabbing select-none scroll-auto' : 'cursor-grab snap-x snap-mandatory scroll-smooth'
           }`}
         >

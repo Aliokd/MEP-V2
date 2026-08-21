@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Check, Info, Music4, RotateCcw } from 'lucide-re
 import { useLanguage } from '@/context/LanguageContext';
 import SongTimeline from './SongTimeline';
 import StructureDemo from './StructureDemo';
-import { KIND_LABEL_KEY, SECTION_TEXT, SOLVED_BG, SOLVED_BG_PLAYING, SOLVED_TEXT, TAG_BG, sectionOrdinals, type SectionKind } from '../data/sections';
+import { KIND_LABEL_KEY, SECTION_TEXT, SOLVED_BG, SOLVED_BG_PLAYING, SOLVED_TEXT, TAG_BG, WRONG_BG, WRONG_TEXT, sectionOrdinals, type SectionKind } from '../data/sections';
 import type { AuthoredSection } from '../data/practiceSongs';
 import { analyzeSongUrl } from '../lib/analyzeSong';
 import { CONFETTI_MS } from '@/app/onboarding/components/Confetti';
@@ -14,48 +14,50 @@ import { haptic } from '@/lib/haptics';
 
 
 /**
- * Skeleton of the practice while audio buffers or the analyser listens: the
- * ghost of the timeline and three ghost parts, with one quiet line saying why.
- * The song pill stays real so "change song" keeps working during the wait.
+ * Skeleton of the practice while audio buffers or the analyser listens: ghosts
+ * of the song selector, the timeline and the first three parts.
+ *
+ * No caption. "Tuning the frequency…" named a distinction the reader has no use
+ * for — buffering and analysing look the same from here and neither is
+ * actionable — and a line of live text among ghost blocks is the one thing that
+ * draws the eye while there is nothing yet to read. The shapes say "loading".
  */
-function PracticeSkeleton({ header, caption }: { header?: ReactNode; caption: string }) {
+function PracticeSkeleton() {
     const segments = [6, 16, 10, 18, 12, 14, 24];
-    // Ghosts are drawn in the panel's own beiges, not greys on white: a white
-    // card here would be a shape the loaded page never shows.
-    const GHOST = TAG_BG;
-    const GHOST_SOFT = 'rgba(220, 221, 212, 0.55)';
     return (
         <div className="w-full flex flex-col gap-6" data-practice-skeleton>
             <section className="w-full max-w-6xl mx-auto flex flex-col gap-3 select-none">
                 {/* Transport and song pill, laid out as they will be once loaded */}
                 <div className="flex items-center justify-between gap-6 flex-wrap">
                     <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-11 h-11 shrink-0 rounded-full animate-pulse" style={{ backgroundColor: GHOST }} />
-                        <div className="min-w-0">{header}</div>
+                        <div className="sk w-11 h-11 shrink-0 rounded-full" />
+                        {/* Ghosted too: a live dropdown beside three loading blocks
+                            reads as though the page half-arrived, and picking a song
+                            mid-analysis only restarts the wait anyway. */}
+                        <div className="sk w-[190px] h-11 rounded-full" />
                     </div>
-                    <div className="w-8 h-8 rounded-full animate-pulse" style={{ backgroundColor: GHOST_SOFT }} />
+                    <div className="sk sk-soft w-8 h-8 rounded-full" />
                 </div>
 
                 <div className="w-full">
-                    <div className="h-11 flex animate-pulse">
+                    <div className="h-11 flex">
                         {segments.map((w, i) => (
                             <div
                                 key={i}
-                                style={{ width: `${w}%`, backgroundColor: i % 2 === 0 ? GHOST_SOFT : GHOST }}
-                                className={`h-full ${i > 0 ? 'border-l-[3px] border-[#F0F0EA]' : ''}`}
+                                style={{ width: `${w}%`, animationDelay: `${i * 90}ms` }}
+                                className={`sk h-full ${i % 2 === 0 ? 'sk-soft' : ''} ${i > 0 ? 'border-l-[3px] border-[#F0F0EA]' : ''}`}
                             />
                         ))}
                     </div>
                     <div className="relative h-9 mt-1.5">
-                        <div className="absolute inset-x-0 top-0 h-px" style={{ backgroundColor: GHOST }} />
-                        <div className="flex justify-between pt-2 animate-pulse">
-                            <span className="h-3 w-8 rounded" style={{ backgroundColor: GHOST_SOFT }} />
-                            <span className="h-3 w-8 rounded" style={{ backgroundColor: GHOST_SOFT }} />
+                        <div className="sk absolute inset-x-0 top-0 h-px" />
+                        <div className="flex justify-between pt-2">
+                            <span className="sk sk-soft h-3 w-8 rounded" />
+                            <span className="sk sk-soft h-3 w-8 rounded" />
                         </div>
                     </div>
                 </div>
 
-                <p className="text-sm font-sans text-stone-400">{caption}</p>
             </section>
 
             {/* Ghost parts, in the same translucent card the real ones wear */}
@@ -66,14 +68,50 @@ function PracticeSkeleton({ header, caption }: { header?: ReactNode; caption: st
                         className="rounded-[20px] pl-6 md:pl-8 pr-28 md:pr-32 py-5 md:py-6"
                         style={{ backgroundColor: 'rgba(255, 255, 255, 0.5)' }}
                     >
-                        <div className="space-y-3 animate-pulse">
-                            <div className="h-4 rounded" style={{ width: `${56 - i * 8}%`, backgroundColor: GHOST }} />
-                            <div className="h-4 rounded" style={{ width: `${40 + i * 6}%`, backgroundColor: GHOST_SOFT }} />
-                            <div className="h-4 rounded" style={{ width: `${30 + i * 4}%`, backgroundColor: GHOST_SOFT }} />
+                        <div className="space-y-3">
+                            <div className="sk h-4 rounded" style={{ width: `${56 - i * 8}%`, animationDelay: `${i * 120}ms` }} />
+                            <div className="sk sk-soft h-4 rounded" style={{ width: `${40 + i * 6}%`, animationDelay: `${i * 120 + 60}ms` }} />
+                            <div className="sk sk-soft h-4 rounded" style={{ width: `${30 + i * 4}%`, animationDelay: `${i * 120 + 120}ms` }} />
                         </div>
                     </div>
                 ))}
             </div>
+
+            <style jsx>{`
+                /*
+                 * Ghosts are the panel's own beiges, not greys on white — a white
+                 * card here would be a shape the loaded page never shows. A band of
+                 * light travels across each one instead of the whole block dimming,
+                 * which reads as loading rather than as something switched off.
+                 */
+                .sk {
+                    background-color: ${TAG_BG};
+                    background-image: linear-gradient(
+                        100deg,
+                        rgba(255, 255, 255, 0) 30%,
+                        rgba(255, 255, 255, 0.75) 50%,
+                        rgba(255, 255, 255, 0) 70%
+                    );
+                    background-size: 220% 100%;
+                    background-repeat: no-repeat;
+                    animation: sk-sheen 1.6s ease-in-out infinite;
+                }
+                .sk-soft {
+                    background-color: rgba(220, 221, 212, 0.55);
+                }
+                @keyframes sk-sheen {
+                    0%   { background-position: 140% 0; }
+                    100% { background-position: -40% 0; }
+                }
+
+                /* A sweep that never stops is worse than no sweep at all here. */
+                @media (prefers-reduced-motion: reduce) {
+                    .sk {
+                        background-image: none;
+                        animation: none;
+                    }
+                }
+            `}</style>
         </div>
     );
 }
@@ -483,12 +521,12 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
     }
 
     if (!isLoaded) {
-        return <PracticeSkeleton header={headerSlot} caption={t('practice.tuning')} />;
+        return <PracticeSkeleton />;
     }
 
     // Still listening through the file → the same skeleton, different caption.
     if ((!resolvedSections || resolvedSections.length === 0) && analysis === 'running') {
-        return <PracticeSkeleton header={headerSlot} caption={t('practice.analyzing')} />;
+        return <PracticeSkeleton />;
     }
 
     // No map and no analysis running: the analyser gave up on this file.
@@ -568,9 +606,9 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                                     onClick={startOver}
                                     aria-label={t('practice.start_over')}
                                     title={t('practice.start_over')}
-                                    className="w-8 h-8 shrink-0 text-stone-400 hover:text-stone-900 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+                                    className="w-11 h-11 md:w-8 md:h-8 shrink-0 rounded-full text-stone-500 md:text-stone-400 hover:text-stone-900 active:bg-stone-100 md:active:bg-transparent flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
                                 >
-                                    <RotateCcw className="w-4 h-4" />
+                                    <RotateCcw className="w-5 h-5 md:w-4 md:h-4" />
                                 </button>
                             )}
                             <button
@@ -579,9 +617,9 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                                 onClick={() => setShowDemo(true)}
                                 aria-label={t('practice.demo_title')}
                                 title={t('practice.demo_title')}
-                                className="w-8 h-8 shrink-0 text-stone-400 hover:text-stone-900 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+                                className="w-11 h-11 md:w-8 md:h-8 shrink-0 rounded-full text-stone-500 md:text-stone-400 hover:text-stone-900 active:bg-stone-100 md:active:bg-transparent flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
                             >
-                                <Info className="w-4 h-4" />
+                                <Info className="w-6 h-6 md:w-4 md:h-4" />
                             </button>
                         </div>
                     }
@@ -618,8 +656,13 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
              * centred on its own, without depending on the wrapper to do it.
              */}
             <div className="w-full max-w-6xl mx-auto">
-            <div className={`parts-scroll flex flex-col gap-6 overflow-y-auto min-h-[280px] px-4 -mx-4
-                ${allNamed ? 'max-h-[calc(100dvh-28rem)]' : 'max-h-[calc(100dvh-22rem)]'}`}>
+            {/* Uncapped on a phone. The dvh cap reserves room for chrome that a
+                desktop window has beside this list; on a phone the page itself
+                scrolls, so the cap only ended the card partway down the screen with
+                dead space under it — and made the list a second scroller competing
+                with the page for the same finger. One scroll, full height. */}
+            <div className={`parts-scroll flex flex-col gap-6 overflow-visible md:overflow-y-auto min-h-[280px] px-4 -mx-4 max-h-none
+                ${allNamed ? 'md:max-h-[calc(100dvh-28rem)]' : 'md:max-h-[calc(100dvh-22rem)]'}`}>
                 {/* The read-along only runs on a finished song, and only while it plays */}
                 {parts.map(({ section, originalIdx }) => {
                     const readAlong = allNamed && isPlaying;
@@ -778,7 +821,12 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                 }
                 .part-card.is-wrong,
                 .part-card.is-wrong:hover {
-                    background-color: #F7E4C4;
+                    background-color: ${WRONG_BG};
+                }
+                /* The lyrics come with it, so the whole card reads as the answer
+                   being rejected rather than just its background changing. */
+                .part-card.is-wrong p {
+                    color: ${WRONG_TEXT};
                 }
 
                 /* Keyframes for the wrong-answer shake */

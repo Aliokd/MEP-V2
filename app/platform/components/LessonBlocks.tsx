@@ -38,7 +38,7 @@ export default function LessonBlocks({ blocks, locale }: { blocks: LessonBlock[]
                                 {paragraphs.map((html, i) => (
                                     <p
                                         key={i}
-                                        className="text-sm text-stone-700 leading-relaxed font-sans"
+                                        className="text-[17px] md:text-sm text-stone-700 leading-relaxed font-sans"
                                         dangerouslySetInnerHTML={{ __html: html }}
                                     />
                                 ))}
@@ -59,7 +59,7 @@ export default function LessonBlocks({ blocks, locale }: { blocks: LessonBlock[]
                                 {paragraphs.map((html, i) => (
                                     <p
                                         key={i}
-                                        className="text-sm text-stone-700 leading-relaxed font-sans"
+                                        className="text-[17px] md:text-sm text-stone-700 leading-relaxed font-sans"
                                         dangerouslySetInnerHTML={{ __html: html }}
                                     />
                                 ))}

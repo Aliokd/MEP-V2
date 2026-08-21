@@ -22,7 +22,9 @@
     "minimize": "Minimera",
     "on": "På",
     "off": "Av",
-    "open": "Öppna"
+    "open": "Öppna",
+    "clear": "Rensa",
+    "done": "Klar"
   },
   "navigation": {
     "create": "Skapa",
@@ -785,12 +787,12 @@
     "select_theme_desc": "Välj det känslomässiga ankaret för dina verser",
     "theme": "Tema",
     "nouns": "Substantiv",
-    "link_nouns_verbs": "Koppla ihop substantiv och verb",
+    "link_nouns_verbs": "Koppla varje substantiv till ett verb",
     "link_desc": "Koppla ihop substantiv och verb, ett par i taget (ordningen spelar ingen roll)",
     "status": "Status",
-    "complete_sentences": "Slutför meningarna",
+    "complete_sentences": "Gör varje par till en rad",
     "example": "Exempel",
-    "story_ready": "Historien är klar nu",
+    "story_ready": "Din vers",
     "share_community": "Dela med gemenskapen",
     "save_draft": "Spara utkast",
     "example_love": "Jag älskar",
@@ -802,8 +804,8 @@
     "next_movement": "Nästa sats",
     "input_required": "Du måste fylla i något",
     "edit": "Redigera",
-    "type_5_nouns": "Skriv 5 substantiv",
-    "type_5_verbs": "Skriv 5 verb",
+    "type_5_nouns": "Skriv fem substantiv",
+    "type_5_verbs": "Skriv fem verb",
     "fill_more_prefix": "Fyll i",
     "fill_more_suffix": "till",
     "step_1_header": "Steg 01: Tema",
@@ -1677,7 +1679,7 @@
       },
       "cookies_analytics": {
         "title": "Cookies och analys",
-        "body": "Nödvändiga kakor håller dig inloggad och kommer ihåg grundläggande inställningar, som ditt språk. De behövs för att webbplatsen ska fungera och är därför alltid på.\n\nAnalys är något annat: den körs bara om du väljer ”Acceptera alla” i kakraden. Innan dess laddas inga analysverktyg och inga analyskakor sätts. Väljer du ”Bara nödvändiga” laddas de aldrig.\n\nNär du säger ja använder vi Microsoft Clarity, PostHog och Google Analytics (via Firebase) för att förstå hur webbplatsen används så att vi kan förbättra den. När du är inloggad registrerar dessa verktyg din kontoidentifierare så att vi kan se hur funktionerna används under en session.\n\nClarity och PostHog spelar också in sessioner – en uppspelning av hur en sida användes, med klick, scrollning och navigering. Allt du skriver maskeras innan det lämnar din webbläsare, så dina låttexter och annat skrivet arbete hamnar aldrig i en inspelning. Analysdata används i aggregerad form och säljs inte till tredje part.\n\nDitt val sparas i din webbläsare, inte på ditt konto, och gäller den webbläsaren på den enheten. Du kan ändra det när som helst med knappen ”Kakinställningar” längst ned på den här sidan – ändrar du till ”Bara nödvändiga” laddas analys inte igen."
+        "body": "Nödvändiga kakor håller dig inloggad och kommer ihåg grundläggande inställningar som ditt språk. De behövs för att webbplatsen ska fungera, så de är alltid på.\n\nInnan du gör ett val i samtyckesfältet mäter vi besök anonymt och utan kakor: vårt analysverktyg (PostHog) räknar sidvisningar, sidan du kom ifrån, din enhetstyp och ditt land, men lagrar ingenting på din enhet och kan inte känna igen dig mellan besök. Varje besök är en ny, namnlös besökare, och ingenting från före ett samtycke kan någonsin kopplas till dig efteråt.\n\nVäljer du ”Acceptera alla” använder vi dessutom Microsoft Clarity, PostHog och Google Analytics (genom Firebase) med kakor, så att vi kan förstå hur webbplatsen används mellan besök. När du är inloggad registrerar dessa verktyg din kontoidentifierare så att vi kan se hur funktionerna används under en session.\n\nMed ”Acceptera alla” spelar Clarity och PostHog också in sessioner – en uppspelning av hur en sida användes, med klick, scrollning och navigering. Allt du skriver maskeras innan det lämnar din webbläsare, så dina låttexter och annat skrivet arbete hamnar aldrig i en inspelning. Analysdata används i aggregerad form och säljs inte till tredje part.\n\nDitt val sparas i din webbläsare, inte på ditt konto, och gäller den webbläsaren på den enheten. Du kan ändra det när som helst med knappen ”Kakinställningar” längst ned på den här sidan – ändrar du till ”Bara nödvändiga” stoppas kakbaserad analys och vi återgår till enbart anonym räkning."
       },
       "session_recording": {
         "title": "Inspelning av sessionen",
