@@ -24,6 +24,8 @@ import VerdictReveal from './components/VerdictReveal';
 import OtpVerify from './components/OtpVerify';
 import TrialOffer from './components/TrialOffer';
 import WelcomeAboard from './components/WelcomeAboard';
+import CountdownBanner from './components/CountdownBanner';
+import WaitlistSecured from './components/WaitlistSecured';
 
 /**
  * The flow, in order:
@@ -64,7 +66,31 @@ const STEPS = {
     PAYWALL: 'paywall',
     VERIFY: 'verify',
     WELCOME: 'welcome',
+    // The waitlist campaign's own last screen — see the flow note below.
+    SECURED: 'secured',
 };
+
+/**
+ * `?flow=waitlist` turns this page into the ad campaign's landing flow, for as
+ * long as signups are closed. Same intro carousel — the five slides showing
+ * the platform earn their place even after the ad's video, because the VSL
+ * sells the idea and the slides show the product — same quiz, same analysis,
+ * same verdict. Two differences:
+ *
+ *   — The email step actually lands somewhere: it posts to /api/waitlist (the
+ *     working pre-launch capture) with the quiz answers attached, instead of
+ *     the not-yet-wired account creation.
+ *
+ *   — Joining ends the flow on SECURED: spot saved, launch day named, the plan
+ *     promised by email with the offer attached. The verdict, the offer, the
+ *     paywall and the code are all skipped — they sell and set up a trial
+ *     nobody can start while signups are closed.
+ *
+ * A countdown to early access runs through the whole flow; see CountdownBanner
+ * and WAITLIST_COUNTDOWN_ENDS_AT for the clock and its placeholder mode.
+ * `?from=` names the ad that sent them (default yt-vsl), and the API keeps it
+ * for reading which creative converts.
+ */
 
 // The two steps that can be linked to directly: the plans (the in-platform Max
 // upgrade sends people here) and the welcome screen (where Paddle returns after
@@ -243,6 +269,10 @@ function OnboardingPageInner() {
     const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
     const [verifyError, setVerifyError] = useState('');
     const [isVerifying, setIsVerifying] = useState(false);
+
+    // The campaign variant — see the ?flow=waitlist note above STEPS.
+    const [waitlistFlow, setWaitlistFlow] = useState(false);
+    const [waitlistSource, setWaitlistSource] = useState('yt-vsl');
     const { language, t } = useLanguage();
     const { user } = useAuth();
 
@@ -312,7 +342,7 @@ function OnboardingPageInner() {
      * below surfaces a refusal (an address already fully signed up, say) rather
      * than swallowing it.
      */
-    const handleEmailSubmit = (submitted: string) => {
+    const handleEmailSubmit = async (submitted: string) => {
         setEmail(submitted);
         setEmailError('');
         // Correcting an address goes straight back to the code, which is now
@@ -324,6 +354,45 @@ function OnboardingPageInner() {
             setCurrentStep(STEPS.VERIFY);
             return;
         }
+
+        // The campaign flow is the one place this step already lands somewhere
+        // real: the address joins the waitlist, quiz answers attached, before
+        // the verdict opens. A refusal keeps the dialog up — losing the lead
+        // silently would defeat the whole funnel.
+        if (waitlistFlow) {
+            setIsSubmittingEmail(true);
+            try {
+                const res = await fetch('/api/waitlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: submitted,
+                        locale: language,
+                        source: waitlistSource,
+                        answers,
+                    }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    setEmailError(data.error === 'invalid-email'
+                        ? t('onboarding.email.invalid')
+                        : t('waitlist.errors.failed'));
+                    return;
+                }
+                // Straight to the confirmation. The verdict is skipped in this
+                // flow: the plan is emailed with the offer rather than read
+                // here, so a reveal between the join and the confirmation
+                // would delay the one thing they are waiting to be told.
+                setCurrentStep(STEPS.SECURED);
+            } catch (err) {
+                console.error('Waitlist signup failed:', err);
+                setEmailError(t('waitlist.errors.failed'));
+            } finally {
+                setIsSubmittingEmail(false);
+            }
+            return;
+        }
+
         setCurrentStep(STEPS.VERDICT);
     };
 
@@ -380,8 +449,13 @@ function OnboardingPageInner() {
     // replaying the quiz. Applied after mount rather than in the initial state
     // so SSR and hydration agree on the markup.
     useEffect(() => {
-        const step = new URLSearchParams(window.location.search).get('step');
+        const params = new URLSearchParams(window.location.search);
+        const step = params.get('step');
         if (step && ADDRESSABLE_STEPS.has(step)) setCurrentStep(step);
+        if (params.get('flow') === 'waitlist') {
+            setWaitlistFlow(true);
+            setWaitlistSource(params.get('from') || 'yt-vsl');
+        }
     }, []);
 
     const handleBack = () => {
@@ -634,11 +708,23 @@ function OnboardingPageInner() {
             // step like the trial offer pushed the timeline it exists to show
             // below the fold. The mark ends at ~64px; clearing it is all this
             // has to do.
+            // The campaign flow adds the offer bar across the top of the
+            // window (44px, see COUNTDOWN_BAR_HEIGHT), so every step takes that
+            // much again — one branch per step rather than a second `pt-` class
+            // beside the first, since two padding utilities on one element are
+            // settled by stylesheet order, not by the order they are written
+            // here.
             currentStep === STEPS.INTRO
-                ? 'pb-3 pt-6 md:py-7'
+                ? waitlistFlow
+                    ? 'pb-3 pt-[4.75rem] md:pb-7 md:pt-[5.25rem]'
+                    : 'pb-3 pt-6 md:py-7'
                 : currentStep === STEPS.QUIZ
-                    ? 'pt-16 pb-10 md:pt-20 md:pb-12'
-                    : 'pt-16 pb-10 md:pt-20 md:pb-16'
+                    ? waitlistFlow
+                        ? 'pb-10 pt-28 md:pb-12 md:pt-32'
+                        : 'pt-16 pb-10 md:pt-20 md:pb-12'
+                    : waitlistFlow
+                        ? 'pb-10 pt-28 md:pb-16 md:pt-32'
+                        : 'pt-16 pb-10 md:pt-20 md:pb-16'
         }`}>
             {/* The painted backdrop. `fixed` rather than absolute so it stays
                 put on a page long enough to scroll, and behind everything at
@@ -738,7 +824,11 @@ function OnboardingPageInner() {
             {/* Small, and close to the top. It is a mark, not a headline — the
                 question underneath is the headline, and every pixel the logo
                 takes is distance between the two. */}
-            <div className={`absolute top-5 left-0 right-0 flex justify-center md:top-7 z-40 pointer-events-none ${
+            {/* Pushed below the offer bar in the campaign flow — the mark's
+                usual 20px would put it behind one. */}
+            <div className={`absolute left-0 right-0 flex justify-center z-40 pointer-events-none ${
+                waitlistFlow ? 'top-14 md:top-[4.25rem]' : 'top-5 md:top-7'
+            } ${
                 currentStep === STEPS.INTRO ? 'hidden' : ''
             }`}>
                 <Link href="/" className="hover:opacity-80 transition-opacity pointer-events-auto">
@@ -753,6 +843,12 @@ function OnboardingPageInner() {
                     </svg>
                 </Link>
             </div>
+
+            {/* The launch clock, in the corner, on every campaign step but the
+                last — the secured screen carries it at full size as content,
+                and a second copy in the corner would be the page checking its
+                own watch. */}
+            {waitlistFlow && currentStep !== STEPS.SECURED && <CountdownBanner />}
 
             {/* The paywall's two plans, the intro carousel and the video answer
                 cards all need more room than the plain question steps — the
@@ -1111,6 +1207,7 @@ function OnboardingPageInner() {
                             answers={answerLabels}
                             onBack={() => setCurrentStep(STEPS.QUIZ)}
                             frozen={currentStep === STEPS.EMAIL}
+                            waitlist={waitlistFlow}
                             onComplete={() => setCurrentStep(STEPS.EMAIL)}
                         />
                     )}
@@ -1119,7 +1216,10 @@ function OnboardingPageInner() {
                         <VerdictReveal
                             key="verdict"
                             answers={answers}
-                            onContinue={() => setCurrentStep(STEPS.OFFER)}
+                            // The campaign flow ends on the secured screen — the
+                            // offer and the plans sell a trial that can't start
+                            // while signups are closed.
+                            onContinue={() => setCurrentStep(waitlistFlow ? STEPS.SECURED : STEPS.OFFER)}
                         />
                     )}
 
@@ -1176,6 +1276,10 @@ function OnboardingPageInner() {
                     {currentStep === STEPS.WELCOME && (
                         <WelcomeAboard key="welcome" signupsOpen={SIGNUPS_OPEN} onRestart={restartFlow} />
                     )}
+
+                    {currentStep === STEPS.SECURED && (
+                        <WaitlistSecured key="secured" />
+                    )}
             </main>
 
             {/* The email step, as a dialog over the analysis rather than a
@@ -1218,11 +1322,23 @@ function OnboardingPageInner() {
                     </button>
 
                     <div className="w-full max-w-2xl">
+                        {/* The offer clock, sitting directly on top of the card
+                            rather than pinned to the screen: the corner pill is
+                            under this overlay, and the email step is the one
+                            screen where the deadline is doing its work — so it
+                            belongs against the offer it applies to. Matched to
+                            the card's own width below it. */}
+                        {waitlistFlow && !isChangingEmail && (
+                            <div className="mx-auto mb-3 w-full max-w-lg">
+                                <CountdownBanner banner />
+                            </div>
+                        )}
                         <EmailCapture
                             initialEmail={email}
                             isSubmitting={isSubmittingEmail}
                             error={emailError}
                             changing={isChangingEmail}
+                            waitlist={waitlistFlow}
                             onSubmit={handleEmailSubmit}
                         />
                     </div>

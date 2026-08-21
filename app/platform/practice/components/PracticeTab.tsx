@@ -452,34 +452,18 @@ export default function PracticeTab() {
                              * restating what the controls already show.
                              */}
                             <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
-                                <div className="flex items-center justify-between gap-6 select-none">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <p className="text-sm font-sans font-medium text-stone-900 truncate">
-                                            {STEP_ASKS[currentStep]}
-                                        </p>
-                                        {selectedTheme && currentStep > 1 && (
-                                            <span
-                                                style={{ backgroundColor: TAG_BG, color: SECTION_TEXT }}
-                                                className="shrink-0 rounded-full px-3 py-1 text-xs font-sans"
-                                            >
-                                                {selectedTheme}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* Progress as dots rather than "Step 3 of 6" */}
-                                    <div
-                                        className="flex items-center gap-1.5 shrink-0"
-                                        aria-label={`${t('practice.step')} ${currentStep} ${t('practice.of')} 6`}
-                                    >
-                                        {[1, 2, 3, 4, 5, 6].map(n => (
-                                            <span
-                                                key={n}
-                                                className="w-1.5 h-1.5 rounded-full transition-colors"
-                                                style={{ backgroundColor: n <= currentStep ? '#1C1917' : TAG_BG }}
-                                            />
-                                        ))}
-                                    </div>
+                                <div className="flex items-center gap-3 min-w-0 select-none">
+                                    <p className="text-sm font-sans font-medium text-stone-900 truncate">
+                                        {STEP_ASKS[currentStep]}
+                                    </p>
+                                    {selectedTheme && currentStep > 1 && (
+                                        <span
+                                            style={{ backgroundColor: TAG_BG, color: SECTION_TEXT }}
+                                            className="shrink-0 rounded-full px-3 py-1 text-xs font-sans"
+                                        >
+                                            {selectedTheme}
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Step 1 — pick a theme */}
@@ -497,9 +481,11 @@ export default function PracticeTab() {
                                     </div>
                                 )}
 
-                                {/* Steps 2 and 3 — five words */}
+                                {/* Steps 2 and 3 — five words, one on top of the other, reading
+                                    down like the verse lines they will become, on a card as
+                                    wide as every other card here. */}
                                 {(currentStep === 2 || currentStep === 3) && (
-                                    <div className="verse-card is-static rounded-[20px] px-6 md:px-8 py-6 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-2 animate-in fade-in duration-300">
+                                    <div className="verse-card is-static rounded-[20px] px-6 md:px-8 py-6 flex flex-col gap-2 animate-in fade-in duration-300">
                                         {Array.from({ length: 5 }).map((_, i) => (
                                             <div
                                                 key={i}
@@ -640,19 +626,38 @@ export default function PracticeTab() {
                                     </div>
                                 )}
 
-                                {/* The way on, in the same shape as the song nav */}
-                                <div className="flex items-center justify-between gap-4">
+                                {/* The way through, gathered in the middle: back, the six
+                                    step dots, and Next as one centred group. The flanks get
+                                    equal halves so the dots sit on the true centre line even
+                                    though Next is wider than the back circle. */}
+                                <div className="flex items-center gap-6">
+                                    <div className="flex-1 flex justify-end">
                                     <button
                                         type="button"
                                         onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
                                         disabled={currentStep === 1}
                                         aria-label={t('practice.previous_step')}
                                         title={t('practice.previous_step')}
-                                        className="w-11 h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-0 disabled:pointer-events-none cursor-pointer"
+                                        className="w-11 h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                                     >
                                         <ArrowLeft className="w-4 h-4 stroke-[2]" />
                                     </button>
+                                    </div>
 
+                                    <div
+                                        className="flex items-center gap-1.5 shrink-0"
+                                        aria-label={`${t('practice.step')} ${currentStep} ${t('practice.of')} 6`}
+                                    >
+                                        {[1, 2, 3, 4, 5, 6].map(n => (
+                                            <span
+                                                key={n}
+                                                className="w-1.5 h-1.5 rounded-full transition-colors"
+                                                style={{ backgroundColor: n <= currentStep ? '#1C1917' : TAG_BG }}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    <div className="flex-1 flex justify-start">
                                     {currentStep === 6 ? (
                                         <button
                                             type="button"
@@ -679,6 +684,7 @@ export default function PracticeTab() {
                                             <ArrowRight className="w-4 h-4 stroke-[2]" />
                                         </button>
                                     )}
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>

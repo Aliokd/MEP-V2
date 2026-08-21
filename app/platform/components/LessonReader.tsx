@@ -65,6 +65,25 @@ export default function LessonReader({
     const atStart = index === 0;
     const atEnd = index >= flatLessons.length - 1;
 
+    const contentScrollRef = React.useRef<HTMLDivElement | null>(null);
+
+    /**
+     * Land at the top of each lesson.
+     *
+     * Moving to lesson N+1 swaps the content but leaves the scroll position where
+     * the last one ended — so Next dropped the reader into the middle of a lesson
+     * they had not started, with the video and title above them.
+     *
+     * Both surfaces are reset because which one actually scrolls depends on the
+     * breakpoint: the inner column owns it on desktop, while on a phone the Learn
+     * panel is gone and the document scrolls instead. Resetting the one that
+     * isn't scrolling is a no-op, so there is no need to work out which is which.
+     */
+    React.useEffect(() => {
+        contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+        if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
+    }, [index, isFinished]);
+
     const goNext = () => {
         if (!currentLesson) return;
         onComplete(currentLesson.id);
@@ -179,7 +198,7 @@ export default function LessonReader({
 
                 {/* Video and notes scroll together inside the card so the Back/Next
                     controls stay pinned on screen no matter how long the summary is. */}
-                <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-8 pr-1">
+                <div ref={contentScrollRef} className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-8 pr-1">
                     <LessonContent
                         key={currentLesson.id}
                         lesson={{

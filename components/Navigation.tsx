@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { splitLocale, localizePath } from '@/lib/i18n';
+import { waitlistJoinPath } from '@/lib/uiFlags';
 import { useLanguage } from '@/context/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
 
@@ -60,7 +61,7 @@ const Navigation = () => {
     // link, instead of dropping them back onto the English URL.
     const homeHref = localizePath('/', language);
     const signinHref = localizePath('/signin', language);
-    const waitlistHref = localizePath('/waiting-list', language);
+    const waitlistHref = waitlistJoinPath('nav', language);
 
     if (isAuthPage) {
         return (

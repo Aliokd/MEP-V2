@@ -26,7 +26,47 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MAX_EMAIL_LENGTH = 254; // the practical ceiling from RFC 5321
 
 /** Where the signup came from, for reading which surface actually converts. */
-const KNOWN_SOURCES = new Set(["hero", "nav", "footer", "about", "signin", "onboarding", "invite", "direct"]);
+const KNOWN_SOURCES = new Set([
+    "hero", "nav", "footer", "urgency", "about", "signin",
+    "onboarding", "invite", "direct", "yt-vsl",
+]);
+
+/**
+ * The campaign flow (`/onboarding?flow=waitlist`) sends the quiz answers along
+ * with the address, so the list can be read by segment before launch — which
+ * struggles and goals the ad traffic actually has.
+ *
+ * Public write path, so nothing is trusted: only the quiz's own question ids
+ * survive, values are strings (or short lists of them) capped in length — long
+ * enough for a goal someone typed themselves, too short to be a payload.
+ */
+const KNOWN_QUESTIONS = new Set([
+    "songwriter_type",
+    "creation_method",
+    "struggle",
+    "dream_outcome",
+    "emotional_inspiration",
+]);
+const MAX_ANSWER_LENGTH = 120;
+const MAX_ANSWER_ITEMS = 12;
+
+function sanitizeAnswers(raw: unknown): Record<string, string | string[]> | null {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+
+    const out: Record<string, string | string[]> = {};
+    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+        if (!KNOWN_QUESTIONS.has(key)) continue;
+        if (typeof value === "string" && value.length > 0 && value.length <= MAX_ANSWER_LENGTH) {
+            out[key] = value;
+        } else if (Array.isArray(value)) {
+            const items = value
+                .filter((v): v is string => typeof v === "string" && v.length > 0 && v.length <= MAX_ANSWER_LENGTH)
+                .slice(0, MAX_ANSWER_ITEMS);
+            if (items.length) out[key] = items;
+        }
+    }
+    return Object.keys(out).length ? out : null;
+}
 
 /** Firestore document ids: no slashes, and nothing long enough to be a payload. */
 const INVITE_ID_PATTERN = /^[A-Za-z0-9_-]{1,200}$/;
@@ -85,6 +125,7 @@ export async function POST(request: Request) {
     }
 
     const invite = await resolveInvite(body?.invite);
+    const answers = sanitizeAnswers(body?.answers);
 
     // The address is the document id, so signing up twice updates one row
     // instead of leaving duplicates for someone to de-dupe by hand later.
@@ -110,6 +151,9 @@ export async function POST(request: Request) {
                 // Only overwritten when they actually arrived with one, so a later
                 // plain visit doesn't erase the invite that first brought them.
                 ...(invite ? { invite } : {}),
+                // Same rule: a re-signup without the quiz doesn't erase the
+                // answers a first pass through it recorded.
+                ...(answers ? { answers } : {}),
             });
         } else {
             // Their number on the list. Counted before the write, so it's the
@@ -128,6 +172,7 @@ export async function POST(request: Request) {
                 signupCount: 1,
                 invitedAt: null,
                 invite,
+                answers,
                 userAgent: request.headers.get("user-agent") || null,
                 referer: request.headers.get("referer") || null,
             });
@@ -154,7 +199,7 @@ Email:    ${email}
 Language: ${locale || "unknown"}
 From:     ${source}
 Position: ${position ?? "unknown"}
-${invite ? `\nSomeone is waiting to write with them:\nInvited by: ${invite.inviterName || "unknown"}\nProject:    ${invite.projectTitle || "untitled"} (${invite.projectId || "unknown id"})\nThey can't accept it until they have an account.\n` : ""}${stored ? "" : "\nWARNING: this address could NOT be written to Firestore — it exists only in this email.\n"}
+${answers ? `Quiz:     ${JSON.stringify(answers)}\n` : ""}${invite ? `\nSomeone is waiting to write with them:\nInvited by: ${invite.inviterName || "unknown"}\nProject:    ${invite.projectTitle || "untitled"} (${invite.projectId || "unknown id"})\nThey can't accept it until they have an account.\n` : ""}${stored ? "" : "\nWARNING: this address could NOT be written to Firestore — it exists only in this email.\n"}
 The full list is in the admin console: https://veinote.com/admin/waiting-list
 
 (Reply to this email to reach them directly.)`,

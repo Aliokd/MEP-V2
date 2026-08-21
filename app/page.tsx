@@ -12,10 +12,11 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useFaqs, useFooterLinks } from "@/context/SitePagesContext";
 import { pickLocale } from "@/lib/content";
 import { localizePath } from "@/lib/i18n";
+import { waitlistJoinPath, FOUNDER_SPOTS_TAKEN, FOUNDER_SPOTS_TOTAL, FOUNDER_SPOTS_LEFT } from "@/lib/uiFlags";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const TopNav = () => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [isScrolled, setIsScrolled] = useState(false);
 
     useEffect(() => {
@@ -52,7 +53,7 @@ const TopNav = () => {
                 <div className="flex items-center gap-6">
                     <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
                     <Link href="/signin" className="hover:text-black transition-colors font-medium">{t('home.nav.signin')}</Link>
-                    <Link href="/waiting-list?from=nav" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.waitlist')}</Link>
+                    <Link href={waitlistJoinPath('nav', language)} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.waitlist')}</Link>
                 </div>
             </div>
 
@@ -64,7 +65,7 @@ const TopNav = () => {
                     <Link href="/signin" className="hover:text-black transition-colors font-medium">{t('home.nav.signin')}</Link>
                     {/* Short label here — "Join the waitlist" overflows the pill beside
                         Q&A and Sign in on a narrow phone. */}
-                    <Link href="/waiting-list?from=nav" className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-3 py-1 rounded-[12px] font-semibold text-xs transition-all">{t('home.nav.waitlist_short')}</Link>
+                    <Link href={waitlistJoinPath('nav', language)} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-3 py-1 rounded-[12px] font-semibold text-xs transition-all">{t('home.nav.waitlist_short')}</Link>
                 </div>
             </div>
         </nav>
@@ -72,7 +73,7 @@ const TopNav = () => {
 };
 
 const HeroSection = () => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     // Some languages fit the headline into two parts instead of three, so blank
     // segments are dropped rather than rendered as an empty line on mobile.
@@ -99,7 +100,7 @@ const HeroSection = () => {
                         {t('home.hero.description')}
                     </p>
                     <Link
-                        href="/waiting-list?from=hero"
+                        href={waitlistJoinPath('hero', language)}
                         className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-xl font-semibold transition-all inline-flex items-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] select-none"
                     >
                         <span>{t('home.nav.waitlist')}</span>
@@ -176,7 +177,7 @@ const BlobsSection = () => {
 };
 
 const UrgencySection = () => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [count, setCount] = useState(0);
     const [barWidth, setBarWidth] = useState(0);
     const [hasAnimated, setHasAnimated] = useState(false);
@@ -192,10 +193,13 @@ const UrgencySection = () => {
                     setHasAnimated(true);
 
                     // Kick off progress bar CSS transition
-                    setTimeout(() => setBarWidth(87), 50);
+                    setTimeout(() => setBarWidth(FOUNDER_SPOTS_TAKEN), 50);
 
-                    // Count-up from 0 → 87 over 1600ms with easeOut
-                    const target = 87;
+                    // Count-up from 0 to the founding count over 1600ms with
+                    // easeOut. The number itself comes from lib/uiFlags so this
+                    // section and the campaign's join dialog can never disagree
+                    // about how many spots are gone.
+                    const target = FOUNDER_SPOTS_TAKEN;
                     const duration = 1600;
                     const startTime = performance.now();
 
@@ -219,12 +223,11 @@ const UrgencySection = () => {
 
     return (
         <section ref={sectionRef} className="bg-[#EDFF8E] py-24 md:py-32 px-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
-            {/* 100% Free Access blob — bottom left */}
-            <img
-                src="/assets/100%25%20free%20access.svg"
-                alt="100% Free Access"
-                className="absolute bottom-0 left-0 w-[200px] sm:w-[280px] md:w-[360px] lg:w-[420px] h-auto select-none pointer-events-none z-10"
-            />
+            {/* No badge in the corner. The "100% free access" blob that used to
+                sit here promised something this section no longer says, and the
+                discount is already stated in the line under the headline —
+                shouting it twice in one section is what made it read as an ad.
+                The badge still exists on the join dialog: components/OfferBlob. */}
 
             {/* Decorative shapes — bottom right */}
             <img
@@ -250,22 +253,31 @@ const UrgencySection = () => {
                     />
                 </div>
 
-                {/* Animated 87 / 100 counter */}
+                {/* The offer, in the same words the join dialog uses — one
+                    string, so the discount is stated identically on both sides
+                    of the click. */}
+                <p className="mb-8 max-w-md text-[15px] font-semibold text-stone-800 md:mb-10 md:text-[17px]">
+                    {t('onboarding.waitlist.email_offer')}
+                </p>
+
+                {/* Animated counter, out of the founding total */}
                 <div className="flex items-baseline justify-center gap-1 leading-none mb-6 md:mb-8">
                     <span className="text-[7rem] md:text-[9rem] lg:text-[11rem] font-sans font-bold tracking-tighter text-stone-900 leading-none tabular-nums">
                         {count}
                     </span>
-                    <span className="text-[4rem] md:text-[5.5rem] lg:text-[6.5rem] font-sans font-light tracking-tight text-stone-900/60 leading-none">/100</span>
+                    <span className="text-[4rem] md:text-[5.5rem] lg:text-[6.5rem] font-sans font-light tracking-tight text-stone-900/60 leading-none">/{FOUNDER_SPOTS_TOTAL}</span>
                 </div>
 
-                {/* Urgency Description */}
+                {/* Urgency Description. The remainder is computed, not written
+                    into the copy — a hard-coded "13" outlived the number it was
+                    derived from once already. */}
                 <p className="text-stone-700 text-[15px] md:text-[17px] font-medium max-w-md mb-10 leading-relaxed">
-                    {t('home.urgency.spots_line_1')}<br className="hidden md:block" /> {t('home.urgency.spots_line_2')}
+                    {t('home.urgency.spots_line_1').replace('{n}', String(FOUNDER_SPOTS_LEFT))}<br className="hidden md:block" /> {t('home.urgency.spots_line_2')}
                 </p>
 
                 {/* CTA Button */}
                 <Link
-                    href="/waiting-list?from=hero"
+                    href={waitlistJoinPath('urgency', language)}
                     className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-xl font-semibold transition-all inline-flex items-center gap-3 select-none"
                 >
                     <span>{t('home.nav.waitlist')}</span>
@@ -546,7 +558,7 @@ const NewFooter = () => {
                         </Link>
                     ))}
                     <Link href="#qa" className="font-medium hover:text-black transition-colors">{t('home.nav.qa')}</Link>
-                    <Link href="/waiting-list?from=footer" className="font-bold hover:text-black transition-colors">{t('home.nav.waitlist')}</Link>
+                    <Link href={waitlistJoinPath('footer', language)} className="font-bold hover:text-black transition-colors">{t('home.nav.waitlist')}</Link>
                 </div>
             </div>
 

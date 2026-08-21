@@ -974,8 +974,8 @@
       "description": "From your first lyric idea to a finished song, Veinote combines powerful creative tools, expert guidance, practical exercises, and a supportive community designed to help songwriters grow and develop their craft."
     },
     "urgency": {
-      "title": "Join the early founders",
-      "spots_line_1": "Only 13 spots left",
+      "title": "Secure your spot",
+      "spots_line_1": "Only {n} spots left",
       "spots_line_2": "before early access closes."
     },
     "banner": {
@@ -1489,6 +1489,20 @@
       "cta": "Open Veinote",
       "prelaunch": {
         "body": "Accounts aren't open yet. Veinote is still in private testing, so nothing was created and no card was charged. This is where the preview ends.",
+        "restart": "Go through it again"
+      }
+    },
+    "waitlist": {
+      "banner_label": "Special offer closes in",
+      "email_title": "Save your spot",
+      "email_offer": "3 days free trial + 50% OFF on your first month.",
+      "email_badge_top": "50%",
+      "email_badge_bottom": "OFF",
+      "email_cta": "Join the waitlist",
+      "secured": {
+        "title": "Spot secured",
+        "body": "Veinote launches on {date}. We'll email you your plan, along with your special offer.",
+        "back_home": "Back to the homepage",
         "restart": "Go through it again"
       }
     },

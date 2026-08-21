@@ -117,6 +117,48 @@ function cleanClickedWord(raw: string): string {
         .replace(/^['\-]+|['\-]+$/g, '');
 }
 
+/**
+ * Keeps the line being typed on screen.
+ *
+ * Two things push it out of view: the on-screen keyboard, which takes the bottom
+ * half of the viewport without the document knowing, and the toolbar docked to
+ * the keyboard's top edge. Neither is visible to `scrollIntoView`, which would
+ * happily "reveal" a line by parking it underneath both.
+ *
+ * So the safe band is measured explicitly — visualViewport for the keyboard, a
+ * dock allowance for the toolbar — and the page is nudged only when the caret's
+ * line has actually left it. That last part is what keeps this quiet: it does
+ * nothing on the vast majority of keystrokes, so there is no per-character
+ * scrolling and no fight with a smooth animation already in flight.
+ *
+ * A module-level function rather than a hook: the phrase row is its own
+ * component, well outside the page's state.
+ */
+const DOCK_CLEARANCE = 104;
+const CARET_MARGIN = 20;
+
+function keepEditorInView(el: HTMLElement | null) {
+    if (!el || typeof window === 'undefined') return;
+
+    const vv = window.visualViewport;
+    const visibleTop = vv ? vv.offsetTop : 0;
+    const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+
+    const safeTop = visibleTop + CARET_MARGIN;
+    const safeBottom = visibleBottom - DOCK_CLEARANCE;
+    // A viewport too short to hold the line and both chrome bars — nothing sane
+    // to scroll to, so leave it where it is rather than oscillating.
+    if (safeBottom <= safeTop) return;
+
+    const rect = el.getBoundingClientRect();
+    let delta = 0;
+    if (rect.bottom > safeBottom) delta = rect.bottom - safeBottom;
+    else if (rect.top < safeTop) delta = rect.top - safeTop;
+    if (delta === 0) return;
+
+    window.scrollBy({ top: delta, behavior: 'smooth' });
+}
+
 const CANVAS_INTERACTIVE_SELECTOR =
     '.phrase-row-container, .canvas-add-menu, .canvas-flow-card, .chord-card, .word-token, .suggestions-popover, button, a, input, textarea, select, video, img, [role="button"]';
 
@@ -1914,6 +1956,18 @@ const PhraseRow = React.memo(function PhraseRow({
                             if (onUpdateText) {
                                 onUpdateText(phrase.id, target.value);
                             }
+                            // After the height is settled, not before: a line that just
+                            // wrapped is taller than it was when the key landed, and
+                            // measuring first would scroll to where it used to end.
+                            keepEditorInView(target);
+                        }}
+                        onFocus={(e) => {
+                            // The keyboard animates in over ~250ms and the visual viewport
+                            // only reports its new height once it has. Measuring on focus
+                            // alone would read the pre-keyboard viewport and conclude
+                            // everything was already visible.
+                            const el = e.currentTarget;
+                            window.setTimeout(() => keepEditorInView(el), 320);
                         }}
                         onChange={(e) => {
                             if (onUpdateText) {
@@ -7601,6 +7655,25 @@ export default function CreatePage() {
             }
         };
     }, [isMetronomePlaying, metronomeBpm]);
+
+    // The metronome is the one tool sound with no natural end: it ticks until it is
+    // switched off, and its off switch lives inside the tempo tab. Closing the panel —
+    // or stepping over to another tool — has to count as switching it off, or the click
+    // carries on behind a closed panel with nothing left on screen to stop it.
+    useEffect(() => {
+        if (!showToolsPanel || activeToolTab !== 'tempo') {
+            setIsMetronomePlaying(false);
+        }
+    }, [showToolsPanel, activeToolTab]);
+
+    // The tick context is opened lazily on first play and nothing ever closed it, so
+    // leaving the canvas left a live AudioContext behind for the life of the tab.
+    useEffect(() => {
+        return () => {
+            metronomeAudioContextRef.current?.close().catch(() => {});
+            metronomeAudioContextRef.current = null;
+        };
+    }, []);
 
     // ----------------------------------------------------
     // CREATIVE TOOLS SUITE LOGIC (Tuner, Tap, Lexicon, Inspiration)
@@ -20605,9 +20678,15 @@ export default function CreatePage() {
                                         value={contentVal}
                                         onChange={handleTextareaChange}
                                         onScroll={handleTextareaScroll}
-                                        onFocus={() => {
+                                        onFocus={(e) => {
                                             setIsFocused(true);
                                             setTimeout(updateScrollbarInfo, 50);
+                                            // This textarea scrolls internally (max-h + overflow),
+                                            // so the browser keeps the caret visible inside it —
+                                            // what it can't do is notice that the whole box has
+                                            // gone under the keyboard. Nudged once on focus only.
+                                            const el = e.currentTarget;
+                                            window.setTimeout(() => keepEditorInView(el), 320);
                                         }}
                                         onBlur={() => {
                                             setIsFocused(false);

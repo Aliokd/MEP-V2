@@ -147,11 +147,17 @@ const initialsOf = (name: string) =>
  */
 type Testimonial = { quote: string; name: string; image?: string };
 
-export default function AnalyzingAnswers({ answers, onComplete, onBack, frozen = false }: {
+export default function AnalyzingAnswers({ answers, onComplete, onBack, frozen = false, waitlist = false }: {
     /** The visitor's own answers, already resolved to their display labels. */
     answers: string[];
     /** Pressed, not waited out — see `ready` below. */
     onComplete: () => void;
+    /**
+     * The campaign flow. Changes one word: the button that opens the email
+     * dialog says what that dialog does there — join the waitlist — rather
+     * than "Reveal my plan", which is the step after it.
+     */
+    waitlist?: boolean;
     /**
      * Back to the quiz, with every answer still where the visitor left it. The
      * control is hidden without it rather than being drawn inert — there is no
@@ -543,7 +549,7 @@ export default function AnalyzingAnswers({ answers, onComplete, onBack, frozen =
                     }
                     className={`${PRIMARY_BUTTON} disabled:pointer-events-none`}
                 >
-                    {t('onboarding.analyzing.cta')}
+                    {t(waitlist ? 'onboarding.waitlist.email_cta' : 'onboarding.analyzing.cta')}
                     <ArrowRight className="h-4 w-4 stroke-[2.5px]" />
                 </motion.button>
             </div>

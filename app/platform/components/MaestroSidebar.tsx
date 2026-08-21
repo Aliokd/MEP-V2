@@ -137,7 +137,24 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
             )}
 
             <div
-                className={`fixed top-16 bottom-0 left-0 md:h-viewport md:sticky md:top-0 z-[79] md:z-50 flex flex-col pt-8 pb-[calc(2rem+env(safe-area-inset-bottom))] select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-y-auto no-scrollbar overscroll-contain md:overflow-visible transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
+                // Height, in three parts, all NATIVE Tailwind utilities on purpose:
+                //   md:h-screen  — 100vh, the floor for engines without dvh
+                //   md:h-dvh     — the real height, excluding mobile browser chrome
+                //   md:max-h-dvh — a hard ceiling, so nothing can stretch it past the
+                //                  screen even if a parent tries
+                // This used to be `md:h-viewport`, a class hand-written in globals.css.
+                // Tailwind cannot build a `md:` variant of a class it does not own, so
+                // that generated NO RULE and the rail simply stretched to the height of
+                // the content beside it — which is how language / feedback / log out
+                // ended up below the fold. Native utilities always generate.
+                //
+                // The rail scrolls on every breakpoint (it used to be md:overflow-visible,
+                // which let content spill past the screen with no way to reach it). In
+                // normal use nothing scrolls here at all: the nav has its own scroller and
+                // the footer is pinned. This is the floor for the pathological case —
+                // below roughly 195px of height the footer alone cannot fit, and scrolling
+                // to the options beats clipping them away.
+                className={`fixed top-16 bottom-0 left-0 md:h-screen md:h-dvh md:max-h-dvh md:sticky md:top-0 z-[79] md:z-50 flex flex-col pt-8 pb-[calc(1.25rem+env(safe-area-inset-bottom))] select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-y-auto no-scrollbar overscroll-contain transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
                     isMobileOpen ? 'translate-x-0' : '-translate-x-[110%]'
                 } md:translate-x-0 ${
                     // The rail scales with the viewport instead of holding one fixed
@@ -154,7 +171,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
             >
                 {/* Collapsed layout: full-height flex centered */}
                 {isCollapsed && !isMobile ? (
-                    <div className="flex flex-col h-full w-full">
+                    <div className="flex flex-col h-full min-h-0 w-full">
                         {/* Logo — centered with manual px-3 padding, expand icon floats right outside */}
                         <div className="flex justify-end w-full py-2 pr-3 group/logoarea relative">
                             <div className="relative flex items-center">
@@ -176,7 +193,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                         </div>
 
                         {/* Nav — same top position as expanded (mt-6 matches tighter spacing), full-width active box */}
-                        <nav className="flex flex-col gap-1 w-full mt-6">
+                        <nav className="flex flex-col gap-1 w-full mt-6 flex-1 min-h-0 overflow-y-auto no-scrollbar">
                             {menuItems.map((item) => {
                                 const isActive = pathname === item.href;
                                 const Icon = item.icon;
@@ -217,7 +234,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                         </nav>
 
                         {/* Bottom Actions — icon-only equivalents of the expanded view's language/feedback/logout */}
-                        <div className="flex flex-col items-center gap-2 w-full mt-auto pt-6">
+                        <div className="flex flex-col items-center gap-2 w-full mt-auto pt-6 shrink-0">
                             <LanguageSwitcher iconOnly tooltipSide="right" />
                             <Tooltip label={t('navigation.feedback')} side="right">
                                 <button
@@ -245,9 +262,18 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                         </div>
                     </div>
                 ) : (
-                    /* Expanded / mobile layout */
-                    <div className="flex flex-col gap-10 justify-between h-full">
-                        <div className="flex flex-col gap-7 md:gap-10">
+                    /* Expanded / mobile layout.
+                       The rail is exactly one viewport tall, and the two halves divide it
+                       rather than stacking past it: the nav takes the space that is left
+                       and scrolls inside itself, and the footer holds its own height at the
+                       bottom. Previously both sat in normal flow, so on a short window — or
+                       once the nav grew — language, feedback and log out were pushed below
+                       the fold, where the sidebar's `md:overflow-visible` meant they could
+                       not even be scrolled to. min-h-0 is what lets the nav shrink at all:
+                       a flex item defaults to min-height:auto and refuses to go below its
+                       content, which is how the overflow escaped in the first place. */
+                    <div className="flex flex-col gap-10 h-full min-h-0">
+                        <div className="flex flex-col gap-7 md:gap-10 flex-1 min-h-0 overflow-y-auto no-scrollbar">
                             <div className="flex items-center justify-start gap-3 min-h-[40px] w-full group/logoarea">
                                 <Link href="/platform/create" className="opacity-95 hover:opacity-100 transition-opacity" onClick={onClose}>
                                     <Logo size="md" showBeta />
@@ -323,8 +349,9 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                             </nav>
                         </div>
 
-                        {/* Bottom Actions */}
-                        <div className="flex flex-col gap-3 w-full items-start pl-4">
+                        {/* Bottom Actions — shrink-0 so they keep their height whatever the
+                            nav above does, and stay on screen without scrolling for them. */}
+                        <div className="flex flex-col gap-3 w-full items-start pl-4 shrink-0">
                             <LanguageSwitcher />
                             {bottomItems.map((item: any) => {
                                 if (item.onClick) {

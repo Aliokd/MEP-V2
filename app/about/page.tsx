@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { resolveServerLocale } from '@/lib/server-locale';
 import { getServerT } from '@/lib/i18n-content';
 import { getCopyOverrides } from '@/lib/siteCopy';
-import { localizePath } from '@/lib/i18n';
+import { waitlistJoinPath } from '@/lib/uiFlags';
 import SiteFooterStrip from '@/components/SiteFooterStrip';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -35,7 +35,7 @@ export default async function AboutPage() {
                         {t('about.intro')}
                     </p>
                     <Link
-                        href={`${localizePath('/waiting-list', language)}?from=about`}
+                        href={waitlistJoinPath('about', language)}
                         className="mt-10 bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-lg font-semibold transition-all inline-flex items-center gap-3 select-none"
                     >
                         <span>{t('home.nav.waitlist')}</span>

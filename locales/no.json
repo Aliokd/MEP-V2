@@ -974,8 +974,8 @@
       "description": "Fra den aller første tekstidéen til en ferdig låt. Veinote samler kraftige kreative verktøy, veiledning fra erfarne låtskrivere, praktiske øvelser og et fellesskap som heier på deg mens du utvikler håndverket ditt."
     },
     "urgency": {
-      "title": "Bli med blant de første",
-      "spots_line_1": "Kun 13 plasser igjen",
+      "title": "Sikre plassen din",
+      "spots_line_1": "Kun {n} plasser igjen",
       "spots_line_2": "før tidlig tilgang stenger."
     },
     "banner": {
@@ -1489,6 +1489,20 @@
       "cta": "Åpne Veinote",
       "prelaunch": {
         "body": "Kontoer er ikke åpne ennå. Veinote er fortsatt i lukket testing, så ingenting ble opprettet og ingen kort ble belastet. Her stopper forhåndsvisningen.",
+        "restart": "Gå gjennom det på nytt"
+      }
+    },
+    "waitlist": {
+      "banner_label": "Tilbudet utløper om",
+      "email_title": "Sikre plassen din",
+      "email_offer": "3 dager gratis + 50 % rabatt på din første måned.",
+      "email_badge_top": "50%",
+      "email_badge_bottom": "rabatt",
+      "email_cta": "Sett meg på listen",
+      "secured": {
+        "title": "Plassen er sikret",
+        "body": "Veinote åpner {date}. Vi sender deg planen din på e-post, sammen med spesialtilbudet ditt.",
+        "back_home": "Tilbake til forsiden",
         "restart": "Gå gjennom det på nytt"
       }
     },

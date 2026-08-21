@@ -4,9 +4,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { User, Mail, PlayCircle, Music, Users, ArrowRight, ArrowUpRight, Camera } from 'lucide-react';
+import { User, Mail, PlayCircle, Music, Users, ArrowRight, Camera } from 'lucide-react';
 import SupportModal from '../components/SupportModal';
 import MaxUpgradeModal from '../components/MaxUpgradeModal';
+import MaxBanner from '../components/MaxBanner';
 import { useUserPlan } from '@/lib/useUserPlan';
 import SongCards from './components/SongCards';
 import ConnectionList, { useConnectionPeople } from './components/ConnectionList';
@@ -255,11 +256,14 @@ export default function ProfilePage() {
 
     return (
         <div className="space-y-10 text-stone-900 font-sans">
-            <div className="grid lg:grid-cols-3 gap-12">
-                {/* Main column */}
-                <div className="lg:col-span-2 space-y-10">
-                    {/* Identity */}
-                    <div className="flex items-center gap-5">
+            {/* One full-width column: the plan badge sits beside the name, the Max
+                pitch beside the identity, and subscription/support are options rows —
+                nothing is left for a sidebar to hold. */}
+            <div>
+                <div className="space-y-10">
+                    {/* Identity, with the Max pitch filling the space beside it */}
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-10">
+                    <div className="flex items-center gap-5 lg:shrink-0">
                         <input
                             ref={photoInputRef}
                             type="file"
@@ -310,6 +314,20 @@ export default function ProfilePage() {
                                 <p className="text-xs text-stone-500 font-medium mt-1 animate-in fade-in duration-200">{photoNotice}</p>
                             )}
                         </div>
+                    </div>
+
+                    {/* Max pitch — the same banner Connect uses (MaxBanner), so the
+                        two surfaces cannot drift apart again. */}
+                    {!hasMax && (
+                        <MaxBanner
+                            className="w-full lg:flex-1 lg:min-w-0"
+                            title={t('profile.max_ad_title')}
+                            description={t('profile.max_ad_desc')}
+                            badgeLabel={t('connect.pro.max_badge')}
+                            showBadge
+                            onClick={() => setShowMaxUpgrade(true)}
+                        />
+                    )}
                     </div>
 
                     <div className="h-px bg-stone-200/60" />
@@ -571,51 +589,6 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
-                {/* Sidebar — the plan badge lives beside the name and subscription/support
-                    are options rows now, so this space only sells the upgrade. */}
-                <div className="space-y-6">
-                    {hasMax ? (
-                        <div className="bg-white/60 border border-stone-200/70 p-7 rounded-[16px] space-y-1.5 text-center">
-                            <p className="text-xs text-stone-400 font-medium">{t('profile.current_plan')}</p>
-                            <h3 className="text-xl font-sans font-semibold text-stone-900">Max</h3>
-                        </div>
-                    ) : (
-                        <>
-                            {/* Max advert — opens the same upgrade popup as Connect */}
-                            <button
-                                type="button"
-                                onClick={() => setShowMaxUpgrade(true)}
-                                aria-haspopup="dialog"
-                                className="group relative w-full rounded-[20px] overflow-hidden bg-[#1c1b1a] text-left p-7 transition-all duration-300 hover:shadow-[0_8px_28px_rgba(0,0,0,0.14)] active:scale-[0.995] cursor-pointer"
-                            >
-                                {/* Soft green glow anchoring the Max colour on the dark card */}
-                                <div
-                                    className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-[#86BE7F]/20 blur-3xl group-hover:bg-[#86BE7F]/30 transition-colors duration-500"
-                                    aria-hidden="true"
-                                />
-                                <div className="relative z-10 space-y-4">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <span className="rounded-full bg-[#86BE7F]/20 px-3 py-1 text-[11px] font-bold text-[#a8d8a2]">
-                                            Max
-                                        </span>
-                                        <ArrowUpRight className="w-5 h-5 text-white/60 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 shrink-0" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <h3 className="text-lg font-sans font-medium text-white tracking-tight leading-snug">
-                                            {t('profile.max_ad_title')}
-                                        </h3>
-                                        <p className="text-[13px] font-sans text-white/65 leading-relaxed">
-                                            {t('profile.max_ad_desc')}
-                                        </p>
-                                    </div>
-                                    <span className="inline-block rounded-full bg-[#86BE7F] px-4 py-2 text-[13px] font-semibold text-stone-900 group-hover:opacity-95 transition-opacity">
-                                        {t('profile.upgrade_to_max')}
-                                    </span>
-                                </div>
-                            </button>
-                        </>
-                    )}
-                </div>
             </div>
 
             <SupportModal isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />

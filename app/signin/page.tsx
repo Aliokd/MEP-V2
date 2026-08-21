@@ -11,7 +11,7 @@ import { auth, googleProvider, db } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/userProfile';
 import { clearOpenProject } from '@/lib/storage';
 import { useLanguage } from '@/context/LanguageContext';
-import { SIGNUPS_OPEN } from '@/lib/uiFlags';
+import { SIGNUPS_OPEN, waitlistJoinPath } from '@/lib/uiFlags';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function SignInPage() {
@@ -211,7 +211,7 @@ function SignInPageInner() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-6 py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">
+        <div className="min-h-screen flex items-center justify-center px-6 py-16 sm:py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">
             <div className="absolute top-8 right-6 md:top-12 md:right-10 z-50">
                 <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
             </div>
@@ -227,7 +227,12 @@ function SignInPageInner() {
                     <p className="text-stone-600 font-sans font-normal text-base md:text-lg">{t('signin.subtitle')}</p>
                 </div>
 
-                <div className="bg-white/60 border border-stone-200/80 p-6 sm:p-10 rounded-[20px] shadow-sm backdrop-blur-md">
+                {/* No card on a phone. The frame is a desktop device for gathering the
+                    form out of a wide empty page; on a phone the form already fills the
+                    screen, so all it added was a second border a few pixels outside each
+                    input's own — and a tinted ground that flattened the white fields
+                    sitting on it. The form sits straight on the page instead. */}
+                <div className="bg-transparent border-0 p-0 rounded-none shadow-none backdrop-blur-none sm:bg-white/60 sm:border sm:border-stone-200/80 sm:p-10 sm:rounded-[20px] sm:shadow-sm sm:backdrop-blur-md">
                     {view === 'login' && (
                         <form onSubmit={handlePasswordSignIn} noValidate className="space-y-6">
                             {error && (
@@ -393,7 +398,7 @@ function SignInPageInner() {
                     <div className="mt-8 pt-8 border-t border-stone-200/80 text-center">
                         <p className="text-sm text-stone-600 font-sans font-medium">
                             {t('signin.new_to_veinote')}{' '}
-                            <Link href="/waiting-list?from=signin" className="text-stone-900 transition-colors underline-offset-4 hover:underline font-bold">{t('home.nav.waitlist')}</Link>
+                            <Link href={waitlistJoinPath('signin', language)} className="text-stone-900 transition-colors underline-offset-4 hover:underline font-bold">{t('home.nav.waitlist')}</Link>
                         </p>
                     </div>
                 </div>

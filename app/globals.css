@@ -552,6 +552,23 @@ input:-webkit-autofill:active {
     height: 100dvh;
 }
 
+/* The md: form of the same thing, written out by hand — and it has to be.
+   `h-viewport` is a plain CSS class, not a Tailwind utility, so Tailwind has no
+   utility to build a variant from and `md:h-viewport` in the markup generated NO
+   RULE AT ALL. The sidebar carried that class, so on desktop it never got a
+   viewport height: as a flex child of the page's `min-h-screen flex` row it
+   stretched to the height of the CONTENT beside it — measured at 1210px in a 620px
+   window — which pushed language / feedback / log out far below the fold. That is
+   the very bug .h-viewport was added to fix; the fix just never applied on desktop.
+   Kept as CSS rather than a Tailwind theme entry so the 100vh fallback for engines
+   without dvh (Safari 15.0-15.3, inside this project's browserslist) survives. */
+@media (min-width: 768px) {
+    .md\:h-viewport {
+        height: 100vh;
+        height: 100dvh;
+    }
+}
+
 /* Controls that reveal on hover (opacity-0 group-hover:opacity-100) are invisible on
    touch devices — there is no hover to trigger them, so on phones and iPads the
    affordance either needs a blind first tap or simply can't be found. Marking those

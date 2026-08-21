@@ -266,36 +266,23 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
     }, [currentIdx, allNamed, isPlaying]);
     /** True from a correct answer until the burst has landed. */
     const [celebrating, setCelebrating] = useState(false);
-    /** Set when an answer lands, so the next draw retires the ask it satisfied. */
-    const answeredRef = useRef(false);
     const burstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     useEffect(() => () => { if (burstTimerRef.current) clearTimeout(burstTimerRef.current); }, []);
 
     // Draw the next task whenever the current one is answered — but not until
-    // the celebration for the last one is over.
+    // the celebration for the last one is over. Answers are exact, so a solved
+    // ask is never in `remaining` and can never be dealt twice.
     useEffect(() => {
         if (celebrating) return;
         if (!resolvedSections || resolvedSections.length === 0) return;
         const remaining = resolvedSections
             .map((_, i) => i)
             .filter(i => !identified.includes(i));
-
-        /*
-         * An accepted answer retires its ask even when the exact occurrence is
-         * still open — answers are checked by kind, so "Find Verse 2" can be
-         * satisfied by the Verse 1 card. Without this the same ask would come
-         * straight back, reading as though the answer had not counted.
-         */
-        const answered = answeredRef.current;
-        answeredRef.current = false;
-
         setTargetIdx(prev => {
             if (remaining.length === 0) return null;
-            if (!answered && prev !== null && remaining.includes(prev)) return prev;
-            const pool = answered && prev !== null && remaining.length > 1
-                ? remaining.filter(i => i !== prev)
-                : remaining;
-            return pool[Math.floor(Math.random() * pool.length)];
+            // An unanswered ask survives unrelated re-renders untouched
+            if (prev !== null && remaining.includes(prev)) return prev;
+            return remaining[Math.floor(Math.random() * remaining.length)];
         });
     }, [identified, resolvedSections, celebrating]);
 
@@ -456,7 +443,6 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
 
     const markIdentified = (originalIdx: number) => {
         setIdentified(prev => [...prev, originalIdx]);
-        answeredRef.current = true;
         // Two quick beats on Android; a no-op where the platform has no vibration.
         haptic('success');
         /*
@@ -475,7 +461,6 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
      */
     const startOver = () => {
         if (burstTimerRef.current) clearTimeout(burstTimerRef.current);
-        answeredRef.current = false;
         setCelebrating(false);
         setWrongIdx(null);
         setIdentified([]);
@@ -492,16 +477,18 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
     };
 
     /*
-     * The task names a section; the answer is the lyrics card it belongs to.
+     * The task names a section; the answer is that section's card, exactly.
+     * "Find Chorus 2" means the second chorus, not any chorus — the ask has to
+     * mean what it says, or an accepted answer leaves its own ask still open
+     * and it comes back around, reading as though the answer never counted.
      *
-     * Checked by kind rather than by the exact occurrence asked for. Repeats
-     * carry the same words — this song's three choruses are identical — so
-     * insisting on "that chorus, not this one" would come down to guessing
-     * between cards the user has no way to tell apart.
+     * Repeats can carry identical words, but the cards run in song order and
+     * the target band can be played back, so the occurrence is always
+     * tellable — by position, or by ear. That reading IS the exercise.
      */
-    const handleBlockClick = (section: AuthoredSection, originalIdx: number) => {
-        if (identified.includes(originalIdx) || !targetSection) return;
-        if (section.kind === targetSection.kind) markIdentified(originalIdx);
+    const handleBlockClick = (_section: AuthoredSection, originalIdx: number) => {
+        if (identified.includes(originalIdx) || targetIdx === null) return;
+        if (originalIdx === targetIdx) markIdentified(originalIdx);
         else missAt(originalIdx);
     };
 

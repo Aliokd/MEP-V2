@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizePath } from '@/lib/i18n';
+import { FOUNDER_SPOTS_TAKEN, FOUNDER_SPOTS_TOTAL } from '@/lib/uiFlags';
+import OfferBlob from '@/components/OfferBlob';
 import { PRIMARY_BUTTON_BLOCK } from './buttonStyles';
 
 // The gate between the analysis and the verdict.
@@ -42,11 +44,27 @@ const CONSENT_SLOTS = /(\{terms\}|\{privacy\})/g;
 const SHAKE = { x: [0, -6, 5, -4, 3, -2, 0] };
 const SHAKE_TIMING = { duration: 0.42, ease: [0.36, 0.07, 0.19, 0.97] as const };
 
-export default function EmailCapture({ initialEmail = '', isSubmitting = false, error = '', changing = false, onSubmit }: {
+// The founders spot counter is the same one the homepage's urgency section
+// shows — see FOUNDER_SPOTS_TAKEN in lib/uiFlags.ts, which both read.
+//
+// Shown at rest here rather than counted up to: the number is a fact about the
+// list, and animating it from somewhere else made the dialog's own opening
+// frames say something untrue. The homepage still counts up, because there it
+// is a reveal as the section scrolls into view rather than the answer to a
+// question someone just asked.
+
+export default function EmailCapture({ initialEmail = '', isSubmitting = false, error = '', changing = false, waitlist = false, onSubmit }: {
     initialEmail?: string;
     isSubmitting?: boolean;
     /** Set by the page when the address is refused upstream. */
     error?: string;
+    /**
+     * The campaign flow's framing: the address joins the waitlist rather than
+     * creating an account, so "First, create your account" would be describing
+     * a step that isn't happening. Same form, same consent gate — only the
+     * words over it change.
+     */
+    waitlist?: boolean;
     /**
      * Reached from the code screen rather than from the analysis — the address
      * already exists and is being corrected, not given for the first time.
@@ -74,20 +92,26 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
 
     const valid = EMAIL_PATTERN.test(email.trim());
 
+    // The tick box belongs to account creation, where terms are being agreed
+    // to. Joining the waitlist takes an address and nothing else — the same
+    // rule the standalone waiting-list page follows — so the campaign variant
+    // shows the privacy note in its place and never gates on it.
+    const consentRequired = !waitlist;
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         // Both are checked before either is reported, so pressing once with a
         // bad address AND no tick doesn't turn into two round trips.
         setShowInvalid(!valid);
-        setShowConsent(!accepted);
+        setShowConsent(consentRequired && !accepted);
 
         // Whatever is missing shakes — both, if both are. Nothing here is
         // styled as an error: a missing tick box is not a mistake anyone made,
         // it is a step not taken yet, and red is a strong word for that.
-        if (!valid || !accepted) {
+        if (!valid || (consentRequired && !accepted)) {
             if (!prefersReducedMotion) {
                 if (!valid) emailShake.start({ ...SHAKE, transition: SHAKE_TIMING });
-                if (!accepted) consentShake.start({ ...SHAKE, transition: SHAKE_TIMING });
+                if (consentRequired && !accepted) consentShake.start({ ...SHAKE, transition: SHAKE_TIMING });
             }
             return;
         }
@@ -137,6 +161,10 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="space-y-8"
         >
+            {/* The campaign variant carries its headline inside the card — see
+                below — so the page-level header belongs to the other two
+                framings only. */}
+            {!(waitlist && !changing) && (
             <div className="space-y-3 text-center">
                 {/* No eyebrow when correcting an address: "your initial plan is
                     ready" is news, and it was already delivered the first time
@@ -153,17 +181,68 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                     {t(changing ? 'onboarding.email.change_subtitle' : 'onboarding.email.subtitle')}
                 </p>
             </div>
+            )}
 
             <form
                 onSubmit={handleSubmit}
                 noValidate
-                // Glassy rather than the flat #EFF0E7 it was: a translucent
-                // panel over the frozen analysis behind it, matching the glass
-                // AnalyzingAnswers and TrialOffer already use elsewhere in this
-                // flow rather than introducing a fourth surface treatment.
-                className="mx-auto max-w-md space-y-6 rounded-[28px] border border-white/50 bg-white/25 p-7 shadow-[0_8px_30px_rgba(0,0,0,0.02)] backdrop-blur-2xl backdrop-saturate-150 md:space-y-7 md:p-8"
+                // Two skins for one form. The campaign variant borrows the
+                // homepage urgency section's own surface — the #EDFF8E card,
+                // an offer blob in the corner — so the dialog reads as that
+                // section continuing here. `isolate` gives the blob a stacking
+                // context to sit behind the content in (-z-10 without it drops
+                // behind the card's background entirely). The other framings
+                // keep the glass: a translucent panel over the frozen analysis
+                // behind it, matching AnalyzingAnswers and TrialOffer.
+                className={waitlist && !changing
+                    ? 'relative isolate mx-auto max-w-lg space-y-5 overflow-hidden rounded-[28px] border border-white/40 bg-[#EDFF8E]/50 p-7 shadow-[0_8px_30px_rgba(0,0,0,0.06)] backdrop-blur-2xl backdrop-saturate-150 md:space-y-6 md:p-9'
+                    : 'mx-auto max-w-md space-y-6 rounded-[28px] border border-white/50 bg-white/25 p-7 shadow-[0_8px_30px_rgba(0,0,0,0.02)] backdrop-blur-2xl backdrop-saturate-150 md:space-y-7 md:p-8'}
             >
-                <motion.div animate={emailShake}>
+                {/* The campaign card's own front matter: the headline and the
+                    offer under it, then the founders spot counter the visitor
+                    may recognise from the homepage's urgency section — same
+                    numbers, same motion, at dialog scale — and the offer clock
+                    in small print. The blob wears the discount the way the
+                    homepage's corner wears "100% free access". */}
+                {waitlist && !changing && (
+                    <>
+                        <OfferBlob className="absolute -bottom-9 -left-9 -z-10 w-28 -rotate-12 md:w-32" />
+
+                        <div className="space-y-3 text-center md:space-y-4">
+                            {/* The offer clock isn't here — it sits on top of
+                                the card instead; see the dialog in the
+                                onboarding page. */}
+                            <h1 className="text-4xl font-sans font-medium leading-[1.05] tracking-tight text-stone-900 md:text-[3.25rem]">
+                                {t('onboarding.waitlist.email_title')}
+                            </h1>
+                            <p className="mx-auto max-w-sm text-[15px] font-medium leading-relaxed text-stone-700 md:text-base">
+                                {t('onboarding.waitlist.email_offer')}
+                            </p>
+                        </div>
+
+                        <div className="space-y-3 text-center">
+                            <div className="mx-auto h-2.5 w-full max-w-sm overflow-hidden rounded-full" style={{ background: '#D5E776' }}>
+                                <div
+                                    className="h-full rounded-full bg-stone-900"
+                                    style={{ width: `${(FOUNDER_SPOTS_TAKEN / FOUNDER_SPOTS_TOTAL) * 100}%` }}
+                                />
+                            </div>
+                            <div className="flex items-baseline justify-center gap-1 leading-none">
+                                <span className="text-6xl font-bold tracking-tighter tabular-nums text-stone-900">
+                                    {FOUNDER_SPOTS_TAKEN}
+                                </span>
+                                <span className="text-3xl font-light tracking-tight text-stone-900/60">
+                                    /{FOUNDER_SPOTS_TOTAL}
+                                </span>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {/* On the campaign card the controls sit narrower than the
+                    card, homepage-style, which also keeps them clear of the
+                    blob in the corner. */}
+                <motion.div animate={emailShake} className={waitlist && !changing ? 'mx-auto w-full max-w-sm' : undefined}>
                     <input
                         type="email"
                         inputMode="email"
@@ -193,7 +272,7 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className={`${PRIMARY_BUTTON_BLOCK} disabled:cursor-not-allowed disabled:opacity-70`}
+                    className={`${PRIMARY_BUTTON_BLOCK} disabled:cursor-not-allowed disabled:opacity-70 ${waitlist && !changing ? 'mx-auto max-w-sm' : ''}`}
                 >
                     {isSubmitting ? (
                         <>
@@ -202,15 +281,23 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                         </>
                     ) : (
                         <>
-                            {t(changing ? 'onboarding.email.change_cta' : 'onboarding.email.cta')}
+                            {t(changing ? 'onboarding.email.change_cta' : waitlist ? 'onboarding.waitlist.email_cta' : 'onboarding.email.cta')}
                             <ArrowRight className="h-5 w-5 stroke-[2.5px]" />
                         </>
                     )}
                 </button>
 
-                {/* Consent, under the button. A real gate rather than a notice:
-                    a tick box that lets you through unticked records nothing
-                    and protects no one. */}
+                {/* Under the button: the waitlist variant carries the same
+                    plain privacy note the standalone waiting-list page shows —
+                    a notice, because nothing is being agreed to. The account
+                    framings keep the tick box: there it is a real gate, and a
+                    box that lets you through unticked records nothing and
+                    protects no one. */}
+                {!consentRequired ? (
+                    <p className="mx-auto w-full max-w-sm text-center text-xs leading-relaxed text-stone-600">
+                        {t('waitlist.privacy_note')}
+                    </p>
+                ) : (
                 <motion.div className="space-y-1.5" animate={consentShake}>
                     {/* Centred on the sentence rather than hung from its first
                         line, and closer to it: a 20px box floating above a
@@ -263,6 +350,7 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                         </p>
                     )}
                 </motion.div>
+                )}
             </form>
         </motion.div>
     );

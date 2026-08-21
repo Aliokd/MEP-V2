@@ -155,15 +155,8 @@ test.describe('Practice Page', () => {
     expect(kinds).toContain('Chorus');
   });
 
-  // A line that appears in exactly one kind of part, so a card can be picked by
-  // the kind it belongs to whatever the task happens to ask for. The intro is
-  // wordless — it shows a music note — so it is found by that instead.
-  const LINE_BY_KIND: Record<string, string> = {
-    verse: 'spend a day',
-    chorus: 'from above',
-    bridge: 'Do you love Do you love Do you love',
-  };
-  const ALL_KINDS = ['intro', ...Object.keys(LINE_BY_KIND)];
+  // Every section kind Do You Love contains, for reading kinds out of an ask.
+  const ALL_KINDS = ['intro', 'verse', 'chorus', 'bridge'];
   // A named part is green; it deepens while the playhead is inside it, so both
   // shades mean "solved".
   const SOLVED_GREENS = ['rgb(134, 190, 127)', 'rgb(107, 168, 98)'];
@@ -179,6 +172,22 @@ test.describe('Practice Page', () => {
     await expect(timeline.getByRole('button', { name: 'Pause' })).toBeVisible();
   };
 
+  /** Index of the band the ask is pointing at — also its card's index. */
+  const targetIndex = async (page: import('@playwright/test').Page) => page
+    .locator('[data-song-timeline] [data-band-start]')
+    .evaluateAll(els => els.findIndex(e => e.hasAttribute('data-band-target')));
+
+  /**
+   * Answer the current ask with the exact card it points at — answers are
+   * checked by occurrence, not kind — then wait out the celebration hold.
+   */
+  const answerAsk = async (page: import('@playwright/test').Page) => {
+    const idx = await targetIndex(page);
+    expect(idx).toBeGreaterThanOrEqual(0);
+    await page.locator('[data-section-block]').nth(idx).click();
+    await expect(page.locator('.confetti-piece')).toHaveCount(0, { timeout: 5000 });
+  };
+
   test('answering the task: right answer turns green, wrong one shakes', async ({ page }) => {
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
@@ -188,7 +197,6 @@ test.describe('Practice Page', () => {
 
     const blocks = page.locator('[data-section-block]');
     await expect(blocks).toHaveCount(7);
-    const texts = await blocks.allInnerTexts();
 
     // Solved parts are the green ones; nothing is placed yet
     const solvedCount = () => blocks.evaluateAll(
@@ -202,19 +210,17 @@ test.describe('Practice Page', () => {
     const askedKind = ALL_KINDS.find(k => ask.toLowerCase().includes(k))!;
     expect(askedKind).toBeTruthy();
 
-    const cardOf = (kind: string) => kind === 'intro'
-      ? blocks.filter({ has: page.locator('[data-instrumental]') }).first()
-      : blocks.nth(texts.findIndex(x => x.includes(LINE_BY_KIND[kind])));
-    const wrongKind = ALL_KINDS.find(k => k !== askedKind)!;
-
-    // A card of the wrong kind shakes, and the ask stands
-    await cardOf(wrongKind).click();
-    await expect(cardOf(wrongKind)).toHaveClass(/animate-shake/);
+    // Any other card shakes — the answer is the exact section asked for, so a
+    // same-kind sibling ("Chorus 1" for "Chorus 2") is a miss like any other.
+    const idx = await targetIndex(page);
+    const wrongIdx = (idx + 1) % 7;
+    await blocks.nth(wrongIdx).click();
+    await expect(blocks.nth(wrongIdx)).toHaveClass(/animate-shake/);
     await expect(prompt).toHaveText(ask);
     await expect.poll(solvedCount).toBe(0);
 
-    // The right kind fills green, its band fills green and gets its name back.
-    const right = cardOf(askedKind);
+    // The asked-for card fills green, its band fills green and gets its name back.
+    const right = blocks.nth(idx);
     await right.click();
     await expect.poll(() => right.evaluate(e => getComputedStyle(e).backgroundColor))
       .toMatch(/rgb\(134, 190, 127\)|rgb\(107, 168, 98\)/);
@@ -252,14 +258,8 @@ test.describe('Practice Page', () => {
     await expect(timeline).toBeVisible({ timeout: 20000 });
 
     // Answer whatever is asked, so one section becomes named
-    const ask = (await page.locator('[data-timeline-prompt]').textContent()) || '';
-    const askedKind = ALL_KINDS.find(k => ask.toLowerCase().includes(k))!;
     const blocks = page.locator('[data-section-block]');
-    const texts = await blocks.allInnerTexts();
-    await (askedKind === 'intro'
-      ? blocks.filter({ has: page.locator('[data-instrumental]') }).first()
-      : blocks.nth(texts.findIndex(x => x.includes(LINE_BY_KIND[askedKind])))).click();
-    await expect(page.locator('.confetti-piece')).toHaveCount(0, { timeout: 5000 });
+    await answerAsk(page);
 
     // A named band stays lit and clickable even while another is the focus.
     // Found by its title, which gains the name; the drawn label needs width
@@ -289,13 +289,7 @@ test.describe('Practice Page', () => {
     await expect(restart).toHaveCount(0);
 
     // Answer one ask
-    const ask = (await page.locator('[data-timeline-prompt]').textContent()) || '';
-    const askedKind = ALL_KINDS.find(k => ask.toLowerCase().includes(k))!;
-    const texts = await blocks.allInnerTexts();
-    await (askedKind === 'intro'
-      ? blocks.filter({ has: page.locator('[data-instrumental]') }).first()
-      : blocks.nth(texts.findIndex(x => x.includes(LINE_BY_KIND[askedKind])))).click();
-    await expect(page.locator('.confetti-piece')).toHaveCount(0, { timeout: 5000 });
+    await answerAsk(page);
 
     const solvedCount = () => blocks.evaluateAll(
       (els, greens) => els.filter(e => greens.includes(getComputedStyle(e).backgroundColor)).length,
@@ -326,14 +320,6 @@ test.describe('Practice Page', () => {
     // coverage, and a test that fails on load teaches people to ignore red.
     test.setTimeout(90_000);
 
-    // Both verses are listed: they have different words, so a single probe
-    // would stall once the first was solved.
-    const CARDS_BY_KIND: Record<string, string[]> = {
-      verse: ['spend a day', 'Stay'],
-      chorus: ['from above'],
-      bridge: ['Do you love Do you love Do you love'],
-    };
-
     await page.goto('/platform/practice');
     await page.evaluate(() => {
       window.localStorage.setItem('mep-completed-practices', '[]');
@@ -357,24 +343,12 @@ test.describe('Practice Page', () => {
     await page.getByRole('button', { name: 'Start' }).first().click();
     await expect(page.locator('[data-song-timeline]')).toBeVisible({ timeout: 20000 });
 
-    // Work through every ask
+    // Work through every ask, answering each with the exact card it names
     for (let i = 0; i < 8; i++) {
       const ask = await page.locator('[data-timeline-prompt]')
         .textContent({ timeout: 2000 }).catch(() => null);
       if (!ask) break;
-      const kind = ALL_KINDS.find(k => ask.toLowerCase().includes(k))!;
-      const clicked = await page.evaluate(({ lines, greens }) => {
-        const blocks = [...document.querySelectorAll('[data-section-block]')] as HTMLElement[];
-        const open = (b: HTMLElement) => !greens.includes(getComputedStyle(b).backgroundColor);
-        const hit = lines
-          ? blocks.find(b => open(b) && lines.some(l => (b.textContent || '').includes(l)))
-          : blocks.find(b => open(b) && b.querySelector('[data-instrumental]'));
-        if (!hit) return false;
-        hit.click();
-        return true;
-      }, { lines: CARDS_BY_KIND[kind] ?? null, greens: SOLVED_GREENS });
-      expect(clicked).toBe(true);
-      await expect(page.locator('.confetti-piece')).toHaveCount(0, { timeout: 5000 });
+      await answerAsk(page);
     }
 
     // Every part named, and nothing left to ask for
@@ -423,12 +397,6 @@ test.describe('Practice Page', () => {
   });
 
   test('a finished song reads along: the sung line lifts and the list follows', async ({ page }) => {
-    const CARDS_BY_KIND: Record<string, string[]> = {
-      verse: ['spend a day', 'Stay'],
-      chorus: ['from above'],
-      bridge: ['Do you love Do you love Do you love'],
-    };
-
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
     const timeline = page.locator('[data-song-timeline]');
@@ -438,23 +406,12 @@ test.describe('Practice Page', () => {
     // would say which part is playing.
     await expect(page.locator('[data-line-current]')).toHaveCount(0);
 
+    // Finish the song, answering each ask with the exact card it names
     for (let i = 0; i < 8; i++) {
       const ask = await page.locator('[data-timeline-prompt]')
         .textContent({ timeout: 2000 }).catch(() => null);
       if (!ask) break;
-      const kind = ALL_KINDS.find(k => ask.toLowerCase().includes(k))!;
-      const clicked = await page.evaluate(({ lines, greens }) => {
-        const blocks = [...document.querySelectorAll('[data-section-block]')] as HTMLElement[];
-        const open = (b: HTMLElement) => !greens.includes(getComputedStyle(b).backgroundColor);
-        const hit = lines
-          ? blocks.find(b => open(b) && lines.some(l => (b.textContent || '').includes(l)))
-          : blocks.find(b => open(b) && b.querySelector('[data-instrumental]'));
-        if (!hit) return false;
-        hit.click();
-        return true;
-      }, { lines: CARDS_BY_KIND[kind] ?? null, greens: SOLVED_GREENS });
-      expect(clicked).toBe(true);
-      await expect(page.locator('.confetti-piece')).toHaveCount(0, { timeout: 5000 });
+      await answerAsk(page);
     }
 
     // Verse 1's third line starts at 13.0s, its sixth at 27.18s
