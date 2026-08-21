@@ -12,13 +12,52 @@ import ContentEditor from "./ContentEditor";
 import BulkIdeasDialog from "./BulkIdeasDialog";
 
 type Tab = "chapters" | "lessons" | "ideas" | "songs";
+type SectionId = "create" | "learn" | "practice" | "connect";
 
 const TABS: { id: Tab; label: string; description: string }[] = [
     { id: "chapters", label: "Chapters", description: "The top-level sections of the Learn curriculum." },
     { id: "lessons", label: "Lessons", description: "Individual lessons, their video, order and prerequisites." },
     { id: "ideas", label: "Bank of Ideas", description: "Prompts shown in Learn, by category." },
-    { id: "songs", label: "Practice songs", description: "The practice library, including its rights position." },
+    { id: "songs", label: "Practice songs", description: "The library Practice 1 works through, and its rights position." },
 ];
+
+/**
+ * Grouped by the part of the platform the content appears in, because that is
+ * how it gets asked about: people say "the Practice songs" and "the Learn
+ * videos", not "the practice_songs collection".
+ *
+ * Two of the four hold nothing yet. They are listed rather than hidden because
+ * their emptiness is itself the answer to "where do I edit the canvas?" — a
+ * section that says where that content really lives beats someone concluding
+ * the console has lost it.
+ */
+const SECTIONS: { id: SectionId; label: string; blurb: string; tabs: Tab[] }[] = [
+    { id: "create", label: "Create", blurb: "The songwriting canvas.", tabs: [] },
+    {
+        id: "learn",
+        label: "Learn",
+        blurb: "The curriculum, its videos, and the cards in the Bank of Ideas.",
+        tabs: ["chapters", "lessons", "ideas"],
+    },
+    { id: "practice", label: "Practice", blurb: "The songs each practice works through.", tabs: ["songs"] },
+    { id: "connect", label: "Connect", blurb: "The community feed.", tabs: [] },
+];
+
+/** What to say in a section that holds no editable content. */
+const EMPTY_SECTION: Record<string, { title: string; description: string; href?: string; hrefLabel?: string }> = {
+    create: {
+        title: "The canvas has no authored content",
+        description:
+            "Everything in Create is written by the songwriter. The one authored thing it shows — the cards that can be dropped into a lyric flow — is the Bank of Ideas, under Learn.",
+    },
+    connect: {
+        title: "Connect is written by its members",
+        description:
+            "There is nothing to publish into the feed. Taking a post down, or seeing what has been taken down, is moderation rather than editing.",
+        href: "/admin/community",
+        hrefLabel: "Open Community",
+    },
+};
 
 export interface ContentItem {
     id: string;
@@ -52,6 +91,7 @@ const STATUS_TONE: Record<string, "neutral" | "green" | "gold" | "blue"> = {
 
 export default function ContentPage() {
     const { adminFetch, can } = useAdmin();
+    const [section, setSection] = useState<SectionId>("learn");
     const [tab, setTab] = useState<Tab>("chapters");
     const [items, setItems] = useState<ContentItem[] | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -63,6 +103,12 @@ export default function ContentPage() {
     const [importNote, setImportNote] = useState<string | null>(null);
 
     const load = useCallback(async () => {
+        // A section with no collections has nothing to fetch, and asking for one
+        // would request a collection name the API does not have.
+        if (!SECTIONS.find((s) => s.id === section)?.tabs.length) {
+            setItems([]);
+            return;
+        }
         setRefreshing(true);
         setError(null);
         try {
@@ -76,7 +122,7 @@ export default function ContentPage() {
         } finally {
             setRefreshing(false);
         }
-    }, [adminFetch, tab, statusFilter]);
+    }, [adminFetch, tab, statusFilter, section]);
 
     useEffect(() => {
         setItems(null);
@@ -127,14 +173,25 @@ export default function ContentPage() {
 
     const ideasMissing = tab === "ideas" && items !== null && items.length === 0;
 
+    const activeSection = SECTIONS.find((s) => s.id === section)!;
+    const sectionTabs = TABS.filter((tabDef) => activeSection.tabs.includes(tabDef.id));
     const activeTab = TABS.find((tabDef) => tabDef.id === tab)!;
+    const emptySection = activeSection.tabs.length === 0 ? EMPTY_SECTION[activeSection.id] : null;
+
+    /** Moving to a section lands on its first collection. */
+    const chooseSection = (next: SectionId) => {
+        setSection(next);
+        const first = SECTIONS.find((s) => s.id === next)?.tabs[0];
+        if (first) setTab(first);
+    };
 
     return (
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="Content"
-                description="Learn, Bank of Ideas and Practice are all edited here. Nothing reaches readers until it is published."
+                description="Everything the platform shows, by the section it appears in. Nothing reaches anyone until it is published."
                 action={
+                    emptySection ? null : (
                     <div className="flex items-center gap-2">
                         <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                             <option value="">All statuses</option>
@@ -158,27 +215,54 @@ export default function ContentPage() {
                             </Button>
                         )}
                     </div>
+                    )
                 }
             />
 
-            <div className="flex flex-wrap items-center gap-1.5 border-b border-ink-600 pb-3">
-                {TABS.map((tabDef) => (
+            {/* The platform's own sections, in the order the sidebar shows them. */}
+            <div className="flex flex-wrap items-center gap-1 border-b border-ink-600">
+                {SECTIONS.map((sectionDef) => (
                     <button
-                        key={tabDef.id}
-                        onClick={() => setTab(tabDef.id)}
-                        className={`px-3.5 py-1.5 rounded-full text-sm transition-colors ${
-                            tab === tabDef.id
-                                ? "bg-ink-700 text-ink-100"
-                                : "text-ink-400 hover:text-ink-100 hover:bg-ink-800"
+                        key={sectionDef.id}
+                        onClick={() => chooseSection(sectionDef.id)}
+                        className={`px-4 py-2.5 text-sm transition-colors border-b-2 -mb-px ${
+                            section === sectionDef.id
+                                ? "border-green-500 text-ink-100"
+                                : "border-transparent text-ink-400 hover:text-ink-100"
                         }`}
                     >
-                        {tabDef.label}
+                        {sectionDef.label}
+                        {sectionDef.tabs.length === 0 && (
+                            <span className="ml-1.5 text-[10px] text-ink-600">—</span>
+                        )}
                     </button>
                 ))}
             </div>
 
+            {/* Collections within the section. Hidden when there is only one:
+                a single tab beside itself is decoration. */}
+            {sectionTabs.length > 1 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                    {sectionTabs.map((tabDef) => (
+                        <button
+                            key={tabDef.id}
+                            onClick={() => setTab(tabDef.id)}
+                            className={`px-3.5 py-1.5 rounded-full text-sm transition-colors ${
+                                tab === tabDef.id
+                                    ? "bg-ink-700 text-ink-100"
+                                    : "text-ink-400 hover:text-ink-100 hover:bg-ink-800"
+                            }`}
+                        >
+                            {tabDef.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-4">
-                <p className="text-xs text-ink-500">{activeTab.description}</p>
+                <p className="text-xs text-ink-500">
+                    {emptySection ? activeSection.blurb : activeTab.description}
+                </p>
                 {coverage && (
                     <div className="flex items-center gap-2 ml-auto">
                         <span className="text-[11px] text-ink-500">Translated</span>
@@ -217,6 +301,23 @@ export default function ContentPage() {
                 </Panel>
             )}
 
+            {emptySection ? (
+                <Panel className="overflow-hidden">
+                    <EmptyState
+                        title={emptySection.title}
+                        description={emptySection.description}
+                        action={
+                            emptySection.href ? (
+                                <a href={emptySection.href}>
+                                    <Button>{emptySection.hrefLabel}</Button>
+                                </a>
+                            ) : (
+                                <Button onClick={() => chooseSection("learn")}>Open Learn</Button>
+                            )
+                        }
+                    />
+                </Panel>
+            ) : (
             <Panel className="overflow-hidden">
                 {!items ? (
                     <SkeletonRows rows={6} />
@@ -282,6 +383,7 @@ export default function ContentPage() {
                     </ul>
                 )}
             </Panel>
+            )}
 
             <p className="text-[11px] text-ink-500 flex items-center gap-1.5">
                 <Eye className="w-3 h-3" />
