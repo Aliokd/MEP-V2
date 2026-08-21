@@ -148,20 +148,20 @@ export default function ContentPage() {
     }, [items]);
 
     /** Brings the 38 cards that ship in app/platform/data/ideas.ts into the CMS. */
-    const importFromCode = async () => {
+    const importFromCode = async (target: "ideas" | "songs") => {
         setImporting(true);
         setImportNote(null);
         try {
             const res = await adminFetch("/api/admin/content/import-from-code", {
                 method: "POST",
-                body: JSON.stringify({ target: "ideas" }),
+                body: JSON.stringify({ target }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Import failed");
             setImportNote(
                 data.imported.length > 0
-                    ? `Imported ${data.imported.length} cards.`
-                    : "Nothing to import — those cards are already in the CMS.",
+                    ? `Imported ${data.imported.length} ${target === "songs" ? "songs" : "cards"}.`
+                    : "Nothing to import — already in the CMS.",
             );
             await load();
         } catch (err: any) {
@@ -172,6 +172,7 @@ export default function ContentPage() {
     };
 
     const ideasMissing = tab === "ideas" && items !== null && items.length === 0;
+    const songsMissing = tab === "songs" && items !== null && items.length === 0;
 
     const activeSection = SECTIONS.find((s) => s.id === section)!;
     const sectionTabs = TABS.filter((tabDef) => activeSection.tabs.includes(tabDef.id));
@@ -281,6 +282,21 @@ export default function ContentPage() {
                 </Panel>
             )}
 
+            {songsMissing && can("content.publish") && (
+                <Panel className="p-4 border-gold-500/30 bg-gold-500/5 flex flex-wrap items-center gap-3">
+                    <Download className="w-4 h-4 text-gold-300 shrink-0" />
+                    <p className="text-sm text-gold-200 flex-1 min-w-[240px]">
+                        Practice is still playing the songs built into the app. Import them —
+                        structure, timings and all — to manage them here. The moment one song is
+                        published in the CMS it replaces the built-in list, so import before adding.
+                    </p>
+                    <Button variant="primary" size="sm" onClick={() => importFromCode("songs")} disabled={importing}>
+                        {importing ? <Spinner className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+                        Import from code
+                    </Button>
+                </Panel>
+            )}
+
             {ideasMissing && can("content.publish") && (
                 <Panel className="p-4 border-gold-500/30 bg-gold-500/5 flex flex-wrap items-center gap-3">
                     <Download className="w-4 h-4 text-gold-300 shrink-0" />
@@ -288,7 +304,7 @@ export default function ContentPage() {
                         The Bank of Ideas is still the 38 cards built into the app. Import them to edit them
                         here — learners keep seeing them either way.
                     </p>
-                    <Button variant="primary" size="sm" onClick={importFromCode} disabled={importing}>
+                    <Button variant="primary" size="sm" onClick={() => importFromCode("ideas")} disabled={importing}>
                         {importing ? <Spinner className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
                         Import from code
                     </Button>

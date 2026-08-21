@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2, Play, Pause, CircleDot, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Play, Pause, CircleDot, AlertTriangle, Wand2 } from "lucide-react";
 import { Badge, Button, Input, Panel, Select, Textarea } from "../components/ui";
+import { AnalysisFailed, analyzeSongUrl } from "@/app/platform/practice/lib/analyzeSong";
 import {
     SECTION_KINDS,
     SECTION_LABELS,
@@ -39,6 +40,45 @@ export default function PracticeSectionEditor({
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [playing, setPlaying] = useState(false);
     const [playhead, setPlayhead] = useState(0);
+    const [analyzing, setAnalyzing] = useState(false);
+    const [analysisNote, setAnalysisNote] = useState<string | null>(null);
+
+    /**
+     * First pass by the same analyser the platform uses on member-uploaded
+     * songs: FFT → timbre novelty → clustering. Boundaries land well; labels
+     * are a good guess. It exists so mapping starts from something to correct
+     * rather than an empty list — the ear, the player and the checks above are
+     * still what make it accurate.
+     */
+    const analyze = async () => {
+        if (sections.length > 0 &&
+            !window.confirm("Replace the current sections with a fresh analysis of the audio?")) return;
+        setAnalyzing(true);
+        setAnalysisNote(null);
+        try {
+            const found = await analyzeSongUrl(audioUrl);
+            onChange(sortSections(found.map((s) => ({
+                kind: s.kind,
+                start: Math.round(s.start * 10) / 10,
+                end: Math.round(s.end * 10) / 10,
+                lines: [],
+            }))));
+            setAnalysisNote(
+                `Found ${found.length} sections. The boundaries are usually close and the labels are a guess — play through and correct before publishing.`,
+            );
+        } catch (err) {
+            const reason = err instanceof AnalysisFailed ? err.reason : "decode";
+            setAnalysisNote(
+                reason === "fetch"
+                    ? "Couldn't read the audio back from storage — try again in a moment."
+                    : reason === "too-short"
+                      ? "The recording is too short to decompose — map it by hand."
+                      : "This recording resisted analysis — map it by hand with the player.",
+            );
+        } finally {
+            setAnalyzing(false);
+        }
+    };
 
     // The list is held in playing order, so "the part before this one" is always
     // the row above and an editor never has to sort by hand.
@@ -162,7 +202,22 @@ export default function PracticeSectionEditor({
                             <Button size="sm" onClick={markHere} title="Split the song at the playhead">
                                 <CircleDot className="w-3.5 h-3.5" /> Mark here
                             </Button>
+
+                            <Button
+                                size="sm"
+                                onClick={analyze}
+                                disabled={analyzing}
+                                title="Let the analyser propose the structure, then correct it by ear"
+                            >
+                                {analyzing ? <span className="animate-pulse">Listening…</span> : (
+                                    <><Wand2 className="w-3.5 h-3.5" /> Analyze</>
+                                )}
+                            </Button>
                         </div>
+
+                        {analysisNote && (
+                            <p className="text-[11px] text-ink-400">{analysisNote}</p>
+                        )}
 
                         {/* The structure as a strip, so a gap or an overlap is visible
                             rather than something to work out from two columns of numbers. */}

@@ -8,6 +8,7 @@ import no from "@/locales/no.json";
 import sv from "@/locales/sv.json";
 import { LOCALES, type Locale } from "@/lib/content";
 import { LYRICS_IDEAS_BY_LANGUAGE as IDEAS_BY_LANGUAGE } from "@/app/platform/data/ideas";
+import { PRACTICE_SONGS } from "@/app/platform/practice/data/practiceSongs";
 
 export const dynamic = "force-dynamic";
 
@@ -172,6 +173,42 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
                 { merge: true },
             );
             imported.push(idea.id);
+        }
+    }
+
+    if (target === "all" || target === "songs") {
+        // The bundled practice library, structure and all. The audio stays on
+        // its /Practice/Songs public paths — the files ship with the app, and
+        // an import must not silently re-host them.
+        for (const [index, song] of PRACTICE_SONGS.entries()) {
+            const ref = adminDb.collection("practice_songs").doc(song.id);
+            if ((await ref.get()).exists && !force) {
+                skipped.push(`${song.id} — already in the CMS`);
+                continue;
+            }
+            const lastSection = song.sections?.[song.sections.length - 1];
+            await ref.set(
+                {
+                    id: song.id,
+                    title: song.title,
+                    artist: song.artist,
+                    audioUrl: song.audioUrl,
+                    coverUrl: song.coverUrl || null,
+                    sections: song.sections || [],
+                    durationSeconds: lastSection ? Math.ceil(lastSection.end) : null,
+                    available: song.available,
+                    order: index,
+                    status: "published",
+                    // These are real commercial recordings; the position was never
+                    // recorded in code, so the CMS surfaces the gap instead of
+                    // inventing one.
+                    rights: { licence: null, holder: null, notes: "Imported from code — rights not yet recorded." },
+                    updatedAt: FieldValue.serverTimestamp(),
+                    updatedByEmail: admin.email,
+                },
+                { merge: true },
+            );
+            imported.push(song.id);
         }
     }
 
