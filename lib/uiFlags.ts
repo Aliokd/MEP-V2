@@ -34,16 +34,18 @@ export const PRACTICE_ENABLED: boolean = true;
 export const SIGNUPS_OPEN: boolean = false;
 
 /**
- * When the waitlist campaign's countdown ends, as an ISO timestamp with a
- * timezone (e.g. "2026-09-01T18:00:00+02:00") — the moment early access opens.
+ * When the special offer's countdown ends, as an ISO timestamp with a
+ * timezone — ONE deadline shared by every visitor, which is what makes the
+ * clock the same number on any two screens showing it.
  *
- * Null means the date isn't decided yet, and the countdown falls back to a
- * placeholder: 72 hours from each visitor's first sight of it, anchored in
- * localStorage so a reload doesn't restart the clock. That keeps the campaign
- * flow reviewable end to end before launch. Set the real timestamp before the
- * ads go live — a per-visitor clock is a stand-in, not something to ship.
+ * Set 2026-08-22 to 72 hours from the moment the campaign's clock went
+ * global. When it reaches zero the clock holds at 00:00:00 (see
+ * CountdownBanner) — move this forward or clear it before then.
+ *
+ * Null falls back to a per-visitor 72h window anchored in localStorage —
+ * review mode, not something to ship while ads run.
  */
-export const WAITLIST_COUNTDOWN_ENDS_AT: string | null = null;
+export const WAITLIST_COUNTDOWN_ENDS_AT: string | null = '2026-08-25T07:49:16Z';
 
 /**
  * Launch day, as YYYY-MM-DD. Distinct from the countdown above: that one is the
