@@ -6,7 +6,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { WAITLIST_COUNTDOWN_ENDS_AT } from '@/lib/uiFlags';
 
 // The campaign clock: how long until early access opens. One deadline for
-// everyone once WAITLIST_COUNTDOWN_ENDS_AT names it; until then a 24-hour
+// everyone once WAITLIST_COUNTDOWN_ENDS_AT names it; until then a 72-hour
 // placeholder anchored per visitor, so the flow can be reviewed with a live
 // clock before the launch date exists. See the flag for why that fallback
 // must not ship.
@@ -15,8 +15,12 @@ import { WAITLIST_COUNTDOWN_ENDS_AT } from '@/lib/uiFlags';
 // resets on reload announces itself as fake in the first minute. Deliberately
 // NOT uid-scoped (see bindLocalStateToAccount): everyone in this flow is
 // anonymous, that's the point of the waitlist.
-const STORAGE_KEY = 'veinote-waitlist-countdown-ends';
-const PLACEHOLDER_WINDOW_MS = 24 * 60 * 60 * 1000;
+// `-72h` suffix: the window widened from 24h to 72h after launch, and a stored
+// future deadline always wins over re-anchoring — so without a new key, every
+// visitor from the first day would have kept their old shorter clock. Bump the
+// suffix again if the placeholder window ever changes while anchors are live.
+const STORAGE_KEY = 'veinote-waitlist-countdown-ends-72h';
+const PLACEHOLDER_WINDOW_MS = 72 * 60 * 60 * 1000;
 
 /**
  * The remaining time as "HH:MM:SS", ticking once a second — or null before the
@@ -54,7 +58,7 @@ export function useWaitlistCountdown(enabled: boolean = true): string | null {
 
         const tick = () => {
             // Clamped at zero rather than rolled over — when the real deadline
-            // passes, the honest display is 00:00:00, not a fresh 24 hours.
+            // passes, the honest display is 00:00:00, not a fresh window.
             const left = Math.max(0, deadline - Date.now());
             const pad = (v: number) => String(v).padStart(2, '0');
             const h = Math.floor(left / 3_600_000);

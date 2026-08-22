@@ -38,7 +38,7 @@ export const SIGNUPS_OPEN: boolean = false;
  * timezone (e.g. "2026-09-01T18:00:00+02:00") — the moment early access opens.
  *
  * Null means the date isn't decided yet, and the countdown falls back to a
- * placeholder: 24 hours from each visitor's first sight of it, anchored in
+ * placeholder: 72 hours from each visitor's first sight of it, anchored in
  * localStorage so a reload doesn't restart the clock. That keeps the campaign
  * flow reviewable end to end before launch. Set the real timestamp before the
  * ads go live — a per-visitor clock is a stand-in, not something to ship.
@@ -65,7 +65,7 @@ export const LAUNCH_DATE: string = '2026-09-19';
  * failure this exists to prevent, so both read these and the remainder is
  * derived rather than written into the copy.
  */
-export const FOUNDER_SPOTS_TAKEN = 79;
+export const FOUNDER_SPOTS_TAKEN = 49;
 export const FOUNDER_SPOTS_TOTAL = 100;
 export const FOUNDER_SPOTS_LEFT = FOUNDER_SPOTS_TOTAL - FOUNDER_SPOTS_TAKEN;
 
