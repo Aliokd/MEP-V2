@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import PracticeCard from './PracticeCard';
 import PracticeVideoModal from './PracticeVideoModal';
 // SongChooser itself is retired — Start lands straight in the exercise — but its
@@ -10,9 +11,11 @@ import SongPill from './SongPill';
 import { usePracticeLibrary } from '../lib/library';
 import StructurePlayer from './StructurePlayer';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
-import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight } from 'lucide-react';
-import { SECTION_TEXT, TAG_BG } from '../data/sections';
+import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight, PenLine, Loader2 } from 'lucide-react';
+import { SECTION_TEXT, TAG_BG, WRONG_TEXT } from '../data/sections';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
+import { createCanvasFromLines } from '@/lib/createCanvasFromLines';
 import { motion, AnimatePresence } from 'framer-motion';
 
 /** Starting points for Composing verses. */
@@ -37,6 +40,8 @@ const CARD_SLIDE = {
 
 export default function PracticeTab() {
     const { t, language } = useLanguage();
+    const { user } = useAuth();
+    const router = useRouter();
     // Authored in the admin console; falls back to the bundled list.
     const songs = usePracticeLibrary();
 
@@ -127,6 +132,8 @@ export default function PracticeTab() {
     const [connections, setConnections] = useState<{ n: number; v: number }[]>([]);
     const [pendingNounIndex, setPendingNounIndex] = useState<number | null>(null);
     const [sentences, setSentences] = useState<string[]>(Array(5).fill(''));
+    // 'sending' outlives the click: the canvas route takes a moment to mount.
+    const [sendState, setSendState] = useState<'idle' | 'sending' | 'failed'>('idle');
 
     const currentMeta = getPractice(selectedPractice);
 
@@ -216,6 +223,36 @@ export default function PracticeTab() {
         4: t('practice.link_nouns_verbs'),
         5: t('practice.complete_sentences'),
         6: t('practice.story_ready'),
+    };
+
+    /** The finished verse, top to bottom — what step 6 shows and what leaves here. */
+    const verseLines = sentences.filter(s => s && s.trim() !== '');
+
+    /**
+     * The last step's real ending: the verse becomes a canvas and the user is
+     * standing in Create with it, rather than reading it once and losing it to
+     * "Start a new practice".
+     */
+    const handleSendToCanvas = async () => {
+        if (sendState === 'sending' || verseLines.length === 0) return;
+        setSendState('sending');
+
+
+        const noteId = await createCanvasFromLines(user?.uid, {
+            title: selectedTheme
+                ? t('practice.canvas_title').replace('{theme}', selectedTheme)
+                : t('practice.composing_verses'),
+            lines: verseLines,
+            sectionName: 'Verse 1',
+        });
+
+        // A canvas that exists only in this browser would look saved and never
+        // sync, so a failed write stays a failed write — say so and let them retry.
+        if (!noteId) {
+            setSendState('failed');
+            return;
+        }
+        router.push(`/platform/create?noteId=${noteId}`);
     };
 
     const isStepComplete = (step: number) => {
@@ -618,7 +655,7 @@ export default function PracticeTab() {
                                 {/* Step 6 — the verse */}
                                 {currentStep === 6 && (
                                     <div className="verse-card is-static rounded-[20px] px-6 md:px-10 py-8 flex flex-col gap-4 animate-in fade-in duration-300">
-                                        {sentences.filter(s => s && s.trim() !== '').map((sentence, i) => (
+                                        {verseLines.map((sentence, i) => (
                                             <p key={i} className="font-serif text-xl md:text-2xl leading-relaxed text-stone-800">
                                                 {sentence}
                                             </p>
@@ -657,22 +694,54 @@ export default function PracticeTab() {
                                         ))}
                                     </div>
 
-                                    <div className="flex-1 flex justify-start">
+                                    <div className="flex-1 flex justify-start items-center gap-3">
                                     {currentStep === 6 ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setCurrentStep(1);
-                                                setNouns(Array(5).fill(''));
-                                                setVerbs(Array(5).fill(''));
-                                                setConnections([]);
-                                                setSentences(Array(5).fill(''));
-                                                setSelectedTheme(null);
-                                            }}
-                                            className="flex items-center gap-2.5 pl-7 pr-6 py-3.5 rounded-full bg-stone-900 text-[#FAF9F5] text-[15px] font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors cursor-pointer"
-                                        >
-                                            {t('practice.start_new_practice')}
-                                        </button>
+                                        <>
+                                            {/* Going round again is the quiet option now — the
+                                                verse only survives the practice if it leaves it. */}
+                                            <button
+                                                // Without a key React reuses the black Next button
+                                                // sitting in this slot and transitions it to white.
+                                                key="start-new"
+                                                type="button"
+                                                onClick={() => {
+                                                    setCurrentStep(1);
+                                                    setNouns(Array(5).fill(''));
+                                                    setVerbs(Array(5).fill(''));
+                                                    setConnections([]);
+                                                    setSentences(Array(5).fill(''));
+                                                    setSelectedTheme(null);
+                                                    setSendState('idle');
+                                                }}
+                                                className="whitespace-nowrap px-6 py-3.5 rounded-full bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-900 text-[15px] font-sans font-medium active:scale-[0.99] transition-colors cursor-pointer"
+                                            >
+                                                {t('practice.start_new_practice')}
+                                            </button>
+                                            {/* relative: the error sits under the button without
+                                                growing the row and nudging the step dots. */}
+                                            <div className="relative flex flex-col items-start">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSendToCanvas}
+                                                    disabled={sendState === 'sending' || verseLines.length === 0}
+                                                    className="flex items-center gap-2.5 whitespace-nowrap pl-6 pr-7 py-3.5 rounded-full bg-stone-900 text-[#FAF9F5] text-[15px] font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors disabled:bg-stone-200 disabled:text-stone-400 disabled:pointer-events-none cursor-pointer"
+                                                >
+                                                    {sendState === 'sending'
+                                                        ? <Loader2 className="w-4 h-4 stroke-[2] animate-spin" />
+                                                        : <PenLine className="w-4 h-4 stroke-[2]" />}
+                                                    {t('practice.send_to_canvas')}
+                                                </button>
+                                                {sendState === 'failed' && (
+                                                    <span
+                                                        role="alert"
+                                                        style={{ color: WRONG_TEXT }}
+                                                        className="absolute top-full left-1 mt-2 whitespace-nowrap text-xs font-sans"
+                                                    >
+                                                        {t('practice.send_to_canvas_failed')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </>
                                     ) : (
                                         <button
                                             type="button"
