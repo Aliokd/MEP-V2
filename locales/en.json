@@ -24,7 +24,8 @@
     "off": "Off",
     "open": "Open",
     "clear": "Clear",
-    "done": "Done"
+    "done": "Done",
+    "options": "Options"
   },
   "navigation": {
     "create": "Create",

@@ -406,7 +406,15 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                         style={{ zIndex: isSelected || collapsing === option.value ? 30 : spread ? 0 : options.length - i }}
                         // Widths track the 0.75rem column gap: two gaps shared
                         // across three cards is 0.5rem off each.
-                        className={`group w-full text-left sm:w-[calc(50%-0.375rem)] md:w-[calc(33.333%-0.5rem)] ${
+                        //
+                        // Two per row on a phone, not one. Full width meant two
+                        // cards on screen and three below the fold, so the
+                        // question read as a list to scroll rather than a set to
+                        // choose from — and the fifth option was never seen at
+                        // all before someone picked from the two that were. At
+                        // half width all five fit above the controls, in the
+                        // 2-2-1 the wrap falls into on its own.
+                        className={`group w-[calc(50%-0.375rem)] text-left md:w-[calc(33.333%-0.5rem)] ${
                             settled ? 'cursor-pointer' : 'pointer-events-none'
                         }`}
                     >
@@ -563,9 +571,12 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                                 the same 400ms, and the shadow comes back only
                                 when there is footage under them to be held apart
                                 from. */}
-                            <div className="absolute inset-x-0 top-0 p-5 md:p-6">
+                            {/* Tighter inset and smaller type below `sm`: the
+                                card is half the width it used to be there, and
+                                the desk-sized label filled it edge to edge. */}
+                            <div className="absolute inset-x-0 top-0 p-3.5 sm:p-5 md:p-6">
                                 <h3
-                                    className="text-[24px] font-sans font-bold leading-tight tracking-tight text-[#DCDDD4] md:text-[26px]"
+                                    className="text-[17px] font-sans font-bold leading-tight tracking-tight text-[#DCDDD4] sm:text-[24px] md:text-[26px]"
                                     style={{ textShadow: '0 1px 3px rgba(0,0,0,0.45), 0 1px 16px rgba(0,0,0,0.35)' }}
                                 >
                                     {t(`onboarding.questions.${questionId}.options.${option.value}.title`)}
@@ -575,7 +586,7 @@ export default function QuestionCards({ questionId, options, selectedOption, onS
                                     85% as well only made them harder to read
                                     against footage that had already dimmed. */}
                                 <p
-                                    className="mt-1 text-[16px] font-sans font-normal leading-snug text-[#DCDDD4]/90 md:text-[17px]"
+                                    className="mt-1 text-[12.5px] font-sans font-normal leading-snug text-[#DCDDD4]/90 sm:text-[16px] md:text-[17px]"
                                     style={{ textShadow: '0 1px 3px rgba(0,0,0,0.45), 0 1px 14px rgba(0,0,0,0.3)' }}
                                 >
                                     {t(`onboarding.questions.${questionId}.options.${option.value}.desc`)}

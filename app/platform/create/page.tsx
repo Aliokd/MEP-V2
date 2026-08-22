@@ -2845,10 +2845,22 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
  * The live one is not pulsed. A pulse says "waiting"; a recording is not waiting, so
  * it carries the same red the REC button does and leaves the fade to the saving state.
  */
+/**
+ * The placeholder capsule for a take that is arriving — either being recorded
+ * live or finishing an upload.
+ *
+ * Two things differ on a phone. It is grey rather than red: the red version was
+ * a loading state dressed as an alert, and next to a red REC pill and a red
+ * waveform it read as a third warning rather than as "this is coming". Only the
+ * live dot keeps its colour, because that one is genuinely saying "recording
+ * now". And it is a compressible row rather than a fixed one — `shrink-0` plus
+ * dividers plus 24 bars came to more than a phone is wide, so the capsule was
+ * simply cut off at the screen edge.
+ */
 function AudioCapsuleSkeleton({ recording = false }: { recording?: boolean }) {
     return (
-        <div className={`bg-white border rounded-full px-5 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3 sm:gap-4 z-30 select-none shrink-0 h-[42px] ${
-            recording ? 'border-[#FF6B6B]/40' : 'border-stone-200/60 animate-pulse'
+        <div className={`bg-white border rounded-full px-4 md:px-5 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3 md:gap-4 z-30 select-none w-full md:w-auto min-w-0 md:shrink-0 h-[42px] ${
+            recording ? 'border-stone-200/60 md:border-[#FF6B6B]/40' : 'border-stone-200/60 animate-pulse'
         }`}>
             {/* A live take says so, where the title will be. */}
             {recording && (
@@ -2857,19 +2869,26 @@ function AudioCapsuleSkeleton({ recording = false }: { recording?: boolean }) {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D32F2F]" />
                 </span>
             )}
-            {/* Title Placeholder */}
-            <div className={`h-4 w-20 rounded ${recording ? 'bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
-            <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
+            {/* Title Placeholder — dropped on a phone, where the row has to earn
+                every pixel and a ghost title says the least of the four. */}
+            <div className={`hidden md:block h-4 w-20 rounded ${recording ? 'bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
+            <div className="hidden md:block h-4 w-[1px] bg-stone-200 shrink-0" />
             {/* Play Button Placeholder */}
-            <div className={`h-4 w-12 rounded ${recording ? 'bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
-            <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
+            <div className={`h-4 w-10 md:w-12 rounded shrink-0 ${recording ? 'bg-stone-200 md:bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
+            <div className="hidden md:block h-4 w-[1px] bg-stone-200 shrink-0" />
             {/* Waveform Placeholder. While live the bars breathe on staggered delays,
-                so the row reads as sound arriving rather than as a loading bar. */}
-            <div className="flex items-center gap-[2px] h-6 px-1.5 shrink-0" style={{ width: 'clamp(70px, 22vw, 130px)' }}>
+                so the row reads as sound arriving rather than as a loading bar.
+                flex-1 on a phone: it gives back whatever the rest of the row needs
+                instead of holding a fixed width and pushing the timer off the end. */}
+            <div className="flex items-center justify-center gap-[2px] h-6 px-1 md:px-1.5 flex-1 min-w-0 md:flex-none overflow-hidden">
                 {Array.from({ length: 24 }).map((_, idx) => (
                     <div
                         key={idx}
-                        className={`w-[1.5px] rounded-full flex-shrink-0 ${recording ? 'bg-[#FF6B6B]/60 animate-pulse' : 'bg-stone-200'}`}
+                        // Half the bars on a phone — at 1.5px each the extra twelve
+                        // added width without adding legibility.
+                        className={`w-[1.5px] rounded-full flex-shrink-0 ${idx >= 12 ? 'hidden md:block' : ''} ${
+                            recording ? 'bg-stone-300 animate-pulse md:bg-[#FF6B6B]/60' : 'bg-stone-200'
+                        }`}
                         style={{
                             height: `${4 + Math.abs(Math.sin(idx * 0.45)) * 10}px`,
                             ...(recording ? { animationDelay: `${(idx % 6) * 110}ms`, animationDuration: '900ms' } : {}),
@@ -2877,9 +2896,9 @@ function AudioCapsuleSkeleton({ recording = false }: { recording?: boolean }) {
                     />
                 ))}
             </div>
-            <div className="h-4 w-[1px] bg-stone-200 shrink-0" />
+            <div className="hidden md:block h-4 w-[1px] bg-stone-200 shrink-0" />
             {/* Timer Placeholder */}
-            <div className={`h-3 w-8 rounded ${recording ? 'bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
+            <div className={`h-3 w-8 rounded shrink-0 ${recording ? 'bg-stone-200 md:bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
         </div>
     );
 }
@@ -3613,29 +3632,55 @@ const StudioKnob = ({
     const [isDragging, setIsDragging] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
 
-    const handleMouseDown = (e: React.MouseEvent) => {
+    /**
+     * Pointer events, not mouse events.
+     *
+     * This was `mousedown` + document `mousemove`, which meant the knob could not
+     * be dragged on a touchscreen at all: a browser synthesises `mousedown` only
+     * after a tap completes and never emits `mousemove` for a finger, so the
+     * gesture fell through to the page and scrolled it. Pointer events cover
+     * mouse, touch and pen through one path.
+     *
+     * setPointerCapture is what keeps a drag alive once the finger leaves the
+     * 60px dial — without it the events retarget to whatever is underneath and
+     * the value freezes mid-turn.
+     */
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
         e.preventDefault();
         setIsDragging(true);
+
         const startY = e.clientY;
         const startValue = value;
         const range = max - min;
-        const pixelsPerUnit = 2.5;
+        // A finger travels further than a mouse for the same intent, so the same
+        // pixel count should turn the dial less on touch than it does under a
+        // cursor — otherwise a normal-feeling drag slams the value to a limit.
+        const pixelsPerUnit = e.pointerType === 'touch' ? 4.5 : 2.5;
 
-        const handleMouseMove = (moveEvent: MouseEvent) => {
+        const el = e.currentTarget;
+        try { el.setPointerCapture(e.pointerId); } catch { /* not fatal — drag still works, just not past the dial */ }
+
+        const handlePointerMove = (moveEvent: PointerEvent) => {
+            if (moveEvent.pointerId !== e.pointerId) return;
             const deltaY = startY - moveEvent.clientY;
             const deltaValue = (deltaY / pixelsPerUnit) * (range / 100);
             const newValue = Math.max(min, Math.min(max, startValue + deltaValue));
             onChange(newValue);
         };
 
-        const handleMouseUp = () => {
+        const end = () => {
             setIsDragging(false);
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
+            try { el.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+            document.removeEventListener('pointermove', handlePointerMove);
+            document.removeEventListener('pointerup', end);
+            document.removeEventListener('pointercancel', end);
         };
 
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
+        document.addEventListener('pointermove', handlePointerMove);
+        document.addEventListener('pointerup', end);
+        // pointercancel fires when the system takes the gesture — a scroll winning,
+        // a call arriving. Without it the listeners outlive the drag.
+        document.addEventListener('pointercancel', end);
     };
 
     const percent = (value - min) / (max - min);
@@ -3645,15 +3690,15 @@ const StudioKnob = ({
     // (below), so a second floating hint would stack on top of it.
     return (
         <div
-            onMouseDown={handleMouseDown}
+            onPointerDown={handlePointerDown}
             onDoubleClick={() => onChange(defaultValue)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             aria-label={t('card.drag_hint')}
-            className="relative w-11 h-11 rounded-full bg-white hover:bg-stone-50 active:scale-95 transition-all shadow-[0_2.5px_6px_rgba(0,0,0,0.07)] cursor-ns-resize flex items-center justify-center border-2 border-stone-200/80"
+            className="relative w-[60px] h-[60px] md:w-11 md:h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 active:scale-95 transition-all shadow-[0_2.5px_6px_rgba(0,0,0,0.07)] cursor-ns-resize touch-none flex items-center justify-center border-2 border-stone-200/80"
         >
             <div 
-                className="absolute w-[1.5px] h-[16px] bg-stone-600 rounded-full origin-bottom"
+                className="absolute w-[2px] h-[22px] md:w-[1.5px] md:h-[16px] bg-stone-600 rounded-full origin-bottom"
                 style={{ 
                     left: 'calc(50% - 0.75px)',
                     bottom: '50%',
@@ -3663,7 +3708,7 @@ const StudioKnob = ({
             
             {/* Floating Tooltip Value on top — pushed up clear of the VOL/PAN/EQ/REV/COMP column labels above the knob */}
             {(isHovered || isDragging) && (
-                <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 bg-stone-900 text-white text-[11px] font-bold px-2 py-1 rounded-full shadow-lg select-none pointer-events-none animate-in fade-in duration-150 z-50 whitespace-nowrap">
+                <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 bg-stone-900 text-white text-[13px] md:text-[11px] font-bold px-2.5 py-1.5 md:px-2 md:py-1 rounded-full shadow-lg select-none pointer-events-none z-50 whitespace-nowrap">
                     {Math.round(value)}
                 </div>
             )}
@@ -4554,6 +4599,35 @@ export default function CreatePage() {
             window.visualViewport?.removeEventListener('resize', updateOffset);
             window.visualViewport?.removeEventListener('scroll', updateOffset);
         };
+    }, []);
+
+    /**
+     * Bring the line being edited back above the keyboard, the moment the keyboard
+     * is actually there.
+     *
+     * The focus handler can only guess when that is — it fires while the keyboard
+     * is still animating, and visualViewport still reports the full-height
+     * viewport, so a measurement taken then concludes nothing is covered. This
+     * waits for the resize the keyboard itself causes, which is the first instant
+     * the real numbers exist.
+     *
+     * Scoped to editors inside the canvas: a search field elsewhere does its own
+     * scrolling and has no toolbar docked over it, so applying the canvas's dock
+     * allowance to it would shove the page for no reason.
+     */
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.visualViewport) return;
+
+        const onViewportResize = () => {
+            const el = document.activeElement as HTMLElement | null;
+            if (!el) return;
+            if (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT') return;
+            if (!el.closest('.creative-canvas-container')) return;
+            keepEditorInView(el);
+        };
+
+        window.visualViewport.addEventListener('resize', onViewportResize);
+        return () => window.visualViewport?.removeEventListener('resize', onViewportResize);
     }, []);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -15428,17 +15502,28 @@ export default function CreatePage() {
                                         isCollabRecording ? '' : 'cursor-pointer'
                                     } ${
                                         expandedTrackId === track.id ? 'sm:h-[92px] sm:py-2 py-2' : 'h-auto sm:h-16 py-2 sm:py-1'
-                                    } px-4 ${
-                                        isArmed 
-                                            ? 'bg-stone-150/70 hover:bg-stone-200/70' 
-                                            : 'bg-stone-50/70 hover:bg-stone-100/80'
+                                    } px-0 sm:px-4 ${
+                                        // No card on a phone. With the knobs, the waveform
+                                        // and the options menu all gone from this row, the
+                                        // only thing left inside it is the instrument
+                                        // capsule — which already has its own surface. The
+                                        // grey box was a frame drawn a few pixels outside
+                                        // another frame.
+                                        isArmed
+                                            ? 'bg-transparent sm:bg-stone-150/70 sm:hover:bg-stone-200/70'
+                                            : 'bg-transparent sm:bg-stone-50/70 sm:hover:bg-stone-100/80'
                                     } ${
                                         (activeTrackMenuId === track.id || activeTrackDropdownId === track.id)
                                             ? 'z-40'
                                             : 'z-10'
                                     }`}
                                     style={{
-                                        border: trackBorderColor ? `2px solid ${trackBorderColor}` : '1px solid rgba(229, 231, 235, 0.7)',
+                                        // The default hairline is the card's border and goes
+                                        // with the card on a phone; a collaborator's colour
+                                        // stays, because that one is carrying information.
+                                        border: trackBorderColor
+                                            ? `2px solid ${trackBorderColor}`
+                                            : (isMobile ? 'none' : '1px solid rgba(229, 231, 235, 0.7)'),
                                         boxShadow: trackBorderColor ? `0 0 12px ${trackBorderColor}20` : undefined
                                     }}
                                 >
@@ -15845,7 +15930,11 @@ export default function CreatePage() {
                                             </Tooltip>
                                         )}
 
-                                        <div className="relative track-menu-container">
+                                        {/* Desktop only. Everything this menu holds is in the
+                                            track's own sheet on a phone, which the capsule
+                                            opens — a second way in, sitting under the thing
+                                            it duplicates, was just clutter on the row. */}
+                                        <div className="hidden sm:block relative track-menu-container">
                                             <Tooltip label={t('studio.track_options')} disabled={activeTrackMenuId === track.id}>
                                             <button
                                                 onClick={(e) => handleTrackMenuClick(e, track.id)}
@@ -15993,28 +16082,47 @@ export default function CreatePage() {
                                                     the desktop hover cue, moved onto press. */}
                                                 <div className="w-[1.5px] h-10 bg-white opacity-0 group-active/ph:opacity-100 transition-opacity duration-150" />
                                             </div>
-                                            {/* Head. Big enough to read as the thing to grab. */}
-                                            <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-[#FF4040] shadow-[0_1px_4px_rgba(0,0,0,0.25)]" />
+                            {/* The grip is an upward arrow at the FOOT of the line, not a
+                                dot at its head. It sits in the band between the lanes and
+                                the ruler, pointing at the position it marks — the same
+                                marker the ruler already uses for the playhead, so the two
+                                agree. A dot on top had it hanging over the first lane,
+                                furthest from the thumb and pointing at nothing. */}
+                                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[7px] border-r-[7px] border-b-[9px] border-l-transparent border-r-transparent border-b-[#FF4040] drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]" />
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Timeline ruler, full width under the stack */}
+                                {/* Timeline ruler, full width under the stack. Darker and
+                                    taller than the desktop strip: at 9px in stone-500/80 on
+                                    a pale ground it read as an empty grey pill rather than
+                                    as a scale, which is most of why the band under the
+                                    lanes looked like dead space. */}
                                 <div
-                                    className="w-full h-9 rounded-full bg-stone-100/70 border border-stone-200/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex items-center cursor-ew-resize select-none"
+                                    className="relative w-full h-11 rounded-2xl bg-stone-100 border border-stone-200/60 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex items-center cursor-ew-resize select-none"
                                     onPointerDown={handleTimelinePointerDown}
                                 >
-                                    <div className="w-full h-full flex justify-between items-center px-4 relative">
+                                    <div className="w-full h-full flex justify-between items-center px-3 relative">
                                         {rulerItems.map((item, idx) => (
                                             item.type === 'label' ? (
-                                                <span key={idx} className="text-[9px] font-sans font-bold text-stone-500/80 select-none shrink-0">
+                                                <span key={idx} className="text-[11px] font-sans font-semibold text-stone-500 tabular-nums select-none shrink-0">
                                                     {item.value}
                                                 </span>
                                             ) : (
-                                                <div key={idx} className="w-[1px] h-2 bg-stone-300/80 rounded-full shrink-0" />
+                                                <div key={idx} className="w-[1px] h-2.5 bg-stone-300 rounded-full shrink-0" />
                                             )
                                         ))}
                                     </div>
+
+                                    {/* The playhead continues through the ruler, so the arrow
+                                        above it is pointing at a position on a scale rather
+                                        than at a blank strip. */}
+                                    {studioState !== 'recording' && (
+                                        <div
+                                            className="absolute top-0 bottom-0 w-[2px] bg-[#FF4040]/70 pointer-events-none"
+                                            style={{ left: `${playheadPercent}%` }}
+                                        />
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -16358,12 +16466,12 @@ export default function CreatePage() {
                         words were doing less work than the room they cost — the two that
                         aren't self-evident (Settings, Export) open titled sheets that name
                         everything inside them. */}
-                    <div className="flex sm:hidden items-center justify-between gap-2 w-full px-4 pt-2 pb-1 select-none">
+                    <div className="flex sm:hidden items-stretch justify-between gap-1.5 w-full px-3 pt-2 pb-1 select-none">
                         {/* Settings — the metronome, tuning and monitoring group */}
                         <button
                             onClick={() => { haptic('tap'); setStudioSettingsOpen(true); }}
                             aria-label={t('studio.settings')}
-                            className="w-[60px] h-[60px] shrink-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all relative"
+                            className="w-[clamp(48px,13.5vw,60px)] h-[clamp(48px,13.5vw,60px)] shrink-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all relative"
                             type="button"
                         >
                             <SlidersHorizontal size={24} className="text-stone-700 stroke-[1.8]" />
@@ -16400,7 +16508,7 @@ export default function CreatePage() {
                             <button
                                 onClick={() => { haptic('impact'); stopStudioRecording(); }}
                                 aria-label={t('studio.recording')}
-                                className="flex-[2] h-[60px] min-w-0 px-4 rounded-full bg-[#FF4040] border border-[#FF4040] shadow-[0_2px_10px_rgba(255,64,64,0.35)] flex items-center justify-center gap-2 active:scale-95 transition-all"
+                                className="flex-1 min-w-[86px] h-[clamp(48px,13.5vw,60px)] px-3 rounded-full bg-[#FF4040] border border-[#FF4040] shadow-[0_2px_10px_rgba(255,64,64,0.35)] flex items-center justify-center gap-2 active:scale-95 transition-all"
                                 type="button"
                             >
                                 <span className="w-2.5 h-2.5 rounded-full bg-white/90 shrink-0 animate-pulse" />
@@ -16412,7 +16520,7 @@ export default function CreatePage() {
                             <button
                                 onClick={() => { haptic('impact'); startStudioRecording(); }}
                                 aria-label={t('studio.rec')}
-                                className="flex-[2] h-[60px] min-w-0 px-4 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center gap-2 active:scale-95 transition-all"
+                                className="flex-1 min-w-[86px] h-[clamp(48px,13.5vw,60px)] px-3 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center gap-2 active:scale-95 transition-all"
                                 type="button"
                             >
                                 <span className="w-3.5 h-3.5 bg-[#FF4040] rounded-full shrink-0" />
@@ -16429,7 +16537,7 @@ export default function CreatePage() {
                             }}
                             disabled={studioDuration === 0 || studioState === 'recording'}
                             aria-label={t('studio.play_pause')}
-                            className="w-[60px] h-[60px] shrink-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
+                            className="w-[clamp(48px,13.5vw,60px)] h-[clamp(48px,13.5vw,60px)] shrink-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
                             type="button"
                         >
                             <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-stone-700">
@@ -16444,12 +16552,12 @@ export default function CreatePage() {
                             onClick={() => { haptic('tap'); setStudioExportOpen(true); }}
                             disabled={isSendingToCanvas}
                             aria-label={t('creative.export_options')}
-                            className="w-[60px] h-[60px] shrink-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all disabled:opacity-60 disabled:pointer-events-none"
+                            className="w-[clamp(48px,13.5vw,60px)] h-[clamp(48px,13.5vw,60px)] shrink-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all disabled:opacity-60 disabled:pointer-events-none"
                             type="button"
                         >
                             {isSendingToCanvas
                                 ? <Loader2 size={24} className="animate-spin text-stone-500" />
-                                : <Share2 size={23} className="text-stone-700 stroke-[1.8]" />}
+                                : <ArrowUp size={24} className="text-stone-700 stroke-[2]" />}
                         </button>
                     </div>
                 </div>
@@ -16749,17 +16857,53 @@ export default function CreatePage() {
                                         }
                                     />
 
-                                    {/* Everything here writes straight through, so this closes
-                                        rather than commits — but a sheet with no way out but the
-                                        X reads unfinished, and it is the reachable end of a
-                                        list this long. */}
-                                    <div className="pt-4 pb-1">
+                                    {/* Record and Play, so the take happens in the sheet rather
+                                        than sending you back to the transport bar to arm the
+                                        track you were just looking at. Both act on THIS track:
+                                        Record arms it first, which is what makes "record inside
+                                        the guitar" mean the guitar. */}
+                                    <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-1 bg-white border-t border-stone-200/70 flex items-center gap-3">
+                                        {studioState === 'recording' ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => { haptic('impact'); stopStudioRecording(); }}
+                                                className="flex-1 h-14 rounded-full bg-[#FF4040] text-white text-[17px] font-semibold flex items-center justify-center gap-2.5 active:scale-[0.99] transition-transform"
+                                            >
+                                                <span className="w-2.5 h-2.5 rounded-full bg-white/90 animate-pulse" />
+                                                <span className="tabular-nums">{formatTime(studioPlayhead)}</span>
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    haptic('impact');
+                                                    setActiveRecordingTrackId(sheetTrack.id);
+                                                    startStudioRecording();
+                                                }}
+                                                disabled={isCanvasReadOnly}
+                                                className="flex-1 h-14 rounded-full bg-white border border-stone-300 text-[#FF4040] text-[17px] font-semibold flex items-center justify-center gap-2.5 active:scale-[0.99] transition-transform disabled:opacity-50 disabled:pointer-events-none"
+                                            >
+                                                <span className="w-3.5 h-3.5 rounded-full bg-[#FF4040]" />
+                                                {t('studio.rec')}
+                                            </button>
+                                        )}
+
                                         <button
                                             type="button"
-                                            onClick={() => { haptic('tap'); setMobileTrackSheetId(null); }}
-                                            className="w-full h-14 rounded-full bg-stone-900 text-white text-[17px] font-semibold active:scale-[0.99] transition-transform"
+                                            onClick={() => {
+                                                haptic('tap');
+                                                if (studioState === 'playing') pauseStudioPlayback();
+                                                else startStudioPlayback(studioPlayhead);
+                                            }}
+                                            disabled={studioDuration === 0 || studioState === 'recording'}
+                                            className="flex-1 h-14 rounded-full bg-stone-900 text-white text-[17px] font-semibold flex items-center justify-center gap-2.5 active:scale-[0.99] transition-transform disabled:opacity-40 disabled:pointer-events-none"
                                         >
-                                            {t('common.done')}
+                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                                {studioState === 'playing'
+                                                    ? <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                                    : <path d="M8 5v14l11-7z" />}
+                                            </svg>
+                                            {t('studio.play_pause')}
                                         </button>
                                     </div>
                                 </>
@@ -18959,7 +19103,13 @@ export default function CreatePage() {
                 // curved while the card it sits in stayed square — the corner read as
                 // a cut rather than a shape. Below md it is deliberately square: the
                 // card runs edge to edge there and has no corner to show.
-                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-5 xl:p-8 pb-36 md:pb-5 xl:pb-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
+                // pb-0 on a phone, not pb-36. That 144px was clearance for a dock that
+                // was FIXED to the viewport and floated over this card. The dock is
+                // sticky inside the card now, and a sticky element cannot travel past
+                // its containing block's content box — so the padding was holding it
+                // 144px short of the card's bottom edge, letting it leave the screen
+                // well before the canvas did.
+                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-5 xl:p-8 pb-0 md:pb-5 xl:pb-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
                     isCanvasLocked
                         ? 'border-2 border-[#EDFF8E] shadow-[0_0_0_4px_rgba(237,255,142,0.35),0_12px_40px_rgba(0,0,0,0.03)] cursor-default'
                         // The I-beam is only honest over the region that actually starts a
@@ -19453,14 +19603,31 @@ export default function CreatePage() {
 
                                 {showCanvasMenu && (
                                     <>
-                                        <div className="fixed inset-0 z-30" onClick={() => setShowCanvasMenu(false)} />
-                                        <div className="absolute right-0 mt-2 w-52 sm:w-48 bg-white border border-stone-200/60 rounded-[20px] shadow-[0_6px_28px_rgba(0,0,0,0.08)] p-3 z-40 flex flex-col gap-2">
+                                        <div
+                                            className="fixed inset-0 z-30 max-md:z-[84] max-md:bg-stone-900/40 max-md:backdrop-blur-sm sheet-backdrop-enter"
+                                            onClick={() => setShowCanvasMenu(false)}
+                                        />
+                                        {/* Bottom sheet below md, dropdown from md up. As a
+                                            dropdown on a phone it opened as a 208px column
+                                            pinned under the ⋮ — seven actions in a strip
+                                            narrower than a thumb, overhanging the canvas. */}
+                                        <div className="bg-white border-stone-200/60 flex flex-col
+                                            max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-[85] max-md:w-full max-md:rounded-t-[24px] max-md:border-t max-md:pt-3 max-md:px-2 max-md:pb-[max(1rem,env(safe-area-inset-bottom))] max-md:max-h-[85dvh] max-md:overflow-y-auto max-md:no-scrollbar max-md:shadow-[0_-8px_40px_rgba(0,0,0,0.18)] max-md:gap-1 bottom-sheet-enter
+                                            max-md:[&_button]:min-h-[56px] max-md:[&_button]:text-[16px] max-md:[&_button]:px-5 max-md:[&_button]:rounded-2xl max-md:[&_button]:gap-3.5 max-md:[&_button_svg]:w-5 max-md:[&_button_svg]:h-5
+                                            md:absolute md:right-0 md:mt-2 md:w-48 md:border md:rounded-[20px] md:shadow-[0_6px_28px_rgba(0,0,0,0.08)] md:p-3 md:z-40 md:gap-2">
+                                            {/* Grab handle and a title, so the sheet says what it is */}
+                                            <div className="md:hidden flex flex-col items-center pb-1">
+                                                <div className="w-10 h-1 rounded-full bg-stone-300" />
+                                            </div>
+                                            <h3 className="md:hidden px-5 pb-2 text-[19px] font-sans font-semibold text-stone-900 tracking-tight">
+                                                {t('common.options') || 'Options'}
+                                            </h3>
                                             {/* Publish and Lock, phone only — the two controls
                                                 lifted off the header row. Plain labelled rows
                                                 here, which is what they could never be out there
                                                 as hover-to-reveal circles. */}
                                             {!isCanvasPreview && selectedNoteId && activeNote && (
-                                                <div className="sm:hidden flex flex-col gap-2 pb-2 mb-1 border-b border-stone-200/70">
+                                                <div className="md:hidden flex flex-col gap-2 pb-2 mb-1 border-b border-stone-200/70">
                                                     {!isActiveCollab && (
                                                         <button
                                                             onClick={(e) => {
@@ -21126,7 +21293,12 @@ export default function CreatePage() {
                         // itself animates up over ~250ms, and a 300ms transition on top of
                         // that made the bar visibly chase it and land late.
                         (isMobile && isKeyboardOpen)
-                            ? "fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-3 shadow-lg flex-row gap-2 justify-center"
+                            // p-0, not p-3: the padding sat between this bar's edges and
+                            // the capsule inside it, which is the margin down both sides
+                            // and the strip of white under the controls before the
+                            // keyboard starts. The bar is the surface now — it runs edge
+                            // to edge and its bottom border is the keyboard's top edge.
+                            ? "fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-0 shadow-lg flex-col gap-2 justify-center pt-2"
                             // Sticky (not just mt-auto) so the controls stay reachable on the
                             // viewport's bottom edge on a long canvas — mt-auto alone only pins
                             // them to the bottom of the card's own box, which can grow taller
@@ -21275,7 +21447,15 @@ export default function CreatePage() {
                             reads as a bar attached to the card rather than a pill floating
                             over it. Only the top corners round — the bottom two would be
                             curving against an edge that is already there. */}
-                        <div className="flex items-center justify-between md:justify-start gap-2 md:gap-3.5 bg-white border-t border-stone-200/60 md:border p-3 px-4 md:p-3 rounded-t-[24px] rounded-b-none md:rounded-full shadow-[0_-6px_28px_rgba(0,0,0,0.07)] md:shadow-[0_16px_48px_rgba(0,0,0,0.08)] w-full md:w-fit pointer-events-auto">
+                        {/* With the keyboard up this sits inside a bar that is already the
+                            surface — so it drops its own rounding, border and shadow and
+                            just fills it. Otherwise it is the rounded bar attached to the
+                            canvas's bottom edge. */}
+                        <div className={`flex items-center justify-between md:justify-start gap-2 md:gap-3.5 bg-white p-3 px-4 md:p-3 w-full md:w-fit pointer-events-auto ${
+                            (isMobile && isKeyboardOpen)
+                                ? 'rounded-none border-0 shadow-none pb-2'
+                                : 'border-t border-stone-200/60 md:border rounded-t-[24px] rounded-b-none md:rounded-full shadow-[0_-6px_28px_rgba(0,0,0,0.07)] md:shadow-[0_16px_48px_rgba(0,0,0,0.08)]'
+                        }`}>
                             {/* REC capsule button — hidden entirely while previewing someone else's
                                 pending invite (nothing to explain there). While locked it stays
                                 visible-but-disabled instead, since the lock icon itself is the
@@ -21318,8 +21498,14 @@ export default function CreatePage() {
                                             <div className="w-4 h-4 rounded-full bg-white/60 animate-ping absolute" />
                                             <Square size={12} className="fill-white text-white shrink-0 z-10" />
                                         </div>
+                                        {/* The word only from md up. On a phone this pill shares
+                                            the row with three other controls, and "Recording"
+                                            grew it enough to squeeze them — while saying nothing
+                                            the red pill and the pulsing square weren't already
+                                            saying. The clock is the part worth reading. */}
                                         <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '15px', letterSpacing: '0.02em' }} className="whitespace-nowrap text-white">
-                                            {t('studio.recording') || 'Recording'} <span style={{ fontWeight: 400 }} className="text-white/85 tabular-nums">{formatTime(recordingTime)}</span>
+                                            <span className="hidden md:inline">{t('studio.recording') || 'Recording'} </span>
+                                            <span style={{ fontWeight: 400 }} className="text-white/85 tabular-nums">{formatTime(recordingTime)}</span>
                                         </span>
                                     </>
                                 ) : (

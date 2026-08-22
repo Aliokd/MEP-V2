@@ -112,7 +112,11 @@ export default function CountdownBanner({ banner = false }: { banner?: boolean }
                 // with a hairline underneath to part it from the page. Tinted
                 // with the page's own colour rather than white, because it
                 // crosses the mood question's full-bleed photographs.
-                : `fixed inset-x-0 top-0 z-40 border-b border-white/30 bg-[#DCDDD4]/45 px-4 ${COUNTDOWN_BAR_HEIGHT}`
+                // `top-16` below md, not `top-0`: the mobile "use a laptop"
+                // hint owns the true top of every screen there (h-16, z-70 —
+                // see MOBILE_BANNER_HEIGHT_CLASS), and a bar underneath it at
+                // the same coordinates is a bar nobody on a phone ever sees.
+                : `fixed inset-x-0 top-16 z-40 border-b border-white/30 bg-[#DCDDD4]/45 px-4 md:top-0 ${COUNTDOWN_BAR_HEIGHT}`
         }`}>
             <Clock size={banner ? 17 : 15} className="shrink-0 text-stone-600" />
             <span className={`font-medium text-stone-600 ${banner ? 'hidden text-[15px] sm:inline' : 'text-[13px]'}`}>
