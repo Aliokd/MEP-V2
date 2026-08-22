@@ -1217,7 +1217,7 @@
       "title": "First, create your account",
       "subtitle": "Add your email to save your progress.",
       "close": "Close",
-      "placeholder": "you@example.com",
+      "placeholder": "Enter email",
       "cta": "Reveal my plan",
       "submitting": "One moment…",
       "invalid": "We'll need a full address, like you@example.com.",

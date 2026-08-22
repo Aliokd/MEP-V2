@@ -1217,7 +1217,7 @@
       "title": "Först skapar vi ditt konto",
       "subtitle": "Lägg till din e-post för att spara dina framsteg.",
       "close": "Stäng",
-      "placeholder": "du@exempel.se",
+      "placeholder": "Ange e-post",
       "cta": "Visa min plan",
       "submitting": "Ett ögonblick…",
       "invalid": "Vi behöver en fullständig adress, till exempel du@exempel.se.",

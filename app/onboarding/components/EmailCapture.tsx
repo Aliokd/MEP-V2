@@ -114,7 +114,7 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                     href={localizePath('/terms', language)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-stone-900 underline underline-offset-2 hover:text-stone-600"
+                    className="font-semibold text-stone-900 hover:text-stone-600"
                 >
                     {t('onboarding.email.consent_terms')}
                 </Link>
@@ -127,7 +127,7 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                     href={localizePath('/privacy', language)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-stone-900 underline underline-offset-2 hover:text-stone-600"
+                    className="font-semibold text-stone-900 hover:text-stone-600"
                 >
                     {t('onboarding.email.consent_privacy')}
                 </Link>
@@ -143,7 +143,7 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                     href={localizePath('/privacy', language)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-stone-900 underline underline-offset-2 hover:text-stone-600"
+                    className="font-semibold text-stone-900 hover:text-stone-600"
                 >
                     {t('onboarding.email.consent_cookies')}
                 </Link>
