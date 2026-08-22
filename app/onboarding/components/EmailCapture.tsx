@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizePath } from '@/lib/i18n';
-import { FOUNDER_SPOTS_TAKEN, FOUNDER_SPOTS_TOTAL } from '@/lib/uiFlags';
+import { FOUNDER_SPOTS_TOTAL } from '@/lib/uiFlags';
+import { useFounderSpots } from '@/lib/founderSpots';
 import OfferBlob from '@/components/OfferBlob';
 import { PRIMARY_BUTTON_BLOCK } from './buttonStyles';
 
@@ -80,6 +81,8 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
 }) {
     const { t, language } = useLanguage();
     const prefersReducedMotion = useReducedMotion();
+    // Live: the anchor plus every real signup since the counter went live.
+    const spotsTaken = useFounderSpots();
     const [email, setEmail] = useState(initialEmail);
     // Only after a submit attempt — telling someone their half-typed address is
     // wrong while they are still typing it is noise, not help.
@@ -223,12 +226,12 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                             <div className="mx-auto h-2.5 w-full max-w-sm overflow-hidden rounded-full" style={{ background: '#D5E776' }}>
                                 <div
                                     className="h-full rounded-full bg-stone-900"
-                                    style={{ width: `${(FOUNDER_SPOTS_TAKEN / FOUNDER_SPOTS_TOTAL) * 100}%` }}
+                                    style={{ width: `${(spotsTaken / FOUNDER_SPOTS_TOTAL) * 100}%`, transition: 'width 0.8s cubic-bezier(0.33, 1, 0.68, 1)' }}
                                 />
                             </div>
                             <div className="flex items-baseline justify-center gap-1 leading-none">
                                 <span className="text-6xl font-bold tracking-tighter tabular-nums text-stone-900">
-                                    {FOUNDER_SPOTS_TAKEN}
+                                    {spotsTaken}
                                 </span>
                                 <span className="text-3xl font-light tracking-tight text-stone-900/60">
                                     /{FOUNDER_SPOTS_TOTAL}

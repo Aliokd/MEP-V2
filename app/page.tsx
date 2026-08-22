@@ -12,7 +12,8 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useFaqs, useFooterLinks } from "@/context/SitePagesContext";
 import { pickLocale } from "@/lib/content";
 import { localizePath } from "@/lib/i18n";
-import { waitlistJoinPath, FOUNDER_SPOTS_TAKEN, FOUNDER_SPOTS_TOTAL, FOUNDER_SPOTS_LEFT } from "@/lib/uiFlags";
+import { waitlistJoinPath, FOUNDER_SPOTS_TOTAL } from "@/lib/uiFlags";
+import { useFounderSpots } from "@/lib/founderSpots";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const TopNav = () => {
@@ -178,6 +179,13 @@ const BlobsSection = () => {
 
 const UrgencySection = () => {
     const { t, language } = useLanguage();
+    // Live from GET /api/waitlist: the anchor plus every real signup since the
+    // counter went live, same figure the join dialog shows. Read through a ref
+    // where the animation needs it — the observer callback closes over mount
+    // state, and the fetch has long settled by the time anyone scrolls here.
+    const liveTaken = useFounderSpots();
+    const liveTakenRef = useRef(liveTaken);
+    liveTakenRef.current = liveTaken;
     const [count, setCount] = useState(0);
     const [barWidth, setBarWidth] = useState(0);
     const [hasAnimated, setHasAnimated] = useState(false);
@@ -193,13 +201,11 @@ const UrgencySection = () => {
                     setHasAnimated(true);
 
                     // Kick off progress bar CSS transition
-                    setTimeout(() => setBarWidth(FOUNDER_SPOTS_TAKEN), 50);
+                    setTimeout(() => setBarWidth(liveTakenRef.current), 50);
 
-                    // Count-up from 0 to the founding count over 1600ms with
-                    // easeOut. The number itself comes from lib/uiFlags so this
-                    // section and the campaign's join dialog can never disagree
-                    // about how many spots are gone.
-                    const target = FOUNDER_SPOTS_TAKEN;
+                    // Count-up from 0 to the live count over 1600ms with
+                    // easeOut.
+                    const target = liveTakenRef.current;
                     const duration = 1600;
                     const startTime = performance.now();
 
@@ -272,7 +278,7 @@ const UrgencySection = () => {
                     into the copy — a hard-coded "13" outlived the number it was
                     derived from once already. */}
                 <p className="text-stone-700 text-[15px] md:text-[17px] font-medium max-w-md mb-10 leading-relaxed">
-                    {t('home.urgency.spots_line_1').replace('{n}', String(FOUNDER_SPOTS_LEFT))}<br className="hidden md:block" /> {t('home.urgency.spots_line_2')}
+                    {t('home.urgency.spots_line_1').replace('{n}', String(FOUNDER_SPOTS_TOTAL - liveTaken))}<br className="hidden md:block" /> {t('home.urgency.spots_line_2')}
                 </p>
 
                 {/* CTA Button */}

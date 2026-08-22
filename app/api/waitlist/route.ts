@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { sendMail } from "@/lib/email/send";
 import { rateLimitGuard } from "@/lib/rateLimit";
+import { FOUNDER_SPOTS_TAKEN, FOUNDER_SPOTS_TOTAL } from "@/lib/uiFlags";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +108,41 @@ async function resolveInvite(inviteId: unknown): Promise<{
         console.error("[waitlist] Could not resolve invitation:", err);
         return null;
     }
+}
+
+/**
+ * The founders counter, live. The number both surfaces show is
+ * FOUNDER_SPOTS_TAKEN — the marketing anchor the campaign opened at — plus
+ * every real signup since the moment the counter went live, so a join
+ * genuinely takes a seat. Rows from before the anchor (the team, smoke tests,
+ * the pre-campaign trickle) are considered part of the anchor, not additions
+ * to it.
+ *
+ * Clamped one short of full: a counter at 100/100 over a form that still
+ * accepts signups is a contradiction on screen. If the list genuinely fills,
+ * closing the offer is a decision for a person, not this endpoint.
+ */
+const SPOTS_COUNTER_LIVE_SINCE = new Date("2026-08-22T07:55:00Z");
+
+export async function GET() {
+    let taken = FOUNDER_SPOTS_TAKEN;
+    try {
+        const since = await adminDb
+            .collection("waitlist")
+            .where("createdAt", ">", SPOTS_COUNTER_LIVE_SINCE)
+            .count()
+            .get();
+        taken = Math.min(FOUNDER_SPOTS_TOTAL - 1, FOUNDER_SPOTS_TAKEN + since.data().count);
+    } catch (err) {
+        // The static anchor is a fine answer; a broken counter endpoint is not.
+        console.error("[waitlist] Could not count live signups:", err);
+    }
+    return NextResponse.json(
+        { taken, total: FOUNDER_SPOTS_TOTAL },
+        // One minute of CDN grace: every landing view calls this, and the
+        // counter moving within a minute is indistinguishable from moving now.
+        { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } },
+    );
 }
 
 export async function POST(request: Request) {
