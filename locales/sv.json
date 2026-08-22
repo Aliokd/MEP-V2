@@ -1218,10 +1218,10 @@
       "cta": "Visa min plan",
       "submitting": "Ett ögonblick…",
       "invalid": "Vi behöver en fullständig adress, till exempel du@exempel.se.",
-      "consent": "Jag godkänner Veinotes {terms} och {privacy}.",
-      "consent_terms": "allmänna villkor",
+      "consent": "Genom att fortsätta godkänner du våra {terms}, vår {privacy} och vår {cookies}.",
+      "consent_terms": "användarvillkor",
       "consent_privacy": "integritetspolicy",
-      "consent_required": "Kryssa i rutan så går vi vidare.",
+      "consent_cookies": "cookieanvändning",
       "change_title": "Vad är din e-postadress?",
       "change_subtitle": "Vi skickar en ny kod dit.",
       "change_cta": "Ändra nu"
@@ -1500,6 +1500,7 @@
       "email_badge_top": "50%",
       "email_badge_bottom": "rabatt",
       "email_cta": "Ställ mig i kön",
+      "email_submit": "Fortsätt",
       "secured": {
         "title": "Platsen är säkrad",
         "body": "Veinote öppnar den {date}. Vi mejlar dig din plan, tillsammans med ditt specialerbjudande.",

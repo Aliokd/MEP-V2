@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, Check, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizePath } from '@/lib/i18n';
 import { FOUNDER_SPOTS_TAKEN, FOUNDER_SPOTS_TOTAL } from '@/lib/uiFlags';
@@ -33,7 +33,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // differs by language, and gluing pieces together in English order produces
 // something no Norwegian or Swedish reader would write. The string owns the
 // order via {terms} and {privacy}; this splits on those and drops the links in.
-const CONSENT_SLOTS = /(\{terms\}|\{privacy\})/g;
+const CONSENT_SLOTS = /(\{terms\}|\{privacy\}|\{cookies\})/g;
 
 // The shake used when something is missing. Same gesture as the quiz's Next
 // button: a head shake, not a rejection. Driven through animation controls
@@ -81,37 +81,19 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
     const { t, language } = useLanguage();
     const prefersReducedMotion = useReducedMotion();
     const [email, setEmail] = useState(initialEmail);
-    const [accepted, setAccepted] = useState(false);
     // Only after a submit attempt — telling someone their half-typed address is
     // wrong while they are still typing it is noise, not help.
     const [showInvalid, setShowInvalid] = useState(false);
-    const [showConsent, setShowConsent] = useState(false);
-
     const emailShake = useAnimationControls();
-    const consentShake = useAnimationControls();
 
     const valid = EMAIL_PATTERN.test(email.trim());
 
-    // The tick box belongs to account creation, where terms are being agreed
-    // to. Joining the waitlist takes an address and nothing else — the same
-    // rule the standalone waiting-list page follows — so the campaign variant
-    // shows the privacy note in its place and never gates on it.
-    const consentRequired = !waitlist;
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Both are checked before either is reported, so pressing once with a
-        // bad address AND no tick doesn't turn into two round trips.
         setShowInvalid(!valid);
-        setShowConsent(consentRequired && !accepted);
-
-        // Whatever is missing shakes — both, if both are. Nothing here is
-        // styled as an error: a missing tick box is not a mistake anyone made,
-        // it is a step not taken yet, and red is a strong word for that.
-        if (!valid || (consentRequired && !accepted)) {
+        if (!valid) {
             if (!prefersReducedMotion) {
-                if (!valid) emailShake.start({ ...SHAKE, transition: SHAKE_TIMING });
-                if (consentRequired && !accepted) consentShake.start({ ...SHAKE, transition: SHAKE_TIMING });
+                emailShake.start({ ...SHAKE, transition: SHAKE_TIMING });
             }
             return;
         }
@@ -120,9 +102,10 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
 
     const message = error || (showInvalid && !valid ? t('onboarding.email.invalid') : '');
 
-    // The button stays live rather than greying out until the box is ticked.
-    // The control that would unlock it sits *below* it, so a dead button is a
-    // puzzle — pressing and being told what's missing is the shorter path.
+    // Consent by continuing, not by tick box — pressing the button IS the
+    // agreement, and the sentence under it says so. The box this replaced
+    // gated nothing a passive line doesn't: it let you through the moment you
+    // ticked it, and everyone ticked it.
     const consentSentence = t('onboarding.email.consent').split(CONSENT_SLOTS).map((part, i) => {
         if (part === '{terms}') {
             return (
@@ -147,6 +130,22 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                     className="font-semibold text-stone-900 underline underline-offset-2 hover:text-stone-600"
                 >
                     {t('onboarding.email.consent_privacy')}
+                </Link>
+            );
+        }
+        if (part === '{cookies}') {
+            return (
+                // The privacy policy is where cookie use is described and where
+                // the cookie-settings control lives — there is no separate
+                // cookies page to point at.
+                <Link
+                    key={i}
+                    href={localizePath('/privacy', language)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-stone-900 underline underline-offset-2 hover:text-stone-600"
+                >
+                    {t('onboarding.email.consent_cookies')}
                 </Link>
             );
         }
@@ -281,76 +280,17 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                         </>
                     ) : (
                         <>
-                            {t(changing ? 'onboarding.email.change_cta' : waitlist ? 'onboarding.waitlist.email_cta' : 'onboarding.email.cta')}
+                            {t(changing ? 'onboarding.email.change_cta' : waitlist ? 'onboarding.waitlist.email_submit' : 'onboarding.email.cta')}
                             <ArrowRight className="h-5 w-5 stroke-[2.5px]" />
                         </>
                     )}
                 </button>
-
-                {/* Under the button: the waitlist variant carries the same
-                    plain privacy note the standalone waiting-list page shows —
-                    a notice, because nothing is being agreed to. The account
-                    framings keep the tick box: there it is a real gate, and a
-                    box that lets you through unticked records nothing and
-                    protects no one. */}
-                {!consentRequired ? (
-                    <p className="mx-auto w-full max-w-sm text-center text-xs leading-relaxed text-stone-600">
-                        {t('waitlist.privacy_note')}
-                    </p>
-                ) : (
-                <motion.div className="space-y-1.5" animate={consentShake}>
-                    {/* Centred on the sentence rather than hung from its first
-                        line, and closer to it: a 20px box floating above a
-                        two-line paragraph reads as belonging to the line above.
-                        The negative margins let the row keep its own spacing
-                        while the padding inside them grows the tap target — see
-                        the box below. */}
-                    <label className="-m-1.5 flex cursor-pointer items-center gap-2 p-1.5 text-left">
-                        {/* The native box drives state and keeps the keyboard
-                            and screen-reader behaviour; the square beside it is
-                            what gets drawn. `peer` links the two so focus and
-                            checked styling follow the real control. */}
-                        <input
-                            type="checkbox"
-                            checked={accepted}
-                            onChange={(e) => {
-                                setAccepted(e.target.checked);
-                                if (e.target.checked) setShowConsent(false);
-                            }}
-                            disabled={isSubmitting}
-                            aria-describedby="consent-text"
-                            className="peer sr-only"
-                        />
-                        {/* The drawn box is 20px, but what you can hit is the
-                            40px around it: `p-2.5 -m-2.5` pads the slot out in
-                            every direction and then takes the space back off
-                            the layout, so the margin around the square answers
-                            a click without the row growing to make room for it.
-                            The whole label toggles too — this is for the
-                            thumb that aims at the box and lands beside it. */}
-                        <span className="-m-2.5 shrink-0 p-2.5">
-                            <span
-                                aria-hidden="true"
-                                className={`grid h-5 w-5 place-items-center rounded-[7px] border-2 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#86BE7F] peer-focus-visible:ring-offset-2 ${
-                                    accepted ? 'border-[#86BE7F] bg-[#86BE7F]' : 'border-stone-300 bg-white'
-                                }`}
-                            >
-                                {accepted && <Check size={13} className="stroke-[3.5] text-stone-900" />}
-                            </span>
-                        </span>
-
-                        <span id="consent-text" className="text-[12.5px] leading-relaxed text-stone-600">
-                            {consentSentence}
-                        </span>
-                    </label>
-
-                    {showConsent && !accepted && (
-                        <p role="status" className="sr-only">
-                            {t('onboarding.email.consent_required')}
-                        </p>
-                    )}
-                </motion.div>
-                )}
+                {/* Under the button, every variant: agreement happens by
+                    continuing. See consentSentence above for what the line
+                    links to. */}
+                <p className={`text-center text-xs leading-relaxed text-stone-600 ${waitlist && !changing ? 'mx-auto w-full max-w-sm' : ''}`}>
+                    {consentSentence}
+                </p>
             </form>
         </motion.div>
     );

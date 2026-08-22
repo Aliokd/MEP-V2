@@ -1218,10 +1218,10 @@
       "cta": "Reveal my plan",
       "submitting": "One moment…",
       "invalid": "We'll need a full address, like you@example.com.",
-      "consent": "I agree to Veinote's {terms} and {privacy}.",
-      "consent_terms": "Terms and Conditions",
+      "consent": "By continuing, you agree to our {terms}, {privacy} and {cookies}.",
+      "consent_terms": "Terms of Service",
       "consent_privacy": "Privacy Policy",
-      "consent_required": "Tick the box and we can keep going.",
+      "consent_cookies": "Cookie Use",
       "change_title": "What's your email?",
       "change_subtitle": "We'll send a new code to this address.",
       "change_cta": "Change now"
@@ -1500,6 +1500,7 @@
       "email_badge_top": "50%",
       "email_badge_bottom": "OFF",
       "email_cta": "Join the waitlist",
+      "email_submit": "Continue",
       "secured": {
         "title": "Spot secured",
         "body": "Veinote launches on {date}. We'll email you your plan, along with your special offer.",

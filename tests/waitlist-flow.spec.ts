@@ -64,10 +64,12 @@ test.describe('Waitlist campaign flow', () => {
     await expect(dialog.getByText('3 days free trial', { exact: false })).toBeVisible();
     await expect(dialog.getByText('/100')).toBeVisible();
     await expect(dialog.getByText(/\d{2}:\d{2}:\d{2}/)).toBeVisible();
-    // No consent tick on a waitlist join — an address is all it takes.
+    // No consent tick anywhere any more — agreement happens by continuing,
+    // and the line under the button says so.
     await expect(dialog.locator('input[type="checkbox"]')).toHaveCount(0);
+    await expect(dialog.getByText('By continuing, you agree', { exact: false })).toBeVisible();
     await dialog.getByRole('textbox').fill('writer@example.com');
-    await dialog.getByRole('button', { name: 'Join the waitlist' }).click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
 
     // Joining lands straight on the confirmation, launch day named — no
     // verdict, offer or paywall in this flow.

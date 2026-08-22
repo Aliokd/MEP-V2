@@ -28,7 +28,11 @@ const MAX_EMAIL_LENGTH = 254; // the practical ceiling from RFC 5321
 /** Where the signup came from, for reading which surface actually converts. */
 const KNOWN_SOURCES = new Set([
     "hero", "nav", "footer", "urgency", "about", "signin",
-    "onboarding", "invite", "direct", "yt-vsl",
+    "onboarding", "invite", "direct",
+    // Paid + social. One value per surface so the admin list reads cleanly:
+    // yt-vsl is the YouTube VSL campaign; x-ads is paid X; x-organic is
+    // Peter's own posts and replies there.
+    "yt-vsl", "x-ads", "x-organic",
 ]);
 
 /**
