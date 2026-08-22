@@ -1197,15 +1197,18 @@
       "testimonials": [
         {
           "quote": "Jeg hadde fire år med halve låter på telefonen. Jeg fullførte tre av dem på en måned.",
-          "name": "Mara L."
+          "name": "David",
+          "country": "es"
         },
         {
           "quote": "Det første som faktisk hjalp uten å prøve å skrive låta for meg.",
-          "name": "Jonas K."
+          "name": "Urgan",
+          "country": "mx"
         },
         {
           "quote": "Jeg sluttet å vente på å føle meg klar og bare begynte. Det viste seg å være hele trikset.",
-          "name": "Priya S."
+          "name": "Knut",
+          "country": "no"
         }
       ]
     },

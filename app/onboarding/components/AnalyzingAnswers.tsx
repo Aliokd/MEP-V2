@@ -119,14 +119,50 @@ const Confetti = () => (
     </span>
 );
 
-/** "Mara L." → "ML". The stand-in for a face until there is a photograph. */
-const initialsOf = (name: string) =>
-    name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() ?? '')
-        .join('');
+/**
+ * The little flag beside a testimonial name. Drawn inline rather than set as a
+ * flag emoji because Windows renders flag emoji as bare letter pairs ("ES") —
+ * and Windows is most of this product's desktop audience. Simplified drawings:
+ * bands and crosses only, no heraldry, which at 20px wide is all a flag is.
+ */
+const FLAGS: Record<string, React.ReactNode> = {
+    es: (
+        <>
+            <rect width="20" height="14" fill="#C60B1E" />
+            <rect y="3.5" width="20" height="7" fill="#FFC400" />
+        </>
+    ),
+    mx: (
+        <>
+            <rect width="20" height="14" fill="#FFFFFF" />
+            <rect width="6.67" height="14" fill="#006847" />
+            <rect x="13.33" width="6.67" height="14" fill="#CE1126" />
+        </>
+    ),
+    no: (
+        <>
+            <rect width="20" height="14" fill="#BA0C2F" />
+            <rect x="5" width="4" height="14" fill="#FFFFFF" />
+            <rect y="5" width="20" height="4" fill="#FFFFFF" />
+            <rect x="6" width="2" height="14" fill="#00205B" />
+            <rect y="6" width="20" height="2" fill="#00205B" />
+        </>
+    ),
+};
+
+const Flag = ({ country }: { country?: string }) => {
+    const shapes = country ? FLAGS[country] : null;
+    if (!shapes) return null;
+    return (
+        <svg
+            viewBox="0 0 20 14"
+            aria-hidden="true"
+            className="inline-block h-[11px] w-auto rounded-[2px] align-baseline ring-1 ring-stone-900/10"
+        >
+            {shapes}
+        </svg>
+    );
+};
 
 /**
  * PLACEHOLDER COPY. The quotes under `onboarding.analyzing.testimonials` were
@@ -145,7 +181,7 @@ const initialsOf = (name: string) =>
  * photograph of someone who never said it. Fill it in with the real person's
  * portrait at the same time as their real words.
  */
-type Testimonial = { quote: string; name: string; image?: string };
+type Testimonial = { quote: string; name: string; country?: string; image?: string };
 
 export default function AnalyzingAnswers({ answers, onComplete, onBack, frozen = false, waitlist = false }: {
     /** The visitor's own answers, already resolved to their display labels. */
@@ -462,31 +498,18 @@ export default function AnalyzingAnswers({ answers, onComplete, onBack, frozen =
                                     active ? 'opacity-100 delay-200' : 'pointer-events-none opacity-0'
                                 }`}
                             >
-                                {/* Empty until there are real portraits to put
-                                    here — see the note on `image` above. The
-                                    monogram is not a placeholder for a face so
-                                    much as what a name looks like without one. */}
-                                <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-[#EFF0E7] ring-1 ring-stone-300/60 md:h-16 md:w-16">
-                                    {entry.image ? (
-                                        <img
-                                            src={entry.image}
-                                            alt=""
-                                            className="h-full w-full object-cover"
-                                            loading="lazy"
-                                        />
-                                    ) : (
-                                        <span aria-hidden="true" className="text-[15px] font-semibold tracking-wide text-stone-500 md:text-[17px]">
-                                            {initialsOf(entry.name)}
-                                        </span>
-                                    )}
-                                </span>
-
+                                {/* No portrait slot any more — the monogram
+                                    circle it held read as a placeholder for a
+                                    face nobody had. The words carry the card;
+                                    the name signs it, with a small flag for
+                                    where its owner writes from. */}
                                 <div className="min-w-0 space-y-1.5">
                                     <blockquote className="text-[19px] font-medium leading-snug text-stone-900 md:text-[22px]">
                                         {entry.quote}
                                     </blockquote>
-                                    <figcaption className="text-[13px] font-medium text-stone-500 md:text-[14px]">
-                                        {entry.name}
+                                    <figcaption className="flex items-center gap-1.5 text-[13px] font-medium text-stone-500 md:text-[14px]">
+                                        <span>{entry.name}</span>
+                                        <Flag country={entry.country} />
                                     </figcaption>
                                 </div>
                             </figure>

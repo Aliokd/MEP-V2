@@ -1197,15 +1197,18 @@
       "testimonials": [
         {
           "quote": "I had four years of half-songs on my phone. I finished three of them in a month.",
-          "name": "Mara L."
+          "name": "David",
+          "country": "es"
         },
         {
           "quote": "The first thing that ever helped without trying to write the song for me.",
-          "name": "Jonas K."
+          "name": "Urgan",
+          "country": "mx"
         },
         {
           "quote": "I stopped waiting to feel ready and just started. That turned out to be the whole trick.",
-          "name": "Priya S."
+          "name": "Knut",
+          "country": "no"
         }
       ]
     },
