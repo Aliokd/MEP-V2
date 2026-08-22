@@ -25,8 +25,15 @@ import posthog from 'posthog-js';
  * match the project's region (https://eu.i.posthog.com for this one) — the
  * wrong region fails silently.
  */
-const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+// Defaulted in source, like Clarity's project id in AnalyticsGate, because the
+// env route never actually reached production: NEXT_PUBLIC_* values are inlined
+// at build time, the deploy workflow writes only the server secrets into .env,
+// and so every prod build shipped with PostHog silently off. These are public
+// write-only tokens — they sit in the served bundle by design — so source is
+// where they belong. Env still overrides, which is how a fork or a second
+// project points elsewhere.
+const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY || 'phc_uNXWvwU4j3NfZDTyCQRSg9evK2SnL9WTyazigET9YmHw';
+const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com';
 
 export const isPostHogConfigured = Boolean(POSTHOG_KEY && POSTHOG_HOST);
 
@@ -83,6 +90,23 @@ export function initPostHog(): void {
             maskAllInputs: true,
         },
     });
+}
+
+/**
+ * One product event, from either tier. In the anonymous tier this is the whole
+ * point of having PostHog at all: events carry no identity and touch no
+ * storage, so they are covered by the same legal basis as the anonymous
+ * pageviews — which means funnel steps get counted for every visitor, not
+ * just the ones who accepted cookies. No-ops when PostHog is off (local dev
+ * without the env override reaching init, SSR).
+ */
+export function capture(event: string, properties?: Record<string, unknown>): void {
+    if (!isPostHogConfigured || !initialised) return;
+    try {
+        posthog.capture(event, properties);
+    } catch (err) {
+        console.error('PostHog capture failed:', err);
+    }
 }
 
 /**

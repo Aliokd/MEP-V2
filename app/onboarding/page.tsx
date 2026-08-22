@@ -25,6 +25,7 @@ import OtpVerify from './components/OtpVerify';
 import TrialOffer from './components/TrialOffer';
 import WelcomeAboard from './components/WelcomeAboard';
 import CountdownBanner from './components/CountdownBanner';
+import { capture } from '@/lib/posthog';
 import WaitlistSecured from './components/WaitlistSecured';
 
 /**
@@ -374,11 +375,14 @@ function OnboardingPageInner() {
                 });
                 if (!res.ok) {
                     const data = await res.json().catch(() => ({}));
+                    capture('waitlist_join_failed', { status: res.status, error: data.error ?? null, source: waitlistSource });
                     setEmailError(data.error === 'invalid-email'
                         ? t('onboarding.email.invalid')
                         : t('waitlist.errors.failed'));
                     return;
                 }
+                const joined = await res.json().catch(() => ({}));
+                capture('waitlist_joined', { source: waitlistSource, position: joined.position ?? null });
                 // Straight to the confirmation. The verdict is skipped in this
                 // flow: the plan is emailed with the offer rather than read
                 // here, so a reveal between the join and the confirmation
@@ -386,6 +390,7 @@ function OnboardingPageInner() {
                 setCurrentStep(STEPS.SECURED);
             } catch (err) {
                 console.error('Waitlist signup failed:', err);
+                capture('waitlist_join_failed', { status: 'network', source: waitlistSource });
                 setEmailError(t('waitlist.errors.failed'));
             } finally {
                 setIsSubmittingEmail(false);
@@ -457,6 +462,44 @@ function OnboardingPageInner() {
             setWaitlistSource(params.get('from') || 'yt-vsl');
         }
     }, []);
+
+    /**
+     * The funnel, as events. The whole flow lives on one URL, so pageview
+     * analytics see an arrival and nothing else — every step between the ad
+     * click and the joined list would be invisible without these. Sent through
+     * the anonymous tier (see lib/posthog.ts), so they count every visitor,
+     * consent or not, and carry no identity.
+     *
+     * flow/source are read off the URL rather than from state: on the very
+     * first event the mount effect above has queued those setStates but this
+     * closure still holds the defaults.
+     */
+    const funnelProps = () => {
+        const params = new URLSearchParams(window.location.search);
+        const isCampaign = params.get('flow') === 'waitlist';
+        return {
+            flow: isCampaign ? 'waitlist' : 'plain',
+            source: isCampaign ? (params.get('from') || 'yt-vsl') : null,
+        };
+    };
+
+    useEffect(() => {
+        capture('onboarding_step', { step: currentStep, ...funnelProps() });
+    }, [currentStep]);
+
+    useEffect(() => {
+        if (currentStep !== STEPS.INTRO) return;
+        capture('onboarding_intro_slide', { index: introIndex, ...funnelProps() });
+    }, [introIndex, currentStep]);
+
+    useEffect(() => {
+        if (currentStep !== STEPS.QUIZ) return;
+        capture('onboarding_question', {
+            index: currentQuestionIndex,
+            id: QUESTIONS[currentQuestionIndex]?.id,
+            ...funnelProps(),
+        });
+    }, [currentQuestionIndex, currentStep]);
 
     const handleBack = () => {
         // On the cards step, back means "show me the five again" before it
