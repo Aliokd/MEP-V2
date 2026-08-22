@@ -214,7 +214,7 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                             <h1 className="text-4xl font-sans font-medium leading-[1.05] tracking-tight text-stone-900 md:text-[3.25rem]">
                                 {t('onboarding.waitlist.email_title')}
                             </h1>
-                            <p className="mx-auto max-w-sm text-[15px] font-medium leading-relaxed text-stone-700 md:text-base">
+                            <p className="mx-auto max-w-md text-[15px] font-medium leading-relaxed text-stone-700 md:text-base">
                                 {t('onboarding.waitlist.email_offer')}
                             </p>
                         </div>
