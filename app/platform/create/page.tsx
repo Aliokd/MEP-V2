@@ -2393,6 +2393,45 @@ async function getWavBlob(audioBlob: Blob): Promise<Blob> {
 }
 
 /**
+ * How much audio one /api/transcribe request is allowed to carry.
+ *
+ * The limit was never file size — a 6MB mp3 crosses to the server in a blink now
+ * that stored takes go by URL. It is MODEL TIME: the route has ~40s of budget
+ * inside the platform's ~60s edge window, and Gemini working through minutes of
+ * full-mix music simply outlives that, so a whole song in one request dies at the
+ * finish line whatever its size. Anything longer is cut into chunks and sent as
+ * several requests, each comfortably inside the budget.
+ */
+const SINGLE_SHOT_TRANSCRIBE_SECONDS = 90;
+const TRANSCRIBE_CHUNK_SECONDS = 60;
+
+/**
+ * One chunk of a decoded take, as the smallest thing the transcriber accepts:
+ * 16kHz mono 16-bit WAV. Speech models hear nothing above 8kHz that they use, so
+ * this is the compression step — a minute of any source, stereo or lossless,
+ * comes out at ~1.9MB. That is also below the retry helper's heavy-body
+ * threshold, so chunks keep their transient-failure retries.
+ *
+ * The offline context is created with ONE channel, which makes the Web Audio
+ * engine do the stereo downmix itself during rendering.
+ */
+async function transcodeSliceTo16kMonoWav(
+    decoded: AudioBuffer,
+    startSec: number,
+    seconds: number,
+): Promise<Blob> {
+    const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+    const targetRate = 16000;
+    const ctx = new OfflineContextClass(1, Math.max(1, Math.ceil(seconds * targetRate)), targetRate);
+    const source = ctx.createBufferSource();
+    source.buffer = decoded;
+    source.connect(ctx.destination);
+    source.start(0, startSec, seconds);
+    const rendered = await ctx.startRendering();
+    return new Blob([audioBufferToWav(rendered)], { type: 'audio/wav' });
+}
+
+/**
  * Uncompressed audio containers. These are the ones worth re-encoding: they carry
  * raw PCM, so their size is pure arithmetic — sample rate x bit depth x channels x
  * seconds — and none of it is a decision anyone made about how the music sounds.
@@ -11820,66 +11859,167 @@ export default function CreatePage() {
         setTranscribingAudioNoteId(audioNoteId);
         setIsTranscribing(true);
         try {
-            let body: any = null;
-            const headers: any = {};
-            let fetchedBlob: Blob | null = null;
-
-            // A take already in Storage is sent BY URL. It used to be pulled down
-            // through /api/download-audio and posted straight back up, so the same
-            // song crossed the user's connection twice before the model saw it —
-            // three transfers of a 3-minute mp3 inside the ~60s the platform allows
-            // for the whole request, which is why longer imports failed with a
-            // gateway error rather than an answer. The server reads it from Storage
-            // inside the same cloud instead.
             const isStoredRemotely = /^https?:\/\//i.test(audioUrl);
 
-            if (!isStoredRemotely) {
+            let transcriptText = '';
+            let resultError: string | null = null;
+            // Chunks that failed while others got through — the song still lands,
+            // with a note that a part of it is missing.
+            let failedSections = 0;
+
+            if (durationSeconds <= SINGLE_SHOT_TRANSCRIBE_SECONDS) {
+                // ── Short take: one request. Stored audio goes BY URL — the server
+                // reads it from Storage inside the same cloud, so the song does not
+                // cross the user's connection at all. A blob: take exists only in
+                // this tab, so its bytes have to travel.
+                let body: any = null;
+                const headers: any = {};
+                let fetchedBlob: Blob | null = null;
+
+                if (!isStoredRemotely) {
+                    try {
+                        const res = await authedFetch(audioUrl);
+                        if (res.ok) {
+                            fetchedBlob = await res.blob();
+                        }
+                    } catch (fetchErr) {
+                        console.warn("Client-side audio fetch failed, falling back to server fetch:", fetchErr);
+                    }
+                }
+
+                if (fetchedBlob) {
+                    // Heavy for its length means uncompressed — a lossless WAV, mostly.
+                    // Squeezed to 16kHz mono (all a speech model uses) instead of
+                    // refused: 90 seconds comes out at ~2.9MB.
+                    if (fetchedBlob.size > 4 * 1024 * 1024) {
+                        try {
+                            fetchedBlob = await getWavBlob(fetchedBlob);
+                        } catch (squeezeErr) {
+                            console.warn('Could not compress the take; sending as-is.', squeezeErr);
+                        }
+                    }
+                    if (fetchedBlob.size > MAX_TRANSCRIBE_BYTES) {
+                        triggerStudioNotification(
+                            t('card.extract_too_large')
+                                .replace('{size}', `${(fetchedBlob.size / (1024 * 1024)).toFixed(1)} MB`)
+                                .replace('{limit}', `${Math.round(MAX_TRANSCRIBE_BYTES / (1024 * 1024))} MB`),
+                            'amber',
+                        );
+                        return;
+                    }
+                    const payload = await toTranscribeAudioPayload(fetchedBlob);
+                    body = payload.body;
+                    headers['Content-Type'] = payload.contentType;
+                } else {
+                    body = JSON.stringify({ audioUrl });
+                    headers['Content-Type'] = 'application/json';
+                }
+
+                const response = await authedFetchRetrying(`/api/transcribe?lang=${language}`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: body,
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    transcriptText = (data.text || '').trim();
+                    // Empty text WITH an error attached means the run failed —
+                    // not that the recording is silent.
+                    if (!transcriptText && data.error) resultError = data.error;
+                } else {
+                    const errData = await response.json().catch(() => ({}));
+                    console.error('Server transcription failed status:', response.status, errData);
+                    resultError = errData.error || t('card.extract_failed');
+                }
+            } else {
+                // ── Long take: cut into minute-long chunks, each its own request.
+                // One request cannot carry a whole song — the model's own working
+                // time on minutes of audio outlives the route's budget however small
+                // the file is. Chunks go sequentially, not in parallel: each is an
+                // AI call with a per-user rate ceiling, and the server's model
+                // budget is per-request anyway, so parallelism buys only 429s.
+                let sourceBlob: Blob | null = null;
                 try {
-                    // A blob: URL exists only in this tab, so the bytes have to travel.
-                    const res = await authedFetch(audioUrl);
+                    // For chunking the bytes are needed HERE, so a stored take comes
+                    // down once through the vetted proxy. That single download is
+                    // fine — it was the full-file upload plus whole-song model time
+                    // in one request that broke.
+                    const fetchUrl = isStoredRemotely
+                        ? `/api/download-audio?url=${encodeURIComponent(audioUrl)}`
+                        : audioUrl;
+                    const res = await authedFetch(fetchUrl);
                     if (res.ok) {
-                        fetchedBlob = await res.blob();
+                        sourceBlob = await res.blob();
                     }
                 } catch (fetchErr) {
-                    console.warn("Client-side audio fetch failed, falling back to server fetch:", fetchErr);
+                    console.warn('Could not fetch audio for chunked transcription:', fetchErr);
                 }
-            }
 
-            if (fetchedBlob) {
-                // Duration passed but the file is still too heavy to post inside the
-                // budget — a long high-bitrate import, or a lossless WAV.
-                if (fetchedBlob.size > MAX_TRANSCRIBE_BYTES) {
-                    triggerStudioNotification(
-                        t('card.extract_too_large')
-                            .replace('{size}', `${(fetchedBlob.size / (1024 * 1024)).toFixed(1)} MB`)
-                            .replace('{limit}', `${Math.round(MAX_TRANSCRIBE_BYTES / (1024 * 1024))} MB`),
-                        'amber',
+                if (!sourceBlob) {
+                    resultError = t('card.extract_failed');
+                } else {
+                    const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+                    const decoded = await decodeAudioDataPromise(
+                        new OfflineContextClass(1, 1, 44100),
+                        await sourceBlob.arrayBuffer(),
                     );
-                    return;
+                    const totalSeconds = decoded.duration;
+                    const chunkCount = Math.max(1, Math.ceil(totalSeconds / TRANSCRIBE_CHUNK_SECONDS));
+                    const texts: string[] = [];
+                    let lastChunkError: string | null = null;
+
+                    for (let i = 0; i < chunkCount; i++) {
+                        const start = i * TRANSCRIBE_CHUNK_SECONDS;
+                        const length = Math.min(TRANSCRIBE_CHUNK_SECONDS, totalSeconds - start);
+                        if (length <= 0.5) break;
+                        try {
+                            const wav = await transcodeSliceTo16kMonoWav(decoded, start, length);
+                            const response = await authedFetchRetrying(`/api/transcribe?lang=${language}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'audio/wav' },
+                                body: wav,
+                            });
+                            if (response.ok) {
+                                const data = await response.json();
+                                const text = (data.text || '').trim();
+                                if (text) {
+                                    texts.push(text);
+                                } else if (data.error) {
+                                    failedSections++;
+                                    lastChunkError = data.error;
+                                }
+                                // A genuinely silent chunk — an intro, a solo — is not a failure.
+                            } else {
+                                const errData = await response.json().catch(() => ({}));
+                                failedSections++;
+                                lastChunkError = errData.error || null;
+                            }
+                        } catch (chunkErr) {
+                            failedSections++;
+                            console.warn(`Transcription chunk ${i + 1}/${chunkCount} failed:`, chunkErr);
+                        }
+                    }
+
+                    transcriptText = texts.join('\n').trim();
+                    if (failedSections > 0 && !transcriptText) {
+                        resultError = lastChunkError || t('card.extract_failed');
+                        failedSections = 0;
+                    }
                 }
-                const payload = await toTranscribeAudioPayload(fetchedBlob);
-                body = payload.body;
-                headers['Content-Type'] = payload.contentType;
-            } else {
-                body = JSON.stringify({ audioUrl });
-                headers['Content-Type'] = 'application/json';
             }
 
-            const response = await authedFetchRetrying(`/api/transcribe?lang=${language}`, {
-                method: 'POST',
-                headers: headers,
-                body: body,
-            });
-            if (response.ok) {
-                const data = await response.json();
-                const transcriptText = (data.text || "").trim();
-                
+            if (resultError && !transcriptText) {
+                console.error('Transcription failed:', resultError);
+                triggerStudioNotification(resultError, 'rose');
+            } else {
                 if (!transcriptText) {
-                    // Empty text with an error attached means the transcription FAILED
-                    // (timeout, upstream trouble) — not that the recording is silent.
-                    // "No spoken lyrics found" for a failure sends the user hunting for a
-                    // problem in their own recording that isn't there.
-                    triggerStudioNotification(data.error || t('audio.no_lyrics_found'), data.error ? 'rose' : 'amber');
+                    // A clean run with nothing in it is an answer about the recording,
+                    // not a fault to report in red.
+                    triggerStudioNotification(t('audio.no_lyrics_found'), 'amber');
+                }
+                if (failedSections > 0) {
+                    // Part of the song made it and is worth keeping — say what's missing.
+                    triggerStudioNotification(t('card.extract_partial'), 'amber');
                 }
                 let line1 = "";
                 let line2 = "";
@@ -11984,14 +12124,6 @@ export default function CreatePage() {
                     audioNotes: updatedAudioNotes,
                     isAudioOnly: false
                 });
-            } else {
-                // Surface the server's actual reason (e.g. "Sign in to use this
-                // feature.") instead of a fixed string — a generic "try again" on an
-                // auth failure sends someone retrying the exact same recording
-                // forever, since retrying changes nothing about why it failed.
-                const errData = await response.json().catch(() => ({}));
-                console.error('Server transcription failed status:', response.status, errData);
-                triggerStudioNotification(errData.error || t('card.extract_failed'), 'rose');
             }
         } catch (e) {
             console.error("Failed to transcribe audio note:", e);

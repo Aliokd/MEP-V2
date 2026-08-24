@@ -1627,6 +1627,8 @@
     "extract_too_long": "This recording is {length}. Lyrics can be extracted from takes up to {minutes} minutes.",
     "extract_too_large": "This file is {size}. Lyrics can be extracted from files up to {limit}.",
     "extract_failed": "Could not extract the lyrics. Please try again.",
+
+    "extract_partial": "A part of the song could not be extracted — the rest is on the canvas.",
     "transcribing_audio": "Extracting lyrics",
     "transcribe_recording": "Transcribe recording",
     "delete_recording": "Delete recording",

@@ -89,3 +89,12 @@ vendor/lexicon/nst/
 # originals are unreferenced.
 /public/Create/Invite collab.mp4
 /public/Create/Publish song.mp4
+
+# Internal business documents. This repository is PUBLIC, and a commit is
+# permanent — deleting a file later leaves it in the history for anyone who
+# clones. Cost models, margins, projections and pricing analysis are the kind of
+# thing that gets dropped in the project root while it is being worked on, so
+# they are excluded by pattern rather than by remembering each time.
+/*.pdf
+/*Unit-Economics*
+/*unit-economics*

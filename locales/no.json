@@ -1627,6 +1627,8 @@
     "extract_too_long": "Dette opptaket er {length}. Vi kan hente ut tekst fra opptak på opptil {minutes} minutter.",
     "extract_too_large": "Denne filen er {size}. Vi kan hente ut tekst fra filer på opptil {limit}.",
     "extract_failed": "Fikk ikke hentet ut teksten. Prøv igjen.",
+
+    "extract_partial": "En del av sangen kunne ikke hentes ut — resten ligger på canvasen.",
     "transcribing_audio": "Henter ut teksten",
     "transcribe_recording": "Transkriber opptaket",
     "delete_recording": "Slett opptaket",

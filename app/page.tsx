@@ -341,7 +341,14 @@ const DarkSection = () => {
                 autoPlay 
                 muted 
                 playsInline 
-                className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
+                // object-[72%_center] below md: the clip is landscape with Peter framed
+                // right of centre (the desktop layout leans on that — text left, the
+                // gradient fading toward him). A portrait phone showing a 16:9 frame in
+                // a 90vh box keeps only ~a third of its width, and the default centre
+                // crop threw the right side, and Peter with it, off screen. Anchoring
+                // the crop toward his side keeps him in the kept slice; desktop keeps
+                // the centred framing it was composed for.
+                className="absolute inset-0 w-full h-full object-cover object-[72%_center] md:object-center z-0 pointer-events-none"
             >
                 <source src="/assets/Peter video 2.mp4" type="video/mp4" />
             </video>

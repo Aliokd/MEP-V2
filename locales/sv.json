@@ -1627,6 +1627,8 @@
     "extract_too_long": "Den här inspelningen är {length}. Vi kan hämta text från inspelningar på upp till {minutes} minuter.",
     "extract_too_large": "Den här filen är {size}. Vi kan hämta text från filer på upp till {limit}.",
     "extract_failed": "Kunde inte hämta låttexten. Försök igen.",
+
+    "extract_partial": "En del av låten kunde inte hämtas — resten finns på canvasen.",
     "transcribing_audio": "Hämtar låttexten",
     "transcribe_recording": "Transkribera inspelningen",
     "delete_recording": "Ta bort inspelningen",
