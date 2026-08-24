@@ -31,8 +31,10 @@ test.describe('Waitlist campaign flow', () => {
       await page.getByRole('button', { name: 'Next', exact: true }).click();
     }
 
-    // The carousel done, the quiz begins.
+    // The carousel done, the quiz begins - and the URL names the step, which
+    // is what lets analytics tell the screens of this one-page flow apart.
     await expect(page.getByRole('heading', { name: 'How do you see yourself?' })).toBeVisible();
+    await expect(page).toHaveURL(/at=quiz-songwriter_type/);
 
     // Question 1: the picture cards, then the question asked on the chosen
     // card's face. The cards stay disabled until their deal-in animation
@@ -59,6 +61,7 @@ test.describe('Waitlist campaign flow', () => {
     // The email step is a page of its own now, not a dialog - it wears the
     // campaign framing: a spot being saved, not an account being created.
     await expect(page.getByRole('heading', { name: 'Save your spot' })).toBeVisible();
+    await expect(page).toHaveURL(/at=email/);
     // The card carries the offer and the founders spot counter; the offer
     // clock is the page's own top bar, same as every other step.
     await expect(page.getByText('3 days free trial', { exact: false })).toBeVisible();
@@ -81,6 +84,7 @@ test.describe('Waitlist campaign flow', () => {
     // Joining lands straight on the confirmation, launch day named — no
     // verdict, offer or paywall in this flow.
     await expect(page.getByRole('heading', { name: 'Spot secured' })).toBeVisible();
+    await expect(page).toHaveURL(/at=secured/);
     await expect(page.getByText('September 19', { exact: false })).toBeVisible();
     await expect(page.getByText('email you your plan', { exact: false })).toBeVisible();
 

@@ -500,6 +500,35 @@ function OnboardingPageInner() {
         });
     }, [currentQuestionIndex, currentStep]);
 
+    /**
+     * The step's name, written into the URL as the visitor moves:
+     * `?at=intro-2`, `?at=quiz-struggle`, `?at=email` … One page hosts the
+     * whole flow, so without this every analytics event carries the same
+     * address and nothing in a PostHog event list says which screen a click
+     * happened on. With it, the URL column names the step for every event —
+     * autocaptured clicks included — and each step change registers as its own
+     * pageview (posthog-js watches the History API).
+     *
+     * `replaceState`, not pushState: these are not places the browser's Back
+     * button should walk through — the flow has its own Back. `at` is distinct
+     * from `?step=`, which deep-links the two ADDRESSABLE_STEPS on arrival;
+     * `at` is write-only breadcrumb, never read on mount.
+     */
+    const stepSlug = currentStep === STEPS.INTRO
+        ? `intro-${introIndex + 1}`
+        : currentStep === STEPS.QUIZ
+            ? `quiz-${QUESTIONS[currentQuestionIndex]?.id ?? currentQuestionIndex + 1}`
+            : currentStep;
+
+    useEffect(() => {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('at') === stepSlug) return;
+        url.searchParams.set('at', stepSlug);
+        // Next's router keeps its own state object on the history entry;
+        // preserve it or the app router loses its place.
+        window.history.replaceState(window.history.state, '', url);
+    }, [stepSlug]);
+
     const handleBack = () => {
         // On the cards step, back means "show me the five again" before it
         // means "leave the quiz". The chosen card has grown to fill the
