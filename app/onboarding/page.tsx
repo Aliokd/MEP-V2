@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ArrowRight, ArrowLeft, AlertCircle, X } from 'lucide-react';
+import { ChevronRight, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import type { User } from 'firebase/auth';
 import { auth, db, googleProvider } from '@/lib/firebase';
@@ -436,9 +436,8 @@ function OnboardingPageInner() {
         setVerifyError('');
     };
 
-    // Escape closes the email dialog. A dialog that can be closed by a button
-    // but not by the key everyone reaches for first is a dialog that feels
-    // stuck; this is the same exit, on the keyboard.
+    // Escape backs out of the email page — the same exit as its Back button,
+    // kept from the step's dialog days because hands still reach for it.
     useEffect(() => {
         if (currentStep !== STEPS.EMAIL) return;
         const onKey = (e: KeyboardEvent) => {
@@ -1239,12 +1238,15 @@ function OnboardingPageInner() {
                         </motion.div>
                     )}
 
-                    {/* The analysis stays on screen for the email step — the
-                        dialog opens over it rather than replacing it. Frozen
-                        while it does: the pass has already finished, and letting
-                        its timers run behind a dialog would rotate quotes
-                        nobody can read. The step ends when Reveal is pressed. */}
+                    {/* The analysis stays MOUNTED through the email step even
+                        though that step is a page now and covers it — its
+                        `passed` state is what lets Back land on the finished
+                        analysis instead of replaying the whole pass. Hidden
+                        rather than unmounted, frozen so its timers hold.
+                        `contents` when visible, so the wrapper never affects
+                        layout. */}
                     {(currentStep === STEPS.ANALYZING || (currentStep === STEPS.EMAIL && !isChangingEmail)) && (
+                        <div className={currentStep === STEPS.EMAIL ? 'hidden' : 'contents'}>
                         <AnalyzingAnswers
                             key="analyzing"
                             answers={answerLabels}
@@ -1253,6 +1255,44 @@ function OnboardingPageInner() {
                             waitlist={waitlistFlow}
                             onComplete={() => setCurrentStep(STEPS.EMAIL)}
                         />
+                        </div>
+                    )}
+
+                    {/* The email step, as a page of its own — it used to be a
+                        dialog over the frozen analysis. The offer clock is the
+                        fixed top bar, same as every other campaign step; Back
+                        (and Escape, see the effect above) returns to the
+                        finished analysis. */}
+                    {currentStep === STEPS.EMAIL && (
+                        <motion.div
+                            key="email-page"
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                            className="w-full"
+                        >
+                            <EmailCapture
+                                initialEmail={email}
+                                isSubmitting={isSubmittingEmail}
+                                error={emailError}
+                                changing={isChangingEmail}
+                                waitlist={waitlistFlow}
+                                onSubmit={handleEmailSubmit}
+                            />
+
+                            <div className="mt-8 flex justify-center">
+                                <Tooltip label={t('onboarding.go_back')}>
+                                    <button
+                                        type="button"
+                                        onClick={closeEmailStep}
+                                        aria-label={t('onboarding.go_back')}
+                                        className="flex h-14 w-14 items-center justify-center rounded-full bg-white/55 text-stone-700 transition-colors hover:bg-white hover:text-stone-900"
+                                    >
+                                        <ArrowLeft size={22} className="stroke-[2.25px]" />
+                                    </button>
+                                </Tooltip>
+                            </div>
+                        </motion.div>
                     )}
 
                     {currentStep === STEPS.VERDICT && (
@@ -1278,13 +1318,14 @@ function OnboardingPageInner() {
                         that sends anyone away from the page. It is last for
                         that reason — see the flow note at the top.
 
-                        Stays mounted underneath while the address is being
-                        corrected, so the dialog opens over the screen it came
-                        from — the same idiom the email step uses over the
-                        analysis. Frozen is not needed here: nothing on this
-                        screen is running but the resend cooldown, which should
-                        keep counting. */}
+                        Stays mounted (hidden) while the address is being
+                        corrected on the email page, so coming back lands on
+                        this screen as it was left — the same idiom the email
+                        page uses over the analysis. Frozen is not needed here:
+                        nothing on this screen is running but the resend
+                        cooldown, which should keep counting. */}
                     {(currentStep === STEPS.VERIFY || (currentStep === STEPS.EMAIL && isChangingEmail)) && (
+                        <div className={currentStep === STEPS.EMAIL ? 'hidden' : 'contents'}>
                         <OtpVerify
                             key="verify"
                             email={email}
@@ -1297,6 +1338,7 @@ function OnboardingPageInner() {
                                 setCurrentStep(STEPS.EMAIL);
                             }}
                         />
+                        </div>
                     )}
 
                     {currentStep === STEPS.PAYWALL && (
@@ -1325,68 +1367,6 @@ function OnboardingPageInner() {
                     )}
             </main>
 
-            {/* The email step, as a dialog over the analysis rather than a
-                screen of its own. The pass that just read their answers back
-                stays behind it, blurred — which is the point: the thing being
-                asked for is somewhere to put THOSE results, and they should
-                still be on screen while the asking happens.
-
-                Closeable now, onto the quiz's last question rather than onto
-                the frozen analysis behind this dialog — that panel is a result
-                already delivered, not a screen anyone lands back on. Answers
-                are untouched by closing; `currentQuestionIndex` is still
-                sitting on the last question exactly as the quiz left it.
-
-                z-50 clears the sticky controls at z-40. The blur sits on the
-                overlay itself so it takes in the whole page, mark and all,
-                rather than only what happens to be inside <main>. */}
-            {currentStep === STEPS.EMAIL && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label={t(isChangingEmail ? 'onboarding.email.change_title' : 'onboarding.email.title')}
-                    className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#DCDDD4]/45 px-6 py-10 backdrop-blur-2xl backdrop-saturate-150"
-                >
-                    {/* The way out, in the corner of the screen rather than in
-                        the corner of the card. It closes the dialog, so it
-                        belongs to the dialog's own edge — sitting inside the
-                        form it read as something that would clear the field.
-                        Escape does the same thing; see the effect above. */}
-                    <button
-                        type="button"
-                        onClick={closeEmailStep}
-                        aria-label={t('onboarding.email.close')}
-                        className="absolute right-5 top-5 grid h-11 w-11 place-items-center rounded-full text-stone-600 transition-colors hover:bg-stone-900/5 hover:text-stone-900 md:right-8 md:top-8"
-                    >
-                        <X className="h-6 w-6 stroke-[2.25px]" />
-                    </button>
-
-                    <div className="w-full max-w-2xl">
-                        {/* The offer clock, sitting directly on top of the card
-                            rather than pinned to the screen: the corner pill is
-                            under this overlay, and the email step is the one
-                            screen where the deadline is doing its work — so it
-                            belongs against the offer it applies to. Matched to
-                            the card's own width below it. */}
-                        {waitlistFlow && !isChangingEmail && (
-                            <div className="mx-auto mb-3 w-full max-w-lg">
-                                <CountdownBanner banner />
-                            </div>
-                        )}
-                        <EmailCapture
-                            initialEmail={email}
-                            isSubmitting={isSubmittingEmail}
-                            error={emailError}
-                            changing={isChangingEmail}
-                            waitlist={waitlistFlow}
-                            onSubmit={handleEmailSubmit}
-                        />
-                    </div>
-                </motion.div>
-            )}
         </div>
     );
 }

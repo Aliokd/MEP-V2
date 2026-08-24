@@ -56,20 +56,27 @@ test.describe('Waitlist campaign flow', () => {
     // says what the dialog it opens does.
     await page.getByRole('button', { name: 'Join the waitlist' }).click({ timeout: 20_000 });
 
-    // The email dialog wears the campaign framing - a spot being saved, not an
-    // account being created.
-    const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('heading', { name: 'Save your spot' })).toBeVisible();
-    // The card carries the offer, the founders spot counter and the clock.
-    await expect(dialog.getByText('3 days free trial', { exact: false })).toBeVisible();
-    await expect(dialog.getByText('/100')).toBeVisible();
-    await expect(dialog.getByText(/\d{2}:\d{2}:\d{2}/)).toBeVisible();
+    // The email step is a page of its own now, not a dialog - it wears the
+    // campaign framing: a spot being saved, not an account being created.
+    await expect(page.getByRole('heading', { name: 'Save your spot' })).toBeVisible();
+    // The card carries the offer and the founders spot counter; the offer
+    // clock is the page's own top bar, same as every other step.
+    await expect(page.getByText('3 days free trial', { exact: false })).toBeVisible();
+    await expect(page.getByText('/100')).toBeVisible();
+    await expect(page.getByText('Special offer closes in')).toBeVisible();
     // No consent tick anywhere any more — agreement happens by continuing,
     // and the line under the button says so.
-    await expect(dialog.locator('input[type="checkbox"]')).toHaveCount(0);
-    await expect(dialog.getByText('By continuing, you agree', { exact: false })).toBeVisible();
-    await dialog.getByRole('textbox').fill('writer@example.com');
-    await dialog.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.locator('input[type="checkbox"]')).toHaveCount(0);
+    await expect(page.getByText('By continuing, you agree', { exact: false })).toBeVisible();
+
+    // Backing out lands on the FINISHED analysis - the pass must not replay -
+    // and pressing on returns here.
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Join the waitlist' }).click({ timeout: 5_000 });
+    await expect(page.getByRole('heading', { name: 'Save your spot' })).toBeVisible();
+
+    await page.getByRole('textbox').fill('writer@example.com');
+    await page.getByRole('button', { name: 'Continue' }).click();
 
     // Joining lands straight on the confirmation, launch day named — no
     // verdict, offer or paywall in this flow.
