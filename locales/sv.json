@@ -1537,6 +1537,11 @@
     "sign_in": "Logga in",
     "or": "eller",
     "google": "Fortsätt med Google",
+    "agree_prefix": "Genom att fortsätta godkänner du våra ",
+    "agree_terms": "användarvillkor",
+    "agree_middle": " och har tagit del av vår ",
+    "agree_privacy": "integritetspolicy",
+    "agree_suffix": ".",
     "new_to_veinote": "Ny på Veinote?",
     "join": "Gå med",
     "reset_title": "Återställ ditt lösenord",
@@ -1686,6 +1691,10 @@
       "practice": "Guidade pass som gör teori till muskelminne, så att det blir lättare att skriva låtar för varje gång.",
       "connect": "En gemenskap av låtskrivare som delar arbete, feedback och uppmuntran längs vägen."
     }
+  },
+  "terms": {
+    "title": "Användarvillkor",
+    "effective_date": "Gäller från augusti 2026"
   },
   "privacy": {
     "title": "Integritetspolicy",

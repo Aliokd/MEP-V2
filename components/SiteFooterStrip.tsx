@@ -31,6 +31,7 @@ export default async function SiteFooterStrip({
 
     const links: { href: string; label: string; path: string }[] = [
         { path: '/privacy', href: localizePath('/privacy', language), label: t('privacy.title') },
+        { path: '/terms', href: localizePath('/terms', language), label: t('terms.title') },
         ...cmsPages.map((page) => ({
             path: `/${page.slug}`,
             href: localizePath(`/${page.slug}`, language),

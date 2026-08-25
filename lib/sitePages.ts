@@ -107,3 +107,13 @@ export async function getChildPages(parentSlug: string): Promise<SitePage[]> {
 export function renderPageBody(page: SitePage, locale: Locale): string {
     return md.render(pickLocale(page.body, locale));
 }
+
+/**
+ * Renders a raw markdown string through the same hardened pipeline (html: false,
+ * safe external links). For pages that carry a built-in fallback body next to
+ * their CMS document — a legal page must never 404, so /terms ships its text in
+ * the repo and prefers the CMS version once one is published.
+ */
+export function renderMarkdownBody(markdown: string): string {
+    return md.render(markdown);
+}

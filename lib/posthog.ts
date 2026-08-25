@@ -79,15 +79,25 @@ export function initPostHog(): void {
          * rather than left to the SDK default, which is a moving target across
          * versions.
          *
-         * maskAllInputs matters more here than in a typical app: what users type
-         * into this product is original song lyrics. That is their creative work
+         * Masking matters more here than in a typical app: what users write in
+         * this product is original song lyrics. That is their creative work
          * — the thing the privacy policy promises we do not mine — so it must
-         * not end up sitting in a replay archive. Everything that makes replay
-         * useful (navigation, clicks, hesitation, rage-clicks) is unaffected;
-         * only the literal characters typed into fields are obscured.
+         * not end up sitting in a replay archive. maskAllInputs alone was not
+         * enough: it hides what is being *typed*, but lyrics are also *displayed*
+         * — committed lines on the Create canvas, published songs in the Connect
+         * feed — and rendered DOM text goes into a recording unmasked. So all
+         * text is masked, full stop: maskTextSelector '*' is this SDK's "mask
+         * all text", and client-side config deliberately wins over the PostHog
+         * dashboard's masking setting, so nobody can weaken this from the
+         * console. The privacy policy states recordings never contain lyrics or
+         * other creative content; this selector is what makes that sentence
+         * true, and narrowing it is a policy change, not a config tweak.
+         * Everything that makes replay useful (navigation, clicks, hesitation,
+         * rage-clicks, layout) is unaffected.
          */
         session_recording: {
             maskAllInputs: true,
+            maskTextSelector: '*',
         },
     });
 }

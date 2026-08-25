@@ -9,8 +9,10 @@ import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail, si
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/userProfile';
+import { recordTermsAcceptance } from '@/lib/termsAcceptance';
 import { clearOpenProject } from '@/lib/storage';
 import { useLanguage } from '@/context/LanguageContext';
+import { localizePath } from '@/lib/i18n';
 import { SIGNUPS_OPEN, waitlistJoinPath } from '@/lib/uiFlags';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
@@ -98,7 +100,14 @@ function SignInPageInner() {
         }
 
         if (!profile.exists()) {
+            // Writes the terms-acceptance fields itself — signup happens behind
+            // the legal notice this page shows next to every way in.
             await createUserProfile(user, { locale: language });
+        } else {
+            // Existing accounts: re-record acceptance if it is missing (accounts
+            // that predate the field, admin-created accounts) or the version has
+            // bumped. Best-effort — must never block a sign-in.
+            void recordTermsAcceptance(user.uid);
         }
         clearOpenProject(user.uid);
         router.push('/platform/create');
@@ -138,6 +147,9 @@ function SignInPageInner() {
         setIsLoading(true);
         try {
             const credential = await signInWithEmailAndPassword(auth, email, password);
+            // Continuing past the legal notice next to the button is the
+            // acceptance being recorded. Best-effort — never blocks sign-in.
+            void recordTermsAcceptance(credential.user.uid);
             // Signing in starts a session; it should open the workspace, not drop
             // straight back into whatever song was last open. See clearOpenProject —
             // a refresh deliberately still restores it.
@@ -213,7 +225,7 @@ function SignInPageInner() {
     return (
         <div className="min-h-screen flex items-center justify-center px-6 py-16 sm:py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">
             <div className="absolute top-8 right-6 md:top-12 md:right-10 z-50">
-                <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
+                <LanguageSwitcher variant="marketing" direction="down" iconOnly tooltipSide="bottom" />
             </div>
 
             <motion.div
@@ -247,7 +259,7 @@ function SignInPageInner() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder={t('signin.email_placeholder')}
-                                    className="w-full bg-white border border-stone-200 rounded-[20px] py-3.5 px-5 md:py-5 md:px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-base md:text-xl font-medium placeholder:text-stone-500 placeholder:text-base md:placeholder:text-xl"
+                                    className="w-full h-16 md:h-[72px] bg-white border border-stone-200 rounded-full px-6 md:px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-base md:text-xl font-medium placeholder:text-stone-500 placeholder:text-base md:placeholder:text-xl"
                                     disabled={isLoading}
                                 />
                                 </motion.div>
@@ -258,7 +270,7 @@ function SignInPageInner() {
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             placeholder={t('signin.password_placeholder')}
-                                            className="w-full bg-white border border-stone-200 rounded-[20px] py-3.5 pl-5 pr-12 md:py-5 md:pl-8 md:pr-14 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-base md:text-xl font-medium placeholder:text-stone-500 placeholder:text-base md:placeholder:text-xl"
+                                            className="w-full h-16 md:h-[72px] bg-white border border-stone-200 rounded-full pl-6 pr-14 md:pl-8 md:pr-14 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-base md:text-xl font-medium placeholder:text-stone-500 placeholder:text-base md:placeholder:text-xl"
                                             disabled={isLoading}
                                         />
                                         <button
@@ -288,7 +300,7 @@ function SignInPageInner() {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className={`w-full flex items-center justify-center gap-3 py-3.5 md:py-5 text-base md:text-xl font-semibold bg-[#86BE7F] hover:opacity-95 text-stone-900 transition-all rounded-[20px] ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`btn-press w-full h-16 md:h-[72px] flex items-center justify-center gap-3 text-base md:text-xl font-semibold ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 {isLoading ? t('signin.signing_in') : t('signin.sign_in')}
                                 {!isLoading && <ArrowRight className="w-5 h-5 stroke-[2.5px]" />}
@@ -313,7 +325,7 @@ function SignInPageInner() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder={t('signin.email_placeholder')}
-                                    className="w-full bg-white border border-stone-200 rounded-[20px] py-3.5 px-5 md:py-5 md:px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-base md:text-xl font-medium placeholder:text-stone-500 placeholder:text-base md:placeholder:text-xl"
+                                    className="w-full h-16 md:h-[72px] bg-white border border-stone-200 rounded-full px-6 md:px-8 text-stone-900 font-sans outline-none focus:border-[#BBBEB2] transition-all text-base md:text-xl font-medium placeholder:text-stone-500 placeholder:text-base md:placeholder:text-xl"
                                     disabled={isLoading}
                                 />
                                 <p className="text-xs text-stone-500 text-center">
@@ -323,7 +335,7 @@ function SignInPageInner() {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className={`w-full flex items-center justify-center gap-3 py-3.5 md:py-5 text-base md:text-xl font-semibold bg-[#86BE7F] hover:opacity-95 text-stone-900 transition-all rounded-[20px] ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`btn-press w-full h-16 md:h-[72px] flex items-center justify-center gap-3 text-base md:text-xl font-semibold ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 {isLoading ? t('signin.sending_link') : t('signin.send_reset_link')}
                                 {!isLoading && <ArrowRight className="w-5 h-5 stroke-[2.5px]" />}
@@ -364,7 +376,7 @@ function SignInPageInner() {
                                     setView('login');
                                     setError('');
                                 }}
-                                className="w-full py-3.5 md:py-5 border border-stone-300 hover:bg-stone-50/50 text-stone-850 text-base md:text-lg font-semibold rounded-[20px] transition-all"
+                                className="w-full h-16 md:h-[72px] border border-stone-300 hover:bg-stone-50/50 text-stone-850 text-base md:text-lg font-semibold rounded-full transition-all active:scale-[0.99]"
                             >
                                 {t('signin.back_to_signin')}
                             </button>
@@ -382,7 +394,7 @@ function SignInPageInner() {
                             <button
                                 onClick={handleGoogleSignIn}
                                 disabled={isLoading}
-                                className="mt-4 md:mt-6 w-full flex items-center justify-center gap-3 py-3.5 md:py-5 border border-stone-200 rounded-[20px] text-base md:text-xl font-semibold text-stone-900 bg-white hover:bg-stone-50 shadow-sm transition-all disabled:opacity-50"
+                                className="mt-4 md:mt-6 w-full h-16 md:h-[72px] flex items-center justify-center gap-3 border border-stone-200 rounded-full text-base md:text-xl font-semibold text-stone-900 bg-white hover:bg-stone-50 shadow-sm transition-all active:scale-[0.99] disabled:opacity-50"
                             >
                                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -392,6 +404,18 @@ function SignInPageInner() {
                                 </svg>
                                 {t('signin.google')}
                             </button>
+
+                            {/* The acceptance the account records at signup and
+                                sign-in points back to this line — it must sit
+                                beside every way in, and removing it breaks the
+                                legal basis of that record. See lib/termsAcceptance. */}
+                            <p className="mt-5 text-xs text-stone-500 text-center leading-relaxed">
+                                {t('signin.agree_prefix')}
+                                <Link href={localizePath('/terms', language)} className="underline underline-offset-2 hover:text-stone-700">{t('signin.agree_terms')}</Link>
+                                {t('signin.agree_middle')}
+                                <Link href={localizePath('/privacy', language)} className="underline underline-offset-2 hover:text-stone-700">{t('signin.agree_privacy')}</Link>
+                                {t('signin.agree_suffix')}
+                            </p>
                         </>
                     )}
 

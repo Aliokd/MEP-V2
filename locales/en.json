@@ -1537,6 +1537,11 @@
     "sign_in": "Sign in",
     "or": "or",
     "google": "Continue with Google",
+    "agree_prefix": "By continuing, you agree to our ",
+    "agree_terms": "Terms & Conditions",
+    "agree_middle": " and acknowledge our ",
+    "agree_privacy": "Privacy Policy",
+    "agree_suffix": ".",
     "new_to_veinote": "New to Veinote?",
     "join": "Join now",
     "reset_title": "Reset your password",
@@ -1686,6 +1691,10 @@
       "practice": "Guided sessions that turn theory into muscle memory, so writing songs gets easier every time.",
       "connect": "A community of songwriters sharing work, feedback, and encouragement along the way."
     }
+  },
+  "terms": {
+    "title": "Terms & Conditions",
+    "effective_date": "Effective August 2026"
   },
   "privacy": {
     "title": "Privacy Policy",

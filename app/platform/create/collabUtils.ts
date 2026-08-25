@@ -1,8 +1,8 @@
 import { db, auth } from "@/lib/firebase";
 import { authedFetch } from "@/lib/authedFetch";
 import { LOCALE_COOKIE } from "@/lib/i18n";
-import { COLLAB_EMAIL_INVITES_ENABLED, inviteLandingPath } from "@/lib/uiFlags";
 import { fetchPublicProfiles } from "@/lib/publicProfile";
+import { MAX_PROJECT_MEMBERS, MAX_COLLABORATORS } from "@/lib/collabLimits";
 import {
     doc,
     setDoc,
@@ -22,9 +22,10 @@ import {
     Timestamp
 } from "firebase/firestore";
 
-// Total project membership cap, owner included.
-export const MAX_PROJECT_MEMBERS = 5;
-export const MAX_COLLABORATORS = MAX_PROJECT_MEMBERS - 1; // 4, excludes owner
+// Total project membership cap, owner included. Defined in lib/collabLimits so
+// the server invite route shares the same numbers; re-exported because the
+// create page and dialogs import them from here.
+export { MAX_PROJECT_MEMBERS, MAX_COLLABORATORS };
 
 // Interface matches SongNote from page.tsx
 export interface CollaborativeProject {
@@ -164,110 +165,42 @@ async function writeInvitation(params: {
 }
 
 /**
- * Mails the invitation to someone who has no account yet.
+ * Invites a collaborator by email.
  *
- * Best-effort: the invitation document is already written, so a mail failure
- * costs the notification, not the invite — if they sign up with that address
- * later the project still appears for them.
- */
-async function sendInviteEmail(inviteId: string): Promise<void> {
-    try {
-        // The invitee's own language is unknown — nobody has met them yet — so the
-        // mail goes out in the language the sender is writing in.
-        const locale = typeof window !== 'undefined' ? localStorage.getItem(LOCALE_COOKIE) : null;
-        const res = await authedFetch("/api/emails/collab-invite", {
-            method: "POST",
-            body: JSON.stringify({ inviteId, locale })
-        });
-        if (!res.ok) {
-            console.warn("Invitation email not sent:", (await res.json().catch(() => ({}))).error || res.status);
-        }
-    } catch (err) {
-        console.warn("Invitation email not sent:", err);
-    }
-}
-
-/**
- * Invites a collaborator by email. Finds user UID and adds them to collaborators list.
+ * One server call for the whole flow — see app/api/collab/invite/route.ts. The
+ * server resolves the address to an account (or not) internally and responds
+ * identically either way, so nothing in this client, its network tab, or its UI
+ * copy can reveal whether an email address is registered with Veinote. That
+ * uniformity is a privacy-policy promise; do not reintroduce a lookup step or
+ * branch the message on what kind of invitee this was.
  */
 export async function inviteCollaboratorByEmail(
     projectId: string,
     email: string,
-    senderId: string,
-    senderName?: string
+    _senderId: string,
+    _senderName?: string
 ): Promise<{ success: boolean; message: string; inviteUrl?: string }> {
     try {
-        const cleanedEmail = email.toLowerCase().trim();
-        const projectRef = doc(db, "projects", projectId);
-        const projectDoc = await getDoc(projectRef);
-        const projectTitle = projectDoc.exists() ? (projectDoc.data()?.title || "Untitled Song") : "Untitled Song";
-
-        // Resolved server-side. Querying users/{uid} by email from the browser
-        // required that collection to be readable by every signed-in account,
-        // which exposed everyone's email and billing record; the route returns
-        // just a uid and a name. See app/api/collab/lookup-user/route.ts.
-        const lookupRes = await authedFetch("/api/collab/lookup-user", {
+        // The invitee's own language is unknown — nobody has met them yet — so any
+        // invitation mail goes out in the language the sender is writing in.
+        const locale = typeof window !== 'undefined' ? localStorage.getItem(LOCALE_COOKIE) : null;
+        const res = await authedFetch("/api/collab/invite", {
             method: "POST",
-            body: JSON.stringify({ email: cleanedEmail }),
+            body: JSON.stringify({ projectId, email: email.toLowerCase().trim(), locale }),
         });
 
-        if (!lookupRes.ok) {
-            const detail = await lookupRes.json().catch(() => ({}));
-            return {
-                success: false,
-                message: detail.error || "Could not look up that address. Please try again.",
-            };
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            return { success: false, message: data.error || "Failed to invite collaborator." };
         }
 
-        const lookup = await lookupRes.json();
+        // The link is shareable by hand: an existing account claims the invite on
+        // sign-in, a newcomer lands on signup with the invitation attached.
+        const inviteUrl = data.invitePath && typeof window !== 'undefined'
+            ? `${window.location.origin}${data.invitePath}`
+            : data.invitePath;
 
-        if (!lookup.found) {
-            // Nobody on the platform holds this address yet. The invitation is still
-            // recorded against the email so it can be claimed the moment they sign up —
-            // that part never depended on mail and works today.
-            //
-            // What DOES depend on mail is telling them about it, and SMTP_PASS is not
-            // configured, so that send silently fails (see COLLAB_EMAIL_INVITES_ENABLED).
-            // This used to refuse the whole invite rather than promise an email that
-            // never left. Refusing was the honest half of the answer; the other half is
-            // that the sender can carry the invitation themselves. So the invite is
-            // written either way, the mail is attempted only when it can actually go,
-            // and the caller gets a link to hand over in person — which is what makes
-            // inviting someone from outside genuinely work rather than merely allowed.
-            const inviteId = await writeInvitation({
-                projectId, projectTitle, senderId, senderName, inviteeId: "", inviteeEmail: cleanedEmail
-            });
-
-            let mailed = false;
-            if (COLLAB_EMAIL_INVITES_ENABLED) {
-                await sendInviteEmail(inviteId);
-                mailed = true;
-            }
-
-            const inviteUrl = typeof window !== 'undefined'
-                ? `${window.location.origin}${inviteLandingPath(inviteId)}`
-                : inviteLandingPath(inviteId);
-
-            return {
-                success: true,
-                // Never claims an email was sent unless one actually was.
-                message: mailed
-                    ? `Invitation sent! An email has been sent to ${cleanedEmail}. Once they sign up, this project will appear in their workspace.`
-                    : `${cleanedEmail} is invited. Send them the link to join — the project is waiting in their workspace as soon as they sign up.`,
-                inviteUrl,
-            };
-        }
-
-        const collaboratorId = lookup.uid as string;
-
-        const rejection = projectDoc.exists() ? rejectIneligibleInvitee(projectDoc.data(), collaboratorId) : null;
-        if (rejection) return rejection;
-
-        await writeInvitation({
-            projectId, projectTitle, senderId, senderName, inviteeId: collaboratorId, inviteeEmail: cleanedEmail
-        });
-
-        return { success: true, message: "Invitation sent successfully! They will see a notification in their workspace." };
+        return { success: true, message: data.message || "Invitation sent.", inviteUrl };
     } catch (err: any) {
         console.error("Error inviting collaborator:", err);
         return { success: false, message: err.message || "Failed to invite collaborator." };

@@ -43,10 +43,11 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
     // bytes on the caller's behalf, so it gets a ceiling too. Loading a studio
     // session decodes every track at once, hence the roomy limit.
     'download-audio': { limit: 60, windowMs: 60_000 },
-    // Resolves an email to an account for invites. Tight, because "does this
-    // address have an account" is exactly the answer it gives — enough to invite
-    // a band, nowhere near enough to test a leaked address list.
-    'collab-lookup': { limit: 10, windowMs: 60_000 },
+    // The whole invite flow in one call. Tight, because the server resolves the
+    // address to an account internally — the response is uniform, but timing or
+    // volume could still be probed, and 10/min is enough to invite a band while
+    // being nowhere near enough to sweep a leaked address list.
+    'collab-invite': { limit: 10, windowMs: 60_000 },
     // Unauthenticated by design (see app/api/health/ai), so it gets the tightest
     // ceiling of all — enough to debug with, not enough to prod upstreams for free.
     health: { limit: 10, windowMs: 60_000 },

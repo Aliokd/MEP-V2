@@ -3,6 +3,7 @@ import type { User } from "firebase/auth";
 import { db } from "@/lib/firebase";
 import { authedFetch } from "@/lib/authedFetch";
 import { writePublicProfile } from "@/lib/publicProfile";
+import { TERMS_VERSION } from "@/lib/legalVersions";
 import type { Language } from "@/context/LanguageContext";
 
 interface CreateUserProfileOptions {
@@ -28,6 +29,13 @@ export async function createUserProfile(user: User, options: CreateUserProfileOp
         createdAt: new Date().toISOString(),
         tier: "trial",
         lastActiveAt: new Date().toISOString(),
+        // Signup happens behind the sign-in page's "By continuing, you agree to
+        // our Terms & Conditions" notice, so creation is the acceptance. Later
+        // sign-ins re-record this when the version bumps — see lib/termsAcceptance.
+        terms: {
+            acceptedVersion: TERMS_VERSION,
+            acceptedAt: new Date().toISOString(),
+        },
         billing: {
             plan: null,
             paddleCustomerId: null,

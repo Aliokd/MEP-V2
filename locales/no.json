@@ -1537,6 +1537,11 @@
     "sign_in": "Logg inn",
     "or": "eller",
     "google": "Fortsett med Google",
+    "agree_prefix": "Ved å fortsette godtar du våre ",
+    "agree_terms": "brukervilkår",
+    "agree_middle": " og har lest vår ",
+    "agree_privacy": "personvernerklæring",
+    "agree_suffix": ".",
     "new_to_veinote": "Ny på Veinote?",
     "join": "Bli med",
     "reset_title": "Tilbakestill passordet",
@@ -1686,6 +1691,10 @@
       "practice": "Veiledede økter som gjør teori om til muskelminne, slik at det blir lettere å skrive sanger for hver gang.",
       "connect": "Et fellesskap av låtskrivere som deler arbeid, tilbakemeldinger og oppmuntring underveis."
     }
+  },
+  "terms": {
+    "title": "Brukervilkår",
+    "effective_date": "Gjelder fra august 2026"
   },
   "privacy": {
     "title": "Personvernerklæring",
