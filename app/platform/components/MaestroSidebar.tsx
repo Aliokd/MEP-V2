@@ -172,27 +172,31 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                 {/* Collapsed layout: full-height flex centered */}
                 {isCollapsed && !isMobile ? (
                     <div className="flex flex-col h-full min-h-0 w-full">
-                        {/* Logo, then the expand control beneath it — both INSIDE the rail.
-                            It used to sit at `absolute left-full`, i.e. past the rail's own
-                            right edge, which worked only while the rail was
-                            overflow-visible. The rail scrolls now (so a short viewport can
-                            still reach the footer), and a box that scrolls on one axis
-                            cannot stay visible on the other — `overflow-y: auto` forces
-                            `overflow-x` to `auto` too — so the button was being clipped
-                            clean off. Placing it in the flow sidesteps that entirely
-                            instead of trading one bug back for the other.
+                        {/* The expand control sits beside the logo, on its right, and only
+                            shows on hover — so the collapsed rail is just the mark until you
+                            reach for it.
 
-                            Always visible, not hover-revealed: a collapsed rail whose only
-                            way back open appears on hover is a dead end on any touch
-                            device, and was easy to miss on a mouse too. */}
-                        <div className="flex flex-col items-center gap-2 w-full py-2 px-2">
+                            Two things this must not undo. It is `absolute right-0` INSIDE the
+                            rail, never the old `left-full` (past the rail's own edge): the rail
+                            scrolls now so a short viewport can still reach the footer, and a box
+                            that scrolls on one axis cannot stay visible on the other —
+                            `overflow-y: auto` forces `overflow-x` to `auto` — which clipped the
+                            button clean off. And `touch-reveal` keeps it permanently visible
+                            wherever there is no hover pointer; a collapsed rail whose only way
+                            back open appears on hover is a dead end on a touch device.
+
+                            Overlaid rather than in flow because there is no room for both: the
+                            rail is 76px at its narrowest, and logo + button need more than that.
+                            It only appears on hover, so briefly covering the beta badge costs
+                            nothing. */}
+                        <div className="relative flex flex-col items-center w-full py-2 px-2 group/logoarea">
                             <Link href="/platform/create" className="opacity-95 hover:opacity-100 transition-opacity flex justify-center" onClick={onClose}>
                                 <Logo size="sm" variant="icon" showBeta />
                             </Link>
                             <Tooltip label={t('navigation.expand_sidebar')} side="right">
                                 <button
                                     onClick={toggleSidebar}
-                                    className="w-9 h-9 rounded-full bg-white/60 border border-stone-250/40 flex items-center justify-center hover:bg-white active:scale-95 text-stone-600 hover:text-stone-950 shadow-xs shrink-0 transition-colors cursor-pointer"
+                                    className="touch-reveal absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/logoarea:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 w-8 h-8 rounded-full bg-white/90 border border-stone-250/40 flex items-center justify-center hover:bg-white active:scale-95 text-stone-600 hover:text-stone-950 shadow-sm shrink-0 cursor-pointer"
                                     aria-label={t('navigation.expand_sidebar')}
                                 >
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

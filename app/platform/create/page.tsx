@@ -2773,11 +2773,11 @@ function ExtractingState({ compact = false }: { compact?: boolean }) {
 
     const dot = compact ? 'w-1 h-1' : 'w-1.5 h-1.5';
     return (
-        <span className={`flex items-center shrink-0 text-stone-600 font-bold ${compact ? 'gap-1.5 text-[9px]' : 'gap-2 text-xs'}`}>
+        <span className={`flex items-center shrink-0 text-stone-400 font-normal ${compact ? 'gap-1.5 text-[9px]' : 'gap-2 text-xs'}`}>
             <span className={`flex items-center shrink-0 ${compact ? 'gap-[3px]' : 'gap-1'}`}>
-                <span className={`${dot} rounded-full bg-stone-500 animate-bounce [animation-delay:-0.3s]`} />
-                <span className={`${dot} rounded-full bg-stone-500 animate-bounce [animation-delay:-0.15s]`} />
-                <span className={`${dot} rounded-full bg-stone-500 animate-bounce`} />
+                <span className={`${dot} rounded-full bg-stone-300 animate-bounce [animation-delay:-0.3s]`} />
+                <span className={`${dot} rounded-full bg-stone-300 animate-bounce [animation-delay:-0.15s]`} />
+                <span className={`${dot} rounded-full bg-stone-300 animate-bounce`} />
             </span>
             {/* Keyed so each new line fades in rather than swapping mid-word. */}
             <span key={stage} className="animate-in fade-in duration-300 whitespace-nowrap">
@@ -2845,9 +2845,9 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, uplo
                     aria-valuemax={100}
                     aria-valuenow={uploadProgress}
                     aria-label="Uploading"
-                    className="absolute inset-x-5 bottom-[3px] h-[3px] rounded-full bg-stone-100 overflow-hidden pointer-events-none"
+                    className="absolute inset-0 -z-10 rounded-full overflow-hidden pointer-events-none"
                 >
-                    <span className="block h-full rounded-full bg-stone-300 transition-[width] duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
+                    <span className="block h-full bg-stone-200/60 transition-[width] duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
                 </span>
             )}
             {/* File icon — neutral, matching the Scan/meta/delete tones on this card */}
@@ -2932,7 +2932,7 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
             draggable={!!onDragStart}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            className={`relative rounded-[32px] bg-white p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-3 w-full max-w-[440px] mx-auto select-none my-3 ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
+            className={`relative z-0 rounded-[32px] bg-white p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-3 w-full max-w-[440px] mx-auto select-none my-3 ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
             {isScanning && <TranscribeGlow radius="r32" />}
             {typeof uploadProgress === 'number' && (
                 <span
@@ -2941,9 +2941,9 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
                     aria-valuemax={100}
                     aria-valuenow={uploadProgress}
                     aria-label="Uploading"
-                    className="h-[3px] rounded-full bg-stone-100 overflow-hidden mx-1 order-last"
+                    className="absolute inset-0 -z-10 rounded-[32px] overflow-hidden pointer-events-none"
                 >
-                    <span className="block h-full rounded-full bg-stone-300 transition-[width] duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
+                    <span className="block h-full bg-stone-200/60 transition-[width] duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
                 </span>
             )}
             {/* Image Preview Area */}
@@ -3443,7 +3443,7 @@ function AudioCapsulePlayer({
             <div
                 draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
                 onClick={(e) => e.stopPropagation()} {...sharedTouchHandlers}
-                className={`relative bg-white border border-stone-200/80 rounded-full px-3 py-0.5 shadow-sm flex items-center gap-2.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing touch-none ${
+                className={`relative z-0 bg-white border border-stone-200/80 rounded-full px-3 py-0.5 shadow-sm flex items-center gap-2.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing touch-none ${
                     draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
                 }`}
             >
@@ -3457,10 +3457,10 @@ function AudioCapsulePlayer({
                         aria-valuemax={100}
                         aria-valuenow={uploadProgress}
                         aria-label="Uploading"
-                        className="absolute inset-x-3 bottom-[2px] h-[2px] rounded-full bg-stone-100 overflow-hidden pointer-events-none"
+                        className="absolute inset-0 -z-10 rounded-full overflow-hidden pointer-events-none"
                     >
                         <span
-                            className="block h-full rounded-full bg-stone-300 transition-[width] duration-300 ease-out"
+                            className="block h-full bg-stone-200/60 transition-[width] duration-300 ease-out"
                             style={{ width: `${uploadProgress}%` }}
                         />
                     </span>
@@ -3578,16 +3578,20 @@ function AudioCapsulePlayer({
                 this quiet grey line along the bottom is the only sign, and the
                 pace is the user's own connection. */}
             {typeof uploadProgress === 'number' && (
+                /* The upload IS the card's background: a light grey wash filling left
+                   to right as the bytes leave. -z-10 inside the card's own stacking
+                   context paints it above the white ground but under every piece of
+                   content, so the card stays fully readable and usable on top of it. */
                 <span
                     role="progressbar"
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={uploadProgress}
                     aria-label="Uploading"
-                    className="absolute inset-x-5 bottom-[3px] h-[3px] rounded-full bg-stone-100 overflow-hidden pointer-events-none"
+                    className="absolute inset-0 -z-10 rounded-full overflow-hidden pointer-events-none"
                 >
                     <span
-                        className="block h-full rounded-full bg-stone-300 transition-[width] duration-300 ease-out"
+                        className="block h-full bg-stone-200/60 transition-[width] duration-300 ease-out"
                         style={{ width: `${uploadProgress}%` }}
                     />
                 </span>
@@ -9667,11 +9671,12 @@ export default function CreatePage() {
         };
 
         if (uploadType === 'audio') {
-            if (studioTracks.length >= 4) {
-                triggerStudioNotification('Studio tracks limit reached (maximum 4 tracks).', 'rose');
-                cleanupUpload();
-                return null;
-            }
+            // No studio check here, deliberately. Importing audio puts a card on the
+            // CANVAS; the Demo Studio is a separate place you send that card to with
+            // the arrow on it. This used to add a studio track as a side effect, so a
+            // studio left full by a previous session refused the import outright —
+            // an empty canvas rejecting a file for a reason that had nothing to do
+            // with it. See handleAddAsStudioTrack for the deliberate route in.
             return new Promise<string | null>((resolve) => {
                 try {
                     const reader = new FileReader();
@@ -9684,40 +9689,6 @@ export default function CreatePage() {
                             
                             const nextId = Date.now();
                             const localUrl = URL.createObjectURL(file);
-                            const newTrack: StudioTrack = {
-                                id: nextId,
-                                name: file.name.substring(0, 18) || 'Uploaded Track',
-                                type: 'custom', // honest "not yet classified" default — patched below once/if classification resolves
-                                volume: 80,
-                                pan: 0,
-                                eq: 0,
-                                compressor: true,
-                                reverb: 40,
-                                audioBuffer: audioBuffer,
-                                url: localUrl
-                            };
-                            setStudioTracks(prev => [...prev, newTrack]);
-
-                            // Background instrument classification — send the original file directly
-                            // (rather than the `arrayBuffer` above, which some browsers detach once
-                            // handed to decodeAudioData) so this never disrupts the track just added.
-                            (async () => {
-                                try {
-                                    const res = await authedFetch('/api/classify-instrument', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-                                        body: file
-                                    });
-                                    const data = await res.json();
-                                    if (data?.instrument) {
-                                        setStudioTracks(prev => prev.map(t => t.id === nextId ? { ...t, type: data.instrument } : t));
-                                    }
-                                } catch (err) {
-                                    console.error("Instrument classification failed:", err);
-                                }
-                            })();
-                            setActiveRecordingTrackId(nextId);
-
                             const nextRecId = `imported-rec-${nextId}`;
                             const finalNoteId = effectiveNoteId || `n-${Date.now()}`;
 
@@ -9733,8 +9704,6 @@ export default function CreatePage() {
                                         const fileRef = storageRef(storage, `users/${user.uid}/recordings/${finalNoteId}_ImportId_${nextId}.${fileExt}`);
                                         await uploadWithProgress(fileRef, file, nextRecId);
                                         const downloadUrl = await getDownloadURL(fileRef);
-
-                                        setStudioTracks(prev => prev.map(t => t.id === nextId ? { ...t, url: downloadUrl } : t));
 
                                         setNotes(prev => prev.map(n => {
                                             if (n.id !== finalNoteId) return n;
@@ -15352,6 +15321,16 @@ export default function CreatePage() {
             setStudioState('idle');
             setStudioPlayhead(0);
             setStudioTracks([...occupied, ...stemTracksNew]);
+            // Every path that hands the studio decoded buffers must also tell it how
+            // long the session now is — Play/Pause is disabled while studioDuration
+            // is 0 and the ruler falls back to a 3s stub, so stems that skipped this
+            // arrived visibly loaded yet unplayable. The url-only hydration path
+            // recomputes this on decode; direct-buffer paths have to do it here.
+            let maxDur = 0;
+            [...occupied, ...stemTracksNew].forEach(tr => {
+                if (tr.audioBuffer) maxDur = Math.max(maxDur, tr.audioBuffer.duration);
+            });
+            setStudioDuration(maxDur);
             setActiveRecordingTrackId(stemTracksNew[0].id);
             setActiveToolTab('studio');
             setShowToolsPanel(true);
@@ -16531,7 +16510,7 @@ export default function CreatePage() {
                     track list moves under it — a scale that scrolls away is no scale —
                     and Add track keeps a fixed home instead of drifting to wherever the
                     last track happened to end. */}
-                <div className="sm:hidden shrink-0 w-full flex flex-col gap-2 pt-2">
+                <div className="sm:hidden shrink-0 w-full flex flex-col gap-2 pt-2 pb-0">
                     {studioTracks.filter(Boolean).length > 0 && (
                         <div
                             className="relative w-full h-11 rounded-2xl bg-stone-100 border border-stone-200/60 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex items-center cursor-ew-resize select-none"
@@ -16595,7 +16574,7 @@ export default function CreatePage() {
                     height (so these controls still sit at the bottom of a tall panel, as the old
                     flex-grow spacer arranged), and shrink-0 guarantees REC / Play / Send to
                     canvas stay on screen at any viewport height instead of scrolling away. */}
-                <div className="flex flex-col shrink-0 gap-3 pt-4 mt-2 w-full">
+                <div className="flex flex-col shrink-0 gap-3 pt-1 mt-0 sm:pt-4 sm:mt-2 w-full">
                     {/* Level 1: Metronome, Guitar Tuner, and Timeline Seeker Capsule */}
                     {/* pt-10 (rather than a fixed h-10 with no vertical room) gives the pills' box-shadows
                         room to render AND the metronome knob's hover/drag value tooltip (which pops up
@@ -16947,7 +16926,7 @@ export default function CreatePage() {
                         <button
                             onClick={() => { haptic('tap'); setShowStudioLyrics(true); }}
                             aria-label={t('creative.show_lyrics')}
-                            className={`w-[60px] h-[60px] shrink-0 rounded-full border shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all ${
+                            className={`w-[clamp(48px,13.5vw,60px)] h-[clamp(48px,13.5vw,60px)] shrink-0 rounded-full border shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all ${
                                 showStudioLyrics
                                     ? 'bg-[#E5E4DE] border-[#D2D1C9] text-stone-800'
                                     : 'bg-white border-stone-200 text-stone-700'
@@ -17318,53 +17297,20 @@ export default function CreatePage() {
                                         }
                                     />
 
-                                    {/* Record and Play, so the take happens in the sheet rather
-                                        than sending you back to the transport bar to arm the
-                                        track you were just looking at. Both act on THIS track:
-                                        Record arms it first, which is what makes "record inside
-                                        the guitar" mean the guitar. */}
-                                    <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-1 bg-white border-t border-stone-200/70 flex items-center gap-3">
-                                        {studioState === 'recording' ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => { haptic('impact'); stopStudioRecording(); }}
-                                                className="flex-1 h-14 rounded-full bg-[#FF4040] text-white text-[17px] font-semibold flex items-center justify-center gap-2.5 active:scale-[0.99] transition-transform"
-                                            >
-                                                <span className="w-2.5 h-2.5 rounded-full bg-white/90 animate-pulse" />
-                                                <span className="tabular-nums">{formatTime(studioPlayhead)}</span>
-                                            </button>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    haptic('impact');
-                                                    setActiveRecordingTrackId(sheetTrack.id);
-                                                    startStudioRecording();
-                                                }}
-                                                disabled={isCanvasReadOnly}
-                                                className="flex-1 h-14 rounded-full bg-white border border-stone-300 text-[#FF4040] text-[17px] font-semibold flex items-center justify-center gap-2.5 active:scale-[0.99] transition-transform disabled:opacity-50 disabled:pointer-events-none"
-                                            >
-                                                <span className="w-3.5 h-3.5 rounded-full bg-[#FF4040]" />
-                                                {t('studio.rec')}
-                                            </button>
-                                        )}
-
+                                    {/* One action: done with this track. Record and Play used to
+                                        share this row, but both already live in the transport bar
+                                        below the sheet and neither belongs to the thing this sheet
+                                        actually is — the instrument's levels and effects. Every
+                                        control above applies on change, so this closes rather than
+                                        commits; it is named Save because that is what dismissing a
+                                        settings sheet means to the person tapping it. */}
+                                    <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-1 bg-white border-t border-stone-200/70">
                                         <button
                                             type="button"
-                                            onClick={() => {
-                                                haptic('tap');
-                                                if (studioState === 'playing') pauseStudioPlayback();
-                                                else startStudioPlayback(studioPlayhead);
-                                            }}
-                                            disabled={studioDuration === 0 || studioState === 'recording'}
-                                            className="flex-1 h-14 rounded-full bg-stone-900 text-white text-[17px] font-semibold flex items-center justify-center gap-2.5 active:scale-[0.99] transition-transform disabled:opacity-40 disabled:pointer-events-none"
+                                            onClick={() => { haptic('success'); setMobileTrackSheetId(null); }}
+                                            className="w-full h-14 rounded-full bg-white border border-stone-200 shadow-[0_6px_20px_rgba(0,0,0,0.1)] text-stone-900 text-[17px] font-semibold flex items-center justify-center active:scale-[0.99] transition-transform"
                                         >
-                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                                {studioState === 'playing'
-                                                    ? <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                                                    : <path d="M8 5v14l11-7z" />}
-                                            </svg>
-                                            {t('studio.play_pause')}
+                                            {t('common.save')}
                                         </button>
                                     </div>
                                 </>
@@ -18329,13 +18275,13 @@ export default function CreatePage() {
                         pointerEvents: expandedCardId ? 'none' : 'auto'
                     }}
                     transition={cardTransition}
-                    className="flex justify-center items-center w-full select-none py-4 sm:py-8"
+                    className="flex justify-center items-center w-full select-none py-1 sm:py-8"
                 >
                             {/* Portrait on a phone. The deck was landscape at every size,
                                 which on a 412px screen gave a 330x220 card — a letterbox
                                 that fits a title and little else. A phone has vertical room
                                 and no horizontal room, so the card turns to match. */}
-                            <div className="w-[90vw] h-[420px] sm:w-[460px] sm:h-[320px] md:w-[580px] md:h-[400px] flex items-center justify-center overflow-visible">
+                            <div className="w-[94vw] h-[max(420px,68dvh)] sm:w-[460px] sm:h-[320px] md:w-[580px] md:h-[400px] flex items-center justify-center overflow-visible">
                                 <Swiper
                                     initialSlide={currentCardIndex}
                                     effect={'cards'}
@@ -18350,7 +18296,13 @@ export default function CreatePage() {
                                     onSlideChange={(swiper) => {
                                         setCurrentCardIndex(swiper.activeIndex);
                                     }}
-                                    className="w-[68vw] h-[380px] sm:w-[400px] sm:h-[270px] md:w-[520px] md:h-[340px]"
+                                    // The phone deck was 68vw x 380px — a card floating in the
+                                    // middle of a screen it had no reason not to fill. Now it
+                                    // takes 84vw and most of the height, leaving 8vw a side:
+                                    // enough for the cards effect to show the next card peeking
+                                    // behind, and no more. Wider than that and the peek runs off
+                                    // the viewport (the deck renders overflow-visible on purpose).
+                                    className="w-[84vw] h-[max(380px,62dvh)] sm:w-[400px] sm:h-[270px] md:w-[520px] md:h-[340px]"
                                     style={{ overflow: 'visible' }}
                                 >
                                     {cards.map((card, idx) => (
@@ -18397,12 +18349,12 @@ export default function CreatePage() {
                                                 >
                                                     <div className="flex flex-col gap-1 md:gap-2">
                                                         <h4 
-                                                            className="text-[17px] sm:text-[21px] md:text-[26px] font-medium text-[#F8F8F4] tracking-[-0.01em] leading-tight line-clamp-1"
+                                                            className="text-[21px] sm:text-[21px] md:text-[26px] font-medium text-[#F8F8F4] tracking-[-0.01em] leading-tight line-clamp-1"
                                                         >
                                                             {card.title}
                                                         </h4>
                                                         <span 
-                                                            className="text-[11px] sm:text-[13px] md:text-[15px] font-normal text-[#F8F8F4]/80 tracking-[-0.01em] leading-tight"
+                                                            className="text-[13px] sm:text-[13px] md:text-[15px] font-normal text-[#F8F8F4]/80 tracking-[-0.01em] leading-tight"
                                                         >
                                                             {card.category}
                                                         </span>
@@ -19733,14 +19685,24 @@ export default function CreatePage() {
                                 // pushed out to the far edge of the header. `ch` is the width of
                                 // "0", which overshoots for a proportional face, so scale it down
                                 // rather than padding it out — that slack is what opened the gap.
-                                width: `${Math.min(
-                                    42,
-                                    Math.max(
-                                        8,
-                                        ((isRecording ? recordingTitle : (isEditingTitle ? localTitleText : (activeNote ? getTranslatedTitle(activeNote.title) : ''))) || t('creative.project_name') || '').length * 0.92
-                                    )
-                                )}ch`,
-                                maxWidth: isEditingTitle ? 'calc(100% - 150px)' : 'calc(100% - 80px)'
+                                // Editing on a phone is the one moment the title needs the
+                                // whole row: sized-to-text is what keeps the BPM pill tucked
+                                // beside it at rest, but mid-edit it left three or four
+                                // characters visible on a 360px header. So while editing it
+                                // takes the width and gives back only the save check's 44px —
+                                // the pill is hidden below md for the same reason.
+                                width: (isMobile && isEditingTitle)
+                                    ? '100%'
+                                    : `${Math.min(
+                                        42,
+                                        Math.max(
+                                            8,
+                                            ((isRecording ? recordingTitle : (isEditingTitle ? localTitleText : (activeNote ? getTranslatedTitle(activeNote.title) : ''))) || t('creative.project_name') || '').length * 0.92
+                                        )
+                                    )}ch`,
+                                maxWidth: (isMobile && isEditingTitle)
+                                    ? 'calc(100% - 44px)'
+                                    : (isEditingTitle ? 'calc(100% - 150px)' : 'calc(100% - 80px)')
                             }}
                             onClick={(e) => e.stopPropagation()}
                         />
@@ -19767,7 +19729,11 @@ export default function CreatePage() {
                             They travel in from further out and land flush against it — set
                             once and then just confirmation, so they read as an annotation on
                             the title rather than as two more controls on the bar. */}
-                        <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 group-focus-within:translate-x-0 bg-stone-100 text-stone-600 border border-stone-200 rounded-full px-3 py-1 text-[11px] font-medium tracking-wide flex items-center gap-1.5 pointer-events-none shadow-3xs select-none shrink-0">
+                        {/* Stands down below md while the title is being edited. It is
+                            shrink-0 and about 200px wide, so on a phone header it was
+                            claiming most of the row for an annotation nobody is reading
+                            mid-rename. Desktop has the room and keeps it. */}
+                        <div className={`opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 group-focus-within:translate-x-0 bg-stone-100 text-stone-600 border border-stone-200 rounded-full px-3 py-1 text-[11px] font-medium tracking-wide items-center gap-1.5 pointer-events-none shadow-3xs select-none shrink-0 ${isEditingTitle ? 'hidden md:flex' : 'flex'}`}>
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             <span>
                                 {metronomeBpm} BPM
@@ -21467,7 +21433,7 @@ export default function CreatePage() {
                                     // which anchors to the canvas card — a 2000px-tall element —
                                     // so the panel opened ~1300px above the fold and tapping a
                                     // lyric looked like it did nothing at all.
-                                    ? `fixed inset-x-0 bottom-0 rounded-t-[24px] rounded-b-none p-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[88dvh] overflow-y-auto no-scrollbar flex flex-col gap-3 ${
+                                    ? `fixed inset-x-0 bottom-0 rounded-t-[24px] rounded-b-none p-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[88dvh] overflow-hidden flex flex-col gap-3 ${
                                         wordSheetClosing ? 'bottom-sheet-exit pointer-events-none' : 'bottom-sheet-enter'
                                     }`
                                     : 'absolute rounded-[28px] p-6 flex flex-row items-stretch gap-5 w-[540px] max-w-[95%] sm:w-[640px] md:w-[760px]'
@@ -21556,7 +21522,7 @@ export default function CreatePage() {
                             {/* The words column. Wrapped so the chord panel can sit
                                 beside it rather than above it — min-w-0 so a long
                                 rhyme can't push the chord panel out of the popover. */}
-                            <div className={`flex-1 min-w-0 flex-col gap-4 ${isMobile && mobileWordTab === 'chords' ? 'hidden' : 'flex'}`}>
+                            <div className={`flex-1 min-w-0 min-h-0 flex-col gap-4 ${isMobile && mobileWordTab === 'chords' ? 'hidden' : 'flex'}`}>
 
                             {/* 2-way segment selector for Rhyme Lexicon vs Synonyms —
                                 desktop only; on a phone the 3-way tab bar above replaces it. */}
@@ -21586,7 +21552,7 @@ export default function CreatePage() {
                             </div>
 
                             {/* Search input inside the popover to refine query */}
-                            <div className="relative mt-2">
+                            <div className="relative mt-2 shrink-0">
                                 <input
                                     type="text"
                                     placeholder={t('lexicon.placeholder')}
@@ -21782,7 +21748,7 @@ export default function CreatePage() {
                             // and the strip of white under the controls before the
                             // keyboard starts. The bar is the surface now — it runs edge
                             // to edge and its bottom border is the keyboard's top edge.
-                            ? "fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-0 shadow-lg flex-col gap-2 justify-center pt-2"
+                            ? "fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-0 shadow-lg flex-col gap-1 justify-center pt-1.5"
                             // Sticky (not just mt-auto) so the controls stay reachable on the
                             // viewport's bottom edge on a long canvas — mt-auto alone only pins
                             // them to the bottom of the card's own box, which can grow taller
@@ -21945,10 +21911,10 @@ export default function CreatePage() {
                             surface — so it drops its own rounding, border and shadow and
                             just fills it. Otherwise it is the rounded bar attached to the
                             canvas's bottom edge. */}
-                        <div className={`flex items-center justify-between md:justify-start gap-2 md:gap-3.5 bg-white p-3 px-4 md:p-3 w-full md:w-fit pointer-events-auto ${
+                        <div className={`flex items-center bg-white w-full md:w-fit pointer-events-auto ${
                             (isMobile && isKeyboardOpen)
-                                ? 'rounded-none border-0 shadow-none pb-2'
-                                : 'border-t border-stone-200/60 md:border rounded-t-[24px] rounded-b-none md:rounded-full shadow-[0_-6px_28px_rgba(0,0,0,0.07)] md:shadow-[0_16px_48px_rgba(0,0,0,0.08)]'
+                                ? 'justify-center gap-3 px-3 py-2 rounded-none border-0 shadow-none'
+                                : 'justify-between md:justify-start gap-2 md:gap-3.5 p-3 px-4 md:p-3 border-t border-stone-200/60 md:border rounded-t-[24px] rounded-b-none md:rounded-full shadow-[0_-6px_28px_rgba(0,0,0,0.07)] md:shadow-[0_16px_48px_rgba(0,0,0,0.08)]'
                         }`}>
                             {/* REC capsule button — hidden entirely while previewing someone else's
                                 pending invite (nothing to explain there). While locked it stays

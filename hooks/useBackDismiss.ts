@@ -32,7 +32,12 @@ export function useBackDismiss(isOpen: boolean, onClose: () => void) {
     useEffect(() => {
         if (!isOpen || typeof window === 'undefined') return;
 
-        window.history.pushState({ __overlay: Date.now() }, '', window.location.href);
+        // A token unique to THIS opening, so the cleanup can tell our own entry
+        // apart from one pushed since — including one pushed by the router.
+        const token = `${Date.now()}-${Math.round(performance.now())}`;
+        const hrefAtPush = window.location.href;
+
+        window.history.pushState({ __overlay: token }, '', hrefAtPush);
         ownsEntryRef.current = true;
 
         const handlePop = () => {
@@ -46,19 +51,30 @@ export function useBackDismiss(isOpen: boolean, onClose: () => void) {
 
         return () => {
             window.removeEventListener('popstate', handlePop);
-
-            // Closed by something other than Back — the scrim, the X, Escape.
-            // Our entry is still sitting on the stack, and left there it would
-            // eat the user's next Back press as a no-op.
-            //
-            // The state check matters: if the overlay closed BECAUSE the app
-            // navigated somewhere, the top entry is that new route, not ours,
-            // and calling back() would undo a navigation the user asked for.
-            if (ownsEntryRef.current && window.history.state?.__overlay) {
-                ownsEntryRef.current = false;
-                window.history.back();
-            }
+            if (!ownsEntryRef.current) return;
             ownsEntryRef.current = false;
+
+            /*
+             * Closed by the scrim, the X or Escape: our entry is still on the
+             * stack and would otherwise eat the next Back press as a no-op.
+             *
+             * Deferred by a tick, and re-checked, because `history.back()` is
+             * ASYNCHRONOUS — it queues a popstate rather than acting inline. A
+             * nav link inside an overlay closes it and routes in the same click,
+             * and calling back() synchronously there raced the router: the queued
+             * pop landed *after* the new route was pushed and promptly undid it,
+             * so the link appeared not to work at all. This is what made the
+             * sidebar's tabs unclickable.
+             *
+             * By the next tick any client navigation has already pushed its own
+             * entry, so both guards below fail and the pop is correctly skipped —
+             * the stale entry is harmless once the route has changed anyway.
+             */
+            window.setTimeout(() => {
+                const stillOurs = (window.history.state as { __overlay?: string } | null)?.__overlay === token;
+                const sameUrl = window.location.href === hrefAtPush;
+                if (stillOurs && sameUrl) window.history.back();
+            }, 0);
         };
     }, [isOpen]);
 }

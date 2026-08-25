@@ -162,21 +162,27 @@ export default function WordChordSection({
             onPickChord(normalizeChord(customDraft));
         };
         return (
-            <div className="relative w-full md:w-[195px] md:shrink-0 self-stretch md:self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
+            <div className="relative w-full md:w-[195px] md:shrink-0 self-stretch md:self-start min-h-0 overflow-y-auto md:overflow-visible no-scrollbar flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
                 <div className="flex flex-col gap-3">
                     <div className="flex items-start justify-between gap-1 min-w-0">
-                        <div className="min-w-0">
-                            <div className="text-[25px] leading-none font-bold text-stone-900 tracking-tight truncate">{browseSymbol}</div>
-                            <div className="mt-1.5 text-[15px] font-medium text-stone-400 truncate">
+                        {/* The notes sit beside the symbol below md rather than under it:
+                            in the sheet's full width the line has room to spare, and
+                            stacking them spent a row of height the diagram wanted. */}
+                        <div className="min-w-0 flex items-baseline gap-2.5 md:block">
+                            <div className="text-[25px] leading-none font-bold text-stone-900 tracking-tight shrink-0 md:truncate">{browseSymbol}</div>
+                            <div className="md:mt-1.5 text-[15px] font-medium text-stone-400 truncate">
                                 {chordNotes(browseSymbol).join(' · ')}
                             </div>
                         </div>
+                        {/* Desktop only. In the sheet, closing is the sheet's own job —
+                            its handle, its scrim and a swipe down all do it — and a second
+                            X in the corner just asks which one you meant. */}
                         <button
                             type="button"
                             onClick={() => { browsePlayback.stop(); setPicking(false); }}
                             aria-label={t('common.back') || 'Back'}
                             title={t('common.back') || 'Back'}
-                            className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 transition-colors cursor-pointer"
+                            className="hidden md:flex w-7 h-7 shrink-0 rounded-full items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 transition-colors cursor-pointer"
                         >
                             <X size={15} />
                         </button>
@@ -190,25 +196,34 @@ export default function WordChordSection({
                         dropped when the chord has only one shape, so the diagram does
                         not resize as you move through the grid. */}
                     {browsePosition && (
-                        <div className="relative flex items-center justify-center bg-white rounded-[14px] py-1.5">
+                        // No white tile behind the diagram on a phone. It was drawn to lift
+                        // the shape off a 195px column of grey; in the sheet the shape is
+                        // big enough to hold the eye on its own, and the tile read as an
+                        // empty box with a diagram sitting in the top of it.
+                        <div className="relative flex items-center justify-center bg-transparent md:bg-white rounded-[14px] py-1.5">
                             <><span className="md:hidden"><Fretboard position={browsePosition} scale={1.2} /></span><span className="hidden md:block"><Fretboard position={browsePosition} scale={0.8} /></span></>
+                            {/* Given a white face and an edge on the phone: against the
+                                sheet's grey these read as buttons, where a bare chevron
+                                with only a hover background read as decoration. */}
                             <button
                                 type="button"
                                 onClick={() => stepBrowseVariation(-1)}
                                 disabled={browsePositions.length < 2}
                                 aria-label={t('creative.chord_prev') || 'Previous voicing'}
-                                className="absolute left-0.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-800 hover:bg-stone-100 transition-colors cursor-pointer active:scale-95 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-stone-400 disabled:cursor-default disabled:active:scale-100"
+                                className="absolute left-0 md:left-0.5 top-1/2 -translate-y-1/2 w-10 h-10 md:w-7 md:h-7 rounded-full bg-white border border-stone-200 shadow-sm md:bg-transparent md:border-0 md:shadow-none flex items-center justify-center text-stone-600 md:text-stone-400 hover:text-stone-800 md:hover:bg-stone-100 transition-colors cursor-pointer active:scale-95 disabled:opacity-30 disabled:hover:text-stone-600 disabled:cursor-default disabled:active:scale-100"
                             >
-                                <ChevronLeft size={16} />
+                                <ChevronLeft size={20} className="md:hidden" />
+                                <ChevronLeft size={16} className="hidden md:block" />
                             </button>
                             <button
                                 type="button"
                                 onClick={() => stepBrowseVariation(1)}
                                 disabled={browsePositions.length < 2}
                                 aria-label={t('creative.chord_next') || 'Next voicing'}
-                                className="absolute right-0.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-800 hover:bg-stone-100 transition-colors cursor-pointer active:scale-95 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-stone-400 disabled:cursor-default disabled:active:scale-100"
+                                className="absolute right-0 md:right-0.5 top-1/2 -translate-y-1/2 w-10 h-10 md:w-7 md:h-7 rounded-full bg-white border border-stone-200 shadow-sm md:bg-transparent md:border-0 md:shadow-none flex items-center justify-center text-stone-600 md:text-stone-400 hover:text-stone-800 md:hover:bg-stone-100 transition-colors cursor-pointer active:scale-95 disabled:opacity-30 disabled:hover:text-stone-600 disabled:cursor-default disabled:active:scale-100"
                             >
-                                <ChevronRight size={16} />
+                                <ChevronRight size={20} className="md:hidden" />
+                                <ChevronRight size={16} className="hidden md:block" />
                             </button>
                         </div>
                     )}
@@ -237,7 +252,11 @@ export default function WordChordSection({
                         column has. */}
                     <div
                         ref={gridRef}
-                        className="relative max-h-[136px] overflow-y-auto no-scrollbar -mx-0.5 px-0.5"
+                        // Its own little scroll window on desktop, where the panel is a
+                        // fixed-height column. In the sheet the palette runs at full
+                        // length and the PANEL scrolls instead — which is the point of
+                        // pinning the action below: the list moves, the button doesn't.
+                        className="relative max-h-none overflow-visible md:max-h-[136px] md:overflow-y-auto no-scrollbar -mx-0.5 px-0.5"
                     >
                         <div className="grid grid-cols-3 gap-1.5">
                             {browseList.map((sym, i) => {
@@ -248,7 +267,7 @@ export default function WordChordSection({
                                         type="button"
                                         data-browse-selected={isBrowsed ? 'true' : undefined}
                                         onClick={() => { browsePlayback.stop(); setBrowseIndex(i); }}
-                                        className={`h-8 rounded-[10px] border text-[11.5px] font-semibold flex items-center justify-center transition-colors cursor-pointer ${
+                                        className={`h-11 md:h-8 rounded-[12px] md:rounded-[10px] border text-[14px] md:text-[11.5px] font-semibold flex items-center justify-center transition-colors cursor-pointer ${
                                             isBrowsed
                                                 ? 'bg-stone-800 text-white border-stone-800'
                                                 : 'bg-white text-stone-600 border-stone-200/70 hover:border-stone-400 hover:text-stone-900'
@@ -262,6 +281,13 @@ export default function WordChordSection({
                     </div>
                 </div>
 
+                {/* The commit action and the escape hatch beside it stay on screen while
+                    the grid above scrolls under them — this panel is the scroller, so a
+                    sticky direct child pins to its floor. Opaque, and stretched over the
+                    panel's own padding, so chord boxes pass behind it rather than through.
+                    `mt-auto` keeps it at the bottom when the content is short enough not
+                    to scroll at all. */}
+                <div className="sticky bottom-0 z-20 mt-auto flex flex-col gap-2 -mx-4 px-4 pt-3 pb-1 bg-[#FCFCFB] border-t border-stone-200/60 md:border-0 md:bg-transparent md:mx-0 md:px-0 md:pt-0 md:pb-0">
                 {/* Says what it will actually do: give this word its first chord, or
                     replace the one it already has. */}
                 <button
@@ -270,11 +296,14 @@ export default function WordChordSection({
                     // chord the word already has leaves `symbol` untouched, and without
                     // this the picker would just sit there looking like it ignored you.
                     onClick={() => { browsePlayback.stop(); setPicking(false); onPickChord(browseSymbol); }}
-                    className="w-full h-10 rounded-[12px] bg-stone-800 hover:bg-stone-900 text-white text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98]"
+                    className="w-full h-[54px] md:h-10 rounded-[16px] md:rounded-[12px] bg-stone-800 hover:bg-stone-900 text-white text-[16px] md:text-[13px] font-bold flex items-center justify-center gap-2 md:gap-1.5 transition-all cursor-pointer active:scale-[0.98]"
                 >
                     {symbol
-                        ? <ArrowUpDown size={14} className="stroke-[2.5]" />
-                        : <Plus size={14} className="stroke-[2.5]" />}
+                        ? <ArrowUpDown size={17} className="stroke-[2.5] shrink-0 md:hidden" />
+                        : <Plus size={18} className="stroke-[2.5] shrink-0 md:hidden" />}
+                    {symbol
+                        ? <ArrowUpDown size={14} className="stroke-[2.5] shrink-0 hidden md:block" />
+                        : <Plus size={14} className="stroke-[2.5] shrink-0 hidden md:block" />}
                     <span className="truncate">
                         {symbol
                             ? (t('creative.chord_change') || 'Change chord')
@@ -289,17 +318,18 @@ export default function WordChordSection({
                         onChange={(e) => setCustomDraft(e.target.value)}
                         // A chord symbol, not prose — notation needs no translation.
                         placeholder="C#m7"
-                        className="flex-1 min-w-0 h-8 px-2.5 rounded-[10px] bg-white border border-stone-200/70 text-[12px] font-medium text-stone-700 placeholder:text-stone-400 focus:outline-none focus:border-stone-400"
+                        className="flex-1 min-w-0 h-11 md:h-8 px-3 md:px-2.5 rounded-[12px] md:rounded-[10px] bg-white border border-stone-200/70 text-[15px] md:text-[12px] font-medium text-stone-700 placeholder:text-stone-400 focus:outline-none focus:border-stone-400"
                     />
                     <button
                         type="submit"
                         disabled={!isValidChord(customDraft)}
                         aria-label={t('creative.add_chord_button') || 'Add chord'}
-                        className="w-8 h-8 shrink-0 rounded-[10px] bg-white border border-stone-200/70 text-stone-700 hover:border-stone-400 flex items-center justify-center transition-all cursor-pointer active:scale-95 disabled:opacity-35 disabled:cursor-default"
+                        className="w-11 h-11 md:w-8 md:h-8 shrink-0 rounded-[12px] md:rounded-[10px] bg-white border border-stone-200/70 text-stone-700 hover:border-stone-400 flex items-center justify-center transition-all cursor-pointer active:scale-95 disabled:opacity-35 disabled:cursor-default"
                     >
-                        <Plus size={14} className="stroke-[2.5]" />
+                        <Plus size={16} className="stroke-[2.5]" />
                     </button>
                 </form>
+                </div>
             </div>
         );
     }
@@ -316,7 +346,7 @@ export default function WordChordSection({
         // picker returns to the same one rather than snapping to the chord's first.
         const ghostPosition = browsePosition;
         return (
-            <div className="relative w-full md:w-[195px] md:shrink-0 self-stretch md:self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
+            <div className="relative w-full md:w-[195px] md:shrink-0 self-stretch md:self-start min-h-0 overflow-y-auto md:overflow-visible no-scrollbar flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
                 {/* The suggestion IS the way in — clicking it opens the palette right here,
                     so the writer never leaves the word they are looking at. Ghosted because
                     it is an offer, not a chord this word has. */}
@@ -362,7 +392,7 @@ export default function WordChordSection({
         // Full width on a phone: this is a 195px column because on desktop it sits
         // beside the word list, but in the mobile sheet it is the whole Chords tab
         // and a fixed narrow column left half the sheet empty.
-        <div className="relative w-full md:w-[195px] md:shrink-0 self-stretch md:self-start flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
+        <div className="relative w-full md:w-[195px] md:shrink-0 self-stretch md:self-start min-h-0 overflow-y-auto md:overflow-visible no-scrollbar flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
             {/* The chord's own actions live in a menu beside its name, where the thing
                 they act on is. The remove action used to sit as a bare bin next to the
                 voicing pager — two unrelated controls sharing a row, with the destructive
