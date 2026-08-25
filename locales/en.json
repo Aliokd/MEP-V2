@@ -62,6 +62,12 @@
   },
   "studio": {
     "recording_limit_reached": "Recordings stop at 10 minutes. Your take is saved.",
+
+    "decomposing": "Splitting the song into tracks…",
+
+    "decomposed": "Song split into Vocals, Bass and Instruments.",
+
+    "decompose_no_room": "Not enough free tracks to split the song — added it as one track.",
     "open_lyrics": "Open Lyrics",
     "close_lyrics": "Close Lyrics",
     "lyrics_sidebar": "Lyrics",

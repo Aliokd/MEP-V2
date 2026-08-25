@@ -62,6 +62,12 @@
   },
   "studio": {
     "recording_limit_reached": "Inspelningar stoppas vid 10 minuter. Din tagning är sparad.",
+
+    "decomposing": "Delar upp låten i spår…",
+
+    "decomposed": "Låten är uppdelad i sång, bas och instrument.",
+
+    "decompose_no_room": "Inte tillräckligt med lediga spår för att dela upp låten — den lades till som ett spår.",
     "open_lyrics": "Öppna låttexten",
     "close_lyrics": "Stäng låttexten",
     "lyrics_sidebar": "Låttext",

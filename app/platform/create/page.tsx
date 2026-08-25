@@ -204,7 +204,7 @@ import { useSanction } from '@/lib/useSanction';
 import { authedFetch, authedFetchRetrying } from '@/lib/authedFetch';
 import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, updateDoc, writeBatch, arrayRemove, deleteDoc, arrayUnion, runTransaction } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes, getDownloadURL, getBlob } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, uploadBytesResumable, getDownloadURL, getBlob } from 'firebase/storage';
 import {
     migrateLegacyNotesToProjects,
     inviteCollaboratorByEmail,
@@ -2432,6 +2432,111 @@ async function transcodeSliceTo16kMonoWav(
 }
 
 /**
+ * Splits a mixed song into three studio tracks — Vocals, Bass, Instruments —
+ * with a mid/side + crossover tree, entirely in the browser.
+ *
+ * What each stem actually is, said plainly:
+ *   Vocals      — the CENTRE of the stereo image, 150Hz–7.5kHz. Lead vocals are
+ *                 mixed dead-centre in almost every master, so this catches
+ *                 them; centre-panned snare and mid synths bleed in.
+ *   Bass        — the centre below 150Hz. Bass guitar and kick drum.
+ *   Instruments — the stereo SIDES (wide-panned guitars, keys, pads) plus the
+ *                 centre's air above 7.5kHz.
+ *
+ * The bands are cut with 4th-order Linkwitz–Riley crossovers (two cascaded
+ * Butterworth biquads), chosen because LR4 halves SUM FLAT — playing all three
+ * stems together reconstructs the mix's tonal balance instead of comb-filtering
+ * at the seams. An earlier draft built Instruments by phase-inverting the other
+ * two against the mix; the filters' phase shift made the "cancelled" bass leak
+ * through at ~76% amplitude, measured — a crossover splits, it never subtracts,
+ * so nothing can leak by phase.
+ *
+ * This is the honest ceiling of DSP separation: real isolation (a clean
+ * a-cappella) needs a source-separation model — a large in-browser network or a
+ * paid API. What this gives a songwriter is a mix they can rebalance — pull the
+ * vocal up to study a melody, mute the band and sing over the bass — with zero
+ * upload, zero cost, and a few seconds of rendering.
+ */
+async function separateIntoStems(
+    decoded: AudioBuffer,
+): Promise<Array<{ name: string; type: StudioTrack['type']; buffer: AudioBuffer }>> {
+    const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+    const rate = decoded.sampleRate;
+    const frames = decoded.length;
+
+    /** Two cascaded Butterworth biquads = one LR4 crossover half. */
+    const lr4 = (ctx: OfflineAudioContext, type: BiquadFilterType, freq: number) => {
+        const a = new BiquadFilterNode(ctx as any, { type, frequency: freq, Q: Math.SQRT1_2 });
+        const b = new BiquadFilterNode(ctx as any, { type, frequency: freq, Q: Math.SQRT1_2 });
+        a.connect(b);
+        return { input: a, output: b };
+    };
+
+    /** Renders one stem. The source into a 1-channel context downmixes to mono,
+     *  which IS the centre (L+R)/2 under Web Audio's mixing rules. */
+    const render = async (
+        wire: (ctx: OfflineAudioContext, mid: AudioBufferSourceNode) => void,
+        withSides = false,
+    ) => {
+        const ctx = new OfflineContextClass(1, frames, rate);
+        const src = ctx.createBufferSource();
+        src.buffer = decoded;
+        wire(ctx, src);
+        src.start();
+        if (withSides && decoded.numberOfChannels >= 2) {
+            // (L−R)/2: cancels everything centre-panned, keeps only the width.
+            // A mono source has no sides — the splitter yields L−L = silence.
+            const src2 = ctx.createBufferSource();
+            src2.buffer = decoded;
+            const split = new ChannelSplitterNode(ctx as any, { numberOfOutputs: 2 });
+            const plus = new GainNode(ctx as any, { gain: 0.5 });
+            const minus = new GainNode(ctx as any, { gain: -0.5 });
+            src2.connect(split);
+            split.connect(plus, 0);
+            split.connect(minus, 1);
+            plus.connect(ctx.destination);
+            minus.connect(ctx.destination);
+            src2.start();
+        }
+        return ctx.startRendering() as Promise<AudioBuffer>;
+    };
+
+    const CROSS_LOW = 150;
+    const CROSS_HIGH = 7500;
+
+    // Bass: centre, below the low crossover.
+    const bass = await render((ctx, mid) => {
+        const lp = lr4(ctx, 'lowpass', CROSS_LOW);
+        mid.connect(lp.input);
+        lp.output.connect(ctx.destination as any);
+    });
+
+    // Vocals: centre, between the crossovers.
+    const vocals = await render((ctx, mid) => {
+        const hp = lr4(ctx, 'highpass', CROSS_LOW);
+        const lp = lr4(ctx, 'lowpass', CROSS_HIGH);
+        mid.connect(hp.input);
+        hp.output.connect(lp.input);
+        lp.output.connect(ctx.destination as any);
+    });
+
+    // Instruments: the centre's air above the high crossover, plus the sides.
+    const instruments = await render((ctx, mid) => {
+        const hp1 = lr4(ctx, 'highpass', CROSS_LOW);
+        const hp2 = lr4(ctx, 'highpass', CROSS_HIGH);
+        mid.connect(hp1.input);
+        hp1.output.connect(hp2.input);
+        hp2.output.connect(ctx.destination as any);
+    }, true);
+
+    return [
+        { name: 'Vocals', type: 'vocals', buffer: vocals },
+        { name: 'Bass', type: 'custom', buffer: bass },
+        { name: 'Instruments', type: 'custom', buffer: instruments },
+    ];
+}
+
+/**
  * Uncompressed audio containers. These are the ones worth re-encoding: they carry
  * raw PCM, so their size is pure arithmetic — sample rate x bit depth x channels x
  * seconds — and none of it is a decision anyone made about how the music sounds.
@@ -2590,6 +2695,8 @@ interface AudioCapsulePlayerProps {
     onTranscribe?: () => void;
     isTranscribing?: boolean;
     isDocked: boolean;
+    /** 0-100 while this card's bytes are still going to Storage; absent otherwise. */
+    uploadProgress?: number;
     onReopenInStudio?: () => void;
     onAddAsStudioTrack?: () => void;
     onDragStart: (e: React.DragEvent) => void;
@@ -2607,6 +2714,8 @@ interface AudioCapsulePlayerProps {
 }
 
 interface DocumentCapsuleCardProps {
+    /** 0-100 while this card's bytes are still going to Storage; absent otherwise. */
+    uploadProgress?: number;
     doc: { id: string; url: string; name: string; type: string; size?: number; createdAt?: number; phraseId?: string | null };
     onRename: (newName: string) => void;
     onDelete: () => void;
@@ -2704,7 +2813,7 @@ function TranscribeGlow({ radius }: { radius?: 'r16' | 'r32' }) {
     );
 }
 
-function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDragStart, onDragEnd }: DocumentCapsuleCardProps) {
+function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, uploadProgress, onDragStart, onDragEnd }: DocumentCapsuleCardProps) {
     const { t } = useLanguage();
     const formatSize = (bytes?: number) => {
         if (!bytes) return doc.type.toUpperCase();
@@ -2720,6 +2829,18 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDr
             onDragEnd={onDragEnd}
             className={`relative bg-white border border-stone-200/80 rounded-full px-5 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3.5 z-30 transition-all select-none max-w-full my-2 mx-auto ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
             {isScanning && <TranscribeGlow />}
+            {typeof uploadProgress === 'number' && (
+                <span
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={uploadProgress}
+                    aria-label="Uploading"
+                    className="absolute inset-x-5 bottom-[3px] h-[3px] rounded-full bg-stone-100 overflow-hidden pointer-events-none"
+                >
+                    <span className="block h-full rounded-full bg-stone-300 transition-[width] duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
+                </span>
+            )}
             {/* File icon — neutral, matching the Scan/meta/delete tones on this card */}
             <div className="p-1 rounded-md text-stone-600 flex items-center justify-center shrink-0">
                 <FileText size={17} className="stroke-[2.2]" />
@@ -2783,6 +2904,8 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, onDr
 }
 
 interface ImageCapsuleCardProps {
+    /** 0-100 while this card's bytes are still going to Storage; absent otherwise. */
+    uploadProgress?: number;
     img: { id: string; url: string; name: string; phraseId?: string | null };
     onRename: (newName: string) => void;
     onDelete: () => void;
@@ -2793,7 +2916,7 @@ interface ImageCapsuleCardProps {
     onDragEnd?: () => void;
 }
 
-function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanning, onDragStart, onDragEnd }: ImageCapsuleCardProps) {
+function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanning, uploadProgress, onDragStart, onDragEnd }: ImageCapsuleCardProps) {
     const { t } = useLanguage();
     return (
         <div
@@ -2802,6 +2925,18 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
             onDragEnd={onDragEnd}
             className={`relative rounded-[32px] bg-white p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-3 w-full max-w-[440px] mx-auto select-none my-3 ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
             {isScanning && <TranscribeGlow radius="r32" />}
+            {typeof uploadProgress === 'number' && (
+                <span
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={uploadProgress}
+                    aria-label="Uploading"
+                    className="h-[3px] rounded-full bg-stone-100 overflow-hidden mx-1 order-last"
+                >
+                    <span className="block h-full rounded-full bg-stone-300 transition-[width] duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
+                </span>
+            )}
             {/* Image Preview Area */}
             <div 
                 onClick={onPreview}
@@ -2989,6 +3124,7 @@ function AudioCapsulePlayer({
     onTranscribe,
     isTranscribing,
     isDocked,
+    uploadProgress,
     onReopenInStudio,
     onAddAsStudioTrack,
     onDragStart,
@@ -3006,6 +3142,18 @@ function AudioCapsulePlayer({
 }: AudioCapsulePlayerProps) {
     const { t } = useLanguage();
     const [isPlaying, setIsPlaying] = useState(false);
+    /**
+     * The <audio> src, PINNED. When a background upload lands, the note's url is
+     * patched from blob: to the Storage URL; feeding that straight into the
+     * element's src resets it, which cut playback dead 5-10 seconds into a fresh
+     * import (the time the upload took). The swap now waits until the card is not
+     * playing — the blob is byte-identical to what was uploaded, so nothing is
+     * lost by staying on it a little longer.
+     */
+    const [mediaSrc, setMediaSrc] = useState(audioNote.url);
+    useEffect(() => {
+        if (!isPlaying && audioNote.url !== mediaSrc) setMediaSrc(audioNote.url);
+    }, [audioNote.url, isPlaying, mediaSrc]);
     const [playbackTime, setPlaybackTime] = useState(0);
     const [playbackDuration, setPlaybackDuration] = useState(() => {
         const d = Number(audioNote.duration);
@@ -3199,7 +3347,7 @@ function AudioCapsulePlayer({
     const renderAudioEl = () => (
         <audio
             ref={playbackAudioRef}
-            src={audioNote.url}
+            src={mediaSrc}
             onTimeUpdate={() => { if (playbackAudioRef.current) setPlaybackTime(playbackAudioRef.current.currentTime); }}
             onLoadedMetadata={() => {
                 if (playbackAudioRef.current) {
@@ -3293,6 +3441,21 @@ function AudioCapsulePlayer({
                 {/* Travelling gradient while the take is being transcribed — the card
                     itself shows the work, rather than only the label inside it. */}
                 {isTranscribing && <TranscribeGlow />}
+                {typeof uploadProgress === 'number' && (
+                    <span
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={uploadProgress}
+                        aria-label="Uploading"
+                        className="absolute inset-x-3 bottom-[2px] h-[2px] rounded-full bg-stone-100 overflow-hidden pointer-events-none"
+                    >
+                        <span
+                            className="block h-full rounded-full bg-stone-300 transition-[width] duration-300 ease-out"
+                            style={{ width: `${uploadProgress}%` }}
+                        />
+                    </span>
+                )}
                 {renderAudioEl()}
 
                 {/* Title & Badge */}
@@ -3402,6 +3565,24 @@ function AudioCapsulePlayer({
             {/* Travelling gradient while the take is being transcribed — the card
                 itself shows the work, rather than only the label inside it. */}
             {isTranscribing && <TranscribeGlow />}
+            {/* Upload progress — the card is fully usable while its bytes travel;
+                this quiet grey line along the bottom is the only sign, and the
+                pace is the user's own connection. */}
+            {typeof uploadProgress === 'number' && (
+                <span
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={uploadProgress}
+                    aria-label="Uploading"
+                    className="absolute inset-x-5 bottom-[3px] h-[3px] rounded-full bg-stone-100 overflow-hidden pointer-events-none"
+                >
+                    <span
+                        className="block h-full rounded-full bg-stone-300 transition-[width] duration-300 ease-out"
+                        style={{ width: `${uploadProgress}%` }}
+                    />
+                </span>
+            )}
             {renderAudioEl()}
 
             {/* Title & Badge */}
@@ -4731,6 +4912,43 @@ export default function CreatePage() {
      * transition would cost real work for no visible gain.
      */
     const pendingAudioUploadsRef = useRef<Set<string>>(new Set());
+
+    /**
+     * Upload progress per card, 0–100, present only while that upload runs.
+     *
+     * A card used to appear instantly and give no sign that its bytes were still
+     * leaving the machine — the only symptom was playback cutting out when the
+     * finished upload swapped the card's URL mid-play. The bar makes the wait
+     * visible (it is the user's own connection setting the pace), and the swap
+     * no longer interrupts playback — see the pinned src in AudioCapsulePlayer.
+     */
+    const [uploadProgressById, setUploadProgressById] = useState<Record<string, number>>({});
+
+    /** uploadBytes, but reporting progress into uploadProgressById under `key`.
+     *  The key is always the id of the CARD the bytes belong to, so the card can
+     *  find its own number. Cleared on completion and on failure alike. */
+    const uploadWithProgress = (fileRef: ReturnType<typeof storageRef>, blob: Blob, key: string) =>
+        new Promise<void>((resolve, reject) => {
+            setUploadProgressById(prev => ({ ...prev, [key]: 0 }));
+            const task = uploadBytesResumable(fileRef, blob);
+            task.on(
+                'state_changed',
+                (snap) => {
+                    const pct = snap.totalBytes > 0
+                        ? Math.min(99, Math.round((snap.bytesTransferred / snap.totalBytes) * 100))
+                        : 0;
+                    setUploadProgressById(prev => ({ ...prev, [key]: pct }));
+                },
+                (err) => {
+                    setUploadProgressById(prev => { const next = { ...prev }; delete next[key]; return next; });
+                    reject(err);
+                },
+                () => {
+                    setUploadProgressById(prev => { const next = { ...prev }; delete next[key]; return next; });
+                    resolve();
+                },
+            );
+        });
     const [scanningImageId, setScanningImageId] = useState<string | null>(null);
     const [editingPhraseId, setEditingPhraseId] = useState<string | null>(null);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -9228,7 +9446,7 @@ export default function CreatePage() {
         (async () => {
             try {
                 const path = `users/${user.uid}/${field}/${noteId}_${mediaId}.${extension}`;
-                await uploadBytes(storageRef(storage, path), blob);
+                await uploadWithProgress(storageRef(storage, path), blob, mediaId);
                 const downloadUrl = await getDownloadURL(storageRef(storage, path));
 
                 setNotes(prev => prev.map(n => {
@@ -9431,7 +9649,7 @@ export default function CreatePage() {
                                     try {
                                         const fileExt = (file.name.split('.').pop() || 'audio').toLowerCase();
                                         const fileRef = storageRef(storage, `users/${user.uid}/recordings/${finalNoteId}_ImportId_${nextId}.${fileExt}`);
-                                        await uploadBytes(fileRef, file);
+                                        await uploadWithProgress(fileRef, file, nextRecId);
                                         const downloadUrl = await getDownloadURL(fileRef);
 
                                         setStudioTracks(prev => prev.map(t => t.id === nextId ? { ...t, url: downloadUrl } : t));
@@ -12139,7 +12357,7 @@ export default function CreatePage() {
         pendingAudioUploadsRef.current.add(recId);
         try {
             const fileRef = storageRef(storage, `users/${user.uid}/recordings/${noteId}_RecId_${recId}.webm`);
-            await uploadBytes(fileRef, blob);
+            await uploadWithProgress(fileRef, blob, recId);
             const downloadUrl = await getDownloadURL(fileRef);
             
             const targetNote = notesRef.current.find(n => n.id === noteId);
@@ -13948,6 +14166,7 @@ export default function CreatePage() {
                     if (!img) return null;
                     return (
                         <ImageCapsuleCard
+                            uploadProgress={uploadProgressById[img.id]}
                             img={img}
                             onRename={(newName) => activeNote && handleUpdateNote(activeNote.id, { images: (activeNote.images || []).map(i => i.id === img.id ? { ...i, name: newName } : i) })}
                             onDelete={() => requestConfirm({
@@ -13987,6 +14206,7 @@ export default function CreatePage() {
                     if (!dcard) return null;
                     return (
                         <DocumentCapsuleCard
+                            uploadProgress={uploadProgressById[dcard.id]}
                             doc={dcard}
                             onRename={(newName) => activeNote && handleUpdateNote(activeNote.id, { documents: (activeNote.documents || []).map(d => d.id === dcard.id ? { ...d, name: newName } : d) })}
                             onDelete={() => handleDeleteDocBlock(dcard.id, phrase.id)}
@@ -14732,7 +14952,7 @@ export default function CreatePage() {
                 (async () => {
                     try {
                         const fileRef = storageRef(storage, `users/${user.uid}/recordings/${finalNoteId}_RecId_${recId}.wav`);
-                        await uploadBytes(fileRef, wavBlob);
+                        await uploadWithProgress(fileRef, wavBlob, recId);
                         const downloadUrl = await getDownloadURL(fileRef);
 
                         setNotes(prev => prev.map(n => {
@@ -14942,7 +15162,10 @@ export default function CreatePage() {
     // Lets any collaborator pull an already-imported/recorded audio card into their own
     // live Demo Studio session as a new track (distinct from handleReopenStudioMix, which
     // replaces the whole session with a saved mixdown's stems).
-    const handleAddAsStudioTrack = (audioNote: AudioNote) => {
+    /** The pre-decomposition behaviour: the whole mix as ONE studio track. Kept as
+     *  the fallback for when splitting cannot run — no room, no bytes, too long —
+     *  because a track you can at least play beats an error. */
+    const addWholeMixAsStudioTrack = (audioNote: AudioNote) => {
         if (studioTracks.length >= 4) {
             triggerStudioNotification('Studio tracks limit reached (maximum 4 tracks).', 'rose');
             return;
@@ -14985,6 +15208,75 @@ export default function CreatePage() {
                     console.error("Instrument classification failed:", err);
                 }
             })();
+        }
+    };
+
+    /**
+     * The arrow on an audio card: "Add to Demo studio". Since the studio exists to
+     * work on a song in PARTS, an imported master is decomposed into three stems —
+     * Vocals / Bass / Instruments — rather than dropped in as one immovable block.
+     * Only this arrow decomposes; importing a file into the studio directly keeps
+     * its single-track behaviour.
+     */
+    const handleAddAsStudioTrack = async (audioNote: AudioNote) => {
+        // Room check counts REAL tracks — the studio's default empty placeholder
+        // rows hold no audio and are replaced, not counted.
+        const occupied = studioTracks.filter(tr => tr.audioBuffer || tr.url);
+        if (occupied.length + 3 > 4) {
+            triggerStudioNotification(t('studio.decompose_no_room'), 'amber');
+            addWholeMixAsStudioTrack(audioNote);
+            return;
+        }
+        if ((audioNote.duration || 0) > MAX_RECORDING_SECONDS) {
+            addWholeMixAsStudioTrack(audioNote);
+            return;
+        }
+
+        triggerStudioNotification(t('studio.decomposing'), 'emerald');
+        try {
+            // The bytes are needed here to decode; stored files come through the
+            // vetted proxy, a blob: take is fetched directly.
+            const fetchUrl = /^https?:\/\//i.test(audioNote.url)
+                ? `/api/download-audio?url=${encodeURIComponent(audioNote.url)}`
+                : audioNote.url;
+            const res = await authedFetch(fetchUrl);
+            if (!res.ok) throw new Error(`fetch ${res.status}`);
+            const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+            const decoded = await decodeAudioDataPromise(
+                new OfflineContextClass(1, 1, 44100),
+                await (await res.blob()).arrayBuffer(),
+            );
+
+            const stems = await separateIntoStems(decoded);
+
+            // Same shape as a just-recorded take: a decoded buffer plus a local
+            // blob URL, so playback, the mixer and the persistence machinery all
+            // treat a stem exactly like any other track.
+            const baseId = Date.now();
+            const stemTracksNew: StudioTrack[] = stems.map((stem, i) => ({
+                id: baseId + i,
+                name: stem.name,
+                type: stem.type,
+                volume: 80,
+                pan: 0,
+                eq: 0,
+                compressor: true,
+                reverb: 20,
+                audioBuffer: stem.buffer,
+                url: URL.createObjectURL(new Blob([audioBufferToWav(stem.buffer)], { type: 'audio/wav' })),
+            }));
+
+            stopAllStudioAudio();
+            setStudioState('idle');
+            setStudioPlayhead(0);
+            setStudioTracks([...occupied, ...stemTracksNew]);
+            setActiveRecordingTrackId(stemTracksNew[0].id);
+            setActiveToolTab('studio');
+            setShowToolsPanel(true);
+            triggerStudioNotification(t('studio.decomposed'), 'emerald');
+        } catch (err) {
+            console.error('Stem separation failed; adding the whole mix instead:', err);
+            addWholeMixAsStudioTrack(audioNote);
         }
     };
 
@@ -19943,6 +20235,7 @@ export default function CreatePage() {
                                         {unattachedAudioNotes.map((audioNote) => (
                                             <div key={audioNote.id} className="w-full max-w-2xl mx-auto">
                                                 <AudioCapsulePlayer 
+                                                    uploadProgress={uploadProgressById[audioNote.id]}
                                                     audioNote={audioNote}
                                                     onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
                                                     onDelete={() => activeNote && handleDeleteAudioNote(activeNote.id, audioNote.id)}
@@ -20348,6 +20641,7 @@ export default function CreatePage() {
 
                                                                     {(audioByGroupIdMap[block.groupId || ''] || []).map(audioNote => (
                                                                         <AudioCapsulePlayer 
+                                                                            uploadProgress={uploadProgressById[audioNote.id]}
                                                                             key={audioNote.id}
                                                                             audioNote={audioNote}
                                                                             onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
@@ -20659,6 +20953,7 @@ export default function CreatePage() {
                                                                             )}
 
                                                                             <AudioCapsulePlayer 
+                                                                                uploadProgress={uploadProgressById[audioNote.id]}
                                                                                 audioNote={audioNote}
                                                                                 onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
                                                                                 onDelete={() => activeNote && handleDeleteAudioNote(activeNote.id, audioNote.id)}

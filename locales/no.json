@@ -62,6 +62,12 @@
   },
   "studio": {
     "recording_limit_reached": "Opptak stopper etter 10 minutter. Opptaket ditt er lagret.",
+
+    "decomposing": "Deler opp sangen i spor…",
+
+    "decomposed": "Sangen er delt i vokal, bass og instrumenter.",
+
+    "decompose_no_room": "Ikke nok ledige spor til å dele opp sangen — den ble lagt til som ett spor.",
     "open_lyrics": "Åpne sangteksten",
     "close_lyrics": "Lukk sangteksten",
     "lyrics_sidebar": "Sangtekst",
