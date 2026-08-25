@@ -159,6 +159,18 @@ const RENAMED_WAITLIST_PATHS = new Set([
     '/admin/waitlist',
 ]);
 
+/**
+ * The terms lived at /terms-of-use as a CMS page before the canonical /terms
+ * route existed; that document is unpublished now, and one terms URL is a legal
+ * hygiene matter, not just tidiness. Enumerated like the waitlist paths above,
+ * and for the same reason.
+ */
+const OLD_TERMS_PATHS = new Set([
+    '/terms-of-use',
+    '/no/terms-of-use',
+    '/sv/terms-of-use',
+]);
+
 /** Passes the resolved locale and the un-prefixed path down to the server render. */
 function withLocaleHeaders(req: NextRequest, language: Language, path: string) {
     const headers = new Headers(req.headers);
@@ -190,6 +202,12 @@ export default function proxy(req: NextRequest) {
     if (RENAMED_WAITLIST_PATHS.has(pathname)) {
         const url = req.nextUrl.clone();
         url.pathname = pathname.replace(/\/waitlist$/, '/waiting-list');
+        return NextResponse.redirect(url, 301);
+    }
+
+    if (OLD_TERMS_PATHS.has(pathname)) {
+        const url = req.nextUrl.clone();
+        url.pathname = pathname.replace(/\/terms-of-use$/, '/terms');
         return NextResponse.redirect(url, 301);
     }
 
