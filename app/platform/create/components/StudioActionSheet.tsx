@@ -4,6 +4,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useSheetPresence } from '@/hooks/useSheetPresence';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 
 interface StudioActionSheetProps {
     open: boolean;
@@ -38,6 +39,8 @@ export default function StudioActionSheet({
     maxHeight = '78dvh',
 }: StudioActionSheetProps) {
     const { mounted, closing } = useSheetPresence(open);
+    // Android's Back closes the sheet rather than leaving the page.
+    useBackDismiss(open, onClose);
     const [canPortal, setCanPortal] = React.useState(false);
 
     React.useEffect(() => setCanPortal(true), []);
@@ -54,7 +57,7 @@ export default function StudioActionSheet({
 
     return createPortal(
         <div
-            className={`fixed inset-0 z-[90] flex items-end justify-center bg-stone-900/40 backdrop-blur-sm ${
+            className={`fixed inset-0 z-[120] flex items-end justify-center bg-stone-900/55 backdrop-blur-md ${
                 closing ? 'sheet-backdrop-exit' : 'sheet-backdrop-enter'
             }`}
             onClick={onClose}

@@ -1,6 +1,7 @@
 "use client";
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import MaestroSidebar from './components/MaestroSidebar';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 import SupportModal from './components/SupportModal';
 import FeedbackModal from './components/FeedbackModal';
 import MindPowerPanel from './components/MindPowerPanel';
@@ -432,6 +433,15 @@ function PlatformLayoutInner({
 
     // The welcome video now lives inside the onboarding guide as its first step —
     // see PlatformOnboarding, mounted at the bottom of this layout.
+
+    // Android Back closes the drawer instead of leaving the platform.
+    //
+    // Must stay ABOVE the early returns below. Placed after them it ran only on
+    // the renders that got that far: the first pass bails out on `loading`, the
+    // next one falls through and adds a hook that was not there before, and
+    // React throws "Rendered more hooks than during the previous render" —
+    // which took out the whole authenticated app, not just the drawer.
+    useBackDismiss(isMobileMenuOpen, () => setIsMobileMenuOpen(false));
 
     if (loading) return (
         <div className="h-screen flex items-center justify-center bg-[#E4E4DF]">

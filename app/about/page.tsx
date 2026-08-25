@@ -36,7 +36,7 @@ export default async function AboutPage() {
                     </p>
                     <Link
                         href={waitlistJoinPath('about', language)}
-                        className="mt-10 bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-lg font-semibold transition-all inline-flex items-center gap-3 select-none"
+                        className="btn-press mt-10 px-8 py-4 text-lg font-semibold inline-flex items-center gap-3 select-none"
                     >
                         <span>{t('home.nav.waitlist')}</span>
                         <ArrowRight className="w-5 h-5 stroke-[2.5px]" />

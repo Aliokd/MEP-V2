@@ -99,7 +99,7 @@ function ResetPasswordForm() {
                     </div>
                     <button
                         onClick={() => router.push('/signin')}
-                        className="w-full py-3.5 md:py-5 border border-stone-300 hover:bg-stone-50/50 text-stone-850 text-base md:text-lg font-semibold rounded-[20px] transition-all"
+                        className="w-full h-16 md:h-[72px] border border-stone-300 hover:bg-stone-50/50 text-stone-850 text-base md:text-lg font-semibold rounded-full transition-all active:scale-[0.99]"
                     >
                         {t('signin.back_to_signin')}
                     </button>

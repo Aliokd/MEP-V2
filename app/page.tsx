@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ChevronRight, ArrowUpRight, ArrowRight, MousePointer2, Plus, Menu, Heart } from "lucide-react";
+import { ChevronRight, ArrowUpRight, ArrowRight, MousePointer2, Plus, Menu, Heart, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
@@ -37,7 +37,9 @@ const TopNav = () => {
                 : "py-8 px-6 md:px-[10%] bg-transparent"
         }`}>
             <Link href="/" className="hover:opacity-80 transition-opacity">
-                <svg width="151" height="39" viewBox="0 0 151 39" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[120px] md:w-[151px] h-auto">
+                {/* 96px on a phone: at 120 it took a third of the bar and left the
+                    controls fighting for the rest. */}
+                <svg width="151" height="39" viewBox="0 0 151 39" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[96px] md:w-[151px] h-auto shrink-0">
                     <path d="M26.8756 9.80365C27.7045 8.52842 28.0552 7.52417 27.9276 6.79091C27.832 6.05765 27.4016 5.51568 26.6365 5.16499C25.8713 4.8143 24.8671 4.59113 23.6237 4.49549L23.8628 3.53906C24.1816 3.57094 24.7555 3.60282 25.5844 3.6347C26.4452 3.6347 27.3538 3.65064 28.3102 3.68252C29.2985 3.68252 30.0796 3.68252 30.6535 3.68252C31.323 3.68252 31.9606 3.66658 32.5663 3.6347C33.172 3.60282 33.73 3.57094 34.2401 3.53906L34.0009 4.49549C33.2358 4.71865 32.5344 5.02152 31.8968 5.40409C31.2911 5.75478 30.6535 6.3127 29.984 7.07784C29.3145 7.8111 28.5493 8.84723 27.6885 10.1862L9.85119 37.6357C9.24545 37.5719 8.63972 37.54 8.03398 37.54C7.46012 37.54 6.87033 37.5719 6.26459 37.6357L2.48671 7.55605C2.35918 6.40834 2.02444 5.62726 1.48246 5.21281C0.940486 4.76647 0.446332 4.52737 0 4.49549L0.239107 3.53906C1.16365 3.57094 2.35918 3.60282 3.8257 3.6347C5.32411 3.66658 6.80657 3.68252 8.27309 3.68252C9.99465 3.68252 11.5728 3.66658 13.0074 3.6347C14.4739 3.60282 15.6694 3.57094 16.594 3.53906L16.3549 4.49549C15.3347 4.52737 14.5217 4.65489 13.916 4.87806C13.3103 5.10122 12.8958 5.48379 12.6726 6.02577C12.4814 6.56774 12.4335 7.39665 12.5292 8.51248L14.8246 29.6017L12.6726 31.6102L26.8756 9.80365Z" fill="#363636"/>
                     <path d="M134.341 27.212C135.521 26.7019 136.653 26.1281 137.737 25.4905C138.821 24.821 139.777 24.1036 140.606 23.3385C141.849 22.1589 142.869 20.804 143.666 19.2737C144.463 17.7115 144.862 16.0378 144.862 14.2525C144.862 13.7105 144.798 13.3438 144.671 13.1526C144.543 12.9613 144.352 12.8656 144.097 12.8656C143.427 12.8656 142.694 13.2323 141.897 13.9655C141.1 14.6669 140.319 15.6233 139.554 16.8348C138.789 18.0144 138.087 19.3693 137.45 20.8996C136.844 22.398 136.35 23.9602 135.967 25.5861C135.585 27.1801 135.393 28.7423 135.393 30.2726C135.393 32.0898 135.744 33.3172 136.445 33.9548C137.179 34.5925 138.119 34.9113 139.267 34.9113C140 34.9113 141.004 34.6562 142.28 34.1461C143.555 33.6041 144.814 32.6477 146.058 31.2768L146.823 31.6594C146.153 32.7115 145.26 33.7317 144.145 34.72C143.029 35.7083 141.722 36.5212 140.223 37.1589C138.725 37.7646 137.067 38.0675 135.25 38.0675C133.783 38.0675 132.444 37.8124 131.233 37.3023C130.053 36.7922 129.113 36.043 128.411 35.0547C127.71 34.0345 127.359 32.7912 127.359 31.3247C127.359 29.5393 127.646 27.7381 128.22 25.9209C128.794 24.1036 129.607 22.3661 130.659 20.7083C131.711 19.0186 132.97 17.5202 134.437 16.2131C135.935 14.906 137.577 13.8699 139.363 13.1047C141.148 12.3396 143.077 11.957 145.149 11.957C146.679 11.957 147.97 12.2918 149.022 12.9613C150.074 13.5989 150.601 14.6031 150.601 15.974C150.601 17.1855 150.266 18.3332 149.596 19.4172C148.927 20.4692 148.018 21.4416 146.87 22.3343C145.755 23.2269 144.479 24.0239 143.045 24.7253C141.642 25.4267 140.191 26.0324 138.693 26.5425C137.195 27.0526 135.728 27.4511 134.293 27.7381L134.341 27.212Z" fill="#363636"/>
                     <path d="M131.023 12.626L130.879 13.5824H113.711L113.951 12.626H131.023ZM119.928 33.3326C119.705 34.0658 119.705 34.6238 119.928 35.0063C120.151 35.357 120.502 35.5324 120.98 35.5324C121.618 35.5324 122.255 35.1976 122.893 34.5281C123.563 33.8267 124.121 32.8703 124.567 31.6588L125.332 29.6503H126.241L125.332 32.3762C124.694 34.2252 123.738 35.6439 122.463 36.6323C121.219 37.5887 119.705 38.0669 117.92 38.0669C116.389 38.0669 115.21 37.7162 114.381 37.0148C113.552 36.2816 113.058 35.3251 112.898 34.1455C112.739 32.9341 112.867 31.5951 113.281 30.1286L120.359 5.5484C121.921 5.51652 123.323 5.45276 124.567 5.35712C125.81 5.26147 127.022 5.10207 128.201 4.87891L119.928 33.3326Z" fill="#363636"/>
@@ -54,20 +56,32 @@ const TopNav = () => {
                 <div className="flex items-center gap-6">
                     <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
                     <Link href="/signin" className="hover:text-black transition-colors font-medium">{t('home.nav.signin')}</Link>
-                    <Link href={waitlistJoinPath('nav', language)} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.waitlist')}</Link>
+                    <Link href={waitlistJoinPath('nav', language)} className="btn-press px-5 py-2 font-semibold">{t('home.nav.waitlist')}</Link>
                 </div>
             </div>
 
             {/* Mobile Nav */}
-            <div className="flex items-center gap-4 text-[15px] text-[#363636] md:hidden">
-                <Link href="#qa" className="hover:text-black transition-colors font-medium">{t('home.nav.qa')}</Link>
+            {/* Phone bar: two icons and one button. Q&A is gone (it lives in the
+                footer and is one anchor among four in the page anyway), and Sign in
+                is an icon rather than a word — as text beside Q&A it wrapped to two
+                lines and squeezed Waitlist, which is the only thing here anyone is
+                meant to press. */}
+            <div className="flex items-center gap-2.5 text-[15px] text-[#363636] md:hidden">
                 <LanguageSwitcher variant="marketing" direction="down" iconOnly tooltipSide="bottom" />
-                <div className="flex items-center gap-3">
-                    <Link href="/signin" className="hover:text-black transition-colors font-medium">{t('home.nav.signin')}</Link>
-                    {/* Short label here — "Join the waitlist" overflows the pill beside
-                        Q&A and Sign in on a narrow phone. */}
-                    <Link href={waitlistJoinPath('nav', language)} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-3 py-1 rounded-[12px] font-semibold text-xs transition-all">{t('home.nav.waitlist_short')}</Link>
-                </div>
+                <Link
+                    href="/signin"
+                    aria-label={t('home.nav.signin')}
+                    title={t('home.nav.signin')}
+                    className="w-10 h-10 shrink-0 rounded-full bg-white/70 hover:bg-white border border-stone-300/40 flex items-center justify-center text-[#363636] hover:text-black transition-colors active:scale-95"
+                >
+                    <User size={19} strokeWidth={1.8} />
+                </Link>
+                <Link
+                    href={waitlistJoinPath('nav', language)}
+                    className="btn-press px-5 h-10 font-semibold text-[15px] flex items-center justify-center whitespace-nowrap shrink-0"
+                >
+                    {t('home.nav.waitlist_short')}
+                </Link>
             </div>
         </nav>
     );
@@ -102,7 +116,7 @@ const HeroSection = () => {
                     </p>
                     <Link
                         href={waitlistJoinPath('hero', language)}
-                        className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-xl font-semibold transition-all inline-flex items-center gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.02)] select-none"
+                        className="btn-press px-8 py-4 text-xl font-semibold inline-flex items-center gap-3 select-none"
                     >
                         <span>{t('home.nav.waitlist')}</span>
                         <ArrowRight className="w-5 h-5 stroke-[2.5px]" />
@@ -284,7 +298,7 @@ const UrgencySection = () => {
                 {/* CTA Button */}
                 <Link
                     href={waitlistJoinPath('urgency', language)}
-                    className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-8 py-4 rounded-[20px] text-xl font-semibold transition-all inline-flex items-center gap-3 select-none"
+                    className="btn-press px-8 py-4 text-xl font-semibold inline-flex items-center gap-3 select-none"
                 >
                     <span>{t('home.nav.waitlist')}</span>
                     <ArrowRight className="w-5 h-5 stroke-[2.5px]" />
@@ -299,20 +313,41 @@ const DarkSection = () => {
     const { t } = useLanguage();
     const videoRef = useRef<HTMLVideoElement>(null);
 
+    /**
+     * The ping-pong (play forward, then rewind) is desktop-only.
+     *
+     * Rewinding is done by writing `currentTime` 30 times a second, and every one
+     * of those writes is a seek: the decoder jumps back to the nearest keyframe
+     * and re-decodes forward to the requested frame. On a compressed MP4 with
+     * sparse keyframes that is tens of frames of work per displayed frame, and a
+     * phone cannot keep up — which is the stutter. It also keeps the CPU busy for
+     * the entire time the section is on screen.
+     *
+     * Phones get plain `loop` instead: same footage, one decode path, no seeking.
+     * Anyone who has asked for reduced motion gets the same treatment.
+     */
+    const [cheapPlayback, setCheapPlayback] = useState(true);
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const coarse = window.matchMedia('(max-width: 767px), (pointer: coarse)').matches;
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        setCheapPlayback(coarse || reduced);
+    }, []);
+
     useEffect(() => {
         const video = videoRef.current;
-        if (!video) return;
+        if (!video || cheapPlayback) return;
 
         let intervalId: any = null;
 
         const handleEnded = () => {
             // When forward play ends, pause and start reverse playback
             video.pause();
-            
+
             // Decrement currentTime at ~30fps for ultra-smooth reverse seek
             const fps = 30;
             const step = 1 / fps;
-            
+
             intervalId = setInterval(() => {
                 if (video.currentTime > 0.05) {
                     video.currentTime = Math.max(0, video.currentTime - step);
@@ -331,24 +366,33 @@ const DarkSection = () => {
             video.removeEventListener("ended", handleEnded);
             if (intervalId) clearInterval(intervalId);
         };
-    }, []);
+    }, [cheapPlayback]);
 
     return (
         <section className="relative w-full min-h-[90vh] md:min-h-screen flex flex-col justify-center text-white overflow-hidden py-24 md:py-32 px-6 md:px-[10%]">
             {/* Background Video */}
-            <video 
+            <video
                 ref={videoRef}
-                autoPlay 
-                muted 
-                playsInline 
-                // object-[72%_center] below md: the clip is landscape with Peter framed
+                autoPlay
+                muted
+                playsInline
+                // Phones loop the clip natively instead of running the JS rewind.
+                loop={cheapPlayback}
+                // metadata, not auto: this is decorative background behind copy that
+                // is readable without it, and a hero video pulling its whole payload
+                // on a phone connection is the other half of why it stutters.
+                preload="metadata"
+                disablePictureInPicture
+                // object-[62%_center] below md: the clip is landscape with Peter framed
                 // right of centre (the desktop layout leans on that — text left, the
                 // gradient fading toward him). A portrait phone showing a 16:9 frame in
                 // a 90vh box keeps only ~a third of its width, and the default centre
-                // crop threw the right side, and Peter with it, off screen. Anchoring
-                // the crop toward his side keeps him in the kept slice; desktop keeps
-                // the centred framing it was composed for.
-                className="absolute inset-0 w-full h-full object-cover object-[72%_center] md:object-center z-0 pointer-events-none"
+                // crop threw the right side, and Peter with it, off screen.
+                //
+                // A LOWER percentage moves him further RIGHT in the frame: the number
+                // is which part of the source lines up with the same part of the box,
+                // so keeping more of the left edge pushes the subject rightward.
+                className="absolute inset-0 w-full h-full object-cover object-[62%_center] md:object-center z-0 pointer-events-none"
             >
                 <source src="/assets/Peter video 2.mp4" type="video/mp4" />
             </video>
@@ -551,14 +595,19 @@ const NewFooter = () => {
             </div>
 
             {/* Top Bar Navigation */}
-            <div className="relative z-10 w-full px-6 md:px-[10%] pt-8 md:pt-12 flex justify-between items-center">
-                {/* Top Left Links */}
-                <div className="flex items-center gap-6 text-[15px] text-[#363636] font-medium">
+            {/* Two columns on a phone, one row from md up. As a single flex row these
+                five links each shrank to their own text and wrapped mid-phrase —
+                "Terms and conditions" broke across three lines while Q&A sat alone
+                off the right edge. A grid gives every link the same cell instead of
+                letting the longest one dictate the layout. */}
+            <div className="relative z-10 w-full px-6 md:px-[10%] pt-8 md:pt-12 flex flex-col md:flex-row md:justify-between md:items-center gap-6 md:gap-0">
+                {/* Established moves to the bottom of the footer on a phone — it is a
+                    footnote, not a heading, and it was the first thing read. */}
+                <div className="hidden md:flex items-center gap-6 text-[15px] text-[#363636] font-medium">
                     <span>{t('home.footer.established')}</span>
                 </div>
 
-                {/* Top Right Links */}
-                <div className="flex items-center gap-6 text-[15px] text-[#363636]">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:flex md:items-center md:gap-6 text-[15px] text-[#363636]">
                     <Link href="/about" className="font-medium hover:text-black transition-colors">{t('home.footer.about')}</Link>
                     <Link href="/privacy" className="font-medium hover:text-black transition-colors">{t('home.footer.privacy')}</Link>
                     {cmsLinks.map((page) => (
@@ -581,13 +630,15 @@ const NewFooter = () => {
                 <img 
                     src="/assets/Veinote logo TM.svg" 
                     alt="Veinote" 
-                    className="w-[280px] sm:w-[350px] md:w-[480px] lg:w-[520px] h-auto block select-none pointer-events-none mb-4 md:mb-6"
+                    className="w-[200px] sm:w-[350px] md:w-[480px] lg:w-[520px] h-auto block select-none pointer-events-none mb-4 md:mb-6"
                 />
 
-                {/* Designed by Humans with Love */}
-                <div className="flex items-center gap-2 text-[14px] md:text-[15px] text-[#363636] font-medium tracking-tight bg-white/30 backdrop-blur-lg border border-white/40 px-5 py-2.5 rounded-full shadow-sm">
-                    <Heart className="w-4 h-4 fill-[#363636] stroke-none inline shrink-0" />
-                    <span>{t('home.footer.designed')}</span>
+                {/* Designed by Humans with Love. Smaller type and tighter padding on a
+                    phone so the sentence holds one line — wrapped across two inside a
+                    pill, it read as a paragraph in a badge. */}
+                <div className="flex items-center gap-2 text-[12px] md:text-[15px] text-[#363636] font-medium tracking-tight bg-white/30 backdrop-blur-lg border border-white/40 px-3.5 py-2 md:px-5 md:py-2.5 rounded-full shadow-sm max-w-full">
+                    <Heart className="w-3.5 h-3.5 md:w-4 md:h-4 fill-[#363636] stroke-none inline shrink-0" />
+                    <span className="whitespace-nowrap md:whitespace-normal">{t('home.footer.designed')}</span>
                 </div>
 
                 {/* Additional footer text */}
@@ -597,6 +648,11 @@ const NewFooter = () => {
                     </p>
                     <p className="font-medium text-[#363636] leading-relaxed">
                         {t('home.footer.tagline_2')}
+                    </p>
+                    {/* Established, in its place on a phone: under the taglines rather
+                        than above everything. Desktop keeps it top-left. */}
+                    <p className="md:hidden pt-1 text-[#363636]/70 font-normal">
+                        {t('home.footer.established')}
                     </p>
                 </div>
             </div>

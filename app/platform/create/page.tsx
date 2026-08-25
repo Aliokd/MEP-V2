@@ -134,7 +134,7 @@ function cleanClickedWord(raw: string): string {
  * A module-level function rather than a hook: the phrase row is its own
  * component, well outside the page's state.
  */
-const DOCK_CLEARANCE = 104;
+const DOCK_CLEARANCE_FALLBACK = 104;
 const CARET_MARGIN = 20;
 
 function keepEditorInView(el: HTMLElement | null) {
@@ -144,8 +144,16 @@ function keepEditorInView(el: HTMLElement | null) {
     const visibleTop = vv ? vv.offsetTop : 0;
     const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
 
+    // Measured, not assumed. The docked toolbar is two rows while the keyboard is
+    // up — Complete and undo/redo above the tools capsule — which is well over the
+    // 104px this used to reserve, so the line being typed was landing underneath
+    // it and reading as "nothing happened". Its real height is the only number
+    // that keeps working when that bar changes.
+    const dock = document.querySelector('[data-canvas-dock]');
+    const dockHeight = dock ? dock.getBoundingClientRect().height : DOCK_CLEARANCE_FALLBACK;
+
     const safeTop = visibleTop + CARET_MARGIN;
-    const safeBottom = visibleBottom - DOCK_CLEARANCE;
+    const safeBottom = visibleBottom - dockHeight - CARET_MARGIN;
     // A viewport too short to hold the line and both chrome bars — nothing sane
     // to scroll to, so leave it where it is rather than oscillating.
     if (safeBottom <= safeTop) return;
@@ -185,6 +193,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import { setPlaybackAudioSession, setRecordingAudioSession, releaseRecordingAudioSession } from '@/lib/audioSession';
 import { useSheetPresence } from '@/hooks/useSheetPresence';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 import { haptic } from '@/lib/haptics';
 import StudioActionSheet, { StudioSheetRow } from './components/StudioActionSheet';
 import { fitToFirestore } from '@/lib/projectPayload';
@@ -4797,7 +4806,57 @@ export default function CreatePage() {
     const [keyboardInset, setKeyboardInset] = useState(0);
     // 120px: comfortably above the ~50-100px the collapsing URL bar accounts for on
     // mobile Safari and Chrome, and far below the ~260px+ of any real keyboard.
-    const isKeyboardOpen = keyboardInset > 120;
+    /**
+     * Whether a canvas editor holds focus. Tracked alongside the measured inset
+     * because the inset alone is not reliable across platforms.
+     *
+     * Android Chrome resizes the LAYOUT viewport when the keyboard opens, so
+     * `window.innerHeight` shrinks with `visualViewport.height` and the
+     * difference between them — the inset — stays near zero even though a
+     * keyboard is plainly on screen. iOS leaves the layout viewport alone and
+     * the inset reads the keyboard's true height. Focus is the one signal that
+     * means the same thing on both.
+     */
+    const [isEditorFocused, setIsEditorFocused] = useState(false);
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        const isEditor = (el: EventTarget | null) => {
+            const node = el as HTMLElement | null;
+            if (!node || (node.tagName !== 'TEXTAREA' && node.tagName !== 'INPUT')) return false;
+            return !!node.closest('.creative-canvas-container');
+        };
+        const onIn = (e: FocusEvent) => { if (isEditor(e.target)) setIsEditorFocused(true); };
+        const onOut = (e: FocusEvent) => { if (isEditor(e.target)) setIsEditorFocused(false); };
+        document.addEventListener('focusin', onIn);
+        document.addEventListener('focusout', onOut);
+        return () => {
+            document.removeEventListener('focusin', onIn);
+            document.removeEventListener('focusout', onOut);
+        };
+    }, []);
+
+    const isKeyboardOpen = keyboardInset > 120 || (isMobile && isEditorFocused);
+
+    /**
+     * How tall the docked toolbar is while the keyboard is up. Measured rather
+     * than assumed: it is two rows there (Complete and undo/redo above the tools
+     * capsule), and the number is used to work out how much room is genuinely
+     * left for the writing surface. The initial 140 is only a first-paint guess —
+     * the effect corrects it before anything is typed.
+     */
+    const [keyboardDockHeight, setKeyboardDockHeight] = useState(140);
+    useEffect(() => {
+        if (!isKeyboardOpen || typeof window === 'undefined') return;
+        const measure = () => {
+            const dock = document.querySelector('[data-canvas-dock]');
+            if (dock) setKeyboardDockHeight(dock.getBoundingClientRect().height);
+        };
+        measure();
+        // Once more after the dock has settled into its keyboard layout — the
+        // first read can land while it is still in its resting arrangement.
+        const id = window.setTimeout(measure, 80);
+        return () => window.clearTimeout(id);
+    }, [isKeyboardOpen]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.visualViewport) return;
@@ -5125,6 +5184,7 @@ export default function CreatePage() {
     // Held mounted through the exit keyframe so the sheet slides out instead of
     // blinking away — see hooks/useSheetPresence.
     const studioGuideSheet = useSheetPresence(showWiredHeadphonesBanner);
+
     const [activeGuideTab, setActiveGuideTab] = useState<'overview' | 'controls' | 'workflow'>('overview');
 
     useEffect(() => {
@@ -5698,6 +5758,28 @@ export default function CreatePage() {
     const [inspirationCards, setInspirationCards] = useState<InspirationCard[]>([]);
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+
+    /*
+     * Back closes whatever is open, rather than leaving the page.
+     *
+     * Reported from a Samsung: opening the canvas ⋮ and pressing Back appeared to
+     * log the user out. Nothing was logging them out — the menu simply wasn't a
+     * history entry, so Back did the only thing it could and navigated, and the
+     * entry behind /platform/create is usually /signin.
+     *
+     * Placed here rather than beside each piece of state because hooks run in
+     * source order: every flag below has to be declared before it can be read.
+     * Each call is inert while its flag is false, so listing them all costs
+     * nothing, and the order sets which one Back unwinds first when two overlap.
+     */
+    useBackDismiss(showCanvasMenu, () => setShowCanvasMenu(false));
+    useBackDismiss(isWorkspaceMenuOpen, () => setIsWorkspaceMenuOpen(false));
+    useBackDismiss(showToolsPanel, () => setShowToolsPanel(false));
+    useBackDismiss(showWiredHeadphonesBanner, () => setShowWiredHeadphonesBanner(false));
+    useBackDismiss(showShareModal, () => setShowShareModal(false));
+    useBackDismiss(!!expandedCardId, () => setExpandedCardId(null));
+    useBackDismiss(!!clickedWord, () => closeWordPopover());
+    useBackDismiss(!!openCommentThread, () => closeCommentThread(isMobile));
     const [inspirationQuestionIndex, setInspirationQuestionIndex] = useState<number>(0);
     const [inspirationAnswers, setInspirationAnswers] = useState<Record<string, Record<string, string[]>>>({});
     const [inspirationDragOffset, setInspirationDragOffset] = useState(0);
@@ -15864,7 +15946,7 @@ export default function CreatePage() {
                         restores it from sm up — the row still scrolls by swipe either way. */}
                     <div className="flex flex-col flex-1 min-h-0 w-[calc(100%+1rem)] -ml-4 pl-4 relative overflow-auto studio-tracks-scroll">
                     {/* Sequencer Track List Container */}
-                    <div className="flex flex-col gap-2.5 w-full relative">
+                    <div className="flex flex-col gap-2.5 w-full relative pr-4 sm:pr-0">
                         {studioTracks.filter(Boolean).map((track, idx) => {
                             const isArmed = activeRecordingTrackId === track.id;
                             const isThisTrackRecording = studioState === 'recording' && isArmed;
@@ -16395,164 +16477,119 @@ export default function CreatePage() {
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* This track's take, directly under the track itself.
+                                        Phone only — desktop keeps its lane on the row. No name
+                                        label and no surrounding card: the instrument capsule
+                                        immediately above already says which track this is, and
+                                        the wave is the only thing here worth height. */}
+                                    <div
+                                        onPointerDown={(e) => {
+                                            if (isCanvasReadOnly) return;
+                                            setActiveRecordingTrackId(track.id);
+                                            handleTimelinePointerDown(e);
+                                        }}
+                                        className={`sm:hidden relative w-full h-12 rounded-[14px] overflow-hidden transition-colors cursor-ew-resize ${
+                                            isThisTrackRecording
+                                                ? 'bg-[#FF6B6B]'
+                                                : (track.audioBuffer || track.url)
+                                                    ? 'bg-white border border-stone-200/60'
+                                                    : isArmed
+                                                        ? 'bg-red-50/20 border border-red-300'
+                                                        : 'bg-white border border-stone-200/50'
+                                        }`}
+                                    >
+                                        <TrackWaveform
+                                            audioBuffer={track.audioBuffer}
+                                            playhead={studioPlayhead}
+                                            duration={limit}
+                                            isRecording={isThisTrackRecording}
+                                            studioState={studioState}
+                                            trackName={track.name}
+                                        />
+                                        {/* Each lane carries its own playhead mark now that they
+                                            are no longer stacked in one box for a single line to
+                                            cross. The draggable one lives on the pinned ruler. */}
+                                        {studioState !== 'recording' && (
+                                            <div
+                                                className="absolute top-0 bottom-0 w-[2px] bg-[#FF4040]/70 pointer-events-none"
+                                                style={{ left: `${playheadPercent}%` }}
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             );
                         })}
                         
-                        {/* Add track button following track card.
-                            Full width and 64px tall on a phone: at 260px centred in a 412px
-                            sheet it read as a caption under the tracks rather than the primary
-                            way to build a song, and the low-contrast dashed outline on
-                            near-white made it easy to miss entirely.
-                            pr-4 offsets the scroll region's w-[calc(100%+1rem)], so w-full
-                            here lands flush with the tracks rather than 16px past them. */}
-                        {studioTracks.length < 4 && !isCanvasReadOnly && (
-                            <div className="h-auto sm:h-16 w-full shrink-0 flex items-center justify-center pt-2 sm:pt-0 pr-4 sm:pr-0">
-                                <button
-                                    onClick={handleAddTrack}
-                                    className="w-full h-16 text-[17px] border-2 border-dashed border-stone-400 bg-stone-100/80 text-stone-700
-                                        sm:w-[260px] sm:h-14 sm:text-[16px] sm:border sm:border-stone-300 sm:bg-stone-100/40 sm:text-stone-500
-                                        hover:border-stone-400 hover:bg-stone-100/70 hover:text-stone-700
-                                        rounded-full font-medium transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-sm"
-                                    type="button"
-                                >
-                                    <Plus size={22} className="stroke-[2.4] sm:w-5 sm:h-5" />
-                                    <span>{t('creative.add_track')}</span>
-                                </button>
-                            </div>
-                        )}
 
-                        {/* ── Recording box (phone only) ──
-                            The waveforms, lifted out of the track rows and given the full width
-                            below Add track. On a phone a per-row lane was a ~160px sliver after
-                            the instrument capsule; here every track gets the whole width, they
-                            share one red playhead running through all of them, and the ruler sits
-                            under the stack. pr-4 offsets the scroll region's w-[calc(100%+1rem)]. */}
-                        {studioTracks.filter(Boolean).length > 0 && (
-                            <div className="sm:hidden w-full pr-4 pt-4 flex flex-col gap-2">
-                                <div className="flex items-center justify-between px-1">
-                                    <span className="text-[11px] font-bold text-stone-400 tracking-wider uppercase select-none">
-                                        {t('studio.recording_box')}
-                                    </span>
-                                    <span className="text-[11px] font-semibold text-stone-400 tabular-nums select-none">
-                                        {formatTime(studioPlayhead)}
-                                    </span>
-                                </div>
-
-                                {/* Lanes + the single playhead that crosses them */}
-                                <div
-                                    id="studio-mobile-lanes"
-                                    className="relative w-full flex flex-col gap-2 cursor-ew-resize"
-                                    onPointerDown={handleTimelinePointerDown}
-                                >
-                                    {studioTracks.filter(Boolean).map((track) => {
-                                        const isArmedLane = activeRecordingTrackId === track.id;
-                                        const isLaneRecording = studioState === 'recording' && isArmedLane;
-                                        const hasAudio = !!(track.audioBuffer || track.url);
-                                        return (
-                                            <div
-                                                key={`lane-${track.id}`}
-                                                onPointerDown={(e) => {
-                                                    // Arm this track, then let the shared handler seek.
-                                                    if (isCanvasReadOnly) return;
-                                                    setActiveRecordingTrackId(track.id);
-                                                    handleTimelinePointerDown(e);
-                                                }}
-                                                className={`w-full h-16 rounded-[18px] flex items-center relative overflow-hidden transition-all ${
-                                                    isLaneRecording
-                                                        ? 'p-0 bg-[#FF6B6B]'
-                                                        : hasAudio
-                                                            ? 'px-1 py-1 bg-white border border-stone-200/50 shadow-[0_3px_10px_rgba(0,0,0,0.06)]'
-                                                            : isArmedLane
-                                                                ? 'px-1 py-1 bg-red-50/15 border border-red-400'
-                                                                : 'px-1 py-1 bg-white border border-stone-200/50'
-                                                }`}
-                                            >
-                                                {/* Which lane is which — the instrument capsule that
-                                                    used to sit beside it is now rows away. */}
-                                                <span className={`absolute left-3 top-1.5 z-20 text-[10px] font-bold tracking-wide uppercase pointer-events-none select-none ${
-                                                    isLaneRecording ? 'text-white/90' : 'text-stone-400'
-                                                }`}>
-                                                    {track.name}
-                                                </span>
-                                                <TrackWaveform
-                                                    audioBuffer={track.audioBuffer}
-                                                    playhead={studioPlayhead}
-                                                    duration={limit}
-                                                    isRecording={isLaneRecording}
-                                                    studioState={studioState}
-                                                    trackName={track.name}
-                                                />
-                                            </div>
-                                        );
-                                    })}
-
-                                    {/* The vertical red controller, spanning every lane.
-                                        Same structure as the desktop playhead — a wide
-                                        transparent grab column centred on a 2px line that
-                                        thickens while held — but 40px wide instead of 24,
-                                        because a thumb is not a cursor. It was
-                                        pointer-events-none before, so the line could only
-                                        be moved by tapping the lane it sits on rather than
-                                        by dragging the line itself. */}
-                                    {studioState !== 'recording' && (
-                                        <div
-                                            className="absolute top-0 bottom-0 w-10 -ml-5 z-30 pointer-events-auto touch-none cursor-ew-resize flex justify-center group/ph"
-                                            style={{ left: `${playheadPercent}%` }}
-                                            onPointerDown={(e) => { e.stopPropagation(); handlePlayheadLinePointerDown(e); }}
-                                        >
-                                            <div className="h-full w-[2px] bg-[#FF4040] group-active/ph:w-[10px] transition-all duration-150 flex items-center justify-center relative">
-                                                {/* The white centre line, revealed while dragging —
-                                                    the desktop hover cue, moved onto press. */}
-                                                <div className="w-[1.5px] h-10 bg-white opacity-0 group-active/ph:opacity-100 transition-opacity duration-150" />
-                                            </div>
-                            {/* The grip is an upward arrow at the FOOT of the line, not a
-                                dot at its head. It sits in the band between the lanes and
-                                the ruler, pointing at the position it marks — the same
-                                marker the ruler already uses for the playhead, so the two
-                                agree. A dot on top had it hanging over the first lane,
-                                furthest from the thumb and pointing at nothing. */}
-                                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[7px] border-r-[7px] border-b-[9px] border-l-transparent border-r-transparent border-b-[#FF4040] drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]" />
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Timeline ruler, full width under the stack. Darker and
-                                    taller than the desktop strip: at 9px in stone-500/80 on
-                                    a pale ground it read as an empty grey pill rather than
-                                    as a scale, which is most of why the band under the
-                                    lanes looked like dead space. */}
-                                <div
-                                    className="relative w-full h-11 rounded-2xl bg-stone-100 border border-stone-200/60 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex items-center cursor-ew-resize select-none"
-                                    onPointerDown={handleTimelinePointerDown}
-                                >
-                                    <div className="w-full h-full flex justify-between items-center px-3 relative">
-                                        {rulerItems.map((item, idx) => (
-                                            item.type === 'label' ? (
-                                                <span key={idx} className="text-[11px] font-sans font-semibold text-stone-500 tabular-nums select-none shrink-0">
-                                                    {item.value}
-                                                </span>
-                                            ) : (
-                                                <div key={idx} className="w-[1px] h-2.5 bg-stone-300 rounded-full shrink-0" />
-                                            )
-                                        ))}
-                                    </div>
-
-                                    {/* The playhead continues through the ruler, so the arrow
-                                        above it is pointing at a position on a scale rather
-                                        than at a blank strip. */}
-                                    {studioState !== 'recording' && (
-                                        <div
-                                            className="absolute top-0 bottom-0 w-[2px] bg-[#FF4040]/70 pointer-events-none"
-                                            style={{ left: `${playheadPercent}%` }}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                 </div>
+
+                {/* ── Pinned foot (phone only): the timeline, then Add track ──
+                    Both sit outside the scroll region, so the ruler stays put while the
+                    track list moves under it — a scale that scrolls away is no scale —
+                    and Add track keeps a fixed home instead of drifting to wherever the
+                    last track happened to end. */}
+                <div className="sm:hidden shrink-0 w-full flex flex-col gap-2 pt-2">
+                    {studioTracks.filter(Boolean).length > 0 && (
+                        <div
+                            className="relative w-full h-11 rounded-2xl bg-stone-100 border border-stone-200/60 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex items-center cursor-ew-resize select-none"
+                            onPointerDown={handleTimelinePointerDown}
+                            id="studio-mobile-lanes"
+                        >
+                            <div className="w-full h-full flex justify-between items-center px-3 relative">
+                                {rulerItems.map((item, idx) => (
+                                    item.type === 'label' ? (
+                                        <span key={idx} className="text-[11px] font-sans font-semibold text-stone-500 tabular-nums select-none shrink-0">
+                                            {item.value}
+                                        </span>
+                                    ) : (
+                                        <div key={idx} className="w-[1px] h-2.5 bg-stone-300 rounded-full shrink-0" />
+                                    )
+                                ))}
+                            </div>
+
+                            {/* The draggable playhead now lives here, on the scale itself —
+                                the lanes it used to span are distributed among the tracks. */}
+                            {studioState !== 'recording' && (
+                                <div
+                                    className="absolute top-0 bottom-0 w-10 -ml-5 z-20 pointer-events-auto touch-none cursor-ew-resize flex justify-center group/ph"
+                                    style={{ left: `${playheadPercent}%` }}
+                                    onPointerDown={(e) => { e.stopPropagation(); handlePlayheadLinePointerDown(e); }}
+                                >
+                                    <div className="h-full w-[2px] bg-[#FF4040] group-active/ph:w-[10px] transition-all duration-150" />
+                                    <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[7px] border-r-[7px] border-t-[9px] border-l-transparent border-r-transparent border-t-[#FF4040]" />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {studioTracks.length < 4 && !isCanvasReadOnly && (
+                        <button
+                            onClick={handleAddTrack}
+                            className="w-full h-14 text-[16px] border-2 border-dashed border-stone-400 bg-stone-100/80 text-stone-700 rounded-full font-medium transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-sm"
+                            type="button"
+                        >
+                            <Plus size={20} className="stroke-[2.4]" />
+                            <span>{t('creative.add_track')}</span>
+                        </button>
+                    )}
+                </div>
+
+                {/* Add track, desktop placement — still under the last track card. */}
+                {studioTracks.length < 4 && !isCanvasReadOnly && (
+                    <div className="hidden sm:flex h-16 w-full shrink-0 items-center justify-center">
+                        <button
+                            onClick={handleAddTrack}
+                            className="w-[260px] h-14 text-[16px] border border-stone-300 bg-stone-100/40 text-stone-500 hover:border-stone-400 hover:bg-stone-100/70 hover:text-stone-700 rounded-full font-medium transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-sm"
+                            type="button"
+                        >
+                            <Plus size={20} />
+                            <span>{t('creative.add_track')}</span>
+                        </button>
+                    </div>
+                )}
 
                 {/* Bottom Control Bar — pinned. The scroll region above absorbs the leftover
                     height (so these controls still sit at the bottom of a tall panel, as the old
@@ -16898,7 +16935,7 @@ export default function CreatePage() {
                             className="w-[clamp(48px,13.5vw,60px)] h-[clamp(48px,13.5vw,60px)] shrink-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all relative"
                             type="button"
                         >
-                            <SlidersHorizontal size={24} className="text-stone-700 stroke-[1.8]" />
+                            <SlidersHorizontal size={22} className="text-stone-700 stroke-[1.8]" />
                             {/* A dot rather than a number: it says "something is running in
                                 here" without claiming to say what. */}
                             {(isStudioMetronomeOn || isDirectMonitorEnabled) && (
@@ -16917,7 +16954,7 @@ export default function CreatePage() {
                             }`}
                             type="button"
                         >
-                            <FileText size={24} className="stroke-[1.8]" />
+                            <FileText size={22} className="stroke-[1.8]" />
                         </button>
 
                         {/* Record — the widest of the five, because it is the one they came
@@ -16964,7 +17001,7 @@ export default function CreatePage() {
                             className="w-[clamp(48px,13.5vw,60px)] h-[clamp(48px,13.5vw,60px)] shrink-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
                             type="button"
                         >
-                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-stone-700">
+                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-[23px] h-[23px] text-stone-700">
                                 {studioState === 'playing'
                                     ? <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
                                     : <path d="M8 5v14l11-7z" />}
@@ -16980,8 +17017,8 @@ export default function CreatePage() {
                             type="button"
                         >
                             {isSendingToCanvas
-                                ? <Loader2 size={24} className="animate-spin text-stone-500" />
-                                : <ArrowUp size={24} className="text-stone-700 stroke-[2]" />}
+                                ? <Loader2 size={22} className="animate-spin text-stone-500" />
+                                : <ArrowUp size={22} className="text-stone-700 stroke-[1.8]" />}
                         </button>
                     </div>
                 </div>
@@ -18733,7 +18770,7 @@ export default function CreatePage() {
                         opposite of what the sheet is for. Below sm it overlays the card
                         full-width instead, toggled by the same Show/Hide lyrics button. */}
                     <div
-                        className={`bg-[#E5E4DE] flex flex-col overflow-hidden transition-all duration-300 ease-out sm:relative sm:inset-auto z-30 sm:z-10 ${
+                        className={`bg-[#E5E4DE] flex flex-col overflow-hidden transition-[width,opacity,padding] duration-300 ease-out sm:relative sm:inset-auto z-30 sm:z-10 ${
                             showStudioLyrics
                                 ? 'absolute inset-0 w-full rounded-t-[20px] rounded-b-none p-5 border border-stone-200/80 sm:static sm:w-[min(300px,75vw)] sm:rounded-none sm:rounded-l-[36px] md:rounded-l-[45px] sm:p-8 md:p-10 sm:pr-6 sm:border-t sm:border-b sm:border-l sm:border-r sm:border-r-[#D2D1C9] opacity-100'
                                 : 'hidden sm:flex w-0 opacity-0 p-0 border-t-transparent border-b-transparent border-l-transparent border-r-transparent pointer-events-none'
@@ -18801,7 +18838,7 @@ export default function CreatePage() {
                         // Always full-width and top-rounded on the phone: the lyrics
                         // panel overlays this card there rather than sitting beside it,
                         // so the split-corner treatment only applies from sm up.
-                        className={`flex-grow min-w-0 bg-white border border-stone-200/80 p-4 sm:p-6 md:p-7 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all duration-300 ease-out relative z-20 overflow-y-auto no-scrollbar rounded-t-[20px] rounded-b-none ${
+                        className={`flex-grow min-w-0 bg-white border border-stone-200/80 p-4 sm:p-6 md:p-7 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-[width,padding,border-color] duration-300 ease-out relative z-20 overflow-y-auto no-scrollbar rounded-t-[20px] rounded-b-none ${
                             showStudioLyrics
                                 ? 'sm:rounded-none sm:rounded-r-[36px] md:rounded-r-[45px] sm:border-l-0'
                                 : 'sm:rounded-[36px] md:rounded-[45px]'
@@ -18835,7 +18872,7 @@ export default function CreatePage() {
                 onDrop={(e) => e.stopPropagation()}
                 className={`w-full ${
                     (activeToolTab as string) === 'studio' ? 'flex-grow min-w-0 max-w-none' : 'max-w-[856px]'
-                } bg-white border border-stone-200/80 rounded-[24px] sm:rounded-[36px] md:rounded-[45px] max-sm:rounded-t-[20px] max-sm:rounded-b-none p-4 sm:p-6 md:p-7 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))] max-sm:mb-0 mb-3 sm:mb-5 max-sm:max-h-[85dvh] max-sm:overflow-y-auto no-scrollbar flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-all ${
+                } bg-white border border-stone-200/80 rounded-[24px] sm:rounded-[36px] md:rounded-[45px] max-sm:rounded-t-[20px] max-sm:rounded-b-none p-4 sm:p-6 md:p-7 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))] max-sm:mb-0 mb-3 sm:mb-5 max-sm:max-h-[85dvh] max-sm:overflow-y-auto no-scrollbar flex flex-col shadow-[0_15px_45px_rgba(0,0,0,0.06)] pointer-events-auto transition-[width,padding,border-color] duration-300 ${
                     (activeToolTab as string) === 'studio' && showStudioLyrics ? 'rounded-l-none border-l-0 mb-0 sm:mb-0' : ''
                 } ${
                     (activeToolTab as string) === 'tuner' ? 'gap-0' : (activeToolTab as string) === 'studio' ? 'gap-4 sm:gap-5' : 'gap-4 sm:gap-6'
@@ -20025,7 +20062,15 @@ export default function CreatePage() {
                                 </button>
                                 </Tooltip>
 
-                                {showCanvasMenu && (
+                                {/* Portalled to <body> on a phone. This menu is declared inside
+                                    the canvas header, so its z-index only ever competed WITHIN
+                                    that ancestor — the toolbar dock lower down the card sits in
+                                    a different stacking context and won regardless of the
+                                    numbers, which is why the sheet and its blur both came out
+                                    underneath it. At the top level z-[85] means what it says.
+                                    Desktop keeps it in place, where it is positioned `absolute`
+                                    against the ⋮ that opens it. */}
+                                {showCanvasMenu && portalWhenMobile(
                                     <>
                                         <div
                                             className="fixed inset-0 z-30 max-md:z-[84] max-md:bg-stone-900/40 max-md:backdrop-blur-sm sheet-backdrop-enter"
@@ -21288,10 +21333,19 @@ export default function CreatePage() {
                                         }}
                                         className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-sans text-[30px] md:text-[34px] lg:text-[42px] font-normal text-stone-700 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[60dvh] md:max-h-[70dvh] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
                                         placeholder=""
-                                        style={{ 
+                                        style={{
                                             height: 'auto',
                                             minHeight: '1.4em',
-                                            caretColor: contentVal === '' ? 'transparent' : 'black'
+                                            caretColor: contentVal === '' ? 'transparent' : 'black',
+                                            // While the keyboard is up, cap this against the space
+                                            // actually left above the docked toolbar. This box
+                                            // scrolls internally, so the browser keeps the caret
+                                            // visible INSIDE it — which is no help when the box
+                                            // itself runs under the toolbar. Capping it means the
+                                            // bottom of the box, and so the caret, stays in view.
+                                            ...(isMobile && isKeyboardOpen && visualViewportBottom !== null
+                                                ? { maxHeight: `${Math.max(120, visualViewportBottom - keyboardDockHeight - 160)}px` }
+                                                : {}),
                                         }}
                                     />
                                     {contentVal === '' && (
@@ -21714,6 +21768,9 @@ export default function CreatePage() {
                     // backing visibly lingered on top of the artwork every time. The empty
                     // state now carries no transition at all, so it simply has no background
                     // from the first frame.
+                    // Read by keepEditorInView to work out how much of the screen the
+                    // toolbar is covering, so the caret is scrolled clear of it.
+                    data-canvas-dock
                     className={`flex select-none z-20 justify-center ${
                         // Keyed on the measured keyboard, not on focus — see keyboardInset.
                         // No transition while it's docked to the keyboard: the keyboard
@@ -21757,15 +21814,25 @@ export default function CreatePage() {
                                     : "transition-all duration-300 px-2 md:px-8 mt-auto pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] md:pb-12 sticky bottom-0 bg-white/90 backdrop-blur-md"
                     }`}
                     style={(isMobile && isKeyboardOpen) ? {
-                        // Anchored by top + translateY(-100%) rather than `bottom`, because
-                        // a fixed element's containing block is the LAYOUT viewport, which
-                        // the keyboard does not shrink — `bottom: 0` would sit behind it.
-                        // visualViewportBottom is the visual viewport's bottom edge
-                        // expressed in those same layout coordinates, so this lands the
-                        // bar's bottom edge exactly on the keyboard's top edge.
-                        bottom: 'auto',
-                        top: visualViewportBottom !== null ? `${visualViewportBottom}px` : '100%',
-                        transform: 'translateY(-100%)'
+                        // Anchored by `bottom: <keyboard inset>`, not by top plus a
+                        // translateY(-100%).
+                        //
+                        // The old way put the bar's TOP at the keyboard's top edge and
+                        // relied on shifting it up by exactly its own height. Any
+                        // disagreement between the height the browser had laid out and
+                        // the height it transformed by — a row wrapping, the capsule
+                        // resizing, a measurement taken mid-relayout — pushed the bottom
+                        // row straight under the keyboard, which is the missing REC bar.
+                        //
+                        // Anchoring the BOTTOM removes the element's own height from the
+                        // arithmetic entirely, and it is correct on both platforms: where
+                        // the layout viewport shrinks (Android) the inset is ~0 and
+                        // `bottom: 0` is already the keyboard's edge; where it does not
+                        // (iOS) the inset is the keyboard's height and lifts the bar
+                        // clear of it.
+                        top: 'auto',
+                        bottom: `${keyboardInset}px`,
+                        transform: 'none',
                     } : {
                         // Sit clear of the cookie consent bar while it's up (it's fixed at
                         // bottom-0 with z-100 and would otherwise swallow every tap on this
@@ -21784,7 +21851,7 @@ export default function CreatePage() {
                           (centred from md up): these sit above a full-width bar, and a
                           centred cluster floating over it read as unrelated to either edge.
                           pr-4 lines them up with the bar's own right padding. */}
-                      <div className="flex items-center gap-2 w-full justify-end pr-4 md:w-auto md:justify-center md:pr-0">
+                      <div className="flex items-center gap-2 self-end w-auto pr-4 md:self-auto md:pr-0">
                         {/* ✓ COMPLETE button — content auto-saves, so this is no longer a "save or
                             lose it" action; it stays available as the deliberate "I'm done" beat
                             that fires the celebration and awards progress.
@@ -21802,7 +21869,7 @@ export default function CreatePage() {
                                 onClick={handleCheckmarkSaveClick}
                                 disabled={isSavingNote}
                                 aria-label={isSavingNote ? t('common.completing') : t('common.complete')}
-                                className="relative overflow-hidden w-[54px] h-[54px] flex items-center justify-center rounded-full border border-stone-200/60 bg-white shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer select-none active:scale-95 pointer-events-auto"
+                                className="relative overflow-hidden w-11 h-11 md:w-[54px] md:h-[54px] shrink-0 flex items-center justify-center rounded-full border border-stone-200/60 bg-white shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer select-none active:scale-95 pointer-events-auto"
                                 style={{
                                     // Inline rather than Tailwind classes: conditional utilities
                                     // built into a template string aren't always generated by JIT.
@@ -21829,12 +21896,12 @@ export default function CreatePage() {
 
                         {/* Undo / Redo action buttons (shown only when there are unsaved steps in history) */}
                         {(undoStack.length > 0 || redoStack.length > 0) && (
-                            <div className="flex items-center gap-1 bg-white border border-stone-200/50 p-1.5 rounded-full shadow-2xs pointer-events-auto">
+                            <div className="flex items-center gap-0.5 md:gap-1 bg-white border border-stone-200/50 p-1 md:p-1.5 rounded-full shadow-2xs pointer-events-auto shrink-0">
                                 <Tooltip label={t('common.undo') || 'Undo'} side="top" disabled={undoStack.length === 0 || isCanvasLocked}>
                                 <button
                                     onClick={handleUndo}
                                     disabled={undoStack.length === 0 || isCanvasLocked}
-                                    className={`p-2 rounded-full transition-all duration-150 flex items-center justify-center select-none ${
+                                    className={`p-1.5 md:p-2 rounded-full transition-all duration-150 flex items-center justify-center select-none ${
                                         undoStack.length === 0 || isCanvasLocked
                                             ? 'text-stone-300 opacity-40 pointer-events-none'
                                             : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100 cursor-pointer active:scale-90'
@@ -21848,7 +21915,7 @@ export default function CreatePage() {
                                 <button
                                     onClick={handleRedo}
                                     disabled={redoStack.length === 0 || isCanvasLocked}
-                                    className={`p-2 rounded-full transition-all duration-150 flex items-center justify-center select-none ${
+                                    className={`p-1.5 md:p-2 rounded-full transition-all duration-150 flex items-center justify-center select-none ${
                                         redoStack.length === 0 || isCanvasLocked
                                             ? 'text-stone-300 opacity-40 pointer-events-none'
                                             : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100 cursor-pointer active:scale-90'
@@ -22245,7 +22312,9 @@ export default function CreatePage() {
                         </button>
                         </Tooltip>
 
-                        {isWorkspaceMenuOpen && (
+                        {/* Portalled on a phone for the same reason as the canvas menu:
+                            declared inside the header, so its z-index is only local. */}
+                        {isWorkspaceMenuOpen && portalWhenMobile(
                             <>
                                 <div
                                     className="fixed inset-0 z-40 max-md:z-[84] max-md:bg-stone-900/40 max-md:backdrop-blur-sm sheet-backdrop-enter"

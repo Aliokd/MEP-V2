@@ -1573,6 +1573,43 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
 .bottom-sheet-enter { animation: bottom-sheet-enter 300ms cubic-bezier(0.23, 1, 0.32, 1); }
 .bottom-sheet-exit  { animation: bottom-sheet-exit 260ms cubic-bezier(0.32, 0, 0.67, 0) forwards; }
 
+/* ── The primary green button ─────────────────────────────────────────────
+   Lifted out of the onboarding carousel, where this treatment already lived as
+   a long inline class string, so the marketing site and the auth pages can wear
+   the same one instead of each approximating it.
+
+   The interaction is the point: a solid darker ledge sits under the button and
+   collapses as it is pressed, so the button travels rather than just tinting.
+   `margin-bottom` reserves the ledge's height — without it the button appears
+   6px taller than its box and shunts whatever follows.
+
+   Height, width, padding and type are deliberately NOT set here: the same
+   button is a full-width CTA in one place and a compact pill in another. This
+   class owns the colour and the press, the call site owns the size. */
+.btn-press {
+    background-color: #86BE7F;
+    color: #1c1917;
+    border-radius: 9999px;
+    margin-bottom: 6px;
+    box-shadow: 0 6px 0 0 #5F9857;
+    transition: transform 100ms ease, box-shadow 100ms ease, filter 100ms ease;
+}
+.btn-press:hover:not(:disabled) {
+    filter: brightness(1.03);
+}
+.btn-press:active:not(:disabled) {
+    transform: translateY(6px);
+    box-shadow: 0 0 0 0 #5F9857;
+}
+.btn-press:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+    .btn-press { transition: filter 100ms ease; }
+    .btn-press:active:not(:disabled) { transform: none; }
+}
+
 /* ── Scroll chaining ──────────────────────────────────────────────────────
    When an inner scroller reaches its end, the browser hands the rest of the
    gesture to whatever scrolls behind it. Inside a panel or a sheet that reads

@@ -172,16 +172,27 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                 {/* Collapsed layout: full-height flex centered */}
                 {isCollapsed && !isMobile ? (
                     <div className="flex flex-col h-full min-h-0 w-full">
-                        {/* Logo — centered with manual px-3 padding, expand icon floats right outside */}
-                        <div className="flex justify-end w-full py-2 pr-3 group/logoarea relative">
-                            <div className="relative flex items-center">
-                                <Link href="/platform/create" className="opacity-95 hover:opacity-100 transition-opacity flex justify-center" onClick={onClose}>
-                                    <Logo size="sm" variant="icon" showBeta />
-                                </Link>
-                                {/* Expand icon: appears to the right of the badge, outside the logo, never overlapping */}
+                        {/* Logo, then the expand control beneath it — both INSIDE the rail.
+                            It used to sit at `absolute left-full`, i.e. past the rail's own
+                            right edge, which worked only while the rail was
+                            overflow-visible. The rail scrolls now (so a short viewport can
+                            still reach the footer), and a box that scrolls on one axis
+                            cannot stay visible on the other — `overflow-y: auto` forces
+                            `overflow-x` to `auto` too — so the button was being clipped
+                            clean off. Placing it in the flow sidesteps that entirely
+                            instead of trading one bug back for the other.
+
+                            Always visible, not hover-revealed: a collapsed rail whose only
+                            way back open appears on hover is a dead end on any touch
+                            device, and was easy to miss on a mouse too. */}
+                        <div className="flex flex-col items-center gap-2 w-full py-2 px-2">
+                            <Link href="/platform/create" className="opacity-95 hover:opacity-100 transition-opacity flex justify-center" onClick={onClose}>
+                                <Logo size="sm" variant="icon" showBeta />
+                            </Link>
+                            <Tooltip label={t('navigation.expand_sidebar')} side="right">
                                 <button
                                     onClick={toggleSidebar}
-                                    className="touch-reveal absolute left-full ml-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/logoarea:opacity-100 transition-opacity duration-150 w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 text-stone-700 hover:text-stone-950 shadow-xs shrink-0"
+                                    className="w-9 h-9 rounded-full bg-white/60 border border-stone-250/40 flex items-center justify-center hover:bg-white active:scale-95 text-stone-600 hover:text-stone-950 shadow-xs shrink-0 transition-colors cursor-pointer"
                                     aria-label={t('navigation.expand_sidebar')}
                                 >
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -189,7 +200,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                         <path d="M9 3v18" />
                                     </svg>
                                 </button>
-                            </div>
+                            </Tooltip>
                         </div>
 
                         {/* Nav — same top position as expanded (mt-6 matches tighter spacing), full-width active box */}
