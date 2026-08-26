@@ -20,7 +20,7 @@ export default function ConnectionsPage() {
     if (!user) return null;
 
     return (
-        <div className="space-y-8 text-stone-900 font-sans">
+        <div className="space-y-8 px-5 md:px-0 text-stone-900 font-sans">
             <header className="space-y-2">
                 <h1 className="text-3xl font-sans font-light tracking-tight text-stone-900">
                     {t('profile.connections')}

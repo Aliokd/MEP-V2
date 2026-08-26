@@ -470,7 +470,10 @@ function PlatformLayoutInner({
      */
     const isBareMobilePanel = pathname === '/platform'
         || !!pathname?.startsWith('/platform/connect')
-        || !!pathname?.startsWith('/platform/practice');
+        || !!pathname?.startsWith('/platform/practice')
+        // Profile and its sub-pages: already a full-width view with no sidebar, so
+        // the beige frame on a phone was a second border inside the screen's own.
+        || !!pathname?.startsWith('/platform/profile');
 
     /**
      * Mind Power, as it appears inside the mobile sidebar drawer.

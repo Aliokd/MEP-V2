@@ -20,17 +20,17 @@ export default function MySongsPage() {
     if (!user) return null;
 
     return (
-        <div className="space-y-8 text-stone-900 font-sans">
-            <header className="space-y-2">
+        // px below md: the platform layout drops its inset to 0 for profile routes
+        // now that they render without the beige panel, so the page supplies its own
+        // edge gutter. That is the trade for losing the frame.
+        <div className="space-y-6 md:space-y-8 px-5 md:px-0 text-stone-900 font-sans">
+            <header>
                 <h1 className="text-3xl font-sans font-light tracking-tight text-stone-900">
                     {t('profile.my_songs')}
                     {songsLoaded && songs.length > 0 && (
                         <span className="ml-3 text-base font-normal text-stone-400">{songs.length}</span>
                     )}
                 </h1>
-                <p className="text-stone-500 font-sans max-w-2xl text-sm font-normal">
-                    {t('profile.my_songs_subtitle')}
-                </p>
             </header>
 
             {!songsLoaded && (

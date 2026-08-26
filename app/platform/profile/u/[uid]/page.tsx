@@ -107,7 +107,7 @@ export default function SongwriterProfilePage({ params }: { params: Promise<{ ui
     const ActionIcon = action.icon;
 
     return (
-        <div className="space-y-8 max-w-2xl text-stone-900 font-sans">
+        <div className="space-y-8 max-w-2xl px-5 md:px-0 text-stone-900 font-sans">
             <div className="flex items-start gap-5">
                 <div className="w-20 h-20 shrink-0 bg-stone-900 rounded-full flex items-center justify-center text-3xl font-sans text-[#DCDDD4] font-medium">
                     {person.name.charAt(0).toUpperCase()}

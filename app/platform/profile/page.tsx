@@ -256,7 +256,7 @@ export default function ProfilePage() {
     };
 
     return (
-        <div className="space-y-10 text-stone-900 font-sans">
+        <div className="space-y-10 px-5 md:px-0 text-stone-900 font-sans">
             {/* One full-width column: the plan badge sits beside the name, the Max
                 pitch beside the identity, and subscription/support are options rows —
                 nothing is left for a sidebar to hold. */}

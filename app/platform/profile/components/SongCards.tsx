@@ -300,19 +300,19 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
                         <button
                             key={song.id}
                             onClick={() => handleSelect(song)}
-                            className="group flex flex-col items-center gap-3 bg-white/60 hover:bg-white border border-stone-200/70 rounded-[20px] p-5 pt-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_6px_18px_rgba(0,0,0,0.07)] transition-all cursor-pointer active:scale-[0.98]"
+                            className="group flex flex-col items-center gap-3 bg-white/60 hover:bg-white border border-stone-200/70 rounded-[20px] p-4 pt-6 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_6px_18px_rgba(0,0,0,0.07)] transition-all cursor-pointer active:scale-[0.98]"
                         >
                             <div
-                                className="song-disc w-24 h-24 group-hover:scale-105 transition-transform duration-300"
+                                className="song-disc w-32 h-32 sm:w-24 sm:h-24 group-hover:scale-105 transition-transform duration-300"
                                 style={{ '--song-label-color': labelColor(song.id) } as React.CSSProperties}
                             >
                                 <div className="song-disc-label" />
                                 <div className="song-disc-hole" />
                             </div>
                             <div className="text-center min-w-0 w-full">
-                                <p className="text-sm font-medium text-stone-800 truncate">{song.title}</p>
-                                <p className="text-[11px] text-stone-500 mt-0.5 flex items-center justify-center gap-1">
-                                    {song.isCompleted && <CheckCircle2 size={11} className="text-[#4e7a49] shrink-0" strokeWidth={2.2} />}
+                                <p className="text-[15px] sm:text-sm font-medium text-stone-800 truncate">{song.title}</p>
+                                <p className="text-[12.5px] sm:text-[11px] text-stone-500 mt-0.5 flex items-center justify-center gap-1">
+                                    {song.isCompleted && <CheckCircle2 size={12} className="text-[#4e7a49] shrink-0" strokeWidth={2.2} />}
                                     {song.updatedAt > 0 ? formatDate(song.updatedAt) : ' '}
                                 </p>
                             </div>

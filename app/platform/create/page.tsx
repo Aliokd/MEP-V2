@@ -3601,6 +3601,11 @@ function AudioCapsulePlayer({
     return (
         <div
             draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
+            // How the canvas finds a freshly finalised take to scroll to. The card
+            // can render in any of several places in the flow depending on where
+            // its phrase sits, so an id on the card itself beats trying to derive
+            // its position.
+            data-audio-card={audioNote.id}
             onClick={(e) => e.stopPropagation()} {...sharedTouchHandlers}
             className={`relative bg-white border border-stone-200/80 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-1.5 sm:gap-3 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 touch-none max-w-full ${
                 typeof uploadProgress === 'number' || isDecomposing ? 'card-uploading' : ''
@@ -5227,6 +5232,52 @@ export default function CreatePage() {
             console.error("Error syncing studioTracks to Firestore:", err);
         }
     };
+
+    /**
+     * A take that has just been finalised and should be scrolled to once its card
+     * exists. Set at the end of the recording flow; cleared by the effect below.
+     */
+    const [pendingAudioScrollId, setPendingAudioScrollId] = useState<string | null>(null);
+
+    /**
+     * Bring a newly finalised take into view.
+     *
+     * Waits for the card rather than scrolling immediately: finalising sets the
+     * note, and the card only exists after React has rendered that — and, when
+     * the recording created the note, after the selection has switched to it too.
+     * So this polls a frame at a time until the element shows up, and gives up
+     * after two seconds rather than spinning forever if something went wrong
+     * upstream.
+     *
+     * Reuses keepEditorInView, which despite the name is the canvas's general
+     * "put this element somewhere the docked toolbar isn't covering" helper — and
+     * scrolls only when the element is actually outside that band, so a take that
+     * lands on screen doesn't get a pointless jolt.
+     */
+    useEffect(() => {
+        if (!pendingAudioScrollId) return;
+        let cancelled = false;
+        let raf = 0;
+        const startedAt = performance.now();
+
+        const tick = () => {
+            if (cancelled) return;
+            const el = document.querySelector<HTMLElement>(`[data-audio-card="${pendingAudioScrollId}"]`);
+            if (el) {
+                keepEditorInView(el);
+                setPendingAudioScrollId(null);
+                return;
+            }
+            if (performance.now() - startedAt > 2000) {
+                setPendingAudioScrollId(null);
+                return;
+            }
+            raf = requestAnimationFrame(tick);
+        };
+
+        raf = requestAnimationFrame(tick);
+        return () => { cancelled = true; cancelAnimationFrame(raf); };
+    }, [pendingAudioScrollId]);
 
     const [studioState, setStudioState] = useState<'idle' | 'playing' | 'recording' | 'paused'>('idle');
     const [activeRecordingTrackId, setActiveRecordingTrackId] = useState<number>(1);
@@ -9087,6 +9138,14 @@ export default function CreatePage() {
                         setIsTranscribing(false);
                         setIsRecordingSaving(false);
                         forceNewRecordingRef.current = false;
+
+                        // Take the writer to the take they just made. All three branches
+                        // above land here, so one call covers "added to this note",
+                        // "added to the note speech created" and "made a new note". The
+                        // card is appended after whatever is already on the canvas, which
+                        // on anything but an empty project is below the fold — finalising
+                        // looked like it had produced nothing at all.
+                        setPendingAudioScrollId(newRecId);
 
                         // Upload recorded audio file to cloud storage asynchronously
                         if (finalizedNoteId) {
@@ -16104,7 +16163,7 @@ export default function CreatePage() {
                         restores it from sm up — the row still scrolls by swipe either way. */}
                     <div className="flex flex-col flex-1 min-h-0 w-[calc(100%+1rem)] -ml-4 pl-4 relative overflow-auto studio-tracks-scroll">
                     {/* Sequencer Track List Container */}
-                    <div className="flex flex-col gap-2.5 w-full relative pr-4 sm:pr-0">
+                    <div className="flex flex-col gap-2.5 w-full relative pr-0 sm:pr-0">
                         {studioTracks.filter(Boolean).map((track, idx) => {
                             const isArmed = activeRecordingTrackId === track.id;
                             const isThisTrackRecording = studioState === 'recording' && isArmed;
@@ -16174,7 +16233,7 @@ export default function CreatePage() {
                                         // grey box was a frame drawn a few pixels outside
                                         // another frame.
                                         isArmed
-                                            ? 'bg-transparent sm:bg-stone-150/70 sm:hover:bg-stone-200/70'
+                                            ? 'bg-transparent sm:bg-[#E8E3D7] sm:hover:bg-[#E2DCCE]'
                                             : 'bg-transparent sm:bg-stone-50/70 sm:hover:bg-stone-100/80'
                                     } ${
                                         (activeTrackMenuId === track.id || activeTrackDropdownId === track.id)
@@ -16256,10 +16315,14 @@ export default function CreatePage() {
                                                     setActiveTrackDropdownId(track.id);
                                                 }
                                             }}
-                                            className="bg-[#F9F8F6] hover:bg-[#F3F1ED] rounded-full border border-stone-200/40 pl-3.5 pr-0 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)] cursor-pointer select-none w-full h-14 sm:w-36 md:w-40 lg:w-44 sm:h-11 sm:shrink-0 transition-all hover:shadow-[0_2px_6px_rgba(0,0,0,0.04)] active:scale-[0.99] relative overflow-hidden"
+                                            className={`rounded-full border pl-3.5 pr-0 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)] cursor-pointer select-none w-full h-14 sm:w-36 md:w-40 lg:w-44 sm:h-11 sm:shrink-0 transition-all hover:shadow-[0_2px_6px_rgba(0,0,0,0.04)] active:scale-[0.99] relative overflow-hidden ${
+                                                isArmed
+                                                    ? 'bg-[#E8E3D7] hover:bg-[#E2DCCE] border-[#D6CEBC]'
+                                                    : 'bg-[#F9F8F6] hover:bg-[#F3F1ED] border-stone-200/40'
+                                            }`}
                                         >
                                             <div className={`flex items-center gap-1.5 min-w-0 z-10 w-full transition-all ${activeTrackDropdownId === track.id ? 'pr-4' : 'pr-[80px]'}`}>
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-stone-400 shrink-0">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px] sm:w-3.5 sm:h-3.5 text-stone-400 shrink-0">
                                                     <polyline points="6 9 12 15 18 9" />
                                                 </svg>
                                                 {track.type === 'custom' && activeTrackDropdownId !== track.id ? (
@@ -16273,11 +16336,11 @@ export default function CreatePage() {
                                                         onClick={(e) => e.stopPropagation()}
                                                         onMouseDown={(e) => e.stopPropagation()}
                                                         autoFocus={track.name === 'Custom'}
-                                                        className="bg-transparent border-none text-[13px] md:text-[14px] text-stone-700 font-extrabold focus:outline-none focus:ring-0 p-0 w-full min-w-0 font-sans"
+                                                        className="bg-transparent border-none text-[17px] sm:text-[13px] md:text-[14px] text-stone-700 font-extrabold focus:outline-none focus:ring-0 p-0 w-full min-w-0 font-sans"
                                                         placeholder={t('studio.custom_instrument')}
                                                     />
                                                 ) : (
-                                                    <span className={`text-[13px] md:text-[14px] truncate leading-none transition-colors ${
+                                                    <span className={`text-[17px] sm:text-[13px] md:text-[14px] truncate leading-none transition-colors ${
                                                         activeTrackDropdownId === track.id 
                                                             ? 'text-stone-400 font-medium' 
                                                             : 'text-stone-700 font-extrabold'
@@ -16647,13 +16710,17 @@ export default function CreatePage() {
                                             setActiveRecordingTrackId(track.id);
                                             handleTimelinePointerDown(e);
                                         }}
+                                        // Armed beats "has audio" in this order on purpose: the
+                                        // point of the tint is to say which track the REC button
+                                        // is pointed at, and that has to hold whether or not the
+                                        // track already carries a take.
                                         className={`sm:hidden relative w-full h-12 rounded-[14px] overflow-hidden transition-colors cursor-ew-resize ${
                                             isThisTrackRecording
                                                 ? 'bg-[#FF6B6B]'
-                                                : (track.audioBuffer || track.url)
-                                                    ? 'bg-white border border-stone-200/60'
-                                                    : isArmed
-                                                        ? 'bg-red-50/20 border border-red-300'
+                                                : isArmed
+                                                    ? 'bg-[#E8E3D7] border border-[#D6CEBC]'
+                                                    : (track.audioBuffer || track.url)
+                                                        ? 'bg-white border border-stone-200/60'
                                                         : 'bg-white border border-stone-200/50'
                                         }`}
                                     >
@@ -16665,20 +16732,25 @@ export default function CreatePage() {
                                             studioState={studioState}
                                             trackName={track.name}
                                         />
-                                        {/* Each lane carries its own playhead mark now that they
-                                            are no longer stacked in one box for a single line to
-                                            cross. The draggable one lives on the pinned ruler. */}
-                                        {studioState !== 'recording' && (
-                                            <div
-                                                className="absolute top-0 bottom-0 w-[2px] bg-[#FF4040]/70 pointer-events-none"
-                                                style={{ left: `${playheadPercent}%` }}
-                                            />
-                                        )}
                                     </div>
                                 </div>
                             );
                         })}
-                        
+
+                        {/* One continuous playhead down the whole stack — phone only.
+                            Each lane used to draw its own 2px mark, which the 10px gaps
+                            between cards and the instrument capsules chopped into a
+                            dashed line rather than a playhead. This is the same column
+                            the ruler's scale is inset to, so the two line up; it is
+                            drawn only, with the grab target left on the ruler where
+                            there is height to aim at. */}
+                        {studioState !== 'recording' && studioTracks.filter(Boolean).length > 0 && (
+                            <div
+                                className="sm:hidden absolute top-0 bottom-0 w-[2px] bg-[#FF4040] pointer-events-none z-30"
+                                style={{ left: `${playheadPercent}%` }}
+                            />
+                        )}
+
 
                     </div>
 
@@ -16692,34 +16764,53 @@ export default function CreatePage() {
                 <div className="sm:hidden shrink-0 w-full flex flex-col gap-2 pt-2 pb-0">
                     {studioTracks.filter(Boolean).length > 0 && (
                         <div
-                            className="relative w-full h-11 rounded-2xl bg-stone-100 border border-stone-200/60 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex items-center cursor-ew-resize select-none"
+                            className="relative -mx-4 w-[calc(100%+2rem)] h-11 rounded-t-2xl rounded-b-none bg-stone-100 border border-b-0 border-stone-200/60 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex items-center cursor-ew-resize select-none"
                             onPointerDown={handleTimelinePointerDown}
-                            id="studio-mobile-lanes"
                         >
-                            <div className="w-full h-full flex justify-between items-center px-3 relative">
-                                {rulerItems.map((item, idx) => (
-                                    item.type === 'label' ? (
-                                        <span key={idx} className="text-[11px] font-sans font-semibold text-stone-500 tabular-nums select-none shrink-0">
-                                            {item.value}
-                                        </span>
-                                    ) : (
-                                        <div key={idx} className="w-[1px] h-2.5 bg-stone-300 rounded-full shrink-0" />
-                                    )
-                                ))}
-                            </div>
-
-                            {/* The draggable playhead now lives here, on the scale itself —
-                                the lanes it used to span are distributed among the tracks. */}
-                            {studioState !== 'recording' && (
-                                <div
-                                    className="absolute top-0 bottom-0 w-10 -ml-5 z-20 pointer-events-auto touch-none cursor-ew-resize flex justify-center group/ph"
-                                    style={{ left: `${playheadPercent}%` }}
-                                    onPointerDown={(e) => { e.stopPropagation(); handlePlayheadLinePointerDown(e); }}
-                                >
-                                    <div className="h-full w-[2px] bg-[#FF4040] group-active/ph:w-[10px] transition-all duration-150" />
-                                    <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[7px] border-r-[7px] border-t-[9px] border-l-transparent border-r-transparent border-t-[#FF4040]" />
+                            {/* The scale's surface runs edge to edge, but its CONTENT is inset
+                                back to the lanes' own column — mx-4 undoes the -mx-4 above.
+                                That inset is what lets one straight line be correct for both:
+                                the ticks, the draggable playhead here and the continuous line
+                                over the track list all measure against the same width. It also
+                                carries the id, so the drag maths reads that column too. */}
+                            <div
+                                id="studio-mobile-lanes"
+                                className="relative mx-4 h-full w-[calc(100%-2rem)] flex items-center"
+                            >
+                                <div className="w-full h-full flex justify-between items-center relative">
+                                    {rulerItems.map((item, idx) => (
+                                        item.type === 'label' ? (
+                                            <span key={idx} className="text-[11px] font-sans font-semibold text-stone-500 tabular-nums select-none shrink-0">
+                                                {item.value}
+                                            </span>
+                                        ) : (
+                                            <div key={idx} className="w-[1px] h-2.5 bg-stone-300 rounded-full shrink-0" />
+                                        )
+                                    ))}
                                 </div>
-                            )}
+
+                                {/* The draggable playhead lives here, on the scale itself. The
+                                    line above it, over the tracks, is drawn but not grabbable —
+                                    this is where the finger goes. */}
+                                {studioState !== 'recording' && (
+                                    <div
+                                        className="absolute top-0 bottom-0 w-10 -ml-5 z-20 pointer-events-auto touch-none cursor-ew-resize flex justify-center group/ph"
+                                        style={{ left: `${playheadPercent}%` }}
+                                        onPointerDown={(e) => { e.stopPropagation(); handlePlayheadLinePointerDown(e); }}
+                                    >
+                                        <div className="h-full w-[2px] bg-[#FF4040] group-active/ph:w-[10px] transition-all duration-150" />
+                                        {/* Points up, from the foot of the line. The line runs
+                                            the other way now — up through the tracks — so an
+                                            arrowhead on top sat in the middle of it and marked
+                                            nothing. At the bottom it reads as the grip, which is
+                                            also the only place the drag is bound.
+                                            bottom-0 rather than a negative offset: the scale
+                                            clips its overflow, so anything hanging past the edge
+                                            is simply cut off. */}
+                                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[7px] border-r-[7px] border-b-[9px] border-l-transparent border-r-transparent border-b-[#FF4040]" />
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -16753,7 +16844,7 @@ export default function CreatePage() {
                     height (so these controls still sit at the bottom of a tall panel, as the old
                     flex-grow spacer arranged), and shrink-0 guarantees REC / Play / Send to
                     canvas stay on screen at any viewport height instead of scrolling away. */}
-                <div className="flex flex-col shrink-0 gap-3 pt-1 mt-0 sm:pt-4 sm:mt-2 w-full">
+                <div className="flex flex-col shrink-0 gap-3 pt-0 mt-0 sm:pt-4 sm:mt-2 w-full">
                     {/* Level 1: Metronome, Guitar Tuner, and Timeline Seeker Capsule */}
                     {/* pt-10 (rather than a fixed h-10 with no vertical room) gives the pills' box-shadows
                         room to render AND the metronome knob's hover/drag value tooltip (which pops up
@@ -17086,7 +17177,7 @@ export default function CreatePage() {
                         <button
                             onClick={() => { haptic('tap'); setStudioSettingsOpen(true); }}
                             aria-label={t('studio.settings')}
-                            className={`${btn.icon('bare')} relative h-[clamp(48px,13.5vw,60px)] w-[clamp(48px,13.5vw,60px)] border border-stone-200 bg-white`}
+                            className={`${btn.icon('bare')} relative shrink-0 h-[clamp(44px,12.5vw,56px)] w-[clamp(44px,12.5vw,56px)] border border-stone-200 bg-white`}
                             type="button"
                         >
                             <SlidersHorizontal size={22} className="text-stone-700 stroke-[1.8]" />
@@ -17101,7 +17192,7 @@ export default function CreatePage() {
                         <button
                             onClick={() => { haptic('tap'); setShowStudioLyrics(true); }}
                             aria-label={t('creative.show_lyrics')}
-                            className={`${btn.plain('bare')} h-[clamp(48px,13.5vw,60px)] w-[clamp(48px,13.5vw,60px)] border shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] transition-all ${
+                            className={`${btn.plain('bare')} shrink-0 h-[clamp(44px,12.5vw,56px)] w-[clamp(44px,12.5vw,56px)] border shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] transition-all ${
                                 showStudioLyrics
                                     ? 'bg-[#E5E4DE] border-[#D2D1C9] text-stone-800'
                                     : 'bg-white border-stone-200 text-stone-700'
@@ -17123,7 +17214,7 @@ export default function CreatePage() {
                             <button
                                 onClick={() => { haptic('impact'); stopStudioRecording(); }}
                                 aria-label={t('studio.recording')}
-                                className={`${btn.danger('bare')} h-[clamp(48px,13.5vw,60px)] min-w-[86px] flex-1 gap-2 px-3`}
+                                className={`${btn.danger('bare')} h-[clamp(44px,12.5vw,56px)] min-w-[104px] flex-[2] gap-2 px-4`}
                                 type="button"
                             >
                                 <span className="w-2.5 h-2.5 rounded-full bg-white/90 shrink-0 animate-pulse" />
@@ -17135,7 +17226,7 @@ export default function CreatePage() {
                             <button
                                 onClick={() => { haptic('impact'); startStudioRecording(); }}
                                 aria-label={t('studio.rec')}
-                                className={`${btn.secondary('bare')} h-[clamp(48px,13.5vw,60px)] min-w-[86px] flex-1 gap-2 px-3`}
+                                className={`${btn.secondary('bare')} h-[clamp(44px,12.5vw,56px)] min-w-[104px] flex-[2] gap-2 px-4`}
                                 type="button"
                             >
                                 <span className="w-3.5 h-3.5 bg-[#FF4040] rounded-full shrink-0" />
@@ -17152,14 +17243,12 @@ export default function CreatePage() {
                             }}
                             disabled={studioDuration === 0 || studioState === 'recording'}
                             aria-label={t('studio.play_pause')}
-                            className={`${btn.icon('bare')} h-[clamp(48px,13.5vw,60px)] w-[clamp(48px,13.5vw,60px)] border border-stone-200 bg-white disabled:opacity-40`}
+                            className={`${btn.icon('bare')} h-[clamp(44px,12.5vw,56px)] w-[clamp(44px,12.5vw,56px)] border border-stone-200 bg-white disabled:opacity-40`}
                             type="button"
                         >
-                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-[23px] h-[23px] text-stone-700">
-                                {studioState === 'playing'
-                                    ? <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                                    : <path d="M8 5v14l11-7z" />}
-                            </svg>
+                            {studioState === 'playing'
+                                ? <Pause size={22} className="text-stone-700 stroke-[1.8]" />
+                                : <Play size={22} className="text-stone-700 stroke-[1.8]" />}
                         </button>
 
                         {/* Export — Send to canvas plus the WAV/MP3 downloads */}
@@ -17167,11 +17256,11 @@ export default function CreatePage() {
                             onClick={() => { haptic('tap'); setStudioExportOpen(true); }}
                             disabled={isSendingToCanvas}
                             aria-label={t('creative.export_options')}
-                            className={`${btn.icon('bare')} h-[clamp(48px,13.5vw,60px)] w-[clamp(48px,13.5vw,60px)] border border-stone-200 bg-white disabled:opacity-60`}
+                            className={`${btn.icon('bare')} h-[clamp(44px,12.5vw,56px)] w-[clamp(44px,12.5vw,56px)] border border-stone-200 bg-white disabled:opacity-60`}
                             type="button"
                         >
                             {isSendingToCanvas
-                                ? <Loader2 size={22} className="animate-spin text-stone-500" />
+                                ? <Loader2 size={22} className="animate-spin text-stone-500 stroke-[1.8]" />
                                 : <ArrowUp size={22} className="text-stone-700 stroke-[1.8]" />}
                         </button>
                     </div>
@@ -17351,8 +17440,25 @@ export default function CreatePage() {
                             open={isMobile && !!sheetTrack}
                             onClose={() => setMobileTrackSheetId(null)}
                             title={sheetTrack ? sheetTrack.name : t('studio.track_settings')}
-                            subtitle={t('studio.track_settings_subtitle')}
+                            // Header dropped: the first row is the instrument picker with
+                            // the current instrument already selected, which says what this
+                            // sheet is better than a heading repeating the track's name.
+                            // `title` still rides along as the dialog's aria-label.
+                            hideHeader
                             maxHeight="92dvh"
+                            footer={sheetTrack ? (
+                                // One action: done with this track. Every control above
+                                // applies on change, so this closes rather than commits;
+                                // it is named Save because that is what dismissing a
+                                // settings sheet means to the person tapping it.
+                                <button
+                                    type="button"
+                                    onClick={() => { haptic('success'); setMobileTrackSheetId(null); }}
+                                    className={`${btn.secondary('bare')} h-14 w-full px-6 text-[17px] font-semibold text-stone-900 shadow-[0_6px_20px_rgba(0,0,0,0.1)]`}
+                                >
+                                    {t('common.save')}
+                                </button>
+                            ) : undefined}
                         >
                             {sheetTrack && (
                                 <>
@@ -17372,14 +17478,17 @@ export default function CreatePage() {
                                                             key={opt}
                                                             type="button"
                                                             onClick={() => { haptic('select'); handleSelectInstrumentType(sheetTrack.id, opt); }}
-                                                            className={`${btn.plain('bare')} group relative h-[84px] w-full items-start justify-start overflow-hidden rounded-[20px] border pl-4 pt-3 transition-all cursor-pointer ${
+                                                            className={`${btn.plain('bare')} group relative h-[96px] w-full items-start justify-start overflow-hidden rounded-[20px] border pl-4 pt-3.5 transition-all cursor-pointer ${
                                                                 selected
                                                                     ? 'bg-[#F9F8F6] border-transparent ring-2 ring-stone-800'
                                                                     : 'bg-white border-stone-200'
                                                             }`}
                                                         >
-                                                            <span className={`relative z-10 text-[15px] tracking-wide select-none whitespace-nowrap transition-colors ${
-                                                                selected ? 'font-semibold text-stone-700' : 'font-medium text-stone-400'
+                                                            {/* Pinned to the tile's top-left, ahead of the artwork
+                                                                in reading order. The name is what is being chosen;
+                                                                the drawing is what makes the choice recognisable. */}
+                                                            <span className={`relative z-10 text-left text-[17px] tracking-wide select-none whitespace-nowrap transition-colors ${
+                                                                selected ? 'font-semibold text-stone-800' : 'font-medium text-stone-500'
                                                             }`}>
                                                                 {instrumentLabels[opt]}
                                                             </span>
@@ -17387,16 +17496,18 @@ export default function CreatePage() {
                                                                 src={instrumentImages[opt]}
                                                                 alt=""
                                                                 aria-hidden
-                                                                // Anchored bottom-right of the cell rather than
-                                                                // the row's right edge; the per-instrument nudges
-                                                                // keep each drawing sitting the way it does on
-                                                                // desktop instead of floating in the corner.
+                                                                // Anchored bottom-right and deliberately oversized —
+                                                                // the tile's overflow-hidden crops each drawing at
+                                                                // its right and bottom edges instead of shrinking it
+                                                                // to fit. A cropped instrument reads at a glance; the
+                                                                // same drawing scaled down to sit fully inside the
+                                                                // tile became a grey smudge in the corner.
                                                                 className={`absolute bottom-0 right-0 object-contain select-none pointer-events-none transition-transform duration-200 group-active:scale-105 ${
                                                                     opt === 'piano'
-                                                                        ? 'w-[86%] translate-x-3 translate-y-2'
+                                                                        ? 'w-[108%] translate-x-5 translate-y-3'
                                                                         : opt === 'guitar'
-                                                                        ? 'w-[70%] translate-x-2 translate-y-1'
-                                                                        : 'w-[62%] translate-x-2 translate-y-2'
+                                                                        ? 'w-[92%] translate-x-4 translate-y-2'
+                                                                        : 'w-[84%] translate-x-4 translate-y-3'
                                                                 }`}
                                                             />
                                                         </button>
@@ -17464,22 +17575,6 @@ export default function CreatePage() {
                                         }
                                     />
 
-                                    {/* One action: done with this track. Record and Play used to
-                                        share this row, but both already live in the transport bar
-                                        below the sheet and neither belongs to the thing this sheet
-                                        actually is — the instrument's levels and effects. Every
-                                        control above applies on change, so this closes rather than
-                                        commits; it is named Save because that is what dismissing a
-                                        settings sheet means to the person tapping it. */}
-                                    <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-1 bg-white border-t border-stone-200/70">
-                                        <button
-                                            type="button"
-                                            onClick={() => { haptic('success'); setMobileTrackSheetId(null); }}
-                                            className={`${btn.secondary('bare')} h-14 w-full px-6 text-[17px] font-semibold text-stone-900 shadow-[0_6px_20px_rgba(0,0,0,0.1)]`}
-                                        >
-                                            {t('common.save')}
-                                        </button>
-                                    </div>
                                 </>
                             )}
                         </StudioActionSheet>
@@ -19675,9 +19770,16 @@ export default function CreatePage() {
                 // its containing block's content box — so the padding was holding it
                 // 144px short of the card's bottom edge, letting it leave the screen
                 // well before the canvas did.
-                className={`creative-canvas-container bg-white shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-5 xl:p-8 pb-0 md:pb-5 xl:pb-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
+                // No drop shadow below md. It is a 40px downward blur, and on a phone
+                // the card is full-bleed with square corners — so instead of lifting a
+                // card off a page it just smeared a grey band across the top of the
+                // projects list, making the two read as one continuous surface. The
+                // card's own 1px border already ends it cleanly; that edge is what
+                // separates the sections once the blur is gone. The shadow returns at
+                // md, where the canvas really is a rounded card floating on a page.
+                className={`creative-canvas-container bg-white shadow-none md:shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-none md:rounded-[32px] p-4 md:p-5 xl:p-8 pb-0 md:pb-5 xl:pb-8 flex flex-col min-h-[80dvh] md:min-h-[560px] xl:min-h-[700px] 2xl:min-h-[820px] transition-all relative justify-between w-full ${
                     isCanvasLocked
-                        ? 'border-2 border-[#EDFF8E] shadow-[0_0_0_4px_rgba(237,255,142,0.35),0_12px_40px_rgba(0,0,0,0.03)] cursor-default'
+                        ? 'border-2 border-[#EDFF8E] shadow-[0_0_0_4px_rgba(237,255,142,0.35)] md:shadow-[0_0_0_4px_rgba(237,255,142,0.35),0_12px_40px_rgba(0,0,0,0.03)] cursor-default'
                         // The I-beam is only honest over the region that actually starts a
                         // line; the inert margin band keeps the ordinary arrow.
                         : `border border-stone-200/60 ${isPointerInTypeZone ? 'cursor-text' : 'cursor-default'}`
@@ -22061,7 +22163,7 @@ export default function CreatePage() {
                         <div className={`flex items-center bg-white w-full md:w-fit pointer-events-auto ${
                             (isMobile && isKeyboardOpen)
                                 ? 'justify-center gap-3 px-3 py-2 rounded-none border-0 shadow-none'
-                                : 'justify-between md:justify-start gap-2 md:gap-3.5 p-3 px-4 md:p-3 border-t border-stone-200/60 md:border rounded-t-[24px] rounded-b-none md:rounded-full shadow-[0_-6px_28px_rgba(0,0,0,0.07)] md:shadow-[0_16px_48px_rgba(0,0,0,0.08)]'
+                                : 'justify-center md:justify-start gap-3 md:gap-3.5 p-3 px-4 md:p-3 border-t border-stone-200/60 md:border rounded-t-[24px] rounded-b-none md:rounded-full shadow-[0_-6px_28px_rgba(0,0,0,0.07)] md:shadow-[0_16px_48px_rgba(0,0,0,0.08)]'
                         }`}>
                             {/* REC capsule button — hidden entirely while previewing someone else's
                                 pending invite (nothing to explain there). While locked it stays

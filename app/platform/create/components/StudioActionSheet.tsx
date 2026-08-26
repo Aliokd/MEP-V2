@@ -10,12 +10,31 @@ import * as btn from '@/app/platform/components/buttonStyles';
 interface StudioActionSheetProps {
     open: boolean;
     onClose: () => void;
+    /** Still required when `hideHeader` is set — it becomes the dialog's aria-label. */
     title: string;
     /** Optional line under the title, for context the rows themselves don't carry. */
     subtitle?: string;
     children: React.ReactNode;
     /** Sheet height as a dvh fraction. Lyrics wants more than Settings does. */
     maxHeight?: string;
+    /**
+     * Drops the title / subtitle / close row, leaving just the grab handle.
+     *
+     * For sheets whose first row already names what they are — repeating it in a
+     * header is a second label for one thing, and the close button competes with
+     * the sheet's own primary action. The handle stays, both as the drag surface
+     * and as the thing that says "this pulls down".
+     */
+    hideHeader?: boolean;
+    /**
+     * Pinned to the sheet's floor, outside the scrolling body.
+     *
+     * Not the same as a `sticky` child of the body: sticky pins to the SCROLLPORT,
+     * which stops at the body's padding box, so the body's bottom padding stayed
+     * visible underneath as a strip of dead white. A real flex sibling has nothing
+     * below it, and owns the safe-area inset itself.
+     */
+    footer?: React.ReactNode;
 }
 
 /**
@@ -38,6 +57,8 @@ export default function StudioActionSheet({
     subtitle,
     children,
     maxHeight = '78dvh',
+    hideHeader = false,
+    footer,
 }: StudioActionSheetProps) {
     const { mounted, closing } = useSheetPresence(open);
     // Android's Back closes the sheet rather than leaving the page.
@@ -110,9 +131,14 @@ export default function StudioActionSheet({
                     ...(dragY > 0 ? { transform: `translateY(${dragY}px)`, transition: 'none' } : {}),
                 }}
                 onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-label={title}
             >
                 {/* Grab handle and title share the drag surface — the handle alone is a
-                    4px-tall target, which is a promise the gesture cannot keep.
+                    4px-tall target, which is a promise the gesture cannot keep. With the
+                    header hidden the strip pads out instead, so the gesture still has a
+                    reachable band to start in.
                     touch-none stops the browser claiming the drag as a page scroll. */}
                 <div
                     className="shrink-0 touch-none cursor-grab active:cursor-grabbing"
@@ -121,10 +147,11 @@ export default function StudioActionSheet({
                     onPointerUp={onDragEnd}
                     onPointerCancel={onDragEnd}
                 >
-                    <div className="pt-2.5 pb-1 flex justify-center">
+                    <div className={`pt-2.5 flex justify-center ${hideHeader ? 'pb-4' : 'pb-1'}`}>
                         <div className="w-10 h-1 rounded-full bg-stone-300" />
                     </div>
 
+                {!hideHeader && (
                 <div className="flex items-start justify-between gap-3 px-5 pt-2 pb-3 shrink-0">
                     <div className="min-w-0">
                         <h3 className="text-[19px] font-sans font-semibold text-stone-900 tracking-tight leading-tight">
@@ -143,11 +170,20 @@ export default function StudioActionSheet({
                         <X size={20} className="stroke-[2.2]" />
                     </button>
                 </div>
+                )}
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                <div className={`flex-1 min-h-0 overflow-y-auto px-5 ${
+                    footer ? 'pb-3' : 'pb-[max(1.25rem,env(safe-area-inset-bottom))]'
+                }`}>
                     {children}
                 </div>
+
+                {footer && (
+                    <div className="shrink-0 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-white border-t border-stone-200/70">
+                        {footer}
+                    </div>
+                )}
             </div>
         </div>,
         document.body
