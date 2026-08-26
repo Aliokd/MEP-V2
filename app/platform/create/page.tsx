@@ -1962,6 +1962,9 @@ const PhraseRow = React.memo(function PhraseRow({
                             // line is trimmed back down to one (see the effect above).
                             target.style.height = 'auto';
                             target.style.height = `${target.scrollHeight}px`;
+                            // The ONLY text push. No onChange alongside: React raises both
+                            // for the same native input event, so a second onUpdateText
+                            // there doubled every keystroke's Firestore write.
                             if (onUpdateText) {
                                 onUpdateText(phrase.id, target.value);
                             }
@@ -1977,11 +1980,6 @@ const PhraseRow = React.memo(function PhraseRow({
                             // everything was already visible.
                             const el = e.currentTarget;
                             window.setTimeout(() => keepEditorInView(el), 320);
-                        }}
-                        onChange={(e) => {
-                            if (onUpdateText) {
-                                onUpdateText(phrase.id, e.target.value);
-                            }
                         }}
                         onBlur={() => onStopEditing && onStopEditing(false)}
                         onKeyDown={(e) => {
@@ -10558,6 +10556,208 @@ export default function CreatePage() {
         }));
     };
 
+    // ─── Coalesced project-doc writer ─────────────────────────────────────────
+    // handleUpdateNote used to setDoc the full project on every call — i.e. on every
+    // keystroke — and billed Firestore writes are this app's dominant per-user cost.
+    // Local state still updates synchronously (typing must never wait on the network);
+    // only the setDoc is coalesced. The payload is built when the timer FIRES, from
+    // notesRef — never captured at schedule time — so anything that lands in between
+    // (a blur lock-release, an upload URL, a remote snapshot merge) is included in the
+    // write instead of being clobbered by a stale snapshot of the note.
+    const PROJECT_WRITE_DEBOUNCE_MS = 400;
+    // A trailing debounce alone lets continuous typing postpone the write forever;
+    // this caps the total delay so collaborators keep seeing progress and a crash can
+    // lose at most this window (the localStorage cache still backstops even that).
+    const PROJECT_WRITE_MAX_DELAY_MS = 2000;
+    const pendingProjectWritesRef = useRef<Map<string, { timer: ReturnType<typeof setTimeout>; firstQueuedAt: number }>>(new Map());
+
+    // Ref-assigned every render (same pattern as persistStudioTracksRef) so a timer
+    // that fires later always reads the current `user` and note state.
+    const pushProjectDocRef = useRef<((id: string) => void) | null>(null);
+    pushProjectDocRef.current = (id: string) => {
+        if (!user) return;
+        const note = notesRef.current.find(n => n.id === id);
+        // Deleted while the write was queued. A merge-set on a missing doc counts as
+        // a CREATE, so writing here would resurrect a project the user just deleted.
+        if (!note) return;
+
+        const docRef = doc(db, "projects", id);
+
+        const cleanPhrases = (note.phrases || []).map((p: any) => ({
+            id: p.id,
+            text: p.text || '',
+            groupId: p.groupId || null,
+            authorId: p.authorId || user.uid,
+            lockedBy: p.lockedBy || null
+        }));
+
+        const cleanAudio = (note.audioNotes || []).map((an: any) => ({
+            id: an.id,
+            url: an.url || '',
+            title: an.title || '',
+            duration: an.duration || 0,
+            groupId: an.groupId || null,
+            phraseId: an.phraseId || null,
+            createdAt: an.createdAt || 0,
+            authorId: an.authorId || user.uid,
+            ...(an.stemTracks ? { stemTracks: an.stemTracks } : {})
+        }));
+
+        const existingContributions = (note as any).contributions || {};
+        let userChars = 0;
+        let userLines = 0;
+        cleanPhrases.forEach(p => {
+            if (p.authorId === user.uid) {
+                userChars += p.text.length;
+                userLines++;
+            }
+        });
+        let userRecs = 0;
+        cleanAudio.forEach(an => {
+            if (an.authorId === user.uid) {
+                userRecs++;
+            }
+        });
+        const updatedContributions = {
+            ...existingContributions,
+            [user.uid]: {
+                charactersTyped: userChars,
+                linesCreated: userLines,
+                recordingsAdded: userRecs,
+                lastActive: new Date().toISOString()
+            }
+        };
+
+        // A merge-set on a document that does not exist yet counts as a *create*,
+        // and the security rule requires ownerId to match the caller. Without it
+        // every edit to a brand-new project was rejected — the project only
+        // reached Firestore if some other path happened to create it first.
+        //
+        // Only stamped when this user actually owns the project. A collaborator
+        // must never rewrite ownerId: the update rule lets any member write, so
+        // sending it unconditionally would let a collaborator take ownership.
+        const ownsProject = !note.ownerId || note.ownerId === user.uid;
+
+        const rawPayload = {
+            // ownerId only. `collaborators` is deliberately not sent: the create
+            // rule doesn't need it, and a stale local copy would overwrite the
+            // real list — dropping anyone who accepted an invite since this tab
+            // last synced.
+            ...(ownsProject ? { ownerId: user.uid } : {}),
+            id: note.id,
+            title: note.title || 'Untitled Project',
+            content: note.content || '',
+            // Hardcoding null here quietly erased every filing on save — the
+            // project's folder has to survive the write like anything else.
+            folderId: note.folderId ?? null,
+            isAudioOnly: note.isAudioOnly || false,
+            isTitleLocked: note.isTitleLocked || false,
+            isLocked: note.isLocked || false,
+            verses: note.verses || [],
+            phrases: cleanPhrases,
+            audioNotes: cleanAudio,
+            contributions: updatedContributions,
+            location: note.location || '',
+            images: (note.images || []).map((img: any) => ({ id: img.id, url: img.url, name: img.name || '', phraseId: img.phraseId || null })),
+            documents: (note.documents || []).map((d: any) => ({
+                id: d.id,
+                url: d.url || '',
+                name: d.name || '',
+                type: d.type || 'other',
+                size: d.size || 0,
+                phraseId: d.phraseId || null
+            })),
+            // Explicitly mapped rather than spread: Firestore rejects any
+            // `undefined`, and a chord built in an older shape would take the
+            // whole write down with it — the failure mode that silently ate
+            // lyrics before the size guard below existed.
+            chords: (note.chords || []).map((c: any) => ({
+                id: c.id,
+                symbol: c.symbol || '',
+                phraseId: c.phraseId || '',
+                wordIndex: typeof c.wordIndex === 'number' ? c.wordIndex : -1,
+                placed: !!c.placed,
+            })),
+            // Explicitly mapped for the same reason as chords: Firestore
+            // rejects `undefined`, and whyItHelps/example are optional.
+            tips: (note.tips || []).map((tp: CanvasTip) => ({
+                id: tp.id,
+                sourceId: tp.sourceId || '',
+                title: tp.title || '',
+                description: tp.description || '',
+                whyItHelps: tp.whyItHelps || '',
+                example: tp.example || '',
+                phraseId: tp.phraseId || null,
+            })),
+            updatedAt: new Date().toISOString()
+        };
+
+        // Firestore rejects documents over 1 MiB, and inline base64 media can
+        // push a project past that. Until this change the rejection was only
+        // logged, so the user's lyrics stopped saving without any sign of it.
+        // Drop media previews before words: an image can be re-fetched from
+        // Storage, a verse cannot be re-typed from nothing.
+        const { payload, strippedMedia, bytes } = fitToFirestore(rawPayload);
+        if (strippedMedia > 0) {
+            console.warn(
+                `[Project ${id}] Payload was ${bytes} bytes; dropped ${strippedMedia} inline media blob(s) so the lyrics could save.`
+            );
+        }
+
+        setDoc(docRef, payload, { merge: true }).catch(err => {
+            // Logged, not surfaced. This fires while a project is saving, so a
+            // toast here interrupts writing rather than helping — and the edit is
+            // not lost: the localStorage cache still holds it and the next
+            // successful write carries it up. /api/health/ai is the place to
+            // check when saves are genuinely failing.
+            console.error("Error updating project note in Firestore:", err);
+        });
+    };
+
+    const cancelProjectDocWrite = (id: string) => {
+        const pending = pendingProjectWritesRef.current.get(id);
+        if (!pending) return;
+        clearTimeout(pending.timer);
+        pendingProjectWritesRef.current.delete(id);
+    };
+
+    const scheduleProjectDocWrite = (id: string) => {
+        const pendingMap = pendingProjectWritesRef.current;
+        const existing = pendingMap.get(id);
+        const now = Date.now();
+        const firstQueuedAt = existing ? existing.firstQueuedAt : now;
+        if (existing) clearTimeout(existing.timer);
+        const delay = Math.min(PROJECT_WRITE_DEBOUNCE_MS, Math.max(0, firstQueuedAt + PROJECT_WRITE_MAX_DELAY_MS - now));
+        const timer = setTimeout(() => {
+            pendingMap.delete(id);
+            pushProjectDocRef.current?.(id);
+        }, delay);
+        pendingMap.set(id, { timer, firstQueuedAt });
+    };
+
+    // Hiding or closing the tab inside the debounce window would drop the pending
+    // write; push it best-effort right away (the localStorage cache remains the
+    // real backstop when the network write can't finish in time).
+    useEffect(() => {
+        const flushAll = () => {
+            const pendingMap = pendingProjectWritesRef.current;
+            const ids = Array.from(pendingMap.keys());
+            ids.forEach(id => {
+                const pending = pendingMap.get(id);
+                if (pending) clearTimeout(pending.timer);
+                pendingMap.delete(id);
+                pushProjectDocRef.current?.(id);
+            });
+        };
+        const onVisibility = () => { if (document.visibilityState === 'hidden') flushAll(); };
+        window.addEventListener('pagehide', flushAll);
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            window.removeEventListener('pagehide', flushAll);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, []);
+
     const handleUpdateNote = (id: string, updates: Partial<SongNote>) => {
         if (isCanvasReadOnly) return;
         
@@ -10586,144 +10786,17 @@ export default function CreatePage() {
                     folderId: updates.folderId !== undefined ? updates.folderId : (n.folderId ?? null)
                 };
 
-                if (user) {
-                    const docRef = doc(db, "projects", id);
-                    
-                    const cleanPhrases = (updatedNote.phrases || []).map((p: any) => ({
-                        id: p.id,
-                        text: p.text || '',
-                        groupId: p.groupId || null,
-                        authorId: p.authorId || user.uid,
-                        lockedBy: p.lockedBy || null
-                    }));
-
-                    const cleanAudio = (updatedNote.audioNotes || []).map((an: any) => ({
-                        id: an.id,
-                        url: an.url || '',
-                        title: an.title || '',
-                        duration: an.duration || 0,
-                        groupId: an.groupId || null,
-                        phraseId: an.phraseId || null,
-                        createdAt: an.createdAt || 0,
-                        authorId: an.authorId || user.uid,
-                        ...(an.stemTracks ? { stemTracks: an.stemTracks } : {})
-                    }));
-
-                    const existingContributions = (updatedNote as any).contributions || {};
-                    let userChars = 0;
-                    let userLines = 0;
-                    cleanPhrases.forEach(p => {
-                        if (p.authorId === user.uid) {
-                            userChars += p.text.length;
-                            userLines++;
-                        }
-                    });
-                    let userRecs = 0;
-                    cleanAudio.forEach(an => {
-                        if (an.authorId === user.uid) {
-                            userRecs++;
-                        }
-                    });
-                    const updatedContributions = {
-                        ...existingContributions,
-                        [user.uid]: {
-                            charactersTyped: userChars,
-                            linesCreated: userLines,
-                            recordingsAdded: userRecs,
-                            lastActive: new Date().toISOString()
-                        }
-                    };
-
-                    // A merge-set on a document that does not exist yet counts as a *create*,
-                    // and the security rule requires ownerId to match the caller. Without it
-                    // every edit to a brand-new project was rejected — the project only
-                    // reached Firestore if some other path happened to create it first.
-                    //
-                    // Only stamped when this user actually owns the project. A collaborator
-                    // must never rewrite ownerId: the update rule lets any member write, so
-                    // sending it unconditionally would let a collaborator take ownership.
-                    const ownsProject = !updatedNote.ownerId || updatedNote.ownerId === user.uid;
-
-                    const rawPayload = {
-                        // ownerId only. `collaborators` is deliberately not sent: the create
-                        // rule doesn't need it, and a stale local copy would overwrite the
-                        // real list — dropping anyone who accepted an invite since this tab
-                        // last synced.
-                        ...(ownsProject ? { ownerId: user.uid } : {}),
-                        id: updatedNote.id,
-                        title: updatedNote.title || 'Untitled Project',
-                        content: updatedNote.content || '',
-                        // Hardcoding null here quietly erased every filing on save — the
-                        // project's folder has to survive the write like anything else.
-                        folderId: updatedNote.folderId ?? null,
-                        isAudioOnly: updatedNote.isAudioOnly || false,
-                        isTitleLocked: updatedNote.isTitleLocked || false,
-                        isLocked: updatedNote.isLocked || false,
-                        verses: updatedNote.verses || [],
-                        phrases: cleanPhrases,
-                        audioNotes: cleanAudio,
-                        contributions: updatedContributions,
-                        location: updatedNote.location || '',
-                        images: (updatedNote.images || []).map((img: any) => ({ id: img.id, url: img.url, name: img.name || '', phraseId: img.phraseId || null })),
-                        documents: (updatedNote.documents || []).map((d: any) => ({
-                            id: d.id,
-                            url: d.url || '',
-                            name: d.name || '',
-                            type: d.type || 'other',
-                            size: d.size || 0,
-                            phraseId: d.phraseId || null
-                        })),
-                        // Explicitly mapped rather than spread: Firestore rejects any
-                        // `undefined`, and a chord built in an older shape would take the
-                        // whole write down with it — the failure mode that silently ate
-                        // lyrics before the size guard below existed.
-                        chords: (updatedNote.chords || []).map((c: any) => ({
-                            id: c.id,
-                            symbol: c.symbol || '',
-                            phraseId: c.phraseId || '',
-                            wordIndex: typeof c.wordIndex === 'number' ? c.wordIndex : -1,
-                            placed: !!c.placed,
-                        })),
-                        // Explicitly mapped for the same reason as chords: Firestore
-                        // rejects `undefined`, and whyItHelps/example are optional.
-                        tips: (updatedNote.tips || []).map((tp: CanvasTip) => ({
-                            id: tp.id,
-                            sourceId: tp.sourceId || '',
-                            title: tp.title || '',
-                            description: tp.description || '',
-                            whyItHelps: tp.whyItHelps || '',
-                            example: tp.example || '',
-                            phraseId: tp.phraseId || null,
-                        })),
-                        updatedAt: new Date().toISOString()
-                    };
-
-                    // Firestore rejects documents over 1 MiB, and inline base64 media can
-                    // push a project past that. Until this change the rejection was only
-                    // logged, so the user's lyrics stopped saving without any sign of it.
-                    // Drop media previews before words: an image can be re-fetched from
-                    // Storage, a verse cannot be re-typed from nothing.
-                    const { payload, strippedMedia, bytes } = fitToFirestore(rawPayload);
-                    if (strippedMedia > 0) {
-                        console.warn(
-                            `[Project ${id}] Payload was ${bytes} bytes; dropped ${strippedMedia} inline media blob(s) so the lyrics could save.`
-                        );
-                    }
-
-                    setDoc(docRef, payload, { merge: true }).catch(err => {
-                        // Logged, not surfaced. This fires per keystroke while a project is
-                        // saving, so a toast here interrupts writing rather than helping —
-                        // and the edit is not lost: the localStorage cache still holds it and
-                        // the next successful write carries it up. /api/health/ai is the place
-                        // to check when saves are genuinely failing.
-                        console.error("Error updating project note in Firestore:", err);
-                    });
-                }
-
                 return updatedNote;
             }
             return n;
         }));
+
+        // The Firestore push is coalesced, never skipped — and scheduled OUTSIDE the
+        // setNotes updater: the updater re-runs under StrictMode, and issuing network
+        // writes from it meant even a single call could write twice in dev.
+        if (user) {
+            scheduleProjectDocWrite(id);
+        }
     };
 
     const handleSaveTitle = () => {
@@ -12443,6 +12516,11 @@ export default function CreatePage() {
             message: 'Are you sure you want to delete this project?',
             destructive: true,
             onConfirm: () => {
+                // A queued debounced write firing after the deleteDoc below would
+                // re-create the project (merge-set on a missing doc is a create).
+                // The writer also skips notes gone from state; this closes the gap
+                // before notesRef catches up.
+                cancelProjectDocWrite(id);
                 setNotes(prev => prev.filter(n => n.id !== id));
                 if (selectedNoteId === id) {
                     setSelectedNoteId(null);
