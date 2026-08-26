@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { authedFetch } from '@/lib/authedFetch';
+import * as btn from './buttonStyles';
 
 interface SupportModalProps {
     isOpen: boolean;
@@ -139,7 +140,7 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
                         <button 
                             type="button"
                             onClick={onClose}
-                            className="px-8 py-3 bg-stone-100/75 hover:bg-stone-200/50 text-stone-600 rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer"
+                            className={`${btn.secondary('md')} cursor-pointer`}
                             disabled={isSending}
                         >
                             {t('common.close') || 'Close'}
@@ -147,7 +148,7 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
                         <button 
                             type="submit"
                             disabled={isSending || !subject.trim() || !message.trim()}
-                            className="px-8 py-3 bg-stone-900 hover:bg-stone-855 text-white rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer disabled:opacity-50"
+                            className={`${btn.primary('md')} cursor-pointer`}
                         >
                             {isSending 
                                 ? (t('support.sending') || 'Sending...') 

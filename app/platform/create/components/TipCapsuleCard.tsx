@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, Heart, Check } from 'lucide-react';
 import type { CanvasTip } from '@/lib/canvasTips';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 interface TipCapsuleCardProps {
     tip: CanvasTip;
@@ -77,7 +78,7 @@ export default function TipCapsuleCard({
                 onClick={onDelete}
                 aria-label={deleteLabel}
                 title={deleteLabel}
-                className="absolute top-3.5 right-3.5 w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-100 transition-colors cursor-pointer"
+                className={`${btn.iconGhost('sm')} absolute top-3.5 right-3.5 cursor-pointer`}
             >
                 <X size={16} className="stroke-[2.5]" />
             </button>
@@ -118,13 +119,12 @@ export default function TipCapsuleCard({
                     aria-pressed={liked}
                     aria-label={likeLabel}
                     title={likeLabel}
-                    /* Matches the deck's heart: outline goes on like, and the icon
-                       grows 40%. See BankOfIdeas for why the border is kept but
-                       made transparent. */
-                    className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95 ${
+                    /* Matches the deck's heart, including why it uses `plain` rather
+                       than `iconGhost` — see BankOfIdeas. */
+                    className={`${btn.plain('bare')} shrink-0 h-9 w-9 cursor-pointer transition-colors duration-300 ${
                         liked
-                            ? 'border-transparent bg-red-50 text-red-500'
-                            : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
+                            ? 'bg-[#D45C5C]/10 text-[#D45C5C] hover:bg-[#D45C5C]/15'
+                            : 'text-stone-500 hover:bg-stone-900/5 hover:text-stone-900'
                     }`}
                 >
                     <Heart
@@ -142,10 +142,10 @@ export default function TipCapsuleCard({
                     aria-label={checkLabel}
                     title={checkLabel}
                     /* Ring runs to its end, then the green fill — see the deck's tick. */
-                    className={`relative w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95 ${
+                    className={`${btn.iconGhost('sm')} relative cursor-pointer ${
                         checked
-                            ? 'bg-[#87b884] border-[#87b884] text-white shadow-sm mind-power-fill-after-ring'
-                            : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
+                            ? 'mind-power-fill-after-ring bg-[#86BE7F] text-stone-900 hover:bg-[#86BE7F] hover:text-stone-900'
+                            : ''
                     }`}
                 >
                     {showGlow && (

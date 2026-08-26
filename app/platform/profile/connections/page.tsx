@@ -2,8 +2,9 @@
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { Users } from 'lucide-react';
-import ConnectionList, { useConnectionPeople } from '../components/ConnectionList';
+import ConnectionList, { PendingRequests, useConnectionPeople } from '../components/ConnectionList';
 import { leaveProfileTo } from '../useMySongs';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 /**
  * The full connections list. Lives under /platform/profile so the layout gives
@@ -14,7 +15,7 @@ export default function ConnectionsPage() {
     const { user } = useAuth();
     const { t } = useLanguage();
 
-    const { people, peopleLoaded, disconnect } = useConnectionPeople(user);
+    const { people, peopleLoaded, disconnect, requesters, accept, decline } = useConnectionPeople(user);
 
     if (!user) return null;
 
@@ -32,6 +33,11 @@ export default function ConnectionsPage() {
                 </p>
             </header>
 
+            {/* Requests first: they're the only thing here that needs an answer. */}
+            <div className="max-w-2xl">
+                <PendingRequests requesters={requesters} t={t} onAccept={accept} onDecline={decline} />
+            </div>
+
             {!peopleLoaded && (
                 <div className="space-y-3">
                     {[0, 1, 2].map(i => (
@@ -40,12 +46,12 @@ export default function ConnectionsPage() {
                 </div>
             )}
 
-            {peopleLoaded && people.length === 0 && (
+            {peopleLoaded && people.length === 0 && requesters.length === 0 && (
                 <div className="py-6 flex flex-col items-start gap-3">
                     <p className="text-xs text-stone-500">{t('profile.no_connections')}</p>
                     <button
                         onClick={() => leaveProfileTo('/platform/connect')}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-xs font-semibold text-stone-700 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95"
+                        className={`${btn.secondary('xs')} cursor-pointer`}
                     >
                         <Users size={14} />
                         {t('profile.no_connections_cta')}

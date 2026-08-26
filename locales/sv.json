@@ -62,11 +62,8 @@
   },
   "studio": {
     "recording_limit_reached": "Inspelningar stoppas vid 10 minuter. Din tagning är sparad.",
-
     "decomposing": "Delar upp låten i spår…",
-
     "decomposed": "Låten är uppdelad i sång, bas och instrument.",
-
     "decompose_no_room": "Inte tillräckligt med lediga spår för att dela upp låten — den lades till som ett spår.",
     "open_lyrics": "Öppna låttexten",
     "close_lyrics": "Stäng låttexten",
@@ -332,6 +329,7 @@
     "invites_sent": "{count} inbjudningar har skickats",
     "invite": "Bjud in",
     "whos_in": "Vilka är med?",
+    "songwriters_here": "Låtskrivare här",
     "me": "Jag",
     "owner": "Ägare",
     "confirm_close_title": "Är du säker på att du vill avsluta samarbetet?",
@@ -496,7 +494,12 @@
     "muted_until": "Till",
     "muted_indefinite": "Tills en moderator häver den",
     "muted_contact": "Skriv till support@veinote.com om du tror att det här är ett misstag.",
-    "muted_publish_blocked": "Din publicering är pausad, så den här låten kan inte delas med gemenskapen just nu."
+    "muted_publish_blocked": "Din publicering är pausad, så den här låten kan inte delas med gemenskapen just nu.",
+    "accept_request": "Acceptera förfrågan",
+    "badge_active": "Stammis",
+    "badge_active_tooltip": "Lägger mycket tid på att skriva på Veinote",
+    "invite_sent": "Inbjudan skickad",
+    "view_profile": "Visa profil"
   },
   "creative": {
     "new_project": "Nytt projekt",
@@ -653,6 +656,16 @@
     "song_collaborators": "Medskrivare",
     "song_no_recording": "Ingen inspelning ännu",
     "song_open_in_create": "Öppna i Skapa",
+    "song_document": "Låtdetaljer",
+    "song_document_blocked": "Din webbläsare blockerade dokumentfönstret. Tillåt popup-fönster för den här sidan och försök igen.",
+    "song_ownership": "Ägande",
+    "song_ownership_unagreed": "Fördelningen är inte överenskommen än",
+    "song_document_kind": "Fördelningsblad",
+    "song_document_by": "Skapad av",
+    "song_document_details": "Detaljer",
+    "song_document_party": "Upphovsperson",
+    "song_document_total": "Totalt",
+    "song_document_generated": "Skapad",
     "song_play": "Spela upp",
     "song_pause": "Paus",
     "song_previous": "Föregående inspelning",
@@ -669,7 +682,14 @@
     "see_all": "Visa alla",
     "my_songs_subtitle": "Alla låtar du har skrivit, samlade på ett ställe.",
     "connections_subtitle": "Låtskrivarna du har kontakt med.",
-    "disconnect": "Ta bort"
+    "disconnect": "Ta bort",
+    "connection_requests": "Förfrågningar",
+    "wants_to_connect": "Vill ansluta till dig",
+    "accept_request": "Acceptera",
+    "decline_request": "Avböj",
+    "invite_sent_hint": "Väntar på att de ska acceptera. Tryck igen för att dra tillbaka.",
+    "songwriter_not_found": "Låtskrivaren hittades inte",
+    "songwriter_not_found_desc": "Kontot finns inte längre, eller har ingen offentlig profil än."
   },
   "email": {
     "welcome": {
@@ -834,7 +854,12 @@
     "sentence_placeholder": "Skriv din mening här...",
     "finalize_lyrics": "Färdigställ texten",
     "start_new_practice": "Starta en ny övning",
-    "send_to_canvas": "Skicka till canvas",
+    "nudge_theme": "Välj ett tema för att gå vidare.",
+    "nudge_nouns": "Fyll i alla fem substantiven för att gå vidare.",
+    "nudge_verbs": "Fyll i alla fem verben för att gå vidare.",
+    "nudge_links": "Koppla varje substantiv till ett verb för att gå vidare.",
+    "nudge_lines": "Skriv alla fem raderna för att gå vidare.",
+    "send_to_canvas": "Fortsätt i canvas",
     "send_to_canvas_failed": "Kunde inte nå din canvas. Försök igen.",
     "canvas_title": "{theme} — vers",
     "retry_connection": "Försök ansluta igen",
@@ -1634,11 +1659,11 @@
     "name": "Namn",
     "transcribing": "Hämtar...",
     "extract_stage_large": "Stor fil — jobbar fortfarande",
+    "extract_stage_long": "Lång inspelning — jobbar fortfarande",
     "extract_stage_almost": "Snart klart",
     "extract_too_long": "Den här inspelningen är {length}. Vi kan hämta text från inspelningar på upp till {minutes} minuter.",
     "extract_too_large": "Den här filen är {size}. Vi kan hämta text från filer på upp till {limit}.",
     "extract_failed": "Kunde inte hämta låttexten. Försök igen.",
-
     "extract_partial": "En del av låten kunde inte hämtas — resten finns på canvasen.",
     "transcribing_audio": "Hämtar låttexten",
     "transcribe_recording": "Transkribera inspelningen",

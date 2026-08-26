@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useLanguage } from '@/context/LanguageContext';
+import * as btn from './buttonStyles';
 
 interface DeepDiveProps {
     onBackToLanding: () => void;
@@ -15,7 +16,7 @@ export default function DeepDive({ onBackToLanding }: DeepDiveProps) {
             <div className="flex items-center gap-3">
                 <button
                     onClick={onBackToLanding}
-                    className="text-stone-500 hover:text-stone-800 transition-colors cursor-pointer"
+                    className={`${btn.iconGhost('sm')} cursor-pointer`}
                     aria-label={t('learn.back_to_overview')}
                 >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

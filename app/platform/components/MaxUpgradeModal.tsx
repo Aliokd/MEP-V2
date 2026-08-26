@@ -12,6 +12,7 @@ import {
     type BillingPeriod,
 } from '@/lib/paddle/config';
 import { openCheckout } from '@/lib/paddle/checkout';
+import * as btn from './buttonStyles';
 
 // What Max is worth is already written for the onboarding paywall, so this
 // reads the same list rather than forking a second copy of the same selling
@@ -176,7 +177,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                 <button
                     onClick={onClose}
                     aria-label={t('common.close')}
-                    className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/70 hover:bg-white flex items-center justify-center transition-colors text-stone-600 hover:text-stone-900 active:scale-95"
+                    className={`${btn.icon('sm')} absolute top-5 right-5`}
                 >
                     <X className="w-4 h-4" />
                 </button>
@@ -222,9 +223,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                             type="button"
                             onClick={() => setBilling(period)}
                             aria-pressed={billing === period}
-                            className={`relative z-10 rounded-full px-4 py-2 text-[13px] font-semibold transition-colors duration-200 ${
-                                billing === period ? 'text-stone-900' : 'text-stone-500 hover:text-stone-900'
-                            }`}
+                            className={`${btn.segment(billing === period, 'sm')} cursor-pointer`}
                         >
                             {t(`onboarding.paywall.billing.${period}`)}
                         </button>
@@ -273,7 +272,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                         type="button"
                         onClick={handleUpgrade}
                         disabled={isOpeningCheckout}
-                        className="w-full rounded-full bg-[#86BE7F] py-4 text-base font-semibold text-stone-900 transition-all hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-75 cursor-pointer"
+                        className={`${btn.primaryBlock('lg')} cursor-pointer disabled:cursor-not-allowed`}
                     >
                         {isOpeningCheckout
                             ? t('onboarding.paywall.opening_checkout')
@@ -284,7 +283,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                     // open. Send them to the full paywall instead of a dead button.
                     <a
                         href="/onboarding?step=paywall"
-                        className="w-full rounded-full bg-[#86BE7F] py-4 text-base font-semibold text-stone-900 transition-all hover:opacity-95 active:scale-[0.99] cursor-pointer text-center block"
+                        className={`${btn.primaryBlock('lg')} cursor-pointer`}
                     >
                         {t('connect.pro.modal_cta')}
                     </a>

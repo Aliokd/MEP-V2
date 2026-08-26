@@ -195,17 +195,20 @@ const ART: Record<string, Shape[]> = {
  */
 const CUSTOM: Record<string, (uid: string) => ReactNode> = {
     // Two circles sharing one thought: the lined draft and the finished take.
-    // Both wash from grey into transparency as they fall.
+    // Both wash from grey into transparency across the width — the light comes
+    // from the left, the same side the draft sits on, and both shapes thin out
+    // toward the right. Each gradient runs a few units past its own shape so the
+    // extremes of the ramp are never the ones doing the drawing.
     'Composing verses': (uid) => {
         const stripes = Array.from({ length: 15 }, (_, i) => 46 + i * 9);
         return (
             <>
                 <defs>
-                    <linearGradient id={`${uid}-a`} gradientUnits="userSpaceOnUse" x1="88" y1="44" x2="88" y2="178">
+                    <linearGradient id={`${uid}-a`} gradientUnits="userSpaceOnUse" x1="22" y1="110" x2="156" y2="110">
                         <stop offset="0" stopColor="currentColor" stopOpacity="0.75" />
                         <stop offset="1" stopColor="currentColor" stopOpacity="0" />
                     </linearGradient>
-                    <linearGradient id={`${uid}-b`} gradientUnits="userSpaceOnUse" x1="138" y1="36" x2="138" y2="180">
+                    <linearGradient id={`${uid}-b`} gradientUnits="userSpaceOnUse" x1="66" y1="108" x2="210" y2="108">
                         <stop offset="0" stopColor="currentColor" stopOpacity="0.85" />
                         <stop offset="1" stopColor="currentColor" stopOpacity="0.02" />
                     </linearGradient>

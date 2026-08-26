@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { pickLocale } from '@/lib/content';
+import * as btn from './buttonStyles';
 import { safeLocalStorageGetItem, safeLocalStorageSetItem } from '@/lib/storage';
 import {
     dismissedKey,
@@ -114,7 +115,7 @@ export default function AnnouncementBanner() {
                             {announcement.ctaHref && announcement.ctaLabel && (
                                 <a
                                     href={announcement.ctaHref}
-                                    className="mt-1.5 self-start inline-flex items-center gap-1 text-sm font-medium text-stone-800 hover:opacity-70 transition-opacity"
+                                    className={`${btn.ghost('xs')} mt-1.5 self-start gap-1 text-sm font-medium text-stone-800`}
                                 >
                                     {announcement.ctaLabel}
                                     <ArrowRight size={14} strokeWidth={2} />
@@ -125,7 +126,7 @@ export default function AnnouncementBanner() {
                         <button
                             onClick={() => dismiss(announcement.id)}
                             aria-label="Dismiss"
-                            className="text-stone-400 hover:text-stone-700 transition-colors cursor-pointer shrink-0 p-1"
+                            className={`${btn.iconGhost('xs')} cursor-pointer`}
                         >
                             <X size={15} strokeWidth={2} />
                         </button>

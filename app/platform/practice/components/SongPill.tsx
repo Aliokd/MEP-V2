@@ -6,6 +6,7 @@ import { ChevronDown, Music4 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { type PracticeSong } from '../data/practiceSongs';
 import { usePracticeLibrary } from '../lib/library';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 interface SongPillProps {
     /** Title shown on the pill; for uploads there is no matching library id. */
@@ -50,7 +51,7 @@ export default function SongPill({ title, artist, currentId, onSelect }: SongPil
                 onClick={() => setOpen(o => !o)}
                 aria-expanded={open}
                 aria-label={t('practice.change_song')}
-                className="flex items-center gap-3 pl-5 pr-4 py-2.5 rounded-full bg-white border border-stone-200 hover:border-stone-400 transition-colors max-w-full cursor-pointer"
+                className={`${btn.secondary('sm')} max-w-full gap-3 cursor-pointer`}
             >
                 <span className="text-sm font-sans font-medium text-stone-900 truncate">{title}</span>
                 {artist && (
@@ -88,7 +89,7 @@ export default function SongPill({ title, artist, currentId, onSelect }: SongPil
                                             setOpen(false);
                                             if (!isCurrent) onSelect(song);
                                         }}
-                                        className={`w-full text-left px-4 py-2.5 rounded-[12px] flex items-center justify-between gap-3 transition-colors
+                                        className={`${btn.menuItem()} justify-between gap-3
                                             ${isCurrent
                                                 ? 'bg-stone-100'
                                                 : locked

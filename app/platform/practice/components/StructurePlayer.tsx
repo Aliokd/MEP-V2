@@ -11,6 +11,7 @@ import type { AuthoredSection } from '../data/practiceSongs';
 import { analyzeSongUrl } from '../lib/analyzeSong';
 import { CONFETTI_MS } from '@/app/onboarding/components/Confetti';
 import { haptic } from '@/lib/haptics';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 
 /**
@@ -499,7 +500,7 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                 <p className="text-stone-500 text-xs mb-6 text-center">{t('practice.localhost_warning')}</p>
                 <button
                     onClick={() => window.location.reload()}
-                    className="px-6 py-2.5 bg-stone-900 text-[#FAF9F5] hover:opacity-90 rounded-full text-sm font-medium transition-colors"
+                    className={btn.primary('sm')}
                 >
                     {t('practice.retry_connection')}
                 </button>
@@ -525,7 +526,7 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                         type="button"
                         onClick={onTogglePlay}
                         aria-label={isPlaying ? 'Pause' : 'Play'}
-                        className="w-11 h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 text-stone-900 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+                        className={`${btn.icon('md')} cursor-pointer`}
                     >
                         {isPlaying ? (
                             <svg width="15" height="17" viewBox="0 0 16 18" fill="currentColor" aria-hidden="true">
@@ -593,7 +594,7 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                                     onClick={startOver}
                                     aria-label={t('practice.start_over')}
                                     title={t('practice.start_over')}
-                                    className="w-11 h-11 md:w-8 md:h-8 shrink-0 rounded-full text-stone-500 md:text-stone-400 hover:text-stone-900 active:bg-stone-100 md:active:bg-transparent flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+                                    className={`${btn.iconGhost('bare')} h-11 w-11 md:h-8 md:w-8 cursor-pointer`}
                                 >
                                     <RotateCcw className="w-5 h-5 md:w-4 md:h-4" />
                                 </button>
@@ -604,7 +605,7 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                                 onClick={() => setShowDemo(true)}
                                 aria-label={t('practice.demo_title')}
                                 title={t('practice.demo_title')}
-                                className="w-11 h-11 md:w-8 md:h-8 shrink-0 rounded-full text-stone-500 md:text-stone-400 hover:text-stone-900 active:bg-stone-100 md:active:bg-transparent flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+                                className={`${btn.iconGhost('bare')} h-11 w-11 md:h-8 md:w-8 cursor-pointer`}
                             >
                                 <Info className="w-6 h-6 md:w-4 md:h-4" />
                             </button>
@@ -755,7 +756,7 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                         onClick={onPrevSong}
                         aria-label={t('practice.prev_song')}
                         title={t('practice.prev_song')}
-                        className="w-11 h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+                        className={`${btn.icon('md')} cursor-pointer`}
                     >
                         <ArrowLeft className="w-4 h-4 stroke-[2]" />
                     </button>
@@ -764,7 +765,7 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                         type="button"
                         onClick={onNextSong}
                         aria-label={t('practice.next_song')}
-                        className="flex items-center gap-2.5 pl-7 pr-6 py-3.5 rounded-full bg-stone-900 text-[#FAF9F5] text-[15px] font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors cursor-pointer"
+                        className={`${btn.primary('md')} cursor-pointer`}
                     >
                         {t('common.next')}
                         <ArrowRight className="w-4 h-4 stroke-[2]" />

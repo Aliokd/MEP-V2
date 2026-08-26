@@ -67,6 +67,11 @@ export function useMySongs(user: User | null, t: (key: string) => string) {
                         isCompleted: completedIds.includes(d.id),
                         collaborators: Array.isArray(data.collaborators) ? data.collaborators.length : 0,
                         tracks,
+                        // Present only once the song has been published — that is when the
+                        // split is actually agreed. Absent means "not agreed yet", which the
+                        // card says outright rather than inventing an even division.
+                        ownershipSplits: Array.isArray(data.ownershipSplits) ? data.ownershipSplits : undefined,
+                        ownershipAgreedAt: typeof data.ownershipAgreedAt === 'number' ? data.ownershipAgreedAt : 0,
                     });
                 });
                 list.sort((a, b) => b.updatedAt - a.updatedAt);

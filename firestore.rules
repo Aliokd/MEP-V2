@@ -131,7 +131,10 @@ service cloud.firestore {
     match /publicProfiles/{userId} {
       function allowedFieldsOnly() {
         return request.resource.data.keys().hasOnly([
-          "uid", "name", "photoURL", "songwriterType", "createdAt", "lastActiveAt"
+          "uid", "name", "photoURL", "songwriterType", "createdAt", "lastActiveAt",
+          // Drives the time-on-platform badge. Self-reported, like everything
+          // else in this document — see the note on it in lib/lastActive.ts.
+          "activeMinutes"
         ]);
       }
 
@@ -274,6 +277,59 @@ service cloud.firestore {
         allow delete: if isSignedIn() &&
           isOwner(get(/databases/$(database)/documents/projects/$(projectId)).data);
       }
+    }
+
+    // ---------------------------------------------------------------------
+    // Connection requests (Connect: "+" on a songwriter card)
+    // ---------------------------------------------------------------------
+    // A connection is mutual and consented: the sender files a pending request,
+    // and only the recipient can turn it into an accepted one. There is no
+    // separate "connections" list — an accepted document here *is* the
+    // connection, so there is no second place for the two to disagree.
+    //
+    // The document id is always "<fromUid>__<toUid>", which is what stops a
+    // sender queueing up an unbounded pile of requests at one person: a second
+    // request to the same recipient is a write to the same document, and the
+    // create rule below only admits a document whose id matches the caller.
+    match /connection_requests/{requestId} {
+      function isSender() {
+        return resource.data.fromUid == request.auth.uid;
+      }
+      function isRecipient() {
+        return resource.data.toUid == request.auth.uid;
+      }
+
+      // Both sides can see it. The client lists by `fromUid ==` or `toUid ==`,
+      // so every document a query returns satisfies this — a list query fails
+      // entirely if any document in the result set fails the rule.
+      allow read: if isSignedIn() && (isSender() || isRecipient());
+
+      allow create: if isSignedIn() &&
+        request.resource.data.fromUid == request.auth.uid &&
+        request.resource.data.toUid is string &&
+        request.resource.data.toUid != request.auth.uid &&
+        requestId == request.auth.uid + "__" + request.resource.data.toUid &&
+        request.resource.data.status == "pending";
+
+      // Pinning both uids stops any update from also rewriting who the request
+      // was between.
+      allow update: if isSignedIn() &&
+        request.resource.data.fromUid == resource.data.fromUid &&
+        request.resource.data.toUid == resource.data.toUid &&
+        (
+          // The recipient answers.
+          (isRecipient() && request.resource.data.status in ["accepted", "declined"]) ||
+          // The sender may re-open a request that was declined — asking again
+          // after a no, rather than being shut out permanently. There is still
+          // only ever one document per direction, so this cannot become a pile
+          // of requests; it is the same one being raised again.
+          (isSender() && resource.data.status == "declined" &&
+            request.resource.data.status == "pending")
+        );
+
+      // Either side may remove it: the sender withdrawing an unanswered
+      // request, or either person disconnecting after it was accepted.
+      allow delete: if isSignedIn() && (isSender() || isRecipient());
     }
 
     // ---------------------------------------------------------------------

@@ -1,11 +1,12 @@
 "use client";
 
 import React from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import LessonContent from './LessonContent';
 import LessonBlocks from './LessonBlocks';
 import { useLanguage } from '@/context/LanguageContext';
 import { isBlockRenderable, type LessonBlock } from '@/lib/lessonBlocks';
+import * as btn from './buttonStyles';
 
 interface ReaderLesson {
     id: string;
@@ -33,8 +34,6 @@ interface LessonReaderProps {
     isLoading?: boolean;
     onComplete: (lessonId: string) => void;
     onBackToLanding: () => void;
-    onOpenDeepDive: () => void;
-    onOpenIdeas: () => void;
 }
 
 export default function LessonReader({
@@ -42,8 +41,6 @@ export default function LessonReader({
     isLoading = false,
     onComplete,
     onBackToLanding,
-    onOpenDeepDive,
-    onOpenIdeas,
 }: LessonReaderProps) {
     const { t, language } = useLanguage();
 
@@ -52,8 +49,6 @@ export default function LessonReader({
     }, [chapters]);
 
     const [index, setIndex] = React.useState(0);
-    // Shown once the last lesson is completed, offering somewhere to go next.
-    const [isFinished, setIsFinished] = React.useState(false);
 
     const currentLesson = flatLessons[index];
     // A block that would draw nothing must not count, or an editor who added a
@@ -82,23 +77,28 @@ export default function LessonReader({
     React.useEffect(() => {
         contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
         if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
-    }, [index, isFinished]);
+    }, [index]);
 
     const goNext = () => {
         if (!currentLesson) return;
         onComplete(currentLesson.id);
-        if (atEnd) {
-            setIsFinished(true);
-        } else {
+        if (!atEnd) {
             setIndex(i => i + 1);
+            return;
         }
+        // Finishing the chapter returns to Learn rather than stopping on an
+        // interstitial. The reward is the Mind Power bar moving, so make sure it
+        // is actually seen: `onComplete` above feeds the count, but the ring it
+        // raises there only fires on the first action of the day. `veinote-celebrate`
+        // glows every time, and the widget lives in the platform layout, so it
+        // keeps glowing across the navigation.
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('veinote-celebrate'));
+        }
+        onBackToLanding();
     };
 
     const goBack = () => {
-        if (isFinished) {
-            setIsFinished(false);
-            return;
-        }
         if (!atStart) setIndex(i => i - 1);
     };
 
@@ -120,7 +120,7 @@ export default function LessonReader({
                 <p className="text-sm font-medium">{t('learn.no_lessons_yet')}</p>
                 <button
                     onClick={onBackToLanding}
-                    className="text-sm font-semibold text-stone-700 hover:text-stone-900 transition-colors cursor-pointer"
+                    className={`${btn.ghost('sm')} cursor-pointer`}
                 >
                     {t('learn.back_to_overview')}
                 </button>
@@ -130,69 +130,26 @@ export default function LessonReader({
 
     return (
         <div className="w-full flex-1 min-h-0 flex flex-col gap-4 px-4 md:px-0">
-            {/* The chapter name sits beside the arrow rather than inside the
-                content, so it reads as where-you-are and frees the body for the
-                lesson itself. */}
-            <div className="shrink-0 flex items-center gap-3 select-none">
+            {/* Arrow and chapter name are ONE control, not a button beside a
+                label: the chapter is what you are going back to, so clicking
+                either half should take you there. */}
+            <div className="shrink-0 flex select-none">
                 <button
                     onClick={onBackToLanding}
                     aria-label={t('learn.back')}
                     title={t('learn.back')}
-                    className="text-stone-500 hover:text-stone-900 transition-colors cursor-pointer shrink-0"
+                    className={`${btn.plain('bare')} group min-w-0 gap-3 rounded-full py-1.5 pl-2 pr-4 -ml-2 cursor-pointer text-stone-500 transition-colors hover:bg-stone-900/5 hover:text-stone-900`}
                 >
-                    <ArrowLeft size={18} className="stroke-[2]" />
+                    <ArrowLeft size={20} className="stroke-[2] shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5" />
+                    <span className="text-base md:text-lg font-sans font-medium truncate">
+                        {currentLesson.chapterTitle}
+                    </span>
                 </button>
-                <h2 className="text-base md:text-lg font-sans font-medium text-stone-700 truncate">
-                    {currentLesson.chapterTitle}
-                </h2>
             </div>
 
             {/* No card around the lesson — the content sits straight on the panel
                 so the video and notes get the full width and height. */}
             <div className="w-full flex-1 min-h-0 flex flex-col gap-8">
-                {isFinished ? (
-                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center gap-8 px-4">
-                        <div className="flex flex-col gap-2">
-                            <h1 className="text-3xl font-sans font-light text-stone-900">
-                                {t('learn.chapter_complete_title')}
-                            </h1>
-                            <p className="text-sm text-stone-500 font-sans">
-                                {t('learn.chapter_complete_desc')}
-                            </p>
-                        </div>
-
-                        <div className="w-full max-w-xl grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <button
-                                onClick={onOpenDeepDive}
-                                className="group flex items-center justify-between gap-3 text-left px-6 py-5 rounded-[16px] bg-white border border-stone-200 hover:border-stone-400 transition-colors cursor-pointer active:scale-[0.99]"
-                            >
-                                <span className="text-base font-sans font-medium text-stone-800">
-                                    {t('learn.deep_dive')}
-                                </span>
-                                <ArrowRight size={18} className="text-stone-400 group-hover:text-stone-700 group-hover:translate-x-0.5 transition-all shrink-0" />
-                            </button>
-
-                            <button
-                                onClick={onOpenIdeas}
-                                className="group flex items-center justify-between gap-3 text-left px-6 py-5 rounded-[16px] bg-white border border-stone-200 hover:border-stone-400 transition-colors cursor-pointer active:scale-[0.99]"
-                            >
-                                <span className="text-base font-sans font-medium text-stone-800">
-                                    {t('learn.bank_of_ideas')}
-                                </span>
-                                <ArrowRight size={18} className="text-stone-400 group-hover:text-stone-700 group-hover:translate-x-0.5 transition-all shrink-0" />
-                            </button>
-                        </div>
-
-                        <button
-                            onClick={goBack}
-                            className="flex items-center gap-2 text-sm font-sans text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
-                        >
-                            <ArrowLeft size={16} className="stroke-[2]" />
-                            {t('learn.back')}
-                        </button>
-                    </div>
-                ) : (
-                <>
                 {/* Chapter name lives in the header now, so only the lesson title here. */}
                 <h1 className="shrink-0 text-3xl font-sans font-light text-stone-900">{currentLesson.title}</h1>
 
@@ -244,7 +201,7 @@ export default function LessonReader({
                         disabled={atStart}
                         // 56px tall and 17px on a phone, where these two are the only way
                         // through the lesson and were sitting at a desktop's 40px.
-                        className="h-14 px-8 text-[17px] md:h-auto md:px-6 md:py-3 md:text-sm bg-stone-200/70 hover:bg-stone-300/70 text-stone-700 font-semibold rounded-full transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                        className={`${btn.secondary('touch')} cursor-pointer disabled:cursor-not-allowed`}
                     >
                         {t('learn.back')}
                     </button>
@@ -254,13 +211,11 @@ export default function LessonReader({
                         it here meant the final lesson could never be completed. */}
                     <button
                         onClick={goNext}
-                        className="h-14 px-8 text-[17px] md:h-auto md:px-6 md:py-3 md:text-sm bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-semibold rounded-full transition-all shadow-sm hover:shadow-md cursor-pointer"
+                        className={`${btn.primary('touch')} cursor-pointer`}
                     >
                         {atEnd ? t('common.complete') : t('learn.next')}
                     </button>
                 </div>
-                </>
-                )}
             </div>
         </div>
     );

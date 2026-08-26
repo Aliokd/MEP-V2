@@ -13,6 +13,7 @@ import { useFeedbackThreads } from '@/lib/useFeedbackThreads';
 import { PRACTICE_ENABLED } from '@/lib/uiFlags';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import Tooltip from '@/components/Tooltip';
+import * as btn from './buttonStyles';
 
 /** Anchors the onboarding guide spotlights onto specific nav entries. */
 function tourAnchor(href: string): string | undefined {
@@ -185,21 +186,36 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                             wherever there is no hover pointer; a collapsed rail whose only way
                             back open appears on hover is a dead end on a touch device.
 
-                            Overlaid rather than in flow because there is no room for both: the
-                            rail is 76px at its narrowest, and logo + button need more than that.
-                            It only appears on hover, so briefly covering the beta badge costs
-                            nothing. */}
+                            No beta badge here, which is what makes the right-hand side free.
+                            The badge is 46px beside a 20px mark, so logo plus gap already came
+                            to ~72px of a 76px rail and the 28px button landed on top of it —
+                            not a near miss to nudge, but 28px more than the rail has. The badge
+                            still rides the wordmark everywhere it fits: the expanded sidebar,
+                            the mobile drawer, the marketing pages. On the rail the V alone is
+                            the mark, centred on the same axis as the nav icons under it, and
+                            the button has the right edge to itself.
+
+                            The button then has to scale with the rail, because "centred mark,
+                            right-aligned button" only fits under one condition. At rail width
+                            W the 20px mark spans W/2 ± 10 and the button spans (W − B) to W, so
+                            clearing it needs B ≤ W/2 − 10. The rail is 76/88/100px, so the
+                            ceiling is 28/34/40 — and a fixed 28px button therefore lands exactly
+                            flush against the mark on the narrow rail, touching it with nothing
+                            between. 20/24/28 keeps a real gap at all three widths instead. */}
                         <div className="relative flex flex-col items-center w-full py-2 px-2 group/logoarea">
                             <Link href="/platform/create" className="opacity-95 hover:opacity-100 transition-opacity flex justify-center" onClick={onClose}>
-                                <Logo size="sm" variant="icon" showBeta />
+                                <Logo size="sm" variant="icon" />
                             </Link>
                             <Tooltip label={t('navigation.expand_sidebar')} side="right">
                                 <button
                                     onClick={toggleSidebar}
-                                    className="touch-reveal absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/logoarea:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 w-8 h-8 rounded-full bg-white/90 border border-stone-250/40 flex items-center justify-center hover:bg-white active:scale-95 text-stone-600 hover:text-stone-950 shadow-sm shrink-0 cursor-pointer"
+                                    className={`${btn.icon('bare')} touch-reveal absolute right-0 top-1/2 h-5 w-5 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover/logoarea:opacity-100 focus-visible:opacity-100 lg:h-6 lg:w-6 xl:h-7 xl:w-7 cursor-pointer`}
                                     aria-label={t('navigation.expand_sidebar')}
                                 >
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    {/* Sized in CSS rather than by the width/height attributes, so
+                                        the glyph tracks the three button sizes above it and keeps
+                                        the same margin inside the circle at each one. */}
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 lg:h-[13px] lg:w-[13px] xl:h-[15px] xl:w-[15px]">
                                         <rect x="3" y="3" width="18" height="18" rx="2.5" />
                                         <path d="M9 3v18" />
                                     </svg>
@@ -255,7 +271,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                 <button
                                     onClick={onFeedbackClick}
                                     aria-label={t('navigation.feedback')}
-                                    className="relative flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
+                                    className={`${btn.icon('sm')} relative cursor-pointer`}
                                 >
                                     {unreadCount > 0 && (
                                         <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#86BE7F] border-2 border-[#E4E4DF]" />
@@ -269,7 +285,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                                 <button
                                     onClick={handleSignOut}
                                     aria-label={t('navigation.logout')}
-                                    className="flex items-center justify-center w-9 h-9 rounded-full bg-white/45 hover:bg-white/75 border border-stone-250/15 shadow-[0_1.5px_4px_rgba(0,0,0,0.015)] text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
+                                    className={`${btn.icon('sm')} cursor-pointer`}
                                 >
                                     <LogOut size={16} className="stroke-[2.2]" />
                                 </button>
@@ -289,21 +305,30 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                        content, which is how the overflow escaped in the first place. */
                     <div className="flex flex-col gap-10 h-full min-h-0">
                         <div className="flex flex-col gap-7 md:gap-10 flex-1 min-h-0 overflow-y-auto no-scrollbar">
-                            <div className="flex items-center justify-start gap-3 min-h-[40px] w-full group/logoarea">
+                            <div className="relative flex items-center justify-start gap-3 min-h-[40px] w-full group/logoarea">
                                 <Link href="/platform/create" className="opacity-95 hover:opacity-100 transition-opacity" onClick={onClose}>
                                     <Logo size="md" showBeta />
                                 </Link>
                                 {isMobile ? (
                                     <button
                                         onClick={onClose}
-                                        className="ml-auto w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 transition-all text-stone-700 hover:text-stone-955 shadow-xs"
+                                        className={`${btn.icon('sm')} ml-auto`}
                                     >
                                         <X size={18} />
                                     </button>
                                 ) : (
                                     <button
                                         onClick={toggleSidebar}
-                                        className="touch-reveal opacity-0 group-hover/logoarea:opacity-100 transition-opacity duration-150 w-9 h-9 rounded-full bg-white/50 border border-stone-250/30 flex items-center justify-center hover:bg-white/80 active:scale-95 text-stone-700 hover:text-stone-950 shadow-xs shrink-0"
+                                        // Out of flow, pinned to the row's right edge. In flow it followed a
+                                        // 145px wordmark, so it needed 193px of row (logo + gap + button)
+                                        // while the rail only offers 158px at md and 180px at lg — the
+                                        // button was pushed past the right edge and clipped away by the
+                                        // rail's overflow, so hovering the logo revealed nothing at those
+                                        // widths. Absolute positioning costs no row width, so it lands
+                                        // inside the rail at every breakpoint.
+                                        // bg-white/90: it now overlaps the end of the wordmark while shown,
+                                        // and needs to stay legible on top of it.
+                                        className={`${btn.icon('sm')} touch-reveal absolute right-0 top-1/2 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover/logoarea:opacity-100 focus-visible:opacity-100`}
                                         aria-label={t('navigation.collapse_sidebar')}
                                     >
                                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

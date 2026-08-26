@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { fetchUsersByUid, useConnections, type PlatformUser } from '@/lib/connections';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 export interface InvitePick {
     uid: string;
@@ -94,7 +95,7 @@ export default function InviteCollaboratorField({
                     type="button"
                     onClick={() => onPick(null)}
                     aria-label={t('collab.invite_clear')}
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-150/60 transition-colors cursor-pointer shrink-0"
+                    className={`${btn.iconGhost('sm')} cursor-pointer`}
                 >
                     <X size={16} className="stroke-[2.2]" />
                 </button>
@@ -134,7 +135,7 @@ export default function InviteCollaboratorField({
                                                 onPick({ uid: friend.uid, name: friend.name });
                                                 onQueryChange('');
                                             }}
-                                            className="flex flex-col text-left px-4 py-2.5 rounded-xl hover:bg-stone-50 transition-colors cursor-pointer"
+                                            className={`${btn.neutral('bare')} flex-col items-start rounded-xl px-4 py-2.5 text-left cursor-pointer`}
                                         >
                                             <span className="text-[15px] font-sans font-medium text-stone-700 leading-snug">
                                                 {friend.name}

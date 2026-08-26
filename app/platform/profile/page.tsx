@@ -10,10 +10,11 @@ import MaxUpgradeModal from '../components/MaxUpgradeModal';
 import MaxBanner from '../components/MaxBanner';
 import { useUserPlan } from '@/lib/useUserPlan';
 import SongCards from './components/SongCards';
-import ConnectionList, { useConnectionPeople } from './components/ConnectionList';
+import ConnectionList, { PendingRequests, useConnectionPeople } from './components/ConnectionList';
 import { useMySongs, leaveProfileTo, openSongInCreate, formatSongDate } from './useMySongs';
 import { resetGuide } from '@/lib/onboardingGuide';
 import { writePublicProfile } from '@/lib/publicProfile';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 /** How many recent songs / connections the profile shelf shows before "See all". */
 const RECENT_SONGS = 6;
@@ -46,7 +47,7 @@ export default function ProfilePage() {
         photoNoticeTimerRef.current = setTimeout(() => setPhotoNotice(''), 4000);
     };
     const { songs, songsLoaded } = useMySongs(user, t);
-    const { people, peopleLoaded, disconnect } = useConnectionPeople(user);
+    const { people, peopleLoaded, disconnect, requesters, accept, decline } = useConnectionPeople(user);
 
     // Warm the Create route so the swap after the slide-out isn't a cold load.
     useEffect(() => { router.prefetch('/platform/create'); }, [router]);
@@ -344,7 +345,7 @@ export default function ProfilePage() {
                             {songsLoaded && songs.length > 0 && (
                                 <button
                                     onClick={() => router.push('/platform/profile/songs')}
-                                    className="flex items-center gap-1 text-xs font-semibold text-stone-500 hover:text-stone-900 transition-colors cursor-pointer group/all"
+                                    className={`${btn.ghost('xs')} gap-1 cursor-pointer group/all`}
                                 >
                                     {t('profile.see_all')}
                                     <ArrowRight size={13} strokeWidth={2.2} className="group-hover/all:translate-x-0.5 transition-transform" />
@@ -365,7 +366,7 @@ export default function ProfilePage() {
                                 <p className="text-xs text-stone-500">{t('profile.no_songs')}</p>
                                 <button
                                     onClick={() => leaveTo('/platform/create')}
-                                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-xs font-semibold text-stone-700 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95"
+                                    className={`${btn.secondary('xs')} cursor-pointer`}
                                 >
                                     <Music size={14} />
                                     {t('profile.no_songs_cta')}
@@ -379,6 +380,7 @@ export default function ProfilePage() {
                                 t={t}
                                 formatDate={formatDate}
                                 onOpenInCreate={handleOpenSong}
+                                ownerName={user.displayName || user.email || ''}
                             />
                         )}
                     </div>
@@ -397,13 +399,17 @@ export default function ProfilePage() {
                             {peopleLoaded && people.length > 0 && (
                                 <button
                                     onClick={() => router.push('/platform/profile/connections')}
-                                    className="flex items-center gap-1 text-xs font-semibold text-stone-500 hover:text-stone-900 transition-colors cursor-pointer group/all"
+                                    className={`${btn.ghost('xs')} gap-1 cursor-pointer group/all`}
                                 >
                                     {t('profile.see_all')}
                                     <ArrowRight size={13} strokeWidth={2.2} className="group-hover/all:translate-x-0.5 transition-transform" />
                                 </button>
                             )}
                         </div>
+
+                        {/* Anyone waiting on an answer comes first — it's the only
+                            thing in this section that needs acting on. */}
+                        <PendingRequests requesters={requesters} t={t} onAccept={accept} onDecline={decline} />
 
                         {!peopleLoaded && (
                             <div className="space-y-3 py-1">
@@ -413,12 +419,12 @@ export default function ProfilePage() {
                             </div>
                         )}
 
-                        {peopleLoaded && people.length === 0 && (
+                        {peopleLoaded && people.length === 0 && requesters.length === 0 && (
                             <div className="py-6 flex flex-col items-start gap-3">
                                 <p className="text-xs text-stone-500">{t('profile.no_connections')}</p>
                                 <button
                                     onClick={() => leaveTo('/platform/connect')}
-                                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-xs font-semibold text-stone-700 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95"
+                                    className={`${btn.secondary('xs')} cursor-pointer`}
                                 >
                                     <Users size={14} />
                                     {t('profile.no_connections_cta')}
@@ -471,7 +477,7 @@ export default function ProfilePage() {
                                 <div className="pt-1">
                                     <button
                                         type="submit"
-                                        className="px-5 py-2.5 bg-stone-900 text-[#DCDDD4] hover:bg-stone-800 text-xs font-semibold rounded-full transition-all cursor-pointer"
+                                        className={`${btn.primary('sm')} cursor-pointer`}
                                     >
                                         {t('profile.save_details')}
                                     </button>
@@ -494,13 +500,13 @@ export default function ProfilePage() {
                                     href="https://mail.google.com"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="px-4 py-2 border border-stone-200 hover:border-stone-300 hover:bg-stone-50/50 text-stone-700 text-xs font-semibold rounded-full transition-all"
+                                    className={btn.secondary('xs')}
                                 >
                                     {t('profile.open_gmail')}
                                 </a>
                                 <button
                                     onClick={handleCompleteVerification}
-                                    className="px-4 py-2 bg-stone-100 hover:bg-stone-200/60 border border-stone-200 text-stone-700 text-xs font-semibold rounded-full transition-all cursor-pointer"
+                                    className={`${btn.secondary('xs')} cursor-pointer`}
                                 >
                                     {t('profile.simulate_click')}
                                 </button>
@@ -509,7 +515,7 @@ export default function ProfilePage() {
                                         setVerificationState('idle');
                                         setEmail(user.email || '');
                                     }}
-                                    className="px-4 py-2 text-stone-500 hover:text-stone-700 text-xs font-semibold transition-all cursor-pointer"
+                                    className={`${btn.ghost('xs')} cursor-pointer`}
                                 >
                                     {t('profile.cancel')}
                                 </button>
@@ -556,7 +562,7 @@ export default function ProfilePage() {
                             </div>
                             <button
                                 onClick={handleReplayGuide}
-                                className="flex items-center gap-1.5 shrink-0 ml-4 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-xs font-semibold text-stone-700 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95"
+                                className={`${btn.secondary('xs')} ml-4 cursor-pointer`}
                             >
                                 <PlayCircle size={14} />
                                 {t('profile.demo_action')}
@@ -568,7 +574,7 @@ export default function ProfilePage() {
                                 <p className="text-xs text-stone-500">{t('profile.manage_subscription_desc')}</p>
                             </div>
                             <button
-                                className="shrink-0 ml-4 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-xs font-semibold text-stone-700 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95"
+                                className={`${btn.secondary('xs')} ml-4 cursor-pointer`}
                             >
                                 {t('profile.manage_action')}
                             </button>
@@ -581,7 +587,7 @@ export default function ProfilePage() {
                             <button
                                 onClick={() => setIsSupportOpen(true)}
                                 aria-haspopup="dialog"
-                                className="shrink-0 ml-4 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-xs font-semibold text-stone-700 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95"
+                                className={`${btn.secondary('xs')} ml-4 cursor-pointer`}
                             >
                                 {t('profile.support_action')}
                             </button>

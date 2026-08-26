@@ -5,6 +5,7 @@ import { Play, Square, X, ChevronLeft, ChevronRight, Plus, GripVertical, ArrowUp
 import { useLanguage } from '@/context/LanguageContext';
 import { COMMON_CHORDS, chordPositions, chordNotes, isValidChord, normalizeChord, type ChordMark } from '@/lib/chords';
 import { Fretboard, useChordPlayback } from './chordVisuals';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 /**
  * A chord the writer has added but not yet placed — the chord equivalent of the
@@ -92,7 +93,7 @@ export function PlacedChordCard({
                     onClick={(e) => { e.stopPropagation(); playing ? stop() : play(); }}
                     aria-label={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
                     title={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
-                    className="w-9 h-9 shrink-0 rounded-full bg-stone-50 border border-stone-200 hover:bg-stone-100 text-stone-700 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                    className={`${btn.icon('sm')} cursor-pointer`}
                 >
                     {playing ? <Square size={11} className="fill-current" /> : <Play size={12} className="fill-current" />}
                 </button>
@@ -102,7 +103,7 @@ export function PlacedChordCard({
                 type="button"
                 onClick={onOpen}
                 aria-label={chord.symbol}
-                className="min-w-0 text-left px-1 cursor-pointer"
+                className={`${btn.plain('bare')} min-w-0 justify-start px-1 text-left cursor-pointer`}
             >
                 <div className="text-[15px] leading-none font-bold text-stone-900 tracking-tight truncate">{chord.symbol}</div>
                 {notes.length > 0 && (
@@ -127,7 +128,7 @@ export function PlacedChordCard({
                 onClick={(e) => { e.stopPropagation(); stop(); onRemove(); }}
                 aria-label={t('creative.chord_remove') || 'Remove chord'}
                 title={t('creative.chord_remove') || 'Remove chord'}
-                className="w-0 -ml-2.5 opacity-0 group-hover/placed:w-7 group-hover/placed:ml-0 group-hover/placed:opacity-100 focus-visible:w-7 focus-visible:ml-0 focus-visible:opacity-100 h-7 shrink-0 overflow-hidden rounded-full flex items-center justify-center text-stone-300 hover:text-red-500 hover:bg-red-50 transition-all duration-200 cursor-pointer"
+                className={`${btn.plain('bare')} h-7 w-0 -ml-2.5 shrink-0 overflow-hidden opacity-0 text-stone-300 transition-all duration-200 hover:bg-red-50 hover:text-red-500 group-hover/placed:ml-0 group-hover/placed:w-7 group-hover/placed:opacity-100 focus-visible:ml-0 focus-visible:w-7 focus-visible:opacity-100 cursor-pointer`}
             >
                 <X size={13} strokeWidth={2.5} className="shrink-0" />
             </button>
@@ -468,7 +469,7 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
                     onClick={() => { stop(); onRemove(); }}
                     aria-label={t('creative.chord_remove') || 'Remove chord'}
                     title={t('creative.chord_remove') || 'Remove chord'}
-                    className="absolute -top-2 -right-2 z-20 w-7 h-7 rounded-full bg-white border border-stone-200 shadow-2xs flex items-center justify-center text-stone-400 hover:text-red-500 hover:border-red-200 transition-all cursor-pointer opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100"
+                    className={`${btn.plain('bare')} absolute -top-2 -right-2 z-20 h-7 w-7 border border-stone-200 bg-white text-stone-400 opacity-0 shadow-2xs transition-all hover:border-red-200 hover:text-red-500 group-hover/card:opacity-100 focus-visible:opacity-100 cursor-pointer`}
                 >
                     <X size={13} className="stroke-[2.5]" />
                 </button>
@@ -626,11 +627,11 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
                                     <button
                                         type="submit"
                                         disabled={!isValidChord(draft)}
-                                        className={`w-full h-9 rounded-[12px] text-[12.5px] font-bold transition-colors ${
+                                        className={
                                             isValidChord(draft)
-                                                ? 'bg-stone-800 text-white hover:bg-stone-900 cursor-pointer active:scale-[0.98]'
-                                                : 'bg-stone-100 text-stone-300 cursor-not-allowed'
-                                        }`}
+                                                ? `${btn.primary('bare')} h-9 w-full px-3 text-[12.5px] font-bold cursor-pointer`
+                                                : `${btn.plain('bare')} h-9 w-full bg-stone-100 px-3 text-[12.5px] font-bold text-stone-300 cursor-not-allowed`
+                                        }
                                     >
                                         {t('common.add') || 'Add'}
                                     </button>
@@ -651,7 +652,7 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
                                                     type="button"
                                                     onClick={() => goTo(variation - 1)}
                                                     aria-label={t('creative.chord_prev') || 'Previous voicing'}
-                                                    className="w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-800 hover:bg-stone-100 transition-colors cursor-pointer active:scale-95"
+                                                    className={`${btn.iconGhost('xs')} cursor-pointer`}
                                                 >
                                                     <ChevronLeft size={15} />
                                                 </button>
@@ -662,7 +663,7 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
                                                     type="button"
                                                     onClick={() => goTo(variation + 1)}
                                                     aria-label={t('creative.chord_next') || 'Next voicing'}
-                                                    className="w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-800 hover:bg-stone-100 transition-colors cursor-pointer active:scale-95"
+                                                    className={`${btn.iconGhost('xs')} cursor-pointer`}
                                                 >
                                                     <ChevronRight size={15} />
                                                 </button>
@@ -678,7 +679,7 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
                                                 onClick={playing ? stop : play}
                                                 aria-label={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
                                                 title={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
-                                                className="w-9 h-9 shrink-0 rounded-[12px] bg-white border border-stone-200 shadow-sm hover:shadow hover:border-stone-300 text-stone-800 flex items-center justify-center transition-all cursor-pointer active:scale-[0.98]"
+                                                className={`${btn.secondary('bare')} h-9 w-9 shrink-0 cursor-pointer`}
                                             >
                                                 {playing ? <Square size={12} className="fill-current" /> : <Play size={13} className="fill-current" />}
                                             </button>
@@ -693,7 +694,7 @@ export default function ChordCard({ chord, onSetSymbol, onRemove, onDragStart, o
                                                 type="button"
                                                 onClick={sendToCanvas}
                                                 disabled={isSending}
-                                                className="flex-1 min-w-0 h-9 rounded-[12px] bg-white border border-stone-200 shadow-sm hover:shadow hover:border-stone-300 text-stone-800 text-[12px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-70 disabled:cursor-default whitespace-nowrap"
+                                                className={`${btn.secondary('bare')} h-9 min-w-0 flex-1 gap-1.5 px-3 text-[12px] font-bold whitespace-nowrap cursor-pointer disabled:opacity-70 disabled:cursor-default`}
                                             >
                                                 {isSwapping
                                                     ? <ArrowUpDown size={13} className={`shrink-0 ${isSending ? 'animate-pulse' : ''}`} />

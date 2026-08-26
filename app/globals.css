@@ -796,6 +796,58 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     animation: mind-power-ring-spin var(--mind-power-ring-duration) linear forwards;
 }
 
+/* Learn landing card titles.
+ *
+ * Sized against the CARD, not the viewport. The three cards divide the panel,
+ * and the panel is the window minus the sidebar and its padding — so at 1357px
+ * the card is only 312px wide while a viewport-keyed `xl:` had already taken the
+ * title to 44px, and "fundamentals" (288px at that size) ran straight out of the
+ * card. There is no viewport breakpoint that can know this; the container is the
+ * only thing that does.
+ *
+ * The slope is measured rather than guessed: in this face the longest word
+ * renders about 6.5x the font size, and the body keeps ~66px of padding, so
+ * anything at or under (cardWidth - 66) / 6.5 fits. 14.5cqw - 10px sits just
+ * inside that across the whole range, clamped so it stays readable when the
+ * cards are narrow and stops growing once they are wide.
+ *
+ * `overflow-wrap` is the backstop: a longer word in another language — German
+ * especially — breaks rather than escaping the card. */
+.learn-card {
+    container-type: inline-size;
+}
+.learn-card-title {
+    font-size: clamp(1.125rem, calc(14.5cqw - 10px), 2.75rem);
+    overflow-wrap: break-word;
+}
+/* Below xl the cards are stacked full-width banners, so the cqw term races past
+   the ceiling and every title sits pinned at the 44px maximum — a size chosen
+   for a narrow three-column card, wearing it on a 760px-wide banner. The
+   ceiling therefore tracks the LAYOUT, not the device: 33px (a quarter down)
+   for the whole stacked range, 44px once the three columns appear and the cqw
+   slope has something narrow to work against again. The lower bound and the
+   slope are untouched. */
+@media (max-width: 1279px) {
+    .learn-card-title {
+        font-size: clamp(1.125rem, calc(14.5cqw - 10px), 2.0625rem);
+    }
+}
+
+/* Bank of tips — the notes column's bottom edge.
+ *
+ * The column scrolls with no scrollbar (deliberately: a bar in a card reads as
+ * clutter), which left a long tip looking as though its last line had simply
+ * been cut in half. A short fade at the edge says "this continues" instead.
+ *
+ * Only from md up, matching where the column is actually a scroller — below that
+ * it is overflow-visible, and fading text that is fully shown would be a bug. */
+@media (min-width: 768px) {
+    .tip-notes-fade {
+        -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent 100%);
+        mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent 100%);
+    }
+}
+
 /* Tip card heart.
  *
  * Liking settles the heart 40% larger, but it arrives with a gentle overshoot
@@ -1753,5 +1805,41 @@ html, body {
     .recording-gradient {
         animation: none;
         background-position: 50% 0;
+    }
+}
+
+/* A card whose bytes are still going to Storage.
+   Three signals at once, so the card reads as not-finished rather than as a
+   finished card that happens to have a bar on it:
+     · the background wash fills left to right (the progress itself)
+     · everything else on the card is held back to 55%
+     · a slow sheen crosses it, the same language a skeleton uses
+   The wash is excluded from the dimming by its role, so the one element that
+   IS the progress stays at full strength while the content behind it recedes. */
+.card-uploading > *:not([role="progressbar"]):not(.upload-sheen) {
+    opacity: 0.55;
+    transition: opacity 300ms ease-out;
+}
+
+.upload-sheen {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(
+        100deg,
+        rgba(255, 255, 255, 0) 20%,
+        rgba(255, 255, 255, 0.65) 50%,
+        rgba(255, 255, 255, 0) 80%
+    );
+    background-size: 220% 100%;
+    animation: shimmer 1.9s infinite linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* The dimming and the wash still say "working"; only the sweep goes. */
+    .upload-sheen {
+        animation: none;
+        opacity: 0;
     }
 }

@@ -493,7 +493,7 @@ test.describe('Practice Page', () => {
     await page.locator('button[aria-label="Next Practice"]').click();
     await page.getByRole('button', { name: 'Start' }).first().click();
 
-    const ask = page.locator('main p.font-medium').first();
+    const ask = page.locator('main p.font-semibold').first();
     const next = page.getByRole('button', { name: 'Next', exact: true });
     const dots = page.locator('main div[aria-label*="Step"] span');
 
@@ -502,9 +502,15 @@ test.describe('Practice Page', () => {
     await expect(dots).toHaveCount(6);
     await expect(page.locator('main').getByText(/Focus on sensory|don't overthink|Status/)).toHaveCount(0);
 
-    // Next stays shut until the step is done
-    await expect(next).toBeDisabled();
+    // Next is never disabled. Pressed early it shakes and says what is missing,
+    // and the step does not advance.
+    await expect(next).toBeEnabled();
+    await next.click();
+    await expect(page.getByText('Pick a theme to keep going.')).toBeVisible();
+    await expect(ask).toHaveText('Choose a theme');
     await page.getByRole('button', { name: 'Solitude' }).click();
+    // Answering retires the prompt rather than leaving it nagging
+    await expect(page.getByText('Pick a theme to keep going.')).toHaveCount(0);
     await expect(ask).toHaveText('Type five nouns');
     // The theme carries forward as a tag rather than its own card
     await expect(page.locator('main').getByText('Solitude')).toBeVisible();
@@ -514,9 +520,10 @@ test.describe('Practice Page', () => {
         await page.locator('main input').nth(i).fill(words[i]);
       }
     };
-    await expect(next).toBeDisabled();
+    await next.click();
+    await expect(page.getByText('Fill all five nouns to keep going.')).toBeVisible();
+    await expect(ask).toHaveText('Type five nouns');
     await fill(['rain', 'window', 'clock', 'door', 'street']);
-    await expect(next).toBeEnabled();
     await next.click();
 
     await expect(ask).toHaveText('Type five verbs');
@@ -525,14 +532,15 @@ test.describe('Practice Page', () => {
 
     // Linking: pick a noun, then a verb, five times
     await expect(ask).toHaveText('Link each noun to a verb');
-    await expect(next).toBeDisabled();
+    await next.click();
+    await expect(page.getByText('Link every noun to a verb to keep going.')).toBeVisible();
+    await expect(ask).toHaveText('Link each noun to a verb');
     const cards = page.locator('.verse-card');
     for (let i = 0; i < 5; i++) {
       await cards.nth(i).click();
       await cards.nth(5 + i).click();
     }
     await expect(page.locator('main svg line')).toHaveCount(5);
-    await expect(next).toBeEnabled();
     await next.click();
 
     await expect(ask).toHaveText('Turn each pair into a line');

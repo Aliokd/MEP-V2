@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { KIND_BG, SOLVED_BG, TAG_BG } from '../data/sections';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 interface StructureDemoProps {
     onDone: () => void;
@@ -128,7 +129,7 @@ export default function StructureDemo({ onDone }: StructureDemoProps) {
                     onClick={onDone}
                     // Full width and thumb-height on the sheet; the right-aligned pill
                     // it is on desktop only works when there is a dialog edge to align to.
-                    className="w-full h-14 text-[17px] md:self-end md:w-auto md:h-auto md:px-8 md:py-3 md:text-sm rounded-full bg-stone-900 text-[#FAF9F5] font-sans font-medium hover:bg-stone-800 active:scale-[0.98] transition-all cursor-pointer"
+                    className={`${btn.primary('touch')} w-full md:w-auto md:self-end cursor-pointer`}
                 >
                     {t('studio_banner.got_it')}
                 </button>

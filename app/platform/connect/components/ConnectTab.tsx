@@ -1,18 +1,29 @@
 "use client";
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useSanction } from '@/lib/useSanction';
 import { db } from '@/lib/firebase';
 import { useLanguage } from '@/context/LanguageContext';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, Plus, Check, LayoutGrid, ThumbsUp, Repeat, Send, Loader2, Play, Pause } from 'lucide-react';
+import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, Plus, Check, Clock, UserPlus, Flame, LayoutGrid, ThumbsUp, Repeat, Send, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProSongwritersPanel from './ProSongwritersPanel';
-import { fetchPlatformUsers, setConnection, useConnections, type PlatformUser } from '@/lib/connections';
+import {
+  fetchPlatformUsers,
+  removeConnectionRequest,
+  requestId,
+  respondToConnectionRequest,
+  sendConnectionRequest,
+  useConnectionState,
+  type PlatformUser,
+} from '@/lib/connections';
+import { hasActivityBadge } from '@/lib/publicProfile';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { setPlaybackAudioSession } from '@/lib/audioSession';
 import ReportDialog from '@/components/ReportDialog';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 // ==========================================
 // TYPES DEFINITIONS
@@ -655,16 +666,24 @@ function ConnectPostCard({
                 }}
                 // shrink-0 is the circle fix: without it this sat in a flex row
                 // beside a badge that wanted room, so it got squeezed narrower
-                // than it was tall and rendered as an oval. Bigger on the phone
-                // too, where it is the card's primary action.
-                className="w-11 h-11 md:w-7 md:h-7 shrink-0 rounded-full bg-stone-900 hover:bg-stone-800 text-white flex items-center justify-center shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer z-20"
+                // than it was tall and rendered as an oval. aspect-square holds
+                // the circle even if a future flex parent tries the same thing.
+                className={`${btn.iconPrimary('bare')} z-20 aspect-square h-12 w-12 cursor-pointer md:h-10 md:w-10`}
                 title={isPlaying ? "Pause melody" : (playlist.length > 1 ? `Play playlist (Track ${currentAudioIndex + 1}/${playlist.length})` : "Play melody")}
                 type="button"
               >
+                {/* Drawn rather than borrowed from lucide: those glyphs are
+                    stroked with round joins, and these want hard corners. Filled
+                    paths keep their points, and the play triangle's geometry is
+                    already offset right of centre so it needs no optical nudge. */}
                 {isPlaying ? (
-                  <Pause className="w-5 h-5 md:w-3.5 md:h-3.5 fill-white stroke-white" />
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="w-5 h-5 fill-stone-900">
+                    <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" />
+                  </svg>
                 ) : (
-                  <Play className="w-5 h-5 md:w-3.5 md:h-3.5 fill-white stroke-white ml-0.5" />
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="w-5 h-5 fill-stone-900">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
                 )}
               </button>
             )}
@@ -690,13 +709,13 @@ function ConnectPostCard({
             <div className="flex gap-2 justify-end mt-2">
               <button
                 onClick={onCancelEdit}
-                className="px-3.5 py-1.5 border border-stone-200 rounded-full text-xs font-semibold text-stone-600 hover:bg-stone-50"
+                className={btn.secondary('xs')}
               >
                 {t('common.cancel')}
               </button>
               <button
                 onClick={() => onSaveEdit(post.id)}
-                className="px-4 py-1.5 bg-stone-900 hover:bg-stone-855 text-white rounded-full text-xs font-bold"
+                className={btn.primary('xs')}
               >
                 {t('common.save_changes')}
               </button>
@@ -786,12 +805,9 @@ function ConnectPostCard({
                 e.stopPropagation();
                 onKudos(post.id);
               }}
-              className={`flex items-center gap-2 text-sm transition-colors duration-200 py-1 px-2 rounded-lg hover:bg-stone-50 group/btn
-                ${post.liked 
-                  ? 'text-stone-900 font-semibold' 
-                  : 'text-stone-555 hover:text-stone-900'
-                }
-              `}
+              className={`${btn.neutral('xs')} gap-2 text-sm group/btn ${
+                  post.liked ? 'text-stone-900 font-semibold' : 'text-stone-555 hover:text-stone-900'
+                }`}
             >
               <Heart 
                 className={`w-[17px] h-[17px] transition-all duration-200 group-active/btn:scale-90
@@ -813,12 +829,11 @@ function ConnectPostCard({
                     e.stopPropagation();
                     onCommentToggle(post.id);
                   }}
-                  className={`flex items-center gap-2 text-sm transition-all duration-200 py-1 rounded-full group/btn
-                    ${expandedCommentPostId === post.id 
-                      ? 'bg-[#F6F6F0] text-stone-900 font-semibold px-3' 
-                      : 'text-stone-555 hover:text-stone-900 hover:bg-stone-50 px-2'
-                    }
-                  `}
+                  className={`${btn.neutral('xs')} gap-2 text-sm group/btn ${
+                    expandedCommentPostId === post.id
+                      ? 'bg-[#F6F6F0] text-stone-900 font-semibold'
+                      : 'text-stone-555 hover:text-stone-900'
+                  }`}
                 >
                   <MessageSquare 
                     className={`w-[17px] h-[17px] transition-all duration-200 group-active/btn:scale-90
@@ -841,12 +856,9 @@ function ConnectPostCard({
                 e.stopPropagation();
                 onRepost(post.id);
               }}
-              className={`flex items-center gap-2 text-sm transition-colors duration-200 py-1 px-2 rounded-lg hover:bg-stone-50 group/btn
-                ${post.reposted 
-                  ? 'text-green-600 font-semibold' 
-                  : 'text-stone-550 hover:text-stone-900'
-                }
-              `}
+              className={`${btn.neutral('xs')} gap-2 text-sm group/btn ${
+                  post.reposted ? 'text-green-600 font-semibold' : 'text-stone-550 hover:text-stone-900'
+                }`}
             >
               <Repeat 
                 className={`w-[17px] h-[17px] transition-all duration-200 group-active/btn:scale-90
@@ -868,7 +880,7 @@ function ConnectPostCard({
                   e.stopPropagation();
                   onMenuToggle(activeMenuPostId === post.id ? null : post.id);
                 }}
-                className="w-11 h-11 md:w-auto md:h-auto md:p-1 shrink-0 flex items-center justify-center rounded-full hover:bg-stone-50 text-stone-500 hover:text-stone-700 transition-colors"
+                className={`${btn.iconGhost('bare')} h-11 w-11 md:h-auto md:w-auto md:p-1`}
               >
                 <MoreHorizontal className="w-5 h-5 md:w-3.5 md:h-3.5" />
               </button>
@@ -914,7 +926,7 @@ function ConnectPostCard({
                           onMenuToggle(null);
                           if (isExpanded) onViewProject(post); else setIsExpanded(true);
                         }}
-                        className="w-full text-left px-4 h-14 text-[16px] font-medium text-stone-800 hover:bg-stone-50 rounded-xl flex items-center gap-3"
+                        className={`${btn.menuItem()} h-14 gap-3 text-[16px] text-stone-800`}
                       >
                         {isExpanded ? t('connect.see_full_project') : t('connect.full_view')}
                       </button>
@@ -930,14 +942,14 @@ function ConnectPostCard({
                       <>
                         <button
                           onClick={(e) => { e.stopPropagation(); onStartEdit(post); }}
-                          className="w-full text-left px-4 h-14 text-[16px] md:h-auto md:py-2 md:text-xs font-medium text-stone-755 hover:bg-stone-50 rounded-xl md:rounded-none flex items-center gap-3 md:gap-2"
+                          className={`${btn.menuItem()} h-14 gap-3 text-[16px] md:h-auto md:gap-2 md:py-2 md:text-xs`}
                         >
                           <Edit className="w-4 h-4 md:w-3 md:h-3 text-stone-500 shrink-0" />
                           {t('connect.edit_post')}
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); onDeletePost(post.id); }}
-                          className="w-full text-left px-4 h-14 text-[16px] md:h-auto md:py-2 md:text-xs font-medium text-red-650 hover:bg-red-50/50 rounded-xl md:rounded-none flex items-center gap-3 md:gap-2"
+                          className={`${btn.menuItem('danger')} h-14 gap-3 text-[16px] md:h-auto md:gap-2 md:py-2 md:text-xs`}
                         >
                           <Trash2 className="w-4 h-4 md:w-3 md:h-3 text-red-500 shrink-0" />
                           {t('connect.delete_post')}
@@ -947,13 +959,13 @@ function ConnectPostCard({
                       <>
                         <button
                           onClick={(e) => { e.stopPropagation(); alert("Post shared!"); onMenuToggle(null); }}
-                          className="w-full text-left px-4 h-14 text-[16px] md:h-auto md:py-2 md:text-xs font-medium text-stone-755 hover:bg-stone-50 rounded-xl md:rounded-none flex items-center gap-3 md:gap-2"
+                          className={`${btn.menuItem()} h-14 gap-3 text-[16px] md:h-auto md:gap-2 md:py-2 md:text-xs`}
                         >
                           {t('connect.share_link')}
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); onReport(post); onMenuToggle(null); }}
-                          className="w-full text-left px-4 h-14 text-[16px] md:h-auto md:py-2 md:text-xs font-medium text-red-650 hover:bg-stone-50 rounded-xl md:rounded-none flex items-center gap-3 md:gap-2"
+                          className={`${btn.menuItem('danger')} h-14 gap-3 text-[16px] md:h-auto md:gap-2 md:py-2 md:text-xs`}
                         >
                           {t('connect.report_post')}
                         </button>
@@ -977,7 +989,7 @@ function ConnectPostCard({
               }}
               // Desktop only — on a phone this moves into the ⋮ sheet, so the
               // action row is just the reactions and one menu.
-              className="hidden md:inline-block border border-stone-200 hover:border-stone-400 text-stone-600 hover:text-stone-900 text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-stone-50 transition-all active:scale-95 select-none"
+              className={`${btn.secondary('xs')} hidden md:inline-flex`}
             >
               {isExpanded ? t('connect.see_full_project') : t('connect.full_view')}
             </button>
@@ -1053,11 +1065,11 @@ function ConnectPostCard({
                     {/* Bottom Interaction (ThumbsUp + MessageSquare counts) - minimal styling */}
                     <div className="flex items-center justify-between mt-1.5">
                       <div className="flex items-center gap-4 text-[12px] text-stone-500 select-none">
-                        <button className="flex items-center gap-1 hover:text-stone-850 transition-colors">
+                        <button className={`${btn.neutral('xs')} gap-1`}>
                           <ThumbsUp className="w-3.5 h-3.5 stroke-stone-400" />
                           <span>1</span>
                         </button>
-                        <button className="flex items-center gap-1 hover:text-stone-850 transition-colors">
+                        <button className={`${btn.neutral('xs')} gap-1`}>
                           <MessageSquare className="w-3.5 h-3.5 stroke-stone-400" />
                           <span>0</span>
                         </button>
@@ -1091,7 +1103,7 @@ function ConnectPostCard({
                   <div className="flex justify-end mt-1">
                     <button
                       type="submit"
-                      className="px-4 py-1.5 bg-stone-900 text-white rounded-full text-xs font-semibold hover:bg-stone-800 transition-colors select-none active:scale-95 animate-fade-in"
+                      className={`${btn.primary('xs')} animate-fade-in`}
                     >
                       {t('connect.post_comment')}
                     </button>
@@ -1237,12 +1249,7 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
             <button 
               onClick={handleDuplicate}
               disabled={dupStatus === 'duplicating'}
-              className={`text-xs font-semibold px-4 py-1.5 rounded-full transition-all active:scale-95 select-none flex items-center gap-1.5
-                ${dupStatus === 'duplicated'
-                  ? 'bg-green-650 text-white hover:bg-green-750'
-                  : 'bg-stone-900 hover:bg-stone-850 text-white'
-                }
-              `}
+              className={dupStatus === 'duplicated' ? btn.secondary('xs') : btn.primary('xs')}
             >
               {dupStatus === 'idle' && (
                 <>
@@ -1266,7 +1273,7 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
             {/* Close button */}
             <button 
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200/60 flex items-center justify-center transition-colors text-stone-700 active:scale-95 border border-stone-200/40"
+              className={btn.icon('xs')}
               aria-label={t('connect.close_canvas')}
             >
               <X className="w-4 h-4" />
@@ -1420,6 +1427,7 @@ function ConnectSkeleton() {
 export default function ConnectTab() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const router = useRouter();
   const { sanction } = useSanction();
   const isMuted = sanction?.type === 'mute';
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1579,7 +1587,7 @@ export default function ConnectTab() {
   // and the connection state that *does* change is its own subscription.
   const [songwriters, setSongwriters] = useState<PlatformUser[]>([]);
   const [songwritersLoaded, setSongwritersLoaded] = useState(false);
-  const { connections } = useConnections();
+  const { relationshipWith, byUid: connectionByUid } = useConnectionState();
 
   useEffect(() => {
     let cancelled = false;
@@ -1607,14 +1615,39 @@ export default function ConnectTab() {
     return label === key ? '' : label;
   };
 
+  /** Opens someone's profile, unless the "click" was the end of a drag-scroll. */
+  const openSongwriterProfile = (targetUid: string) => {
+    if (hasDraggedSongwritersRef.current) return;
+    router.push(`/platform/profile/u/${targetUid}`);
+  };
+
+  /**
+   * One button, four meanings — what pressing it does depends on where the two
+   * of you already stand. Connecting is a request now, not something you do to
+   * someone: only their acceptance makes it real.
+   */
   const handleConnectSongwriter = async (targetUid: string) => {
     // A drag that ends over a card must not read as a click on it.
     if (hasDraggedSongwritersRef.current) return;
     if (!user) return;
 
-    const isConnected = connections.includes(targetUid);
+    const relationship = relationshipWith(targetUid);
+    // Whichever direction the request went, the live row carries its own id —
+    // no need to guess which of the two possible ids exists.
+    const existing = connectionByUid[targetUid];
+
     try {
-      await setConnection(user.uid, targetUid, !isConnected);
+      if (relationship === 'incoming' && existing) {
+        // They asked us — the press accepts.
+        await respondToConnectionRequest(existing.id, 'accepted');
+      } else if ((relationship === 'outgoing' || relationship === 'connected') && existing) {
+        // Ours and unanswered — withdraw it. Or connected — disconnect.
+        await removeConnectionRequest(existing.id);
+      } else {
+        // 'none', or a previous request of ours they declined: asking again
+        // rewrites that same document back to pending.
+        await sendConnectionRequest(user.uid, targetUid);
+      }
     } catch (err) {
       console.error('Error updating connection:', err);
     }
@@ -2127,8 +2160,21 @@ export default function ConnectTab() {
           )}
 
           {songwriters.map(sw => {
-            const isConnected = connections.includes(sw.uid);
+            const relationship = relationshipWith(sw.uid);
             const specialty = songwriterTypeLabel(sw.songwriterType);
+            const showsBadge = hasActivityBadge(sw);
+            // One control, four meanings — the icon says which, and the label
+            // spells it out for anyone who can't see the icon. `pending` states
+            // say so in words: an unexplained clock face beside someone's name
+            // doesn't tell you an invite is out.
+            const action = {
+              none:      { icon: Plus,     tone: 'text-[#2c2a29]', label: t('connect.connect_action'), asText: false },
+              declined:  { icon: Plus,     tone: 'text-[#2c2a29]', label: t('connect.connect_action'), asText: false },
+              outgoing:  { icon: Clock,    tone: 'text-stone-400', label: t('connect.invite_sent'),    asText: true },
+              incoming:  { icon: UserPlus, tone: 'text-[#3f6b3a]', label: t('connect.accept_request'), asText: true },
+              connected: { icon: Check,    tone: 'text-stone-600', label: t('connect.connected'),      asText: false },
+            }[relationship];
+            const ActionIcon = action.icon;
             return (
             <div
               key={sw.uid}
@@ -2136,8 +2182,30 @@ export default function ConnectTab() {
                 isDraggingSongwriters ? 'snap-none' : 'snap-start'
               }`}
             >
+              {/* The card body opens their profile. A button rather than a link
+                  so a drag that happens to end here doesn't navigate — this row
+                  is drag-to-scroll, and every press has to prove it was a press. */}
+              <button
+                type="button"
+                onClick={() => openSongwriterProfile(sw.uid)}
+                aria-label={`${t('connect.view_profile')} — ${sw.name}`}
+                className="absolute inset-0 rounded-[22px] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-400"
+              />
+
               {/* Name at top left with hover detail */}
-              <div className="flex flex-col text-left select-none">
+              <div className="relative pointer-events-none flex flex-col text-left select-none">
+                {/* Time-on-platform badge. Sits above the name rather than beside
+                    it: names wrap to two lines here, and a trailing pill would
+                    be dragged along to a line of its own anyway. */}
+                {showsBadge && (
+                  <span
+                    title={t('connect.badge_active_tooltip')}
+                    className="inline-flex items-center gap-1 self-start mb-1.5 rounded-full bg-[#86BE7F]/20 px-2 py-0.5 text-[10.5px] font-semibold text-[#3f6b3a]"
+                  >
+                    <Flame className="w-2.5 h-2.5" />
+                    {t('connect.badge_active')}
+                  </span>
+                )}
                 <span className="text-[21px] font-sans font-medium text-stone-700 tracking-tight leading-snug break-words pr-2">
                   {sw.name}
                 </span>
@@ -2155,18 +2223,23 @@ export default function ConnectTab() {
                 </div>
               </div>
 
-              {/* Plus / Checked icon at bottom right (no circle, raw icon only) */}
+              {/* Connect control at bottom right. Sits above the card-wide
+                  profile button, and stops the click there so pressing it
+                  answers the invite instead of opening their profile. */}
               <button
-                onClick={() => handleConnectSongwriter(sw.uid)}
-                aria-pressed={isConnected}
-                aria-label={`${isConnected ? t('connect.connected') : t('connect.connect_action')} — ${sw.name}`}
-                className="absolute bottom-4 right-4 text-stone-550 hover:text-stone-850 transition-colors duration-200 active:scale-90 p-1 flex items-center justify-center"
+                onClick={(e) => { e.stopPropagation(); handleConnectSongwriter(sw.uid); }}
+                aria-pressed={relationship === 'connected'}
+                aria-label={`${action.label} — ${sw.name}`}
+                title={action.label}
+                className={
+                  action.asText
+                    ? 'absolute bottom-3.5 right-3.5 z-10 max-w-[calc(100%-1.75rem)] truncate rounded-full bg-[#F6F6F0] px-3 py-1.5 text-[11.5px] font-semibold text-stone-500 hover:text-stone-800 transition-colors cursor-pointer active:scale-95'
+                    : `${btn.iconGhost('xs')} absolute bottom-4 right-4 z-10`
+                }
               >
-                {isConnected ? (
-                  <Check className="w-5.5 h-5.5 text-stone-600 stroke-[2.5]" />
-                ) : (
-                  <Plus className="w-5.5 h-5.5 text-[#2c2a29] stroke-[2.5]" />
-                )}
+                {action.asText
+                  ? action.label
+                  : <ActionIcon className={`w-5.5 h-5.5 stroke-[2.5] ${action.tone}`} />}
               </button>
             </div>
             );
@@ -2183,7 +2256,7 @@ export default function ConnectTab() {
         </h3>
         <a
           href="/platform/create"
-          className="flex items-center gap-1.5 shrink-0 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-[13px] font-semibold text-stone-700 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95 select-none"
+          className={`${btn.secondary('sm')} shrink-0 cursor-pointer`}
         >
           {t('connect.create_song_cta')}
           <Plus className="w-4 h-4 stroke-[2.5]" />

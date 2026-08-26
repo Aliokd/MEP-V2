@@ -8,6 +8,7 @@ import MindPowerPanel from './components/MindPowerPanel';
 import MindPowerStatus from './components/MindPowerStatus';
 import PlatformOnboarding from './components/PlatformOnboarding';
 import AnnouncementBanner from './components/AnnouncementBanner';
+import * as btn from './components/buttonStyles';
 import { touchLastActive } from '@/lib/lastActive';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -50,12 +51,12 @@ function AccountBlockedScreen({ t }: { t: (key: string) => string }) {
 
                 <a
                     href="mailto:support@veinote.com"
-                    className="w-full py-4 bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] text-base font-semibold rounded-[16px] transition-all shadow-md hover:shadow-lg shadow-[#87b884]/20 active:scale-[0.98] flex items-center justify-center"
+                    className={btn.primaryBlock('lg')}
                 >
                     {t('account_blocked.contact_support')}
                 </a>
 
-                <Link href="/" className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
+                <Link href="/" className={btn.ghost('sm')}>
                     {t('account_blocked.back_home')}
                 </Link>
             </div>
@@ -559,7 +560,7 @@ function PlatformLayoutInner({
                                 <button
                                     type="button"
                                     onClick={() => router.push('/platform/create')}
-                                    className="relative bg-[#E5FE6C] hover:bg-[#EEFE7B] text-stone-950 font-semibold text-[13px] px-4 py-2 rounded-full shadow-xs transition-all cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 border-none outline-none shrink-0"
+                                    className={`${btn.primary('sm')} relative shrink-0 cursor-pointer`}
                                 >
                                     <span>{t('collab.view_invite')}</span>
                                     <ArrowRight size={14} className="stroke-[2.5]" />
@@ -568,7 +569,7 @@ function PlatformLayoutInner({
                                     type="button"
                                     onClick={() => setDismissedInviteIds(prev => new Set(prev).add(visibleInviteToast.id))}
                                     aria-label={t('card.dismiss')}
-                                    className="relative p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-all cursor-pointer shrink-0"
+                                    className={`${btn.iconGhost('sm')} relative cursor-pointer`}
                                 >
                                     <X size={15} strokeWidth={2.2} />
                                 </button>
@@ -600,7 +601,7 @@ function PlatformLayoutInner({
                                     type="button"
                                     onClick={() => acknowledgeRemovalNotice(visibleRemovalNotice.id)}
                                     aria-label={t('card.dismiss')}
-                                    className="p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-all cursor-pointer shrink-0"
+                                    className={`${btn.iconGhost('sm')} cursor-pointer`}
                                 >
                                     <X size={15} strokeWidth={2.2} />
                                 </button>
@@ -637,7 +638,7 @@ function PlatformLayoutInner({
                                 safeLocalStorageSetItem('songwriting-progress', '0');
                                 setLevelProgress(0);
                             }}
-                            className="w-full py-4.5 bg-stone-900 hover:bg-stone-800 text-white rounded-[16px] text-base font-bold transition-all shadow-md cursor-pointer active:scale-95"
+                            className={`${btn.primaryBlock('lg')} cursor-pointer`}
                         >
                             {t('platform_layout.start_next_journey')}
                         </button>
@@ -699,14 +700,14 @@ function PlatformLayoutInner({
                         <button
                             onClick={handleBack}
                             aria-label={t('navigation.my_profile')}
-                            className="p-2 -ml-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955"
+                            className={`${btn.iconGhost('sm')} -ml-2`}
                         >
                             <ChevronLeft size={22} className="stroke-[2.2]" />
                         </button>
                     ) : (
                         <button
                             onClick={() => setIsMobileMenuOpen(true)}
-                            className="p-2 -ml-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955"
+                            className={`${btn.iconGhost('sm')} -ml-2`}
                         >
                             <Menu size={22} className="stroke-[2.2]" />
                         </button>
@@ -722,7 +723,7 @@ function PlatformLayoutInner({
                         {!isProfile && (
                             <Link
                                 href="/platform/profile"
-                                className="p-2 -mr-2 rounded-full hover:bg-stone-200/40 active:scale-95 transition-all text-stone-700 hover:text-stone-955 flex items-center justify-center"
+                                className={`${btn.iconGhost('sm')} -mr-2`}
                             >
                                 <User size={22} className="stroke-[2.2]" />
                             </Link>
@@ -754,7 +755,7 @@ function PlatformLayoutInner({
                     {isProfile ? (
                         <button
                             onClick={handleBack}
-                            className="flex items-center gap-1.5 bg-white/50 hover:bg-white/70 border border-stone-200/80 pl-4 pr-5 py-3 rounded-full transition-all active:scale-95 shadow-2xs text-stone-600 hover:text-stone-800 text-sm font-semibold normal-case tracking-normal cursor-pointer"
+                            className={`${btn.secondary('sm')} normal-case tracking-normal cursor-pointer`}
                         >
                             <ChevronLeft size={16} strokeWidth={2} />
                             {t('navigation.my_profile')}
@@ -816,7 +817,7 @@ function PlatformLayoutInner({
                         {!isProfile && (
                             <Link
                                 href="/platform/profile"
-                                className="flex items-center gap-1.5 bg-white/50 hover:bg-white/70 border border-stone-200/80 pl-5 pr-4 py-3 rounded-full transition-all active:scale-95 shadow-2xs text-stone-600 hover:text-stone-800 text-sm font-semibold normal-case tracking-normal"
+                                className={`${btn.secondary('sm')} normal-case tracking-normal`}
                             >
                                 {firstName}
                                 <ChevronRight size={16} strokeWidth={1.5} />

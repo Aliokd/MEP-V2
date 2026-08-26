@@ -232,6 +232,8 @@ import {
     type ProjectComment
 } from './collabUtils';
 import InviteCollaboratorField, { isEmailAddress, type InvitePick } from './components/InviteCollaboratorField';
+import { fetchPlatformUsers, type PlatformUser } from '@/lib/connections';
+import * as btn from '../components/buttonStyles';
 import {
     Folder, 
     FileText, 
@@ -832,7 +834,7 @@ function CommentDotMarker({
                 onClick={(e) => { e.stopPropagation(); onOpen(); }}
                 onDoubleClick={(e) => e.stopPropagation()}
                 title={label}
-                className={`group/commentdot flex items-center shrink-0 rounded-full cursor-pointer select-none active:scale-95 overflow-hidden transition-all duration-200 bg-transparent hover:bg-white border border-transparent hover:border-stone-200/80 hover:shadow-md w-2.5 h-2.5 hover:w-[46px] hover:h-5 hover:pl-0.5 hover:pr-2 ${className}`}
+                className={`${btn.plain('bare')} group/commentdot h-2.5 w-2.5 shrink-0 overflow-hidden border border-transparent bg-transparent transition-all duration-200 hover:h-5 hover:w-[46px] hover:border-stone-200/80 hover:bg-white hover:pl-0.5 hover:pr-2 hover:shadow-md cursor-pointer ${className}`}
             >
                 <span
                     className="rounded-full shrink-0 flex items-center justify-center transition-all duration-200 w-2.5 h-2.5 group-hover/commentdot:w-4 group-hover/commentdot:h-4"
@@ -860,7 +862,7 @@ function CommentDotMarker({
             onClick={(e) => { e.stopPropagation(); onOpen(); }}
             onDoubleClick={(e) => e.stopPropagation()}
             title={label}
-            className={`group/commentdot flex items-center shrink-0 rounded-full cursor-pointer select-none active:scale-95 overflow-hidden transition-all duration-200 bg-transparent hover:bg-white border border-transparent hover:border-stone-200/80 hover:shadow-md h-5 hover:pl-0.5 hover:pr-2 ${className}`}
+            className={`${btn.plain('bare')} group/commentdot h-5 shrink-0 overflow-hidden border border-transparent bg-transparent transition-all duration-200 hover:border-stone-200/80 hover:bg-white hover:pl-0.5 hover:pr-2 hover:shadow-md cursor-pointer ${className}`}
         >
             <span className="flex items-center -space-x-1 shrink-0">
                 {visible.map((tint, i) => (
@@ -1907,7 +1909,7 @@ const PhraseRow = React.memo(function PhraseRow({
                                             onTranscribeDocBlock(docId, phrase.id);
                                         }}
                                         aria-label={t('card.extract_text')}
-                                        className="touch-reveal w-9 h-9 rounded-full bg-stone-100 hover:bg-emerald-50 hover:text-emerald-600 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none disabled:opacity-35"
+                                        className={`${btn.plain('bare')} touch-reveal h-9 w-9 bg-stone-100 text-stone-500 opacity-0 transition-all duration-200 hover:bg-emerald-50 hover:text-emerald-600 group-hover/doc:opacity-100 cursor-pointer disabled:opacity-35`}
                                     >
                                         {transcribingDocId === phrase.id.replace('p-docheader-', '') ? (
                                             <div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -1928,7 +1930,7 @@ const PhraseRow = React.memo(function PhraseRow({
                                             onDeleteDocBlock(docId, phrase.id);
                                         }}
                                         aria-label={t('card.delete_document_block')}
-                                        className="touch-reveal w-9 h-9 rounded-full bg-stone-100 hover:bg-red-50 hover:text-red-500 text-stone-500 flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-all duration-200 cursor-pointer border-none"
+                                        className={`${btn.plain('bare')} touch-reveal h-9 w-9 bg-stone-100 text-stone-500 opacity-0 transition-all duration-200 hover:bg-red-50 hover:text-red-500 group-hover/doc:opacity-100 cursor-pointer`}
                                     >
                                         <Trash2 size={13} />
                                     </button>
@@ -2704,6 +2706,8 @@ interface AudioCapsulePlayerProps {
     isDocked: boolean;
     /** 0-100 while this card's bytes are still going to Storage; absent otherwise. */
     uploadProgress?: number;
+    /** True while this song is being split into Demo Studio stems. */
+    isDecomposing?: boolean;
     onReopenInStudio?: () => void;
     onAddAsStudioTrack?: () => void;
     onDragStart: (e: React.DragEvent) => void;
@@ -2744,30 +2748,57 @@ interface DocumentCapsuleCardProps {
  * label on every cycle, which made a working card look like a disabled one — the
  * dots carry the motion on their own.
  */
-function ExtractingState({ compact = false }: { compact?: boolean }) {
+/**
+ * A scan is only worth explaining when there is something to explain. Past this many
+ * bytes a document really does take noticeably longer, and saying so is information;
+ * below it, the same line is a fabrication.
+ */
+const HEAVY_SCAN_BYTES = 2 * 1024 * 1024;
+
+/** Roughly how long one 60-second pass takes end to end, used only to pace the copy. */
+const TRANSCRIBE_PASS_MS = 6000;
+
+function ExtractingState({ compact = false, seconds, bytes }: { compact?: boolean; seconds?: number; bytes?: number }) {
     const { t } = useLanguage();
-    // A single frozen label makes a long wait feel like a hang. The line advances
-    // instead — not a fake progress bar, just an honest account of what is taking
-    // the time, which is what turns "is this broken?" into "it is working on it".
+    // A single frozen label makes a long wait feel like a hang, so on a genuinely long
+    // job the line advances — not a fake progress bar, just an honest account of what
+    // is taking the time, which turns "is this broken?" into "it is working on it".
     // It stops on the last message rather than looping: cycling back to the first
     // would read as having started over.
+    //
+    // But only on a long job. A thirty-second hum finishes in one pass, and telling
+    // its writer they have a "large file" is simply false — a wrong explanation is
+    // worse than no explanation. Short takes and photos get one line and keep it.
     const [stage, setStage] = useState(0);
+
+    // Audio is transcribed a minute at a time, so the cost is passes, not bytes.
+    // Documents are one call, where bytes are what actually cost.
+    const passes = seconds && seconds > 0 ? Math.ceil(seconds / TRANSCRIBE_CHUNK_SECONDS) : 0;
+    const isLongRecording = passes > 2;
+    const isLargeFile = (bytes ?? 0) > HEAVY_SCAN_BYTES;
+
     const stages = compact
         ? [t('card.transcribing')]
-        : [
-            t('card.transcribing_audio'),
-            t('card.extract_stage_large'),
-            t('card.extract_stage_almost'),
-        ];
+        : isLongRecording
+            ? [t('card.transcribing_audio'), t('card.extract_stage_long'), t('card.extract_stage_almost')]
+            : isLargeFile
+                ? [t('card.transcribing_audio'), t('card.extract_stage_large'), t('card.extract_stage_almost')]
+                : [t('card.transcribing_audio')];
+
+    // Pace the escalation to the work in front of it. "Almost there" fourteen seconds
+    // into a ten-minute take would be as wrong as the message it replaced.
+    const stepMs = isLongRecording
+        ? Math.min(30000, Math.max(7000, Math.round((passes * TRANSCRIBE_PASS_MS) / stages.length)))
+        : 7000;
 
     useEffect(() => {
         if (stages.length < 2) return;
         const id = window.setInterval(() => {
             setStage(prev => (prev >= stages.length - 1 ? prev : prev + 1));
-        }, 7000);
+        }, stepMs);
         return () => window.clearInterval(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [stages.length]);
+    }, [stages.length, stepMs]);
 
     const dot = compact ? 'w-1 h-1' : 'w-1.5 h-1.5';
     return (
@@ -2796,11 +2827,11 @@ function ExtractingState({ compact = false }: { compact?: boolean }) {
  * clickable area grew.
  */
 const CARD_ICON_ACTION =
-    'relative p-2 -m-2 rounded-full flex items-center justify-center transition-colors cursor-pointer shrink-0 disabled:opacity-35 disabled:cursor-default';
+    `${btn.plain('bare')} relative -m-2 shrink-0 p-2 transition-colors cursor-pointer disabled:opacity-35 disabled:cursor-default`;
 
 /** Same idea in the docked pill, which is 22px tall and has less room to give. */
 const CARD_ICON_ACTION_TIGHT =
-    'relative p-1.5 -m-1.5 rounded-full flex items-center justify-center transition-colors cursor-pointer shrink-0 disabled:opacity-35 disabled:cursor-default';
+    `${btn.plain('bare')} relative -m-1.5 shrink-0 p-1.5 transition-colors cursor-pointer disabled:opacity-35 disabled:cursor-default`;
 
 /**
  * The travelling gradient that marks a card as being read — a take transcribed, a
@@ -2834,7 +2865,7 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, uplo
             draggable={!!onDragStart}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            className={`relative bg-white border border-stone-200/80 rounded-full px-5 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3.5 z-30 transition-all select-none max-w-full my-2 mx-auto ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
+            className={`relative bg-white border border-stone-200/80 rounded-full px-5 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3.5 z-30 transition-all select-none max-w-full my-2 mx-auto ${typeof uploadProgress === 'number' ? 'card-uploading' : ''} ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
             {isScanning && <TranscribeGlow />}
             {typeof uploadProgress === 'number' && (
                 <span
@@ -2848,6 +2879,7 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, uplo
                     <span className="block h-full bg-stone-200/60 transition-[width] duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
                 </span>
             )}
+            {typeof uploadProgress === 'number' && <span className="upload-sheen" aria-hidden="true" />}
             {/* File icon — neutral, matching the Scan/meta/delete tones on this card */}
             <div className="p-1 rounded-md text-stone-600 flex items-center justify-center shrink-0">
                 <FileText size={17} className="stroke-[2.2]" />
@@ -2870,14 +2902,14 @@ function DocumentCapsuleCard({ doc, onRename, onDelete, onScan, isScanning, uplo
                 type="button"
                 disabled={isScanning}
                 onClick={onScan}
-                className={`flex items-center gap-1.5 text-stone-700 font-semibold text-[13px] rounded-full transition-colors h-9 px-3.5 -my-1 shrink-0 ${
-                    isScanning
-                        ? 'cursor-default'
-                        : 'hover:text-stone-950 hover:bg-stone-100/80 cursor-pointer'
-                }`}
+                className={`${btn.plain('bare')} -my-1 h-9 shrink-0 gap-1.5 px-3.5 text-[13px] font-semibold text-stone-700 transition-colors ${
+                        isScanning
+                            ? 'cursor-default'
+                            : 'hover:bg-stone-100/80 hover:text-stone-950 cursor-pointer'
+                    }`}
             >
                 {isScanning ? (
-                    <ExtractingState />
+                    <ExtractingState bytes={doc.size} />
                 ) : (
                     <>
                         <RefreshCw size={13} className="text-stone-500 stroke-[2.2]" />
@@ -2930,7 +2962,7 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
             draggable={!!onDragStart}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            className={`relative z-0 rounded-[32px] bg-white p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-3 w-full max-w-[440px] mx-auto select-none my-3 ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
+            className={`relative z-0 rounded-[32px] bg-white p-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-stone-200/60 flex flex-col gap-3 w-full max-w-[440px] mx-auto select-none my-3 ${typeof uploadProgress === 'number' ? 'card-uploading' : ''} ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}>
             {isScanning && <TranscribeGlow radius="r32" />}
             {typeof uploadProgress === 'number' && (
                 <span
@@ -2944,6 +2976,7 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
                     <span className="block h-full bg-stone-200/60 transition-[width] duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
                 </span>
             )}
+            {typeof uploadProgress === 'number' && <span className="upload-sheen" aria-hidden="true" />}
             {/* Image Preview Area */}
             <div 
                 onClick={onPreview}
@@ -2980,11 +3013,11 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
                     type="button"
                     disabled={isScanning}
                     onClick={onScan}
-                    className={`flex items-center gap-1.5 text-stone-700 font-semibold text-[13px] rounded-full transition-colors h-9 px-3.5 shrink-0 ${
-                        isScanning
-                            ? 'cursor-default'
-                            : 'hover:text-stone-950 hover:bg-stone-100/80 cursor-pointer'
-                    }`}
+                    className={`${btn.plain('bare')} h-9 shrink-0 gap-1.5 px-3.5 text-[13px] font-semibold text-stone-700 transition-colors ${
+                            isScanning
+                                ? 'cursor-default'
+                                : 'hover:bg-stone-100/80 hover:text-stone-950 cursor-pointer'
+                        }`}
                 >
                     {isScanning ? (
                         <ExtractingState />
@@ -3132,6 +3165,7 @@ function AudioCapsulePlayer({
     isTranscribing,
     isDocked,
     uploadProgress,
+    isDecomposing,
     onReopenInStudio,
     onAddAsStudioTrack,
     onDragStart,
@@ -3442,6 +3476,8 @@ function AudioCapsulePlayer({
                 draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
                 onClick={(e) => e.stopPropagation()} {...sharedTouchHandlers}
                 className={`relative z-0 bg-white border border-stone-200/80 rounded-full px-3 py-0.5 shadow-sm flex items-center gap-2.5 transition-all select-none h-[22px] cursor-grab active:cursor-grabbing touch-none ${
+                    typeof uploadProgress === 'number' || isDecomposing ? 'card-uploading' : ''
+                } ${
                     draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
                 }`}
             >
@@ -3463,6 +3499,7 @@ function AudioCapsulePlayer({
                         />
                     </span>
                 )}
+                {(typeof uploadProgress === 'number' || isDecomposing) && <span className="upload-sheen" aria-hidden="true" />}
                 {renderAudioEl()}
 
                 {/* Title & Badge */}
@@ -3478,7 +3515,7 @@ function AudioCapsulePlayer({
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); onReopenInStudio(); }}
                                 aria-label={t('studio.reopen_in_studio')}
-                                className="text-indigo-500 hover:text-indigo-700 transition-colors cursor-pointer shrink-0"
+                                className={`${btn.plain('bare')} shrink-0 text-indigo-500 transition-colors hover:text-indigo-700 cursor-pointer`}
                             >
                                 <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
                             </button>
@@ -3490,7 +3527,7 @@ function AudioCapsulePlayer({
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); onAddAsStudioTrack(); }}
                                 aria-label={t('studio.add_to_studio')}
-                                className="text-indigo-500 hover:text-indigo-700 transition-colors cursor-pointer shrink-0"
+                                className={`${btn.plain('bare')} shrink-0 text-indigo-500 transition-colors hover:text-indigo-700 cursor-pointer`}
                             >
                                 <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
                             </button>
@@ -3514,7 +3551,7 @@ function AudioCapsulePlayer({
                 ) : (
                     <>
                         {/* Play / Pause */}
-                        <button onClick={togglePlayback} className="flex items-center text-stone-600 hover:text-stone-900 transition-colors cursor-pointer shrink-0">
+                        <button onClick={togglePlayback} className={`${btn.plain('bare')} shrink-0 text-stone-600 transition-colors hover:text-stone-900 cursor-pointer`}>
                             {isPlaying
                                 ? <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                                 : <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -3566,6 +3603,8 @@ function AudioCapsulePlayer({
             draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
             onClick={(e) => e.stopPropagation()} {...sharedTouchHandlers}
             className={`relative bg-white border border-stone-200/80 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-1.5 sm:gap-3 z-30 transition-all select-none cursor-grab active:cursor-grabbing shrink-0 touch-none max-w-full ${
+                typeof uploadProgress === 'number' || isDecomposing ? 'card-uploading' : ''
+            } ${
                 draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
             }`}
         >
@@ -3594,6 +3633,8 @@ function AudioCapsulePlayer({
                     />
                 </span>
             )}
+            {(typeof uploadProgress === 'number' || isDecomposing) && <span className="upload-sheen" aria-hidden="true" />}
+            {isDecomposing && <TranscribeGlow />}
             {renderAudioEl()}
 
             {/* Title & Badge */}
@@ -3642,13 +3683,13 @@ function AudioCapsulePlayer({
 
             {isTranscribing ? (
                 <div className="flex items-center py-1 px-2 shrink-0">
-                    <ExtractingState />
+                    <ExtractingState seconds={audioNote.duration} />
                 </div>
             ) : (
                 <>
                     {/* Play / Pause */}
                     <button onClick={togglePlayback}
-                        className="flex items-center gap-1.5 text-stone-600 hover:text-stone-900 transition-colors cursor-pointer text-xs font-semibold shrink-0">
+                        className={`${btn.plain('bare')} shrink-0 gap-1.5 text-xs font-semibold text-stone-600 transition-colors hover:text-stone-900 cursor-pointer`}>
                         {isPlaying
                             ? <><svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg><span className="hidden sm:inline">{t('card.pause')}</span></>
                             : <><svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span className="hidden sm:inline">{t('card.play')}</span></>
@@ -3998,7 +4039,7 @@ const ScrollableWithCue = ({ className, wrapperClassName = '', children }: { cla
                             el.scrollBy({ top: el.clientHeight * 0.8, behavior: 'smooth' });
                         }}
                         aria-label="Show more words"
-                        className="pointer-events-auto w-9 h-9 rounded-full bg-white border border-stone-200 shadow-[0_2px_8px_rgba(0,0,0,0.1)] flex items-center justify-center animate-bounce hover:animate-none hover:bg-stone-50 hover:border-stone-300 hover:scale-105 active:scale-95 transition-[background-color,border-color,transform] cursor-pointer"
+                        className={`${btn.icon('sm')} pointer-events-auto animate-bounce shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:animate-none`}
                     >
                         <ChevronDown size={19} className="text-stone-600" strokeWidth={2.5} />
                     </button>
@@ -4499,6 +4540,13 @@ export default function CreatePage() {
      *  inviteCollaboratorByEmail. */
     const [inviteLink, setInviteLink] = useState<string | null>(null);
     const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
+    /** Other songwriters on the platform, offered as a row you can scroll through
+     *  and add straight to the invite list — so inviting someone does not require
+     *  already knowing their address. Read from publicProfiles, which carries only
+     *  a name and a songwriter type; the users collection would drag every
+     *  account's email and billing record along with it. */
+    const [platformSongwriters, setPlatformSongwriters] = useState<PlatformUser[]>([]);
+    const [songwritersLoading, setSongwritersLoading] = useState(false);
     // Uids this project already has an outstanding invitation out to — suggesting them
     // again just sends the same person a second copy of the same notice.
     const [sentInviteUids, setSentInviteUids] = useState<string[]>([]);
@@ -4984,6 +5032,10 @@ export default function CreatePage() {
      * no longer interrupts playback — see the pinned src in AudioCapsulePlayer.
      */
     const [uploadProgressById, setUploadProgressById] = useState<Record<string, number>>({});
+    /** The card whose song is being split into stems right now. Separation runs for
+     *  a few seconds on a long master, and the arrow gave no sign until the studio
+     *  opened — so the card wears the same not-ready treatment an upload does. */
+    const [decomposingAudioId, setDecomposingAudioId] = useState<string | null>(null);
 
     /** uploadBytes, but reporting progress into uploadProgressById under `key`.
      *  The key is always the id of the CARD the bytes belong to, so the card can
@@ -7505,6 +7557,25 @@ export default function CreatePage() {
         return true;
     };
 
+    // Fetched when the dialog opens rather than on mount: it is a bounded read that
+    // nothing outside this dialog uses, and the canvas should not pay for it.
+    useEffect(() => {
+        if (!showShareModal || !user) return;
+        let cancelled = false;
+        setSongwritersLoading(true);
+        (async () => {
+            try {
+                const list = await fetchPlatformUsers(user.uid);
+                if (!cancelled) setPlatformSongwriters(list);
+            } catch (err) {
+                console.error('Could not load songwriters for the invite dialog:', err);
+            } finally {
+                if (!cancelled) setSongwritersLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [showShareModal, user]);
+
     const handleInviteCollaborator = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedNoteId || !user) return;
@@ -7726,6 +7797,17 @@ export default function CreatePage() {
 
         return members;
     }, [activeNote, user, collaboratorProfiles, activeRemoteUsers, collaborators]);
+
+    /** The roster minus anyone already on this song, already queued, or already
+     *  invited — offering someone you cannot invite is just a dead button. */
+    const availableSongwriters = useMemo(() => {
+        const taken = new Set<string>([
+            ...allCollabMembers.map(m => m.uid),
+            ...sentInviteUids,
+            ...inviteQueue.map(q => q.uid).filter((u): u is string => !!u),
+        ]);
+        return platformSongwriters.filter(person => !taken.has(person.uid));
+    }, [platformSongwriters, allCollabMembers, sentInviteUids, inviteQueue]);
 
 
     const getTranslatedCard = (card: InspirationCard) => {
@@ -10380,6 +10462,20 @@ export default function CreatePage() {
                     setTimeout(() => reject(new Error('Publish timed out waiting for the server')), 12000)
                 )
             ]);
+
+            // The agreed split is copied onto the PROJECT as well as the post. The
+            // post keeps the release-time record (see above); the project needs its
+            // own copy because that is what the songwriter's own song list reads —
+            // without it, ownership could only be shown by querying every song's
+            // post, or not at all. Non-blocking: the song is already published, and
+            // failing to mirror the split must not report the publish as failed.
+            if (selectedNoteId && ownershipSplits.length > 0) {
+                setDoc(
+                    doc(db, 'projects', selectedNoteId),
+                    { ownershipSplits: newPost.ownershipSplits, ownershipAgreedAt: Date.now() },
+                    { merge: true },
+                ).catch(err => console.error('Could not mirror the split onto the project:', err));
+            }
         } catch (err) {
             console.error("Error sharing post to Firestore:", err);
             // Keep a local copy so the work isn't lost, but don't claim success — previously this
@@ -15362,6 +15458,7 @@ export default function CreatePage() {
         }
 
         triggerStudioNotification(t('studio.decomposing'), 'emerald');
+        setDecomposingAudioId(audioNote.id);
         try {
             // The bytes are needed here to decode; stored files come through the
             // vetted proxy, a blob: take is fetched directly.
@@ -15416,6 +15513,10 @@ export default function CreatePage() {
         } catch (err) {
             console.error('Stem separation failed; adding the whole mix instead:', err);
             addWholeMixAsStudioTrack(audioNote);
+        } finally {
+            // Cleared on both paths: a failure still ends the wait, and a card left
+            // dimmed forever would be worse than the error it is reporting.
+            setDecomposingAudioId(null);
         }
     };
 
@@ -15929,7 +16030,7 @@ export default function CreatePage() {
                         <button
                             onClick={() => setShowWiredHeadphonesBanner(true)}
                             aria-label={t('studio_guide.title') || 'Studio Guide'}
-                            className="w-9 h-9 rounded-full bg-stone-50 hover:bg-stone-100 border border-stone-200/80 shadow-xs flex items-center justify-center text-stone-400 hover:text-stone-600 transition-all active:scale-95 cursor-pointer"
+                            className={`${btn.icon('sm')} cursor-pointer`}
                             type="button"
                         >
                             <Info size={18} className="stroke-[2.2]" />
@@ -16232,9 +16333,9 @@ export default function CreatePage() {
                                                                     e.stopPropagation();
                                                                     handleSelectInstrumentType(track.id, typeOpt);
                                                                 }}
-                                                                className={`w-full h-14 flex items-center justify-between pl-6 relative overflow-hidden rounded-full group cursor-pointer border active:scale-[0.98] transition-all ${
-                                                                    isSelected 
-                                                                        ? 'bg-[#F9F8F6] border-transparent hover:bg-[#F3F1ED]' 
+                                                                className={`${btn.plain('bare')} group relative h-14 w-full justify-between overflow-hidden border pl-6 transition-all cursor-pointer ${
+                                                                    isSelected
+                                                                        ? 'bg-[#F9F8F6] border-transparent hover:bg-[#F3F1ED]'
                                                                         : 'bg-white border-stone-200 hover:bg-stone-50/50'
                                                                 }`}
                                                             >
@@ -16275,9 +16376,9 @@ export default function CreatePage() {
                                                                     setStudioTracks(prev => prev.map(t => t.id === track.id ? { ...t, name: t.name === 'Custom' || t.name === 'Vocals' || t.name === 'Drums' || t.name === 'Piano' || t.name === 'Guitar' || t.name === 'Synth' || t.name === 'vocals' || t.name === 'drums' || t.name === 'piano' || t.name === 'guitar' || t.name === 'synth' ? 'Custom' : t.name } : t));
                                                                     setActiveTrackDropdownId(null);
                                                                 }}
-                                                                className={`w-full h-14 flex items-center justify-between pl-6 relative overflow-hidden rounded-full group cursor-pointer border active:scale-[0.98] transition-all ${
-                                                                    isCustomSelected 
-                                                                        ? 'bg-[#F9F8F6] border-transparent hover:bg-[#F3F1ED]' 
+                                                                className={`${btn.plain('bare')} group relative h-14 w-full justify-between overflow-hidden border pl-6 transition-all cursor-pointer ${
+                                                                    isCustomSelected
+                                                                        ? 'bg-[#F9F8F6] border-transparent hover:bg-[#F3F1ED]'
                                                                         : 'bg-white border-stone-200 hover:bg-stone-50/50'
                                                                 }`}
                                                             >
@@ -16392,9 +16493,9 @@ export default function CreatePage() {
                                         <div className="flex flex-col items-center justify-center">
                                             <button
                                                 onClick={() => handleUpdateTrackParam(track.id, 'compressor', !track.compressor)}
-                                                className={`w-11 h-11 rounded-full border-2 transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
-                                                    track.compressor 
-                                                        ? 'bg-white border-stone-200/80 shadow-[0_2.5px_6px_rgba(0,0,0,0.07)]' 
+                                                className={`${btn.plain('bare')} h-11 w-11 border-2 transition-all cursor-pointer ${
+                                                    track.compressor
+                                                        ? 'bg-white border-stone-200/80 shadow-[0_2.5px_6px_rgba(0,0,0,0.07)]'
                                                         : 'bg-[#F5F4F0] border-stone-200/40 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.06)]'
                                                 }`}
                                             >
@@ -16477,7 +16578,7 @@ export default function CreatePage() {
                                                         handleToggleTrackMute(track.id);
                                                     }}
                                                     aria-label={track.muted ? "Unsilence track" : "Silence track"}
-                                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] ${
+                                                    className={`${btn.plain('bare')} h-8 w-8 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all duration-200 cursor-pointer ${
                                                         track.muted
                                                             ? 'bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600'
                                                             : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-700'
@@ -16502,7 +16603,7 @@ export default function CreatePage() {
                                             <button
                                                 onClick={(e) => handleTrackMenuClick(e, track.id)}
                                                 aria-label={t('studio.track_options')}
-                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-[0_1px_3px_rgba(0,0,0,0.03)] focus:outline-none outline-none ${
+                                                className={`${btn.plain('bare')} h-8 w-8 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all duration-200 cursor-pointer ${
                                                     activeTrackMenuId === track.id
                                                         ? 'bg-stone-200 text-stone-700'
                                                         : 'bg-stone-100/80 hover:bg-stone-200/70 text-stone-500 hover:text-stone-700'
@@ -16525,7 +16626,7 @@ export default function CreatePage() {
                                                             handleDeleteTrack(track.id);
                                                             setActiveTrackMenuId(null);
                                                         }}
-                                                        className="w-full px-3 py-2 text-left text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-650 rounded-[10px] cursor-pointer active:scale-[0.98] transition-all"
+                                                        className={`${btn.menuItem('danger')} text-xs font-bold cursor-pointer`}
                                                         type="button"
                                                     >
                                                         {t('creative.delete_track')}
@@ -16625,7 +16726,7 @@ export default function CreatePage() {
                     {studioTracks.length < 4 && !isCanvasReadOnly && (
                         <button
                             onClick={handleAddTrack}
-                            className="w-full h-14 text-[16px] border-2 border-dashed border-stone-400 bg-stone-100/80 text-stone-700 rounded-full font-medium transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-sm"
+                            className={`${btn.plain('bare')} h-14 w-full gap-1.5 border-2 border-dashed border-stone-400 bg-stone-100/80 px-6 text-[16px] font-medium text-stone-700 shadow-sm transition-all duration-200 cursor-pointer`}
                             type="button"
                         >
                             <Plus size={20} className="stroke-[2.4]" />
@@ -16639,7 +16740,7 @@ export default function CreatePage() {
                     <div className="hidden sm:flex h-16 w-full shrink-0 items-center justify-center">
                         <button
                             onClick={handleAddTrack}
-                            className="w-[260px] h-14 text-[16px] border border-stone-300 bg-stone-100/40 text-stone-500 hover:border-stone-400 hover:bg-stone-100/70 hover:text-stone-700 rounded-full font-medium transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-sm"
+                            className={`${btn.secondary('bare')} h-14 w-[260px] gap-1.5 px-6 text-[16px] font-medium cursor-pointer`}
                             type="button"
                         >
                             <Plus size={20} />
@@ -16705,7 +16806,7 @@ export default function CreatePage() {
                                                     e.stopPropagation();
                                                     handleToggleStudioMetronome();
                                                 }}
-                                                className="h-8 bg-stone-900 hover:bg-stone-800 text-white text-[11px] font-bold px-3 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+                                                className={`${btn.primary('bare')} h-8 shrink-0 whitespace-nowrap px-3 text-[11px] font-bold cursor-pointer`}
                                                 type="button"
                                             >
                                                 {t('studio.play_metronome')}
@@ -16719,7 +16820,7 @@ export default function CreatePage() {
                                                     setShowToolsPanel(true);
                                                     handleTapTempo(e);
                                                 }}
-                                                className="h-8 bg-white border border-stone-200/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-2.5 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+                                                className={`${btn.secondary('bare')} h-8 shrink-0 whitespace-nowrap px-2.5 text-[11px] font-bold cursor-pointer`}
                                                 type="button"
                                             >
                                                 Tap tempo &rarr;
@@ -16789,7 +16890,7 @@ export default function CreatePage() {
                                             setActiveToolTab('tuner');
                                             setShowToolsPanel(true);
                                         }}
-                                        className="h-8 bg-white border border-stone-200/30 hover:bg-stone-50 text-[11px] font-bold text-stone-600 px-3 rounded-full flex items-center gap-1 transition-all shrink-0 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+                                        className={`${btn.secondary('bare')} h-8 shrink-0 gap-1 whitespace-nowrap px-3 text-[11px] font-bold cursor-pointer`}
                                         type="button"
                                     >
                                         {t('creative.guitar_tuning')} &rarr;
@@ -16865,11 +16966,7 @@ export default function CreatePage() {
                         <div className="w-full lg:w-1/3 flex justify-center lg:justify-start items-center gap-2.5 z-10">
                             <button
                                 onClick={() => setShowStudioLyrics(!showStudioLyrics)}
-                                className={`px-5 py-2.5 sm:px-8 sm:py-3.5 border rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center justify-center ${
-                                    showStudioLyrics
-                                        ? 'bg-[#E5E4DE] border-[#D2D1C9] text-stone-700 hover:bg-[#DAD9D2]'
-                                        : 'bg-white border-stone-200 hover:bg-stone-50/50 text-stone-700'
-                                }`}
+                                className={`${btn.chip(showStudioLyrics, 'bare')} px-5 py-2.5 text-xs font-bold sm:px-8 sm:py-3.5 sm:text-sm lg:text-[15px] cursor-pointer`}
                                 type="button"
                             >
                                 {showStudioLyrics ? t('creative.hide_lyrics') : t('creative.show_lyrics')}
@@ -16881,7 +16978,7 @@ export default function CreatePage() {
                             {studioState === 'recording' ? (
                                 <button
                                     onClick={stopStudioRecording}
-                                    className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white border border-stone-200 text-[#FF4040] rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2 whitespace-nowrap"
+                                    className={`${btn.secondary('bare')} gap-2 whitespace-nowrap px-5 py-2.5 text-xs font-bold text-[#FF4040] hover:text-[#FF4040] sm:px-8 sm:py-3.5 sm:text-sm lg:text-[15px] cursor-pointer`}
                                 >
                                     <div className="relative flex items-center justify-center shrink-0">
                                         <div className="w-4 h-4 rounded-full bg-[#FF4040] animate-ping absolute" />
@@ -16894,7 +16991,7 @@ export default function CreatePage() {
                             ) : (
                                 <button
                                     onClick={startStudioRecording}
-                                    className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-[#FF4040] rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2"
+                                    className={`${btn.secondary('bare')} gap-2 px-5 py-2.5 text-xs font-bold text-[#FF4040] hover:text-[#FF4040] sm:px-8 sm:py-3.5 sm:text-sm lg:text-[15px] cursor-pointer`}
                                 >
                                     <div className="w-3 h-3 bg-[#FF4040] rounded-full shrink-0" />
                                     {t('studio.rec')}
@@ -16910,7 +17007,7 @@ export default function CreatePage() {
                                     }
                                 }}
                                 disabled={studioDuration === 0 || studioState === 'recording'}
-                                className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                                className={`${btn.secondary('bare')} gap-2 px-5 py-2.5 text-xs font-bold sm:px-8 sm:py-3.5 sm:text-sm lg:text-[15px] cursor-pointer disabled:opacity-50`}
                             >
                                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-stone-650 shrink-0">
                                     {studioState === 'playing' ? (
@@ -16929,7 +17026,7 @@ export default function CreatePage() {
                                 <button
                                     onClick={handleSaveStudioMixToProject}
                                     disabled={isSendingToCanvas}
-                                    className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold text-xs sm:text-sm lg:text-[15px] active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-75 disabled:pointer-events-none"
+                                    className={`${btn.secondary('bare')} gap-2 px-5 py-2.5 text-xs font-bold sm:px-8 sm:py-3.5 sm:text-sm lg:text-[15px] cursor-pointer disabled:opacity-75`}
                                 >
                                     {isSendingToCanvas ? (
                                         <>
@@ -16945,7 +17042,7 @@ export default function CreatePage() {
                                     <button
                                         onClick={() => setActivePublishMenu(!activePublishMenu)}
                                         aria-label={t('creative.export_options')}
-                                        className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white border border-stone-200 hover:bg-stone-50/50 text-stone-700 rounded-full font-bold active:scale-95 transition-all shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] cursor-pointer"
+                                        className={`${btn.icon('bare')} h-10 w-10 border border-stone-200 bg-white sm:h-12 sm:w-12 cursor-pointer`}
                                         type="button"
                                     >
                                         <MoreVertical size={20} className="text-stone-600" />
@@ -16959,7 +17056,7 @@ export default function CreatePage() {
                                                 handleExportStudioMix('wav');
                                                 setActivePublishMenu(false);
                                             }}
-                                            className="w-full px-4 py-2.5 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
+                                            className={`${btn.menuItem()} text-xs font-bold cursor-pointer`}
                                         >
                                             {t('creative.export_wav')}
                                         </button>
@@ -16968,7 +17065,7 @@ export default function CreatePage() {
                                                 handleExportStudioMix('mp3');
                                                 setActivePublishMenu(false);
                                             }}
-                                            className="w-full px-4 py-2.5 text-left text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-50 cursor-pointer"
+                                            className={`${btn.menuItem()} text-xs font-bold cursor-pointer`}
                                         >
                                             {t('creative.export_mp3')}
                                         </button>
@@ -16989,7 +17086,7 @@ export default function CreatePage() {
                         <button
                             onClick={() => { haptic('tap'); setStudioSettingsOpen(true); }}
                             aria-label={t('studio.settings')}
-                            className="w-[clamp(48px,13.5vw,60px)] h-[clamp(48px,13.5vw,60px)] shrink-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all relative"
+                            className={`${btn.icon('bare')} relative h-[clamp(48px,13.5vw,60px)] w-[clamp(48px,13.5vw,60px)] border border-stone-200 bg-white`}
                             type="button"
                         >
                             <SlidersHorizontal size={22} className="text-stone-700 stroke-[1.8]" />
@@ -17004,7 +17101,7 @@ export default function CreatePage() {
                         <button
                             onClick={() => { haptic('tap'); setShowStudioLyrics(true); }}
                             aria-label={t('creative.show_lyrics')}
-                            className={`w-[clamp(48px,13.5vw,60px)] h-[clamp(48px,13.5vw,60px)] shrink-0 rounded-full border shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all ${
+                            className={`${btn.plain('bare')} h-[clamp(48px,13.5vw,60px)] w-[clamp(48px,13.5vw,60px)] border shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] transition-all ${
                                 showStudioLyrics
                                     ? 'bg-[#E5E4DE] border-[#D2D1C9] text-stone-800'
                                     : 'bg-white border-stone-200 text-stone-700'
@@ -17026,7 +17123,7 @@ export default function CreatePage() {
                             <button
                                 onClick={() => { haptic('impact'); stopStudioRecording(); }}
                                 aria-label={t('studio.recording')}
-                                className="flex-1 min-w-[86px] h-[clamp(48px,13.5vw,60px)] px-3 rounded-full bg-[#FF4040] border border-[#FF4040] shadow-[0_2px_10px_rgba(255,64,64,0.35)] flex items-center justify-center gap-2 active:scale-95 transition-all"
+                                className={`${btn.danger('bare')} h-[clamp(48px,13.5vw,60px)] min-w-[86px] flex-1 gap-2 px-3`}
                                 type="button"
                             >
                                 <span className="w-2.5 h-2.5 rounded-full bg-white/90 shrink-0 animate-pulse" />
@@ -17038,7 +17135,7 @@ export default function CreatePage() {
                             <button
                                 onClick={() => { haptic('impact'); startStudioRecording(); }}
                                 aria-label={t('studio.rec')}
-                                className="flex-1 min-w-[86px] h-[clamp(48px,13.5vw,60px)] px-3 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center gap-2 active:scale-95 transition-all"
+                                className={`${btn.secondary('bare')} h-[clamp(48px,13.5vw,60px)] min-w-[86px] flex-1 gap-2 px-3`}
                                 type="button"
                             >
                                 <span className="w-3.5 h-3.5 bg-[#FF4040] rounded-full shrink-0" />
@@ -17055,7 +17152,7 @@ export default function CreatePage() {
                             }}
                             disabled={studioDuration === 0 || studioState === 'recording'}
                             aria-label={t('studio.play_pause')}
-                            className="w-[clamp(48px,13.5vw,60px)] h-[clamp(48px,13.5vw,60px)] shrink-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
+                            className={`${btn.icon('bare')} h-[clamp(48px,13.5vw,60px)] w-[clamp(48px,13.5vw,60px)] border border-stone-200 bg-white disabled:opacity-40`}
                             type="button"
                         >
                             <svg viewBox="0 0 24 24" fill="currentColor" className="w-[23px] h-[23px] text-stone-700">
@@ -17070,7 +17167,7 @@ export default function CreatePage() {
                             onClick={() => { haptic('tap'); setStudioExportOpen(true); }}
                             disabled={isSendingToCanvas}
                             aria-label={t('creative.export_options')}
-                            className="w-[clamp(48px,13.5vw,60px)] h-[clamp(48px,13.5vw,60px)] shrink-0 rounded-full bg-white border border-stone-200 shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] flex items-center justify-center active:scale-95 transition-all disabled:opacity-60 disabled:pointer-events-none"
+                            className={`${btn.icon('bare')} h-[clamp(48px,13.5vw,60px)] w-[clamp(48px,13.5vw,60px)] border border-stone-200 bg-white disabled:opacity-60`}
                             type="button"
                         >
                             {isSendingToCanvas
@@ -17134,11 +17231,7 @@ export default function CreatePage() {
                         control={
                             <button
                                 onClick={() => { haptic('select'); handleToggleStudioMetronome(); }}
-                                className={`h-11 px-6 rounded-full text-[15px] font-semibold border transition-all active:scale-95 ${
-                                    isStudioMetronomeOn
-                                        ? 'bg-stone-900 border-stone-900 text-white'
-                                        : 'bg-white border-stone-300 text-stone-700'
-                                }`}
+                                className={`${btn.chip(isStudioMetronomeOn, 'bare')} h-11 px-6 text-[15px] font-semibold`}
                                 type="button"
                             >
                                 {isStudioMetronomeOn ? t('common.on') : t('common.off')}
@@ -17155,7 +17248,7 @@ export default function CreatePage() {
                                 <button
                                     onClick={() => { haptic('tap'); setMetronomeBpm(b => Math.max(40, b - 1)); }}
                                     aria-label="-1 BPM"
-                                    className="w-12 h-12 shrink-0 rounded-full bg-stone-100 text-stone-700 text-[22px] font-medium flex items-center justify-center active:bg-stone-200 transition-colors"
+                                    className={`${btn.icon('bare')} h-12 w-12 text-[22px] font-medium`}
                                     type="button"
                                 >−</button>
                                 <input
@@ -17170,7 +17263,7 @@ export default function CreatePage() {
                                 <button
                                     onClick={() => { haptic('tap'); setMetronomeBpm(b => Math.min(220, b + 1)); }}
                                     aria-label="+1 BPM"
-                                    className="w-12 h-12 shrink-0 rounded-full bg-stone-100 text-stone-700 text-[22px] font-medium flex items-center justify-center active:bg-stone-200 transition-colors"
+                                    className={`${btn.icon('bare')} h-12 w-12 text-[22px] font-medium`}
                                     type="button"
                                 >+</button>
                                 <span className="w-16 shrink-0 text-right text-[16px] font-semibold text-stone-900 tabular-nums">
@@ -17217,7 +17310,7 @@ export default function CreatePage() {
                                     setActiveToolTab('tuner');
                                     setShowToolsPanel(true);
                                 }}
-                                className="h-11 px-6 rounded-full text-[15px] font-semibold bg-white border border-stone-300 text-stone-700 flex items-center gap-2 active:scale-95 transition-all"
+                                className={`${btn.secondary('bare')} h-11 gap-2 px-6 text-[15px] font-semibold`}
                                 type="button"
                             >
                                 <Guitar size={18} className="text-stone-500" />
@@ -17232,11 +17325,7 @@ export default function CreatePage() {
                         control={
                             <button
                                 onClick={() => { haptic('select'); setIsDirectMonitorEnabled(prev => !prev); }}
-                                className={`h-11 px-6 rounded-full text-[15px] font-semibold border transition-all active:scale-95 flex items-center gap-2 ${
-                                    isDirectMonitorEnabled
-                                        ? 'bg-stone-900 border-stone-900 text-white'
-                                        : 'bg-white border-stone-300 text-stone-700'
-                                }`}
+                                className={`${btn.chip(isDirectMonitorEnabled, 'bare')} h-11 gap-2 px-6 text-[15px] font-semibold`}
                                 type="button"
                             >
                                 <Headphones size={17} />
@@ -17283,7 +17372,7 @@ export default function CreatePage() {
                                                             key={opt}
                                                             type="button"
                                                             onClick={() => { haptic('select'); handleSelectInstrumentType(sheetTrack.id, opt); }}
-                                                            className={`w-full h-[84px] flex items-start pt-3 pl-4 relative overflow-hidden rounded-[20px] group cursor-pointer border active:scale-[0.98] transition-all ${
+                                                            className={`${btn.plain('bare')} group relative h-[84px] w-full items-start justify-start overflow-hidden rounded-[20px] border pl-4 pt-3 transition-all cursor-pointer ${
                                                                 selected
                                                                     ? 'bg-[#F9F8F6] border-transparent ring-2 ring-stone-800'
                                                                     : 'bg-white border-stone-200'
@@ -17359,7 +17448,7 @@ export default function CreatePage() {
                                             // reads ON/OFF, not a pill.
                                             <button
                                                 onClick={() => { haptic('select'); handleUpdateTrackParam(sheetTrack.id, 'compressor', !sheetTrack.compressor); }}
-                                                className={`w-14 h-14 rounded-full border-2 transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
+                                                className={`${btn.plain('bare')} h-14 w-14 border-2 transition-all cursor-pointer ${
                                                     sheetTrack.compressor
                                                         ? 'bg-white border-stone-200/80 shadow-[0_2.5px_6px_rgba(0,0,0,0.07)]'
                                                         : 'bg-[#F5F4F0] border-stone-200/40 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.06)]'
@@ -17386,7 +17475,7 @@ export default function CreatePage() {
                                         <button
                                             type="button"
                                             onClick={() => { haptic('success'); setMobileTrackSheetId(null); }}
-                                            className="w-full h-14 rounded-full bg-white border border-stone-200 shadow-[0_6px_20px_rgba(0,0,0,0.1)] text-stone-900 text-[17px] font-semibold flex items-center justify-center active:scale-[0.99] transition-transform"
+                                            className={`${btn.secondary('bare')} h-14 w-full px-6 text-[17px] font-semibold text-stone-900 shadow-[0_6px_20px_rgba(0,0,0,0.1)]`}
                                         >
                                             {t('common.save')}
                                         </button>
@@ -17449,7 +17538,7 @@ export default function CreatePage() {
                         <button
                             onClick={() => { haptic('success'); setStudioExportOpen(false); handleSaveStudioMixToProject(); }}
                             disabled={isSendingToCanvas}
-                            className="w-full h-16 rounded-full bg-stone-900 text-white text-[17px] font-semibold flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all disabled:opacity-60 disabled:pointer-events-none"
+                            className={`${btn.primary('bare')} h-16 w-full gap-2.5 px-6 text-[17px] disabled:opacity-60`}
                             type="button"
                         >
                             {isSendingToCanvas
@@ -17458,14 +17547,14 @@ export default function CreatePage() {
                         </button>
                         <button
                             onClick={() => { haptic('tap'); setStudioExportOpen(false); handleExportStudioMix('wav'); }}
-                            className="w-full h-16 rounded-full bg-white border border-stone-300 text-stone-800 text-[17px] font-semibold flex items-center justify-center active:scale-[0.98] transition-all"
+                            className={`${btn.secondary('bare')} h-16 w-full px-6 text-[17px] font-semibold`}
                             type="button"
                         >
                             {t('creative.export_wav')}
                         </button>
                         <button
                             onClick={() => { haptic('tap'); setStudioExportOpen(false); handleExportStudioMix('mp3'); }}
-                            className="w-full h-16 rounded-full bg-white border border-stone-300 text-stone-800 text-[17px] font-semibold flex items-center justify-center active:scale-[0.98] transition-all"
+                            className={`${btn.secondary('bare')} h-16 w-full px-6 text-[17px] font-semibold`}
                             type="button"
                         >
                             {t('creative.export_mp3')}
@@ -17683,9 +17772,7 @@ export default function CreatePage() {
                             <div className="w-full flex justify-stretch md:justify-end mt-1 pt-3 border-t border-stone-300/30 flex-shrink-0">
                                 <button
                                     onClick={() => setShowWiredHeadphonesBanner(false)}
-                                    className="bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-sans font-semibold rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-md hover:shadow-lg shadow-[#87b884]/20
-                                        w-full text-[17px] px-6 py-4
-                                        md:w-auto md:text-[15px] md:px-10 md:py-2.5"
+                                    className={`${btn.primary('bare')} w-full px-6 py-4 text-[17px] md:w-auto md:px-10 md:py-2.5 md:text-[15px] cursor-pointer`}
                                     type="button"
                                 >
                                     {t('studio_banner.got_it')}
@@ -18158,11 +18245,7 @@ export default function CreatePage() {
                         onDoubleClick={(e) => e.stopPropagation()}
                         onTouchStart={(e) => e.stopPropagation()}
                         onTouchEnd={(e) => e.stopPropagation()}
-                        className={`mt-8 px-6 py-2.5 rounded-full text-[13px] sm:text-[15px] font-extrabold transition-all duration-200 active:scale-95 cursor-pointer shadow-sm select-none flex items-center gap-2 border-none ${
-                            isMetronomePlaying 
-                                ? 'bg-black text-white hover:bg-stone-900' 
-                                : 'bg-white text-black hover:bg-stone-50'
-                        }`}
+                        className={`${btn.chip(isMetronomePlaying, 'bare')} mt-8 gap-2 px-6 py-2.5 text-[13px] font-extrabold sm:text-[15px] cursor-pointer`}
                         type="button"
                     >
                         {isMetronomePlaying ? (
@@ -18259,7 +18342,7 @@ export default function CreatePage() {
                                                     insertTextAtCursor(item.word + ' ');
                                                     navigator.clipboard.writeText(item.word).catch(console.error);
                                                 }}
-                                                className="px-3.5 py-1.5 bg-stone-50 hover:bg-stone-900 border border-stone-200 hover:border-stone-900 rounded-xl text-[16.5px] font-semibold text-stone-800 hover:text-white transition-all cursor-pointer shadow-2xs active:scale-95"
+                                                className={`${btn.secondary('bare')} px-3.5 py-1.5 text-[16.5px] font-semibold cursor-pointer`}
                                                 aria-label="Click to insert and copy"
                                                 type="button"
                                             >
@@ -18536,9 +18619,7 @@ export default function CreatePage() {
                                                     // full-screen view. On the phone it becomes a
                                                     // 44px filled circle so it reads as a control
                                                     // and can actually be hit with a thumb.
-                                                    className="shrink-0 cursor-pointer transition-all rounded-full flex items-center justify-center
-                                                        w-11 h-11 bg-white/10 text-white active:bg-white/20
-                                                        md:w-auto md:h-auto md:p-1 md:bg-transparent md:text-white/40 md:hover:text-white md:hover:bg-white/5"
+                                                    className={`${btn.scrim('bare')} h-11 w-11 shrink-0 border-0 md:h-auto md:w-auto md:bg-transparent md:p-1 md:text-white/70 md:hover:bg-transparent md:hover:text-white cursor-pointer`}
                                                     aria-label={t('common.minimize') || 'Minimize'}
                                                     type="button"
                                                 >
@@ -18585,14 +18666,14 @@ export default function CreatePage() {
                                             <div className="flex items-center justify-between border-t border-white/10 pt-5 mt-auto select-none">
                                                 <button
                                                     onClick={() => setInspirationQuestionIndex(4)}
-                                                    className="text-white/60 hover:text-white transition-colors cursor-pointer text-[15px] sm:text-[17px] font-medium bg-transparent border-none p-0 outline-none"
+                                                    className={`${btn.plain('bare')} p-0 text-[15px] font-medium text-white/60 transition-colors hover:text-white sm:text-[17px] focus-visible:outline-white cursor-pointer`}
                                                     type="button"
                                                 >
                                                     {t('inspiration.back')}
                                                 </button>
                                                 <button
                                                     onClick={handleCopySummaryToCanvas}
-                                                    className="text-[#8FFFA0] hover:text-[#7ce48d] transition-colors cursor-pointer text-[15px] sm:text-[17px] font-semibold bg-transparent border-none p-0 outline-none"
+                                                    className={`${btn.plain('bare')} p-0 text-[15px] font-semibold text-[#8FFFA0] transition-colors hover:text-[#7ce48d] sm:text-[17px] focus-visible:outline-white cursor-pointer`}
                                                     type="button"
                                                 >
                                                     {t('inspiration.add_to_canvas')}
@@ -18625,9 +18706,7 @@ export default function CreatePage() {
                                                     // full-screen view. On the phone it becomes a
                                                     // 44px filled circle so it reads as a control
                                                     // and can actually be hit with a thumb.
-                                                    className="shrink-0 cursor-pointer transition-all rounded-full flex items-center justify-center
-                                                        w-11 h-11 bg-white/10 text-white active:bg-white/20
-                                                        md:w-auto md:h-auto md:p-1 md:bg-transparent md:text-white/40 md:hover:text-white md:hover:bg-white/5"
+                                                    className={`${btn.scrim('bare')} h-11 w-11 shrink-0 border-0 md:h-auto md:w-auto md:bg-transparent md:p-1 md:text-white/70 md:hover:bg-transparent md:hover:text-white cursor-pointer`}
                                                     aria-label={t('common.minimize') || 'Minimize'}
                                                     type="button"
                                                 >
@@ -18692,9 +18771,7 @@ export default function CreatePage() {
                                             <div className="flex items-center justify-center gap-3 sm:gap-4 mt-2 shrink-0 select-none">
                                                 <button
                                                     onClick={() => inspirationQuestionIndex > 0 && setInspirationQuestionIndex(prev => prev - 1)}
-                                                    className={`font-sans font-medium transition-all cursor-pointer
-                                                        flex-1 h-14 rounded-full border text-[17px]
-                                                        md:flex-none md:w-24 md:h-auto md:rounded-none md:border-0 md:text-[20px] md:text-right ${
+                                                    className={`${btn.plain('bare')} h-14 flex-1 border text-[17px] font-medium transition-all focus-visible:outline-white md:h-auto md:w-24 md:flex-none md:justify-end md:border-0 md:text-[20px] cursor-pointer ${
                                                         inspirationQuestionIndex > 0
                                                             ? 'text-white/80 border-white/25 active:bg-white/10 hover:text-white md:border-0'
                                                             : 'text-white/20 border-white/10 cursor-not-allowed md:border-0'
@@ -18709,9 +18786,7 @@ export default function CreatePage() {
                                                 </span>
                                                 <button
                                                     onClick={() => setInspirationQuestionIndex(prev => prev + 1)}
-                                                    className="font-sans font-semibold transition-colors cursor-pointer
-                                                        flex-1 h-14 rounded-full bg-white text-stone-900 text-[17px] active:bg-white/85
-                                                        md:flex-none md:w-24 md:h-auto md:rounded-none md:bg-transparent md:text-white md:font-medium md:text-[20px] md:text-left md:hover:text-[#8FFFA0]"
+                                                    className={`${btn.plain('bare')} h-14 flex-1 bg-white text-[17px] font-semibold text-stone-900 transition-colors active:bg-white/85 focus-visible:outline-white md:h-auto md:w-24 md:flex-none md:justify-start md:bg-transparent md:text-[20px] md:font-medium md:text-white md:hover:text-[#8FFFA0] cursor-pointer`}
                                                     type="button"
                                                 >
                                                     {t('inspiration.next')}
@@ -18927,10 +19002,10 @@ export default function CreatePage() {
                             even for the longest locale string ("Gitarstemmer", "Stämapparat"). */}
                         <button
                             onClick={() => setActiveToolTab('tuner')}
-                            className={`flex items-center justify-center px-3 py-4 md:px-6 md:py-[26px] rounded-full transition-all duration-200 cursor-pointer flex-1 min-w-0 ${
+                            className={`${btn.plain('bare')} min-w-0 flex-1 px-3 py-4 transition-all duration-200 md:px-6 md:py-[26px] cursor-pointer ${
                                 (activeToolTab as string) === 'tuner'
                                     ? 'bg-white shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
-                                    : 'hover:bg-white/60'
+                                    : 'hover:bg-white/40'
                             }`}
                             type="button"
                         >
@@ -18950,10 +19025,10 @@ export default function CreatePage() {
                         {/* Metronome tab — same one-line treatment as the tuner tab above. */}
                         <button
                             onClick={() => setActiveToolTab('tempo')}
-                            className={`flex items-center justify-center px-3 py-4 md:px-6 md:py-[26px] rounded-full transition-all duration-200 cursor-pointer flex-1 min-w-0 ${
+                            className={`${btn.plain('bare')} min-w-0 flex-1 px-3 py-4 transition-all duration-200 md:px-6 md:py-[26px] cursor-pointer ${
                                 (activeToolTab as string) === 'tempo'
                                     ? 'bg-white shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
-                                    : 'hover:bg-white/60'
+                                    : 'hover:bg-white/40'
                             }`}
                             type="button"
                         >
@@ -19085,7 +19160,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id); }}
                             aria-label={t('workspace.rename_folder')}
-                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-400 cursor-pointer"
+                            className={`${btn.iconGhost('bare')} p-1.5 cursor-pointer`}
                         >
                             <Pencil size={13} />
                         </button>
@@ -19094,7 +19169,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDeleteFolder(folder.id, e)}
                             aria-label={t('workspace.delete_folder_title')}
-                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-400 cursor-pointer"
+                            className={`${btn.plain('bare')} p-1.5 text-stone-400 transition-all hover:bg-red-50 hover:text-red-600 cursor-pointer`}
                         >
                             <Trash2 size={13} />
                         </button>
@@ -19132,7 +19207,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id); }}
                             aria-label={t('workspace.rename_folder')}
-                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-400 cursor-pointer"
+                            className={`${btn.iconGhost('bare')} p-1.5 cursor-pointer`}
                         >
                             <Pencil size={13} />
                         </button>
@@ -19141,7 +19216,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDeleteFolder(folder.id, e)}
                             aria-label={t('workspace.delete_folder_title')}
-                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-400 cursor-pointer"
+                            className={`${btn.plain('bare')} p-1.5 text-stone-400 transition-all hover:bg-red-50 hover:text-red-600 cursor-pointer`}
                         >
                             <Trash2 size={13} />
                         </button>
@@ -19219,7 +19294,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDuplicateNote(note.id, e)}
                             aria-label={t('workspace.duplicate_note')}
-                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-400 cursor-pointer"
+                            className={`${btn.iconGhost('bare')} p-1.5 cursor-pointer`}
                         >
                             <Copy size={13} />
                         </button>
@@ -19228,7 +19303,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDeleteNote(note.id, e)}
                             aria-label={t('workspace.delete_note')}
-                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-400 cursor-pointer"
+                            className={`${btn.plain('bare')} p-1.5 text-stone-400 transition-all hover:bg-red-50 hover:text-red-600 cursor-pointer`}
                         >
                             <Trash2 size={13} />
                         </button>
@@ -19271,7 +19346,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDuplicateNote(note.id, e)}
                             aria-label={t('workspace.duplicate_note')}
-                            className="p-1.5 rounded-full hover:bg-stone-100 hover:text-stone-700 transition-all text-stone-400 cursor-pointer"
+                            className={`${btn.iconGhost('bare')} p-1.5 cursor-pointer`}
                         >
                             <Copy size={13} />
                         </button>
@@ -19280,7 +19355,7 @@ export default function CreatePage() {
                         <button
                             onClick={(e) => handleDeleteNote(note.id, e)}
                             aria-label={t('workspace.delete_note')}
-                            className="p-1.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-all text-stone-400 cursor-pointer"
+                            className={`${btn.plain('bare')} p-1.5 text-stone-400 transition-all hover:bg-red-50 hover:text-red-600 cursor-pointer`}
                         >
                             <Trash2 size={13} />
                         </button>
@@ -19361,7 +19436,7 @@ export default function CreatePage() {
                                         invite: pendingInvites[0]
                                     });
                                 }}
-                                className="text-stone-900 hover:text-stone-950 font-medium text-[13.5px] cursor-pointer transition-colors px-1 bg-transparent border-none outline-none"
+                                className={`${btn.plain('bare')} px-1 text-[13.5px] font-medium text-stone-900 transition-colors hover:text-stone-950 cursor-pointer`}
                             >
                                 Decline
                             </button>
@@ -19372,7 +19447,7 @@ export default function CreatePage() {
                                     e.stopPropagation();
                                     await handleAcceptInvite(pendingInvites[0]);
                                 }}
-                                className="bg-[#E5FE6C] hover:bg-[#EEFE7B] text-stone-950 font-semibold text-[13.5px] px-4 py-1.5 rounded-full shadow-xs transition-all cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 border-none outline-none"
+                                className={`${btn.primary('bare')} gap-1 px-4 py-1.5 text-[13.5px] cursor-pointer`}
                             >
                                 <span>Join</span>
                                 <ArrowRight size={14} className="stroke-[2.5]" />
@@ -19797,7 +19872,7 @@ export default function CreatePage() {
                                         handleSaveTitle();
                                     }}
                                     aria-label="Save project name"
-                                    className="w-8 h-8 bg-white border border-stone-200 shadow-[0_3px_12px_rgba(0,0,0,0.08)] rounded-full text-emerald-600 hover:text-emerald-700 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                                    className={`${btn.plain('bare')} h-8 w-8 shrink-0 border border-stone-200 bg-white text-emerald-600 shadow-[0_3px_12px_rgba(0,0,0,0.08)] transition-all hover:text-emerald-700 cursor-pointer`}
                                 >
                                     <Check size={16} className="stroke-[3px]" />
                                 </button>
@@ -19886,7 +19961,7 @@ export default function CreatePage() {
                                             // destructive action sitting one stray thumb away from
                                             // the avatars. It stays available inside the share
                                             // sheet the avatars now open.
-                                            className="hidden sm:flex w-7 h-7 hover:bg-emerald-100 items-center justify-center text-emerald-500/65 hover:text-emerald-850 rounded-full transition-all active:scale-90 shrink-0 cursor-pointer outline-none ml-1"
+                                            className={`${btn.plain('bare')} ml-1 hidden h-7 w-7 shrink-0 text-emerald-500/65 transition-all hover:bg-emerald-100 hover:text-emerald-850 sm:inline-flex cursor-pointer`}
                                         >
                                             <X size={15} className="stroke-[2.5]" />
                                         </button>
@@ -19987,12 +20062,11 @@ export default function CreatePage() {
                                         // same 18px medium, same tracking, same height — so the
                                         // expanded pill reads as one of the pair rather than a
                                         // different kind of control that happens to sit nearby.
-                                        className={`group/publish relative flex items-center h-10 border rounded-full font-sans text-[18px] font-medium tracking-wide transition-all duration-300 ease-out cursor-pointer active:scale-95 shadow-3xs shrink-0 select-none
-                                            ${shareStatus === 'shared' && !isPublishLaunching
+                                        className={`${btn.plain('bare')} group/publish relative h-10 shrink-0 border text-[18px] font-medium tracking-wide transition-all duration-300 ease-out cursor-pointer ${
+                                            shareStatus === 'shared' && !isPublishLaunching
                                                 ? 'bg-emerald-600 border-emerald-600 text-stone-900 hover:bg-emerald-700 hover:border-emerald-700'
                                                 : 'bg-stone-100/65 border-stone-200/40 text-stone-700 hover:bg-stone-200/50 hover:text-stone-900'
-                                            }
-                                        `}
+                                        }`}
                                     >
                                         {/* Indeterminate gradient outline while the post is being written —
                                             deliberately rendered outside the clipped span below so its -3px inset
@@ -20069,7 +20143,7 @@ export default function CreatePage() {
                                             onClick={(e) => e.stopPropagation()}
                                             aria-label={isCanvasLocked ? t('collab.unlock_hold_hint') : t('collab.lock_hold_hint')}
                                             aria-pressed={isCanvasLocked}
-                                            className={`relative flex items-center justify-center w-10 h-10 border rounded-full transition-colors cursor-pointer shadow-3xs shrink-0 select-none animate-fade-in ${
+                                            className={`${btn.plain('bare')} relative h-10 w-10 shrink-0 animate-fade-in border shadow-3xs transition-colors cursor-pointer ${
                                                 isCanvasLocked
                                                     ? 'bg-[#EDFF8E] border-[#DCEE7A] text-stone-600 hover:bg-[#E4F87E]'
                                                     : 'bg-stone-100/65 hover:bg-stone-200/50 text-stone-700 hover:text-stone-900 border-stone-200/40'
@@ -20096,10 +20170,8 @@ export default function CreatePage() {
                                         setShowCanvasMenu(!showCanvasMenu);
                                     }}
                                     aria-label="Options"
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
-                                        showCanvasMenu
-                                            ? 'bg-stone-200 text-stone-800'
-                                            : 'hover:bg-stone-100/80 text-stone-500 hover:text-stone-800'
+                                    className={`${btn.iconGhost('bare')} h-8 w-8 cursor-pointer ${
+                                        showCanvasMenu ? 'bg-stone-200 text-stone-800' : ''
                                     }`}
                                 >
                                     <MoreVertical size={18} />
@@ -20148,7 +20220,7 @@ export default function CreatePage() {
                                                                 setShowCanvasMenu(false);
                                                                 setShowShareModal(true);
                                                             }}
-                                                            className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                            className={`${btn.menuItem()} cursor-pointer`}
                                                         >
                                                             <Users size={16} className="text-stone-500" />
                                                             {t('collab.collab')}
@@ -20161,7 +20233,7 @@ export default function CreatePage() {
                                                             openPublishDialog();
                                                         }}
                                                         disabled={shareStatus === 'sharing'}
-                                                        className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                                                        className={`${btn.menuItem()} cursor-pointer`}
                                                     >
                                                         <ArrowUp size={16} className="text-stone-500 stroke-[2]" />
                                                         {shareStatus === 'shared' ? t('collab.published')
@@ -20180,7 +20252,7 @@ export default function CreatePage() {
                                                                 // already opened deliberately, it's just friction.
                                                                 handleToggleProjectLock();
                                                             }}
-                                                            className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                            className={`${btn.menuItem()} cursor-pointer`}
                                                         >
                                                             {isCanvasLocked
                                                                 ? <Lock size={16} className="text-stone-500" />
@@ -20197,7 +20269,7 @@ export default function CreatePage() {
                                                     handleCreateNote(activeFolderIdFilter);
                                                     setShowCanvasMenu(false);
                                                 }}
-                                                className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                className={`${btn.menuItem()} cursor-pointer`}
                                             >
                                                 <Plus size={16} className="text-stone-500" />
                                                 {t('creative.new_project')}
@@ -20223,7 +20295,7 @@ export default function CreatePage() {
                                                     };
                                                     input.click();
                                                 }}
-                                                className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                className={`${btn.menuItem()} cursor-pointer`}
                                             >
                                                 <Upload size={16} className="text-stone-500" />
                                                 {t('creative.upload_files') || 'Import'}
@@ -20240,7 +20312,7 @@ export default function CreatePage() {
                                                         handleExportProjectBundle(selectedNoteId);
                                                         setShowCanvasMenu(false);
                                                     }}
-                                                    className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                    className={`${btn.menuItem()} cursor-pointer`}
                                                 >
                                                     <Download size={16} className="text-stone-500" />
                                                     {t('creative.export_project') || 'Download'}
@@ -20260,7 +20332,7 @@ export default function CreatePage() {
                                                             triggerStudioNotification('Could not open the details: ' + err, 'rose');
                                                         }
                                                     }}
-                                                    className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-stone-700 hover:bg-stone-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                    className={`${btn.menuItem()} cursor-pointer`}
                                                 >
                                                     <Info size={16} className="text-stone-500" />
                                                     {t('creative.details')}
@@ -20274,7 +20346,7 @@ export default function CreatePage() {
                                                         handleDeleteNote(selectedNoteId);
                                                         setShowCanvasMenu(false);
                                                     }}
-                                                    className="w-full px-3.5 py-2.5 text-left text-[14px] font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                                    className={`${btn.menuItem('danger')} cursor-pointer`}
                                                 >
                                                     <Trash2 size={16} className="text-red-500" />
                                                     {t('creative.delete_project')}
@@ -20325,6 +20397,7 @@ export default function CreatePage() {
                                             <div key={audioNote.id} className="w-full max-w-2xl mx-auto">
                                                 <AudioCapsulePlayer 
                                                     uploadProgress={uploadProgressById[audioNote.id]}
+                                                    isDecomposing={decomposingAudioId === audioNote.id}
                                                     audioNote={audioNote}
                                                     onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
                                                     onDelete={() => activeNote && handleDeleteAudioNote(activeNote.id, audioNote.id)}
@@ -20700,7 +20773,7 @@ export default function CreatePage() {
                                                                                     setEditingGroupId(block.groupId);
                                                                                     setRenameGroupName(block.groupName || '');
                                                                                 }}
-                                                                                className="w-0 overflow-hidden opacity-0 group-hover/badge:w-4 group-hover/badge:opacity-100 transition-all duration-300 hover:text-stone-800 text-stone-400 hover:scale-110 active:scale-95 cursor-pointer flex items-center justify-center shrink-0 pointer-events-auto p-0 bg-transparent border-none outline-none"
+                                                                                className={`${btn.plain('bare')} pointer-events-auto w-0 shrink-0 overflow-hidden p-0 text-stone-400 opacity-0 transition-all duration-300 hover:text-stone-800 group-hover/badge:w-4 group-hover/badge:opacity-100 cursor-pointer`}
                                                                                 aria-label="Rename region"
                                                                             >
                                                                                 <Pencil size={11} className="stroke-[2.5]" />
@@ -20719,7 +20792,7 @@ export default function CreatePage() {
                                                                                     e.stopPropagation();
                                                                                     handleDeleteVerseGroup(block.groupId!);
                                                                                 }}
-                                                                                className="w-0 overflow-hidden opacity-0 group-hover/badge:w-4 group-hover/badge:opacity-100 transition-all duration-300 hover:text-red-500 text-stone-400 hover:scale-110 active:scale-95 font-bold cursor-pointer text-[13px] leading-none shrink-0 flex items-center justify-center h-3.5 pointer-events-auto p-0 bg-transparent border-none outline-none"
+                                                                                className={`${btn.plain('bare')} pointer-events-auto h-3.5 w-0 shrink-0 overflow-hidden p-0 text-[13px] font-bold leading-none text-stone-400 opacity-0 transition-all duration-300 hover:text-red-500 group-hover/badge:w-4 group-hover/badge:opacity-100 cursor-pointer`}
                                                                                 aria-label="Delete region"
                                                                             >
                                                                                 ×
@@ -20731,6 +20804,7 @@ export default function CreatePage() {
                                                                     {(audioByGroupIdMap[block.groupId || ''] || []).map(audioNote => (
                                                                         <AudioCapsulePlayer 
                                                                             uploadProgress={uploadProgressById[audioNote.id]}
+                                                                            isDecomposing={decomposingAudioId === audioNote.id}
                                                                             key={audioNote.id}
                                                                             audioNote={audioNote}
                                                                             onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
@@ -21043,6 +21117,7 @@ export default function CreatePage() {
 
                                                                             <AudioCapsulePlayer 
                                                                                 uploadProgress={uploadProgressById[audioNote.id]}
+                                                                                isDecomposing={decomposingAudioId === audioNote.id}
                                                                                 audioNote={audioNote}
                                                                                 onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, audioNote.id, newTitle)}
                                                                                 onDelete={() => activeNote && handleDeleteAudioNote(activeNote.id, audioNote.id)}
@@ -21261,7 +21336,7 @@ export default function CreatePage() {
                                                                  // h-10/px-4 rather than h-9/px-3: the label is small and
                                                                  // the gaps between these are dead space, so the pill has
                                                                  // to be the target rather than the word inside it.
-                                                                 className="h-10 px-4 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center shrink-0"
+                                                                 className={`${btn.plain('bare')} h-10 shrink-0 whitespace-nowrap px-4 text-[12px] font-medium text-stone-400/80 transition-colors duration-100 ease-out hover:bg-stone-100/80 hover:font-semibold hover:text-stone-900 cursor-pointer`}
                                                              >
                                                                  {label}
                                                              </button>
@@ -21293,7 +21368,7 @@ export default function CreatePage() {
                                                              // single action rather than a set of choices, so the hover state
                                                              // reads as one row rather than one option among several. Also
                                                              // makes it a much larger target.
-                                                             className="w-full h-10 px-3 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                                                             className={`${btn.plain('bare')} h-10 w-full shrink-0 gap-1.5 whitespace-nowrap px-3 text-[12px] font-medium text-stone-400/80 transition-colors duration-100 ease-out hover:bg-stone-100/80 hover:font-semibold hover:text-stone-900 cursor-pointer`}
                                                          >
                                                              <Music size={13} className="shrink-0" />
                                                              {t('creative.add_chord') || 'Chords'}
@@ -21330,7 +21405,7 @@ export default function CreatePage() {
                                                                      };
                                                                      input.click();
                                                                  }}
-                                                                 className="h-10 px-4 rounded-full text-[12px] font-medium text-stone-400/80 hover:text-stone-900 hover:font-semibold hover:bg-stone-100/80 transition-colors duration-100 ease-out cursor-pointer font-sans whitespace-nowrap active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                                                                 className={`${btn.plain('bare')} h-10 shrink-0 gap-1.5 whitespace-nowrap px-4 text-[12px] font-medium text-stone-400/80 transition-colors duration-100 ease-out hover:bg-stone-100/80 hover:font-semibold hover:text-stone-900 cursor-pointer`}
                                                              >
                                                                  <Icon size={13} className="shrink-0" />
                                                                  {label}
@@ -21545,10 +21620,8 @@ export default function CreatePage() {
                                             // 15px medium, not 13px bold: at bold these three read as
                                             // three shouted labels competing with the words below,
                                             // which are the actual content of the sheet.
-                                            className={`flex-1 text-[15px] py-3 rounded-[11px] transition-all cursor-pointer ${
-                                                mobileWordTab === value
-                                                    ? 'bg-white text-stone-800 font-semibold shadow-xs'
-                                                    : 'text-stone-500 font-medium hover:text-stone-700'
+                                            className={`${btn.segment(mobileWordTab === value, 'bare')} flex-1 py-3 text-[15px] cursor-pointer ${
+                                                mobileWordTab === value ? 'bg-white font-semibold shadow-xs' : 'font-medium'
                                             }`}
                                         >
                                             {label}
@@ -21607,10 +21680,8 @@ export default function CreatePage() {
                             <div className={`bg-stone-100/70 p-1 rounded-[14px] w-full select-none ${isMobile ? 'hidden' : 'flex'}`}>
                                 <button 
                                     onClick={() => setLexiconMode('rhyme')}
-                                    className={`flex-1 text-[13px] font-bold py-2.5 rounded-[11px] transition-all cursor-pointer ${
-                                        lexiconMode === 'rhyme' 
-                                            ? 'bg-white text-stone-800 shadow-xs' 
-                                            : 'text-stone-400 hover:text-stone-600'
+                                    className={`${btn.segment(lexiconMode === 'rhyme', 'bare')} flex-1 py-2.5 text-[13px] font-bold cursor-pointer ${
+                                        lexiconMode === 'rhyme' ? 'bg-white shadow-xs' : ''
                                     }`}
                                     type="button"
                                 >
@@ -21618,10 +21689,8 @@ export default function CreatePage() {
                                 </button>
                                 <button 
                                     onClick={() => setLexiconMode('synonym')}
-                                    className={`flex-1 text-[13px] font-bold py-2.5 rounded-[11px] transition-all cursor-pointer ${
-                                        lexiconMode === 'synonym' 
-                                            ? 'bg-white text-stone-800 shadow-xs' 
-                                            : 'text-stone-400 hover:text-stone-600'
+                                    className={`${btn.segment(lexiconMode === 'synonym', 'bare')} flex-1 py-2.5 text-[13px] font-bold cursor-pointer ${
+                                        lexiconMode === 'synonym' ? 'bg-white shadow-xs' : ''
                                     }`}
                                     type="button"
                                 >
@@ -21664,7 +21733,7 @@ export default function CreatePage() {
                                                     e.stopPropagation();
                                                     handleSelectCorrection(suggestion);
                                                 }}
-                                                className="px-5 py-2 bg-white hover:bg-emerald-600 text-stone-700 hover:text-white border border-stone-200/50 rounded-[14px] text-[14px] font-medium transition-all cursor-pointer shadow-xs active:scale-95 animate-in zoom-in-95 duration-150"
+                                                className={`${btn.plain('bare')} border border-stone-200/50 bg-white px-5 py-2 text-[14px] font-medium text-stone-700 shadow-xs transition-all hover:bg-emerald-600 hover:text-white cursor-pointer`}
                                                 type="button"
                                             >
                                                 {suggestion}
@@ -21751,7 +21820,7 @@ export default function CreatePage() {
                                                                             e.stopPropagation();
                                                                             handleSelectSuggestion(item.word);
                                                                         }}
-                                                                        className="group flex items-center gap-2 px-5 py-2.5 bg-white/90 hover:bg-emerald-600 border border-stone-300/40 hover:border-emerald-600 rounded-[14px] transition-all cursor-pointer shadow-2xs"
+                                                                        className={`${btn.plain('bare')} group gap-2 border border-stone-300/40 bg-white/90 px-5 py-2.5 shadow-2xs transition-all hover:border-emerald-600 hover:bg-emerald-600 cursor-pointer`}
                                                                         type="button"
                                                                     >
                                                                         <span className="text-[14px] font-medium text-stone-800 group-hover:text-white transition-colors">
@@ -21913,7 +21982,7 @@ export default function CreatePage() {
                                 onClick={handleCheckmarkSaveClick}
                                 disabled={isSavingNote}
                                 aria-label={isSavingNote ? t('common.completing') : t('common.complete')}
-                                className="relative overflow-hidden w-11 h-11 md:w-[54px] md:h-[54px] shrink-0 flex items-center justify-center rounded-full border border-stone-200/60 bg-white shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer select-none active:scale-95 pointer-events-auto"
+                                className={`${btn.icon('bare')} pointer-events-auto relative h-11 w-11 overflow-hidden border border-stone-200/60 bg-white shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] md:h-[54px] md:w-[54px] cursor-pointer`}
                                 style={{
                                     // Inline rather than Tailwind classes: conditional utilities
                                     // built into a template string aren't always generated by JIT.
@@ -21945,10 +22014,10 @@ export default function CreatePage() {
                                 <button
                                     onClick={handleUndo}
                                     disabled={undoStack.length === 0 || isCanvasLocked}
-                                    className={`p-1.5 md:p-2 rounded-full transition-all duration-150 flex items-center justify-center select-none ${
+                                    className={`${btn.plain('bare')} p-1.5 transition-all duration-150 md:p-2 ${
                                         undoStack.length === 0 || isCanvasLocked
                                             ? 'text-stone-300 opacity-40 pointer-events-none'
-                                            : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100 cursor-pointer active:scale-90'
+                                            : 'text-stone-600 hover:bg-stone-200/60 hover:text-stone-900 cursor-pointer'
                                     }`}
                                     aria-label="Undo last change"
                                 >
@@ -21959,10 +22028,10 @@ export default function CreatePage() {
                                 <button
                                     onClick={handleRedo}
                                     disabled={redoStack.length === 0 || isCanvasLocked}
-                                    className={`p-1.5 md:p-2 rounded-full transition-all duration-150 flex items-center justify-center select-none ${
+                                    className={`${btn.plain('bare')} p-1.5 transition-all duration-150 md:p-2 ${
                                         redoStack.length === 0 || isCanvasLocked
                                             ? 'text-stone-300 opacity-40 pointer-events-none'
-                                            : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100 cursor-pointer active:scale-90'
+                                            : 'text-stone-600 hover:bg-stone-200/60 hover:text-stone-900 cursor-pointer'
                                     }`}
                                     aria-label="Redo next change"
                                 >
@@ -22019,12 +22088,12 @@ export default function CreatePage() {
                                 data-tour="create-record"
                                 hidden={isCanvasPreview && !isRecording}
                                 disabled={isCanvasLocked && !isRecording}
-                                className={`h-[54px] px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 border whitespace-nowrap ${
+                                className={`${btn.plain('bare')} h-[54px] gap-2.5 whitespace-nowrap border px-5 transition-all duration-200 ${
                                     isCanvasLocked && !isRecording
                                         ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
                                         : isRecording
-                                            ? 'recording-gradient border-transparent shadow-[0_6px_20px_rgba(211,47,47,0.28)] cursor-pointer active:scale-95'
-                                            : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer active:scale-95'
+                                            ? 'recording-gradient border-transparent shadow-[0_6px_20px_rgba(211,47,47,0.28)] cursor-pointer'
+                                            : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer'
                                 }`}
                             >
                                 {isRecording ? (
@@ -22063,12 +22132,10 @@ export default function CreatePage() {
                                 onClick={handleToolsToggle}
                                 data-tour="create-tools"
                                 disabled={isCanvasLocked}
-                                className={`w-[54px] h-[54px] flex items-center justify-center rounded-full transition-all duration-200 active:scale-95 border ${
+                                className={`${btn.plain('bare')} h-[54px] w-[54px] border transition-all duration-200 ${
                                     isCanvasLocked
                                         ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
-                                        : showToolsPanel && activeToolTab !== 'inspiration'
-                                            ? 'bg-[#F2F2F2] border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer'
-                                            : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer'
+                                        : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer'
                                 }`}
                                 aria-label="Creative Tools"
                                 type="button"
@@ -22089,10 +22156,10 @@ export default function CreatePage() {
                                     setActiveToolTab('studio');
                                 }}
                                 data-tour="create-studio"
-                                className={`h-[54px] px-3.5 lg:px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 cursor-pointer active:scale-95 border ${
+                                className={`${btn.plain('bare')} h-[54px] gap-2.5 border px-3.5 transition-all duration-200 lg:px-5 cursor-pointer ${
                                     showToolsPanel && (activeToolTab as string) === 'studio'
-                                        ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)]'
-                                        : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]'
+                                        ? 'bg-white border-stone-300/70 shadow-[0px_3px_12px_rgba(0,0,0,0.08)]'
+                                        : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3px_12px_rgba(0,0,0,0.07)]'
                                 }`}
                                 aria-label="Demo Studio"
                                 type="button"
@@ -22111,12 +22178,10 @@ export default function CreatePage() {
                                 onClick={handleInspirationToggle}
                                 data-tour="create-inspirations"
                                 disabled={isCanvasLocked}
-                                className={`h-[54px] px-3.5 lg:px-5 flex items-center gap-2.5 rounded-full transition-all duration-200 active:scale-95 border ${
+                                className={`${btn.plain('bare')} h-[54px] gap-2.5 border px-3.5 transition-all duration-200 lg:px-5 ${
                                     isCanvasLocked
                                         ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
-                                        : showToolsPanel && activeToolTab === 'inspiration'
-                                            ? 'bg-white border-stone-200/80 shadow-[0px_3.6px_18px_rgba(0,0,0,0.05)] cursor-pointer'
-                                            : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer'
+                                        : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3px_12px_rgba(0,0,0,0.07)] cursor-pointer'
                                 }`}
                                 aria-label="Inspirations"
                                 type="button"
@@ -22260,10 +22325,8 @@ export default function CreatePage() {
                                 key={value}
                                 type="button"
                                 onClick={() => setProjectScopeFilter(value)}
-                                className={`h-[44px] flex-1 md:flex-none px-2 sm:px-4 md:px-6 rounded-full text-[14px] md:text-[15px] font-medium whitespace-nowrap transition-all cursor-pointer ${
-                                    projectScopeFilter === value
-                                        ? 'bg-white text-stone-800 shadow-2xs'
-                                        : 'text-stone-500 hover:text-stone-800'
+                                className={`${btn.segment(projectScopeFilter === value, 'bare')} h-[44px] flex-1 whitespace-nowrap px-2 text-[14px] font-medium sm:px-4 md:flex-none md:px-6 md:text-[15px] cursor-pointer ${
+                                    projectScopeFilter === value ? 'bg-white shadow-2xs' : ''
                                 }`}
                             >
                                 {label}
@@ -22298,7 +22361,7 @@ export default function CreatePage() {
                                     type="button"
                                     onClick={() => setSearchQuery('')}
                                     aria-label={t('common.clear') || 'Clear'}
-                                    className="w-8 h-8 -mr-2 shrink-0 flex items-center justify-center rounded-full text-stone-400 active:bg-stone-100"
+                                    className={`${btn.iconGhost('bare')} -mr-2 h-8 w-8`}
                                 >
                                     <X size={16} className="stroke-[2.2]" />
                                 </button>
@@ -22318,7 +22381,7 @@ export default function CreatePage() {
                             // was a second "Search projects..." bar sitting directly above
                             // the real one — two identical rows, only one of them typable.
                             // Desktop only now — the phone has the real field above.
-                            className={`hidden md:flex h-[48px] items-center justify-center gap-2 border rounded-[16px] transition-all cursor-pointer select-none active:scale-95 flex-none w-[48px] ${
+                            className={`${btn.plain('bare')} hidden h-[48px] w-[48px] flex-none gap-2 border transition-all md:inline-flex cursor-pointer ${
                                 isProjectSearchOpen || searchQuery.trim() !== ''
                                     ? 'bg-white border-stone-400/80 text-stone-800'
                                     : 'bg-stone-100/70 hover:bg-stone-200/60 border-stone-200/60 text-stone-600 hover:text-stone-900'
@@ -22346,7 +22409,7 @@ export default function CreatePage() {
                                 setIsWorkspaceMenuOpen(prev => !prev);
                             }}
                             aria-label={t('workspace.more_actions')}
-                            className={`w-[48px] h-[48px] shrink-0 flex items-center justify-center border rounded-[16px] transition-all cursor-pointer select-none active:scale-95 ${
+                            className={`${btn.plain('bare')} h-[48px] w-[48px] shrink-0 border transition-all cursor-pointer ${
                                 isWorkspaceMenuOpen
                                     ? 'bg-white border-stone-400/80 text-stone-800'
                                     : 'bg-stone-100/70 hover:bg-stone-200/60 border-stone-200/60 text-stone-600 hover:text-stone-900'
@@ -22388,7 +22451,7 @@ export default function CreatePage() {
                                     <button
                                         type="button"
                                         onClick={() => { setIsWorkspaceMenuOpen(false); handleCreateFolder(); }}
-                                        className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer flex items-center gap-2.5"
+                                        className={`${btn.menuItem()} gap-2.5 text-[13px] cursor-pointer`}
                                     >
                                         <span className="w-3.5 shrink-0" />
                                         <Plus size={14} className="stroke-[2.4] shrink-0" />
@@ -22399,7 +22462,7 @@ export default function CreatePage() {
                                             <button
                                                 type="button"
                                                 onClick={() => { setIsWorkspaceMenuOpen(false); handleRenameFolder(openFolder.id); }}
-                                                className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer flex items-center gap-2.5"
+                                                className={`${btn.menuItem()} gap-2.5 text-[13px] cursor-pointer`}
                                             >
                                                 <span className="w-3.5 shrink-0" />
                                                 <Pencil size={13} className="shrink-0" />
@@ -22408,7 +22471,7 @@ export default function CreatePage() {
                                             <button
                                                 type="button"
                                                 onClick={() => { setIsWorkspaceMenuOpen(false); handleDeleteFolder(openFolder.id); }}
-                                                className="w-full text-left px-4 py-2.5 text-[13px] font-sans text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer flex items-center gap-2.5"
+                                                className={`${btn.menuItem('danger')} gap-2.5 text-[13px] cursor-pointer`}
                                             >
                                                 <span className="w-3.5 shrink-0" />
                                                 <Trash2 size={13} className="shrink-0" />
@@ -22433,8 +22496,8 @@ export default function CreatePage() {
                                             key={opt}
                                             type="button"
                                             onClick={() => setProjectSortOption(opt)}
-                                            className={`w-full text-left px-4 py-2.5 text-[13px] font-sans transition-colors cursor-pointer flex items-center gap-2.5 ${
-                                                projectSortOption === opt ? 'text-stone-900 font-semibold' : 'text-stone-600 hover:bg-stone-50'
+                                            className={`${btn.menuItem()} gap-2.5 text-[13px] cursor-pointer ${
+                                                projectSortOption === opt ? 'text-stone-900 font-semibold' : ''
                                             }`}
                                         >
                                             {/* The tick keeps its space when absent, so the labels
@@ -22459,8 +22522,8 @@ export default function CreatePage() {
                                             key={style}
                                             type="button"
                                             onClick={() => setProjectViewStyle(style)}
-                                            className={`w-full text-left px-4 py-2.5 text-[13px] font-sans transition-colors cursor-pointer flex items-center gap-2.5 ${
-                                                projectViewStyle === style ? 'text-stone-900 font-semibold' : 'text-stone-600 hover:bg-stone-50'
+                                            className={`${btn.menuItem()} gap-2.5 text-[13px] cursor-pointer ${
+                                                projectViewStyle === style ? 'text-stone-900 font-semibold' : ''
                                             }`}
                                         >
                                             <span className="w-3.5 shrink-0 flex items-center justify-center">
@@ -22501,7 +22564,7 @@ export default function CreatePage() {
                             type="button"
                             onClick={closeProjectSearch}
                             aria-label={t('common.cancel') || 'Close'}
-                            className="w-8 h-8 -mr-1 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer shrink-0"
+                            className={`${btn.iconGhost('bare')} -mr-1 h-8 w-8 cursor-pointer`}
                         >
                             <X size={15} strokeWidth={2.4} />
                         </button>
@@ -22520,7 +22583,7 @@ export default function CreatePage() {
                             onDragOver={(e) => { e.preventDefault(); setDragOverFolderId('__root__'); }}
                             onDragLeave={() => setDragOverFolderId(null)}
                             onDrop={(e) => { handleDropOnRoot(e); setDragOverFolderId(null); }}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 -ml-2.5 rounded-[10px] transition-all cursor-pointer ${
+                            className={`${btn.plain('bare')} -ml-2.5 gap-1.5 px-2.5 py-1.5 transition-all cursor-pointer ${
                                 dragOverFolderId === '__root__'
                                     ? 'bg-stone-800 text-white'
                                     : 'text-stone-400 hover:text-stone-700 hover:bg-stone-200/40'
@@ -22649,7 +22712,7 @@ export default function CreatePage() {
                                                     <button
                                                         type="button"
                                                         onClick={() => handleResolveComment(c.id)}
-                                                        className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 cursor-pointer"
+                                                        className={`${btn.plain('bare')} text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 cursor-pointer`}
                                                     >
                                                         Resolve
                                                     </button>
@@ -22657,7 +22720,7 @@ export default function CreatePage() {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleDeleteComment(c.id)}
-                                                            className="text-[11px] font-semibold text-stone-400 hover:text-red-500 cursor-pointer"
+                                                            className={`${btn.plain('bare')} text-[11px] font-semibold text-stone-400 hover:text-red-500 cursor-pointer`}
                                                         >
                                                             Delete
                                                         </button>
@@ -22692,7 +22755,7 @@ export default function CreatePage() {
                                             disabled={!commentDraft.trim() || isPostingComment}
                                             onClick={() => handlePostComment(isProjectThread ? null : openCommentThread)}
                                             aria-label="Send comment"
-                                            className="absolute right-1.5 w-8 h-8 rounded-full bg-[#87b884] hover:bg-[#7cb378] text-[#1c331a] flex items-center justify-center transition-all cursor-pointer active:scale-90 disabled:opacity-30 disabled:pointer-events-none"
+                                            className={`${btn.iconPrimary('bare')} absolute right-1.5 h-8 w-8 cursor-pointer disabled:opacity-30`}
                                         >
                                             {isPostingComment
                                                 ? <Loader2 size={14} className="animate-spin" />
@@ -22801,14 +22864,14 @@ export default function CreatePage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => handleAcceptInvite(invite)}
-                                                    className="px-4 h-9 bg-[#86BE7F] hover:bg-[#78B673] text-stone-900 text-[13px] font-semibold rounded-full transition-colors cursor-pointer active:scale-[0.98]"
+                                                    className={`${btn.primary('bare')} h-9 px-4 text-[13px] cursor-pointer`}
                                                 >
                                                     {t('collab.accept')}
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => handleDeclineInvite(invite)}
-                                                    className="px-4 h-9 text-stone-500 hover:text-stone-800 text-[13px] font-semibold rounded-full transition-colors cursor-pointer"
+                                                    className={`${btn.ghost('bare')} h-9 px-4 text-[13px] font-semibold cursor-pointer`}
                                                 >
                                                     {t('collab.decline')}
                                                 </button>
@@ -22846,7 +22909,7 @@ export default function CreatePage() {
                                         type="button"
                                         onClick={queueCurrentInvite}
                                         disabled={isInviting || (!invitePick && !isEmailAddress(inviteEmail))}
-                                        className="h-[50px] px-5 shrink-0 rounded-full bg-white border border-stone-300 text-stone-700 text-[15px] font-semibold hover:border-stone-400 hover:text-stone-900 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                                        className={`${btn.secondary('bare')} h-[50px] shrink-0 px-5 text-[15px] font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
                                     >
                                         {t('collab.add_another')}
                                     </button>
@@ -22868,7 +22931,7 @@ export default function CreatePage() {
                                                     onClick={() => setInviteQueue(prev => prev.filter(q => q.key !== person.key))}
                                                     aria-label={`${t('publish.remove_credit')} ${person.label}`}
                                                     disabled={isInviting}
-                                                    className="w-6 h-6 rounded-full hover:bg-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-700 transition-all active:scale-90 shrink-0 cursor-pointer disabled:opacity-40"
+                                                    className={`${btn.iconGhost('bare')} h-6 w-6 cursor-pointer disabled:opacity-40`}
                                                 >
                                                     <X size={13} className="stroke-[2.5]" />
                                                 </button>
@@ -22877,6 +22940,51 @@ export default function CreatePage() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Everyone else writing on Veinote. A horizontal row rather
+                                than a list: it is a browse-and-pick aside to the field above,
+                                not the main way in, so it takes one line and scrolls. */}
+                            {(songwritersLoading || availableSongwriters.length > 0) && (
+                                <div className="flex flex-col gap-2.5">
+                                    <h4 className="text-[13px] font-semibold text-stone-500">{t('collab.songwriters_here')}</h4>
+                                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+                                        {songwritersLoading && availableSongwriters.length === 0
+                                            ? [0, 1, 2, 3].map(i => (
+                                                <div key={i} className="flex items-center gap-2 bg-white border border-stone-200/70 rounded-full py-1.5 pl-1.5 pr-4 shrink-0 animate-pulse">
+                                                    <span className="w-8 h-8 rounded-full bg-stone-200" />
+                                                    <span className="h-3 w-20 rounded bg-stone-200" />
+                                                </div>
+                                            ))
+                                            : availableSongwriters.map(person => (
+                                                <button
+                                                    key={person.uid}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        // Straight onto the list, so several can be
+                                                        // picked in a row before anything is sent.
+                                                        const key = `uid:${person.uid}`;
+                                                        setInviteQueue(prev => prev.some(q => q.key === key)
+                                                            ? prev
+                                                            : [...prev, { key, uid: person.uid, label: person.name }]);
+                                                        setInviteStatus({ type: '', message: '' });
+                                                    }}
+                                                    disabled={isInviting}
+                                                    title={person.name}
+                                                    className={`${btn.secondary('bare')} max-w-[190px] shrink-0 gap-2 py-1.5 pl-1.5 pr-4 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
+                                                >
+                                                    <span
+                                                        className="w-8 h-8 rounded-full flex items-center justify-center text-[13.5px] font-medium text-stone-900 capitalize shrink-0"
+                                                        style={{ backgroundColor: getMemberColorToken(person.uid) }}
+                                                    >
+                                                        {getFirstInitial(person.name)}
+                                                    </span>
+                                                    <span className="text-[14px] font-medium text-stone-800 truncate">{person.name}</span>
+                                                    <Plus size={14} className="stroke-[2.5] text-stone-400 shrink-0" />
+                                                </button>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Status Message */}
                             {inviteStatus.message && (
@@ -22921,7 +23029,7 @@ export default function CreatePage() {
                                                     setInviteLinkCopied(false);
                                                 }
                                             }}
-                                            className="h-11 px-5 shrink-0 rounded-full bg-stone-900 hover:bg-stone-800 text-white text-[13.5px] font-semibold transition-colors cursor-pointer active:scale-[0.98] flex items-center gap-1.5"
+                                            className={`${btn.primary('bare')} h-11 shrink-0 gap-1.5 px-5 text-[13.5px] cursor-pointer`}
                                         >
                                             {inviteLinkCopied
                                                 ? <><Check size={14} className="stroke-[3]" />{t('collab.link_copied')}</>
@@ -22945,7 +23053,7 @@ export default function CreatePage() {
                                         setInviteQueue([]);
                                         setInviteLink(null);
                                     }}
-                                    className="h-[54px] px-4 rounded-full text-[16px] font-medium text-stone-500 hover:text-stone-800 transition-colors cursor-pointer shrink-0"
+                                    className={`${btn.ghost('bare')} h-[54px] shrink-0 px-4 text-[16px] font-medium cursor-pointer`}
                                 >
                                     {t('common.close')}
                                 </button>
@@ -22958,7 +23066,7 @@ export default function CreatePage() {
                                         <button
                                             type="submit"
                                             disabled={isInviting || total === 0}
-                                            className="flex-1 h-[54px] rounded-full text-[17px] font-semibold bg-[#86BE7F] text-stone-900 hover:bg-[#78B673] shadow-sm transition-all cursor-pointer active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
+                                            className={`${btn.primary('bare')} h-[54px] flex-1 px-6 text-[17px] cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed`}
                                         >
                                             {isInviting
                                                 ? t('collab.inviting')
@@ -22994,7 +23102,7 @@ export default function CreatePage() {
                         <div className="flex items-center justify-center gap-4 mt-2">
                             <button
                                 onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
-                                className="px-6 py-2.5 bg-stone-100 hover:bg-stone-200/70 text-stone-600 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
+                                className={`${btn.secondary('sm')} cursor-pointer`}
                             >
                                 {confirmDialog.cancelLabel || t('common.cancel')}
                             </button>
@@ -23003,9 +23111,7 @@ export default function CreatePage() {
                                     confirmDialog.onConfirm?.();
                                     setConfirmDialog(prev => ({ ...prev, isOpen: false }));
                                 }}
-                                className={`px-6 py-2.5 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95 text-white ${
-                                    confirmDialog.destructive ? 'bg-red-500 hover:bg-red-600' : 'bg-stone-800 hover:bg-stone-900'
-                                }`}
+                                className={confirmDialog.destructive ? `${btn.danger('sm')} cursor-pointer` : `${btn.primary('sm')} cursor-pointer`}
                             >
                                 {confirmDialog.confirmLabel || t('common.confirm')}
                             </button>
@@ -23045,7 +23151,7 @@ export default function CreatePage() {
                         <div className="flex items-center justify-center gap-4 mt-2">
                             <button
                                 onClick={() => setPromptDialog(prev => ({ ...prev, isOpen: false }))}
-                                className="px-6 py-2.5 bg-stone-100 hover:bg-stone-200/70 text-stone-600 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
+                                className={`${btn.secondary('sm')} cursor-pointer`}
                             >
                                 {t('common.cancel')}
                             </button>
@@ -23055,7 +23161,7 @@ export default function CreatePage() {
                                     promptDialog.onConfirm?.(promptDialog.value);
                                     setPromptDialog(prev => ({ ...prev, isOpen: false }));
                                 }}
-                                className="px-6 py-2.5 bg-stone-800 hover:bg-stone-900 disabled:bg-stone-300 disabled:cursor-not-allowed text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
+                                className={`${btn.primary('sm')} cursor-pointer disabled:cursor-not-allowed`}
                             >
                                 {promptDialog.confirmLabel || t('common.confirm')}
                             </button>
@@ -23093,7 +23199,7 @@ export default function CreatePage() {
                         <div className="flex items-center justify-center gap-4 mt-2">
                             <button
                                 onClick={() => setConfirmCloseCollab({ isOpen: false, type: null })}
-                                className="px-6 py-2.5 bg-stone-100 hover:bg-stone-200/70 text-stone-600 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
+                                className={`${btn.secondary('sm')} cursor-pointer`}
                             >
                                 {t('common.cancel')}
                             </button>
@@ -23111,7 +23217,7 @@ export default function CreatePage() {
                                         await handleCloseCollaboration(confirmCloseCollab.projectId);
                                     }
                                 }}
-                                className="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95"
+                                className={`${btn.danger('sm')} cursor-pointer`}
                             >
                                 {confirmCloseCollab.type === 'remove_collaborator'
                                     ? 'Remove'
@@ -23146,13 +23252,13 @@ export default function CreatePage() {
                                         confirmOverwriteStudioRecord.onConfirm();
                                     }
                                 }}
-                                className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95 text-center"
+                                className={`${btn.danger('sm')} w-full cursor-pointer`}
                             >
                                 {t('studio.record_again')}
                             </button>
                             <button
                                 onClick={() => setConfirmOverwriteStudioRecord({ isOpen: false, trackName: '', onConfirm: null })}
-                                className="w-full py-3 bg-stone-100 hover:bg-stone-200/70 text-stone-600 rounded-full text-[14px] font-sans font-semibold transition-colors cursor-pointer outline-none active:scale-95 text-center"
+                                className={`${btn.secondary('sm')} w-full cursor-pointer`}
                             >
                                 {t('common.cancel')}
                             </button>
@@ -23253,7 +23359,7 @@ export default function CreatePage() {
                                      <button 
                                          type="button"
                                          onClick={handleDetectLocation}
-                                         className="h-[40px] px-4 bg-stone-900/10 hover:bg-stone-900/15 active:bg-stone-900/25 text-stone-700 hover:text-stone-800 rounded-xl transition-all flex items-center justify-center font-sans font-medium text-[13px] border border-stone-400/20 cursor-pointer select-none"
+                                         className={`${btn.secondary('bare')} h-[40px] px-4 text-[13px] font-medium cursor-pointer`}
                                      >
                                          Locate Me
                                      </button>
@@ -23265,13 +23371,13 @@ export default function CreatePage() {
                          <div className="flex justify-end items-center gap-3 pt-3 border-t border-stone-400/10">
                              <button
                                  onClick={() => setShowDetailsModal(false)}
-                                 className="px-5 py-2.5 rounded-full text-stone-600 hover:text-stone-800 text-[14px] font-sans font-semibold hover:bg-stone-900/5 transition-all cursor-pointer"
+                                 className={`${btn.ghost('sm')} cursor-pointer`}
                              >
                                  Cancel
                              </button>
                              <button
                                  onClick={handleSaveDetails}
-                                 className="bg-[#87b884] hover:bg-[#7cb378] active:bg-[#6fa06b] text-[#1c331a] font-sans font-semibold text-[14px] px-8 py-2.5 rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-md hover:shadow-lg shadow-[#87b884]/20"
+                                 className={`${btn.primary('bare')} px-8 py-2.5 text-[14px] cursor-pointer`}
                              >
                                  Save Changes
                              </button>
@@ -23288,7 +23394,7 @@ export default function CreatePage() {
                  >
                      <button 
                          onClick={() => setPreviewImageUrl(null)}
-                         className="absolute top-6 right-6 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all cursor-pointer border-none outline-none"
+                         className={`${btn.plain('bare')} absolute right-6 top-6 bg-white/10 p-2 text-white/70 transition-all hover:bg-white/20 hover:text-white focus-visible:outline-white cursor-pointer`}
                          type="button"
                      >
                          <X size={20} className="stroke-[2.5]" />
@@ -23316,7 +23422,7 @@ export default function CreatePage() {
                         {/* Close button X */}
                         <button
                             onClick={() => setIsStudioInfoOpen(false)}
-                            className="absolute top-6 right-6 text-stone-400 hover:text-stone-600 p-1.5 rounded-full hover:bg-stone-50 transition-all cursor-pointer"
+                            className={`${btn.iconGhost('bare')} absolute right-6 top-6 p-1.5 cursor-pointer`}
                             type="button"
                         >
                             <X size={18} className="stroke-[2.5]" />
@@ -23392,7 +23498,7 @@ export default function CreatePage() {
                         <div className="mt-2">
                             <button
                                 onClick={() => setIsStudioInfoOpen(false)}
-                                className="w-full py-3.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white rounded-full text-[15px] font-sans font-semibold transition-all cursor-pointer outline-none active:scale-[0.98] text-center shadow-xs"
+                                className={`${btn.primaryBlock('md')} cursor-pointer`}
                                 type="button"
                             >
                                 {t('studio_guide.close') || 'Close'}

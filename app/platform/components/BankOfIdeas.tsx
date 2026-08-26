@@ -11,6 +11,7 @@ import { Idea, IdeaCategory, LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE,
 import IdeaGlyph from './IdeaGlyph';
 import { fetchIdeas } from '@/lib/contentClient';
 import { pickLocale, type IdeaDoc } from '@/lib/content';
+import * as btn from './buttonStyles';
 
 const CATEGORIES: { id: 'all' | IdeaCategory; labelKey: string }[] = [
     { id: 'all', labelKey: 'learn.ideas_tab_all' },
@@ -203,7 +204,11 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         the artwork reads as part of it. A full-height square on the
                         card's left, so the drawing spans top to bottom instead of
                         floating small in a fixed-width strip. */}
-                    <div className="w-full sm:w-auto sm:aspect-square shrink-0 h-48 sm:h-full flex items-center justify-center">
+                    {/* Capped rather than simply full-height: the square took its
+                        width from the card's height, so on a tall card it grew huge
+                        and squeezed the copy into a narrow column that then ran off
+                        the bottom. */}
+                    <div className="w-full sm:w-auto sm:aspect-square shrink-0 h-48 sm:h-full sm:max-h-[300px] lg:max-h-[380px] flex items-center justify-center">
                         <IdeaGlyph
                             seed={idea.id}
                             className="w-full h-full text-stone-500 opacity-70"
@@ -218,7 +223,10 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         pointer sequence mid-gesture. overflow-visible below md: the
                         phone drags the card rather than this column, so a scroller here
                         would only hide the end of an idea with no way to reach it. */}
-                    <div data-notes-scroller className="flex-1 flex flex-col gap-4 min-w-0 select-none overflow-visible md:overflow-y-auto no-scrollbar">
+                    {/* tip-notes-fade: a short mask at the bottom edge, so a tip
+                        that does still overflow reads as continuing rather than as
+                        a line sliced in half. */}
+                    <div data-notes-scroller className="tip-notes-fade flex-1 flex flex-col gap-4 min-w-0 select-none overflow-visible md:overflow-y-auto no-scrollbar md:pb-1">
                         <h3 className="text-2xl md:text-3xl font-sans font-normal text-stone-800">
                             {idea.title}
                         </h3>
@@ -254,13 +262,17 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         aria-pressed={liked}
                         aria-label={t('learn.ideas_like')}
                         title={t('learn.ideas_like')}
-                        /* Liked drops the outline. border-transparent rather than
-                           border-0: the 1px stays in the box model, so the button
-                           keeps its size and the row beside it does not shift. */
-                        className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95 ${
+                        /* `plain`, not `iconGhost`. iconGhost bakes in text-stone-500,
+                           and a `text-red-*` added next to it is a second colour
+                           utility of equal specificity — the winner is then whichever
+                           Tailwind happened to emit last, which here is stone (rule
+                           1534 vs red's 1523). That is why a liked heart stayed grey.
+                           `plain` carries no colour at all, so each state names its
+                           own and there is nothing to resolve. */
+                        className={`${btn.plain('bare')} shrink-0 h-11 w-11 cursor-pointer transition-colors duration-300 ${
                             liked
-                                ? 'border-transparent bg-red-50 text-red-500'
-                                : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
+                                ? 'bg-[#D45C5C]/10 text-[#D45C5C] hover:bg-[#D45C5C]/15'
+                                : 'text-stone-500 hover:bg-stone-900/5 hover:text-stone-900'
                         }`}
                     >
                         <Heart
@@ -282,10 +294,10 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                            then does the fill settle to green — see
                            .mind-power-fill-after-ring. Applied while checked only, so
                            unticking reverts at once instead of hanging. */
-                        className={`relative w-10 h-10 rounded-full border flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95 ${
+                        className={`${btn.iconGhost('md')} relative cursor-pointer ${
                             checked
-                                ? 'bg-[#87b884] border-[#87b884] text-white shadow-sm mind-power-fill-after-ring'
-                                : 'border-stone-200 text-stone-400 hover:text-stone-700 hover:border-stone-300'
+                                ? 'mind-power-fill-after-ring bg-[#86BE7F] text-stone-900 hover:bg-[#86BE7F] hover:text-stone-900'
+                                : ''
                         }`}
                     >
                         {showCheckGlow && (
@@ -304,7 +316,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         // Takes the rest of the row on a phone: it is the card's actual
                         // outcome, and at its desktop width it sat as the smallest of
                         // three controls next to two icon circles.
-                        className="flex-1 min-w-0 h-12 md:flex-none md:h-auto md:px-5 md:py-2.5 text-[16px] md:text-sm px-5 rounded-full bg-stone-100 hover:bg-stone-200/80 text-stone-700 font-sans font-medium transition-colors cursor-pointer active:scale-95"
+                        className={`${btn.secondary('touch')} min-w-0 flex-1 md:flex-none cursor-pointer`}
                     >
                         {t('learn.ideas_send_to_canvas')}
                     </button>
@@ -342,7 +354,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
             <div className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-stone-200/80">
                 <button
                     onClick={onBackToLanding}
-                    className="justify-self-start text-stone-400 hover:text-stone-700 transition-colors cursor-pointer"
+                    className={`${btn.iconGhost('sm')} justify-self-start cursor-pointer`}
                     aria-label={t('learn.back_to_overview')}
                     title={t('learn.back_to_overview')}
                 >
@@ -385,9 +397,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         aria-expanded={isSearchOpen}
                         aria-label={t('learn.ideas_search')}
                         title={t('learn.ideas_search')}
-                        className={`transition-colors cursor-pointer ${
-                            isSearchOpen ? 'text-stone-800' : 'text-stone-400 hover:text-stone-700'
-                        }`}
+                        className={`${btn.iconGhost('sm')} cursor-pointer ${isSearchOpen ? 'text-stone-900 bg-stone-900/5' : ''}`}
                     >
                         <Search size={19} strokeWidth={2} />
                     </button>
@@ -396,8 +406,12 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                         aria-pressed={showOnlyFavorites}
                         aria-label={t('learn.ideas_favorites')}
                         title={t('learn.ideas_favorites')}
-                        className={`transition-colors cursor-pointer ${
-                            showOnlyFavorites ? 'text-red-500' : 'text-stone-400 hover:text-stone-700'
+                        /* Same reason as the card's heart below: a colour that says
+                           state cannot sit next to iconGhost's role colour. */
+                        className={`${btn.plain('bare')} shrink-0 h-9 w-9 cursor-pointer transition-colors ${
+                            showOnlyFavorites
+                                ? 'text-[#D45C5C] hover:text-[#D45C5C]'
+                                : 'text-stone-500 hover:bg-stone-900/5 hover:text-stone-900'
                         }`}
                     >
                         <Heart size={19} strokeWidth={2} fill={showOnlyFavorites ? 'currentColor' : 'none'} />
@@ -424,7 +438,21 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                 />
             )}
 
-            {visibleIdeas.length === 0 ? (
+            {cmsIdeas === null ? (
+                /* Hold the deck until the authored tips have answered.
+                   Rendering the bundled fallback first and swapping to the CMS
+                   list on arrival rebuilt `allIdeas` underneath the deck, so the
+                   card at index 0 became a different tip and the deck appeared to
+                   change on its own a beat after opening. */
+                <div className="flex-1 min-h-0 flex flex-col gap-4 animate-pulse">
+                    <div className="flex-1 min-h-0 rounded-[20px] bg-stone-300/20 border border-stone-200/60" />
+                    <div className="shrink-0 h-10 flex items-center justify-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-stone-300/20" />
+                        <div className="w-16 h-4 rounded-full bg-stone-300/20" />
+                        <div className="w-10 h-10 rounded-full bg-stone-300/20" />
+                    </div>
+                </div>
+            ) : visibleIdeas.length === 0 ? (
                 <div className="w-full flex items-center justify-center py-24 text-sm text-stone-500">
                     {t('learn.ideas_empty')}
                 </div>
@@ -609,7 +637,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                             disabled={!hasPrev}
                             aria-label={t('learn.back')}
                             title={t('learn.back')}
-                            className="w-11 h-11 rounded-full bg-white border border-stone-200 hover:border-stone-400 text-stone-600 hover:text-stone-900 shadow-sm flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-stone-200 cursor-pointer active:scale-95"
+                            className={`${btn.icon('md')} cursor-pointer disabled:cursor-not-allowed`}
                         >
                             <ArrowUp size={18} strokeWidth={2} />
                         </button>
@@ -621,7 +649,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                             disabled={!hasNext}
                             aria-label={t('learn.next')}
                             title={t('learn.next')}
-                            className="w-11 h-11 rounded-full bg-white border border-stone-200 hover:border-stone-400 text-stone-600 hover:text-stone-900 shadow-sm flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-stone-200 cursor-pointer active:scale-95"
+                            className={`${btn.icon('md')} cursor-pointer disabled:cursor-not-allowed`}
                         >
                             <ArrowDown size={18} strokeWidth={2} />
                         </button>

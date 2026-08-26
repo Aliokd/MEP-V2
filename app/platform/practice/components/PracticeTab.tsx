@@ -11,11 +11,15 @@ import SongPill from './SongPill';
 import { usePracticeLibrary } from '../lib/library';
 import StructurePlayer from './StructurePlayer';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
-import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight, PenLine, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight, RotateCcw, Loader2 } from 'lucide-react';
+import Confetti from '@/app/onboarding/components/Confetti';
+import * as btn from '@/app/platform/components/buttonStyles';
 import { SECTION_TEXT, TAG_BG, WRONG_TEXT } from '../data/sections';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import { createCanvasFromLines } from '@/lib/createCanvasFromLines';
+import { useNudge } from '../lib/useNudge';
+import NudgeMessage from './NudgeMessage';
 import { motion, AnimatePresence } from 'framer-motion';
 
 /** Starting points for Composing verses. */
@@ -26,6 +30,74 @@ const THEMES = [
 
 /** The two columns of the linking step, left to right. */
 const NOUN_VERB_SIDES = ['n', 'v'] as const;
+
+/*
+ * One type scale across the whole practice, so a card means the same thing on
+ * every step. A single word is set larger than a whole line — a line is four or
+ * five times as long and would wrap at the word size. Both came down 20%
+ * together: shrinking only the word cards would have left the sentence cards
+ * of step 5 set larger than them and inverted the rule.
+ */
+const WORD_SIZE = 'text-[1.4rem]';
+const LINE_SIZE = 'text-[1.2rem]';
+/**
+ * The step's instruction. Grows on a wide screen, where the row of cards below
+ * it is wide enough that an 18px line reads as a caption rather than the thing
+ * being asked. Stone-700 rather than -900: it is a prompt, not the content.
+ */
+const ASK_SIZE = 'text-lg lg:text-[1.575rem]';
+
+/*
+ * The footer's controls. Every one of them — the back circle, the quiet option
+ * and the primary — is built from `bare` plus these, so they come out the same
+ * height and the same weight. Taking them from different named sizes is what
+ * left the last step with a 56px secondary beside a 60px primary.
+ */
+const ACTION_H = 'h-14';
+const ACTION_SIZE = `${ACTION_H} gap-2.5 px-8 text-base font-semibold`;
+
+/*
+ * The last step's burst lands on two grounds at once — over the green button and
+ * out onto the beige panel — so every colour has to read against both. That
+ * rules out the default palette's #86BE7F, which disappears into the button, and
+ * equally rules out white, which would disappear into the panel. Dark greens and
+ * a charcoal are what is left, and they hold on either.
+ */
+const BURST_ON_GREEN = ['#363636', '#3F6B3A', '#5F9857'] as const;
+/** Every card that holds one word or one line stands this tall. */
+const ROW_H = 80;
+/** The gap between them, matching Tailwind's gap-3. */
+const ROW_GAP = 12;
+
+/**
+ * Vertical centre of row `i` in a five-row column, as a percentage of the
+ * column's height — where the linking step's connectors have to land. Derived
+ * rather than tuned by eye: the two magic numbers that used to sit here were
+ * both a little off, and drifted further every time a card changed height.
+ */
+const rowCentrePct = (i: number) =>
+    (((ROW_H + ROW_GAP) * i + ROW_H / 2) / (ROW_H * 5 + ROW_GAP * 4)) * 100;
+
+/*
+ * The nudge shake, as keyframes rather than a class. Same gesture and same
+ * timing as `.animate-nudge-shake` in globals.css — a head shake, not a
+ * rejection — kept in step with it by hand because a field cannot use the class:
+ * replaying a CSS animation means remounting the element, and remounting a field
+ * loses the caret. Translate only, so it never reflows the rows around it.
+ */
+const NUDGE_SHAKE: Keyframe[] = [
+    { transform: 'translateX(0)', offset: 0 },
+    { transform: 'translateX(-6px)', offset: 0.15 },
+    { transform: 'translateX(5px)', offset: 0.30 },
+    { transform: 'translateX(-4px)', offset: 0.45 },
+    { transform: 'translateX(3px)', offset: 0.60 },
+    { transform: 'translateX(-2px)', offset: 0.75 },
+    { transform: 'translateX(0)', offset: 1 },
+];
+const NUDGE_SHAKE_TIMING: KeyframeAnimationOptions = {
+    duration: 420,
+    easing: 'cubic-bezier(0.36, 0.07, 0.19, 0.97)',
+};
 
 /**
  * Carousel slide for the practice card. Direction is +1 when moving forward
@@ -134,6 +206,13 @@ export default function PracticeTab() {
     const [sentences, setSentences] = useState<string[]>(Array(5).fill(''));
     // 'sending' outlives the click: the canvas route takes a moment to mount.
     const [sendState, setSendState] = useState<'idle' | 'sending' | 'failed'>('idle');
+    // Next is never disabled; pressing it early shakes it and says what to do.
+    const { count: nudgeCount, nudge, clear: clearNudge, shakeKey, shakeClass } = useNudge();
+    /*
+     * Every field of the current typing step, in order. [0] is the one the caret
+     * starts in; the empty ones are what an early Next shakes.
+     */
+    const fieldRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     const currentMeta = getPractice(selectedPractice);
 
@@ -255,6 +334,29 @@ export default function PracticeTab() {
         router.push(`/platform/create?noteId=${noteId}`);
     };
 
+    /*
+     * A step that asks for typing puts the caret in its first field, so the
+     * answer starts where the eye already is. preventScroll because the panel
+     * is taller than the viewport on a phone and focusing must not jump it.
+     */
+    useEffect(() => {
+        if (openedPractice !== 'Composing verses') return;
+        if (currentStep !== 2 && currentStep !== 3 && currentStep !== 5) return;
+        const id = requestAnimationFrame(() => {
+            fieldRefs.current[0]?.focus({ preventScroll: true });
+        });
+        return () => cancelAnimationFrame(id);
+    }, [currentStep, openedPractice]);
+
+    /** What is still missing on this step, said as the thing to do next. */
+    const STEP_NUDGES: Record<number, string> = {
+        1: t('practice.nudge_theme'),
+        2: t('practice.nudge_nouns'),
+        3: t('practice.nudge_verbs'),
+        4: t('practice.nudge_links'),
+        5: t('practice.nudge_lines'),
+    };
+
     const isStepComplete = (step: number) => {
         if (step === 1) return selectedTheme !== null;
         if (step === 2) return nouns.every(n => n.trim() !== '');
@@ -262,6 +364,57 @@ export default function PracticeTab() {
         if (step === 4) return connections.length === 5;
         if (step === 5) return sentences.filter(s => s && s.trim() !== '').length === connections.length;
         return true;
+    };
+
+    /*
+     * A nudge belongs to the step that earned it, and only for as long as it is
+     * still true. It goes on the way into a step, and the moment the step is
+     * satisfied — a prompt left standing over work already done is nagging.
+     */
+    const stepSatisfied = isStepComplete(currentStep);
+    useEffect(() => { clearNudge(); }, [currentStep, stepSatisfied, clearNudge]);
+
+    /**
+     * The same head shake the button does, on the fields that are still empty.
+     *
+     * Driven through the Web Animations API rather than the CSS class the button
+     * uses: restarting that class needs the element remounted, and remounting a
+     * field takes the caret and the focus with it. `animate()` just replays.
+     */
+    const shakeEmptyFields = () => {
+        if (typeof window === 'undefined') return;
+        // The CSS class opts out through a media query; this has to ask.
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        for (const el of fieldRefs.current) {
+            if (!el || el.value.trim() !== '') continue;
+            el.animate(NUDGE_SHAKE, NUDGE_SHAKE_TIMING);
+        }
+    };
+
+    /** Pressing on. The one place that decides whether the step may be left. */
+    const goNext = () => {
+        if (!isStepComplete(currentStep)) {
+            nudge();
+            shakeEmptyFields();
+            // Land the caret in the first thing that is missing, so the answer
+            // to "which one" is somewhere to type rather than somewhere to look.
+            fieldRefs.current.find(el => el && el.value.trim() === '')
+                ?.focus({ preventScroll: true });
+            return;
+        }
+        clearNudge();
+        setCurrentStep(prev => prev + 1);
+    };
+
+    /**
+     * Enter from any field does what Next does — nothing new to learn, and no
+     * reaching for the mouse after typing the fifth word. Incomplete, it nudges
+     * exactly as the button would, so Enter never means two different things.
+     */
+    const nextOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        goNext();
     };
 
     // Close dropdown on click outside
@@ -285,7 +438,12 @@ export default function PracticeTab() {
             <div className="w-full bg-transparent pb-6 relative overflow-visible">
 
                 {/* Top Practice Selector Header — swapped for the back row once a practice is open */}
-                <div className={`items-center justify-center gap-2 md:gap-4 mb-6 relative z-30 select-none ${openedPractice ? 'hidden' : 'flex'}`}>
+                {/* One height for all three controls. The pill's is padding-and-type
+                    derived — 50px on a phone, 54 from md up — and the arrows used to
+                    carry their own sizes, which is how they ended up as 36px circles
+                    beside a 54px pill. Now every control reads the same variable, so
+                    they cannot drift apart again. */}
+                <div className={`[--ctl-h:50px] md:[--ctl-h:54px] items-center justify-center gap-2 md:gap-4 mb-6 relative z-30 select-none ${openedPractice ? 'hidden' : 'flex'}`}>
                     {/* Previous Button */}
                     <button 
                         onClick={handlePrevPractice}
@@ -293,10 +451,11 @@ export default function PracticeTab() {
                         // panel that half-transparent fill read as a faint smudge at the
                         // edge of the screen rather than a control; with the panel gone on
                         // a phone it had almost nothing to sit against at all.
-                        className="w-10 h-10 md:w-9 md:h-9 shrink-0 rounded-full border border-stone-200 bg-white shadow-[0_1.5px_4px_rgba(0,0,0,0.06)] hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-600 hover:text-stone-900"
+                        // 'bare' brings the circle's look with no size of its own.
+                        className={`${btn.icon('bare')} h-[var(--ctl-h)] w-[var(--ctl-h)]`}
                         aria-label={t('practice.previous_practice')}
                     >
-                        <ChevronLeft size={18} className="stroke-[2.2]" />
+                        <ChevronLeft size={22} className="stroke-[2.2]" />
                     </button>
  
                     {/* Active Title + Dropdown Selector */}
@@ -309,7 +468,7 @@ export default function PracticeTab() {
                             from the row now instead of guessed. Fixed width from md up. */}
                         <button
                             onClick={() => setDropdownOpen(!dropdownOpen)}
-                            className="flex items-center justify-center gap-2.5 w-full md:w-[min(76vw,430px)] bg-white hover:bg-stone-50 border border-stone-200/80 text-stone-900 font-serif text-lg md:text-2xl font-normal tracking-wide py-2.5 px-4 md:px-6 rounded-full transition-colors"
+                            className={`${btn.secondary('bare')} h-[var(--ctl-h)] w-full gap-2.5 px-4 font-serif text-lg font-normal tracking-wide text-stone-900 md:w-[min(76vw,430px)] md:px-6 md:text-2xl`}
                         >
                             <span className="truncate">{getTranslatedPracticeName(selectedPractice)}</span>
                             <ChevronDown size={16} className={`shrink-0 stroke-[2.2] transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
@@ -336,7 +495,7 @@ export default function PracticeTab() {
                                                 <button
                                                     key={p}
                                                     onClick={() => selectPractice(p)}
-                                                    className={`w-full text-left px-5 py-3 rounded-[12px] flex items-center justify-between gap-4 font-serif font-normal text-base sm:text-lg transition-colors
+                                                    className={`${btn.menuItem()} justify-between gap-4 px-5 py-3 font-serif text-base font-normal sm:text-lg
                                                         ${isSelected
                                                             ? 'bg-stone-100 text-stone-900'
                                                             : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
@@ -365,10 +524,10 @@ export default function PracticeTab() {
                         // panel that half-transparent fill read as a faint smudge at the
                         // edge of the screen rather than a control; with the panel gone on
                         // a phone it had almost nothing to sit against at all.
-                        className="w-10 h-10 md:w-9 md:h-9 shrink-0 rounded-full border border-stone-200 bg-white shadow-[0_1.5px_4px_rgba(0,0,0,0.06)] hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center text-stone-600 hover:text-stone-900"
+                        className={`${btn.icon('bare')} h-[var(--ctl-h)] w-[var(--ctl-h)]`}
                         aria-label={t('practice.next_practice')}
                     >
-                        <ChevronRight size={18} className="stroke-[2.2]" />
+                        <ChevronRight size={22} className="stroke-[2.2]" />
                     </button>
                 </div>
  
@@ -378,7 +537,7 @@ export default function PracticeTab() {
                     <div className="flex items-center gap-4 mb-8 select-none">
                         <button
                             onClick={() => setOpenedPractice(null)}
-                            className="flex items-center gap-2 text-sm font-sans text-stone-500 hover:text-stone-900 transition-colors shrink-0"
+                            className={btn.ghost('sm')}
                         >
                             <ArrowLeft size={16} className="stroke-[2]" />
                             {t('practice.back')}
@@ -489,8 +648,8 @@ export default function PracticeTab() {
                              * restating what the controls already show.
                              */}
                             <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
-                                <div className="flex items-center gap-3 min-w-0 select-none">
-                                    <p className="text-sm font-sans font-medium text-stone-900 truncate">
+                                <div className="flex items-center justify-center gap-3 min-w-0 select-none">
+                                    <p className={`${ASK_SIZE} font-sans font-semibold text-stone-700 truncate`}>
                                         {STEP_ASKS[currentStep]}
                                     </p>
                                     {selectedTheme && currentStep > 1 && (
@@ -510,7 +669,12 @@ export default function PracticeTab() {
                                             <button
                                                 key={theme}
                                                 onClick={() => { setSelectedTheme(theme); setCurrentStep(2); }}
-                                                className="verse-card h-24 rounded-[20px] flex items-center justify-center text-sm font-sans text-stone-700"
+                                                // A theme is one word, so it takes the word size
+                                                // like every other single-word card. The padding
+                                                // and tight leading keep the longer names ("Urban
+                                                // life", "Digital soul") on one line in the narrow
+                                                // two-column grid.
+                                                className={`verse-card h-24 rounded-[20px] flex items-center justify-center px-4 text-center leading-tight ${WORD_SIZE} font-sans text-stone-700`}
                                             >
                                                 {theme}
                                             </button>
@@ -518,25 +682,28 @@ export default function PracticeTab() {
                                     </div>
                                 )}
 
-                                {/* Steps 2 and 3 — five words, one on top of the other, reading
-                                    down like the verse lines they will become, on a card as
-                                    wide as every other card here. */}
+                                {/* Steps 2 and 3 — five words, each on its own card the size of
+                                    a theme card, reading down like the verse lines they will
+                                    become. The count sits outside the field: it numbers the row,
+                                    it is not something anyone types. No placeholder either — the
+                                    instruction above already said what goes here, and five
+                                    repetitions of "Enter noun..." only got in the way. */}
                                 {(currentStep === 2 || currentStep === 3) && (
-                                    <div className="verse-card is-static rounded-[20px] px-6 md:px-8 py-6 flex flex-col gap-2 animate-in fade-in duration-300">
+                                    <div className="flex flex-col gap-3 animate-in fade-in duration-300">
                                         {Array.from({ length: 5 }).map((_, i) => (
-                                            <div
-                                                key={i}
-                                                className="flex items-center gap-3 border-b border-stone-300/50 focus-within:border-stone-800 transition-colors py-2.5"
-                                            >
-                                                <span className="text-[11px] font-sans tabular-nums text-stone-400 w-4 shrink-0">
+                                            <div key={i} className="flex items-center gap-4">
+                                                <span className="w-5 shrink-0 text-right text-sm font-sans tabular-nums text-stone-400 select-none">
                                                     {i + 1}
                                                 </span>
                                                 <input
+                                                    ref={el => { fieldRefs.current[i] = el; }}
                                                     type="text"
-                                                    placeholder={currentStep === 2 ? t('practice.enter_noun') : t('practice.enter_verb')}
+                                                    aria-label={currentStep === 2 ? t('practice.enter_noun') : t('practice.enter_verb')}
                                                     value={currentStep === 2 ? nouns[i] : verbs[i]}
                                                     onChange={(e) => handleWordChange(currentStep === 2 ? 'noun' : 'verb', i, e.target.value)}
-                                                    className="bg-transparent border-none outline-none w-full font-serif text-lg text-stone-900 placeholder:text-stone-400"
+                                                    onKeyDown={nextOnEnter}
+                                                    style={{ height: ROW_H }}
+                                                    className={`verse-card verse-input is-static ${currentStep === 3 ? 'is-verb' : ''} flex-1 min-w-0 rounded-[20px] px-6 md:px-8 border-none outline-none font-serif ${WORD_SIZE} text-stone-900`}
                                                 />
                                             </div>
                                         ))}
@@ -552,9 +719,9 @@ export default function PracticeTab() {
                                                     <line
                                                         key={idx}
                                                         x1="30%"
-                                                        y1={`${conn.n * 19.4 + 9.7}%`}
+                                                        y1={`${rowCentrePct(conn.n)}%`}
                                                         x2="70%"
-                                                        y2={`${conn.v * 19.4 + 9.7}%`}
+                                                        y2={`${rowCentrePct(conn.v)}%`}
                                                         stroke="#1C1917"
                                                         strokeWidth="1.4"
                                                         strokeOpacity="0.45"
@@ -565,7 +732,7 @@ export default function PracticeTab() {
                                             {NOUN_VERB_SIDES.map(side => {
                                                 const words = side === 'n' ? nouns : verbs;
                                                 return (
-                                                    <div key={side} className="flex flex-col gap-3 w-1/2 max-w-[260px] z-10">
+                                                    <div key={side} className="flex flex-col gap-3 w-1/2 max-w-[320px] z-10">
                                                         {words.map((word, i) => {
                                                             const linked = connections.some(c => (side === 'n' ? c.n : c.v) === i);
                                                             const armed = side === 'n' && pendingNounIndex === i;
@@ -585,8 +752,9 @@ export default function PracticeTab() {
                                                                             setPendingNounIndex(null);
                                                                         }
                                                                     }}
-                                                                    className={`verse-card h-14 w-full px-5 rounded-[16px] flex items-center font-serif text-base text-stone-800 truncate
-                                                                        ${armed ? 'is-armed' : ''} ${linked ? 'is-linked' : ''}`}
+                                                                    style={{ height: ROW_H }}
+                                                                    className={`verse-card w-full px-6 rounded-[20px] flex items-center font-serif ${WORD_SIZE} text-stone-800 truncate
+                                                                        ${side === 'v' ? 'is-verb' : ''} ${armed ? 'is-armed' : ''} ${linked ? 'is-linked' : ''}`}
                                                                 >
                                                                     {word}
                                                                 </button>
@@ -596,57 +764,82 @@ export default function PracticeTab() {
                                                 );
                                             })}
                                         </div>
-
-                                        {connections.length > 0 && (
-                                            <button
-                                                onClick={() => { setConnections([]); setPendingNounIndex(null); }}
-                                                className="mt-5 mx-auto block text-xs font-sans text-stone-400 hover:text-stone-900 transition-colors cursor-pointer"
-                                            >
-                                                {t('common.reset')}
-                                            </button>
-                                        )}
+                                        {/* No Reset. Clicking a linked card already breaks that
+                                            one pair, so the only thing a Reset offered was
+                                            throwing away four good links to redo the fifth. */}
                                     </div>
                                 )}
 
-                                {/* Step 5 — write the lines */}
+                                {/* Step 5 — write the lines. Same row as steps 2 and 3: the count
+                                    outside, one card per line. The pair that seeded the line rides
+                                    inside the card as two chips, still clickable to drop the word
+                                    into the field. */}
                                 {currentStep === 5 && (
-                                    <div className="flex flex-col gap-4 animate-in fade-in duration-300">
+                                    <div className="flex flex-col gap-3 animate-in fade-in duration-300">
                                         {connections.map((conn, idx) => (
-                                            <div
-                                                key={idx}
-                                                className="verse-card is-static rounded-[20px] px-6 md:px-8 py-5 flex flex-col sm:flex-row sm:items-center gap-4"
-                                            >
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                    {[nouns[conn.n], verbs[conn.v]].map((word, w) => (
-                                                        <button
-                                                            key={w}
-                                                            onClick={() => {
-                                                                const next = [...sentences];
-                                                                const current = (next[idx] || '').trim();
-                                                                next[idx] = current === '' ? word : `${current} ${word}`;
-                                                                setSentences(next);
-                                                            }}
-                                                            style={{ backgroundColor: TAG_BG, color: SECTION_TEXT }}
-                                                            className="rounded-full px-3.5 py-1 text-xs font-sans hover:brightness-95 transition-all cursor-pointer"
-                                                        >
-                                                            {word}
-                                                        </button>
-                                                    ))}
+                                            <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                                <span className="w-5 shrink-0 text-right text-sm font-sans tabular-nums text-stone-400 select-none">
+                                                    {idx + 1}
+                                                </span>
+                                                {/* The pair, outside the field. A fixed column from
+                                                    sm up so every line's card starts at the same x —
+                                                    sized to the words, the cards would come out
+                                                    ragged. Stacked above the field on a phone. */}
+                                                <div className="flex items-center gap-2 sm:w-56 sm:shrink-0">
+                                                    {[nouns[conn.n], verbs[conn.v]].map((word, w) => {
+                                                        // Spent or not is read back off the line
+                                                        // rather than remembered from the click, so
+                                                        // deleting the word from the line brings its
+                                                        // chip back rather than stranding it grey.
+                                                        const used = (sentences[idx] || '')
+                                                            .toLowerCase()
+                                                            .includes(word.trim().toLowerCase());
+                                                        return (
+                                                            <button
+                                                                key={w}
+                                                                onClick={() => {
+                                                                    const next = [...sentences];
+                                                                    const current = (next[idx] || '').trim();
+                                                                    next[idx] = current === '' ? word : `${current} ${word}`;
+                                                                    setSentences(next);
+                                                                }}
+                                                                aria-pressed={used}
+                                                                // neutral() carries the shape and
+                                                                // hover but no colour of its own —
+                                                                // exactly what a state-tinted token
+                                                                // wants — and its sm padding matches
+                                                                // primary's, so greying does not
+                                                                // resize the chip. Losing the green
+                                                                // depth is the point: spent, flat.
+                                                                style={used ? { backgroundColor: TAG_BG } : undefined}
+                                                                className={`${used ? `${btn.neutral('sm')} text-stone-400` : btn.primary('sm')} min-w-0 max-w-[50%] cursor-pointer`}
+                                                            >
+                                                                <span className="truncate">{word}</span>
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
-                                                <input
-                                                    type="text"
-                                                    value={sentences[idx] || ''}
-                                                    onChange={(e) => {
-                                                        const next = [...sentences];
-                                                        next[idx] = e.target.value;
-                                                        setSentences(next);
-                                                    }}
-                                                    placeholder={t('practice.sentence_placeholder')}
-                                                    className="flex-1 min-w-0 bg-transparent border-b border-stone-300/60 focus:border-stone-800 outline-none py-1.5 font-serif text-lg text-stone-900 placeholder:text-stone-400 transition-colors"
-                                                />
-                                                {(sentences[idx] || '').trim() !== '' && (
-                                                    <Check size={16} className="shrink-0 text-stone-700 stroke-[2.5]" />
-                                                )}
+                                                <div
+                                                    style={{ minHeight: ROW_H }}
+                                                    className="verse-card is-static flex-1 min-w-0 rounded-[20px] px-6 md:px-8 py-4 flex items-center gap-4"
+                                                >
+                                                    <input
+                                                        ref={el => { fieldRefs.current[idx] = el; }}
+                                                        type="text"
+                                                        aria-label={t('practice.sentence_placeholder')}
+                                                        value={sentences[idx] || ''}
+                                                        onChange={(e) => {
+                                                            const next = [...sentences];
+                                                            next[idx] = e.target.value;
+                                                            setSentences(next);
+                                                        }}
+                                                        onKeyDown={nextOnEnter}
+                                                        className={`flex-1 min-w-0 bg-transparent border-none outline-none font-serif ${LINE_SIZE} text-stone-900`}
+                                                    />
+                                                    {(sentences[idx] || '').trim() !== '' && (
+                                                        <Check size={18} className="shrink-0 text-stone-700 stroke-[2.5]" />
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -656,105 +849,150 @@ export default function PracticeTab() {
                                 {currentStep === 6 && (
                                     <div className="verse-card is-static rounded-[20px] px-6 md:px-10 py-8 flex flex-col gap-4 animate-in fade-in duration-300">
                                         {verseLines.map((sentence, i) => (
-                                            <p key={i} className="font-serif text-xl md:text-2xl leading-relaxed text-stone-800">
+                                            <p key={i} className={`font-serif ${LINE_SIZE} leading-relaxed text-stone-800`}>
                                                 {sentence}
                                             </p>
                                         ))}
                                     </div>
                                 )}
 
-                                {/* The way through, gathered in the middle: back, the six
-                                    step dots, and Next as one centred group. The flanks get
-                                    equal halves so the dots sit on the true centre line even
-                                    though Next is wider than the back circle. */}
-                                <div className="flex items-center gap-6">
-                                    <div className="flex-1 flex justify-end">
-                                    <button
-                                        type="button"
-                                        onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
-                                        disabled={currentStep === 1}
-                                        aria-label={t('practice.previous_step')}
-                                        title={t('practice.previous_step')}
-                                        className="w-11 h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
-                                    >
-                                        <ArrowLeft className="w-4 h-4 stroke-[2]" />
-                                    </button>
-                                    </div>
-
-                                    <div
-                                        className="flex items-center gap-1.5 shrink-0"
-                                        aria-label={`${t('practice.step')} ${currentStep} ${t('practice.of')} 6`}
-                                    >
-                                        {[1, 2, 3, 4, 5, 6].map(n => (
-                                            <span
-                                                key={n}
-                                                className="w-1.5 h-1.5 rounded-full transition-colors"
-                                                style={{ backgroundColor: n <= currentStep ? '#1C1917' : TAG_BG }}
-                                            />
-                                        ))}
-                                    </div>
-
-                                    <div className="flex-1 flex justify-start items-center gap-3">
-                                    {currentStep === 6 ? (
-                                        <>
-                                            {/* Going round again is the quiet option now — the
-                                                verse only survives the practice if it leaves it. */}
-                                            <button
-                                                // Without a key React reuses the black Next button
-                                                // sitting in this slot and transitions it to white.
-                                                key="start-new"
-                                                type="button"
-                                                onClick={() => {
-                                                    setCurrentStep(1);
-                                                    setNouns(Array(5).fill(''));
-                                                    setVerbs(Array(5).fill(''));
-                                                    setConnections([]);
-                                                    setSentences(Array(5).fill(''));
-                                                    setSelectedTheme(null);
-                                                    setSendState('idle');
-                                                }}
-                                                className="whitespace-nowrap px-6 py-3.5 rounded-full bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-900 text-[15px] font-sans font-medium active:scale-[0.99] transition-colors cursor-pointer"
-                                            >
-                                                {t('practice.start_new_practice')}
-                                            </button>
-                                            {/* relative: the error sits under the button without
-                                                growing the row and nudging the step dots. */}
-                                            <div className="relative flex flex-col items-start">
-                                                <button
-                                                    type="button"
-                                                    onClick={handleSendToCanvas}
-                                                    disabled={sendState === 'sending' || verseLines.length === 0}
-                                                    className="flex items-center gap-2.5 whitespace-nowrap pl-6 pr-7 py-3.5 rounded-full bg-stone-900 text-[#FAF9F5] text-[15px] font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors disabled:bg-stone-200 disabled:text-stone-400 disabled:pointer-events-none cursor-pointer"
-                                                >
-                                                    {sendState === 'sending'
-                                                        ? <Loader2 className="w-4 h-4 stroke-[2] animate-spin" />
-                                                        : <PenLine className="w-4 h-4 stroke-[2]" />}
-                                                    {t('practice.send_to_canvas')}
-                                                </button>
-                                                {sendState === 'failed' && (
-                                                    <span
-                                                        role="alert"
-                                                        style={{ color: WRONG_TEXT }}
-                                                        className="absolute top-full left-1 mt-2 whitespace-nowrap text-xs font-sans"
-                                                    >
-                                                        {t('practice.send_to_canvas_failed')}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </>
-                                    ) : (
+                                {currentStep === 6 ? (
+                                    /* The last step has nowhere further to go, so the six dots
+                                       come off — they were counting toward a step that has now
+                                       arrived. What is left is one centred cluster: the way back
+                                       on the left, the two ways out on the right, all three the
+                                       same height and cut from the same size. */
+                                    <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
                                         <button
                                             type="button"
-                                            onClick={() => setCurrentStep(prev => prev + 1)}
-                                            disabled={!isStepComplete(currentStep)}
-                                            className="flex items-center gap-2.5 pl-7 pr-6 py-3.5 rounded-full bg-stone-900 text-[#FAF9F5] text-[15px] font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors disabled:bg-stone-200 disabled:text-stone-400 disabled:pointer-events-none cursor-pointer"
+                                            onClick={() => setCurrentStep(5)}
+                                            aria-label={t('practice.previous_step')}
+                                            title={t('practice.previous_step')}
+                                            className={`${btn.icon('bare')} ${ACTION_H} w-14 shrink-0 cursor-pointer`}
                                         >
-                                            {t('common.next')}
-                                            <ArrowRight className="w-4 h-4 stroke-[2]" />
+                                            <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
                                         </button>
-                                    )}
+
+                                        {/* Going round again is the quiet option — the verse only
+                                            survives the practice if it leaves it. An outlined
+                                            circle rather than a filled one, so it does not read
+                                            as a second Back sitting next to the first. */}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setCurrentStep(1);
+                                                setNouns(Array(5).fill(''));
+                                                setVerbs(Array(5).fill(''));
+                                                setConnections([]);
+                                                setSentences(Array(5).fill(''));
+                                                setSelectedTheme(null);
+                                                setSendState('idle');
+                                            }}
+                                            aria-label={t('practice.start_new_practice')}
+                                            title={t('practice.start_new_practice')}
+                                            className={`${btn.secondary('bare')} ${ACTION_H} w-14 shrink-0 cursor-pointer`}
+                                        >
+                                            <RotateCcw className="w-5 h-5 stroke-[2.5]" />
+                                        </button>
+
+                                        {/* relative: the error sits under the button rather than
+                                            growing the row and shifting everything beside it, and
+                                            the burst needs a positioned parent to escape from. */}
+                                        <div className="relative flex flex-col items-start">
+                                            {/*
+                                              * Reaching the verse is the one moment in this
+                                              * practice worth marking. It ends on opacity 0 with
+                                              * `forwards`, so it plays once on mount and needs no
+                                              * timer to take it away; leaving step 6 unmounts it
+                                              * and coming back plays it again.
+                                              *
+                                              * `isolate` is load-bearing. Confetti's pieces sit at
+                                              * -z-10 to burst from behind whatever they mark, and
+                                              * without a stacking context of their own that puts
+                                              * them behind the beige panel as well — animating
+                                              * perfectly, visible to nobody. The span keeps them
+                                              * in, and z-20 lifts the whole burst over the button
+                                              * rather than out from behind it.
+                                              */}
+                                            <span className="pointer-events-none absolute inset-0 isolate z-20">
+                                                <Confetti colors={BURST_ON_GREEN} />
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={handleSendToCanvas}
+                                                disabled={sendState === 'sending' || verseLines.length === 0}
+                                                className={`${btn.primary('bare')} ${ACTION_SIZE} whitespace-nowrap cursor-pointer`}
+                                            >
+                                                {/* No icon. The spinner is not decoration — while
+                                                    the canvas is being written it is the only sign
+                                                    the press was heard. */}
+                                                {sendState === 'sending' && (
+                                                    <Loader2 className="w-5 h-5 stroke-[2.5] animate-spin" />
+                                                )}
+                                                {t('practice.send_to_canvas')}
+                                            </button>
+                                            {sendState === 'failed' && (
+                                                <span
+                                                    role="alert"
+                                                    style={{ color: WRONG_TEXT }}
+                                                    className="absolute top-full left-1 mt-2 whitespace-nowrap text-xs font-sans"
+                                                >
+                                                    {t('practice.send_to_canvas_failed')}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    /* Stepping through: back, the step dots, and Next. The flanks
+                                       get equal halves so the dots sit on the true centre line
+                                       even though Next is wider than the back circle. */
+                                    <div className="flex items-center gap-6">
+                                        <div className="flex-1 flex justify-end">
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
+                                                disabled={currentStep === 1}
+                                                aria-label={t('practice.previous_step')}
+                                                title={t('practice.previous_step')}
+                                                className={`${btn.icon('bare')} ${ACTION_H} w-14 shrink-0 cursor-pointer disabled:opacity-30`}
+                                            >
+                                                <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
+                                            </button>
+                                        </div>
+
+                                        <div
+                                            className="flex items-center gap-1.5 shrink-0"
+                                            aria-label={`${t('practice.step')} ${currentStep} ${t('practice.of')} 6`}
+                                        >
+                                            {[1, 2, 3, 4, 5, 6].map(n => (
+                                                <span
+                                                    key={n}
+                                                    className="w-1.5 h-1.5 rounded-full transition-colors"
+                                                    style={{ backgroundColor: n <= currentStep ? '#1C1917' : TAG_BG }}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        <div className="flex-1 flex justify-start">
+                                            <button
+                                                // Never disabled. Pressing it early shakes it and
+                                                // says what is missing — the same information a
+                                                // grey button withholds, given when it was asked for.
+                                                key={shakeKey}
+                                                type="button"
+                                                onClick={goNext}
+                                                className={`${btn.primary('bare')} ${ACTION_SIZE} ${shakeClass} cursor-pointer`}
+                                            >
+                                                {t('common.next')}
+                                                <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <NudgeMessage count={nudgeCount}>
+                                    {STEP_NUDGES[currentStep]}
+                                </NudgeMessage>
                             </div>
                         </motion.div>
                     )}
@@ -807,6 +1045,48 @@ export default function PracticeTab() {
                 .verse-card.is-linked,
                 .verse-card.is-linked:hover {
                     background-color: rgba(134, 190, 127, 0.85);
+                }
+                /*
+                 * The word fields carry no placeholder any more, so an empty one
+                 * has nothing to say it is a field. Focus answers that: the card
+                 * fills to solid white and draws a hairline edge, which is also
+                 * the only cue telling you which of the five you are typing in.
+                 */
+                .verse-input:focus {
+                    background-color: #ffffff;
+                    box-shadow: inset 0 0 0 1.5px rgba(28, 25, 23, 0.5);
+                }
+                .verse-input:hover:not(:focus) {
+                    background-color: #E7E6DF;
+                }
+                /*
+                 * Verbs get their own tint, on the step where they are typed and
+                 * on the step where they are linked — so the two columns read as
+                 * two kinds of word rather than two lists. Hover deepens and
+                 * focus lifts toward white by the same amount the untinted ones
+                 * do: the states keep meaning the same thing either side.
+                 */
+                .verse-input.is-verb {
+                    background-color: #FBFFED;
+                }
+                .verse-input.is-verb:hover:not(:focus) {
+                    background-color: #EFF5DA;
+                }
+                .verse-input.is-verb:focus {
+                    background-color: #FDFFF6;
+                }
+                /*
+                 * The linking step's verb column. Armed and linked are states the
+                 * tint must not fight — a paired card is green whatever kind of
+                 * word it holds — so both are excluded outright rather than left
+                 * to out-specify it. The is-static exclusion keeps these off the
+                 * fields above, which carry their own rules.
+                 */
+                .verse-card.is-verb:not(.is-static):not(.is-armed):not(.is-linked) {
+                    background-color: #FBFFED;
+                }
+                .verse-card.is-verb:not(.is-static):not(.is-armed):not(.is-linked):hover {
+                    background-color: #EFF5DA;
                 }
             `}</style>
         </div>

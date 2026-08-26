@@ -8,6 +8,7 @@ import {
     formatFocusTime,
     FOCUS_PRESET_MINUTES,
 } from '@/lib/focusTimer';
+import * as btn from './buttonStyles';
 
 interface MindPowerPanelProps {
     t: (key: string) => string;
@@ -50,7 +51,7 @@ function FocusTimerRow({ t }: { t: (key: string) => string }) {
                     {!isPristine && (
                         <button
                             onClick={resetFocusTimer}
-                            className="text-stone-400 hover:text-stone-700 transition-colors cursor-pointer p-1"
+                            className={`${btn.iconGhost('xs')} cursor-pointer`}
                             aria-label={t('progress.focus_reset')}
                             title={t('progress.focus_reset')}
                         >
@@ -59,7 +60,7 @@ function FocusTimerRow({ t }: { t: (key: string) => string }) {
                     )}
                     <button
                         onClick={toggleFocusTimer}
-                        className="flex items-center gap-2.5 text-stone-800 hover:text-stone-950 transition-colors cursor-pointer"
+                        className={`${btn.ghost('xs')} gap-2.5 text-stone-800 cursor-pointer`}
                         aria-label={isRunning ? t('progress.focus_pause') : t('progress.focus_start')}
                     >
                         {isRunning ? <Pause size={16} strokeWidth={1.5} /> : <Play size={16} strokeWidth={1.5} />}
@@ -88,11 +89,7 @@ function FocusTimerRow({ t }: { t: (key: string) => string }) {
                             <button
                                 key={minutes}
                                 onClick={() => setFocusDuration(minutes)}
-                                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
-                                    selected
-                                        ? 'bg-stone-900 text-[#F5F4EE]'
-                                        : 'bg-stone-900/5 text-stone-500 hover:bg-stone-900/10'
-                                }`}
+                                className={`${btn.chip(selected, 'bare')} px-2.5 py-1 text-[11px] font-medium cursor-pointer`}
                             >
                                 {minutes} {t('progress.focus_min')}
                             </button>

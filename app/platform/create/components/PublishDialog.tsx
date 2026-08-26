@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Plus, X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 /**
  * The confirmation between "publish" and the song actually going out.
@@ -147,7 +148,7 @@ function combineTotals(keys: string[], parts: PartSplits): Record<string, number
  *  one after it. Green whatever the state of the form: greying it out reads as "broken",
  *  and a premature press is answered by shaking the thing still outstanding. */
 const PRIMARY_BUTTON_CLASS =
-    'flex-1 h-[54px] rounded-full text-[17px] font-semibold bg-[#86BE7F] text-stone-900 hover:bg-[#78B673] shadow-sm transition-all cursor-pointer active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed';
+    `${btn.primary('bare')} h-[54px] flex-1 px-6 text-[17px] cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed`;
 
 /**
  * One thing to agree to: the sentence and its box, as a single control.
@@ -195,7 +196,7 @@ function ConsentRow({ checked, onToggle, label, children }: {
             // even as a flex container and stops wherever the sentence stops. Only the
             // calc makes the row reach the far edge, which is where the tick and every
             // row above it line up.
-            className="group/consent w-[calc(100%+1.5rem)] -mx-3 -my-2 px-3 py-2 rounded-[16px] flex items-center justify-between gap-5 text-left transition-colors cursor-pointer hover:bg-stone-500/[0.05]"
+            className={`${btn.plain('bare')} group/consent -mx-3 -my-2 w-[calc(100%+1.5rem)] justify-between gap-5 rounded-[16px] px-3 py-2 text-left transition-colors hover:bg-stone-500/[0.05] cursor-pointer`}
         >
             <span className="text-[15px] leading-relaxed text-stone-500 font-medium max-w-[380px]">
                 {children}
@@ -600,10 +601,8 @@ export default function PublishDialog({
                                         role="tab"
                                         aria-selected={isActive}
                                         onClick={() => setActivePart(part)}
-                                        className={`flex-1 h-9 rounded-[10px] text-[14px] font-medium transition-colors cursor-pointer ${
-                                            isActive
-                                                ? 'bg-[#FAF8F4] text-stone-800 shadow-sm'
-                                                : 'text-stone-500 hover:text-stone-700'
+                                        className={`${btn.segment(isActive, 'bare')} h-9 flex-1 px-3 text-[14px] font-medium cursor-pointer ${
+                                            isActive ? 'bg-[#FAF8F4] shadow-sm' : ''
                                         }`}
                                     >
                                         {partLabel(part)}
@@ -687,7 +686,7 @@ export default function PublishDialog({
                                                 type="button"
                                                 onClick={() => startRenameGuest(m.key, m.name)}
                                                 title={`${m.name} — ${t('publish.rename_credit') || 'Edit name'}`}
-                                                className="relative z-30 pl-4 pr-2 min-w-0 text-[15px] font-medium text-stone-700 truncate cursor-text hover:text-stone-900 hover:underline decoration-stone-400 underline-offset-4 transition-colors"
+                                                className={`${btn.plain('bare')} relative z-30 min-w-0 justify-start truncate pl-4 pr-2 text-[15px] font-medium text-stone-700 decoration-stone-400 underline-offset-4 transition-colors hover:text-stone-900 hover:underline cursor-text`}
                                             >
                                                 {label}
                                             </button>
@@ -739,7 +738,7 @@ export default function PublishDialog({
                                             onClick={() => removeGuest(m.key)}
                                             aria-label={`${t('publish.remove_credit') || 'Remove'} ${m.name}`}
                                             title={t('publish.remove_credit') || 'Remove'}
-                                            className="absolute top-1/2 left-full ml-1 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-200 opacity-0 group-hover/split:opacity-100 focus-visible:opacity-100 transition-opacity cursor-pointer"
+                                            className={`${btn.iconGhost('bare')} absolute left-full top-1/2 ml-1 h-6 w-6 -translate-y-1/2 opacity-0 transition-opacity group-hover/split:opacity-100 focus-visible:opacity-100 cursor-pointer`}
                                         >
                                             <X size={13} strokeWidth={2.5} />
                                         </button>
@@ -780,7 +779,7 @@ export default function PublishDialog({
                                         <button
                                             type="button"
                                             onClick={() => setIsAddingGuest(true)}
-                                            className="w-full h-12 rounded-[14px] border border-dashed border-stone-300 hover:border-stone-400 bg-transparent hover:bg-[#F1EEE8] text-stone-500 hover:text-stone-700 text-[14px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                                            className={`${btn.plain('bare')} h-12 w-full gap-1.5 border border-dashed border-stone-300 bg-transparent px-4 text-[14px] font-medium text-stone-500 transition-colors hover:border-stone-400 hover:bg-[#F1EEE8] hover:text-stone-700 cursor-pointer`}
                                         >
                                             <Plus size={15} className="stroke-[2.4]" />
                                             {t('publish.add_credit') || 'Add a co-writer'}
@@ -902,7 +901,7 @@ export default function PublishDialog({
                             type="button"
                             onClick={() => { if (step === 2) goToStep(1); else onCancel(); }}
                             disabled={isPublishing}
-                            className="h-[54px] px-4 rounded-full text-[16px] font-medium text-stone-500 hover:text-stone-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                            className={`${btn.ghost('bare')} h-[54px] shrink-0 px-4 text-[16px] font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                             {t('publish.go_back') || 'Go back'}
                         </button>

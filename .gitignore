@@ -98,3 +98,17 @@ vendor/lexicon/nst/
 /*.pdf
 /*Unit-Economics*
 /*unit-economics*
+
+# Learn artwork source masters and stray duplicates. LearnLanding serves only
+# the avif/webp derivatives, and builds their names from a template
+# (`${base}.avif`, `${base}@2x.avif`) — so a literal grep for a filename finds
+# nothing and these read as unused when they are not. The PNGs the derivatives
+# are generated from are unused, and everything under public/ is served
+# publicly, so they are kept out rather than uploaded on every deploy.
+/public/assets/Learn/*.png
+/public/assets/Learn/* 2.avif
+# Superseded by the -2 artwork above; kept on disk, no longer served.
+/public/assets/Learn/bank-of-tips.avif
+/public/assets/Learn/bank-of-tips.webp
+/public/assets/Learn/fundamentals.avif
+/public/assets/Learn/fundamentals.webp

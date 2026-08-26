@@ -10,6 +10,7 @@ import {
     setDoc,
     where,
     documentId,
+    type FieldValue,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -40,6 +41,22 @@ export interface PublicProfile {
     /** Epoch ms, 0 when unknown. */
     createdAt: number;
     lastActiveAt: number;
+    /** Approximate engaged minutes, accumulated by the heartbeat in lib/lastActive.ts.
+     *  Self-reported and therefore forgeable — decorative use only. */
+    activeMinutes: number;
+}
+
+/**
+ * Minutes of engaged time that earn the badge on a songwriter's card.
+ *
+ * 30 hours: enough that it reads as "this person really uses Veinote" rather
+ * than "this person signed up", and reachable inside a couple of months of
+ * regular writing. Tune here — nothing else hard-codes the figure.
+ */
+export const ACTIVE_BADGE_MINUTES = 30 * 60;
+
+export function hasActivityBadge(profile: Pick<PublicProfile, 'activeMinutes'>): boolean {
+    return (profile.activeMinutes ?? 0) >= ACTIVE_BADGE_MINUTES;
 }
 
 export const PUBLIC_PROFILES = "publicProfiles";
@@ -64,6 +81,7 @@ export function toPublicProfile(uid: string, data: Record<string, any>): PublicP
         songwriterType: data.songwriterType ?? null,
         createdAt: parseTime(data.createdAt),
         lastActiveAt: parseTime(data.lastActiveAt),
+        activeMinutes: typeof data.activeMinutes === "number" ? data.activeMinutes : 0,
     };
 }
 
@@ -73,6 +91,8 @@ export interface PublicProfileWrite {
     songwriterType?: string | null;
     createdAt?: string | number;
     lastActiveAt?: string | number;
+    /** Accepts a FieldValue so callers can pass increment() rather than a total. */
+    activeMinutes?: number | FieldValue;
 }
 
 /**

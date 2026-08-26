@@ -9,6 +9,7 @@ import { ref, uploadBytesResumable, getDownloadURL, UploadTask } from 'firebase/
 import { authedFetch } from '@/lib/authedFetch';
 import FeedbackThreads from './FeedbackThreads';
 import { useFeedbackThreads } from '@/lib/useFeedbackThreads';
+import * as btn from './buttonStyles';
 
 interface FeedbackModalProps {
     isOpen: boolean;
@@ -231,7 +232,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                     <button 
                         type="button"
                         onClick={onClose}
-                        className="mt-4 px-10 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer"
+                        className={`${btn.primary('md')} mt-4 cursor-pointer`}
                     >
                         {t('common.close') || 'Close'}
                     </button>
@@ -264,11 +265,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                             key={option.id}
                             type="button"
                             onClick={() => setView(option.id)}
-                            className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                                view === option.id
-                                    ? 'bg-stone-100 text-stone-800'
-                                    : 'text-stone-400 hover:text-stone-700'
-                            }`}
+                            className={`${btn.chip(view === option.id, 'xs')} cursor-pointer`}
                         >
                             {option.label}
                             {option.id === 'messages' && unreadCount > 0 && (
@@ -349,7 +346,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                                 <button 
                                     type="button" 
                                     onClick={handleRemoveFile}
-                                    className="relative z-10 p-1 hover:bg-stone-200/60 rounded-full transition-colors text-stone-400 hover:text-stone-700 cursor-pointer shrink-0"
+                                    className={`${btn.iconGhost('xs')} relative z-10 cursor-pointer`}
                                     disabled={isSending}
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
@@ -375,7 +372,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                         <button 
                             type="button"
                             onClick={onClose}
-                            className="px-8 py-3 bg-stone-100/75 hover:bg-stone-200/50 text-stone-600 rounded-full text-[15px] font-sans font-medium transition-colors cursor-pointer"
+                            className={`${btn.secondary('md')} cursor-pointer`}
                             disabled={isSending}
                         >
                             {t('common.close') || 'Close'}
@@ -383,14 +380,10 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                         <button 
                             type="submit"
                             disabled={isSending || isUploading || !subject.trim() || !message.trim()}
-                            className={`px-8 py-3 rounded-full text-[15px] font-sans font-medium transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
-                                isSending 
-                                    ? 'bg-stone-850 text-stone-300' 
-                                    : 'bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-40 disabled:cursor-not-allowed'
-                            }`}
+                            className={`${btn.primary('md')} cursor-pointer disabled:cursor-not-allowed`}
                         >
                             {isSending && (
-                                <svg className="animate-spin h-4 w-4 text-stone-300" fill="none" viewBox="0 0 24 24">
+                                <svg className="animate-spin h-4 w-4 text-stone-900/70" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                 </svg>

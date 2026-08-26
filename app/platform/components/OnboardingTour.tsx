@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ChevronRight, ChevronLeft, Play } from 'lucide-react';
+import * as btn from './buttonStyles';
 
 export interface TourStep {
     /** CSS selector for the element to spotlight. Omit for a centered step (e.g. the intro video). */
@@ -295,7 +296,7 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
             <div className="flex items-center justify-between gap-3 mt-1">
                 <button
                     onClick={onFinish}
-                    className="text-[13px] font-semibold text-stone-500 hover:text-stone-800 transition-colors cursor-pointer"
+                    className={`${btn.ghost('xs')} cursor-pointer`}
                 >
                     {skipLabel}
                 </button>
@@ -303,7 +304,7 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
                     {stepIndex > 0 && (
                         <button
                             onClick={goBack}
-                            className="flex items-center gap-1 px-3.5 py-2 rounded-full bg-white border border-stone-200/70 text-[13px] font-semibold text-stone-600 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95"
+                            className={`${btn.secondary('xs')} cursor-pointer`}
                         >
                             <ChevronLeft size={14} />
                             {backLabel}
@@ -311,7 +312,7 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
                     )}
                     <button
                         onClick={goNext}
-                        className="flex items-center gap-1 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-[13px] font-semibold text-stone-900 shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.10)] transition-all cursor-pointer active:scale-95"
+                        className={`${btn.primary('xs')} cursor-pointer`}
                     >
                         {isLast ? doneLabel : nextLabel}
                         {!isLast && <ChevronRight size={14} />}
@@ -325,7 +326,7 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
         <button
             onClick={onFinish}
             aria-label={closeLabel}
-            className="absolute top-4 right-4 z-10 text-stone-400 hover:text-stone-700 transition-colors cursor-pointer"
+            className={`${btn.iconGhost('xs')} absolute top-4 right-4 z-10 cursor-pointer`}
         >
             <X size={16} />
         </button>
@@ -433,13 +434,13 @@ export default function OnboardingTour({ steps, onFinish, skipLabel, backLabel, 
                     <div className="flex items-center gap-2.5">
                         <button
                             onClick={onFinish}
-                            className="px-5 py-2.5 rounded-full bg-stone-900/50 backdrop-blur-sm text-[13px] font-semibold text-white hover:bg-stone-900/65 transition-all cursor-pointer active:scale-95"
+                            className={`${btn.scrim('sm')} cursor-pointer`}
                         >
                             {closeDemoLabel}
                         </button>
                         <button
                             onClick={goNext}
-                            className="flex items-center gap-1 px-5 py-2.5 rounded-full bg-white text-[13px] font-semibold text-stone-900 shadow-[0_2px_10px_rgba(0,0,0,0.18)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-all cursor-pointer active:scale-95"
+                            className={`${btn.primary('sm')} cursor-pointer`}
                         >
                             {nextLabel}
                             <ChevronRight size={14} />

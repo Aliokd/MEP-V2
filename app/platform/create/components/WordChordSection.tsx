@@ -5,6 +5,7 @@ import { Play, Square, Trash2, ChevronLeft, ChevronRight, MoreVertical, Eye, Eye
 import { useLanguage } from '@/context/LanguageContext';
 import { chordPositions, chordNotes, chordQuality, COMMON_CHORDS, isValidChord, normalizeChord } from '@/lib/chords';
 import { Fretboard, useChordPlayback } from './chordVisuals';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 /**
  * The chord half of the word popover: whatever chord is sitting on the word that
@@ -182,7 +183,7 @@ export default function WordChordSection({
                             onClick={() => { browsePlayback.stop(); setPicking(false); }}
                             aria-label={t('common.back') || 'Back'}
                             title={t('common.back') || 'Back'}
-                            className="hidden md:flex w-7 h-7 shrink-0 rounded-full items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 transition-colors cursor-pointer"
+                            className={`${btn.iconGhost('xs')} hidden md:inline-flex cursor-pointer`}
                         >
                             <X size={15} />
                         </button>
@@ -210,7 +211,7 @@ export default function WordChordSection({
                                 onClick={() => stepBrowseVariation(-1)}
                                 disabled={browsePositions.length < 2}
                                 aria-label={t('creative.chord_prev') || 'Previous voicing'}
-                                className="absolute left-0 md:left-0.5 top-1/2 -translate-y-1/2 w-10 h-10 md:w-7 md:h-7 rounded-full bg-white border border-stone-200 shadow-sm md:bg-transparent md:border-0 md:shadow-none flex items-center justify-center text-stone-600 md:text-stone-400 hover:text-stone-800 md:hover:bg-stone-100 transition-colors cursor-pointer active:scale-95 disabled:opacity-30 disabled:hover:text-stone-600 disabled:cursor-default disabled:active:scale-100"
+                                className={`${btn.plain('bare')} absolute left-0 md:left-0.5 top-1/2 h-10 w-10 -translate-y-1/2 border border-stone-200 bg-white text-stone-600 shadow-sm transition-colors hover:text-stone-800 md:h-7 md:w-7 md:border-0 md:bg-transparent md:text-stone-400 md:shadow-none md:hover:bg-stone-100 cursor-pointer disabled:opacity-30 disabled:cursor-default`}
                             >
                                 <ChevronLeft size={20} className="md:hidden" />
                                 <ChevronLeft size={16} className="hidden md:block" />
@@ -220,7 +221,7 @@ export default function WordChordSection({
                                 onClick={() => stepBrowseVariation(1)}
                                 disabled={browsePositions.length < 2}
                                 aria-label={t('creative.chord_next') || 'Next voicing'}
-                                className="absolute right-0 md:right-0.5 top-1/2 -translate-y-1/2 w-10 h-10 md:w-7 md:h-7 rounded-full bg-white border border-stone-200 shadow-sm md:bg-transparent md:border-0 md:shadow-none flex items-center justify-center text-stone-600 md:text-stone-400 hover:text-stone-800 md:hover:bg-stone-100 transition-colors cursor-pointer active:scale-95 disabled:opacity-30 disabled:hover:text-stone-600 disabled:cursor-default disabled:active:scale-100"
+                                className={`${btn.plain('bare')} absolute right-0 md:right-0.5 top-1/2 h-10 w-10 -translate-y-1/2 border border-stone-200 bg-white text-stone-600 shadow-sm transition-colors hover:text-stone-800 md:h-7 md:w-7 md:border-0 md:bg-transparent md:text-stone-400 md:shadow-none md:hover:bg-stone-100 cursor-pointer disabled:opacity-30 disabled:cursor-default`}
                             >
                                 <ChevronRight size={20} className="md:hidden" />
                                 <ChevronRight size={16} className="hidden md:block" />
@@ -236,7 +237,7 @@ export default function WordChordSection({
                             onClick={() => browsePlayback.playing ? browsePlayback.stop() : browsePlayback.play()}
                             aria-label={browsePlayback.playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
                             title={browsePlayback.playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
-                            className="w-9 h-9 rounded-full bg-white border border-stone-200 hover:border-stone-300 text-stone-700 flex items-center justify-center shadow-sm transition-all cursor-pointer active:scale-95"
+                            className={`${btn.icon('sm')} cursor-pointer`}
                         >
                             {browsePlayback.playing
                                 ? <Square size={11} className="fill-current" />
@@ -267,11 +268,7 @@ export default function WordChordSection({
                                         type="button"
                                         data-browse-selected={isBrowsed ? 'true' : undefined}
                                         onClick={() => { browsePlayback.stop(); setBrowseIndex(i); }}
-                                        className={`h-11 md:h-8 rounded-[12px] md:rounded-[10px] border text-[14px] md:text-[11.5px] font-semibold flex items-center justify-center transition-colors cursor-pointer ${
-                                            isBrowsed
-                                                ? 'bg-stone-800 text-white border-stone-800'
-                                                : 'bg-white text-stone-600 border-stone-200/70 hover:border-stone-400 hover:text-stone-900'
-                                        }`}
+                                        className={`${btn.chip(isBrowsed, 'bare')} h-11 px-2 text-[14px] font-semibold md:h-8 md:text-[11.5px] cursor-pointer`}
                                     >
                                         {sym}
                                     </button>
@@ -296,7 +293,7 @@ export default function WordChordSection({
                     // chord the word already has leaves `symbol` untouched, and without
                     // this the picker would just sit there looking like it ignored you.
                     onClick={() => { browsePlayback.stop(); setPicking(false); onPickChord(browseSymbol); }}
-                    className="w-full h-[54px] md:h-10 rounded-[16px] md:rounded-[12px] bg-stone-800 hover:bg-stone-900 text-white text-[16px] md:text-[13px] font-bold flex items-center justify-center gap-2 md:gap-1.5 transition-all cursor-pointer active:scale-[0.98]"
+                    className={`${btn.primary('bare')} h-[54px] w-full gap-2 px-4 text-[16px] font-bold md:h-10 md:gap-1.5 md:text-[13px] cursor-pointer`}
                 >
                     {symbol
                         ? <ArrowUpDown size={17} className="stroke-[2.5] shrink-0 md:hidden" />
@@ -324,7 +321,7 @@ export default function WordChordSection({
                         type="submit"
                         disabled={!isValidChord(customDraft)}
                         aria-label={t('creative.add_chord_button') || 'Add chord'}
-                        className="w-11 h-11 md:w-8 md:h-8 shrink-0 rounded-[12px] md:rounded-[10px] bg-white border border-stone-200/70 text-stone-700 hover:border-stone-400 flex items-center justify-center transition-all cursor-pointer active:scale-95 disabled:opacity-35 disabled:cursor-default"
+                        className={`${btn.secondary('bare')} h-11 w-11 shrink-0 md:h-8 md:w-8 cursor-pointer disabled:opacity-35 disabled:cursor-default`}
                     >
                         <Plus size={16} className="stroke-[2.5]" />
                     </button>
@@ -354,7 +351,7 @@ export default function WordChordSection({
                     type="button"
                     onClick={openPicker}
                     aria-label={t('creative.add_chord_button') || 'Add chord'}
-                    className="opacity-30 hover:opacity-50 transition-opacity select-none flex flex-col gap-3 text-left cursor-pointer"
+                    className={`${btn.plain('bare')} flex-col items-start gap-3 text-left opacity-30 transition-opacity hover:opacity-50 cursor-pointer`}
                 >
                     <div className="min-w-0">
                         <div className="text-[25px] leading-none font-bold text-stone-900 tracking-tight truncate">{browseSymbol}</div>
@@ -379,7 +376,7 @@ export default function WordChordSection({
                 <button
                     type="button"
                     onClick={openPicker}
-                    className="w-full h-10 rounded-[12px] bg-white border border-stone-200 shadow-sm hover:shadow hover:border-stone-300 text-stone-800 text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98]"
+                    className={`${btn.secondary('bare')} h-10 w-full gap-1.5 px-4 text-[13px] font-bold cursor-pointer`}
                 >
                     <Plus size={14} className="stroke-[2.5]" />
                     {t('creative.add_chord_button') || 'Add chord'}
@@ -421,8 +418,8 @@ export default function WordChordSection({
                             aria-label={t('creative.chord_options') || 'Chord options'}
                             aria-haspopup="menu"
                             aria-expanded={menuOpen}
-                            className={`w-[47px] h-[47px] rounded-[16px] border border-stone-200 bg-white shadow-sm md:w-9 md:h-9 md:-mr-1.5 md:rounded-full md:border-0 md:bg-transparent md:shadow-none flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98] ${
-                                menuOpen ? 'text-stone-800 md:bg-stone-200/70' : 'text-stone-500 md:text-stone-400 hover:text-stone-800 md:hover:bg-stone-200/60'
+                            className={`${btn.plain('bare')} h-[47px] w-[47px] border border-stone-200 bg-white shadow-sm transition-colors md:-mr-1.5 md:h-9 md:w-9 md:border-0 md:bg-transparent md:shadow-none cursor-pointer ${
+                                menuOpen ? 'text-stone-800 md:bg-stone-200/70' : 'text-stone-500 hover:text-stone-800 md:text-stone-400 md:hover:bg-stone-200/60'
                             }`}
                         >
                             <MoreVertical size={19} />
@@ -442,7 +439,7 @@ export default function WordChordSection({
                                         type="button"
                                         role="menuitem"
                                         onClick={() => { setMenuOpen(false); onToggleChordsHidden(); }}
-                                        className="w-full px-3 py-2 text-left text-[12px] font-semibold text-stone-600 hover:bg-stone-100 hover:text-stone-900 rounded-[10px] cursor-pointer active:scale-[0.98] transition-all flex items-center gap-2"
+                                        className={`${btn.plain('bare')} w-full justify-start gap-2 rounded-[10px] px-3 py-2 text-left text-[12px] font-semibold text-stone-600 transition-all hover:bg-stone-100 hover:text-stone-900 cursor-pointer`}
                                     >
                                         {chordsHidden
                                             ? <Eye size={13} className="shrink-0" />
@@ -464,7 +461,7 @@ export default function WordChordSection({
                                         type="button"
                                         role="menuitem"
                                         onClick={() => { setMenuOpen(false); stop(); onRemove(); }}
-                                        className="w-full px-3 py-2 text-left text-[12px] font-semibold text-red-500 hover:bg-red-50 hover:text-red-600 rounded-[10px] cursor-pointer active:scale-[0.98] transition-all flex items-center gap-2"
+                                        className={`${btn.plain('bare')} w-full justify-start gap-2 rounded-[10px] px-3 py-2 text-left text-[12px] font-semibold text-red-500 transition-all hover:bg-red-50 hover:text-red-600 cursor-pointer`}
                                     >
                                         <Trash2 size={13} className="shrink-0" />
                                         <span className="truncate">{t('creative.chord_delete') || 'Delete'}</span>
@@ -505,7 +502,7 @@ export default function WordChordSection({
                             onClick={playing ? stop : play}
                             aria-label={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
                             title={playing ? (t('creative.chord_stop') || 'Stop') : (t('creative.chord_play') || 'Play chord')}
-                            className="w-[47px] h-[47px] shrink-0 rounded-[16px] bg-white border border-stone-200 shadow-sm hover:border-stone-300 text-stone-800 flex items-center justify-center transition-all cursor-pointer active:scale-[0.98]"
+                            className={`${btn.secondary('bare')} h-[47px] w-[47px] shrink-0 text-stone-800 cursor-pointer`}
                         >
                             {playing
                                 ? <Square size={14} className="fill-current" />
@@ -522,7 +519,7 @@ export default function WordChordSection({
                             onClick={openPicker}
                             aria-label={t('creative.chord_change') || 'Change chord'}
                             title={t('creative.chord_change') || 'Change chord'}
-                            className="w-[47px] h-[47px] shrink-0 rounded-[16px] bg-white border border-stone-200 shadow-sm hover:border-stone-300 text-stone-700 hover:text-stone-900 flex items-center justify-center transition-all cursor-pointer active:scale-[0.98]"
+                            className={`${btn.secondary('bare')} h-[47px] w-[47px] shrink-0 cursor-pointer`}
                         >
                             <ArrowUpDown size={16} />
                         </button>
@@ -538,7 +535,7 @@ export default function WordChordSection({
                                 type="button"
                                 onClick={() => goTo(variation - 1)}
                                 aria-label={t('creative.chord_prev') || 'Previous voicing'}
-                                className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-800 hover:bg-stone-100 transition-colors cursor-pointer active:scale-95"
+                                className={`${btn.iconGhost('sm')} cursor-pointer`}
                             >
                                 <ChevronLeft size={18} />
                             </button>
@@ -549,7 +546,7 @@ export default function WordChordSection({
                                 type="button"
                                 onClick={() => goTo(variation + 1)}
                                 aria-label={t('creative.chord_next') || 'Next voicing'}
-                                className="w-9 h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-800 hover:bg-stone-100 transition-colors cursor-pointer active:scale-95"
+                                className={`${btn.iconGhost('sm')} cursor-pointer`}
                             >
                                 <ChevronRight size={18} />
                             </button>

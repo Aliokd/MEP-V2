@@ -62,11 +62,8 @@
   },
   "studio": {
     "recording_limit_reached": "Opptak stopper etter 10 minutter. Opptaket ditt er lagret.",
-
     "decomposing": "Deler opp sangen i spor…",
-
     "decomposed": "Sangen er delt i vokal, bass og instrumenter.",
-
     "decompose_no_room": "Ikke nok ledige spor til å dele opp sangen — den ble lagt til som ett spor.",
     "open_lyrics": "Åpne sangteksten",
     "close_lyrics": "Lukk sangteksten",
@@ -332,6 +329,7 @@
     "invites_sent": "{count} invitasjoner er sendt",
     "invite": "Inviter",
     "whos_in": "Hvem er med?",
+    "songwriters_here": "Låtskrivere her",
     "me": "Meg",
     "owner": "Eier",
     "confirm_close_title": "Er du sikker på at du vil avslutte samarbeidet?",
@@ -496,7 +494,12 @@
     "muted_until": "Til",
     "muted_indefinite": "Til en moderator opphever den",
     "muted_contact": "Skriv til support@veinote.com hvis du mener dette er en feil.",
-    "muted_publish_blocked": "Publiseringen din er satt på pause, så denne sangen kan ikke deles med fellesskapet nå."
+    "muted_publish_blocked": "Publiseringen din er satt på pause, så denne sangen kan ikke deles med fellesskapet nå.",
+    "accept_request": "Godta forespørsel",
+    "badge_active": "Stamgjest",
+    "badge_active_tooltip": "Bruker mye tid på å skrive på Veinote",
+    "invite_sent": "Invitasjon sendt",
+    "view_profile": "Se profil"
   },
   "creative": {
     "new_project": "Nytt prosjekt",
@@ -653,6 +656,16 @@
     "song_collaborators": "Medskrivere",
     "song_no_recording": "Ingen innspilling ennå",
     "song_open_in_create": "Åpne i Lag",
+    "song_document": "Låtdetaljer",
+    "song_document_blocked": "Nettleseren blokkerte dokumentvinduet. Tillat popup-vinduer for dette nettstedet og prøv igjen.",
+    "song_ownership": "Eierskap",
+    "song_ownership_unagreed": "Fordelingen er ikke avtalt ennå",
+    "song_document_kind": "Fordelingsark",
+    "song_document_by": "Laget av",
+    "song_document_details": "Detaljer",
+    "song_document_party": "Opphavsperson",
+    "song_document_total": "Totalt",
+    "song_document_generated": "Laget",
     "song_play": "Spill av",
     "song_pause": "Pause",
     "song_previous": "Forrige innspilling",
@@ -669,7 +682,14 @@
     "see_all": "Se alle",
     "my_songs_subtitle": "Alle sangene du har skrevet, samlet på ett sted.",
     "connections_subtitle": "Låtskriverne du har knyttet kontakt med.",
-    "disconnect": "Fjern"
+    "disconnect": "Fjern",
+    "connection_requests": "Forespørsler",
+    "wants_to_connect": "Ønsker å koble seg til deg",
+    "accept_request": "Godta",
+    "decline_request": "Avslå",
+    "invite_sent_hint": "Venter på at de skal godta. Trykk igjen for å trekke den tilbake.",
+    "songwriter_not_found": "Fant ikke låtskriveren",
+    "songwriter_not_found_desc": "Denne kontoen finnes ikke lenger, eller har ingen offentlig profil ennå."
   },
   "email": {
     "welcome": {
@@ -834,7 +854,12 @@
     "sentence_placeholder": "Skriv setningen din her...",
     "finalize_lyrics": "Fullfør teksten",
     "start_new_practice": "Start en ny øvelse",
-    "send_to_canvas": "Send til canvas",
+    "nudge_theme": "Velg et tema for å gå videre.",
+    "nudge_nouns": "Fyll ut alle fem substantivene for å gå videre.",
+    "nudge_verbs": "Fyll ut alle fem verbene for å gå videre.",
+    "nudge_links": "Koble hvert substantiv til et verb for å gå videre.",
+    "nudge_lines": "Skriv alle fem linjene for å gå videre.",
+    "send_to_canvas": "Fortsett i canvas",
     "send_to_canvas_failed": "Kom ikke fram til canvasen. Prøv igjen.",
     "canvas_title": "{theme} — vers",
     "retry_connection": "Prøv tilkoblingen på nytt",
@@ -1634,11 +1659,11 @@
     "name": "Navn",
     "transcribing": "Henter ut...",
     "extract_stage_large": "Stor fil — jobber fortsatt",
+    "extract_stage_long": "Lang innspilling — jobber fortsatt",
     "extract_stage_almost": "Snart ferdig",
     "extract_too_long": "Dette opptaket er {length}. Vi kan hente ut tekst fra opptak på opptil {minutes} minutter.",
     "extract_too_large": "Denne filen er {size}. Vi kan hente ut tekst fra filer på opptil {limit}.",
     "extract_failed": "Fikk ikke hentet ut teksten. Prøv igjen.",
-
     "extract_partial": "En del av sangen kunne ikke hentes ut — resten ligger på canvasen.",
     "transcribing_audio": "Henter ut teksten",
     "transcribe_recording": "Transkriber opptaket",

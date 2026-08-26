@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getUserConstellation, ConstellationData } from '@/app/actions/lesson-actions';
 import { useLanguage } from '@/context/LanguageContext';
+import * as btn from '@/app/platform/components/buttonStyles';
 import { fetchCurriculum } from '@/lib/contentClient';
 import { pickLocale, type LearnChapter, type LearnLesson } from '@/lib/content';
 import LearnLanding from './components/LearnLanding';
@@ -165,7 +166,7 @@ export default function PlatformPage() {
         <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center text-stone-900 gap-6 p-8 bg-transparent">
             <h2 className="text-3xl font-sans font-light tracking-tight">{t('learn.access_restricted')}</h2>
             <p className="text-stone-700/80 max-w-md text-center font-medium">{t('learn.access_restricted_desc')}</p>
-            <a href="/signin" className="px-10 py-5 bg-stone-900 text-[#FAF9F5] rounded-full font-sans text-base font-bold hover:opacity-90 transition-opacity">{t('learn.signin')}</a>
+            <a href="/signin" className={btn.primary('lg')}>{t('learn.signin')}</a>
         </div>
     );
 
@@ -194,7 +195,15 @@ export default function PlatformPage() {
     };
 
     return (
-        <div className="w-full max-w-6xl mx-auto h-full flex flex-col items-center">
+        // The landing runs the full width of the panel: it is a row of three
+        // cards, and capping it left a wide empty margin on either side of large
+        // screens. The other views stay capped — the reader and the tips deck are
+        // reading surfaces, and a line of text that wide is hard to follow.
+        <div
+            className={`w-full h-full flex flex-col items-center ${
+                view === 'landing' ? '' : 'max-w-6xl mx-auto'
+            }`}
+        >
             {view === 'landing' && (
                 <LearnLanding
                     onStart={() => setView('reader')}
@@ -209,8 +218,6 @@ export default function PlatformPage() {
                     isLoading={cms === null || (cms.length === 0 && !data)}
                     onComplete={handleComplete}
                     onBackToLanding={() => setView('landing')}
-                    onOpenDeepDive={() => setView('deepDive')}
-                    onOpenIdeas={() => setView('ideas')}
                 />
             )}
             {view === 'ideas' && (

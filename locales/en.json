@@ -62,11 +62,8 @@
   },
   "studio": {
     "recording_limit_reached": "Recordings stop at 10 minutes. Your take is saved.",
-
     "decomposing": "Splitting the song into tracks…",
-
     "decomposed": "Song split into Vocals, Bass and Instruments.",
-
     "decompose_no_room": "Not enough free tracks to split the song — added it as one track.",
     "open_lyrics": "Open Lyrics",
     "close_lyrics": "Close Lyrics",
@@ -332,6 +329,7 @@
     "invites_sent": "{count} invites successfully sent",
     "invite": "Invite",
     "whos_in": "Who's in?",
+    "songwriters_here": "Songwriters here",
     "me": "Me",
     "owner": "Owner",
     "confirm_close_title": "Are you sure you want to close the collaboration?",
@@ -496,7 +494,12 @@
     "muted_until": "Until",
     "muted_indefinite": "Until a moderator lifts it",
     "muted_contact": "Write to support@veinote.com if you think this is a mistake.",
-    "muted_publish_blocked": "Your posting is paused, so this song can't be shared to the community right now."
+    "muted_publish_blocked": "Your posting is paused, so this song can't be shared to the community right now.",
+    "accept_request": "Accept request",
+    "badge_active": "Regular",
+    "badge_active_tooltip": "Spends a lot of time writing on Veinote",
+    "invite_sent": "Invite sent",
+    "view_profile": "View profile"
   },
   "creative": {
     "new_project": "New Project",
@@ -653,6 +656,16 @@
     "song_collaborators": "Co-writers",
     "song_no_recording": "No recording yet",
     "song_open_in_create": "Open in Create",
+    "song_document": "Song details",
+    "song_document_blocked": "Your browser blocked the document window. Allow pop-ups for this site and try again.",
+    "song_ownership": "Ownership",
+    "song_ownership_unagreed": "Split not agreed yet",
+    "song_document_kind": "Split sheet",
+    "song_document_by": "Created by",
+    "song_document_details": "Details",
+    "song_document_party": "Writer",
+    "song_document_total": "Total",
+    "song_document_generated": "Generated",
     "song_play": "Play",
     "song_pause": "Pause",
     "song_previous": "Previous recording",
@@ -669,7 +682,14 @@
     "see_all": "See all",
     "my_songs_subtitle": "Every song you've written, in one place.",
     "connections_subtitle": "The songwriters you've connected with.",
-    "disconnect": "Remove"
+    "disconnect": "Remove",
+    "connection_requests": "Requests",
+    "wants_to_connect": "Wants to connect",
+    "accept_request": "Accept",
+    "decline_request": "Decline",
+    "invite_sent_hint": "Waiting for them to accept. Press again to withdraw.",
+    "songwriter_not_found": "Songwriter not found",
+    "songwriter_not_found_desc": "This account no longer exists, or has no public profile yet."
   },
   "email": {
     "welcome": {
@@ -834,7 +854,12 @@
     "sentence_placeholder": "Type your sentence here...",
     "finalize_lyrics": "Finalize lyrics",
     "start_new_practice": "Start a new practice",
-    "send_to_canvas": "Send to canvas",
+    "nudge_theme": "Pick a theme to keep going.",
+    "nudge_nouns": "Fill all five nouns to keep going.",
+    "nudge_verbs": "Fill all five verbs to keep going.",
+    "nudge_links": "Link every noun to a verb to keep going.",
+    "nudge_lines": "Write all five lines to keep going.",
+    "send_to_canvas": "Continue in Canvas",
     "send_to_canvas_failed": "Could not reach your canvas. Try again.",
     "canvas_title": "{theme} — verse",
     "retry_connection": "Retry connection",
@@ -1634,11 +1659,11 @@
     "name": "Name",
     "transcribing": "Extracting...",
     "extract_stage_large": "Large file — still working",
+    "extract_stage_long": "Long recording — still working",
     "extract_stage_almost": "Almost there",
     "extract_too_long": "This recording is {length}. Lyrics can be extracted from takes up to {minutes} minutes.",
     "extract_too_large": "This file is {size}. Lyrics can be extracted from files up to {limit}.",
     "extract_failed": "Could not extract the lyrics. Please try again.",
-
     "extract_partial": "A part of the song could not be extracted — the rest is on the canvas.",
     "transcribing_audio": "Extracting lyrics",
     "transcribe_recording": "Transcribe recording",

@@ -37,7 +37,19 @@ const CONFETTI = [
 /** How long the last piece is still on screen — 1150ms of animation, 150ms of delay. */
 export const CONFETTI_MS = 1300;
 
-export default function Confetti() {
+interface ConfettiProps {
+    /**
+     * Overrides the three built-in colours, cycled across the pieces in order.
+     *
+     * The default palette is two greens and a charcoal, tuned for a burst that
+     * paints behind its subject on a light ground. Over a green fill the two
+     * greens all but vanish, so a caller putting the burst on top of one has to
+     * supply colours that read against it.
+     */
+    colors?: readonly string[];
+}
+
+export default function Confetti({ colors }: ConfettiProps = {}) {
     return (
         <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-visible">
             {CONFETTI.map((p, i) => (
@@ -48,7 +60,7 @@ export default function Confetti() {
                         left: `${p.x}%`,
                         width: p.w,
                         height: p.h,
-                        background: p.c,
+                        background: colors ? colors[i % colors.length] : p.c,
                         animationDelay: `${p.d}ms`,
                         ['--cx' as string]: `${p.dx}px`,
                         ['--cy' as string]: `${p.dy}px`,

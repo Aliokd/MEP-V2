@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Play, X } from 'lucide-react';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 interface PracticeVideoModalProps {
     src: string;
@@ -81,7 +82,7 @@ export default function PracticeVideoModal({ src, poster, title, onClose }: Prac
             <button
                 onClick={onClose}
                 aria-label="Close video"
-                className="fixed top-6 right-6 w-10 h-10 rounded-full bg-white/85 hover:bg-white flex items-center justify-center text-stone-800 transition-colors active:scale-95 z-10"
+                className={`${btn.icon('touch')} fixed top-6 right-6 z-10`}
             >
                 <X size={20} className="stroke-[1.8]" />
             </button>

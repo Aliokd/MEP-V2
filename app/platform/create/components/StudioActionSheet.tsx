@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useSheetPresence } from '@/hooks/useSheetPresence';
 import { useBackDismiss } from '@/hooks/useBackDismiss';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 interface StudioActionSheetProps {
     open: boolean;
@@ -136,7 +137,7 @@ export default function StudioActionSheet({
                     <button
                         onClick={onClose}
                         aria-label="Close"
-                        className="w-10 h-10 shrink-0 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center active:bg-stone-200 transition-colors"
+                        className={btn.icon('touch')}
                         type="button"
                     >
                         <X size={20} className="stroke-[2.2]" />

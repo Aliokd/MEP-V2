@@ -5,6 +5,7 @@ import { Music4 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import type { AuthoredSection } from '../data/practiceSongs';
 import Confetti from '@/app/onboarding/components/Confetti';
+import * as btn from '@/app/platform/components/buttonStyles';
 import { KIND_BG, KIND_LABEL_KEY, SECTION_TEXT, SOLVED_TEXT, formatTime, sectionOrdinals, solvedFill, type SectionKind } from '../data/sections';
 
 interface Segment {
@@ -211,7 +212,7 @@ export default function SongTimeline({
                         type="button"
                         onClick={onTogglePlay}
                         aria-label={isPlaying ? 'Pause' : 'Play'}
-                        className="w-11 h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 text-stone-900 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+                        className={`${btn.icon('md')} cursor-pointer`}
                     >
                         {/*
                          * Both glyphs are drawn to the edges of their viewBox, so the

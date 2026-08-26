@@ -2,15 +2,25 @@
 import { useEffect, useRef, useState } from 'react';
 import {
     Play, Pause, SkipBack, SkipForward, CalendarDays, Clock3,
-    UsersRound, CheckCircle2, PenLine, MicOff, Music, X
+    UsersRound, CheckCircle2, PenLine, MicOff, Music, X, FileText, Percent
 } from 'lucide-react';
 import { setPlaybackAudioSession } from '@/lib/audioSession';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 export interface SongTrack {
     id: string;
     url: string;
     title: string;
     duration: number; // seconds, 0 when unknown
+}
+
+/** One party's share, as agreed in the publish dialog. */
+export interface SongOwnershipSplit {
+    uid: string | null;
+    name: string;
+    percent: number;
+    lyricsPercent: number;
+    soundPercent: number;
 }
 
 export interface ProfileSong {
@@ -21,6 +31,9 @@ export interface ProfileSong {
     isCompleted: boolean;
     collaborators: number;
     tracks: SongTrack[];
+    /** Set once the song has been published; absent while the split is unagreed. */
+    ownershipSplits?: SongOwnershipSplit[];
+    ownershipAgreedAt?: number;
 }
 
 interface SongCardsProps {
@@ -31,6 +44,114 @@ interface SongCardsProps {
     onOpenInCreate: (songId: string) => void;
     /** Grid column classes — the full My songs page spreads wider than the profile shelf. */
     gridClassName?: string;
+    /** Whose songs these are — printed on the document as the creator. */
+    ownerName?: string;
+}
+
+/**
+ * Opens the song's details as a printable page, which the browser's print dialog
+ * saves as a PDF.
+ *
+ * Built as a document rather than a download because that is what it is: a split
+ * sheet — the record of who wrote a song and in what proportion, the thing a
+ * publisher or collecting society asks for. Printing it is the browser's own
+ * PDF writer, so nothing has to be uploaded and no PDF library ships to every
+ * visitor for a page most will never open.
+ *
+ * Escaped on the way in: titles and names are user-typed, and this HTML is
+ * assembled by hand.
+ */
+function openSongDocument(song: ProfileSong, ownerName: string, t: (k: string) => string, formatDate: (ms: number) => string) {
+    const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+    ));
+    const splits = song.ownershipSplits || [];
+    const pct = (n: number) => `${Math.round(n)}%`;
+
+    const rows = splits.length > 0
+        ? splits.map(sp => `
+            <tr>
+                <td>${esc(sp.name || t('collab.owner'))}</td>
+                <td class="num">${pct(sp.lyricsPercent)}</td>
+                <td class="num">${pct(sp.soundPercent)}</td>
+                <td class="num total">${pct(sp.percent)}</td>
+            </tr>`).join('')
+        : `<tr><td colspan="4" class="empty">${esc(t('profile.song_ownership_unagreed'))}</td></tr>`;
+
+    const meta = [
+        [t('profile.song_created'), song.createdAt > 0 ? formatDate(song.createdAt) : '—'],
+        [t('profile.song_updated'), song.updatedAt > 0 ? formatDate(song.updatedAt) : '—'],
+        [t('profile.song_recordings'), String(song.tracks.length)],
+        [t('profile.song_collaborators'), String(song.collaborators)],
+    ].map(([k, v]) => `<div class="meta-item"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
+
+    const html = `<!doctype html>
+<html><head><meta charset="utf-8"><title>${esc(song.title)}</title>
+<style>
+  @page { margin: 22mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1c1917; margin: 0; }
+  /* On screen the page has no @page margin, so give it one — otherwise the
+     document hugs the window edges while the print preview looks fine. */
+  @media screen { body { padding: 48px 24px; } }
+  .wrap { max-width: 700px; margin: 0 auto; }
+  .brand { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #a8a29e; }
+  h1 { font-size: 30px; line-height: 1.15; margin: 6px 0 2px; letter-spacing: -.02em; }
+  .by { color: #57534e; font-size: 14px; margin-bottom: 26px; }
+  h2 { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: #78716c;
+       border-bottom: 1px solid #e7e5e4; padding-bottom: 6px; margin: 30px 0 12px; }
+  dl.meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; margin: 0; }
+  .meta-item { display: flex; justify-content: space-between; border-bottom: 1px dotted #e7e5e4; padding-bottom: 5px; }
+  dt { color: #78716c; font-size: 13px; margin: 0; }
+  dd { margin: 0; font-size: 13px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: #78716c; font-weight: 600; font-size: 11px;
+       letter-spacing: .06em; text-transform: uppercase; padding: 0 0 8px; }
+  th.num, td.num { text-align: right; }
+  td { padding: 9px 0; border-top: 1px solid #f5f5f4; }
+  td.total { font-weight: 700; }
+  td.empty { color: #78716c; font-style: italic; padding: 14px 0; }
+  .tracks li { font-size: 13px; padding: 7px 0; border-top: 1px solid #f5f5f4; list-style: none; }
+  ul { margin: 0; padding: 0; }
+  footer { margin-top: 34px; padding-top: 12px; border-top: 1px solid #e7e5e4;
+           font-size: 11px; color: #a8a29e; display: flex; justify-content: space-between; }
+</style></head>
+<body><div class="wrap">
+  <div class="brand">Veinote &middot; ${esc(t('profile.song_document_kind'))}</div>
+  <h1>${esc(song.title)}</h1>
+  <div class="by">${esc(t('profile.song_document_by'))} ${esc(ownerName)}</div>
+
+  <h2>${esc(t('profile.song_document_details'))}</h2>
+  <dl class="meta">${meta}</dl>
+
+  <h2>${esc(t('profile.song_ownership'))}</h2>
+  <table>
+    <thead><tr>
+      <th>${esc(t('profile.song_document_party'))}</th>
+      <th class="num">${esc(t('publish.part_lyrics'))}</th>
+      <th class="num">${esc(t('publish.part_sound'))}</th>
+      <th class="num">${esc(t('profile.song_document_total'))}</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  ${song.tracks.length > 0 ? `<h2>${esc(t('profile.song_recordings'))}</h2><ul class="tracks">${
+      song.tracks.map(tr => `<li>${esc(tr.title || t('workspace.untitled_note'))}</li>`).join('')
+  }</ul>` : ''}
+
+  <footer>
+    <span>${esc(t('profile.song_document_generated'))} ${esc(formatDate(Date.now()))}</span>
+    <span>veinote.com</span>
+  </footer>
+</div>
+<script>window.addEventListener('load', function () { window.print(); });</script>
+</body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) return false;      // popup blocked — the caller says so
+    win.document.write(html);
+    win.document.close();
+    return true;
 }
 
 /* Centre-label colors, in the app's muted register. Keyed off the id so a song
@@ -49,8 +170,10 @@ const formatClock = (seconds: number) => {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
-export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridClassName = 'grid-cols-2 sm:grid-cols-3' }: SongCardsProps) {
+export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridClassName = 'grid-cols-2 sm:grid-cols-3', ownerName }: SongCardsProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
+    /** Set when the browser refused the document window, so the card can say why. */
+    const [docBlockedFor, setDocBlockedFor] = useState<string | null>(null);
     const [trackIndex, setTrackIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -205,7 +328,7 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
                         <button
                             onClick={() => handleSelect(song)}
                             aria-label={t('common.close')}
-                            className="absolute top-3.5 right-3.5 p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-all cursor-pointer"
+                            className={`${btn.iconGhost('sm')} absolute top-3.5 right-3.5 cursor-pointer`}
                         >
                             <X size={16} strokeWidth={2.2} />
                         </button>
@@ -267,7 +390,7 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
                                 onClick={() => handleStep(-1)}
                                 disabled={song.tracks.length < 2}
                                 aria-label={t('profile.song_previous')}
-                                className="w-12 h-12 rounded-full bg-white border border-stone-200/80 flex items-center justify-center text-stone-600 hover:text-stone-900 hover:border-stone-300 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-default disabled:active:scale-100"
+                                className={`${btn.icon('bare')} h-12 w-12 cursor-pointer disabled:opacity-40`}
                             >
                                 <SkipBack size={17} strokeWidth={2} />
                             </button>
@@ -275,7 +398,7 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
                                 onClick={handleTogglePlay}
                                 disabled={song.tracks.length === 0}
                                 aria-label={isPlaying ? t('profile.song_pause') : t('profile.song_play')}
-                                className="w-16 h-16 rounded-full bg-white border border-stone-200/80 flex items-center justify-center text-stone-800 hover:text-stone-950 hover:border-stone-300 shadow-[0_2px_8px_rgba(0,0,0,0.07)] transition-all cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-default disabled:active:scale-100"
+                                className={`${btn.icon('bare')} h-16 w-16 cursor-pointer disabled:opacity-40`}
                             >
                                 {isPlaying
                                     ? <Pause size={22} strokeWidth={2} />
@@ -285,7 +408,7 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
                                 onClick={() => handleStep(1)}
                                 disabled={song.tracks.length < 2}
                                 aria-label={t('profile.song_next')}
-                                className="w-12 h-12 rounded-full bg-white border border-stone-200/80 flex items-center justify-center text-stone-600 hover:text-stone-900 hover:border-stone-300 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-default disabled:active:scale-100"
+                                className={`${btn.icon('bare')} h-12 w-12 cursor-pointer disabled:opacity-40`}
                             >
                                 <SkipForward size={17} strokeWidth={2} />
                             </button>
@@ -325,13 +448,48 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
                             )}
                         </div>
 
-                        <button
-                            onClick={() => onOpenInCreate(song.id)}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-xs font-semibold text-stone-700 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95"
-                        >
-                            <PenLine size={13} strokeWidth={2} />
-                            {t('profile.song_open_in_create')}
-                        </button>
+                        {/* Ownership, in one line. Named shares when they have been agreed;
+                            otherwise it says so, rather than implying an even split nobody
+                            actually signed off. */}
+                        <div className="flex items-center justify-center gap-1.5 text-[11.5px] text-stone-500 font-medium">
+                            <Percent size={12} strokeWidth={2} className="text-stone-400 shrink-0" />
+                            {song.ownershipSplits && song.ownershipSplits.length > 0 ? (
+                                <span className="truncate">
+                                    {song.ownershipSplits
+                                        .slice()
+                                        .sort((a, b) => b.percent - a.percent)
+                                        .map(sp => `${sp.name || t('collab.owner')} ${Math.round(sp.percent)}%`)
+                                        .join(' · ')}
+                                </span>
+                            ) : (
+                                <span className="italic text-stone-400">{t('profile.song_ownership_unagreed')}</span>
+                            )}
+                        </div>
+
+                        <div className="flex items-center justify-center gap-2 flex-wrap">
+                            <button
+                                onClick={() => onOpenInCreate(song.id)}
+                                className={`${btn.secondary('xs')} cursor-pointer`}
+                            >
+                                <PenLine size={13} strokeWidth={2} />
+                                {t('profile.song_open_in_create')}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const opened = openSongDocument(song, ownerName || t('collab.me'), t, formatDate);
+                                    if (!opened) setDocBlockedFor(song.id);
+                                }}
+                                className={`${btn.secondary('xs')} cursor-pointer`}
+                            >
+                                <FileText size={13} strokeWidth={2} />
+                                {t('profile.song_document')}
+                            </button>
+                        </div>
+                        {docBlockedFor === song.id && (
+                            <p className="text-[11px] text-amber-700 text-center">
+                                {t('profile.song_document_blocked')}
+                            </p>
+                        )}
                     </div>
                 );
             })}

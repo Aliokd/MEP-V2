@@ -4,6 +4,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Music } from 'lucide-react';
 import SongCards from '../components/SongCards';
 import { useMySongs, leaveProfileTo, openSongInCreate, formatSongDate } from '../useMySongs';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 /**
  * The full song collection. Lives under /platform/profile so the layout gives it
@@ -45,7 +46,7 @@ export default function MySongsPage() {
                     <p className="text-xs text-stone-500">{t('profile.no_songs')}</p>
                     <button
                         onClick={() => leaveProfileTo('/platform/create')}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-stone-200/70 text-xs font-semibold text-stone-700 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-95"
+                        className={`${btn.secondary('xs')} cursor-pointer`}
                     >
                         <Music size={14} />
                         {t('profile.no_songs_cta')}
@@ -60,6 +61,7 @@ export default function MySongsPage() {
                     formatDate={(ms) => formatSongDate(language, ms)}
                     onOpenInCreate={(songId) => openSongInCreate(user.uid, songId)}
                     gridClassName="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                    ownerName={user.displayName || user.email || ''}
                 />
             )}
         </div>

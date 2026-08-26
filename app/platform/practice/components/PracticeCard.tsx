@@ -4,6 +4,7 @@ import { ArrowRight, Play } from 'lucide-react';
 import Tooltip from '@/components/Tooltip';
 import PracticeIllustration from './PracticeIllustration';
 import type { PracticeDefinition } from '../data/practices';
+import * as btn from '@/app/platform/components/buttonStyles';
 
 interface PracticeCardProps {
     practice: PracticeDefinition;
@@ -62,7 +63,7 @@ export default function PracticeCard({
                             type="button"
                             onClick={(e) => { e.stopPropagation(); onPlayVideo(); }}
                             aria-label={videoLabel}
-                            className="w-14 h-14 shrink-0 rounded-full border border-stone-300 hover:border-stone-500 hover:bg-stone-50 flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+                            className={`${btn.icon('lg')} cursor-pointer`}
                         >
                             <Play className="w-5 h-5 fill-stone-900 text-stone-900 stroke-none ml-0.5" />
                         </button>
@@ -70,21 +71,32 @@ export default function PracticeCard({
                 )}
             </div>
 
-            <p className="mt-5 text-base text-stone-500 font-sans leading-relaxed max-w-xl">
+            {/* Lifted above the illustration, which now rides up under it on a phone.
+                DOM order paints the artwork last, so without this the 60%-opacity
+                mark would wash over the words instead of sitting behind them. */}
+            <p className="relative z-10 mt-5 text-base text-stone-500 font-sans leading-relaxed max-w-xl">
                 {goal}
             </p>
 
             {/* Bottom row: the practice's illustration on the left, the action on the
                 right. Unbuilt practices stay bare — the visual arrives with the work. */}
-            {/* flex-col-reverse on a phone puts Start directly under the goal and the
-                illustration below it, so the action is on screen without scrolling —
-                at md's row layout it sat past the bottom of a 288px illustration that
-                mt-auto had already pushed to the end of a 62vh card. */}
-            <div className="mt-6 pt-0 flex flex-col-reverse items-stretch gap-5 md:mt-auto md:pt-10 md:flex-row md:items-end md:justify-between md:gap-6">
+            {/* On a phone this is a column in reading order — illustration, then the
+                action beneath it — pushed to the card's floor by mt-auto so Start
+                lands where a thumb already is. It briefly ran reversed, with Start
+                tucked under the goal, back when a 288px illustration sat between the
+                two; the illustration is 192px here now, so the honest order fits. */}
+            <div className="mt-auto pt-0 flex flex-col items-stretch gap-4 md:pt-10 md:flex-row md:items-end md:justify-between md:gap-6">
                 {available ? (
                     <PracticeIllustration
                         name={practice.name}
-                        className="w-56 h-56 md:w-96 md:h-96 text-stone-800 opacity-60 shrink-0 self-center md:self-auto -ml-0 md:-ml-6 -mb-6 select-none"
+                        // Sized off the viewport on a phone, not a fixed rem: this is the
+                        // card's one piece of artwork and at 192px it read as a thumbnail
+                        // marooned in the middle of the card. The negative top margin lets
+                        // it ride up under the goal text — the illustration is a pale
+                        // 60%-opacity mark with a soft edge, so a few px of overlap reads
+                        // as depth rather than collision. pointer-events-none keeps it from
+                        // stealing taps from the text it now sits over.
+                        className="w-[calc(100%+4rem)] max-w-[420px] aspect-square h-auto md:w-96 md:h-96 md:max-w-none text-stone-800 opacity-60 shrink-0 self-center md:self-auto -ml-0 md:-ml-6 -mt-12 md:mt-0 -mb-2 md:-mb-6 select-none pointer-events-none md:pointer-events-auto"
                     />
                 ) : (
                     <span aria-hidden="true" />
@@ -94,7 +106,7 @@ export default function PracticeCard({
                     <button
                         type="button"
                         onClick={onStart}
-                        className="w-full md:w-auto justify-center md:justify-start flex items-center gap-3 px-8 md:pl-10 md:pr-8 h-16 md:h-auto md:py-5 rounded-full bg-stone-900 text-[#FAF9F5] text-lg font-sans font-medium hover:bg-stone-800 active:scale-[0.99] transition-colors"
+                        className={`${btn.primary('hero')} w-full md:w-auto`}
                     >
                         {startLabel}
                         <ArrowRight size={20} className="stroke-[2]" />
