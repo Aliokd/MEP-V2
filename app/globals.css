@@ -1719,8 +1719,20 @@ html, body {
         max-height: 92dvh !important;
         display: flex !important;
         flex-direction: column !important;
-        overflow: hidden !important;
+        /* The panel scrolls ITSELF by default. It used to be `overflow: hidden`
+           unconditionally, which silently broke every panel that had not been
+           split into a body and a footer: capped at 92dvh with no scroller, any
+           content past that height — the send button on the feedback form, for
+           one — was not merely below the fold but unreachable. */
+        overflow-y: auto !important;
+        overscroll-behavior: contain !important;
         animation: bottom-sheet-enter 300ms cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    /* A panel that DOES mark its own scrolling region hands the scrolling to it
+       and goes back to clipping — that is what lets the footer be a fixed flex
+       sibling rather than a sticky one. */
+    .sheet-panel:has(.sheet-panel-body) {
+        overflow: hidden !important;
     }
     .sheet-panel-body {
         flex: 1 1 auto !important;
@@ -1731,6 +1743,27 @@ html, body {
     .sheet-panel-footer {
         flex: 0 0 auto !important;
         padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+    }
+    /* When the panel itself is the scroller, the footer cannot be pinned by flex
+       — it has to stick to the scrollport instead. Opaque so the content passes
+       behind it rather than through it; no inline margins, because the panels
+       that need this range from p-8 to no padding at all, and the footer already
+       spans exactly the column the scrolling content occupies. `margin-top: auto`
+       keeps it on the floor when the content is too short to scroll. */
+    .sheet-panel:not(:has(.sheet-panel-body)) .sheet-panel-footer {
+        position: sticky !important;
+        bottom: 0 !important;
+        z-index: 5 !important;
+        margin-top: auto !important;
+        padding-top: 0.875rem !important;
+        background: #ffffff !important;
+    }
+    /* The panel's own bottom padding sits BELOW a sticky footer — sticky pins to
+       the padding edge, not the border edge — leaving the action stranded above a
+       band of dead white, which is the exact thing pinning it was meant to fix.
+       The footer carries the bottom inset (and the safe area) instead. */
+    .sheet-panel:not(:has(.sheet-panel-body)):has(.sheet-panel-footer) {
+        padding-bottom: 0 !important;
     }
     /* Any button sitting directly in a pinned footer runs the full width — a
        thumb-sized target is the point of moving it there. */

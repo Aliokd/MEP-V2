@@ -195,7 +195,7 @@ import { setPlaybackAudioSession, setRecordingAudioSession, releaseRecordingAudi
 import { useSheetPresence } from '@/hooks/useSheetPresence';
 import { useBackDismiss } from '@/hooks/useBackDismiss';
 import { haptic } from '@/lib/haptics';
-import StudioActionSheet, { StudioSheetRow } from './components/StudioActionSheet';
+import StudioActionSheet, { StudioSheetRow, StudioSheetNavRow } from './components/StudioActionSheet';
 import { fitToFirestore } from '@/lib/projectPayload';
 // Chord picking, validation and note lookup all moved into ChordCard — the page
 // only needs the shape it stores.
@@ -4893,6 +4893,59 @@ export default function CreatePage() {
     const isKeyboardOpen = keyboardInset > 120 || (isMobile && isEditorFocused);
 
     /**
+     * Whether the canvas still reaches the bottom of the visible viewport.
+     *
+     * The gate on docking the toolbar to the keyboard. `isKeyboardOpen` falls back
+     * to "the editor has focus" because Android does not report a usable keyboard
+     * inset — but Android also dismisses the keyboard with the system Back gesture
+     * WITHOUT blurring the field. Focus stays true, the toolbar stays `fixed` at
+     * `bottom: 0`, and it then floats over the projects shelf below the canvas,
+     * which is not its business.
+     *
+     * Measuring the card instead of trusting focus answers the real question: is
+     * the canvas what is at the bottom of the screen right now? Once it isn't, the
+     * toolbar reverts to sticky and leaves with the canvas's own bottom edge.
+     */
+    const [canvasReachesViewportBottom, setCanvasReachesViewportBottom] = useState(true);
+    useEffect(() => {
+        if (!isMobile || typeof window === 'undefined') return;
+
+        const check = () => {
+            const card = document.querySelector('.creative-canvas-container');
+            if (!card) return;
+            // The VISIBLE bottom: with a keyboard up that is the keyboard's top
+            // edge, not the window's, on the browsers that report it.
+            const vv = window.visualViewport;
+            const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+            setCanvasReachesViewportBottom(card.getBoundingClientRect().bottom >= visibleBottom - 1);
+        };
+
+        check();
+        window.addEventListener('scroll', check, { passive: true });
+        window.addEventListener('resize', check);
+        window.visualViewport?.addEventListener('resize', check);
+        window.visualViewport?.addEventListener('scroll', check);
+        return () => {
+            window.removeEventListener('scroll', check);
+            window.removeEventListener('resize', check);
+            window.visualViewport?.removeEventListener('resize', check);
+            window.visualViewport?.removeEventListener('scroll', check);
+        };
+    }, [isMobile]);
+
+    /**
+     * The toolbar rides the keyboard's top edge.
+     *
+     * A MEASURED inset is trusted outright — that is a real keyboard, and the bar
+     * belongs on it wherever the canvas happens to be scrolled to. The canvas-in-view
+     * gate applies only to the focus fallback, which is the guess: it is what Android
+     * leaves stuck on after dismissing the keyboard without blurring the field.
+     */
+    const isDockKeyboardAnchored = isMobile && (
+        keyboardInset > 120 || (isEditorFocused && canvasReachesViewportBottom)
+    );
+
+    /**
      * How tall the docked toolbar is while the keyboard is up. Measured rather
      * than assumed: it is two rows there (Complete and undo/redo above the tools
      * capsule), and the number is used to work out how much room is genuinely
@@ -5336,6 +5389,8 @@ export default function CreatePage() {
     // Phone-only sheets behind the studio's icon row. On desktop the same controls
     // stay laid out inline, so these are never opened there.
     const [studioSettingsOpen, setStudioSettingsOpen] = useState(false);
+    /** The metronome's own module, opened from the Metronome row in Settings. */
+    const [studioMetronomeSheetOpen, setStudioMetronomeSheetOpen] = useState(false);
     const [studioExportOpen, setStudioExportOpen] = useState(false);
     // Which track's settings sheet is open on a phone. The five per-track knobs
     // (VOL/PAN/EQ/REV/COMP) are 240px of controls that can't fit beside the
@@ -16102,7 +16157,7 @@ export default function CreatePage() {
                         Fills the leftover card height (flex-1 min-h-0) rather than carrying a
                         viewport-proportional min-height — a `min-h` here is what pushed the
                         transport row off the bottom of short screens. */}
-                        <div className="w-full flex-1 min-h-0 flex flex-col gap-4 sm:gap-6 select-none animate-in fade-in zoom-in-95 duration-250 relative">
+                        <div className="w-full flex-1 min-h-0 flex flex-col gap-4 sm:gap-6 [@media(max-height:820px)]:gap-3 select-none animate-in fade-in zoom-in-95 duration-250 relative">
                     {/* Unified Sequencer Panel Grid Area — the studio's single scroll region.
                         Scrolls on both axes: horizontally for the wide sequencer, vertically for
                         the track list when the viewport is too short to show every track. A thin
@@ -16163,7 +16218,7 @@ export default function CreatePage() {
                         restores it from sm up — the row still scrolls by swipe either way. */}
                     <div className="flex flex-col flex-1 min-h-0 w-[calc(100%+1rem)] -ml-4 pl-4 relative overflow-auto studio-tracks-scroll">
                     {/* Sequencer Track List Container */}
-                    <div className="flex flex-col gap-2.5 w-full relative pr-0 sm:pr-0">
+                    <div className="flex flex-col gap-2.5 w-full relative pr-0 sm:pr-0 sm:h-full sm:min-h-0">
                         {studioTracks.filter(Boolean).map((track, idx) => {
                             const isArmed = activeRecordingTrackId === track.id;
                             const isThisTrackRecording = studioState === 'recording' && isArmed;
@@ -16221,7 +16276,7 @@ export default function CreatePage() {
                                     // Two rows on a phone: the instrument capsule full width on
                                     // top, its waveform underneath. Auto height there because
                                     // the fixed h-16 was sized for the single-row desktop layout.
-                                    className={`studio-track-row flex flex-col items-stretch sm:flex-row sm:items-center gap-2 sm:gap-3 w-full select-none rounded-2xl relative transition-all duration-200 group ${
+                                    className={`studio-track-row flex flex-col items-stretch sm:flex-row sm:items-center gap-2 sm:gap-3 w-full select-none rounded-2xl relative transition-all duration-200 group sm:min-h-[52px] ${
                                         isCollabRecording ? '' : 'cursor-pointer'
                                     } ${
                                         expandedTrackId === track.id ? 'sm:h-[92px] sm:py-2 py-2' : 'h-auto sm:h-16 py-2 sm:py-1'
@@ -16233,7 +16288,7 @@ export default function CreatePage() {
                                         // grey box was a frame drawn a few pixels outside
                                         // another frame.
                                         isArmed
-                                            ? 'bg-transparent sm:bg-[#E8E3D7] sm:hover:bg-[#E2DCCE]'
+                                            ? 'bg-transparent sm:bg-stone-200/50 sm:hover:bg-stone-200/60'
                                             : 'bg-transparent sm:bg-stone-50/70 sm:hover:bg-stone-100/80'
                                     } ${
                                         (activeTrackMenuId === track.id || activeTrackDropdownId === track.id)
@@ -16317,7 +16372,7 @@ export default function CreatePage() {
                                             }}
                                             className={`rounded-full border pl-3.5 pr-0 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)] cursor-pointer select-none w-full h-14 sm:w-36 md:w-40 lg:w-44 sm:h-11 sm:shrink-0 transition-all hover:shadow-[0_2px_6px_rgba(0,0,0,0.04)] active:scale-[0.99] relative overflow-hidden ${
                                                 isArmed
-                                                    ? 'bg-[#E8E3D7] hover:bg-[#E2DCCE] border-[#D6CEBC]'
+                                                    ? 'bg-stone-200/50 hover:bg-stone-200/60 border-stone-300/50'
                                                     : 'bg-[#F9F8F6] hover:bg-[#F3F1ED] border-stone-200/40'
                                             }`}
                                         >
@@ -16718,7 +16773,7 @@ export default function CreatePage() {
                                             isThisTrackRecording
                                                 ? 'bg-[#FF6B6B]'
                                                 : isArmed
-                                                    ? 'bg-[#E8E3D7] border border-[#D6CEBC]'
+                                                    ? 'bg-stone-200/50 border border-stone-300/50'
                                                     : (track.audioBuffer || track.url)
                                                         ? 'bg-white border border-stone-200/60'
                                                         : 'bg-white border border-stone-200/50'
@@ -16844,13 +16899,13 @@ export default function CreatePage() {
                     height (so these controls still sit at the bottom of a tall panel, as the old
                     flex-grow spacer arranged), and shrink-0 guarantees REC / Play / Send to
                     canvas stay on screen at any viewport height instead of scrolling away. */}
-                <div className="flex flex-col shrink-0 gap-3 pt-0 mt-0 sm:pt-4 sm:mt-2 w-full">
+                <div className="flex flex-col shrink-0 gap-3 pt-0 mt-0 w-full">
                     {/* Level 1: Metronome, Guitar Tuner, and Timeline Seeker Capsule */}
                     {/* pt-10 (rather than a fixed h-10 with no vertical room) gives the pills' box-shadows
                         room to render AND the metronome knob's hover/drag value tooltip (which pops up
                         ~34px above the knob) room to clear the top edge — overflow-x-auto implicitly clips
                         overflow-y too, and with too little buffer both were getting cropped. */}
-                    <div className="hidden sm:flex w-full items-center gap-3 px-4 pt-10 pb-3 select-none overflow-x-auto no-scrollbar">
+                    <div className="hidden sm:flex w-full items-center gap-3 px-4 pt-10 pb-3 [@media(max-height:820px)]:pt-4 [@media(max-height:820px)]:pb-2 select-none overflow-x-auto no-scrollbar">
                         {/* Left side: Instrument and Utility pills aligned with tracks left column */}
                         <div className="w-[412px] sm:w-[428px] md:w-[444px] lg:w-[460px] xl:w-[500px] shrink-0 flex items-center gap-2.5">
                             {/* Metronome Volume Control */}
@@ -17069,23 +17124,25 @@ export default function CreatePage() {
                             {studioState === 'recording' ? (
                                 <button
                                     onClick={stopStudioRecording}
-                                    className={`${btn.secondary('bare')} gap-2 whitespace-nowrap px-5 py-2.5 text-xs font-bold text-[#FF4040] hover:text-[#FF4040] sm:px-8 sm:py-3.5 sm:text-sm lg:text-[15px] cursor-pointer`}
+                                    className={`${btn.plain('bare')} gap-2.5 whitespace-nowrap border px-5 py-2.5 text-xs transition-all duration-200 sm:px-8 sm:py-3.5 sm:text-sm lg:text-[15px] recording-gradient border-transparent shadow-[0_6px_20px_rgba(211,47,47,0.28)] cursor-pointer`}
                                 >
-                                    <div className="relative flex items-center justify-center shrink-0">
-                                        <div className="w-4 h-4 rounded-full bg-[#FF4040] animate-ping absolute" />
-                                        <Square size={12} className="fill-[#FF4040] text-[#FF4040] shrink-0 z-10" />
+                                    <div className="relative flex items-center justify-center shrink-0 w-4 h-4">
+                                        <div className="w-4 h-4 rounded-full bg-white/60 animate-ping absolute" />
+                                        <Square size={12} className="fill-white text-white shrink-0 z-10" />
                                     </div>
-                                    <span className="z-10 text-[#FF4040] font-bold">
-                                        {t('studio.recording')} <span className="font-normal">{formatTime(studioPlayhead)}</span>
+                                    <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, letterSpacing: '0.02em' }} className="z-10 whitespace-nowrap text-white">
+                                        {t('studio.recording')} <span style={{ fontWeight: 400 }} className="text-white/85 tabular-nums">{formatTime(studioPlayhead)}</span>
                                     </span>
                                 </button>
                             ) : (
                                 <button
                                     onClick={startStudioRecording}
-                                    className={`${btn.secondary('bare')} gap-2 px-5 py-2.5 text-xs font-bold text-[#FF4040] hover:text-[#FF4040] sm:px-8 sm:py-3.5 sm:text-sm lg:text-[15px] cursor-pointer`}
+                                    className={`${btn.plain('bare')} gap-2.5 whitespace-nowrap border px-5 py-2.5 text-xs transition-all duration-200 sm:px-8 sm:py-3.5 sm:text-sm lg:text-[15px] bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer`}
                                 >
                                     <div className="w-3 h-3 bg-[#FF4040] rounded-full shrink-0" />
-                                    {t('studio.rec')}
+                                    <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, letterSpacing: '0.02em', color: '#FF4040' }} className="whitespace-nowrap">
+                                        {t('studio.rec')}
+                                    </span>
                                 </button>
                             )}
                              {/* Play / Pause Button */}
@@ -17214,7 +17271,7 @@ export default function CreatePage() {
                             <button
                                 onClick={() => { haptic('impact'); stopStudioRecording(); }}
                                 aria-label={t('studio.recording')}
-                                className={`${btn.danger('bare')} h-[clamp(44px,12.5vw,56px)] min-w-[104px] flex-[2] gap-2 px-4`}
+                                className={`${btn.plain('bare')} h-[clamp(44px,12.5vw,56px)] min-w-[104px] flex-[2] gap-2 border border-transparent px-4 recording-gradient shadow-[0_6px_20px_rgba(211,47,47,0.28)]`}
                                 type="button"
                             >
                                 <span className="w-2.5 h-2.5 rounded-full bg-white/90 shrink-0 animate-pulse" />
@@ -17226,7 +17283,7 @@ export default function CreatePage() {
                             <button
                                 onClick={() => { haptic('impact'); startStudioRecording(); }}
                                 aria-label={t('studio.rec')}
-                                className={`${btn.secondary('bare')} h-[clamp(44px,12.5vw,56px)] min-w-[104px] flex-[2] gap-2 px-4`}
+                                className={`${btn.plain('bare')} h-[clamp(44px,12.5vw,56px)] min-w-[104px] flex-[2] gap-2 border border-stone-200/50 bg-white px-4 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]`}
                                 type="button"
                             >
                                 <span className="w-3.5 h-3.5 bg-[#FF4040] rounded-full shrink-0" />
@@ -17305,12 +17362,74 @@ export default function CreatePage() {
                     Rendered unconditionally; each is inert until opened, and StudioActionSheet
                     portals itself out to <body> so it escapes the tools panel's transform. */}
 
+                {/* Settings is a menu, not a control panel: three named things, each
+                    showing its current value, two of which open their own module. The
+                    metronome's toggle, tempo slider and volume knob used to sit here
+                    inline, which made a sheet you had to scroll past three controls to
+                    reach the two settings underneath. */}
                 <StudioActionSheet
                     open={isMobile && studioSettingsOpen}
                     onClose={() => setStudioSettingsOpen(false)}
+                    // Kept as the dialog's aria-label; the rows name themselves.
                     title={t('studio.settings')}
-                    subtitle={t('studio.settings_subtitle')}
+                    hideHeader
                     maxHeight="90dvh"
+                >
+                    <StudioSheetNavRow
+                        title={t('studio.metronome')}
+                        value={`${isStudioMetronomeOn ? t('common.on') : t('common.off')} • ${metronomeBpm} BPM`}
+                        onClick={() => { haptic('tap'); setStudioMetronomeSheetOpen(true); }}
+                    />
+
+                    <StudioSheetNavRow
+                        title={t('creative.guitar_tuning')}
+                        value={
+                            (tunerActive ? tunerNote : (savedTuning ? savedTuning.note : null)) &&
+                            (tunerActive ? tunerNote : savedTuning?.note) !== '--'
+                                ? `${t('studio.last_note')} ${tunerActive ? tunerNote : savedTuning?.note}`
+                                : t('studio.no_tuning_yet')
+                        }
+                        onClick={() => {
+                            haptic('tap');
+                            setStudioSettingsOpen(false);
+                            setActiveToolTab('tuner');
+                            setShowToolsPanel(true);
+                        }}
+                    />
+
+                    {/* The one that stays inline: it is a single boolean, so opening a
+                        sheet to flip it would be a whole screen for one tap. Same dial
+                        as the compressor in the track sheet. */}
+                    <StudioSheetRow
+                        title={t('studio.direct_monitoring')}
+                        description={t('studio.direct_monitoring_hint')}
+                        control={
+                            <button
+                                onClick={() => { haptic('select'); setIsDirectMonitorEnabled(prev => !prev); }}
+                                className={`${btn.plain('bare')} h-14 w-14 border-2 transition-all cursor-pointer ${
+                                    isDirectMonitorEnabled
+                                        ? 'bg-white border-stone-200/80 shadow-[0_2.5px_6px_rgba(0,0,0,0.07)]'
+                                        : 'bg-[#F5F4F0] border-stone-200/40 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.06)]'
+                                }`}
+                                type="button"
+                            >
+                                <span className={`text-[13px] font-bold tracking-wide select-none ${
+                                    isDirectMonitorEnabled ? 'text-stone-600' : 'text-stone-400'
+                                }`}>
+                                    {isDirectMonitorEnabled ? 'ON' : 'OFF'}
+                                </span>
+                            </button>
+                        }
+                    />
+                </StudioActionSheet>
+
+                {/* The metronome module, one level down from Settings. */}
+                <StudioActionSheet
+                    open={isMobile && studioMetronomeSheetOpen}
+                    onClose={() => setStudioMetronomeSheetOpen(false)}
+                    title={t('studio.metronome')}
+                    hideHeader
+                    maxHeight="80dvh"
                 >
                     <StudioSheetRow
                         title={t('studio.metronome')}
@@ -17320,10 +17439,18 @@ export default function CreatePage() {
                         control={
                             <button
                                 onClick={() => { haptic('select'); handleToggleStudioMetronome(); }}
-                                className={`${btn.chip(isStudioMetronomeOn, 'bare')} h-11 px-6 text-[15px] font-semibold`}
+                                className={`${btn.plain('bare')} h-14 w-14 border-2 transition-all cursor-pointer ${
+                                    isStudioMetronomeOn
+                                        ? 'bg-white border-stone-200/80 shadow-[0_2.5px_6px_rgba(0,0,0,0.07)]'
+                                        : 'bg-[#F5F4F0] border-stone-200/40 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.06)]'
+                                }`}
                                 type="button"
                             >
-                                {isStudioMetronomeOn ? t('common.on') : t('common.off')}
+                                <span className={`text-[13px] font-bold tracking-wide select-none ${
+                                    isStudioMetronomeOn ? 'text-stone-600' : 'text-stone-400'
+                                }`}>
+                                    {isStudioMetronomeOn ? 'ON' : 'OFF'}
+                                </span>
                             </button>
                         }
                     />
@@ -17383,45 +17510,6 @@ export default function CreatePage() {
                         }
                     />
 
-                    <StudioSheetRow
-                        title={t('creative.guitar_tuning')}
-                        description={
-                            (tunerActive ? tunerNote : (savedTuning ? savedTuning.note : null)) &&
-                            (tunerActive ? tunerNote : savedTuning?.note) !== '--'
-                                ? `${t('studio.last_note')} ${tunerActive ? tunerNote : savedTuning?.note}`
-                                : t('studio.no_tuning_yet')
-                        }
-                        control={
-                            <button
-                                onClick={() => {
-                                    haptic('tap');
-                                    setStudioSettingsOpen(false);
-                                    setActiveToolTab('tuner');
-                                    setShowToolsPanel(true);
-                                }}
-                                className={`${btn.secondary('bare')} h-11 gap-2 px-6 text-[15px] font-semibold`}
-                                type="button"
-                            >
-                                <Guitar size={18} className="text-stone-500" />
-                                {t('common.open')}
-                            </button>
-                        }
-                    />
-
-                    <StudioSheetRow
-                        title={t('studio.direct_monitoring')}
-                        description={t('studio.direct_monitoring_hint')}
-                        control={
-                            <button
-                                onClick={() => { haptic('select'); setIsDirectMonitorEnabled(prev => !prev); }}
-                                className={`${btn.chip(isDirectMonitorEnabled, 'bare')} h-11 gap-2 px-6 text-[15px] font-semibold`}
-                                type="button"
-                            >
-                                <Headphones size={17} />
-                                {isDirectMonitorEnabled ? t('common.on') : t('common.off')}
-                            </button>
-                        }
-                    />
                 </StudioActionSheet>
 
                 {/* Per-track settings. Opened by tapping a track's instrument capsule,
@@ -17462,10 +17550,13 @@ export default function CreatePage() {
                         >
                             {sheetTrack && (
                                 <>
-                                    <StudioSheetRow
-                                        title={t('studio.instrument')}
-                                        stacked
-                                        control={
+                                    {/* No "Instrument" heading. This is the first thing in a
+                                        sheet that has no header either, and four labelled
+                                        instrument tiles do not need a word above them saying
+                                        they are instruments. Rendered directly rather than
+                                        through StudioSheetRow, which always draws its title. */}
+                                    <div className="pt-1 pb-4 border-b border-stone-200/70">
+                                        {(
                                             // The same pills the desktop dropdown uses —
                                             // artwork, tones and selected treatment all
                                             // carried over, just laid out 2x2 instead of
@@ -17478,16 +17569,23 @@ export default function CreatePage() {
                                                             key={opt}
                                                             type="button"
                                                             onClick={() => { haptic('select'); handleSelectInstrumentType(sheetTrack.id, opt); }}
-                                                            className={`${btn.plain('bare')} group relative h-[96px] w-full items-start justify-start overflow-hidden rounded-[20px] border pl-4 pt-3.5 transition-all cursor-pointer ${
+                                                            // No flex alignment utilities here: btn.plain() carries
+                                                            // `items-center justify-center` in its shared shape, and
+                                                            // `items-start` loses that tie on class order — which is
+                                                            // why the label kept rendering dead centre under the
+                                                            // artwork. Both children are positioned absolutely
+                                                            // instead, which ignores the flex box altogether.
+                                                            className={`${btn.plain('bare')} group relative h-[96px] w-full overflow-hidden rounded-[20px] border transition-all cursor-pointer ${
                                                                 selected
                                                                     ? 'bg-[#F9F8F6] border-transparent ring-2 ring-stone-800'
                                                                     : 'bg-white border-stone-200'
                                                             }`}
                                                         >
-                                                            {/* Pinned to the tile's top-left, ahead of the artwork
-                                                                in reading order. The name is what is being chosen;
-                                                                the drawing is what makes the choice recognisable. */}
-                                                            <span className={`relative z-10 text-left text-[17px] tracking-wide select-none whitespace-nowrap transition-colors ${
+                                                            {/* Top-left, on its own line, with the artwork kept out
+                                                                of its half of the tile. The oversized drawings that
+                                                                were cropped by the tile's edges looked bolder but ran
+                                                                straight through the word they were labelling. */}
+                                                            <span className={`absolute left-4 top-3 z-10 text-left text-[17px] leading-none tracking-wide select-none whitespace-nowrap transition-colors ${
                                                                 selected ? 'font-semibold text-stone-800' : 'font-medium text-stone-500'
                                                             }`}>
                                                                 {instrumentLabels[opt]}
@@ -17496,26 +17594,19 @@ export default function CreatePage() {
                                                                 src={instrumentImages[opt]}
                                                                 alt=""
                                                                 aria-hidden
-                                                                // Anchored bottom-right and deliberately oversized —
-                                                                // the tile's overflow-hidden crops each drawing at
-                                                                // its right and bottom edges instead of shrinking it
-                                                                // to fit. A cropped instrument reads at a glance; the
-                                                                // same drawing scaled down to sit fully inside the
-                                                                // tile became a grey smudge in the corner.
-                                                                className={`absolute bottom-0 right-0 object-contain select-none pointer-events-none transition-transform duration-200 group-active:scale-105 ${
-                                                                    opt === 'piano'
-                                                                        ? 'w-[108%] translate-x-5 translate-y-3'
-                                                                        : opt === 'guitar'
-                                                                        ? 'w-[92%] translate-x-4 translate-y-2'
-                                                                        : 'w-[84%] translate-x-4 translate-y-3'
-                                                                }`}
+                                                                // Bottom-right, and sized by HEIGHT rather than width:
+                                                                // a height cap is what guarantees the drawing stays
+                                                                // below the label's line, whatever the aspect ratio of
+                                                                // the individual image. max-w keeps the wide ones (the
+                                                                // keyboard) from reaching back across the tile.
+                                                                className="absolute bottom-1.5 right-1.5 h-[52px] w-auto max-w-[56%] object-contain object-right-bottom select-none pointer-events-none transition-transform duration-200 group-active:scale-105"
                                                             />
                                                         </button>
                                                     );
                                                 })}
                                             </div>
-                                        }
-                                    />
+                                        )}
+                                    </div>
 
                                     {/* The knobs themselves, not sliders — same StudioKnob the
                                         desktop mixer uses, so a value set here looks and drags
@@ -20468,7 +20559,7 @@ export default function CreatePage() {
                         // keyed on focus, this padding appeared whenever a field was
                         // focused, keyboard or not.
                         className={`w-full flex-grow flex-1 flex flex-col z-10 py-6 relative ${
-                            (isMobile && isKeyboardOpen) ? 'pb-16' : ''
+                            isDockKeyboardAnchored ? 'pb-16' : ''
                         }`}
                     >
                         {/* Drag and Drop Hover Overlay. The dashed box promises "drop anywhere in
@@ -21962,6 +22053,16 @@ export default function CreatePage() {
                     (translate-y slide → scale pop) per breakpoint. */}
                 <div
                     className={`fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 w-full ${
+                        // Inspirations is a card deck, not a sheet of controls: it is the
+                        // whole screen's subject while it is open, so below sm the panel
+                        // spans the viewport and centres the deck in it. The other two
+                        // tabs stay pinned to the bottom edge, where a sheet belongs —
+                        // anchoring the deck there left it sitting on the floor with the
+                        // dead space above it.
+                        activeToolTab === 'inspiration'
+                            ? 'max-sm:top-0 max-sm:flex max-sm:items-center max-sm:justify-center'
+                            : ''
+                    } ${
                         activeToolTab === 'studio'
                             ? 'sm:max-w-[1560px] px-0 sm:px-10 md:px-16'
                             : 'sm:max-w-[952px] px-0 sm:px-4'
@@ -21991,7 +22092,7 @@ export default function CreatePage() {
                         // No transition while it's docked to the keyboard: the keyboard
                         // itself animates up over ~250ms, and a 300ms transition on top of
                         // that made the bar visibly chase it and land late.
-                        (isMobile && isKeyboardOpen)
+                        isDockKeyboardAnchored
                             // p-0, not p-3: the padding sat between this bar's edges and
                             // the capsule inside it, which is the margin down both sides
                             // and the strip of white under the controls before the
@@ -22028,7 +22129,7 @@ export default function CreatePage() {
                                     // right against the card's bottom edge otherwise.
                                     : "transition-all duration-300 px-2 md:px-8 mt-auto pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] md:pb-12 sticky bottom-0 bg-white/90 backdrop-blur-md"
                     }`}
-                    style={(isMobile && isKeyboardOpen) ? {
+                    style={isDockKeyboardAnchored ? {
                         // Anchored by `bottom: <keyboard inset>`, not by top plus a
                         // translateY(-100%).
                         //
@@ -22161,7 +22262,7 @@ export default function CreatePage() {
                             just fills it. Otherwise it is the rounded bar attached to the
                             canvas's bottom edge. */}
                         <div className={`flex items-center bg-white w-full md:w-fit pointer-events-auto ${
-                            (isMobile && isKeyboardOpen)
+                            isDockKeyboardAnchored
                                 ? 'justify-center gap-3 px-3 py-2 rounded-none border-0 shadow-none'
                                 : 'justify-center md:justify-start gap-3 md:gap-3.5 p-3 px-4 md:p-3 border-t border-stone-200/60 md:border rounded-t-[24px] rounded-b-none md:rounded-full shadow-[0_-6px_28px_rgba(0,0,0,0.07)] md:shadow-[0_16px_48px_rgba(0,0,0,0.08)]'
                         }`}>

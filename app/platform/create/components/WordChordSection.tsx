@@ -163,7 +163,7 @@ export default function WordChordSection({
             onPickChord(normalizeChord(customDraft));
         };
         return (
-            <div className="relative w-full md:w-[195px] md:shrink-0 self-stretch md:self-start min-h-0 overflow-y-auto md:overflow-visible no-scrollbar flex flex-col gap-3 p-4 bg-stone-50/70 rounded-[22px]">
+            <div className="relative w-full md:w-[195px] md:shrink-0 self-stretch md:self-start min-h-0 overflow-y-auto md:overflow-visible no-scrollbar flex flex-col gap-3 p-4 pb-0 md:pb-4 bg-stone-50/70 rounded-[22px]">
                 <div className="flex flex-col gap-3">
                     <div className="flex items-start justify-between gap-1 min-w-0">
                         {/* The notes sit beside the symbol below md rather than under it:
@@ -284,7 +284,7 @@ export default function WordChordSection({
                     panel's own padding, so chord boxes pass behind it rather than through.
                     `mt-auto` keeps it at the bottom when the content is short enough not
                     to scroll at all. */}
-                <div className="sticky bottom-0 z-20 mt-auto flex flex-col gap-2 -mx-4 px-4 pt-3 pb-1 bg-[#FCFCFB] border-t border-stone-200/60 md:border-0 md:bg-transparent md:mx-0 md:px-0 md:pt-0 md:pb-0">
+                <div className="sticky bottom-0 z-20 mt-auto flex flex-col gap-2 -mx-4 px-4 pt-3 pb-3 bg-[#FCFCFB] border-t border-stone-200/60 md:border-0 md:bg-transparent md:mx-0 md:px-0 md:pt-0 md:pb-0">
                 {/* Says what it will actually do: give this word its first chord, or
                     replace the one it already has. */}
                 <button

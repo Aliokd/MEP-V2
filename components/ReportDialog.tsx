@@ -7,6 +7,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { authedFetch } from "@/lib/authedFetch";
 import { REPORT_REASONS, type ReportReason, type ReportTargetType } from "@/lib/reports";
 
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 interface ReportDialogProps {
     isOpen: boolean;
     onClose: () => void;
@@ -51,6 +52,9 @@ export default function ReportDialog({
         return () => window.removeEventListener("keydown", onKey);
     }, [isOpen, onClose]);
 
+    // Swipe the sheet down to dismiss it (phones only — see the hook).
+    const { swipeHandlers, swipeStyle } = useSheetSwipe(onClose);
+
     if (!isOpen || !mounted) return null;
 
     const submit = async () => {
@@ -77,7 +81,7 @@ export default function ReportDialog({
         <div className="sheet-shell fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="sheet-panel relative w-full max-w-md bg-white rounded-[22px] border border-stone-200 shadow-xl overflow-hidden">
+            <div className="sheet-panel relative w-full max-w-md bg-white rounded-[22px] border border-stone-200 shadow-xl overflow-hidden" {...swipeHandlers} style={swipeStyle}>
                 {sent ? (
                     <div className="p-8 flex flex-col items-center gap-3 text-center">
                         <div className="w-10 h-10 rounded-full bg-[#eaf5ec] flex items-center justify-center">
@@ -129,7 +133,7 @@ export default function ReportDialog({
 
                         {error && <p className="px-6 pb-2 text-sm text-red-600">{error}</p>}
 
-                        <div className="px-6 py-4 border-t border-stone-150 flex items-center justify-between gap-3">
+                        <div className="sheet-panel-footer px-6 py-4 border-t border-stone-150 flex items-center justify-between gap-3">
                             <p className="text-[11px] text-stone-400 leading-snug flex-1">{t("report.privacy_note")}</p>
                             <button
                                 onClick={submit}

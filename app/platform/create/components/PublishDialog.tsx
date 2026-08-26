@@ -1,4 +1,5 @@
 'use client';
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Plus, X } from 'lucide-react';
@@ -385,6 +386,17 @@ export default function PublishDialog({
         return () => window.removeEventListener('keydown', onKey);
     }, [open, isPublishing, onCancel]);
 
+    // Swipe the sheet down to dismiss it (phones only — see the hook).
+    // Disabled while publishing, matching the scrim: a commit in flight is not
+    // something a stray downward drag should be able to throw away.
+    //
+    // Above the `!open` return, not beside the markup that uses it: called after
+    // it, this runs only when the dialog is open, so opening it adds a hook that
+    // was not there on the previous render and React throws "Rendered more hooks
+    // than during the previous render" — the same fault that took out the whole
+    // platform from app/platform/layout.tsx.
+    const { swipeHandlers, swipeStyle } = useSheetSwipe(onCancel, !isPublishing);
+
     if (!open) return null;
 
     /** `rowKey` is a member's uid or a hand-credited name's local id — splits are keyed by
@@ -470,7 +482,7 @@ export default function PublishDialog({
                 aria-modal="true"
                 aria-label={t('publish.title') || 'Protecting your song'}
                 onClick={(e) => e.stopPropagation()}
-                className="sheet-panel w-full max-w-[560px] my-auto bg-[#FAF8F4] rounded-[32px] shadow-[0_28px_80px_rgba(0,0,0,0.22)] overflow-hidden flex flex-col"
+                className="sheet-panel w-full max-w-[560px] my-auto bg-[#FAF8F4] rounded-[32px] shadow-[0_28px_80px_rgba(0,0,0,0.22)] overflow-hidden flex flex-col" {...swipeHandlers} style={swipeStyle}
             >
                 {/* ── Header loop ───────────────────────────────────────────────
                     Muted, looping, decorative — `aria-hidden` because it carries no

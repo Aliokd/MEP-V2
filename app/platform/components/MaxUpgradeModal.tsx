@@ -1,4 +1,5 @@
 "use client";
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -129,6 +130,9 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
         if (indicator && isOpen) setIndicatorReady(true);
     }, [indicator, isOpen]);
 
+    // Swipe the sheet down to dismiss it (phones only — see the hook).
+    const { swipeHandlers, swipeStyle } = useSheetSwipe(onClose);
+
     if (!isOpen || typeof document === 'undefined') return null;
 
     const maxOutcome = tList<string>(MAX_OUTCOME_KEY);
@@ -171,7 +175,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                 // Scrolls when the content is taller than the viewport, but without
                 // painting a scrollbar — the native one on Windows is a chunky
                 // stepper track that cuts across the rounded corner.
-                className="sheet-panel bg-gradient-to-b from-[#FAF9F5] via-[#F6F6F0] to-[#EBEBE3] rounded-[24px] border border-stone-200/70 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full max-h-[90dvh] overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-6 md:p-8 flex flex-col gap-6 relative"
+                className="sheet-panel bg-gradient-to-b from-[#FAF9F5] via-[#F6F6F0] to-[#EBEBE3] rounded-[24px] border border-stone-200/70 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full max-h-[90dvh] overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-6 md:p-8 flex flex-col gap-6 relative" {...swipeHandlers} style={swipeStyle}
                 onClick={(e) => e.stopPropagation()}
             >
                 <button

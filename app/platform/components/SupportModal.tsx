@@ -1,4 +1,5 @@
 "use client";
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -36,6 +37,9 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
             setStatus({ type: '', message: '' });
         }
     }, [isOpen]);
+
+    // Swipe the sheet down to dismiss it (phones only — see the hook).
+    const { swipeHandlers, swipeStyle } = useSheetSwipe(onClose);
 
     if (!isOpen || !mounted) return null;
 
@@ -98,7 +102,7 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
         >
             <form 
                 onSubmit={handleSubmitSupportTicket}
-                className="sheet-panel bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-8 animate-in zoom-in-95 duration-200 relative max-h-[90dvh] overflow-y-auto no-scrollbar"
+                className="sheet-panel bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-8 animate-in zoom-in-95 duration-200 relative max-h-[90dvh] overflow-y-auto no-scrollbar" {...swipeHandlers} style={swipeStyle}
                 onClick={(e) => e.stopPropagation()}
             >
                 <h3 className="text-3xl md:text-[38px] leading-[1.25] font-sans font-light text-stone-600 tracking-[-0.035em]">
@@ -136,7 +140,7 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
                     />
 
                     {/* Action buttons */}
-                    <div className="flex items-center justify-end gap-3.5 mt-2">
+                    <div className="sheet-panel-footer flex items-center justify-end gap-3.5 mt-2">
                         <button 
                             type="button"
                             onClick={onClose}

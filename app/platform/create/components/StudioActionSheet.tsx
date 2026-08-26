@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
 import { useSheetPresence } from '@/hooks/useSheetPresence';
 import { useBackDismiss } from '@/hooks/useBackDismiss';
 import * as btn from '@/app/platform/components/buttonStyles';
@@ -195,6 +195,40 @@ export default function StudioActionSheet({
  * the left, its control on the right. Stacks the control underneath when it needs
  * the full width.
  */
+/**
+ * A row that opens something rather than holding a control: title, its current
+ * value underneath, and a chevron.
+ *
+ * The chevron points RIGHT, not down. These rows read as "expand", but what
+ * actually happens is a drill-down — the module arrives as its own sheet over
+ * this one — and a down-chevron would promise the content unfolds in place.
+ */
+export function StudioSheetNavRow({
+    title,
+    value,
+    onClick,
+}: {
+    title: string;
+    value?: string;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="w-full text-left py-4 border-b border-stone-200/70 last:border-b-0 flex items-center justify-between gap-4 active:bg-stone-50 transition-colors"
+        >
+            <div className="min-w-0">
+                <div className="text-[16px] font-sans font-medium text-stone-900 leading-tight">{title}</div>
+                {value && (
+                    <div className="text-[13px] text-stone-500 font-normal mt-0.5 leading-snug truncate">{value}</div>
+                )}
+            </div>
+            <ChevronRight size={20} className="shrink-0 text-stone-400 stroke-[2.2]" />
+        </button>
+    );
+}
+
 export function StudioSheetRow({
     title,
     description,
