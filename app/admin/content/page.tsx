@@ -14,11 +14,12 @@ import BulkIdeasDialog from "./BulkIdeasDialog";
 type Tab = "chapters" | "lessons" | "ideas" | "songs";
 type SectionId = "create" | "learn" | "practice" | "connect";
 
-const TABS: { id: Tab; label: string; description: string }[] = [
-    { id: "chapters", label: "Chapters", description: "The top-level sections of the Learn curriculum." },
-    { id: "lessons", label: "Lessons", description: "Individual lessons, their video, order and prerequisites." },
-    { id: "ideas", label: "Bank of Ideas", description: "Prompts shown in Learn, by category." },
-    { id: "songs", label: "Practice songs", description: "The library Practice 1 works through, and its rights position." },
+/** `noun` names what the New button makes here — "New song", not "New". */
+const TABS: { id: Tab; label: string; description: string; noun: string }[] = [
+    { id: "chapters", label: "Chapters", description: "The top-level sections of the Learn curriculum.", noun: "chapter" },
+    { id: "lessons", label: "Lessons", description: "Individual lessons, their video, order and prerequisites.", noun: "lesson" },
+    { id: "ideas", label: "Bank of Ideas", description: "Prompts shown in Learn, by category.", noun: "card" },
+    { id: "songs", label: "Practice songs", description: "The library Practice 1 works through, and its rights position.", noun: "song" },
 ];
 
 /**
@@ -205,16 +206,6 @@ export default function ContentPage() {
                             {refreshing ? <Spinner className="w-3.5 h-3.5" /> : <RefreshCw className="w-3.5 h-3.5" />}
                             Refresh
                         </Button>
-                        {tab === "ideas" && can("content.write") && (
-                            <Button size="sm" onClick={() => setBulkOpen(true)}>
-                                <Upload className="w-3.5 h-3.5" /> Bulk upload
-                            </Button>
-                        )}
-                        {can("content.write") && (
-                            <Button variant="primary" size="sm" onClick={() => setEditing("new")}>
-                                <Plus className="w-3.5 h-3.5" /> New
-                            </Button>
-                        )}
                     </div>
                     )
                 }
@@ -260,20 +251,37 @@ export default function ContentPage() {
                 </div>
             )}
 
+            {/* Creating belongs with the collection being added to, not up in the
+                page header: under Practice songs the button says "New song", and
+                it sits directly above the list it will add a row to. */}
             <div className="flex flex-wrap items-center gap-4">
                 <p className="text-xs text-ink-500">
                     {emptySection ? activeSection.blurb : activeTab.description}
                 </p>
-                {coverage && (
-                    <div className="flex items-center gap-2 ml-auto">
-                        <span className="text-[11px] text-ink-500">Translated</span>
-                        {LOCALES.map((l) => (
-                            <Badge key={l} tone={coverage[l] === 100 ? "green" : coverage[l] > 0 ? "gold" : "neutral"}>
-                                {LOCALE_LABELS[l]} {coverage[l]}%
-                            </Badge>
-                        ))}
-                    </div>
-                )}
+
+                <div className="flex flex-wrap items-center gap-2 ml-auto">
+                    {coverage && (
+                        <div className="flex items-center gap-2 mr-2">
+                            <span className="text-[11px] text-ink-500">Translated</span>
+                            {LOCALES.map((l) => (
+                                <Badge key={l} tone={coverage[l] === 100 ? "green" : coverage[l] > 0 ? "gold" : "neutral"}>
+                                    {LOCALE_LABELS[l]} {coverage[l]}%
+                                </Badge>
+                            ))}
+                        </div>
+                    )}
+
+                    {!emptySection && tab === "ideas" && can("content.write") && (
+                        <Button size="sm" onClick={() => setBulkOpen(true)}>
+                            <Upload className="w-3.5 h-3.5" /> Bulk upload
+                        </Button>
+                    )}
+                    {!emptySection && can("content.write") && (
+                        <Button variant="primary" size="sm" onClick={() => setEditing("new")}>
+                            <Plus className="w-3.5 h-3.5" /> New {activeTab.noun}
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {error && (
