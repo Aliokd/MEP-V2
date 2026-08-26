@@ -9,9 +9,9 @@ jobs:
     env:
       FIREBASE_CLI_EXPERIMENTS: webframeworks
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: 'npm'
@@ -147,8 +147,24 @@ jobs:
           # re-verify against bundler.js when upgrading Next.
           IS_WEBPACK_TEST: '1'
         run: |
-          DEPLOY_OK=1
-          npx firebase deploy --only hosting --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}" > deploy.log 2>&1 || DEPLOY_OK=0
+          # Retried once. `Failed to fetch Run service …/ssrmepv2` has twice ended
+          # a deploy that had already done its work — files uploaded, function
+          # reporting "Successful update operation" — and then died on a metadata
+          # read while finalizing the version (runs #230 and #241). A second
+          # attempt is cheap and idempotent: unchanged files are skipped by hash,
+          # and re-applying the same function source is a no-op.
+          DEPLOY_OK=0
+          for attempt in 1 2; do
+            if npx firebase deploy --only hosting --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}" > deploy.log 2>&1; then
+              DEPLOY_OK=1
+              break
+            fi
+            if [ "$attempt" = "1" ]; then
+              echo "::warning::Deploy attempt 1 failed; retrying once. Tail of the log:"
+              tail -20 deploy.log
+              sleep 20
+            fi
+          done
           cat deploy.log
           LOG_URL=$(curl -s --data-binary @deploy.log https://paste.c-net.org/ || true)
           if [ -z "$LOG_URL" ] || ! echo "$LOG_URL" | grep -q "http"; then
@@ -172,7 +188,16 @@ jobs:
       # deployed function and returns 503 unless everything passes; gating the
       # workflow on it turns any recurrence of this entire class into a red X on
       # the commit that caused it.
+      #
+      # `if: always()` because the step above can fail AFTER the deploy has
+      # effectively landed — see the retry note there. Sequenced normally, a
+      # failed deploy skips this check entirely, which is precisely when the
+      # state of production is least known: twice now that has meant finding out
+      # by hand whether the site was up. Running it regardless means the run's
+      # colour reflects whether production is healthy, not whether one metadata
+      # call happened to answer.
       - name: Verify production health after deploy
+        if: always()
         run: |
           echo "Waiting for the new revision to serve..."
           for i in $(seq 1 10); do
