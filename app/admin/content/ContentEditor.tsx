@@ -47,8 +47,25 @@ export default function ContentEditor({
     onSaved: () => void;
 }) {
     const { adminFetch, can } = useAdmin();
+    /**
+     * A blank row of the right shape.
+     *
+     * `title` is a localized map everywhere except practice songs, where it is a
+     * plain string — one initial shape for all four collections handed the songs
+     * form an object where it expected text, and the preview crashed the console
+     * the moment New song was pressed, because React refuses to render an object
+     * as a child.
+     */
     const [draft, setDraft] = useState<ContentItem>(
-        item || ({ id: "", status: "draft", order: 0, title: {}, category: "lyrics" } as ContentItem),
+        item ||
+            ({
+                id: "",
+                status: "draft",
+                order: 0,
+                title: collection === "songs" ? "" : {},
+                ...(collection === "ideas" ? { category: "lyrics" } : {}),
+                ...(collection === "songs" ? { sections: [], available: false } : {}),
+            } as ContentItem),
     );
     const [locale, setLocale] = useState<Locale>("en");
     // Only consulted below xl, where the two panes share the space.

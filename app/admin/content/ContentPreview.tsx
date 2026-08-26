@@ -77,12 +77,12 @@ function LessonPreview({
                 {title || <span className="text-stone-400">Untitled lesson</span>}
             </h1>
 
-            {draft.videoUrl ? (
+            {asText(draft.videoUrl) ? (
                 // A plain element rather than LessonContent: that component reports
                 // progress and marks lessons complete, which a preview must not do.
                 <video
-                    src={draft.videoUrl}
-                    poster={draft.posterUrl || undefined}
+                    src={asText(draft.videoUrl)}
+                    poster={asText(draft.posterUrl) || undefined}
                     controls
                     preload="none"
                     className="w-full rounded-[18px] border border-stone-200 bg-black"
@@ -141,7 +141,7 @@ function IdeaPreview({ draft, text }: { draft: ContentItem; text: (key: string) 
                 </div>
             </div>
 
-            <span className="self-start text-[11px] text-stone-400">{draft.category || "lyrics"}</span>
+            <span className="self-start text-[11px] text-stone-400">{asText(draft.category) || "lyrics"}</span>
         </div>
     );
 }
@@ -157,6 +157,18 @@ function ChapterPreview({ text }: { text: (key: string) => string }) {
     );
 }
 
+/**
+ * A preview must never be the thing that breaks the console.
+ *
+ * React throws on an object in the render tree, so a field holding the wrong
+ * shape — a localized map where a plain string belongs — takes the whole editor
+ * down with it. Everything drawn here goes through this first: a bad shape then
+ * shows as blank, which is a preview being unhelpful rather than a white screen.
+ */
+function asText(value: unknown): string {
+    return typeof value === "string" ? value : "";
+}
+
 function SongPreview({ draft }: { draft: ContentItem }) {
     const sections = sortSections((draft.sections as CmsPracticeSection[]) || []);
     const duration = draft.durationSeconds || (sections.length ? sections[sections.length - 1].end : 0);
@@ -164,17 +176,17 @@ function SongPreview({ draft }: { draft: ContentItem }) {
     return (
         <div className="flex flex-col gap-4">
             <div className="flex items-center gap-4 bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-4">
-                {draft.coverUrl ? (
+                {asText(draft.coverUrl) ? (
                     // eslint-disable-next-line @next/next/no-img-element -- Cloud Storage URL, no allowlisted host.
-                    <img src={draft.coverUrl} alt="" className="w-16 h-16 rounded-[12px] object-cover border border-stone-200" />
+                    <img src={asText(draft.coverUrl)} alt="" className="w-16 h-16 rounded-[12px] object-cover border border-stone-200" />
                 ) : (
                     <div className="w-16 h-16 rounded-[12px] border border-dashed border-stone-300 bg-white/50" />
                 )}
                 <div className="flex flex-col gap-1 min-w-0">
                     <span className="text-base font-sans font-medium text-stone-800 truncate">
-                        {(draft.title as string) || "Untitled song"}
+                        {asText(draft.title) || "Untitled song"}
                     </span>
-                    <span className="text-sm text-stone-500 font-sans truncate">{draft.artist || "Unknown artist"}</span>
+                    <span className="text-sm text-stone-500 font-sans truncate">{asText(draft.artist) || "Unknown artist"}</span>
                     {!draft.available && (
                         <span className="text-[11px] text-stone-400">Shown greyed out — coming soon</span>
                     )}
