@@ -22296,7 +22296,7 @@ export default function CreatePage() {
             </div>
 
             {/* 2. DIRECTORY GRID AREA (Bottom Section) */}
-            <div className="space-y-8 mt-1.5 px-4 md:px-0">
+            <div className="space-y-8 mt-6 px-4 md:mt-1.5 md:px-0">
                 
                 {/* Header Controls. The scope tabs sit centred â€” they say what you are
                     looking at, and the middle is where a heading reads from. Everything
@@ -22309,6 +22309,28 @@ export default function CreatePage() {
                     only holds up when there's room either side of the tabs — on a phone
                     the tabs alone are wider than the row, so the right-hand icons were
                     landing on top of the Collab tab. */}
+                {/* Pinned while the shelf scrolls, at every width. Switching scope,
+                    searching or opening the menu are things you reach for BECAUSE you are
+                    deep in a long list; having to scroll back to the top to reach them was
+                    the whole friction, and it is worst on a phone, where the list is one
+                    card wide and the scroll back is longest.
+
+                    The search field comes along, otherwise a lit search button pins with
+                    its field left behind up the page. On a phone that field is always
+                    open, so the bar is two rows there rather than one.
+
+                    pt-4 rather than `top-4`: the gap has to be inside the painted bar, or
+                    project cards slide up through it and show above the tabs. The
+                    background tracks the ground behind the shelf at each breakpoint —
+                    #FAF9F5 on a phone, #E4E4DF from md, #FAF9F5 again once the xl panel
+                    puts its own colour underneath.
+
+                    top-16 below md, the same offset the public nav and the platform
+                    drawer already use: the mobile laptop-hint banner
+                    (components/MobileLaptopBanner) is fixed at the true top with h-16, so
+                    pinning at 0 parks the tabs underneath it. From md the banner is gone
+                    and the bar goes back to the viewport top. */}
+                <div className="sticky top-16 z-30 bg-[#FAF9F5] pt-4 pb-1 md:top-0 md:bg-[#E4E4DF] xl:bg-[#FAF9F5]">
                 <div className="flex flex-col gap-2 md:grid md:grid-cols-[1fr_auto_1fr] md:gap-0 items-stretch md:items-center w-full py-1.5 md:py-2 mb-4">
                     <div aria-hidden="true" className="hidden md:block" />
 
@@ -22570,6 +22592,7 @@ export default function CreatePage() {
                         </button>
                     </div>
                 )}
+                </div>
 
                 {/* Only inside a folder. At the root this row read "All projects" directly
                     under a tab already reading "All projects" — the way back out is the

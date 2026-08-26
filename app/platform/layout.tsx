@@ -774,7 +774,7 @@ function PlatformLayoutInner({
                                 data-tour="mind-power"
                                 role="button"
                                 aria-label={t('progress.mind_power_label')}
-                                className="relative flex items-center bg-white/50 hover:bg-white/70 border border-stone-200/80 px-6 py-3 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-sm text-stone-650 font-bold normal-case tracking-normal"
+                                className="relative flex h-[46px] items-center bg-white/50 hover:bg-white/70 border border-stone-200/80 px-6 py-3 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-sm text-stone-650 font-bold normal-case tracking-normal"
                             >
                                 {showCollabCelebrate && <div className="collab-join-gradient-fill" />}
                                 <div className="relative flex items-center gap-3">
@@ -817,7 +817,7 @@ function PlatformLayoutInner({
                         {!isProfile && (
                             <Link
                                 href="/platform/profile"
-                                className={`${btn.secondary('sm')} normal-case tracking-normal`}
+                                className={`${btn.secondary('sm')} h-[46px] normal-case tracking-normal`}
                             >
                                 {firstName}
                                 <ChevronRight size={16} strokeWidth={1.5} />
