@@ -11,7 +11,7 @@ import {
 import ContentEditor from "./ContentEditor";
 import BulkIdeasDialog from "./BulkIdeasDialog";
 
-type Tab = "chapters" | "lessons" | "ideas" | "songs";
+type Tab = "chapters" | "lessons" | "ideas" | "songs" | "melodies";
 type SectionId = "create" | "learn" | "practice" | "connect";
 
 /** `noun` names what the New button makes here — "New song", not "New". */
@@ -20,6 +20,7 @@ const TABS: { id: Tab; label: string; description: string; noun: string }[] = [
     { id: "lessons", label: "Lessons", description: "Individual lessons, their video, order and prerequisites.", noun: "lesson" },
     { id: "ideas", label: "Bank of Ideas", description: "Prompts shown in Learn, by category.", noun: "card" },
     { id: "songs", label: "Practice songs", description: "The library Practice 1 works through, and its rights position.", noun: "song" },
+    { id: "melodies", label: "Melodies", description: "The short phrases Practice 3 plays for a songwriter to answer.", noun: "melody" },
 ];
 
 /**
@@ -40,7 +41,7 @@ const SECTIONS: { id: SectionId; label: string; blurb: string; tabs: Tab[] }[] =
         blurb: "The curriculum, its videos, and the cards in the Bank of Ideas.",
         tabs: ["chapters", "lessons", "ideas"],
     },
-    { id: "practice", label: "Practice", blurb: "The songs each practice works through.", tabs: ["songs"] },
+    { id: "practice", label: "Practice", blurb: "The material each practice works through.", tabs: ["songs", "melodies"] },
     { id: "connect", label: "Connect", blurb: "The community feed.", tabs: [] },
 ];
 
@@ -174,6 +175,7 @@ export default function ContentPage() {
 
     const ideasMissing = tab === "ideas" && items !== null && items.length === 0;
     const songsMissing = tab === "songs" && items !== null && items.length === 0;
+    const melodiesMissing = tab === "melodies" && items !== null && items.length === 0;
 
     const activeSection = SECTIONS.find((s) => s.id === section)!;
     const sectionTabs = TABS.filter((tabDef) => activeSection.tabs.includes(tabDef.id));
@@ -287,6 +289,17 @@ export default function ContentPage() {
             {error && (
                 <Panel className="p-4 border-red-500/30">
                     <p className="text-sm text-red-300">{error}</p>
+                </Panel>
+            )}
+
+            {melodiesMissing && can("content.write") && (
+                <Panel className="p-4 border-gold-500/30 bg-gold-500/5 flex flex-wrap items-center gap-3">
+                    <Upload className="w-4 h-4 text-gold-300 shrink-0" />
+                    <p className="text-sm text-gold-200 flex-1 min-w-[240px]">
+                        Practice 3 is falling back to four placeholder melodies built into the app,
+                        and their audio was never deployed — so the exercise currently has nothing to
+                        play. Upload a real take here and it takes over immediately.
+                    </p>
                 </Panel>
             )}
 

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { fetchPracticeSongs } from '@/lib/contentClient';
+import { fetchPracticeMelodies, fetchPracticeSongs } from '@/lib/contentClient';
 import { sortSections } from '@/lib/practiceLibrary';
 import { PRACTICE_SONGS, type PracticeSong } from '../data/practiceSongs';
+import { MELODIES, type PracticeMelody } from '../data/melodies';
 
 /**
  * The song library Practice 1 works through.
@@ -57,4 +58,44 @@ export function usePracticeLibrary(): PracticeSong[] {
     }, []);
 
     return songs;
+}
+
+/**
+ * The melody library Practice 3 works through.
+ *
+ * Same arrangement as the songs above: authored in the admin console, with the
+ * bundled module as the fallback. The fallback matters more here than it does
+ * for songs — the four melodies in code point at placeholder WAVs that
+ * .gitignore keeps out of the repo, so they 404 in production. Until real takes
+ * are uploaded, Practice 3 has no working audio at all.
+ */
+export async function fetchMelodyLibrary(): Promise<PracticeMelody[]> {
+    const docs = await fetchPracticeMelodies();
+
+    return docs
+        // No audio, no melody. The exercise is listen-then-answer.
+        .filter((doc) => Boolean(doc.audioUrl))
+        .map((doc) => ({
+            id: doc.id,
+            title: doc.title,
+            instrument: doc.instrument,
+            audioUrl: doc.audioUrl,
+            available: doc.available === true,
+        }));
+}
+
+export function useMelodyLibrary(): PracticeMelody[] {
+    const [melodies, setMelodies] = useState<PracticeMelody[]>(MELODIES);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchMelodyLibrary()
+            .then((list) => {
+                if (!cancelled && list.length > 0) setMelodies(list);
+            })
+            .catch((err) => console.warn('Falling back to the bundled melodies:', err));
+        return () => { cancelled = true; };
+    }, []);
+
+    return melodies;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { Music } from "lucide-react";
 import IdeaGlyph from "@/app/platform/components/IdeaGlyph";
 import LessonBlocks from "@/app/platform/components/LessonBlocks";
 import { pickLocale, type Locale, type LocalizedText } from "@/lib/content";
@@ -32,7 +33,7 @@ export default function ContentPreview({
     draft,
     locale,
 }: {
-    collection: "chapters" | "lessons" | "ideas" | "songs";
+    collection: "chapters" | "lessons" | "ideas" | "songs" | "melodies";
     draft: ContentItem;
     locale: Locale;
 }) {
@@ -53,6 +54,7 @@ export default function ContentPreview({
                 {collection === "ideas" && <IdeaPreview draft={draft} text={text} />}
                 {collection === "chapters" && <ChapterPreview text={text} />}
                 {collection === "songs" && <SongPreview draft={draft} />}
+                {collection === "melodies" && <MelodyPreview draft={draft} />}
             </div>
         </div>
     );
@@ -117,7 +119,7 @@ function IdeaPreview({ draft, text }: { draft: ContentItem; text: (key: string) 
         <div className="bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-5">
             <div className="flex gap-5">
                 <div className="w-24 h-24 shrink-0 flex items-center justify-center">
-                    <IdeaGlyph seed={draft.id || "preview"} className="w-full h-full text-stone-500 opacity-70" />
+                    <IdeaGlyph seed={draft.id || "preview"} category={draft.category} className="w-full h-full text-stone-500 opacity-70" />
                 </div>
 
                 <div className="flex-1 flex flex-col gap-3 min-w-0">
@@ -167,6 +169,38 @@ function ChapterPreview({ text }: { text: (key: string) => string }) {
  */
 function asText(value: unknown): string {
     return typeof value === "string" ? value : "";
+}
+
+function MelodyPreview({ draft }: { draft: ContentItem }) {
+    const instrument = asText(draft.instrument) || "piano";
+
+    return (
+        <div className="bg-[#FAF9F5] border border-stone-200/80 rounded-[20px] p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#EAF3E8] text-[#4e7a49] flex items-center justify-center shrink-0">
+                    <Music size={17} strokeWidth={2} />
+                </div>
+                <div className="flex flex-col min-w-0">
+                    <span className="text-base font-sans font-medium text-stone-800 truncate">
+                        {asText(draft.title) || "Untitled melody"}
+                    </span>
+                    <span className="text-xs text-stone-500 font-sans capitalize">{instrument}</span>
+                </div>
+            </div>
+
+            {asText(draft.audioUrl) ? (
+                <audio controls preload="none" src={asText(draft.audioUrl)} className="w-full" />
+            ) : (
+                <div className="rounded-[12px] border border-dashed border-stone-300 bg-white/50 py-4 text-center text-xs text-stone-400">
+                    No audio yet — the card cannot be offered without it
+                </div>
+            )}
+
+            {!draft.available && (
+                <span className="text-[11px] text-stone-400">Not offered yet — Practice 3 will skip it.</span>
+            )}
+        </div>
+    );
 }
 
 function SongPreview({ draft }: { draft: ContentItem }) {

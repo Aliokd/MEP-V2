@@ -126,6 +126,26 @@ export interface PracticeSongDoc {
 }
 
 /**
+ * A melody for Practice 3 — Melody variations.
+ *
+ * A short single-note idea, played on piano or guitar, that a songwriter listens
+ * to and then answers with a variation of their own. The exercise never inspects
+ * the audio — the comparison is done by ear — so the file and a title are very
+ * nearly the whole model.
+ */
+export interface PracticeMelodyDoc {
+    id: string;
+    title: string;
+    /** So someone can pick the one they can actually play back on. */
+    instrument: "piano" | "guitar";
+    audioUrl: string;
+    /** false → the melody is not offered. A card with no audio is a dead end. */
+    available?: boolean;
+    order: number;
+    status: ContentStatus;
+}
+
+/**
  * A standalone website page — privacy policy, terms, and anything else editorial
  * that lives on the marketing site rather than inside the platform.
  *

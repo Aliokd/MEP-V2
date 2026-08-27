@@ -14,7 +14,7 @@ import type { CmsPracticeSection } from "@/lib/practiceLibrary";
 import type { LessonBlock } from "@/lib/lessonBlocks";
 import { uploadContentMedia, type VideoProbe } from "@/lib/uploadContentMedia";
 
-type Collection = "chapters" | "lessons" | "ideas" | "songs";
+type Collection = "chapters" | "lessons" | "ideas" | "songs" | "melodies";
 
 /** Which localized fields each content type has. */
 const LOCALIZED_FIELDS: Record<Collection, { key: string; label: string; long?: boolean }[]> = {
@@ -33,6 +33,7 @@ const LOCALIZED_FIELDS: Record<Collection, { key: string; label: string; long?: 
         { key: "example", label: "Example", long: true },
     ],
     songs: [],
+    melodies: [],
 };
 
 export default function ContentEditor({
@@ -62,9 +63,10 @@ export default function ContentEditor({
                 id: "",
                 status: "draft",
                 order: 0,
-                title: collection === "songs" ? "" : {},
+                title: collection === "songs" || collection === "melodies" ? "" : {},
                 ...(collection === "ideas" ? { category: "lyrics" } : {}),
                 ...(collection === "songs" ? { sections: [], available: false } : {}),
+                ...(collection === "melodies" ? { instrument: "piano", available: false } : {}),
             } as ContentItem),
     );
     const [locale, setLocale] = useState<Locale>("en");
@@ -286,6 +288,61 @@ export default function ContentEditor({
                                 nameHint={mediaNameHint}
                                 onChange={(blocks) => setField("blocks", blocks)}
                             />
+                        </>
+                    )}
+
+                    {collection === "melodies" && (
+                        <>
+                            <Field label="Title" value={(draft.title as string) || ""} onChange={(v) => setField("title", v)} />
+
+                            <label className="flex flex-col gap-1.5">
+                                <span className="text-xs text-ink-400">Instrument</span>
+                                <Select
+                                    value={draft.instrument || "piano"}
+                                    onChange={(e) => setField("instrument", e.target.value)}
+                                    className="w-48"
+                                >
+                                    <option value="piano">Piano</option>
+                                    <option value="guitar">Guitar</option>
+                                </Select>
+                                <span className="text-[11px] text-ink-500">
+                                    Shown on the card so someone can pick the one they can play back on.
+                                </span>
+                            </label>
+
+                            <MediaUpload
+                                label="Melody"
+                                kind="audio"
+                                value={draft.audioUrl || ""}
+                                onChange={(url) => setField("audioUrl", url)}
+                                nameHint={mediaNameHint}
+                                hint="A short single-note phrase — no chords, no backing. A few seconds is enough."
+                            />
+
+                            {/* Offered is separate from published, the same as songs:
+                                a melody can exist here while its take is still being
+                                recorded without appearing in the exercise. */}
+                            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                                <span
+                                    className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                                        draft.available ? "bg-green-500 border-green-500" : "border-ink-500"
+                                    }`}
+                                >
+                                    {draft.available && <Check className="w-3 h-3 text-ink-950" />}
+                                </span>
+                                <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    checked={Boolean(draft.available)}
+                                    onChange={(e) => setField("available", e.target.checked)}
+                                />
+                                <span className="flex flex-col">
+                                    <span className="text-xs text-ink-300">Offer this melody</span>
+                                    <span className="text-[11px] text-ink-500">
+                                        Off keeps it out of Practice 3 entirely — a card with no audio is a dead end.
+                                    </span>
+                                </span>
+                            </label>
                         </>
                     )}
 
