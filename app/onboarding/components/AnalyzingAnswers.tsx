@@ -335,7 +335,12 @@ export default function AnalyzingAnswers({ answers, onComplete, onBack, frozen =
                 outcome this must not have. */}
             <div
                 className={`grid transition-all duration-[900ms] ease-[cubic-bezier(0.33,1,0.68,1)] motion-reduce:transition-none ${
-                    ready ? 'mt-0 grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
+                    // Nothing to read back when every question was skipped —
+                    // the quiz is optional now — so the card never opens: an
+                    // empty panel ticking to "0/0" read as the screen breaking,
+                    // not as an analysis. The pass timers still run (rowMs × 0
+                    // + the weigh beat), so the step keeps its short pause.
+                    ready || answers.length === 0 ? 'mt-0 grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
                 }`}
             >
               <div className="overflow-hidden">

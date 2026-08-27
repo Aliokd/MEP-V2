@@ -37,29 +37,44 @@ export function useWaitlistCountdown(enabled: boolean = true): string | null {
 
     useEffect(() => {
         if (!enabled) return;
-        let deadline = WAITLIST_COUNTDOWN_ENDS_AT
-            ? Date.parse(WAITLIST_COUNTDOWN_ENDS_AT)
-            : NaN;
 
-        if (Number.isNaN(deadline)) {
+        /**
+         * The deadline everyone is counting to, recomputed every tick.
+         *
+         * With the anchor set, the offer is a rolling GLOBAL window: the first
+         * close is the anchor itself, and when a close passes the window
+         * re-arms exactly one stride later — the same arithmetic on every
+         * device, so every visitor worldwide still reads the same clock. This
+         * replaced a fixed deadline after that deadline arrived mid-campaign
+         * and parked the clock at 00:00:00 under live ad traffic: a dead
+         * clock sells nothing, and re-arming needed a deploy.
+         *
+         * Without an anchor: the per-visitor localStorage window, review mode.
+         */
+        const currentDeadline = (): number => {
+            const anchor = WAITLIST_COUNTDOWN_ENDS_AT
+                ? Date.parse(WAITLIST_COUNTDOWN_ENDS_AT)
+                : NaN;
+            if (!Number.isNaN(anchor)) {
+                const behind = Date.now() - anchor;
+                if (behind < 0) return anchor;
+                const strides = Math.floor(behind / PLACEHOLDER_WINDOW_MS) + 1;
+                return anchor + strides * PLACEHOLDER_WINDOW_MS;
+            }
             let stored = 0;
             try {
                 stored = Number(localStorage.getItem(STORAGE_KEY));
             } catch { /* private mode: the clock just isn't anchored */ }
-            if (stored > Date.now()) {
-                deadline = stored;
-            } else {
-                deadline = Date.now() + PLACEHOLDER_WINDOW_MS;
-                try {
-                    localStorage.setItem(STORAGE_KEY, String(deadline));
-                } catch { /* same: a session-only clock beats no clock */ }
-            }
-        }
+            if (stored > Date.now()) return stored;
+            const fresh = Date.now() + PLACEHOLDER_WINDOW_MS;
+            try {
+                localStorage.setItem(STORAGE_KEY, String(fresh));
+            } catch { /* same: a session-only clock beats no clock */ }
+            return fresh;
+        };
 
         const tick = () => {
-            // Clamped at zero rather than rolled over — when the real deadline
-            // passes, the honest display is 00:00:00, not a fresh window.
-            const left = Math.max(0, deadline - Date.now());
+            const left = Math.max(0, currentDeadline() - Date.now());
             const pad = (v: number) => String(v).padStart(2, '0');
             const h = Math.floor(left / 3_600_000);
             const m = Math.floor((left % 3_600_000) / 60_000);

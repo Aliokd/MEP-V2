@@ -101,6 +101,31 @@ test.describe('Waitlist campaign flow', () => {
     });
   });
 
+  test('the quiz is optional - Next alone reaches the join page', async ({ page }) => {
+    await page.route('**/api/waitlist', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, position: 42 }),
+      }),
+    );
+    await page.goto('/onboarding?flow=waitlist&from=yt-vsl');
+    await page.getByRole('button', { name: 'Get started' }).click();
+    for (let i = 0; i < 4; i++) {
+      await page.getByRole('button', { name: 'Next', exact: true }).click();
+    }
+    await expect(page.getByRole('heading', { name: 'How do you see yourself?' })).toBeVisible();
+
+    // Four Nexts, zero answers - every question is skippable now.
+    for (let i = 0; i < 4; i++) {
+      await page.getByRole('button', { name: 'Next', exact: true }).click();
+    }
+
+    // The analysis still runs (empty-handed) and the join page still opens.
+    await page.getByRole('button', { name: 'Join the waitlist' }).click({ timeout: 20_000 });
+    await expect(page.getByRole('heading', { name: 'Save your spot' })).toBeVisible();
+  });
+
   test('the marketing CTAs open the campaign flow', async ({ page }) => {
     await page.goto('/');
 

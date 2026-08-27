@@ -34,14 +34,15 @@ export const PRACTICE_ENABLED: boolean = true;
 export const SIGNUPS_OPEN: boolean = false;
 
 /**
- * When the special offer's countdown ends, as an ISO timestamp with a
- * timezone — ONE deadline shared by every visitor, which is what makes the
- * clock the same number on any two screens showing it.
+ * The ANCHOR of the special offer's rolling global window, as an ISO timestamp
+ * with a timezone. The first close was the anchor itself; each time a close
+ * passes, the window re-arms exactly 72h later (see currentDeadline in
+ * CountdownBanner) — pure arithmetic from this constant, so every visitor
+ * worldwide reads the same clock and it never parks at 00:00:00. It did
+ * exactly that under live ads on 2026-08-25 when this was a fixed deadline;
+ * the rolling window is what replaced the babysitting.
  *
- * Set 2026-08-22 to 72 hours from the moment the campaign's clock went
- * global. When it reaches zero the clock holds at 00:00:00 (see
- * CountdownBanner) — move this forward or clear it before then.
- *
+ * To close the offer for real, that is a screen to design, not a value here.
  * Null falls back to a per-visitor 72h window anchored in localStorage —
  * review mode, not something to ship while ads run.
  */

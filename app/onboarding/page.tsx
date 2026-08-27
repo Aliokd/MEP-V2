@@ -235,10 +235,6 @@ function OnboardingPageInner() {
      * that is a fact about the decisions, not about the kept list.
      */
     const [deckState, setDeckState] = useState<DeckState>({ decisions: [], written: [] });
-    // How many times Next has been pressed on this question with nothing
-    // chosen. A counter rather than a flag so the shake replays on every press,
-    // not just the first — and resets to 0 whenever the question changes.
-    const [nudgeCount, setNudgeCount] = useState(0);
     const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     // One value per question, except the deck question, which answers with
     // every struggle that was swiped right.
@@ -558,10 +554,6 @@ function OnboardingPageInner() {
             // it drives its own state and never reads this.
             setSelectedOption(typeof answer === 'string' ? answer : null);
         }
-        // A nudge belongs to the question that earned it. Clear it on the way
-        // in, and the moment an answer lands — the prompt has been answered, so
-        // leaving it on screen would be nagging about something already done.
-        setNudgeCount(0);
     }, [currentQuestionIndex, answers]);
 
     const currentQuestion = QUESTIONS[currentQuestionIndex];
@@ -601,7 +593,6 @@ function OnboardingPageInner() {
      */
     const handleNestedAnswer = (value: string) => {
         setAnswers((prev) => ({ ...prev, [NESTED_QUESTION.id]: value }));
-        setNudgeCount(0);
 
         if (advanceTimer.current) clearTimeout(advanceTimer.current);
         advanceTimer.current = setTimeout(() => {
@@ -693,26 +684,12 @@ function OnboardingPageInner() {
     };
 
     const handleQuizNext = () => {
-        // Nothing chosen: ask again rather than refuse. The counter is what
-        // drives the shake — see the button's `key`.
-        //
-        // The cards step carries two questions, so both have to be answered
-        // before it counts as done — otherwise choosing a type and pressing
-        // Next would skip past the question printed on the card in front of
-        // them.
-        const answered = (currentQuestion as any).isCards
-            ? currentValues.length > 0 && Boolean(nestedValue)
-            : (currentQuestion as any).isDeck
-              // One swipe, either way. See `deckState` — "none of these"
-              // is an answer, and it leaves the kept list empty.
-              ? deckState.decisions.length > 0 || currentValues.length > 0
-              : currentValues.length > 0;
-
-        if (!answered) {
-            setNudgeCount((n) => n + 1);
-            return;
-        }
-        setNudgeCount(0);
+        // Every question is optional: Next moves on with or without an answer.
+        // It used to insist (a shake and a "pick one" line) — but a question
+        // someone chooses not to answer is itself an answer, and the verdict
+        // already carries a default line for every gap. Skipped questions
+        // simply aren't in `answers`, so nothing downstream names a struggle
+        // nobody claimed.
         if (currentQuestionIndex < QUESTIONS.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1);
         } else {
@@ -1196,32 +1173,6 @@ function OnboardingPageInner() {
                                             />
                                         ))}
                                     </div>
-
-                                    {/* The skip link is gone; this is what that
-                                        line under the dots is for now. It only
-                                        appears when Next is pressed with nothing
-                                        chosen, so the row is a single line of
-                                        dots the rest of the time. */}
-                                    {nudgeCount > 0 && (
-                                        <motion.p
-                                            key={nudgeCount}
-                                            initial={{ opacity: 0, y: -4 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.25 }}
-                                            role="status"
-                                            // Regular weight and the same green
-                                            // the deck's own "kept" feedback
-                                            // uses — semibold at 13px read as
-                                            // dark grey rather than a colour, and
-                                            // #3f6b3a is the badge/checkmark
-                                            // green, tuned for small text on
-                                            // white rather than on this page's
-                                            // cream.
-                                            className="text-[13px] font-normal text-[#5B8E54]"
-                                        >
-                                            {t('onboarding.quiz.pick_one')}
-                                        </motion.p>
-                                    )}
                                 </div>
 
                                 {/* Present on every question, including the
@@ -1250,15 +1201,7 @@ function OnboardingPageInner() {
                                 <button
                                     type="button"
                                     onClick={handleQuizNext}
-                                    // Remounting on each nudge restarts the
-                                    // animation; a class toggle alone would only
-                                    // fire the first time, since re-adding a
-                                    // class on an element that never lost it is
-                                    // not a change the engine replays.
-                                    key={`next-${nudgeCount}`}
-                                    className={`flex shrink-0 items-center gap-2.5 rounded-full bg-[#86BE7F] px-8 py-4 text-base font-bold tracking-tight text-stone-900 shadow-[0_5px_0_0_#5F9857] transition-[transform,box-shadow] duration-100 hover:brightness-[1.03] active:translate-y-[5px] active:shadow-[0_0_0_0_#5F9857] sm:px-10 sm:text-lg ${
-                                        nudgeCount > 0 ? 'animate-nudge-shake' : ''
-                                    }`}
+                                    className="flex shrink-0 items-center gap-2.5 rounded-full bg-[#86BE7F] px-8 py-4 text-base font-bold tracking-tight text-stone-900 shadow-[0_5px_0_0_#5F9857] transition-[transform,box-shadow] duration-100 hover:brightness-[1.03] active:translate-y-[5px] active:shadow-[0_0_0_0_#5F9857] sm:px-10 sm:text-lg"
                                 >
                                     {t('onboarding.intro.next')}
                                     <ArrowRight className="h-5 w-5 stroke-[2.75px]" />
