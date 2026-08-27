@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { X, Save, Archive, Globe, Eye, Pencil } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { Badge, Button, Input, Panel, Select, Spinner, Textarea } from "../components/ui";
 import { LOCALES, LOCALE_LABELS, pickLocale, type Locale, type LocalizedText, type SitePage } from "@/lib/content";
+import MarkdownToolbar, { useMarkdownShortcuts } from "../components/MarkdownToolbar";
 
 /** Lowercases, strips accents and punctuation, collapses spaces to hyphens. */
 function slugify(value: string): string {
@@ -68,6 +69,11 @@ export default function PageEditor({
 
     const [locale, setLocale] = useState<Locale>("en");
     const [preview, setPreview] = useState(false);
+    // The toolbar reads the caret out of the field, so it needs the element.
+    const bodyRef = useRef<HTMLTextAreaElement>(null);
+    const bodyShortcuts = useMarkdownShortcuts(bodyRef, body[locale] || "", (next) =>
+        setBody({ ...body, [locale]: next }),
+    );
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -201,6 +207,16 @@ export default function PageEditor({
                     <div className="flex flex-col gap-1.5">
                         <div className="flex items-center gap-2">
                             <span className="text-xs text-ink-400">Content — Markdown</span>
+
+                            {/* Hidden while previewing: there is no field to act on. */}
+                            {!preview && (
+                                <MarkdownToolbar
+                                    textareaRef={bodyRef}
+                                    value={body[locale] || ""}
+                                    onChange={(next) => setBody({ ...body, [locale]: next })}
+                                />
+                            )}
+
                             <button
                                 onClick={() => setPreview((v) => !v)}
                                 className="ml-auto text-[11px] text-ink-400 hover:text-ink-100 flex items-center gap-1"
@@ -217,9 +233,11 @@ export default function PageEditor({
                             />
                         ) : (
                             <Textarea
+                                ref={bodyRef}
                                 rows={16}
                                 value={body[locale] || ""}
                                 onChange={(e) => setBody({ ...body, [locale]: e.target.value })}
+                                onKeyDown={bodyShortcuts}
                                 className="font-mono text-xs leading-relaxed"
                                 placeholder={"## A heading\n\nA paragraph of text.\n\n- A list item\n- Another\n\n[A link](https://veinote.com)"}
                             />

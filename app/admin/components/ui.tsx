@@ -185,18 +185,22 @@ export function Input({ className, ...rest }: React.InputHTMLAttributes<HTMLInpu
     );
 }
 
-export function Textarea({ className, ...rest }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-    return (
-        <textarea
-            className={clsx(
-                "w-full bg-ink-700 border border-ink-600 rounded-xl px-3.5 py-2.5 text-sm text-ink-100 placeholder:text-ink-500",
-                "focus:outline-none focus:border-green-500/60 transition-colors resize-y",
-                className,
-            )}
-            {...rest}
-        />
-    );
-}
+/** Forwards its ref: the markdown toolbar needs the element to read a selection. */
+export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
+    function Textarea({ className, ...rest }, ref) {
+        return (
+            <textarea
+                ref={ref}
+                className={clsx(
+                    "w-full bg-ink-700 border border-ink-600 rounded-xl px-3.5 py-2.5 text-sm text-ink-100 placeholder:text-ink-500",
+                    "focus:outline-none focus:border-green-500/60 transition-colors resize-y",
+                    className,
+                )}
+                {...rest}
+            />
+        );
+    },
+);
 
 export function Select({ className, children, ...rest }: React.SelectHTMLAttributes<HTMLSelectElement>) {
     return (

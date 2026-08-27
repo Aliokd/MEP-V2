@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Plus, Trash2, ChevronUp, ChevronDown, Type, Image as ImageIcon, Music, Video, Link2, Info, ExternalLink } from "lucide-react";
 import { Badge, Button, Input, Panel, Select, Textarea } from "../components/ui";
 import MediaUpload from "../components/MediaUpload";
+import { MarkdownField } from "../components/MarkdownToolbar";
 import { uploadContentMedia, type VideoProbe } from "@/lib/uploadContentMedia";
 import { LOCALE_LABELS, type Locale, type LocalizedText } from "@/lib/content";
 import {
@@ -156,17 +157,16 @@ export default function BlockEditor({
                         </div>
 
                         {block.type === "text" && (
-                            <label className="flex flex-col gap-1.5">
-                                <Textarea
-                                    rows={6}
-                                    value={localizedValue(block, "body")}
-                                    onChange={(e) => updateLocalized(block.id, "body", e.target.value)}
-                                    placeholder={"Blank lines separate paragraphs.\n\n**bold**, *italic* and [a link](https://…) work."}
-                                />
-                                <span className="text-[11px] text-ink-500">
-                                    Bold, italic and links only. For a heading or a picture, add another block.
-                                </span>
-                            </label>
+                            <MarkdownField
+                                rows={6}
+                                value={localizedValue(block, "body")}
+                                onChange={(next) => updateLocalized(block.id, "body", next)}
+                                // No headings or lists: a heading is its own block,
+                                // and the renderer draws neither inside a text block.
+                                actions={["bold", "italic", "link"]}
+                                placeholder="Blank lines separate paragraphs."
+                                hint="Bold, italic and links only. For a heading or a picture, add another block."
+                            />
                         )}
 
                         {block.type === "callout" && (
@@ -180,10 +180,11 @@ export default function BlockEditor({
                                     <option value="tip">Tip</option>
                                     <option value="warning">Watch out</option>
                                 </Select>
-                                <Textarea
+                                <MarkdownField
                                     rows={3}
                                     value={localizedValue(block, "body")}
-                                    onChange={(e) => updateLocalized(block.id, "body", e.target.value)}
+                                    onChange={(next) => updateLocalized(block.id, "body", next)}
+                                    actions={["bold", "italic", "link"]}
                                     placeholder="Something worth setting apart from the main text."
                                 />
                             </div>
