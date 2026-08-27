@@ -132,6 +132,9 @@ export interface PracticeSongDoc {
  * The document id IS the slug, which makes uniqueness free: two pages can't claim
  * /terms because they'd be the same document.
  */
+/** The shelves the console files website pages under. */
+export type SitePageKind = "legal" | "seo";
+
 export interface SitePage {
     /** Same as the slug. URL is /{slug}, or /no/{slug} and /sv/{slug}. */
     id: string;
@@ -147,6 +150,12 @@ export interface SitePage {
     status: ContentStatus;
     /** Whether the page gets a link in the site footer. */
     showInFooter?: boolean;
+    /**
+     * Which shelf of the console the page sits on. Absent means "legal" — every
+     * page that predates the split is a policy document, and defaulting that way
+     * keeps them where their editors expect to find them.
+     */
+    kind?: SitePageKind;
     updatedAt?: number | null;
     updatedByEmail?: string | null;
 }

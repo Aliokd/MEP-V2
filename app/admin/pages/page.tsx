@@ -10,7 +10,11 @@ import FaqEditor, { type FaqRow } from "./FaqEditor";
 import CopyEditor, { type CopyRow } from "./CopyEditor";
 import { listCopyKeys } from "@/lib/i18n-content";
 
-type Tab = "pages" | "faqs" | "copy";
+type Tab = "legal" | "seo" | "faqs" | "copy";
+
+/** Both page tabs read the same collection; `kind` decides which shelf a row is on. */
+const PAGE_TABS: Tab[] = ["legal", "seo"];
+const isPageTab = (tab: Tab) => PAGE_TABS.includes(tab);
 
 const STATUS_TONE: Record<string, "neutral" | "green" | "gold" | "blue"> = {
     published: "green",
@@ -39,7 +43,7 @@ const CODE_ROUTES: { path: string; label: string; why: string }[] = [
 
 export default function ManagePagesPage() {
     const { adminFetch, can } = useAdmin();
-    const [tab, setTab] = useState<Tab>("pages");
+    const [tab, setTab] = useState<Tab>("legal");
 
     const [pages, setPages] = useState<SitePage[] | null>(null);
     const [faqs, setFaqs] = useState<FaqRow[] | null>(null);
@@ -60,11 +64,11 @@ export default function ManagePagesPage() {
         setError(null);
         try {
             const params = statusFilter ? `?status=${statusFilter}` : "";
-            const endpoint = tab === "pages" ? "pages" : tab === "faqs" ? "faqs" : "copy";
+            const endpoint = isPageTab(tab) ? "pages" : tab === "faqs" ? "faqs" : "copy";
             const res = await adminFetch(`/api/admin/content/${endpoint}${params}`);
             if (!res.ok) throw new Error((await res.json()).error || "Failed to load");
             const items = (await res.json()).items;
-            if (tab === "pages") setPages(items);
+            if (isPageTab(tab)) setPages(items);
             else if (tab === "faqs") setFaqs(items);
             else {
                 // Keyed by translation key so the list below can look each up in O(1).
@@ -72,7 +76,7 @@ export default function ManagePagesPage() {
             }
         } catch (err: any) {
             setError(err.message);
-            if (tab === "pages") setPages([]);
+            if (isPageTab(tab)) setPages([]);
             else if (tab === "faqs") setFaqs([]);
             else setCopyOverrides({});
         } finally {
@@ -87,7 +91,11 @@ export default function ManagePagesPage() {
     /** Top-level pages each followed by their children; orphans last. */
     const ordered = useMemo(() => {
         if (!pages) return [];
-        const byOrder = [...pages].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        // One fetch feeds both page tabs; the shelf is a filter, not a query. A
+        // page written before the split carries no `kind` and is a policy
+        // document, so it belongs under Legal.
+        const shelf = pages.filter((p) => (p.kind || "legal") === tab);
+        const byOrder = [...shelf].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         const rows: { page: SitePage; depth: number }[] = [];
 
         byOrder.filter((p) => !p.parentId).forEach((top) => {
@@ -98,7 +106,7 @@ export default function ManagePagesPage() {
         const placed = new Set(rows.map((r) => r.page.id));
         byOrder.filter((p) => !placed.has(p.id)).forEach((orphan) => rows.push({ page: orphan, depth: 0 }));
         return rows;
-    }, [pages]);
+    }, [pages, tab]);
 
 
     /**
@@ -126,7 +134,7 @@ export default function ManagePagesPage() {
             });
     }, [copyOverrides, copySearch]);
 
-    const list = tab === "pages" ? pages : tab === "faqs" ? faqs : copyOverrides;
+    const list = isPageTab(tab) ? pages : tab === "faqs" ? faqs : copyOverrides;
 
     /**
      * Pulls the copy still living in the locale files into the CMS. Runs on the
@@ -139,7 +147,7 @@ export default function ManagePagesPage() {
         try {
             const res = await adminFetch("/api/admin/content/import-from-code", {
                 method: "POST",
-                body: JSON.stringify({ target: tab === "pages" ? "privacy" : "faqs" }),
+                body: JSON.stringify({ target: isPageTab(tab) ? "privacy" : "faqs" }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Import failed");
@@ -159,7 +167,7 @@ export default function ManagePagesPage() {
 
     // The privacy policy is the one page that already exists in code, so its
     // absence from the list is the common case worth prompting about.
-    const privacyMissing = tab === "pages" && pages !== null && !pages.some((p) => p.slug === "privacy");
+    const privacyMissing = tab === "legal" && pages !== null && !pages.some((p) => p.slug === "privacy");
     const faqsMissing = tab === "faqs" && faqs !== null && faqs.length === 0;
 
     return (
@@ -183,9 +191,9 @@ export default function ManagePagesPage() {
                             <Button
                                 variant="primary"
                                 size="sm"
-                                onClick={() => (tab === "pages" ? setEditingPage("new") : setEditingFaq("new"))}
+                                onClick={() => (isPageTab(tab) ? setEditingPage("new") : setEditingFaq("new"))}
                             >
-                                <Plus className="w-3.5 h-3.5" /> {tab === "pages" ? "New page" : "New question"}
+                                <Plus className="w-3.5 h-3.5" /> {isPageTab(tab) ? "New page" : "New question"}
                             </Button>
                         )}
                     </div>
@@ -194,7 +202,8 @@ export default function ManagePagesPage() {
 
             <div className="flex flex-wrap items-center gap-1.5 border-b border-ink-600 pb-3">
                 {([
-                    { id: "pages" as Tab, label: "Pages" },
+                    { id: "legal" as Tab, label: "Legal" },
+                    { id: "seo" as Tab, label: "SEO" },
                     { id: "faqs" as Tab, label: "Q&A" },
                     { id: "copy" as Tab, label: "Site copy" },
                 ]).map((t) => (
@@ -240,7 +249,7 @@ export default function ManagePagesPage() {
             <Panel className="overflow-hidden">
                 {!list ? (
                     <SkeletonRows rows={5} />
-                ) : tab === "pages" ? (
+                ) : isPageTab(tab) ? (
                     ordered.length === 0 ? (
                         <EmptyState
                             title="No pages yet"
@@ -393,7 +402,7 @@ export default function ManagePagesPage() {
                 )}
             </Panel>
 
-            {tab === "pages" && (
+            {isPageTab(tab) && (
                 <Panel className="overflow-hidden">
                     <div className="px-4 py-3 border-b border-ink-600 flex items-center gap-2">
                         <Code2 className="w-3.5 h-3.5 text-ink-500" />
@@ -429,6 +438,8 @@ export default function ManagePagesPage() {
             {editingPage && (
                 <PageEditor
                     page={editingPage === "new" ? null : editingPage}
+                    // New pages start on whichever shelf you were looking at.
+                    defaultKind={tab === "seo" ? "seo" : "legal"}
                     allPages={pages || []}
                     onClose={() => setEditingPage(null)}
                     onSaved={() => { setEditingPage(null); load(); }}

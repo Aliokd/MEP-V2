@@ -512,6 +512,8 @@ for (const page of PAGES) {
         order: page.order,
         status: "draft",
         showInFooter: false,
+        // Files it under the console's SEO tab rather than among the policies.
+        kind: "seo",
         updatedAt: FieldValue.serverTimestamp(),
         updatedByEmail: "seed-seo-pages-script",
     });

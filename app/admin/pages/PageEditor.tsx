@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { X, Save, Archive, Globe, Eye, Pencil } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { Badge, Button, Input, Panel, Select, Spinner, Textarea } from "../components/ui";
-import { LOCALES, LOCALE_LABELS, pickLocale, type Locale, type LocalizedText, type SitePage } from "@/lib/content";
+import { LOCALES, LOCALE_LABELS, pickLocale, type Locale, type LocalizedText, type SitePage, type SitePageKind } from "@/lib/content";
 import MarkdownToolbar, { useMarkdownShortcuts } from "../components/MarkdownToolbar";
 
 /** Lowercases, strips accents and punctuation, collapses spaces to hyphens. */
@@ -47,11 +47,14 @@ function previewMarkdown(source: string): string {
 export default function PageEditor({
     page,
     allPages,
+    defaultKind = "legal",
     onClose,
     onSaved,
 }: {
     page: SitePage | null;
     allPages: SitePage[];
+    /** Which shelf a brand-new page starts on — the tab it was created from. */
+    defaultKind?: SitePageKind;
     onClose: () => void;
     onSaved: () => void;
 }) {
@@ -66,6 +69,10 @@ export default function PageEditor({
     const [parentId, setParentId] = useState(page?.parentId || "");
     const [order, setOrder] = useState(String(page?.order ?? 0));
     const [showInFooter, setShowInFooter] = useState(page?.showInFooter ?? false);
+    // Which console tab the page files under. Pages that predate the split have
+    // no value and are policies, which is also the safe default for a new one:
+    // an SEO article filed under Legal is odd, a policy lost in SEO is worse.
+    const [kind, setKind] = useState<SitePageKind>(page?.kind || defaultKind);
 
     const [locale, setLocale] = useState<Locale>("en");
     const [preview, setPreview] = useState(false);
@@ -106,6 +113,7 @@ export default function PageEditor({
                 parentId: parentId || null,
                 order: Number(order) || 0,
                 showInFooter,
+                kind,
                 ...(status ? { status } : {}),
             };
 
@@ -264,6 +272,18 @@ export default function PageEditor({
                             />
                             <span className="text-[11px] text-ink-500">
                                 veinote.com/{slugify(slug) || "…"}
+                            </span>
+                        </label>
+
+                        <label className="flex flex-col gap-1.5">
+                            <span className="text-xs text-ink-400">Section</span>
+                            <Select value={kind} onChange={(e) => setKind(e.target.value as SitePageKind)}>
+                                <option value="legal">Legal — policies and terms</option>
+                                <option value="seo">SEO — guides written to be found</option>
+                            </Select>
+                            <span className="text-[11px] text-ink-500">
+                                Which tab of this console the page is listed under. It has no effect
+                                on the page itself.
                             </span>
                         </label>
 
