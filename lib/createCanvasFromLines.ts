@@ -1,7 +1,8 @@
 "use client";
 
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
 import { safeLocalStorageSetItem } from '@/lib/storage';
 
 /**
@@ -28,6 +29,25 @@ interface VerseGroup {
     name: string;
 }
 
+/** A recording placed in the flow. Matches Create's `AudioNote`. */
+interface AudioNote {
+    id: string;
+    url: string;
+    title: string;
+    duration: number;
+    groupId: string | null;
+    phraseId?: string | null;
+    createdAt?: number;
+}
+
+export interface CanvasAudio {
+    blob: Blob;
+    /** Length in seconds. Read from the recorder's timer, not the file: a webm
+     *  from MediaRecorder reports Infinity until it has been seeked to the end. */
+    seconds: number;
+    title: string;
+}
+
 export interface CanvasDraft {
     title: string;
     /** One entry per lyric line, in order. Blank entries are dropped. */
@@ -37,6 +57,13 @@ export interface CanvasDraft {
      * in the canvas as a block rather than as loose lines. Omit for loose lines.
      */
     sectionName?: string;
+    /**
+     * A recording to place in the flow alongside the lines. Uploaded to Storage
+     * first — a blob: URL is meaningless to anyone but the tab that made it, so
+     * writing one into the document would produce a card that plays for the
+     * person who created it and is silent forever after.
+     */
+    audio?: CanvasAudio;
 }
 
 /**
@@ -73,6 +100,40 @@ export async function createCanvasFromLines(
         phrases.push({ id: `p-${stamp}-0`, text: '', groupId: group ? group.id : null });
     }
 
+    /*
+     * The recording, if there is one. It gets an empty phrase of its own to hold
+     * its slot in the flow — that is how Create positions every non-lyric card,
+     * audio included — and the upload has to land before the document is written,
+     * or the canvas would reference a file that is not there yet.
+     *
+     * A failed upload is not a failed canvas: the words still travel, and losing
+     * the take silently is better than throwing the whole thing away. It is only
+     * reported to the console, the same as every other upload path here.
+     */
+    const audioNotes: AudioNote[] = [];
+    let audioUrl: string | undefined;
+    if (draft.audio) {
+        const recId = `${stamp}`;
+        const audioPhraseId = `p-${stamp}-audio`;
+        try {
+            const fileRef = storageRef(storage, `users/${uid}/recordings/${noteId}_RecId_${recId}.webm`);
+            await uploadBytes(fileRef, draft.audio.blob);
+            audioUrl = await getDownloadURL(fileRef);
+            phrases.push({ id: audioPhraseId, text: '', groupId: group ? group.id : null });
+            audioNotes.push({
+                id: recId,
+                url: audioUrl,
+                title: draft.audio.title,
+                duration: draft.audio.seconds,
+                groupId: null,
+                phraseId: audioPhraseId,
+                createdAt: stamp,
+            });
+        } catch (err) {
+            console.error('Error uploading the take; the canvas is written without it:', err);
+        }
+    }
+
     const project = {
         id: noteId,
         title: draft.title,
@@ -85,6 +146,7 @@ export async function createCanvasFromLines(
         collaborators: [] as string[],
         verses: group ? [group] : [],
         phrases,
+        ...(audioNotes.length ? { audioNotes, audioUrl } : {}),
     };
 
     try {
