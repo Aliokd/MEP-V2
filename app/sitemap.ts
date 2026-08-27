@@ -18,6 +18,11 @@ const PAGES: { path: string; changeFrequency: 'weekly' | 'monthly' | 'yearly'; p
     // its own right rather than only being reachable from the home page.
     { path: '/waiting-list', changeFrequency: 'monthly', priority: 0.8 },
     { path: '/privacy', changeFrequency: 'yearly', priority: 0.3 },
+    // /terms has its own app route (CMS-backed with a code fallback), which
+    // makes it "app-owned" — so the CMS branch below rightly skips it and it
+    // must be listed here. A slug in APP_OWNED_SEGMENTS that isn't in this
+    // array is in neither half of the sitemap.
+    { path: '/terms', changeFrequency: 'yearly', priority: 0.3 },
     { path: '/signin', changeFrequency: 'yearly', priority: 0.5 },
 ];
 
