@@ -24,7 +24,6 @@ import VerdictReveal from './components/VerdictReveal';
 import OtpVerify from './components/OtpVerify';
 import TrialOffer from './components/TrialOffer';
 import WelcomeAboard from './components/WelcomeAboard';
-import CountdownBanner from './components/CountdownBanner';
 import { capture } from '@/lib/posthog';
 import WaitlistSecured from './components/WaitlistSecured';
 
@@ -756,23 +755,11 @@ function OnboardingPageInner() {
             // step like the trial offer pushed the timeline it exists to show
             // below the fold. The mark ends at ~64px; clearing it is all this
             // has to do.
-            // The campaign flow adds the offer bar across the top of the
-            // window (44px, see COUNTDOWN_BAR_HEIGHT), so every step takes that
-            // much again — one branch per step rather than a second `pt-` class
-            // beside the first, since two padding utilities on one element are
-            // settled by stylesheet order, not by the order they are written
-            // here.
             currentStep === STEPS.INTRO
-                ? waitlistFlow
-                    ? 'pb-3 pt-[4.75rem] md:pb-7 md:pt-[5.25rem]'
-                    : 'pb-3 pt-6 md:py-7'
+                ? 'pb-3 pt-6 md:py-7'
                 : currentStep === STEPS.QUIZ
-                    ? waitlistFlow
-                        ? 'pb-10 pt-28 md:pb-12 md:pt-32'
-                        : 'pt-16 pb-10 md:pt-20 md:pb-12'
-                    : waitlistFlow
-                        ? 'pb-10 pt-28 md:pb-16 md:pt-32'
-                        : 'pt-16 pb-10 md:pt-20 md:pb-16'
+                    ? 'pt-16 pb-10 md:pt-20 md:pb-12'
+                    : 'pt-16 pb-10 md:pt-20 md:pb-16'
         }`}>
             {/* The painted backdrop. `fixed` rather than absolute so it stays
                 put on a page long enough to scroll, and behind everything at
@@ -872,11 +859,7 @@ function OnboardingPageInner() {
             {/* Small, and close to the top. It is a mark, not a headline — the
                 question underneath is the headline, and every pixel the logo
                 takes is distance between the two. */}
-            {/* Pushed below the offer bar in the campaign flow — the mark's
-                usual 20px would put it behind one. */}
-            <div className={`absolute left-0 right-0 flex justify-center z-40 pointer-events-none ${
-                waitlistFlow ? 'top-14 md:top-[4.25rem]' : 'top-5 md:top-7'
-            } ${
+            <div className={`absolute top-5 left-0 right-0 flex justify-center md:top-7 z-40 pointer-events-none ${
                 currentStep === STEPS.INTRO ? 'hidden' : ''
             }`}>
                 <Link href="/" className="hover:opacity-80 transition-opacity pointer-events-auto">
@@ -892,11 +875,9 @@ function OnboardingPageInner() {
                 </Link>
             </div>
 
-            {/* The launch clock, in the corner, on every campaign step but the
-                last — the secured screen carries it at full size as content,
-                and a second copy in the corner would be the page checking its
-                own watch. */}
-            {waitlistFlow && currentStep !== STEPS.SECURED && <CountdownBanner />}
+            {/* No offer clock for now — the campaign runs without a timer (the
+                whole CountdownBanner apparatus stays in the codebase, dormant,
+                for when one returns). */}
 
             {/* The paywall's two plans, the intro carousel and the video answer
                 cards all need more room than the plain question steps — the

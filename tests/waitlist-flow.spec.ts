@@ -23,9 +23,9 @@ test.describe('Waitlist campaign flow', () => {
 
     await page.goto('/onboarding?flow=waitlist&from=yt-vsl');
 
-    // Opens on the intro carousel - the five slides showing the platform -
-    // with the offer clock already in the corner.
-    await expect(page.getByText('Special offer closes in')).toBeVisible();
+    // Opens on the intro carousel - the five slides showing the platform.
+    // No offer clock for now: the campaign runs without a timer.
+    await expect(page.getByText('Special offer closes in')).toHaveCount(0);
     await page.getByRole('button', { name: 'Get started' }).click();
     for (let i = 0; i < 4; i++) {
       await page.getByRole('button', { name: 'Next', exact: true }).click();
@@ -62,11 +62,9 @@ test.describe('Waitlist campaign flow', () => {
     // campaign framing: a spot being saved, not an account being created.
     await expect(page.getByRole('heading', { name: 'Save your spot' })).toBeVisible();
     await expect(page).toHaveURL(/at=email/);
-    // The card carries the offer and the founders spot counter; the offer
-    // clock is the page's own top bar, same as every other step.
+    // The card carries the offer and the founders spot counter.
     await expect(page.getByText('3 days free trial', { exact: false })).toBeVisible();
     await expect(page.getByText('/100')).toBeVisible();
-    await expect(page.getByText('Special offer closes in')).toBeVisible();
     // No consent tick anywhere any more — agreement happens by continuing,
     // and the line under the button says so.
     await expect(page.locator('input[type="checkbox"]')).toHaveCount(0);
@@ -143,10 +141,10 @@ test.describe('Waitlist campaign flow', () => {
     // The bare waiting-list form is no longer linked from the homepage.
     await expect(page.locator('a[href^="/waiting-list"]')).toHaveCount(0);
 
-    // And following one actually lands in the flow, clock and all.
+    // And following one actually lands in the flow.
     await page.locator('a[href*="flow=waitlist"]').first().click();
     await expect(page).toHaveURL(/\/onboarding\?flow=waitlist/);
-    await expect(page.getByText('Special offer closes in')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Get started' })).toBeVisible();
   });
 
   test('the plain flow is untouched by the campaign branch', async ({ page }) => {
