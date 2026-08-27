@@ -2,6 +2,14 @@ import { MetadataRoute } from 'next';
 import { SITE_URL, isCmsPagePath, localizePath } from '@/lib/i18n';
 import { listPublishedPages } from '@/lib/sitePages';
 
+// Without this, Next renders the sitemap once at build time — where App
+// Hosting has no service account, so listPublishedPages() fails quietly and
+// every CMS page is missing from the live sitemap (observed in prod: 15 URLs
+// instead of 18). Dynamic rendering moves the read to runtime, where the
+// attached service account exists, and picks up newly published pages without
+// a deploy — which is the whole point of CMS rows in the sitemap.
+export const dynamic = 'force-dynamic';
+
 // Public pages worth indexing, with how often each changes.
 const PAGES: { path: string; changeFrequency: 'weekly' | 'monthly' | 'yearly'; priority: number }[] = [
     { path: '/', changeFrequency: 'weekly', priority: 1 },
