@@ -4,16 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, ExternalLink, CornerDownRight, Code2, Lock, Download } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, Badge, Button, Input, Select, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
-import { LOCALES, LOCALE_LABELS, localeCompleteness, pickLocale, type SitePage } from "@/lib/content";
+import { LOCALES, LOCALE_LABELS, localeCompleteness, pageKind, pickLocale, type SitePage } from "@/lib/content";
 import PageEditor from "./PageEditor";
 import FaqEditor, { type FaqRow } from "./FaqEditor";
 import CopyEditor, { type CopyRow } from "./CopyEditor";
 import { listCopyKeys } from "@/lib/i18n-content";
 
-type Tab = "legal" | "seo" | "faqs" | "copy";
+type Tab = "legal" | "blog" | "faqs" | "copy";
 
 /** Both page tabs read the same collection; `kind` decides which shelf a row is on. */
-const PAGE_TABS: Tab[] = ["legal", "seo"];
+const PAGE_TABS: Tab[] = ["legal", "blog"];
 const isPageTab = (tab: Tab) => PAGE_TABS.includes(tab);
 
 const STATUS_TONE: Record<string, "neutral" | "green" | "gold" | "blue"> = {
@@ -94,7 +94,7 @@ export default function ManagePagesPage() {
         // One fetch feeds both page tabs; the shelf is a filter, not a query. A
         // page written before the split carries no `kind` and is a policy
         // document, so it belongs under Legal.
-        const shelf = pages.filter((p) => (p.kind || "legal") === tab);
+        const shelf = pages.filter((p) => pageKind(p.kind) === tab);
         const byOrder = [...shelf].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         const rows: { page: SitePage; depth: number }[] = [];
 
@@ -203,7 +203,7 @@ export default function ManagePagesPage() {
             <div className="flex flex-wrap items-center gap-1.5 border-b border-ink-600 pb-3">
                 {([
                     { id: "legal" as Tab, label: "Legal" },
-                    { id: "seo" as Tab, label: "SEO" },
+                    { id: "blog" as Tab, label: "Blog" },
                     { id: "faqs" as Tab, label: "Q&A" },
                     { id: "copy" as Tab, label: "Site copy" },
                 ]).map((t) => (
@@ -439,7 +439,7 @@ export default function ManagePagesPage() {
                 <PageEditor
                     page={editingPage === "new" ? null : editingPage}
                     // New pages start on whichever shelf you were looking at.
-                    defaultKind={tab === "seo" ? "seo" : "legal"}
+                    defaultKind={tab === "blog" ? "blog" : "legal"}
                     allPages={pages || []}
                     onClose={() => setEditingPage(null)}
                     onSaved={() => { setEditingPage(null); load(); }}

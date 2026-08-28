@@ -152,8 +152,19 @@ export interface PracticeMelodyDoc {
  * The document id IS the slug, which makes uniqueness free: two pages can't claim
  * /terms because they'd be the same document.
  */
-/** The shelves the console files website pages under. */
-export type SitePageKind = "legal" | "seo";
+/**
+ * The shelves the console files website pages under.
+ *
+ * "seo" is the name this started under and is still accepted on the way in, so
+ * documents written before the blog existed keep working; everything reading
+ * it normalises through `pageKind()`.
+ */
+export type SitePageKind = "legal" | "blog";
+
+/** Normalises a stored kind, including the retired "seo" spelling. */
+export function pageKind(value: unknown): SitePageKind {
+    return value === "blog" || value === "seo" ? "blog" : "legal";
+}
 
 export interface SitePage {
     /** Same as the slug. URL is /{slug}, or /no/{slug} and /sv/{slug}. */
@@ -176,6 +187,16 @@ export interface SitePage {
      * keeps them where their editors expect to find them.
      */
     kind?: SitePageKind;
+    /** Blog posts only. The cover shown on the index and at the top of the post. */
+    coverUrl?: string | null;
+    /** Blog posts only. Who wrote it — shown under the title. */
+    author?: string | null;
+    /**
+     * Blog posts only. The date the post is presented as carrying, which is not
+     * the same as when the document was last saved: fixing a typo should not
+     * move a post back to the top of the index.
+     */
+    publishedAt?: string | null;
     updatedAt?: number | null;
     updatedByEmail?: string | null;
 }

@@ -32,6 +32,8 @@ export const LOCALIZED_PATHS = [
     '/about',
     '/privacy',
     '/terms',
+    '/cookies',
+    '/blog',
     '/signin',
     '/onboarding',
     '/waiting-list',
@@ -56,7 +58,11 @@ export const isPrefixedLocale = (v: string | undefined | null): v is PrefixedLoc
 const APP_OWNED_SEGMENTS = [
     'platform', 'admin', 'api', '_next',
     'signin', 'onboarding', 'reset-password', 'waiting-list', 'waitlist',
-    'about', 'privacy', 'terms', 'no', 'sv', 'se',
+    // 'cookies' is an app route (the settings panel), so it must be claimed here
+    // — otherwise it reads as a CMS slug and /[slug] answers for it with a 404.
+    // 'blog' is the index route listing the posts; the posts themselves are
+    // ordinary CMS slugs and stay out of this list.
+    'about', 'privacy', 'terms', 'cookies', 'blog', 'no', 'sv', 'se',
 ] as const;
 
 /** True for a single-segment path that could be a CMS-managed page. */

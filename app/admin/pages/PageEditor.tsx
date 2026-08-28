@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { X, Save, Archive, Globe, Eye, Pencil } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { Badge, Button, Input, Panel, Select, Spinner, Textarea } from "../components/ui";
-import { LOCALES, LOCALE_LABELS, pickLocale, type Locale, type LocalizedText, type SitePage, type SitePageKind } from "@/lib/content";
+import { LOCALES, LOCALE_LABELS, pageKind, pickLocale, type Locale, type LocalizedText, type SitePage, type SitePageKind } from "@/lib/content";
 import MarkdownToolbar, { useMarkdownShortcuts } from "../components/MarkdownToolbar";
+import MediaUpload from "../components/MediaUpload";
 
 /** Lowercases, strips accents and punctuation, collapses spaces to hyphens. */
 function slugify(value: string): string {
@@ -69,10 +70,14 @@ export default function PageEditor({
     const [parentId, setParentId] = useState(page?.parentId || "");
     const [order, setOrder] = useState(String(page?.order ?? 0));
     const [showInFooter, setShowInFooter] = useState(page?.showInFooter ?? false);
+    const [coverUrl, setCoverUrl] = useState(page?.coverUrl || "");
+    const [author, setAuthor] = useState(page?.author || "");
+    // Date-only, which is what a blog shows. Stored as an ISO date string.
+    const [publishedAt, setPublishedAt] = useState((page?.publishedAt || "").slice(0, 10));
     // Which console tab the page files under. Pages that predate the split have
     // no value and are policies, which is also the safe default for a new one:
     // an SEO article filed under Legal is odd, a policy lost in SEO is worse.
-    const [kind, setKind] = useState<SitePageKind>(page?.kind || defaultKind);
+    const [kind, setKind] = useState<SitePageKind>(page ? pageKind(page.kind) : defaultKind);
 
     const [locale, setLocale] = useState<Locale>("en");
     const [preview, setPreview] = useState(false);
@@ -114,6 +119,12 @@ export default function PageEditor({
                 order: Number(order) || 0,
                 showInFooter,
                 kind,
+                // Only meaningful on a post, and only sent as a real value there:
+                // a legal page carrying a stray author would be odd in the data
+                // even though nothing renders it.
+                coverUrl: kind === "blog" ? coverUrl || null : null,
+                author: kind === "blog" ? author || null : null,
+                publishedAt: kind === "blog" ? publishedAt || null : null,
                 ...(status ? { status } : {}),
             };
 
@@ -275,11 +286,43 @@ export default function PageEditor({
                             </span>
                         </label>
 
+                        {/* A post carries three things a policy does not: who wrote
+                            it, when it is dated, and the picture the index shows. */}
+                        {kind === "blog" && (
+                            <Panel className="p-4 flex flex-col gap-3 border-ink-600">
+                                <span className="text-xs text-ink-400">Post details</span>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <label className="flex flex-col gap-1.5">
+                                        <span className="text-xs text-ink-400">Author</span>
+                                        <Input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Peter Nordberg" />
+                                    </label>
+                                    <label className="flex flex-col gap-1.5">
+                                        <span className="text-xs text-ink-400">Date</span>
+                                        <Input type="date" value={publishedAt} onChange={(e) => setPublishedAt(e.target.value)} />
+                                        <span className="text-[11px] text-ink-500">
+                                            What the post is dated, and how the index is ordered. Editing a
+                                            post later does not move it.
+                                        </span>
+                                    </label>
+                                </div>
+
+                                <MediaUpload
+                                    label="Cover image"
+                                    kind="image"
+                                    value={coverUrl}
+                                    onChange={setCoverUrl}
+                                    nameHint={slugify(slug) || "post"}
+                                    hint="Shown beside the post on /blog. Optional — without one the row is text only."
+                                />
+                            </Panel>
+                        )}
+
                         <label className="flex flex-col gap-1.5">
                             <span className="text-xs text-ink-400">Section</span>
                             <Select value={kind} onChange={(e) => setKind(e.target.value as SitePageKind)}>
                                 <option value="legal">Legal — policies and terms</option>
-                                <option value="seo">SEO — guides written to be found</option>
+                                <option value="blog">Blog — posts listed at /blog</option>
                             </Select>
                             <span className="text-[11px] text-ink-500">
                                 Which tab of this console the page is listed under. It has no effect

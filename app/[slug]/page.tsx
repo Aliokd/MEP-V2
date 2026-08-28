@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { resolveServerLocale } from "@/lib/server-locale";
 import { getChildPages, getPublishedPage, renderPageBody } from "@/lib/sitePages";
-import { pickLocale } from "@/lib/content";
+import { pageKind, pickLocale, type Locale } from "@/lib/content";
 import { localizePath } from "@/lib/i18n";
 import SiteFooterStrip from "@/components/SiteFooterStrip";
 
@@ -16,6 +16,15 @@ import SiteFooterStrip from "@/components/SiteFooterStrip";
  */
 
 type Props = { params: Promise<{ slug: string }> };
+
+/** The post's date, written the way a reader of that language would. */
+function formatPostDate(iso: string | null | undefined, locale: Locale): string {
+    if (!iso) return "";
+    const ms = Date.parse(iso);
+    if (Number.isNaN(ms)) return "";
+    const tag = locale === "no" ? "nb-NO" : locale === "sv" ? "sv-SE" : "en-GB";
+    return new Intl.DateTimeFormat(tag, { day: "numeric", month: "long", year: "numeric" }).format(new Date(ms));
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { slug } = await params;
@@ -52,6 +61,8 @@ export default async function SitePageRoute({ params }: Props) {
     const description = pickLocale(page.description, language);
     const html = renderPageBody(page, language);
     const children = await getChildPages(page.slug);
+    const isPost = pageKind(page.kind) === "blog";
+    const postDate = isPost ? formatPostDate(page.publishedAt, language) : "";
 
     return (
         // Background matches /about and /privacy so the standalone content pages
@@ -59,13 +70,38 @@ export default async function SitePageRoute({ params }: Props) {
         <div className="min-h-screen bg-[#E6E3DB] font-sans flex flex-col">
             <article className="flex-1 max-w-3xl w-full mx-auto flex flex-col gap-6 pt-32 pb-20 px-6">
                 <header className="flex flex-col gap-3">
+                    {/* A post says where it belongs; a policy has nowhere to go back to. */}
+                    {isPost && (
+                        <Link
+                            href={localizePath("/blog", language)}
+                            className="self-start text-sm text-stone-500 hover:text-stone-800 transition-colors mb-2"
+                        >
+                            ← Blog
+                        </Link>
+                    )}
+
                     <h1 className="text-4xl md:text-5xl font-sans font-light text-stone-800 tracking-tight">
                         {title}
                     </h1>
                     {description && (
                         <p className="text-lg text-stone-500 font-light leading-relaxed">{description}</p>
                     )}
+
+                    {isPost && (page.author || postDate) && (
+                        <span className="text-sm text-stone-500">
+                            {[page.author, postDate].filter(Boolean).join(" · ")}
+                        </span>
+                    )}
                 </header>
+
+                {isPost && page.coverUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element -- Cloud Storage URL, no allowlisted host.
+                    <img
+                        src={page.coverUrl}
+                        alt=""
+                        className="w-full rounded-[20px] border border-stone-200 object-cover"
+                    />
+                )}
 
                 {/* Body is markdown rendered server-side with HTML disabled, so
                     there is no untrusted markup in this string. */}
@@ -88,7 +124,10 @@ export default async function SitePageRoute({ params }: Props) {
                     </nav>
                 )}
 
-                {page.updatedAt && (
+                {/* A policy is judged by when it last changed; a post is dated
+                    by its own line above, and a "last updated" stamp under it
+                    would only confuse the two. */}
+                {!isPost && page.updatedAt && (
                     <p className="text-xs text-stone-400 mt-6">
                         Last updated {new Date(page.updatedAt).toLocaleDateString()}
                     </p>

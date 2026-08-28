@@ -1,7 +1,7 @@
 import "server-only";
 import MarkdownIt from "markdown-it";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { pickLocale, type Locale, type SitePage } from "@/lib/content";
+import { pageKind, pickLocale, type Locale, type SitePage } from "@/lib/content";
 
 /**
  * Server-side reads for CMS-managed website pages (privacy, terms, and anything
@@ -75,6 +75,24 @@ export async function listPublishedPages(): Promise<SitePage[]> {
         console.error("[pages] Failed to list published pages:", err);
         return [];
     }
+}
+
+/**
+ * Published blog posts, newest first.
+ *
+ * Ordered by the date on the post rather than by `order` or by when the
+ * document was last written — a blog is a chronology, and correcting a typo in
+ * an old post should not lift it above this week's.
+ */
+export async function listPublishedPosts(): Promise<SitePage[]> {
+    const pages = await listPublishedPages();
+    return pages
+        .filter((page) => pageKind(page.kind) === "blog")
+        .sort((a, b) => {
+            const at = Date.parse(a.publishedAt || "") || a.updatedAt || 0;
+            const bt = Date.parse(b.publishedAt || "") || b.updatedAt || 0;
+            return bt - at;
+        });
 }
 
 /**

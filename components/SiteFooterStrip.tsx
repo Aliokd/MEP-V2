@@ -30,8 +30,15 @@ export default async function SiteFooterStrip({
     const cmsPages = await getFooterPages();
 
     const links: { href: string; label: string; path: string }[] = [
+        // The blog's only way in. Without a link here it exists solely in the
+        // sitemap, which is a route for crawlers and not for readers.
+        { path: '/blog', href: localizePath('/blog', language), label: t('blog.title') },
         { path: '/privacy', href: localizePath('/privacy', language), label: t('privacy.title') },
         { path: '/terms', href: localizePath('/terms', language), label: t('terms.title') },
+        // The cookie panel has to be reachable from every page, not only from
+        // inside the privacy policy — that is the link the copy promises is
+        // "at the bottom of the page".
+        { path: '/cookies', href: localizePath('/cookies', language), label: t('cookies.page_title') },
         ...cmsPages.map((page) => ({
             path: `/${page.slug}`,
             href: localizePath(`/${page.slug}`, language),
