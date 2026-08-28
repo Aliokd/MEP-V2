@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { useAdmin } from "@/context/AdminContext";
-import { PageHeader, Panel, PanelHeader, Button, Select, StatTile, SkeletonRows, Spinner } from "../components/ui";
+import { PageHeader, Panel, PanelHeader, Button, Select, StatTile, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 
 interface Analytics {
     windowDays: number;
     funnel: { step: string; count: number }[];
+    recentlyActive: { uid: string; name: string | null; email: string | null; tier: string | null; lastActiveAt: string | null }[];
     cohorts: { week: string; signups: number; retained: number }[];
     byLocale: Record<string, number>;
     byTier: Record<string, number>;
@@ -28,8 +30,8 @@ export default function AnalyticsPage() {
             const res = await adminFetch(`/api/admin/analytics?days=${days}`);
             if (!res.ok) throw new Error((await res.json()).error || "Failed to load analytics");
             setData(await res.json());
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
         } finally {
             setRefreshing(false);
         }
@@ -109,6 +111,31 @@ export default function AnalyticsPage() {
                                 );
                             })}
                         </div>
+                    </Panel>
+
+                    <Panel>
+                        <PanelHeader
+                            title="Recently active"
+                            subtitle="Latest platform visits, newest first. Accounts that never opened the app don't appear."
+                        />
+                        {(data.recentlyActive?.length ?? 0) === 0 ? (
+                            <p className="p-5 text-sm text-ink-500">No activity recorded yet.</p>
+                        ) : (
+                            <ul className="divide-y divide-ink-600">
+                                {data.recentlyActive.map((u) => (
+                                    <li key={u.uid} className="px-5 py-2.5 flex items-center gap-3 text-sm">
+                                        <Link
+                                            href={`/admin/users?q=${encodeURIComponent(u.uid)}`}
+                                            className="text-ink-200 hover:text-ink-100 hover:underline truncate"
+                                        >
+                                            {u.name || u.email || u.uid}
+                                        </Link>
+                                        {u.tier && <span className="text-xs text-ink-500 shrink-0">{u.tier}</span>}
+                                        <span className="text-ink-400 tabular-nums ml-auto shrink-0">{timeAgo(u.lastActiveAt)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </Panel>
 
                     <div className="grid gap-3 lg:grid-cols-2">
