@@ -59,6 +59,24 @@ interface StoredConsent {
     at: string;
 }
 
+/**
+ * Answers that allowed nothing optional, given before this moment, are asked
+ * once more — and once only.
+ *
+ * The ask itself changed: it used to be a bar along the bottom edge that could
+ * be dismissed by ignoring it, and a "no" collected that way is as likely to
+ * mean "not now" as it is to mean no. So everyone who has not accepted anything
+ * gets the new dialog once, with the categories laid out.
+ *
+ * Once only is the whole design. A fresh decline is stamped with the time it
+ * was given, which is after this cutoff, so it is honoured from then on and
+ * this code never looks at it again. Moving the date forward asks the same
+ * people again — legitimate once, when what is being asked has genuinely
+ * changed; done on a schedule it is badgering, and the law and the people both
+ * read it that way. Anyone who allowed anything at all is never in scope.
+ */
+const REASK_DECLINES_BEFORE = Date.parse('2026-08-28T00:00:00.000Z');
+
 /** Frozen, so the two common answers keep one identity across renders. */
 export const ACCEPT_ALL: ConsentState = Object.freeze({ necessary: true, analytics: true, replay: true });
 export const NECESSARY_ONLY: ConsentState = Object.freeze({ necessary: true, analytics: false, replay: false });
@@ -74,6 +92,18 @@ export function normalizeConsent(state: { analytics: boolean; replay: boolean })
     return { necessary: true, analytics, replay: analytics && Boolean(state.replay) };
 }
 
+/**
+ * True for an answer that allowed nothing and predates the re-ask cutoff, which
+ * this treats as unanswered so the dialog comes back one more time. A record
+ * with no readable timestamp counts as old — every one of those was written by
+ * an earlier version, which is exactly the population being re-asked.
+ */
+function isStaleDecline(state: ConsentState, at: string | undefined): boolean {
+    if (state.analytics) return false;
+    const answeredAt = at ? Date.parse(at) : NaN;
+    return Number.isNaN(answeredAt) || answeredAt < REASK_DECLINES_BEFORE;
+}
+
 /** The stored answer, or null when nobody has answered yet on this browser. */
 export function readConsent(): ConsentState | null {
     if (typeof window === 'undefined') return null;
@@ -85,11 +115,14 @@ export function readConsent(): ConsentState | null {
 
         // A v2 answer: one word standing for both categories at once.
         if (parsed?.v === 2) {
-            return parsed.choice === 'all' ? ACCEPT_ALL : parsed.choice === 'necessary' ? NECESSARY_ONLY : null;
+            if (parsed.choice === 'all') return ACCEPT_ALL;
+            if (parsed.choice !== 'necessary') return null;
+            return isStaleDecline(NECESSARY_ONLY, parsed.at) ? null : NECESSARY_ONLY;
         }
 
         if (parsed?.v !== CONSENT_VERSION) return null;
-        return normalizeConsent({ analytics: !!parsed.analytics, replay: !!parsed.replay });
+        const state = normalizeConsent({ analytics: !!parsed.analytics, replay: !!parsed.replay });
+        return isStaleDecline(state, parsed.at) ? null : state;
     } catch {
         // A corrupt value is treated as "not asked yet" — the safe direction,
         // since it leads to asking again rather than assuming consent.

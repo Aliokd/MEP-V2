@@ -223,6 +223,20 @@ export default function PageEditor({
                         />
                     </label>
 
+                    {/* The cookie page is half CMS and half control. Said here
+                        because the preview cannot show it: an editor looking at
+                        their own text alone would reasonably conclude the
+                        switches had gone missing. */}
+                    {slugify(slug) === "cookies" && (
+                        <Panel className="p-3.5 border-ink-600">
+                            <p className="text-[11px] text-ink-400 leading-relaxed">
+                                The cookie switches are built into this page and always appear above your text —
+                                they can&apos;t be edited or removed here. Write what someone needs to know
+                                <em> around</em> them, and leave the categories themselves to the panel.
+                            </p>
+                        </Panel>
+                    )}
+
                     <div className="flex flex-col gap-1.5">
                         <div className="flex items-center gap-2">
                             <span className="text-xs text-ink-400">Content — Markdown</span>

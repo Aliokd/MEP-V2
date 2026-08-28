@@ -116,7 +116,12 @@ export default function ManagePagesPage() {
      */
     const copyRows: CopyRow[] = useMemo(() => {
         if (!copyOverrides) return [];
-        return listCopyKeys(["home", "about"])
+        // "cookies" covers every word in the consent dialog and the settings
+        // panel — the message, the three category descriptions, the buttons.
+        // The switches themselves stay in code (they are what the categories
+        // actually do), but what they SAY is copy like any other, and it is the
+        // copy most likely to need a lawyer's wording at short notice.
+        return listCopyKeys(["home", "about", "cookies"])
             .filter(({ key, value }) => {
                 if (!copySearch.trim()) return true;
                 const q = copySearch.trim().toLowerCase();
@@ -147,7 +152,10 @@ export default function ManagePagesPage() {
         try {
             const res = await adminFetch("/api/admin/content/import-from-code", {
                 method: "POST",
-                body: JSON.stringify({ target: isPageTab(tab) ? "privacy" : "faqs" }),
+                // "legal" covers every code-backed policy page — the privacy
+                // policy and the cookie page — and skips whichever is already
+                // here, so the button stays one button as more are added.
+                body: JSON.stringify({ target: isPageTab(tab) ? "legal" : "faqs" }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Import failed");
@@ -165,9 +173,17 @@ export default function ManagePagesPage() {
         }
     };
 
-    // The privacy policy is the one page that already exists in code, so its
-    // absence from the list is the common case worth prompting about.
-    const privacyMissing = tab === "legal" && pages !== null && !pages.some((p) => p.slug === "privacy");
+    // The policy pages that ship their text in code and can be pulled in here.
+    // Both keep working either way — the route falls back to the code copy —
+    // so their absence from this list is a prompt, never an error.
+    const CODE_BACKED_LEGAL: { slug: string; label: string }[] = [
+        { slug: "privacy", label: "privacy policy" },
+        { slug: "cookies", label: "cookie settings page" },
+    ];
+    const missingLegal =
+        tab === "legal" && pages !== null
+            ? CODE_BACKED_LEGAL.filter((p) => !pages.some((page) => page.slug === p.slug))
+            : [];
     const faqsMissing = tab === "faqs" && faqs !== null && faqs.length === 0;
 
     return (
@@ -225,12 +241,16 @@ export default function ManagePagesPage() {
                 </Panel>
             )}
 
-            {(privacyMissing || faqsMissing) && can("content.publish") && (
+            {(missingLegal.length > 0 || faqsMissing) && can("content.publish") && (
                 <Panel className="p-4 border-gold-500/30 bg-gold-500/5 flex flex-wrap items-center gap-3">
                     <Download className="w-4 h-4 text-gold-300 shrink-0" />
                     <p className="text-sm text-gold-200 flex-1 min-w-[240px]">
-                        {privacyMissing
-                            ? "The privacy policy is still the version built in code. Import it to edit it here — the live page keeps working either way."
+                        {missingLegal.length > 0
+                            ? `The ${missingLegal.map((p) => p.label).join(" and the ")} ${
+                                  missingLegal.length > 1 ? "are" : "is"
+                              } still the version built in code. Import to edit ${
+                                  missingLegal.length > 1 ? "them" : "it"
+                              } here — the live page${missingLegal.length > 1 ? "s keep" : " keeps"} working either way.`
                             : "The homepage Q&A is still the version built in code. Import the four questions to edit them here."}
                     </p>
                     <Button variant="primary" size="sm" onClick={importFromCode} disabled={importing}>

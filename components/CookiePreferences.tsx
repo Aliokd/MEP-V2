@@ -106,7 +106,16 @@ function PreferencesForm({
                 nothing constrains the height there, so there is nothing to
                 scroll — beyond giving the buttons a thumb-sized width on a
                 phone, which is where they wanted to be anyway. */}
-            <div className="sheet-panel-body flex flex-col">
+            {/* `flex-1 min-h-0 overflow-y-auto` states the scrolling here rather
+                than leaning on `.sheet-panel-body`, whose rules live inside a
+                max-width:767px block: above that breakpoint the class does
+                nothing, so inside the dialog the rows simply overflowed a panel
+                that clips, and the save buttons sat below the cut with no way to
+                reach them. The class stays for the phone-specific parts of that
+                contract (overscroll containment, the pinned footer). On the
+                /cookies page nothing constrains the height, so there is nothing
+                to scroll and this is inert. */}
+            <div className="sheet-panel-body flex flex-col flex-1 min-h-0 overflow-y-auto">
                 {ROWS.map(({ id, Icon, locked }) => {
                     const on = locked || draft[id as keyof Draft];
                     // Replay depends on analytics, and a switch that does nothing
@@ -164,7 +173,7 @@ function PreferencesForm({
                 })}
             </div>
 
-            <div className="sheet-panel-footer flex flex-col-reverse sm:flex-row sm:items-center gap-3 pt-5">
+            <div className="sheet-panel-footer shrink-0 flex flex-col-reverse sm:flex-row sm:items-center gap-3 pt-5">
                 {/* The region is always mounted and the WORDS are what appear:
                     a live region announces a change to its contents, so text
                     that is merely faded from opacity-0 to 1 is announced to

@@ -7,6 +7,7 @@ import en from "@/locales/en.json";
 import no from "@/locales/no.json";
 import sv from "@/locales/sv.json";
 import { LOCALES, type Locale } from "@/lib/content";
+import { COOKIES_FALLBACK_MD } from "@/lib/cookiePageBody";
 import { LYRICS_IDEAS_BY_LANGUAGE as IDEAS_BY_LANGUAGE } from "@/app/platform/data/ideas";
 import { PRACTICE_SONGS } from "@/app/platform/practice/data/practiceSongs";
 
@@ -61,7 +62,13 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
     const imported: string[] = [];
     const skipped: string[] = [];
 
-    if (target === "all" || target === "privacy") {
+    // "legal" is the Legal tab's button: every code-backed policy page at once,
+    // each skipped if it is already in the CMS. Naming one directly still works,
+    // which is what the seed script and any future one-page repair need.
+    const wants = (name: string) => target === "all" || target === name;
+    const wantsLegal = (name: string) => wants(name) || target === "legal";
+
+    if (wantsLegal("privacy")) {
         const ref = adminDb.collection("site_pages").doc("privacy");
         const existing = await ref.get();
 
@@ -96,6 +103,53 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
                 { merge: true },
             );
             imported.push("privacy");
+        }
+    }
+
+    if (wantsLegal("cookies")) {
+        const ref = adminDb.collection("site_pages").doc("cookies");
+        const existing = await ref.get();
+
+        if (existing.exists && !force) {
+            skipped.push("cookies — already in the CMS");
+        } else {
+            const title: Record<string, string> = {};
+            const description: Record<string, string> = {};
+            const body: Record<string, string> = {};
+
+            for (const locale of LOCALES) {
+                const bundle = BUNDLES[locale];
+                title[locale] = bundle?.cookies?.page_title || "Cookie settings";
+                description[locale] = bundle?.cookies?.page_intro || "";
+                // The prose under the switches, in English for every locale —
+                // it is the same fallback the page renders when nothing is
+                // published, so importing changes who can edit the words, not
+                // which words are on the page. Translating them is then an
+                // ordinary edit in the console.
+                body[locale] = COOKIES_FALLBACK_MD.trim();
+            }
+
+            await ref.set(
+                {
+                    id: "cookies",
+                    slug: "cookies",
+                    title,
+                    description,
+                    body,
+                    parentId: null,
+                    order: 20,
+                    status: "published",
+                    kind: "legal",
+                    // The footer links /cookies by hand from every content page,
+                    // the same way it does /privacy. Ticking this too would put
+                    // the link there twice.
+                    showInFooter: false,
+                    updatedAt: FieldValue.serverTimestamp(),
+                    updatedByEmail: admin.email,
+                },
+                { merge: true },
+            );
+            imported.push("cookies");
         }
     }
 

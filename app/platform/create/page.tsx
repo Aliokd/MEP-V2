@@ -22447,10 +22447,12 @@ export default function CreatePage() {
                         bottom: `${keyboardInset}px`,
                         transform: 'none',
                     } : {
-                        // Sit clear of the cookie consent bar while it's up (it's fixed at
-                        // bottom-0 with z-100 and would otherwise swallow every tap on this
-                        // toolbar). --consent-h is published by components/CookieBanner and
-                        // removed once answered, so this collapses back to 0 on its own.
+                        // Kept from when the consent ask was a bar pinned to bottom-0 at
+                        // z-100, which swallowed every tap on this toolbar until it was
+                        // answered. It is a centred dialog now and nobody publishes
+                        // --consent-h, so this resolves to 0 — left in place because the
+                        // fallback is the whole behaviour and a variable that reappears
+                        // would be honoured again without anyone having to remember.
                         bottom: 'var(--consent-h, 0px)'
                     }}
                 >

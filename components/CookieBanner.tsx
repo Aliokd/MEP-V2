@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Cookie, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft, Cookie } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import CookiePreferencesDialog from '@/components/CookiePreferencesDialog';
+import { localizePath, splitLocale } from '@/lib/i18n';
+import CookiePreferences from '@/components/CookiePreferences';
+import { PRIMARY_BUTTON_BLOCK, SECONDARY_BUTTON } from '@/app/onboarding/components/buttonStyles';
 import {
     acceptAllCookies,
     getConsentSnapshot,
@@ -13,116 +18,169 @@ import {
 } from '@/lib/cookieConsent';
 
 /**
- * Consent bar, pinned to the bottom until answered.
+ * The consent ask, as a centred dialog over a blurred page, held there until it
+ * is answered.
+ *
+ * It was a bar along the bottom edge, which is the polite version of this and
+ * also the ignorable one: it competes with whatever the page is doing and can
+ * be scrolled past. This one stops the page. There is no close button and no
+ * escape — the two answers and the settings panel are the way out, which is
+ * what "until a choice is made" means.
  *
  * Mounted hidden and revealed in an effect: localStorage doesn't exist during
- * the server render, so deciding visibility there would either flash the bar at
- * people who already answered, or mismatch on hydration.
+ * the server render, so deciding visibility there would either flash the dialog
+ * at people who already answered, or mismatch on hydration.
  */
-export default function CookieBanner() {
-    const { t } = useLanguage();
 
-    // Rendering straight from the store would put the bar in the server HTML —
-    // the server can only assume "not answered" — so everyone who already chose
-    // would see it flash before hydration removed it. Gating on mount instead
-    // costs new visitors a beat and costs everyone else nothing.
+/**
+ * Where the ask does NOT appear.
+ *
+ * A blocking dialog over the privacy policy would mean the one thing you cannot
+ * do before consenting is read what you are consenting to. These three pages
+ * are exactly where someone goes to find that out, and nothing is being tracked
+ * while they read — an unanswered dialog is a "no" until it isn't — so the ask
+ * simply waits until they navigate somewhere else.
+ */
+const EXEMPT_PATHS = ['/privacy', '/terms', '/cookies'];
+
+export default function CookieBanner() {
+    const { t, language } = useLanguage();
+    const pathname = usePathname();
+
+    // Rendering straight from the store would put the dialog in the server HTML
+    // — the server can only assume "not answered" — so everyone who already
+    // chose would see it flash before hydration removed it. Gating on mount
+    // instead costs new visitors a beat and costs everyone else nothing.
     const [mounted, setMounted] = useState(false);
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setMounted(true);
     }, []);
 
-    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
 
-    // Read through the store, not mirrored into state, so the bar comes back
-    // when the privacy page clears the choice — and disappears here when it is
-    // answered in another tab.
+    // Read through the store, not mirrored into state, so the dialog comes back
+    // when the choice is cleared — and disappears here when it is answered in
+    // another tab.
     const consent = useSyncExternalStore(subscribeConsent, getConsentSnapshot, getServerConsentSnapshot);
 
-    const isVisible = mounted && consent === null;
+    const { path } = splitLocale(pathname || '/');
+    const isVisible = mounted && consent === null && !EXEMPT_PATHS.includes(path);
 
-    // Publish the bar's height as --consent-h so bottom-anchored UI can sit clear
-    // of it. Without this the bar (fixed, z-100, and ~128px tall on a phone once
-    // it wraps to two rows) silently covers the Create canvas toolbar — REC, tools,
-    // Demo Studio and Inspirations are all unclickable until consent is answered,
-    // which is exactly when every new visitor meets them. Measured rather than
-    // hard-coded because the height moves with locale, font size and breakpoint.
-    const barRef = useRef<HTMLDivElement>(null);
+    // Hold the page still underneath. Without this the blurred backdrop scrolls
+    // with the wheel, which reads as the page half-working rather than as
+    // waiting. The scrollbar's width is given back as padding, so removing it
+    // doesn't shift the layout sideways behind the blur.
     useEffect(() => {
+        if (!isVisible) return;
         const root = document.documentElement;
-        const clear = () => root.style.removeProperty('--consent-h');
-        if (!isVisible) { clear(); return; }
-        const el = barRef.current;
-        if (!el) return;
-        const apply = () => root.style.setProperty('--consent-h', `${el.offsetHeight}px`);
-        apply();
-        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(apply) : null;
-        ro?.observe(el);
-        return () => { ro?.disconnect(); clear(); };
+        const gutter = window.innerWidth - root.clientWidth;
+        const prevOverflow = root.style.overflow;
+        const prevPadding = root.style.paddingRight;
+        root.style.overflow = 'hidden';
+        if (gutter > 0) root.style.paddingRight = `${gutter}px`;
+        return () => {
+            root.style.overflow = prevOverflow;
+            root.style.paddingRight = prevPadding;
+        };
     }, [isVisible]);
 
     if (!isVisible) return null;
 
-    return (
-        <>
-            <div
-                ref={barRef}
-                // floating-sheet-enter, not `animate-in slide-in-from-bottom-4`: without
-                // tailwindcss-animate installed those utilities compile to nothing, so
-                // the bar simply appeared. This is the rise-and-fade they described, and
-                // unlike .bottom-sheet-enter it isn't gated off above md — the consent
-                // bar is a full-width bar at every width, not a phone-only sheet.
-                className="fixed inset-x-0 bottom-0 z-[100] bg-white border-t border-stone-200/70 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] floating-sheet-enter"
-                role="dialog"
-                aria-live="polite"
-                aria-label={t('cookies.aria_label')}
-            >
-                <div className="mx-auto max-w-6xl px-5 py-3 md:px-8 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <Cookie className="w-[18px] h-[18px] shrink-0 text-stone-400" strokeWidth={1.5} />
-                        <p className="text-[13px] leading-snug text-stone-600 font-sans">
-                            {t('cookies.message')}
-                        </p>
-                    </div>
+    return createPortal(
+        <div
+            className="sheet-shell fixed inset-0 z-[100] flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('cookies.aria_label')}
+        >
+            {/* No onClick: clicking away is not one of the answers. */}
+            <div className="absolute inset-0 bg-stone-900/30 backdrop-blur-md sheet-backdrop-enter" aria-hidden="true" />
 
-                    {/* Three controls, left to right: "Manage settings" (tertiary),
-                        "Only necessary" (secondary), "Accept all" (primary).
+            <div className="sheet-panel relative w-full max-w-md max-h-[86vh] flex flex-col bg-white rounded-[22px] border border-stone-200 shadow-xl overflow-hidden">
+                {showSettings ? (
+                    <>
+                        <div className="flex items-start gap-3 px-6 pt-6 pb-3 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setShowSettings(false)}
+                                aria-label={t('cookies.back')}
+                                className="mt-0.5 text-stone-400 hover:text-stone-700 transition-colors shrink-0"
+                            >
+                                <ArrowLeft className="w-4 h-4" />
+                            </button>
+                            <div className="flex flex-col gap-1.5 min-w-0">
+                                <h2 className="text-lg font-sans font-light text-stone-800">{t('cookies.panel_title')}</h2>
+                                <p className="text-sm text-stone-500 leading-relaxed">{t('cookies.panel_intro')}</p>
+                            </div>
+                        </div>
 
-                        The bar used to carry both "Reject" and "Only necessary",
-                        two labels writing the same decline, because there was
-                        nowhere else to go. Now there is: the third door leads to
-                        the panel where the two optional categories are separate
-                        answers, which is what someone looking for "Reject" was
-                        usually after. Declining outright keeps a control of equal
-                        weight to accepting — that part is not a style choice. */}
-                    <div className="flex items-center gap-2 shrink-0 self-end md:self-auto">
-                        <button
-                            type="button"
-                            onClick={() => setSettingsOpen(true)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-stone-500 hover:text-stone-900 transition-colors"
-                        >
-                            <SlidersHorizontal className="w-3.5 h-3.5" strokeWidth={2} />
-                            {t('cookies.manage')}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => rejectOptionalCookies()}
-                            className="px-4 py-2 text-[13px] font-semibold text-stone-700 bg-white border border-stone-300 hover:bg-stone-50 rounded-full transition-all active:scale-95"
-                        >
-                            {t('cookies.necessary')}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => acceptAllCookies()}
-                            className="px-4 py-2 text-[13px] font-semibold text-white bg-stone-900 hover:bg-stone-800 rounded-full transition-all active:scale-95"
-                        >
-                            {t('cookies.accept')}
-                        </button>
+                        {/* The settings live inside this dialog rather than in a
+                            second one on top of it: one ask, opened up. Saving
+                            from here is an answer, so it dismisses the whole
+                            thing — that is what onSaved unmounting us does. */}
+                        <CookiePreferences className="flex-1 min-h-0 px-6 pb-4" />
+
+                        {/* The full page, from inside the panel: someone who
+                            wants more than the three descriptions above is
+                            already here rather than on the first screen.
+                            /cookies is one of the exempt paths above, so the
+                            link leads somewhere this dialog isn't in the way. */}
+                        <div className="shrink-0 px-6 pb-5 flex justify-center">
+                            <Link
+                                href={localizePath('/cookies', language)}
+                                className="text-[12px] text-stone-400 hover:text-stone-700 underline underline-offset-2 transition-colors"
+                            >
+                                {t('cookies.read_more')}
+                            </Link>
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex flex-col px-6 pt-7 pb-6 gap-5">
+                        <div className="flex flex-col items-center text-center gap-3">
+                            <Cookie className="w-7 h-7 text-stone-900" strokeWidth={1.5} />
+                            <h2 className="text-xl font-sans font-light text-stone-800">{t('cookies.title')}</h2>
+                            <p className="text-[14px] leading-relaxed text-stone-500">{t('cookies.message')}</p>
+                        </div>
+
+                        {/* The onboarding's green pill, imported rather than
+                            approximated: a visitor meets it five times on the way
+                            here and it means "this is the way forward" every time.
+                            Its quiet companion comes with it, so the two answers
+                            are the same height and the same shape and differ only
+                            in weight — which is the one difference they should
+                            have. */}
+                        <div className="flex flex-col gap-2.5">
+                            <button type="button" onClick={() => acceptAllCookies()} className={PRIMARY_BUTTON_BLOCK}>
+                                {t('cookies.accept')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => rejectOptionalCookies()}
+                                className={`${SECONDARY_BUTTON} w-full`}
+                            >
+                                {t('cookies.necessary')}
+                            </button>
+                        </div>
+
+                        {/* The one way in to everything else, as underlined text
+                            rather than a third pill — a button here would read as
+                            a third answer, and this answers nothing. The full page
+                            is linked from inside the panel it opens, so this first
+                            screen stays two answers and a door. */}
+                        <div className="flex flex-col items-center">
+                            <button
+                                type="button"
+                                onClick={() => setShowSettings(true)}
+                                className="text-[14px] font-medium text-stone-400 hover:text-stone-700 underline underline-offset-4 transition-colors"
+                            >
+                                {t('cookies.manage')}
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
-
-            <CookiePreferencesDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
-        </>
+        </div>,
+        document.body,
     );
 }

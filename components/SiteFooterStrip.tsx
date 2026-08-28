@@ -48,7 +48,14 @@ export default async function SiteFooterStrip({
         // is an anchor link wherever it appears.
         { path: '#qa', href: `${localizePath('/', language)}#qa`, label: t('home.nav.qa') },
         { path: '/', href: localizePath('/', language), label: t('common.home') },
-    ].filter((link) => link.path !== currentPath);
+    ]
+        .filter((link) => link.path !== currentPath)
+        // A CMS page can name a path one of the fixed links above already owns —
+        // a `site_pages/terms` document with "show in footer" ticked is exactly
+        // that, and the strip has been printing "Terms" twice because of it.
+        // First entry wins: the hand-written ones carry the locale files' label
+        // and are the reason the path is fixed in the first place.
+        .filter((link, index, all) => all.findIndex((other) => other.path === link.path) === index);
 
     return (
         <section className="px-6 md:px-[10%] pb-16 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-stone-400/20 pt-10">
