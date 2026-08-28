@@ -49,6 +49,14 @@ function shape(doc: FirebaseFirestore.DocumentSnapshot): SitePage {
         order: d.order ?? 0,
         status: d.status || "draft",
         showInFooter: d.showInFooter === true,
+        // This maps an explicit list rather than spreading the document, so a
+        // field the console writes reaches the site only once it is named here.
+        // Leaving these out is why /blog rendered an empty index: every page
+        // came back as "legal" because its `kind` was dropped on the way through.
+        kind: pageKind(d.kind),
+        coverUrl: d.coverUrl || null,
+        author: d.author || null,
+        publishedAt: d.publishedAt || null,
         updatedAt: d.updatedAt?.toMillis?.() ?? null,
         updatedByEmail: d.updatedByEmail || null,
     };
