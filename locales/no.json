@@ -1015,7 +1015,7 @@
   "cookies": {
     "aria_label": "Samtykke til informasjonskapsler",
     "title": "Informasjonskapsler på Veinote",
-    "message": "Vi bruker informasjonskapsler for å forstå hvordan Veinote blir brukt, så vi kan gjøre den bedre.",
+    "message": "Vi bruker informasjonskapsler for å forstå hvordan Veinote blir brukt, så vi kan gjøre den bedre. Sier du nei, teller vi fortsatt besøk anonymt – ingenting lagres på enheten din, og ingenting knyttes til deg. Du kan endre valget ditt når som helst.",
     "accept": "Godta alle",
     "necessary": "Bare nødvendige",
     "manage": "Innstillinger",

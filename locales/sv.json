@@ -1015,7 +1015,7 @@
   "cookies": {
     "aria_label": "Samtycke till kakor",
     "title": "Kakor på Veinote",
-    "message": "Vi använder kakor för att förstå hur Veinote används, så att vi kan göra den bättre.",
+    "message": "Vi använder kakor för att förstå hur Veinote används, så att vi kan göra den bättre. Säger du nej räknar vi ändå besök anonymt – ingenting sparas på din enhet och ingenting kopplas till dig. Du kan ändra ditt val när som helst.",
     "accept": "Acceptera alla",
     "necessary": "Bara nödvändiga",
     "manage": "Inställningar",

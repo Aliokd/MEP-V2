@@ -1015,7 +1015,7 @@
   "cookies": {
     "aria_label": "Cookie consent",
     "title": "Cookies on Veinote",
-    "message": "We use cookies to understand how Veinote is used, so we can make it better.",
+    "message": "We use cookies to understand how Veinote is used, so we can make it better. If you say no, we still count visits anonymously — nothing is stored on your device and nothing is tied to you. You can change your choice at any time.",
     "accept": "Accept all",
     "necessary": "Only necessary",
     "manage": "Manage settings",
