@@ -155,7 +155,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
                 // the footer is pinned. This is the floor for the pathological case —
                 // below roughly 195px of height the footer alone cannot fit, and scrolling
                 // to the options beats clipping them away.
-                className={`fixed top-16 bottom-0 left-0 md:h-screen md:h-dvh md:max-h-dvh md:sticky md:top-0 z-[79] md:z-50 flex flex-col pt-8 pb-[calc(1.25rem+env(safe-area-inset-bottom))] select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-y-auto no-scrollbar overscroll-contain transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
+                className={`fixed top-0 bottom-0 left-0 md:h-screen md:h-dvh md:max-h-dvh md:sticky md:top-0 z-[79] md:z-50 flex flex-col pt-8 pb-[calc(1.25rem+env(safe-area-inset-bottom))] select-none bg-[#E4E4DF] md:bg-transparent border-r border-stone-250/20 md:border-r-0 shadow-xl md:shadow-none overflow-y-auto no-scrollbar overscroll-contain transition-[transform,width,padding-left,padding-right] duration-300 ease-out ${
                     isMobileOpen ? 'translate-x-0' : '-translate-x-[110%]'
                 } md:translate-x-0 ${
                     // The rail scales with the viewport instead of holding one fixed

@@ -112,3 +112,8 @@ vendor/lexicon/nst/
 /public/assets/Learn/bank-of-tips.webp
 /public/assets/Learn/fundamentals.avif
 /public/assets/Learn/fundamentals.webp
+# After Effects project + its logs for the Create demo videos. Editable source,
+# not something the app serves — and public/ is served publicly, so committing
+# it puts the project file up for download. Same rule as the .mp4 masters above.
+/public/Create/*.aep
+/public/Create/*.aep Logs/

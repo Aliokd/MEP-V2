@@ -5,7 +5,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { bindLocalStateToAccount } from '@/lib/storage';
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog';
-import { hasAnalyticsConsent } from '@/lib/cookieConsent';
+import { hasReplayConsent } from '@/lib/cookieConsent';
 
 interface AuthContextType {
     user: User | null;
@@ -155,7 +155,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // queue stub and pushing the user's uid, name and email into it before
         // anyone answered the consent bar. The queue flushes the moment Clarity
         // loads, so declining has to stop the queueing too, not just the script.
-        if (!hasAnalyticsConsent()) return;
+        // Clarity's category is session recording, not analytics: since those
+        // became separate answers, someone can allow being counted while
+        // refusing to be recorded, and this queue belongs to the recorder.
+        if (!hasReplayConsent()) return;
 
         if (user && typeof window !== 'undefined') {
             try {

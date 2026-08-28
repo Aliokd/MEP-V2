@@ -64,8 +64,8 @@ const ART: Record<string, Shape[]> = {
     // The bar-mosaic circle: every bar of the song at once, loudest at the heart.
     'Master song structure': structureMosaic(),
 
-    // Two soft circles sharing air — where they overlap, the sound thickens.
-    'Melody & harmony': [
+    // Two soft circles sharing air: the melody, and the answer to it.
+    'Melody variations': [
         { kind: 'circle', cx: 88, cy: 94, r: 48, o: 0.14 },
         { kind: 'circle', cx: 88, cy: 94, r: 36, o: 0.24 },
         { kind: 'circle', cx: 88, cy: 94, r: 24, o: 0.4 },
@@ -194,36 +194,52 @@ const ART: Record<string, Shape[]> = {
  * Each takes a unique id prefix so two cards mid-transition never collide.
  */
 const CUSTOM: Record<string, (uid: string) => ReactNode> = {
-    // Two circles sharing one thought: the lined draft and the finished take.
-    // Both wash from grey into transparency across the width — the light comes
-    // from the left, the same side the draft sits on, and both shapes thin out
-    // toward the right. Each gradient runs a few units past its own shape so the
-    // extremes of the ramp are never the ones doing the drawing.
+    /*
+     * A pinwheel of nine blades — one phrase turned nine ways round a single
+     * centre, which is the practice. Each blade is the same circle set on a
+     * ring and eclipsed by its neighbour one step round, so what survives is a
+     * crescent; the gradient runs from full weight at the heart to nearly
+     * nothing at the rim, and where crescents overlap the translucency stacks
+     * into the swirl's shading. Monochrome on purpose: currentColor, like every
+     * card here, with a pinprick of the card's own ground at the centre.
+     *
+     * One mask and one gradient serve all nine blades — both are declared in
+     * user space, and user space rotates with the group that references them.
+     */
     'Composing verses': (uid) => {
-        const stripes = Array.from({ length: 15 }, (_, i) => 46 + i * 9);
+        const N = 9;
+        const step = 360 / N;
+        // The neighbouring circle, one step round the ring (d=40, y down).
+        const nx = 110 + 40 * Math.cos((step * Math.PI) / 180);
+        const ny = 110 + 40 * Math.sin((step * Math.PI) / 180);
         return (
             <>
                 <defs>
-                    <linearGradient id={`${uid}-a`} gradientUnits="userSpaceOnUse" x1="22" y1="110" x2="156" y2="110">
-                        <stop offset="0" stopColor="currentColor" stopOpacity="0.75" />
+                    {/* Along the blade's sweep, horn to horn — the crescent's two
+                        tips sit at the circles' intersections, (96,105) by the
+                        centre and (194,141) out at the rim. A radial fade kept
+                        neighbouring blades at the same value wherever they met
+                        and the seams vanished; running the ramp along the sweep
+                        puts each blade's dark shoulder against the faded tail of
+                        the one beneath it, which is what makes the swirl read. */}
+                    <linearGradient id={`${uid}-p`} gradientUnits="userSpaceOnUse" x1="96" y1="105" x2="194" y2="141">
+                        <stop offset="0" stopColor="currentColor" stopOpacity="0.72" />
+                        <stop offset="0.5" stopColor="currentColor" stopOpacity="0.3" />
+                        <stop offset="0.85" stopColor="currentColor" stopOpacity="0.05" />
                         <stop offset="1" stopColor="currentColor" stopOpacity="0" />
                     </linearGradient>
-                    <linearGradient id={`${uid}-b`} gradientUnits="userSpaceOnUse" x1="66" y1="108" x2="210" y2="108">
-                        <stop offset="0" stopColor="currentColor" stopOpacity="0.85" />
-                        <stop offset="1" stopColor="currentColor" stopOpacity="0.02" />
-                    </linearGradient>
-                    {/* The striped circle, minus the ground the solid one stands on */}
                     <mask id={`${uid}-m`} maskUnits="userSpaceOnUse" x="0" y="0" width="220" height="220">
-                        <circle cx="88" cy="110" r="62" fill="white" />
-                        <circle cx="138" cy="108" r="66" fill="black" />
+                        <circle cx="150" cy="110" r="54" fill="white" />
+                        <circle cx={nx} cy={ny} r="54" fill="black" />
                     </mask>
                 </defs>
-                <g mask={`url(#${uid}-m)`} fill={`url(#${uid}-a)`}>
-                    {stripes.map(y => (
-                        <rect key={y} x="22" y={y} width="132" height="4.5" />
-                    ))}
-                </g>
-                <circle cx="138" cy="108" r="66" fill={`url(#${uid}-b)`} />
+                {Array.from({ length: N }, (_, i) => (
+                    <g key={i} transform={`rotate(${i * step} 110 110)`} mask={`url(#${uid}-m)`}>
+                        <circle cx="150" cy="110" r="54" fill={`url(#${uid}-p)`} />
+                    </g>
+                ))}
+                {/* The still point the whole thing turns on — the card's ground. */}
+                <circle cx="110" cy="110" r="5" fill="#FAF9F5" />
             </>
         );
     },

@@ -50,7 +50,15 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        /* Practice 3 records. Without a fake device getUserMedia has nothing to
+         * open and the permission prompt has nobody to answer it, so the
+         * recorder's own error path is all the suite could ever reach. */
+        launchOptions: {
+          args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+        },
+      },
     },
   ],
 

@@ -211,6 +211,7 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
                     <div className="w-full sm:w-auto sm:aspect-square shrink-0 h-48 sm:h-full sm:max-h-[300px] lg:max-h-[380px] flex items-center justify-center">
                         <IdeaGlyph
                             seed={idea.id}
+                            category={idea.category}
                             className="w-full h-full text-stone-500 opacity-70"
                         />
                     </div>

@@ -10,6 +10,7 @@ import { type ChosenSong } from './SongChooser';
 import SongPill from './SongPill';
 import { usePracticeLibrary } from '../lib/library';
 import StructurePlayer from './StructurePlayer';
+import MelodyVariation from './MelodyVariation';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
 import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight, RotateCcw, Loader2 } from 'lucide-react';
 import Confetti from '@/app/onboarding/components/Confetti';
@@ -459,16 +460,21 @@ export default function PracticeTab() {
                     </button>
  
                     {/* Active Title + Dropdown Selector */}
-                    <div ref={dropdownRef} className="relative flex-1 min-w-0 md:flex-none">
-                        {/* Fills whatever the two arrows leave on a phone, rather than
-                            claiming a fixed 76vw — at that width the pill plus the two
-                            40px arrows and their gaps came to more than the row, so the
-                            arrows were pushed off both edges. Still one constant width,
-                            so they don't move when the title changes; it is just derived
-                            from the row now instead of guessed. Fixed width from md up. */}
+                    <div ref={dropdownRef} className="relative flex-1 min-w-0 max-w-[430px]">
+                        {/* Takes whatever the two arrows leave, at every width — the
+                            arrows are the fixed part and the title is the elastic one,
+                            because a control you cannot reach is worse than a title you
+                            cannot read in full.
+
+                            It used to claim a fixed md:w-[min(76vw,430px)]. 76vw measures
+                            the VIEWPORT, but this row sits inside a panel the sidebar has
+                            already taken ~260px out of — so on a medium screen the pill
+                            asked for more than the row had and pushed the arrows off both
+                            edges. flex-1 against shrink-0 arrows cannot do that; max-w
+                            keeps the old ceiling on a wide screen. */}
                         <button
                             onClick={() => setDropdownOpen(!dropdownOpen)}
-                            className={`${btn.secondary('bare')} h-[var(--ctl-h)] w-full gap-2.5 px-4 font-serif text-lg font-normal tracking-wide text-stone-900 md:w-[min(76vw,430px)] md:px-6 md:text-2xl`}
+                            className={`${btn.secondary('bare')} h-[var(--ctl-h)] w-full gap-2.5 px-4 font-serif text-lg font-normal tracking-wide text-stone-900 md:px-6 md:text-2xl`}
                         >
                             <span className="truncate">{getTranslatedPracticeName(selectedPractice)}</span>
                             <ChevronDown size={16} className={`shrink-0 stroke-[2.2] transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
@@ -629,6 +635,13 @@ export default function PracticeTab() {
                                 />
                             )}
                         </motion.div>
+                    )}
+
+                    {/* Practice 3 lives in its own file, the way Master song structure
+                        does. Composing verses below is the one still inlined here, and
+                        it is the reason this component is as long as it is. */}
+                    {openedPractice === 'Melody variations' && (
+                        <MelodyVariation key="melody-variations" onBack={() => setOpenedPractice(null)} />
                     )}
 
                     {openedPractice === 'Composing verses' && (
@@ -1020,74 +1033,6 @@ export default function PracticeTab() {
                     scrollbar-width: none;
                 }
 
-                /*
-                 * Composing verses borrows the lyric card from Master song
-                 * structure: a half-veil of white on the beige panel, no border,
-                 * deepening a shade under the cursor. "is-static" marks the ones
-                 * that are containers rather than choices.
-                 */
-                .verse-card {
-                    background-color: rgba(255, 255, 255, 0.5);
-                    transition: background-color 0.2s;
-                }
-                .verse-card:not(.is-static) {
-                    cursor: pointer;
-                }
-                .verse-card:not(.is-static):hover {
-                    background-color: #E7E6DF;
-                }
-                /* Picked, waiting for the verb that completes the pair */
-                .verse-card.is-armed,
-                .verse-card.is-armed:hover {
-                    background-color: #DCDDD4;
-                }
-                /* Paired up — the same green a named section wears next door */
-                .verse-card.is-linked,
-                .verse-card.is-linked:hover {
-                    background-color: rgba(134, 190, 127, 0.85);
-                }
-                /*
-                 * The word fields carry no placeholder any more, so an empty one
-                 * has nothing to say it is a field. Focus answers that: the card
-                 * fills to solid white and draws a hairline edge, which is also
-                 * the only cue telling you which of the five you are typing in.
-                 */
-                .verse-input:focus {
-                    background-color: #ffffff;
-                    box-shadow: inset 0 0 0 1.5px rgba(28, 25, 23, 0.5);
-                }
-                .verse-input:hover:not(:focus) {
-                    background-color: #E7E6DF;
-                }
-                /*
-                 * Verbs get their own tint, on the step where they are typed and
-                 * on the step where they are linked — so the two columns read as
-                 * two kinds of word rather than two lists. Hover deepens and
-                 * focus lifts toward white by the same amount the untinted ones
-                 * do: the states keep meaning the same thing either side.
-                 */
-                .verse-input.is-verb {
-                    background-color: #FBFFED;
-                }
-                .verse-input.is-verb:hover:not(:focus) {
-                    background-color: #EFF5DA;
-                }
-                .verse-input.is-verb:focus {
-                    background-color: #FDFFF6;
-                }
-                /*
-                 * The linking step's verb column. Armed and linked are states the
-                 * tint must not fight — a paired card is green whatever kind of
-                 * word it holds — so both are excluded outright rather than left
-                 * to out-specify it. The is-static exclusion keeps these off the
-                 * fields above, which carry their own rules.
-                 */
-                .verse-card.is-verb:not(.is-static):not(.is-armed):not(.is-linked) {
-                    background-color: #FBFFED;
-                }
-                .verse-card.is-verb:not(.is-static):not(.is-armed):not(.is-linked):hover {
-                    background-color: #EFF5DA;
-                }
             `}</style>
         </div>
     );

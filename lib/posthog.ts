@@ -13,10 +13,14 @@ import posthog from 'posthog-js';
  * new visitor, by design. What it yields is aggregate traffic — pageviews,
  * referrers, device class, country.
  *
- * Full tier (after "Accept all" in the consent bar): persistence moves to
- * localStorage+cookie, identity survives across visits, identify() ties events
- * to the account, and session replay starts. AnalyticsGate is the only caller
- * of the upgrade/downgrade pair.
+ * Identified tier (once the analytics category is allowed): persistence moves
+ * to localStorage+cookie, identity survives across visits, and identify() ties
+ * events to the account.
+ *
+ * Replay tier (once the session-recording category is allowed, which is a
+ * separate switch in the settings panel): recording starts on top of the
+ * identified tier. It is never available on its own — see
+ * disablePersistentTracking. AnalyticsGate is the only caller of either pair.
  *
  * Both env values are inlined into the browser bundle at build time. When
  * either is missing the whole integration turns itself off rather than
@@ -39,8 +43,15 @@ export const isPostHogConfigured = Boolean(POSTHOG_KEY && POSTHOG_HOST);
 
 /** React 18 runs effects twice in dev; init is not idempotent, so gate it. */
 let initialised = false;
-/** True only between enableFullTracking() and disableFullTracking(). */
-let fullTracking = false;
+/**
+ * The two consent-gated tiers, tracked separately because they are now
+ * separately answerable: someone can agree to be counted and refuse to be
+ * recorded. Replay still implies persistence — a recording is written to the
+ * device before it is uploaded — so enabling it without the tier below it is
+ * refused rather than half-applied.
+ */
+let persistentTier = false;
+let replayTier = false;
 
 export function initPostHog(): void {
     if (!isPostHogConfigured || initialised || typeof window === 'undefined') return;
@@ -49,9 +60,9 @@ export function initPostHog(): void {
     posthog.init(POSTHOG_KEY!, {
         api_host: POSTHOG_HOST!,
         // The anonymous tier's load-bearing line. Never change this default:
-        // consent upgrades it at runtime via enableFullTracking().
+        // consent upgrades it at runtime via enablePersistentTracking().
         persistence: 'memory',
-        // Replay is consent-only. Enabled at runtime by enableFullTracking();
+        // Replay is consent-only. Enabled at runtime by enableSessionReplay();
         // this flag is what keeps it off for the anonymous tier even though
         // the PostHog project has it switched on.
         disable_session_recording: true,
@@ -120,43 +131,69 @@ export function capture(event: string, properties?: Record<string, unknown>): vo
 }
 
 /**
- * Upgrade to the full tier after "Accept all": durable identity and session
- * replay. Events from the anonymous tier stay orphaned — the memory-mode id is
- * random and was never written anywhere, so there is nothing to stitch to.
- * That is the promise of the anonymous tier, not a bug to fix.
+ * Upgrade to durable identity once the analytics category is allowed. Events
+ * from the anonymous tier stay orphaned — the memory-mode id is random and was
+ * never written anywhere, so there is nothing to stitch to. That is the promise
+ * of the anonymous tier, not a bug to fix.
+ *
+ * Replay is NOT started here: it is a separate answer in the settings panel, so
+ * it is a separate call.
  */
-export function enableFullTracking(): void {
-    if (!isPostHogConfigured || !initialised || fullTracking) return;
-    fullTracking = true;
+export function enablePersistentTracking(): void {
+    if (!isPostHogConfigured || !initialised || persistentTier) return;
+    persistentTier = true;
     try {
-        posthog.set_config({
-            persistence: 'localStorage+cookie',
-            disable_session_recording: false,
-        });
-        posthog.startSessionRecording();
+        posthog.set_config({ persistence: 'localStorage+cookie' });
     } catch (err) {
-        console.error('PostHog full-tracking upgrade failed:', err);
+        console.error('PostHog persistence upgrade failed:', err);
     }
 }
 
 /**
- * Back to the anonymous tier when consent is withdrawn (the privacy page's
- * "Cookie settings" can clear or change the stored choice). reset() drops the
- * identity and device id; moving persistence back to memory stops anything
- * further from being written.
+ * Back to the anonymous tier when the analytics category is withdrawn. reset()
+ * drops the identity and device id; moving persistence back to memory stops
+ * anything further from being written.
+ *
+ * Replay goes with it, unconditionally: a recording is written to the device
+ * before it is uploaded, so "record me but store nothing" is not a state that
+ * exists. lib/cookieConsent.ts resolves the same pair the same way.
  */
-export function disableFullTracking(): void {
-    if (!isPostHogConfigured || !initialised || !fullTracking) return;
-    fullTracking = false;
+export function disablePersistentTracking(): void {
+    if (!isPostHogConfigured || !initialised || !persistentTier) return;
+    disableSessionReplay();
+    persistentTier = false;
     try {
-        posthog.stopSessionRecording();
         posthog.reset();
-        posthog.set_config({
-            persistence: 'memory',
-            disable_session_recording: true,
-        });
+        posthog.set_config({ persistence: 'memory' });
     } catch (err) {
         console.error('PostHog downgrade failed:', err);
+    }
+}
+
+/** Session replay, once its own category is allowed. */
+export function enableSessionReplay(): void {
+    if (!isPostHogConfigured || !initialised || replayTier) return;
+    // Guarded rather than assumed: the caller applies two categories in one
+    // pass, and an ordering slip there would otherwise start a recording that
+    // has nowhere to persist.
+    if (!persistentTier) return;
+    replayTier = true;
+    try {
+        posthog.set_config({ disable_session_recording: false });
+        posthog.startSessionRecording();
+    } catch (err) {
+        console.error('PostHog replay start failed:', err);
+    }
+}
+
+export function disableSessionReplay(): void {
+    if (!isPostHogConfigured || !initialised || !replayTier) return;
+    replayTier = false;
+    try {
+        posthog.stopSessionRecording();
+        posthog.set_config({ disable_session_recording: true });
+    } catch (err) {
+        console.error('PostHog replay stop failed:', err);
     }
 }
 
@@ -168,9 +205,9 @@ export function identifyPostHogUser(
     uid: string,
     traits: { email?: string | null; name?: string | null },
 ): void {
-    // Full tier only. The anonymous tier's promise is that nobody is named to
-    // it — an identify before consent would break exactly that.
-    if (!isPostHogConfigured || !fullTracking) return;
+    // Identified tier only. The anonymous tier's promise is that nobody is named
+    // to it — an identify before consent would break exactly that.
+    if (!isPostHogConfigured || !persistentTier) return;
     try {
         posthog.identify(uid, {
             ...(traits.email ? { email: traits.email } : {}),
@@ -187,7 +224,7 @@ export function identifyPostHogUser(
  * events are attributed to someone else.
  */
 export function resetPostHogUser(): void {
-    if (!isPostHogConfigured || !fullTracking) return;
+    if (!isPostHogConfigured || !persistentTier) return;
     try {
         posthog.reset();
     } catch (err) {

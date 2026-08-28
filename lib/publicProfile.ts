@@ -44,6 +44,9 @@ export interface PublicProfile {
     /** Approximate engaged minutes, accumulated by the heartbeat in lib/lastActive.ts.
      *  Self-reported and therefore forgeable — decorative use only. */
     activeMinutes: number;
+    /** Base64 raw ECDH P-256 public key for direct messages, or null before this
+     *  account has opened a conversation on any device. See lib/e2ee.ts. */
+    publicKey: string | null;
 }
 
 /**
@@ -82,6 +85,7 @@ export function toPublicProfile(uid: string, data: Record<string, any>): PublicP
         createdAt: parseTime(data.createdAt),
         lastActiveAt: parseTime(data.lastActiveAt),
         activeMinutes: typeof data.activeMinutes === "number" ? data.activeMinutes : 0,
+        publicKey: typeof data.publicKey === "string" && data.publicKey ? data.publicKey : null,
     };
 }
 
@@ -93,6 +97,7 @@ export interface PublicProfileWrite {
     lastActiveAt?: string | number;
     /** Accepts a FieldValue so callers can pass increment() rather than a total. */
     activeMinutes?: number | FieldValue;
+    publicKey?: string;
 }
 
 /**

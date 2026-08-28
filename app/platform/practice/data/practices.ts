@@ -6,6 +6,8 @@
  * never breaks the logic that keys off it.
  */
 
+import { MELODY_VARIATIONS_ENABLED } from '@/lib/uiFlags';
+
 export type PracticeLevel = 'beginner' | 'intermediate' | 'advanced' | 'all levels';
 
 export interface PracticeDefinition {
@@ -33,6 +35,14 @@ export interface PracticeDefinition {
      * below from the release cadence; set it by hand to pin a specific date.
      */
     releaseAt?: string;
+    /**
+     * Built but held back by a flag rather than waiting to be written. A gated
+     * practice sits outside the release cadence below: it shows a plain
+     * "Coming soon" with no promised date, and — unlike the planned ones —
+     * locking it must not shift anybody else's date, since it can unlock at
+     * any moment without a schedule change.
+     */
+    gated?: boolean;
 }
 
 const VIDEO_DIR = '/videos/Master%20fundamentals';
@@ -77,16 +87,23 @@ export const PRACTICES: PracticeDefinition[] = [
         available: true,
     },
     {
-        name: 'Melody & harmony',
-        nameKey: 'practice.melody_harmony',
-        goalKey: 'practice.goal_melody_harmony',
+        // Renamed from "Melody & harmony" now the exercise exists and is about
+        // varying a melody rather than fitting chords to one. Harmony is still
+        // worth its own practice later; this slot is no longer it.
+        name: 'Melody variations',
+        nameKey: 'practice.melody_variations',
+        goalKey: 'practice.goal_melody_variations',
         level: 'intermediate',
         progress: 10,
         score: 180,
-        time: '40 min',
+        time: '15 min',
         videoUrl: `${VIDEO_DIR}/chorus.compressed.mp4`,
         posterUrl: `${VIDEO_DIR}/chorus-poster.jpg`,
-        available: false,
+        // Playable in development, "Coming soon" in production — the exercise
+        // is built but its melodies are still synthesised placeholders. See
+        // MELODY_VARIATIONS_ENABLED for the whole story.
+        available: MELODY_VARIATIONS_ENABLED,
+        gated: true,
     },
     {
         name: 'Advanced structures',
@@ -141,7 +158,7 @@ const RELEASE_CADENCE_DAYS = 14;
 {
     let queue = 0;
     for (const practice of PRACTICES) {
-        if (practice.available || practice.releaseAt) continue;
+        if (practice.available || practice.releaseAt || practice.gated) continue;
         practice.releaseAt = new Date(RELEASE_ANCHOR_UTC + queue * RELEASE_CADENCE_DAYS * 86400000)
             .toISOString()
             .slice(0, 10);

@@ -256,7 +256,7 @@ input:-webkit-autofill:active {
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
     .studio-tracks-scroll::-webkit-scrollbar {
         display: block;
         width: 6px;
@@ -1875,4 +1875,79 @@ html, body {
         animation: none;
         opacity: 0;
     }
+}
+
+/* ── Practice: the word card ──────────────────────────────────────────────────
+   Lived in PracticeTab's styled-jsx until Practice 3 needed the same card and
+   found it had none: styled-jsx scopes to the component it is written in, so a
+   second exercise using these class names silently got no styles at all. They
+   are the practices' shared vocabulary now, and they belong where every
+   practice can see them. Used by PracticeTab and MelodyVariation. */
+/*
+ * Composing verses borrows the lyric card from Master song
+ * structure: a half-veil of white on the beige panel, no border,
+ * deepening a shade under the cursor. "is-static" marks the ones
+ * that are containers rather than choices.
+ */
+.verse-card {
+    background-color: rgba(255, 255, 255, 0.5);
+    transition: background-color 0.2s;
+}
+.verse-card:not(.is-static) {
+    cursor: pointer;
+}
+.verse-card:not(.is-static):hover {
+    background-color: #E7E6DF;
+}
+/* Picked, waiting for the verb that completes the pair */
+.verse-card.is-armed,
+.verse-card.is-armed:hover {
+    background-color: #DCDDD4;
+}
+/* Paired up — the same green a named section wears next door */
+.verse-card.is-linked,
+.verse-card.is-linked:hover {
+    background-color: rgba(134, 190, 127, 0.85);
+}
+/*
+ * The word fields carry no placeholder any more, so an empty one
+ * has nothing to say it is a field. Focus answers that: the card
+ * fills to solid white and draws a hairline edge, which is also
+ * the only cue telling you which of the five you are typing in.
+ */
+.verse-input:focus {
+    background-color: #ffffff;
+    box-shadow: inset 0 0 0 1.5px rgba(28, 25, 23, 0.5);
+}
+.verse-input:hover:not(:focus) {
+    background-color: #E7E6DF;
+}
+/*
+ * Verbs get their own tint, on the step where they are typed and
+ * on the step where they are linked — so the two columns read as
+ * two kinds of word rather than two lists. Hover deepens and
+ * focus lifts toward white by the same amount the untinted ones
+ * do: the states keep meaning the same thing either side.
+ */
+.verse-input.is-verb {
+    background-color: #FBFFED;
+}
+.verse-input.is-verb:hover:not(:focus) {
+    background-color: #EFF5DA;
+}
+.verse-input.is-verb:focus {
+    background-color: #FDFFF6;
+}
+/*
+ * The linking step's verb column. Armed and linked are states the
+ * tint must not fight — a paired card is green whatever kind of
+ * word it holds — so both are excluded outright rather than left
+ * to out-specify it. The is-static exclusion keeps these off the
+ * fields above, which carry their own rules.
+ */
+.verse-card.is-verb:not(.is-static):not(.is-armed):not(.is-linked) {
+    background-color: #FBFFED;
+}
+.verse-card.is-verb:not(.is-static):not(.is-armed):not(.is-linked):hover {
+    background-color: #EFF5DA;
 }

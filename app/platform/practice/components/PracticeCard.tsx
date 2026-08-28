@@ -41,7 +41,7 @@ export default function PracticeCard({
         // practice selector sitting above the card.
         <div
             onClick={available ? onStart : undefined}
-            className={`w-full max-w-5xl mx-auto min-h-[62vh] md:min-h-[calc(100vh-14rem)] bg-[#FAF9F5] border border-stone-200 rounded-[28px] p-8 md:p-12 flex flex-col
+            className={`relative w-full max-w-5xl mx-auto min-h-[62vh] md:min-h-[calc(100vh-14rem)] bg-[#FAF9F5] border border-stone-200 rounded-[28px] p-8 md:p-12 flex flex-col
                 ${available ? 'cursor-pointer hover:border-stone-300 transition-colors' : ''}`}
         >
 
@@ -78,15 +78,31 @@ export default function PracticeCard({
                 {goal}
             </p>
 
-            {/* Bottom row: the practice's illustration on the left, the action on the
-                right. Unbuilt practices stay bare — the visual arrives with the work. */}
-            {/* On a phone this is a column in reading order — illustration, then the
+            {/* The countdown belongs with the sentence that earned it, not down in
+                the action row. An unbuilt card has no illustration to fill that row,
+                so the pill sat alone at the far corner with the whole card's height
+                of empty between it and the only words on screen. */}
+            {!available && (
+                <span className="relative z-10 mt-7 self-start select-none rounded-full bg-[#FDE047] px-8 py-4 font-sans text-base tabular-nums text-stone-900">
+                    {comingSoonLabel}
+                </span>
+            )}
+
+            {/* Bottom row, and only for a practice that exists: the illustration on
+                the left, Start on the right. An unbuilt one has neither — the visual
+                arrives with the work, and its countdown now sits up under the goal —
+                so the whole row goes rather than standing empty.
+
+                On a phone this is a column in reading order — illustration, then the
                 action beneath it — pushed to the card's floor by mt-auto so Start
-                lands where a thumb already is. It briefly ran reversed, with Start
-                tucked under the goal, back when a 288px illustration sat between the
-                two; the illustration is 192px here now, so the honest order fits. */}
-            <div className="mt-auto pt-0 flex flex-col items-stretch gap-4 md:pt-10 md:flex-row md:items-end md:justify-between md:gap-6">
-                {available ? (
+                lands where a thumb already is.
+
+                From md up Start leaves this row entirely and floats over the artwork
+                at the card's bottom-right. Side by side, a 384px illustration and the
+                button did not fit the card at that width, and the button was the half
+                that got pushed off the edge. */}
+            {available && (
+                <div className="mt-auto pt-0 flex flex-col items-stretch gap-4 md:pt-10 md:flex-row md:items-end md:justify-between md:gap-6">
                     <PracticeIllustration
                         name={practice.name}
                         // Sized off the viewport on a phone, not a fixed rem: this is the
@@ -96,27 +112,19 @@ export default function PracticeCard({
                         // 60%-opacity mark with a soft edge, so a few px of overlap reads
                         // as depth rather than collision. pointer-events-none keeps it from
                         // stealing taps from the text it now sits over.
-                        className="w-[calc(100%+4rem)] max-w-[420px] aspect-square h-auto md:w-96 md:h-96 md:max-w-none text-stone-800 opacity-60 shrink-0 self-center md:self-auto -ml-0 md:-ml-6 -mt-12 md:mt-0 -mb-2 md:-mb-6 select-none pointer-events-none md:pointer-events-auto"
+                        className="w-[calc(100%+4rem)] max-w-[420px] aspect-square h-auto md:w-96 md:h-96 md:max-w-none text-stone-800 opacity-60 shrink-0 self-center md:self-auto -ml-0 md:-ml-6 -mt-12 md:mt-0 -mb-2 md:-mb-6 select-none pointer-events-none"
                     />
-                ) : (
-                    <span aria-hidden="true" />
-                )}
 
-                {available ? (
                     <button
                         type="button"
                         onClick={onStart}
-                        className={`${btn.primary('hero')} w-full md:w-auto`}
+                        className={`${btn.primary('hero')} w-full md:w-auto md:absolute md:bottom-12 md:right-12 md:z-20`}
                     >
                         {startLabel}
                         <ArrowRight size={20} className="stroke-[2]" />
                     </button>
-                ) : (
-                    <span className="shrink-0 select-none px-10 py-5 rounded-full bg-[#FDE047] text-stone-900 text-lg font-sans tabular-nums">
-                        {comingSoonLabel}
-                    </span>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }

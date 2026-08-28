@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, ChevronRight } from 'lucide-react';
 import { useSheetPresence } from '@/hooks/useSheetPresence';
 import { useBackDismiss } from '@/hooks/useBackDismiss';
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 import * as btn from '@/app/platform/components/buttonStyles';
 
 interface StudioActionSheetProps {
@@ -68,41 +69,16 @@ export default function StudioActionSheet({
     React.useEffect(() => setCanPortal(true), []);
 
     /**
-     * Swipe down to dismiss.
+     * Swipe down to dismiss — the same gesture every other sheet in the app uses.
      *
-     * The sheet follows the finger while it is dragged, so the gesture is
-     * answered rather than merely detected, and commits past a threshold —
-     * either far enough (120px) or fast enough (a flick), because a short quick
-     * swipe reads as just as deliberate as a long slow one. Anything less
-     * springs back.
-     *
-     * Bound to the header, not the whole sheet: the body scrolls, and a drag
-     * that starts on a scrollable list belongs to that list.
+     * This was once bound to the header alone, on the reasoning that the body
+     * scrolls and a drag starting on a scrollable list belongs to that list. True,
+     * but the hook enforces exactly that by walking the ancestors for a scrolled
+     * region, so the restriction bought nothing — and once sheets started hiding
+     * their headers it left a 30px strip as the only place the gesture could
+     * begin, for a sheet that fills most of the screen.
      */
-    const dragStartY = React.useRef<number | null>(null);
-    const dragStartT = React.useRef(0);
-    const [dragY, setDragY] = React.useState(0);
-
-    const onDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
-        dragStartY.current = e.clientY;
-        dragStartT.current = performance.now();
-        e.currentTarget.setPointerCapture?.(e.pointerId);
-    };
-
-    const onDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
-        if (dragStartY.current === null) return;
-        // Downward only — dragging up must not lift the sheet off its edge.
-        setDragY(Math.max(0, e.clientY - dragStartY.current));
-    };
-
-    const onDragEnd = () => {
-        if (dragStartY.current === null) return;
-        const distance = dragY;
-        const velocity = distance / Math.max(1, performance.now() - dragStartT.current);
-        dragStartY.current = null;
-        setDragY(0);
-        if (distance > 120 || velocity > 0.5) onClose();
-    };
+    const { swipeHandlers, swipeStyle } = useSheetSwipe(onClose, open);
 
     // Close on Escape — a phone keyboard can have one, and it costs nothing.
     React.useEffect(() => {
@@ -125,28 +101,18 @@ export default function StudioActionSheet({
                 className={`w-full bg-white rounded-t-[26px] shadow-[0_-8px_40px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden ${
                     closing ? 'bottom-sheet-exit pointer-events-none' : 'bottom-sheet-enter'
                 }`}
-                style={{
-                    maxHeight,
-                    // No transition while the finger is down, or the sheet lags behind it.
-                    ...(dragY > 0 ? { transform: `translateY(${dragY}px)`, transition: 'none' } : {}),
-                }}
+                {...swipeHandlers}
+                style={{ maxHeight, ...swipeStyle }}
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
                 aria-modal="true"
                 aria-label={title}
             >
-                {/* Grab handle and title share the drag surface — the handle alone is a
-                    4px-tall target, which is a promise the gesture cannot keep. With the
-                    header hidden the strip pads out instead, so the gesture still has a
-                    reachable band to start in.
-                    touch-none stops the browser claiming the drag as a page scroll. */}
-                <div
-                    className="shrink-0 touch-none cursor-grab active:cursor-grabbing"
-                    onPointerDown={onDragStart}
-                    onPointerMove={onDragMove}
-                    onPointerUp={onDragEnd}
-                    onPointerCancel={onDragEnd}
-                >
+                {/* The handle is the sheet's affordance — it says "this pulls down" —
+                    but it is no longer the only place the gesture can start: the whole
+                    panel is the drag surface now, minus its scrolling body and its
+                    controls, which the hook excludes. */}
+                <div className="shrink-0">
                     <div className={`pt-2.5 flex justify-center ${hideHeader ? 'pb-4' : 'pb-1'}`}>
                         <div className="w-10 h-1 rounded-full bg-stone-300" />
                     </div>

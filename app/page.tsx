@@ -29,9 +29,7 @@ const TopNav = () => {
     }, []);
 
     return (
-        // top-16 below md clears the fixed mobile laptop-hint banner
-        // (components/MobileLaptopBanner, h-16); md+ pins to the very top as before.
-        <nav className={`fixed top-16 md:top-0 left-0 right-0 flex items-center justify-between z-50 transition-all duration-300 ${
+        <nav className={`fixed top-0 left-0 right-0 flex items-center justify-between z-50 transition-all duration-300 ${
             isScrolled 
                 ? "py-4 px-6 md:px-[10%] bg-[#E6E3DB]/85 backdrop-blur-lg border-b border-stone-300/10 shadow-sm" 
                 : "py-8 px-6 md:px-[10%] bg-transparent"
@@ -610,6 +608,9 @@ const NewFooter = () => {
                 <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:flex md:items-center md:gap-6 text-[15px] text-[#363636]">
                     <Link href="/about" className="font-medium hover:text-black transition-colors">{t('home.footer.about')}</Link>
                     <Link href="/privacy" className="font-medium hover:text-black transition-colors">{t('home.footer.privacy')}</Link>
+                    {/* The cookie panel, reachable from the bottom of the page —
+                        which is where the panel's own copy says to look for it. */}
+                    <Link href={localizePath('/cookies', language)} className="font-medium hover:text-black transition-colors">{t('cookies.page_title')}</Link>
                     {cmsLinks.map((page) => (
                         <Link
                             key={page.slug}

@@ -43,9 +43,14 @@ test.describe('Practice Page', () => {
     await page.locator('button[aria-label="Next Practice"]').click();
     await expect(page.getByText('Turn one theme into five singable lines', { exact: false })).toBeVisible();
 
+    // Three is built too, and starts
+    await page.locator('button[aria-label="Next Practice"]').click();
+    await expect(page.getByText('Take a short melody apart', { exact: false })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
+
     // And on one that isn't built yet, the card can't be started
     await page.locator('button[aria-label="Next Practice"]').click();
-    await expect(page.getByText('Find melodies that sit naturally', { exact: false })).toBeVisible();
+    await expect(page.getByText('Break the standard form on purpose', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(0);
     // The unbuilt card counts down in days, and offers no intro clip
     await expect(page.getByText(/^Coming in \d+ days?$/)).toBeVisible();
@@ -61,7 +66,8 @@ test.describe('Practice Page', () => {
 
     // Names only — no level column — and a chip on everything unbuilt
     await expect(menu.getByText('beginner')).toHaveCount(0);
-    await expect(menu.getByText(/^Coming /)).toHaveCount(13);
+    // One fewer each time a practice ships: three of the fifteen are built.
+    await expect(menu.getByText(/^Coming /)).toHaveCount(12);
   });
 
   test('starting a practice lands straight in the exercise, with the library on the pill', async ({ page }) => {
@@ -755,5 +761,107 @@ test.describe('Practice Page', () => {
 
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
+  });
+});
+
+test.describe('Practice 3 — melody variations', () => {
+  test.use({ permissions: ['microphone'] });
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/signin');
+    await page.evaluate(() => {
+      window.localStorage.setItem('playwright_mock_user', JSON.stringify({
+        uid: 'test-user-id',
+        email: 'testuser@vaynote.com',
+        displayName: 'Test Artist',
+      }));
+      window.localStorage.setItem('mep-welcome-video-seen', 'true');
+    });
+  });
+
+  /** Two clicks along the carousel: structure, verses, melodies. */
+  async function open(page: import('@playwright/test').Page) {
+    await page.goto('/platform/practice');
+    await page.locator('button[aria-label="Next Practice"]').click();
+    await page.locator('button[aria-label="Next Practice"]').click();
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await expect(page.locator('main .max-w-6xl p').first()).toHaveText('Choose a melody');
+  }
+
+  const ask = (page: import('@playwright/test').Page) =>
+    page.locator('main .max-w-6xl p').first();
+  const next = (page: import('@playwright/test').Page) =>
+    page.getByRole('button', { name: 'Next', exact: true }).last();
+
+  test('choose, listen, record, compare', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: /Little runner/ }).click();
+    await next(page).click();
+
+    // Listening: the clip really advances, rather than merely claiming to
+    await expect(ask(page)).toHaveText('Listen, then read your task');
+    const bar = () => page.evaluate(() => {
+      const el = document.querySelector('main .verse-card div[style*="width"]') as HTMLElement;
+      return parseFloat(el.style.width) || 0;
+    });
+    expect(await bar()).toBe(0);
+    await page.getByRole('button', { name: 'Little runner', exact: true }).click();
+    await page.waitForTimeout(1200);
+    expect(await bar()).toBeGreaterThan(2);
+
+    // Next with no take shakes and says so, as everywhere else in Practice
+    await next(page).click();
+    await expect(ask(page)).toHaveText('Record your variation');
+    await next(page).click();
+    await expect(page.getByText('Record your variation to keep going.')).toBeVisible();
+    await expect(ask(page)).toHaveText('Record your variation');
+
+    // A take, then the comparison
+    await page.getByRole('button', { name: 'Record', exact: true }).click();
+    await page.waitForTimeout(2200);
+    await page.getByRole('button', { name: 'Stop', exact: true }).click();
+    // Label plus play button — the clip is there once both are.
+    await expect(page.getByRole('button', { name: 'Your take', exact: true })).toBeVisible();
+    await next(page).click();
+    await expect(ask(page)).toHaveText('Yours against the original');
+    await expect(page.getByRole('button', { name: 'The original', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continue in Canvas' })).toBeVisible();
+
+    // Finishing is recorded against the melody, under its own key
+    await expect.poll(() => page.evaluate(
+      () => localStorage.getItem('mep-completed-melody-variations'),
+    )).toContain('little-runner');
+  });
+
+  test('the task can be re-dealt, and never repeats itself', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: /Morning line/ }).click();
+    await next(page).click();
+    const task = () => page.locator('main .verse-card').last().innerText();
+    for (let i = 0; i < 6; i++) {
+      const before = await task();
+      await page.getByRole('button', { name: 'Give me another task' }).click();
+      await expect.poll(task).not.toBe(before);
+    }
+  });
+
+  test('only one clip sounds at a time', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: /Open question/ }).click();
+    await next(page).click();
+    await next(page).click();
+    await page.getByRole('button', { name: 'Record', exact: true }).click();
+    await page.waitForTimeout(1600);
+    await page.getByRole('button', { name: 'Stop', exact: true }).click();
+    await next(page).click();
+    await expect(ask(page)).toHaveText('Yours against the original');
+
+    const playingCount = () => page.getByRole('button', { name: /^(The original|Your take)$/ })
+      .evaluateAll(els => els.filter(e => e.querySelector('.lucide-pause')).length);
+
+    await page.getByRole('button', { name: 'The original', exact: true }).click();
+    await expect.poll(playingCount).toBe(1);
+    await page.getByRole('button', { name: 'Your take', exact: true }).click();
+    await expect.poll(playingCount).toBe(1);
   });
 });

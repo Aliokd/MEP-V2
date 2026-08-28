@@ -6,6 +6,7 @@ import { Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { KIND_BG, SOLVED_BG, TAG_BG } from '../data/sections';
 import * as btn from '@/app/platform/components/buttonStyles';
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 
 interface StructureDemoProps {
     onDone: () => void;
@@ -24,6 +25,8 @@ interface StructureDemoProps {
 export default function StructureDemo({ onDone }: StructureDemoProps) {
     const { t } = useLanguage();
     const [mounted, setMounted] = useState(false);
+    // Swipe the sheet down to dismiss (phones only — see the hook).
+    const { swipeHandlers, swipeStyle } = useSheetSwipe(onDone);
     useEffect(() => setMounted(true), []);
 
     useEffect(() => {
@@ -57,7 +60,7 @@ export default function StructureDemo({ onDone }: StructureDemoProps) {
         <div data-structure-demo className="fixed inset-0 z-[90] flex items-end justify-center p-0 md:items-center md:p-6">
             <div className="absolute inset-0 bg-stone-950/25 backdrop-blur-[5px] sheet-backdrop-enter" onClick={onDone} />
 
-            <div className="relative w-full bg-white flex flex-col gap-4 rounded-t-[26px] rounded-b-none border-0 px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] max-h-[88dvh] overflow-y-auto no-scrollbar bottom-sheet-enter md:max-w-md md:rounded-[20px] md:border md:border-stone-200/70 md:p-6 md:max-h-none md:overflow-visible shadow-[0_24px_60px_rgba(0,0,0,0.18)]">
+            <div className="relative w-full bg-white flex flex-col gap-4 rounded-t-[26px] rounded-b-none border-0 px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] max-h-[88dvh] overflow-y-auto no-scrollbar bottom-sheet-enter md:max-w-md md:rounded-[20px] md:border md:border-stone-200/70 md:p-6 md:max-h-none md:overflow-visible shadow-[0_24px_60px_rgba(0,0,0,0.18)]" {...swipeHandlers} style={swipeStyle}>
                 <div>
                     <h3 className="font-serif font-normal text-2xl text-stone-900">{t('practice.demo_title')}</h3>
                     <p className="mt-2 text-sm font-sans text-stone-500 leading-relaxed">{t('practice.demo_desc')}</p>

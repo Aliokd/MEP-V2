@@ -2,7 +2,13 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import Script from 'next/script';
-import { initPostHog, enableFullTracking, disableFullTracking } from '@/lib/posthog';
+import {
+    initPostHog,
+    enablePersistentTracking,
+    disablePersistentTracking,
+    enableSessionReplay,
+    disableSessionReplay,
+} from '@/lib/posthog';
 import { initFirebaseAnalytics } from '@/lib/firebase';
 import { getConsentSnapshot, getServerConsentSnapshot, subscribeConsent } from '@/lib/cookieConsent';
 
@@ -13,14 +19,19 @@ const CLARITY_PROJECT_ID = 'xovh69ah42';
  *
  * PostHog starts for every visitor — but in its anonymous tier: memory-only
  * persistence, nothing written to the device, no identity across visits, no
- * replay (lib/posthog.ts documents why that is the pre-consent line). "Accept
- * all" upgrades it in place — durable identity plus session replay, no reload
- * needed — and withdrawing consent downgrades it the same way.
+ * replay (lib/posthog.ts documents why that is the pre-consent line). Allowing
+ * the analytics category upgrades it in place — durable identity, no reload
+ * needed — and withdrawing downgrades it the same way.
+ *
+ * The two consent categories map to different vendors, which is why they are
+ * two effects rather than one: analytics turns on PostHog's identified tier and
+ * Firebase Analytics; session recording turns on PostHog replay and Clarity.
+ * Someone who agreed to be counted but not filmed gets exactly the first set.
  *
  * Clarity and Firebase Analytics have no storage-free mode, so they stay fully
- * consent-gated and load only after "accept all". Neither can be unloaded
- * again once running: on withdrawal they persist until the next full page
- * load, at which point this component simply doesn't start them.
+ * consent-gated. Neither can be unloaded again once running: on withdrawal they
+ * persist until the next full page load, at which point this component simply
+ * doesn't start them.
  */
 /**
  * `nonce` comes from the root layout, which reads it off the request header
@@ -39,7 +50,8 @@ export default function AnalyticsGate({ nonce }: { nonce?: string }) {
     // rather than mirrored into component state: no cascading render on mount,
     // and a choice made in another tab settles this one too.
     const consent = useSyncExternalStore(subscribeConsent, getConsentSnapshot, getServerConsentSnapshot);
-    const allowed = consent === 'all';
+    const counted = consent?.analytics === true;
+    const recorded = consent?.replay === true;
 
     // Anonymous tier for everyone, before and regardless of any answer.
     useEffect(() => {
@@ -47,17 +59,26 @@ export default function AnalyticsGate({ nonce }: { nonce?: string }) {
     }, []);
 
     useEffect(() => {
-        if (allowed) {
-            enableFullTracking();
+        if (counted) {
+            enablePersistentTracking();
             initFirebaseAnalytics();
         } else {
             // No-op unless a previous grant is being withdrawn — the function
             // guards itself, so the initial unanswered state costs nothing.
-            disableFullTracking();
+            // It takes replay down with it, so the effects can't disagree.
+            disablePersistentTracking();
         }
-    }, [allowed]);
+    }, [counted]);
 
-    if (!allowed) return null;
+    useEffect(() => {
+        // Ordered after the effect above by declaration order, which is what
+        // lets enableSessionReplay() find the persistent tier already up when
+        // both categories are allowed in the same pass.
+        if (recorded) enableSessionReplay();
+        else disableSessionReplay();
+    }, [recorded]);
+
+    if (!recorded) return null;
 
     return (
         <Script id="microsoft-clarity" strategy="afterInteractive" nonce={nonce}>

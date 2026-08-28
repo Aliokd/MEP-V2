@@ -1,7 +1,8 @@
 "use client";
 
 import { use, useEffect, useState } from 'react';
-import { Check, Clock, Plus, UserPlus } from 'lucide-react';
+import Link from 'next/link';
+import { Check, Clock, Lock, MessageSquare, PenLine, Plus, UserPlus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import {
@@ -151,6 +152,43 @@ export default function SongwriterProfilePage({ params }: { params: Promise<{ ui
                     {relationship === 'incoming' && (
                         <p className="text-xs text-stone-500">{t('profile.wants_to_connect')}</p>
                     )}
+                </div>
+            )}
+
+            {/* What being connected is actually for. Only here — these are the
+                two things you agreed to when you accepted each other. */}
+            {!isSelf && relationship === 'connected' && (
+                <div className="space-y-3 border-t border-stone-200/60 pt-7">
+                    <Link
+                        href={`/platform/create?collabWith=${uid}`}
+                        className="flex items-center justify-between gap-4 w-full bg-white border border-stone-200/70 rounded-[18px] px-5 py-4 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all cursor-pointer group"
+                    >
+                        <span className="min-w-0">
+                            <span className="block text-[15px] font-medium text-stone-800">
+                                {t('profile.start_collab')}
+                            </span>
+                            <span className="block text-xs text-stone-500 mt-0.5">
+                                {t('profile.start_collab_desc')}
+                            </span>
+                        </span>
+                        <PenLine size={18} className="shrink-0 text-stone-400 group-hover:text-stone-700 transition-colors" />
+                    </Link>
+
+                    <Link
+                        href={`/platform/profile/u/${uid}/chat`}
+                        className="flex items-center justify-between gap-4 w-full bg-white border border-stone-200/70 rounded-[18px] px-5 py-4 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all cursor-pointer group"
+                    >
+                        <span className="min-w-0">
+                            <span className="block text-[15px] font-medium text-stone-800">
+                                {t('profile.start_discussion')}
+                            </span>
+                            <span className="block text-xs text-stone-500 mt-0.5 flex items-center gap-1.5">
+                                <Lock size={11} className="shrink-0" />
+                                {t('profile.start_discussion_desc')}
+                            </span>
+                        </span>
+                        <MessageSquare size={18} className="shrink-0 text-stone-400 group-hover:text-stone-700 transition-colors" />
+                    </Link>
                 </div>
             )}
         </div>

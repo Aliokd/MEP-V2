@@ -14,6 +14,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 import Link from 'next/link';
 import { Menu, User, X, Brain, ChevronRight, ChevronLeft, ShieldOff, UsersRound, UserMinus, ArrowRight } from 'lucide-react';
 import Logo from '@/components/Logo';
@@ -78,6 +80,15 @@ function PlatformLayoutInner({
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSupportOpen, setIsSupportOpen] = useState(false);
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+    /**
+     * Mind Power as a full screen, on a phone only.
+     *
+     * It used to expand in flow inside the 260px drawer, which meant reading a
+     * level, four progress bars and a quote through a rail — and it pushed the
+     * nav it sits above off the bottom. Its own screen has the width the content
+     * was designed for. Desktop keeps the header popover (showTooltip).
+     */
+    const [showMindPowerFull, setShowMindPowerFull] = useState(false);
     // Leaving Profile plays the slide-out first, then navigates; this holds the
     // exit class on the view for that window. Reset on arrival at the new route.
     const [isProfileExiting, setIsProfileExiting] = useState(false);
@@ -443,6 +454,9 @@ function PlatformLayoutInner({
     // React throws "Rendered more hooks than during the previous render" —
     // which took out the whole authenticated app, not just the drawer.
     useBackDismiss(isMobileMenuOpen, () => setIsMobileMenuOpen(false));
+    useBackDismiss(showMindPowerFull, () => setShowMindPowerFull(false));
+    // Swipe down to leave, like every other full-bleed surface in the app.
+    const mindPowerSwipe = useSheetSwipe(() => setShowMindPowerFull(false), showMindPowerFull);
 
     if (loading) return (
         <div className="h-screen flex items-center justify-center bg-[#E4E4DF]">
@@ -489,7 +503,7 @@ function PlatformLayoutInner({
             {showProgressGlow && <div className={`mind-power-glow-ring ${isQuickGlow ? "mind-power-glow-ring--quick" : ""}`} />}
             {showCollabCelebrate && <div className="mind-power-glow-ring mind-power-glow-ring--collab" />}
             <div
-                onClick={() => setShowTooltip(!showTooltip)}
+                onClick={() => { setShowMindPowerFull(true); setIsMobileMenuOpen(false); }}
                 data-tour="mind-power"
                 role="button"
                 aria-label={t('progress.mind_power_label')}
@@ -508,27 +522,6 @@ function PlatformLayoutInner({
                 </div>
             </div>
 
-            {showTooltip && (
-                <div className="w-full mt-3">
-                    <MindPowerPanel
-                        fullWidth
-                        t={t}
-                        progressLevel={progressLevel}
-                        levelProgress={levelProgress}
-                        wordsTyped={wordsTyped}
-                        songsCompleted={songsCompleted}
-                        recordingMinutes={recordingMinutes}
-                        wordsGoal={L1_WORDS}
-                        completedLessonsCount={completedLessonsCount}
-                        lessonsGoal={L1_LESSONS}
-                        practiceMinutes={practiceMinutes}
-                        practiceGoal={L1_PRACTICE}
-                        communityCount={communityCount}
-                        communityGoal={L1_COMMUNITY}
-                        activeQuote={activeQuote}
-                    />
-                </div>
-            )}
         </div>
     );
 
@@ -660,9 +653,58 @@ function PlatformLayoutInner({
                 />
             )}
 
-            <SupportModal 
-                isOpen={isSupportOpen} 
-                onClose={() => setIsSupportOpen(false)} 
+            {/* Mind Power, full screen — phone only, portalled to <body> so no
+                transformed or overflow-clipped ancestor in the drawer can crop it.
+                z-[130] puts it above the drawer (79) and the sheets (120), since it
+                is opened FROM the drawer and has to cover it. */}
+            {showMindPowerFull && typeof document !== 'undefined' && createPortal(
+                <div
+                    className="md:hidden fixed inset-0 z-[130] bg-[#E4E4DF] flex flex-col bottom-sheet-enter"
+                    {...mindPowerSwipe.swipeHandlers}
+                    style={mindPowerSwipe.swipeStyle}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={t('progress.mind_power_label')}
+                >
+                    <div className="shrink-0 flex items-center justify-between px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+                        <h2 className="text-[19px] font-sans font-semibold text-stone-900 tracking-tight">
+                            {t('progress.mind_power_label')}
+                        </h2>
+                        <button
+                            type="button"
+                            onClick={() => setShowMindPowerFull(false)}
+                            aria-label={t('common.close')}
+                            className={btn.icon('touch')}
+                        >
+                            <X size={20} className="stroke-[2.2]" />
+                        </button>
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                        <MindPowerPanel
+                            fullWidth
+                            t={t}
+                            progressLevel={progressLevel}
+                            levelProgress={levelProgress}
+                            wordsTyped={wordsTyped}
+                            songsCompleted={songsCompleted}
+                            recordingMinutes={recordingMinutes}
+                            wordsGoal={L1_WORDS}
+                            completedLessonsCount={completedLessonsCount}
+                            lessonsGoal={L1_LESSONS}
+                            practiceMinutes={practiceMinutes}
+                            practiceGoal={L1_PRACTICE}
+                            communityCount={communityCount}
+                            communityGoal={L1_COMMUNITY}
+                            activeQuote={activeQuote}
+                        />
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            <SupportModal
+                isOpen={isSupportOpen}
+                onClose={() => setIsSupportOpen(false)}
             />
 
             <FeedbackModal 
@@ -689,8 +731,6 @@ function PlatformLayoutInner({
                     : isBareMobilePanel ? 'p-0 md:p-8' : 'p-4 md:p-8'
                 }
             `}>
-                {/* The mobile laptop-hint banner is mounted once in the root layout
-                    (components/MobileLaptopBanner) and covers platform screens too. */}
 
                 {/* Mobile Top Header */}
                 {/* pt-3/pb-3 rather than pt-6/pb-4: with the Mind Power band gone from

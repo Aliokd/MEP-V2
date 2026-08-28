@@ -261,7 +261,7 @@ export default function ProfilePage() {
                 pitch beside the identity, and subscription/support are options rows —
                 nothing is left for a sidebar to hold. */}
             <div>
-                <div className="space-y-10">
+                <div className="space-y-6 lg:space-y-10">
                     {/* Identity, with the Max pitch filling the space beside it */}
                     <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-10">
                     <div className="flex items-center gap-5 lg:shrink-0">

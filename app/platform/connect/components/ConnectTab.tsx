@@ -24,6 +24,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { setPlaybackAudioSession } from '@/lib/audioSession';
 import ReportDialog from '@/components/ReportDialog';
 import * as btn from '@/app/platform/components/buttonStyles';
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 
 // ==========================================
 // TYPES DEFINITIONS
@@ -220,6 +221,8 @@ function ConnectPostCard({
   dropdownRef
 }: PostCardProps) {
   const { t } = useLanguage();
+  // Swipe the card's options sheet down to dismiss it (phones only — see the hook).
+  const menuSwipe = useSheetSwipe(() => onMenuToggle(null));
   const [activeLineIndex, setActiveLineIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -354,9 +357,10 @@ function ConnectPostCard({
     const targetChild = children[index + 1] as HTMLDivElement; // index + 1 to skip top spacer
     if (targetChild) {
       // Offset scales with the scroller's own live height so the spotlighted line lands in
-      // roughly the same relative position at every breakpoint (tuned against the 305px/70px
-      // desktop ratio).
-      const centeringOffset = container.clientHeight * (70 / 305);
+      // roughly the same relative position at every breakpoint. Expressed as a fraction
+      // rather than a pixel count precisely so that resizing the type — as the lyric scale
+      // has been — moves the focus point with it instead of stranding it.
+      const centeringOffset = container.clientHeight * 0.23;
       const targetScrollTop = Math.max(0, targetChild.offsetTop - centeringOffset);
       
       isProgrammaticScrollingRef.current = true;
@@ -725,7 +729,7 @@ function ConnectPostCard({
           post.lyrics.length > 0 && (
             <div
               className={`overflow-hidden relative w-full transition-[max-height] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                isExpanded ? 'max-h-[3000px]' : 'max-h-[168px] sm:max-h-[230px] md:max-h-[320px]'
+                isExpanded ? 'max-h-[3000px]' : 'max-h-[130px] sm:max-h-[168px] md:max-h-[220px]'
               }`}
             >
               {isExpanded ? (
@@ -742,10 +746,10 @@ function ConnectPostCard({
                           setActiveLineIndex(idx);
                         }}
                         className={`
-                          cursor-pointer tracking-wide leading-[34px] sm:leading-[48px] md:leading-[73px] font-sans text-[26px] sm:text-[38px] md:text-[60px] font-normal transition-all duration-300 origin-left
+                          cursor-pointer tracking-normal leading-[35px] sm:leading-[37px] md:leading-[53px] font-lyrics text-[25px] sm:text-[29px] md:text-[42px] font-medium transition-all duration-300 origin-left
                           ${isActive
-                            ? 'text-[#656565] opacity-100 scale-101 translate-x-1'
-                            : 'text-[#656565] opacity-15 hover:opacity-40'
+                            ? 'text-[#5C5C5C] opacity-100 scale-101 translate-x-1'
+                            : 'text-[#5C5C5C] opacity-15 hover:opacity-40'
                           }
                         `}
                       >
@@ -756,7 +760,7 @@ function ConnectPostCard({
                 </div>
               ) : (
                 /* Collapsed state: auto-scrolling spotlight viewport */
-                <div className="py-2 mb-4 relative bg-transparent border-0 outline-none h-[168px] sm:h-[230px] md:h-[305px] flex items-center">
+                <div className="py-2 mb-4 relative bg-transparent border-0 outline-none h-[152px] sm:h-[168px] md:h-[208px] flex items-center">
                   <div
                     ref={scrollerRef}
                     onScroll={handleScroll}
@@ -764,7 +768,7 @@ function ConnectPostCard({
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUpOrLeave}
                     onMouseLeave={handleMouseUpOrLeave}
-                    className="flex-1 h-[168px] sm:h-[230px] md:h-[305px] overflow-y-auto overflow-x-hidden scroll-smooth text-left scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-transparent border-0 outline-none cursor-grab active:cursor-grabbing select-none"
+                    className="flex-1 h-[152px] sm:h-[168px] md:h-[208px] overflow-y-auto overflow-x-hidden scroll-smooth text-left scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-transparent border-0 outline-none cursor-grab active:cursor-grabbing select-none"
                   >
                     <div className="h-4 shrink-0" />
                     
@@ -775,11 +779,11 @@ function ConnectPostCard({
                           key={idx}
                           onClick={() => scrollToIndex(idx)}
                           className={`
-                            py-2.5 cursor-pointer tracking-wide leading-[34px] sm:leading-[48px] md:leading-[73px] font-sans text-[26px] sm:text-[38px] md:text-[60px] font-normal
+                            py-2.5 cursor-pointer tracking-normal leading-[35px] sm:leading-[37px] md:leading-[53px] font-lyrics text-[25px] sm:text-[29px] md:text-[42px] font-medium
                             transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] origin-left
                             ${isActive
-                              ? 'text-[#656565] opacity-100 scale-102 translate-x-1.5'
-                              : 'text-[#656565] opacity-15 hover:opacity-35 scale-95 translate-x-0'
+                              ? 'text-[#5C5C5C] opacity-100 scale-102 translate-x-1.5'
+                              : 'text-[#5C5C5C] opacity-15 hover:opacity-35 scale-95 translate-x-0'
                             }
                           `}
                         >
@@ -908,6 +912,8 @@ function ConnectPostCard({
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.12 }}
                     onClick={(e) => e.stopPropagation()}
+                    {...menuSwipe.swipeHandlers}
+                    style={menuSwipe.swipeStyle}
                     className="bottom-sheet-enter fixed inset-x-0 bottom-0 z-[85] w-full rounded-t-[24px] rounded-b-none px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white border-t border-stone-200/60 shadow-[0_-8px_40px_rgba(0,0,0,0.18)] flex flex-col gap-1
                       md:absolute md:inset-x-auto md:right-0 md:bottom-8 md:z-30 md:w-32 md:rounded-xl md:border md:border-stone-200/60 md:shadow-md md:py-1.5 md:px-0 md:gap-0"
                   >

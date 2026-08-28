@@ -1,9 +1,8 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Fraunces } from 'next/font/google';
 import { Providers } from '@/context/Providers';
 import Navigation from '@/components/Navigation';
-import MobileLaptopBanner from '@/components/MobileLaptopBanner';
 import AnalyticsGate from '@/components/AnalyticsGate';
 import CookieBanner from '@/components/CookieBanner';
 import { SitePagesProvider } from '@/context/SitePagesContext';
@@ -40,6 +39,24 @@ const inter = Inter({
     variable: '--font-app',
     display: 'swap',
     fallback: ['Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+});
+
+/*
+ * Lyrics only. Everything else — labels, buttons, chrome — stays on Inter; this
+ * exists so the words a songwriter actually writes read differently from the
+ * interface around them. Self-hosted at build time like Inter, so it costs no
+ * runtime request and needs no CSP exception.
+ *
+ * Variable weight (opsz is Fraunces's optical-size axis) rather than a fixed
+ * set: lyrics render from 15px in a sheet to 42px on a Connect card, and the
+ * variable font keeps the letterforms right across that range.
+ */
+const fraunces = Fraunces({
+    subsets: ['latin', 'latin-ext'],
+    weight: ['300', '400', '500', '600'],
+    variable: '--font-lyrics',
+    display: 'swap',
+    fallback: ['Georgia', 'Times New Roman', 'serif'],
 });
 
 export const viewport: Viewport = {
@@ -214,7 +231,7 @@ export default async function RootLayout({
     }
 
     return (
-        <html lang={language} className={inter.variable} suppressHydrationWarning>
+        <html lang={language} className={`${inter.variable} ${fraunces.variable}`} suppressHydrationWarning>
             <head>
                 {jsonLd && (
                     <script
@@ -246,7 +263,6 @@ export default async function RootLayout({
                 <Providers initialLanguage={language} localeFromUrl={fromUrl} copyOverrides={copyOverrides}>
                     <SitePagesProvider links={footerLinks} faqs={faqs}>
                         <div className="min-h-screen flex flex-col">
-                            <MobileLaptopBanner />
                             <Navigation />
                             <main className="flex-grow">
                                 {children}
