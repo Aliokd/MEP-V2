@@ -129,7 +129,7 @@ export default function CookieBanner() {
                         <div className="shrink-0 px-6 pb-5 flex justify-center">
                             <Link
                                 href={localizePath('/cookies', language)}
-                                className="text-[12px] text-stone-400 hover:text-stone-700 underline underline-offset-2 transition-colors"
+                                className="text-[12px] text-stone-600 hover:text-stone-900 underline underline-offset-2 transition-colors"
                             >
                                 {t('cookies.read_more')}
                             </Link>
@@ -172,7 +172,7 @@ export default function CookieBanner() {
                             <button
                                 type="button"
                                 onClick={() => setShowSettings(true)}
-                                className="text-[14px] font-medium text-stone-400 hover:text-stone-700 underline underline-offset-4 transition-colors"
+                                className="text-[14px] font-medium text-stone-600 hover:text-stone-900 underline underline-offset-4 transition-colors"
                             >
                                 {t('cookies.manage')}
                             </button>

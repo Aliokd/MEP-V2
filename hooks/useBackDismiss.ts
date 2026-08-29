@@ -60,7 +60,14 @@ const overlayStack: OverlayEntry[] = [];
  */
 let orphanedEntryHref: string | null = null;
 
-export function useBackDismiss(isOpen: boolean, onClose: () => void) {
+/**
+ * @param depthKey Re-arms the entry whenever it changes, so Back can walk back
+ *   through a view's own steps rather than leaving the page on the second press.
+ *   The orphan-and-adopt scheme below makes this free: the outgoing entry is
+ *   orphaned and the incoming one adopts it in place, so the depth of the history
+ *   stack never grows however many steps are walked.
+ */
+export function useBackDismiss(isOpen: boolean, onClose: () => void, depthKey?: string | number) {
     // Held in a ref so a caller passing an inline arrow doesn't tear the history
     // entry down and rebuild it on every render.
     const onCloseRef = useRef(onClose);
@@ -127,5 +134,5 @@ export function useBackDismiss(isOpen: boolean, onClose: () => void) {
                 orphanedEntryHref = hrefAtPush;
             }
         };
-    }, [isOpen]);
+    }, [isOpen, depthKey]);
 }

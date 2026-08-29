@@ -9,7 +9,8 @@ import { useFocusTimer, formatFocusTime } from '@/lib/focusTimer';
  * worth saying, then appears to say it:
  *
  *   1. "Saving progress ..."  — a short confirmation of an action just taken
- *   2. the focus countdown    — for as long as a session is running
+ *   2. the focus countdown    — only while a session is actually running; a
+ *                                finished timer leaves rather than sitting at 00:00
  *
  * Saving outranks the timer because it is brief and tied to something the user did a
  * moment ago; when it clears, the slot falls back to the countdown if one is running.
@@ -31,11 +32,11 @@ export default function MindPowerStatus({
     isSaving?: boolean;
     size?: 'sm' | 'md';
 }) {
-    const { remainingSeconds, isRunning, isComplete } = useFocusTimer();
+    const { remainingSeconds, isRunning } = useFocusTimer();
 
     const mode: 'saving' | 'timer' | 'idle' = isSaving
         ? 'saving'
-        : isRunning || isComplete
+        : isRunning
           ? 'timer'
           : 'idle';
 
@@ -46,21 +47,10 @@ export default function MindPowerStatus({
             className={`flex items-center gap-1.5 shrink-0 whitespace-nowrap font-medium tabular-nums animate-in fade-in duration-300 ${
                 size === 'sm' ? 'text-[11px]' : 'text-xs'
             } ${
-                mode === 'saving'
-                    ? 'text-[#5f8f58]'
-                    : isComplete
-                      ? 'text-[#3f6a3a]'
-                      : 'text-stone-600'
+                mode === 'saving' ? 'text-[#5f8f58]' : 'text-stone-600'
             }`}
             aria-live="polite"
         >
-            {mode === 'timer' && (
-                <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                        isComplete ? 'bg-[#5f8f58]' : 'bg-[#86BE7F] animate-pulse'
-                    }`}
-                />
-            )}
             {mode === 'saving' ? t('progress.progress_saved') : formatFocusTime(remainingSeconds)}
         </span>
     );

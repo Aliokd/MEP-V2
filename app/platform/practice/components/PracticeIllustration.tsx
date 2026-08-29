@@ -64,17 +64,6 @@ const ART: Record<string, Shape[]> = {
     // The bar-mosaic circle: every bar of the song at once, loudest at the heart.
     'Master song structure': structureMosaic(),
 
-    // Two soft circles sharing air: the melody, and the answer to it.
-    'Melody variations': [
-        { kind: 'circle', cx: 88, cy: 94, r: 48, o: 0.14 },
-        { kind: 'circle', cx: 88, cy: 94, r: 36, o: 0.24 },
-        { kind: 'circle', cx: 88, cy: 94, r: 24, o: 0.4 },
-        { kind: 'circle', cx: 88, cy: 94, r: 12, o: 0.75 },
-        { kind: 'circle', cx: 134, cy: 126, r: 48, o: 0.14 },
-        { kind: 'circle', cx: 134, cy: 126, r: 36, o: 0.24 },
-        { kind: 'circle', cx: 134, cy: 126, r: 24, o: 0.4 },
-        { kind: 'circle', cx: 134, cy: 126, r: 12, o: 0.75 },
-    ],
 
     // The corner tunnel: nested frames pulling toward a dark exit.
     'Advanced structures': [
@@ -194,6 +183,55 @@ const ART: Record<string, Shape[]> = {
  * Each takes a unique id prefix so two cards mid-transition never collide.
  */
 const CUSTOM: Record<string, (uid: string) => ReactNode> = {
+    /*
+     * A ring of rings: four circles, each nudged off centre its own way, all
+     * pierced by one shared hole. Around the hole they stack into a dense band —
+     * the theme — and away from it each layer thins to nothing at its own rim,
+     * so the outline scallops where the offsets disagree: the same idea taken
+     * four slightly different ways, which is what the practice asks for.
+     *
+     * The gradients are in bounding-box units, so one definition per weight fits
+     * whichever circle borrows it; every layer fades to fully transparent at its
+     * edge, and the hole is a mask — the card's own ground showing through, not
+     * a painted disc.
+     */
+    'Melody variations': (uid) => {
+        const LAYERS = [
+            { cx: 113, cy: 98, r: 90, g: 'soft' },
+            { cx: 98, cy: 121, r: 92, g: 'soft' },
+            { cx: 123, cy: 119, r: 82, g: 'mid' },
+            { cx: 108, cy: 114, r: 66, g: 'core' },
+        ] as const;
+        const PEAK = { soft: 0.16, mid: 0.24, core: 0.4 } as const;
+        return (
+            <>
+                <defs>
+                    {/* A plateau, then a short feather. A full-length fade melted
+                        every rim into fog; the reference look is flat translucent
+                        discs whose depth comes from where they overlap, so each
+                        layer holds its weight across the body and lets go only in
+                        the last tenth of its radius. */}
+                    {(Object.keys(PEAK) as Array<keyof typeof PEAK>).map(name => (
+                        <radialGradient key={name} id={`${uid}-${name}`} cx="0.5" cy="0.5" r="0.5">
+                            <stop offset="0" stopColor="currentColor" stopOpacity={PEAK[name]} />
+                            <stop offset="0.88" stopColor="currentColor" stopOpacity={PEAK[name]} />
+                            <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+                        </radialGradient>
+                    ))}
+                    <mask id={`${uid}-hole`} maskUnits="userSpaceOnUse" x="0" y="0" width="220" height="220">
+                        <rect width="220" height="220" fill="white" />
+                        <circle cx="110" cy="112" r="40" fill="black" />
+                    </mask>
+                </defs>
+                <g mask={`url(#${uid}-hole)`}>
+                    {LAYERS.map((l, i) => (
+                        <circle key={i} cx={l.cx} cy={l.cy} r={l.r} fill={`url(#${uid}-${l.g})`} />
+                    ))}
+                </g>
+            </>
+        );
+    },
+
     /*
      * A pinwheel of nine blades — one phrase turned nine ways round a single
      * centre, which is the practice. Each blade is the same circle set on a

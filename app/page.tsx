@@ -605,23 +605,35 @@ const NewFooter = () => {
                     <span>{t('home.footer.established')}</span>
                 </div>
 
+                {/* Two named columns rather than one grid flowing row-major: the
+                    left is where you GO (join, read, learn about us, ask), the
+                    right is the legal shelf. A single ordered list filled across
+                    the rows instead of down them, so the grouping was whatever the
+                    order happened to produce. From md they flatten back into one
+                    row, where the distinction costs more than it says. */}
                 <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:flex md:items-center md:gap-6 text-[15px] text-[#363636]">
-                    <Link href="/about" className="font-medium hover:text-black transition-colors">{t('home.footer.about')}</Link>
-                    <Link href="/privacy" className="font-medium hover:text-black transition-colors">{t('home.footer.privacy')}</Link>
-                    {/* The cookie panel, reachable from the bottom of the page —
-                        which is where the panel's own copy says to look for it. */}
-                    <Link href={localizePath('/cookies', language)} className="font-medium hover:text-black transition-colors">{t('cookies.page_title')}</Link>
-                    {cmsLinks.map((page) => (
-                        <Link
-                            key={page.slug}
-                            href={localizePath(`/${page.slug}`, language)}
-                            className="font-medium hover:text-black transition-colors"
-                        >
-                            {pickLocale(page.title, language)}
-                        </Link>
-                    ))}
-                    <Link href="#qa" className="font-medium hover:text-black transition-colors">{t('home.nav.qa')}</Link>
-                    <Link href={waitlistJoinPath('footer', language)} className="font-bold hover:text-black transition-colors">{t('home.nav.waitlist')}</Link>
+                    <div className="flex flex-col gap-3 md:contents">
+                        <Link href={waitlistJoinPath('footer', language)} className="font-bold hover:text-black transition-colors">{t('home.nav.waitlist')}</Link>
+                        <Link href={localizePath('/blog', language)} className="font-medium hover:text-black transition-colors">{t('blog.title')}</Link>
+                        <Link href="/about" className="font-medium hover:text-black transition-colors">{t('home.footer.about')}</Link>
+                        <Link href="#qa" className="font-medium hover:text-black transition-colors">{t('home.nav.qa')}</Link>
+                    </div>
+                    <div className="flex flex-col gap-3 md:contents">
+                        <Link href="/privacy" className="font-medium hover:text-black transition-colors">{t('home.footer.privacy')}</Link>
+                        {/* Terms, and anything else ticked "show in footer" in the CMS. */}
+                        {cmsLinks.map((page) => (
+                            <Link
+                                key={page.slug}
+                                href={localizePath(`/${page.slug}`, language)}
+                                className="font-medium hover:text-black transition-colors"
+                            >
+                                {pickLocale(page.title, language)}
+                            </Link>
+                        ))}
+                        {/* The cookie panel, reachable from the bottom of the page —
+                            which is where the panel's own copy says to look for it. */}
+                        <Link href={localizePath('/cookies', language)} className="font-medium hover:text-black transition-colors">{t('cookies.page_title')}</Link>
+                    </div>
                 </div>
             </div>
 

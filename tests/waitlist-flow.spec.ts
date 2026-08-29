@@ -10,6 +10,18 @@ import { test, expect } from '@playwright/test';
  * emails support, and a test suite should do neither.
  */
 test.describe('Waitlist campaign flow', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      // Answer the cookie dialog before it can sit over the page: its modal
+      // backdrop is z-[100] and swallows every click in this flow — the CTA is
+      // visible and stable underneath it, so the failure reads as a missing
+      // button rather than a covered one.
+      window.localStorage.setItem('veinote-cookie-consent', JSON.stringify({
+        v: 3, analytics: false, replay: false, at: new Date().toISOString(),
+      }));
+    });
+  });
+
   test('walks from the ad click to a secured spot', async ({ page }) => {
     let waitlistPayload: any = null;
     await page.route('**/api/waitlist', async (route) => {

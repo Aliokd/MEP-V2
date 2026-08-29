@@ -28,7 +28,7 @@ function formatCountdown(remainingMs: number) {
    treatment, same padding — so the styling lives in one place rather than being
    restated three times and drifting apart. */
 const CARD =
-    'learn-card group relative text-left w-full h-full min-h-[260px] rounded-[24px] overflow-hidden border border-stone-300/60 transition-all cursor-pointer active:scale-[0.995] shadow-[0_4px_20px_rgba(0,0,0,0.015)]';
+    'learn-card group relative text-left w-full h-full min-h-[172px] md:min-h-[210px] xl:min-h-[260px] rounded-[24px] overflow-hidden border border-stone-300/60 transition-all cursor-pointer active:scale-[0.995] shadow-[0_4px_20px_rgba(0,0,0,0.015)]';
 /* 80% — a fifth back from full. Enough to settle the artwork behind the type
    without the washed-out look the old 70% gave it. */
 const CARD_IMG = 'absolute inset-0 w-full h-full object-cover opacity-80';
@@ -88,7 +88,7 @@ export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps
            window minus the sidebar — so at md the three columns were ~180px each
            and the last one ran off the edge. Below xl they stack as full-width
            blocks and the column scrolls. */
-        <div className="w-full flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-3 gap-4 px-4 md:px-0 overflow-y-auto xl:overflow-visible">
+        <div className="w-full flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-3 max-xl:auto-rows-min max-xl:content-start gap-4 px-4 md:px-0 overflow-y-auto xl:overflow-visible">
             <button
                 onClick={onStart}
                 data-tour="learn-fundamentals"

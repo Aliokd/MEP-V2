@@ -306,13 +306,13 @@ export default function ProfilePage() {
                                 <h2 className="text-xl font-sans font-semibold text-stone-900">{name || 'Maestro'}</h2>
                                 {/* Plan badge — the plan card's job moved up here; Pro/Max are
                                     brand names and stay untranslated. */}
-                                <span className="rounded-full bg-[#86BE7F]/20 px-2.5 py-1 text-[10px] font-bold text-[#3f6b3a] leading-none shrink-0">
+                                <span className="rounded-full bg-[#86BE7F]/35 px-2.5 py-1 text-[11px] font-bold text-[#24471f] leading-none shrink-0">
                                     {hasMax ? 'Max' : 'Pro'}
                                 </span>
                             </div>
-                            <p className="text-stone-500 text-xs font-medium mt-1">{email}</p>
+                            <p className="text-stone-600 text-[13px] font-medium mt-1">{email}</p>
                             {photoNotice && (
-                                <p className="text-xs text-stone-500 font-medium mt-1 animate-in fade-in duration-200">{photoNotice}</p>
+                                <p className="text-[13px] text-stone-600 font-medium mt-1 animate-in fade-in duration-200">{photoNotice}</p>
                             )}
                         </div>
                     </div>
@@ -363,7 +363,7 @@ export default function ProfilePage() {
 
                         {songsLoaded && songs.length === 0 && (
                             <div className="py-6 flex flex-col items-start gap-3">
-                                <p className="text-xs text-stone-500">{t('profile.no_songs')}</p>
+                                <p className="text-[13px] text-stone-600">{t('profile.no_songs')}</p>
                                 <button
                                     onClick={() => leaveTo('/platform/create')}
                                     className={`${btn.secondary('xs')} cursor-pointer`}
@@ -421,7 +421,7 @@ export default function ProfilePage() {
 
                         {peopleLoaded && people.length === 0 && requesters.length === 0 && (
                             <div className="py-6 flex flex-col items-start gap-3">
-                                <p className="text-xs text-stone-500">{t('profile.no_connections')}</p>
+                                <p className="text-[13px] text-stone-600">{t('profile.no_connections')}</p>
                                 <button
                                     onClick={() => leaveTo('/platform/connect')}
                                     className={`${btn.secondary('xs')} cursor-pointer`}
@@ -448,7 +448,7 @@ export default function ProfilePage() {
                         <form onSubmit={handleSave} className="space-y-6">
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-xs text-stone-400 font-medium">{t('profile.display_name')}</label>
+                                    <label className="text-[13px] text-stone-600 font-medium">{t('profile.display_name')}</label>
                                     <div className="flex items-center gap-2.5 border-b border-stone-300 focus-within:border-stone-500 transition-colors py-2">
                                         <User size={15} className="text-stone-400" />
                                         <input
@@ -461,7 +461,7 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs text-stone-400 font-medium">{t('profile.email')}</label>
+                                    <label className="text-[13px] text-stone-600 font-medium">{t('profile.email')}</label>
                                     <div className="flex items-center gap-2.5 border-b border-stone-300 focus-within:border-stone-500 transition-colors py-2">
                                         <Mail size={15} className="text-stone-400" />
                                         <input
@@ -484,7 +484,7 @@ export default function ProfilePage() {
                                 </div>
                             )}
                             {notification && (
-                                <p className="text-xs text-stone-500 font-medium animate-in fade-in duration-200">{notification}</p>
+                                <p className="text-[13px] text-stone-600 font-medium animate-in fade-in duration-200">{notification}</p>
                             )}
                         </form>
                     )}
@@ -492,7 +492,7 @@ export default function ProfilePage() {
                     {verificationState === 'pending' && (
                         <div className="space-y-4 py-2 border-l-2 border-stone-300 pl-4 animate-in fade-in duration-200">
                             <p className="text-sm font-semibold text-stone-800">{t('profile.verify_title')}</p>
-                            <p className="text-xs text-stone-500 leading-relaxed font-medium">
+                            <p className="text-[13px] text-stone-600 leading-relaxed font-medium">
                                 {t('profile.verify_sent')} <span className="font-semibold text-stone-700">{pendingEmail}</span>{t('profile.verify_sent_end')}
                             </p>
                             <div className="flex flex-wrap gap-3 pt-2">
@@ -538,7 +538,7 @@ export default function ProfilePage() {
                         <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
                             <div className="space-y-0.5">
                                 <p className="font-sans text-sm font-medium text-stone-800">{t('profile.notifications_title')}</p>
-                                <p className="text-xs text-stone-500">{t('profile.notifications_desc')}</p>
+                                <p className="text-[13px] text-stone-600">{t('profile.notifications_desc')}</p>
                             </div>
                             <div className="w-10 h-6 bg-stone-900/10 rounded-full relative shrink-0 ml-4">
                                 <div className="absolute right-1 top-1 w-4 h-4 bg-stone-900 rounded-full" />
@@ -547,7 +547,7 @@ export default function ProfilePage() {
                         <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
                             <div className="space-y-0.5">
                                 <p className="font-sans text-sm font-medium text-stone-800">{t('profile.public_profile_title')}</p>
-                                <p className="text-xs text-stone-500">{t('profile.public_profile_desc')}</p>
+                                <p className="text-[13px] text-stone-600">{t('profile.public_profile_desc')}</p>
                             </div>
                             <div className="w-10 h-6 bg-stone-200 rounded-full relative shrink-0 ml-4">
                                 <div className="absolute left-1 top-1 w-4 h-4 bg-stone-400 rounded-full" />
@@ -558,11 +558,11 @@ export default function ProfilePage() {
                         <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
                             <div className="space-y-0.5">
                                 <p className="font-sans text-sm font-medium text-stone-800">{t('profile.demo_title')}</p>
-                                <p className="text-xs text-stone-500">{t('profile.demo_desc')}</p>
+                                <p className="text-[13px] text-stone-600">{t('profile.demo_desc')}</p>
                             </div>
                             <button
                                 onClick={handleReplayGuide}
-                                className={`${btn.secondary('xs')} ml-4 cursor-pointer`}
+                                className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
                             >
                                 <PlayCircle size={14} />
                                 {t('profile.demo_action')}
@@ -571,10 +571,10 @@ export default function ProfilePage() {
                         <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
                             <div className="space-y-0.5">
                                 <p className="font-sans text-sm font-medium text-stone-800">{t('profile.manage_subscription')}</p>
-                                <p className="text-xs text-stone-500">{t('profile.manage_subscription_desc')}</p>
+                                <p className="text-[13px] text-stone-600">{t('profile.manage_subscription_desc')}</p>
                             </div>
                             <button
-                                className={`${btn.secondary('xs')} ml-4 cursor-pointer`}
+                                className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
                             >
                                 {t('profile.manage_action')}
                             </button>
@@ -582,12 +582,12 @@ export default function ProfilePage() {
                         <div className="flex items-center justify-between py-4">
                             <div className="space-y-0.5">
                                 <p className="font-sans text-sm font-medium text-stone-800">{t('profile.contact_concierge')}</p>
-                                <p className="text-xs text-stone-500">{t('profile.support_desc')}</p>
+                                <p className="text-[13px] text-stone-600">{t('profile.support_desc')}</p>
                             </div>
                             <button
                                 onClick={() => setIsSupportOpen(true)}
                                 aria-haspopup="dialog"
-                                className={`${btn.secondary('xs')} ml-4 cursor-pointer`}
+                                className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
                             >
                                 {t('profile.support_action')}
                             </button>

@@ -12,8 +12,14 @@ test.describe('Practice Page', () => {
         displayName: 'Test Artist',
       }));
       window.localStorage.setItem('mep-welcome-video-seen', 'true');
-      // Pre-dismiss the first-run exercise demo; it has its own test below.
+      // Pre-dismiss the first-run exercise demos; each has its own test below.
       window.localStorage.setItem('mep-structure-demo-seen', 'true');
+      window.localStorage.setItem('mep-verse-demo-seen', 'true');
+      // Answer the cookie dialog before it can sit over the page: its modal
+      // backdrop is z-[100] and swallows every click in the suite.
+      window.localStorage.setItem('veinote-cookie-consent', JSON.stringify({
+        v: 3, analytics: false, replay: false, at: new Date().toISOString(),
+      }));
     });
   });
 
@@ -750,6 +756,35 @@ test.describe('Practice Page', () => {
     await expect(page.locator('[data-structure-demo]')).toHaveCount(0);
   });
 
+  test('a Composing verses first-timer gets the linking demo, once', async ({ page }) => {
+    // Undo the beforeEach pre-dismissal: this test IS the first run
+    await page.evaluate(() => window.localStorage.removeItem('mep-verse-demo-seen'));
+    await page.goto('/platform/practice');
+    await page.locator('button[aria-label="Next Practice"]').click();
+    await page.getByRole('button', { name: 'Start' }).first().click();
+
+    // The how-to sits over the exercise: title, description, scene, one button
+    const demo = page.locator('[data-verse-demo]');
+    await expect(demo).toBeVisible({ timeout: 20000 });
+    await expect(demo.getByText('How it works')).toBeVisible();
+    await expect(demo.getByText('link each noun to a verb', { exact: false })).toBeVisible();
+
+    // The scene is the linking step in miniature: two columns of three pills
+    // and two connectors, all riding one clock
+    await expect(demo.locator('.vd-noun-0')).toHaveCSS('animation-name', 'vd-first-noun');
+    await expect(demo.locator('.vd-line-1')).toHaveCSS('animation-name', 'vd-line-1');
+    await expect(demo.locator('svg line')).toHaveCount(2);
+
+    // "Got it" dismisses it and it stays dismissed
+    await demo.getByRole('button', { name: 'Got it' }).click();
+    await expect(demo).toHaveCount(0);
+    await page.reload();
+    await page.locator('button[aria-label="Next Practice"]').click();
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await expect(page.locator('main .max-w-6xl p').first()).toHaveText('Choose a theme');
+    await expect(page.locator('[data-verse-demo]')).toHaveCount(0);
+  });
+
   test('the card play button opens the intro video', async ({ page }) => {
     await page.goto('/platform/practice');
 
@@ -776,6 +811,9 @@ test.describe('Practice 3 — melody variations', () => {
         displayName: 'Test Artist',
       }));
       window.localStorage.setItem('mep-welcome-video-seen', 'true');
+      window.localStorage.setItem('veinote-cookie-consent', JSON.stringify({
+        v: 3, analytics: false, replay: false, at: new Date().toISOString(),
+      }));
     });
   });
 

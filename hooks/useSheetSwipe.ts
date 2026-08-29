@@ -48,7 +48,13 @@ function withinScrolledRegion(from: HTMLElement | null, stop: HTMLElement) {
     return false;
 }
 
-export function useSheetSwipe(onDismiss: () => void, enabled = true) {
+/**
+ * @param maxWidth The widest viewport at which this surface is still a SHEET.
+ *   Defaults to 767 — the breakpoint the `.sheet-panel` CSS uses. The Demo Studio
+ *   keeps its phone layout up to lg, so its panel passes 1023 instead; without
+ *   that it was a bottom sheet you could not swipe between 768 and 1024.
+ */
+export function useSheetSwipe(onDismiss: () => void, enabled = true, maxWidth = 767) {
     const startY = useRef<number | null>(null);
     const startedAt = useRef(0);
     const [dragY, setDragY] = useState(0);
@@ -60,9 +66,9 @@ export function useSheetSwipe(onDismiss: () => void, enabled = true) {
 
     const onPointerDown = (e: React.PointerEvent<HTMLElement>) => {
         if (!enabled || e.pointerType === 'mouse') return;
-        // Matches the breakpoint the .sheet-panel styles use — above it these are
-        // centred dialogs, where there is no bottom edge to swipe towards.
-        if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) return;
+        // Above the surface's own sheet range these are centred dialogs, where
+        // there is no bottom edge to swipe towards.
+        if (typeof window !== 'undefined' && window.matchMedia(`(min-width: ${maxWidth + 1}px)`).matches) return;
 
         const target = e.target as HTMLElement | null;
         if (target?.closest(DRAG_EXEMPT_SELECTOR)) return;

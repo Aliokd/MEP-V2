@@ -501,6 +501,27 @@ function ConnectPostCard({
     isUserScrollingRef.current = true;
   };
 
+  /**
+   * Play, or pause — the single action behind both the round button and the
+   * card itself.
+   *
+   * Playback is `isActive && !isPaused`, and the two controls used to drive one
+   * half each: the card toggled ACTIVE, the button toggled PAUSED. So they
+   * disagreed. Worse on a phone, where `isActive` is set by mouseenter and so
+   * never by touch — the button alone could not start anything until the card
+   * had been tapped first.
+   */
+  const togglePlayback = () => {
+    if (isPlaying) {
+      onPauseToggle();
+      return;
+    }
+    // Not playing: bring the card forward if it is not the active one, and
+    // clear any manual pause left over from last time.
+    if (!isActive) onClickActive();
+    if (isPaused) onPauseToggle();
+  };
+
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (
@@ -510,6 +531,10 @@ function ConnectPostCard({
       target.closest('a') || 
       target.closest('svg')
     ) {
+      return;
+    }
+    if (post.attachment) {
+      togglePlayback();
       return;
     }
     onClickActive();
@@ -666,7 +691,7 @@ function ConnectPostCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onPauseToggle();
+                  togglePlayback();
                 }}
                 // shrink-0 is the circle fix: without it this sat in a flex row
                 // beside a badge that wanted room, so it got squeezed narrower

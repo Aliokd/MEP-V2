@@ -12,6 +12,11 @@ test.describe('Cross-Functional Integration Flows', () => {
         displayName: 'Test Artist',
       }));
       window.localStorage.setItem('mep-welcome-video-seen', 'true');
+      // Answer the cookie dialog before it can sit over the page: its modal
+      // backdrop is z-[100] and swallows every click in the suite.
+      window.localStorage.setItem('veinote-cookie-consent', JSON.stringify({
+        v: 3, analytics: false, replay: false, at: new Date().toISOString(),
+      }));
       
       // Initialize some initial progress metrics
       window.localStorage.setItem('mep-completed-lessons', JSON.stringify(['lesson-1', 'lesson-2']));

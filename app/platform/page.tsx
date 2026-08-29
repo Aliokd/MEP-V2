@@ -1,6 +1,7 @@
 "use client";
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import { useEffect, useState, useMemo } from 'react';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 import { useAuth } from '@/context/AuthContext';
 import { getUserConstellation, ConstellationData } from '@/app/actions/lesson-actions';
 import { useLanguage } from '@/context/LanguageContext';
@@ -18,6 +19,17 @@ export default function PlatformPage() {
     const [data, setData] = useState<ConstellationData | null>(null);
     const [view, setView] = useState<'landing' | 'reader' | 'ideas' | 'deepDive'>('landing');
     const [cms, setCms] = useState<(LearnChapter & { lessons: LearnLesson[] })[] | null>(null);
+
+    /**
+     * Android's Back inside Learn returns to the landing, not to Create. The
+     * reader, the tips deck and Deep dive are views within this page rather than
+     * routes, so without an entry of their own Back pops the PAGE and leaves the
+     * section entirely.
+     *
+     * `view` is the depth key as well as the trigger, so re-entering a view
+     * after going back re-arms the entry.
+     */
+    useBackDismiss(view !== 'landing', () => setView('landing'), view);
 
     // The curriculum is authored in the admin CMS. Data Connect stays as the
     // source for lesson *progress* and as the fallback for the lesson list until

@@ -10,6 +10,7 @@ import { type ChosenSong } from './SongChooser';
 import SongPill from './SongPill';
 import { usePracticeLibrary } from '../lib/library';
 import StructurePlayer from './StructurePlayer';
+import VerseDemo from './VerseDemo';
 import MelodyVariation from './MelodyVariation';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
 import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight, RotateCcw, Loader2 } from 'lucide-react';
@@ -19,9 +20,11 @@ import { SECTION_TEXT, TAG_BG, WRONG_TEXT } from '../data/sections';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import { createCanvasFromLines } from '@/lib/createCanvasFromLines';
+import { safeLocalStorageSetItem } from '@/lib/storage';
 import { useNudge } from '../lib/useNudge';
 import NudgeMessage from './NudgeMessage';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 
 /** Starting points for Composing verses. */
 const THEMES = [
@@ -199,6 +202,22 @@ export default function PracticeTab() {
 
     // Composing Verses (Practice 2) State
     const [currentStep, setCurrentStep] = useState(1);
+
+    /**
+     * Android's Back, inside an exercise: one step back, and out to the practice
+     * card from step one — rather than leaving Practice for Create.
+     *
+     * currentStep is the depth key, so the entry is re-armed on every step and
+     * Back keeps working all the way down instead of only once.
+     */
+    useBackDismiss(
+        !!openedPractice,
+        () => {
+            if (currentStep > 1) setCurrentStep(prev => prev - 1);
+            else setOpenedPractice(null);
+        },
+        currentStep,
+    );
     const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
     const [nouns, setNouns] = useState<string[]>(Array(5).fill(''));
     const [verbs, setVerbs] = useState<string[]>(Array(5).fill(''));
@@ -214,6 +233,17 @@ export default function PracticeTab() {
      * starts in; the empty ones are what an early Next shakes.
      */
     const fieldRefs = useRef<(HTMLInputElement | null)[]>([]);
+    /*
+     * First-timer guide, the same arrangement as Master song structure's: false
+     * until the effect below reads storage, so the server render and the first
+     * client render agree on "hidden". Checked when the practice is opened, not
+     * at mount — the gallery is not the moment to explain an exercise.
+     */
+    const [showVerseDemo, setShowVerseDemo] = useState(false);
+    useEffect(() => {
+        if (openedPractice !== 'Composing verses') return;
+        if (localStorage.getItem('mep-verse-demo-seen') !== 'true') setShowVerseDemo(true);
+    }, [openedPractice]);
 
     const currentMeta = getPractice(selectedPractice);
 
@@ -644,6 +674,15 @@ export default function PracticeTab() {
                         <MelodyVariation key="melody-variations" onBack={() => setOpenedPractice(null)} />
                     )}
 
+                    {openedPractice === 'Composing verses' && showVerseDemo && (
+                        <VerseDemo
+                            onDone={() => {
+                                setShowVerseDemo(false);
+                                safeLocalStorageSetItem('mep-verse-demo-seen', 'true');
+                            }}
+                        />
+                    )}
+
                     {openedPractice === 'Composing verses' && (
                         <motion.div
                             key="composing-verses"
@@ -956,11 +995,16 @@ export default function PracticeTab() {
                                         </div>
                                     </div>
                                 ) : (
-                                    /* Stepping through: back, the step dots, and Next. The flanks
-                                       get equal halves so the dots sit on the true centre line
-                                       even though Next is wider than the back circle. */
-                                    <div className="flex items-center gap-6">
-                                        <div className="flex-1 flex justify-end">
+                                    /* Stepping through: back, the step dots, and Next.
+
+                                       From md the flanks take equal halves, which puts the DOTS on
+                                       the true centre line. On a phone that reads as lopsided:
+                                       Next is roughly three times the width of the back circle, so
+                                       centring the dots pushes the group against the right edge and
+                                       leaves a gap on the left. Below md the flanks collapse and
+                                       the cluster as a whole centres instead. */
+                                    <div className="flex items-center justify-center gap-6">
+                                        <div className="flex-none md:flex-1 flex justify-end">
                                             <button
                                                 type="button"
                                                 onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
@@ -986,7 +1030,7 @@ export default function PracticeTab() {
                                             ))}
                                         </div>
 
-                                        <div className="flex-1 flex justify-start">
+                                        <div className="flex-none md:flex-1 flex justify-start">
                                             <button
                                                 // Never disabled. Pressing it early shakes it and
                                                 // says what is missing — the same information a

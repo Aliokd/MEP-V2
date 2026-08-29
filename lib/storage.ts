@@ -73,6 +73,7 @@ const ACCOUNT_SCOPED_KEYS = [
     'mep-tour-platform-seen',
     'mep-tour-create-seen',
     'mep-structure-demo-seen',
+    'mep-verse-demo-seen',
     'mep_studio_info_banner_shown',
     // Session-ish account state
     'mep-focus-timer-duration',

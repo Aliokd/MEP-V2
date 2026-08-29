@@ -41,7 +41,7 @@ export default function PracticeCard({
         // practice selector sitting above the card.
         <div
             onClick={available ? onStart : undefined}
-            className={`relative w-full max-w-5xl mx-auto min-h-[62vh] md:min-h-[calc(100vh-14rem)] bg-[#FAF9F5] border border-stone-200 rounded-[28px] p-8 md:p-12 flex flex-col
+            className={`relative w-full max-w-5xl mx-auto min-h-[62vh] max-h-[62vh] overflow-hidden md:min-h-[calc(100vh-14rem)] md:max-h-none md:overflow-visible bg-[#FAF9F5] border border-stone-200 rounded-[28px] p-8 md:p-12 flex flex-col
                 ${available ? 'cursor-pointer hover:border-stone-300 transition-colors' : ''}`}
         >
 
@@ -118,7 +118,7 @@ export default function PracticeCard({
                     <button
                         type="button"
                         onClick={onStart}
-                        className={`${btn.primary('hero')} w-full md:w-auto md:absolute md:bottom-12 md:right-12 md:z-20`}
+                        className={`${btn.primary('hero')} absolute bottom-8 left-8 right-8 z-20 w-auto md:left-auto md:bottom-12 md:right-12`}
                     >
                         {startLabel}
                         <ArrowRight size={20} className="stroke-[2]" />

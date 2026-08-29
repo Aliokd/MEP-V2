@@ -1674,13 +1674,18 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
    ride on); only nested ones should not. These are the named inner scrollers
    used across the app.
 
+   `.no-scrollbar` is deliberately NOT among them. It only hides the scrollbar
+   and is applied to 43 elements, most of which are not nested scrollers at all
+   — including the canvas composer. Containing the gesture there meant a drag on
+   the lyrics died instead of scrolling the page, which with the keyboard up left
+   no way to reach the lines above or below the one being typed.
+
    The `html, body` rule is the other half: it stops a gesture that began on a
    fixed overlay from scrolling the document behind it. */
 html, body {
     overscroll-behavior-y: none;
 }
 
-.no-scrollbar,
 .custom-canvas-scrollbar,
 .studio-tracks-scroll,
 .inspiration-scroll-container,
@@ -1765,12 +1770,18 @@ html, body {
     .sheet-panel:not(:has(.sheet-panel-body)):has(.sheet-panel-footer) {
         padding-bottom: 0 !important;
     }
-    /* Any button sitting directly in a pinned footer runs the full width — a
-       thumb-sized target is the point of moving it there. */
+    /* Every action in a pinned footer gets a thumb-sized height. */
     .sheet-panel-footer > button,
     .sheet-panel-footer > a {
-        width: 100% !important;
         min-height: 3.5rem !important;
+    }
+    /* Full width only when it is the ONLY action. This used to apply to every
+       button in the footer, which was right while each footer held one — but a
+       footer with Close beside Send then had two buttons both demanding 100%,
+       and flex-shrink decided the outcome rather than the design. */
+    .sheet-panel-footer > button:only-child,
+    .sheet-panel-footer > a:only-child {
+        width: 100% !important;
     }
 }
 @media (prefers-reduced-motion: reduce) {

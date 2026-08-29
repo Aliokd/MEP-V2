@@ -12,6 +12,11 @@ test.describe('Create Page (Songwriting Workspace)', () => {
         displayName: 'Test Artist',
       }));
       window.localStorage.setItem('mep-welcome-video-seen', 'true');
+      // Answer the cookie dialog before it can sit over the page: its modal
+      // backdrop is z-[100] and swallows every click in the suite.
+      window.localStorage.setItem('veinote-cookie-consent', JSON.stringify({
+        v: 3, analytics: false, replay: false, at: new Date().toISOString(),
+      }));
       
       // Seed default notes and folders cache to bypass firestore loader blockers
       window.localStorage.setItem('veinote-create-folders', JSON.stringify([

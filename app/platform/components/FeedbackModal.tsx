@@ -372,11 +372,11 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                     </div>
 
                     {/* Action buttons */}
-                    <div className="sheet-panel-footer flex items-center justify-end gap-3.5 mt-2">
+                    <div className="sheet-panel-footer flex items-center justify-end gap-3 mt-2">
                         <button 
                             type="button"
                             onClick={onClose}
-                            className={`${btn.secondary('md')} cursor-pointer`}
+                            className={`${btn.secondary('md')} shrink-0 px-6 cursor-pointer`}
                             disabled={isSending}
                         >
                             {t('common.close') || 'Close'}
@@ -384,7 +384,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                         <button 
                             type="submit"
                             disabled={isSending || isUploading || !subject.trim() || !message.trim()}
-                            className={`${btn.primary('md')} cursor-pointer disabled:cursor-not-allowed`}
+                            className={`${btn.primary('md')} flex-1 max-md:min-w-[60%] whitespace-nowrap cursor-pointer disabled:cursor-not-allowed`}
                         >
                             {isSending && (
                                 <svg className="animate-spin h-4 w-4 text-stone-900/70" fill="none" viewBox="0 0 24 24">

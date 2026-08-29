@@ -1944,7 +1944,7 @@ const PhraseRow = React.memo(function PhraseRow({
                 /* Vertical box metrics here must mirror the read-only `.phrase-row-text`
                    below — py-[2px] plus a 1px transparent border — or swapping between the
                    two on every click visibly nudges the surrounding lines. */
-                <div className="font-lyrics text-[25.2px] md:text-[28.56px] lg:text-[35.28px] font-medium text-stone-600 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4 py-[2px] border border-transparent rounded-[12px]">
+                <div className="font-lyrics text-[25.2px] md:text-[28.56px] lg:text-[35.28px] font-medium text-stone-600 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4 py-0 md:py-[2px] border border-transparent rounded-[12px]">
                     {/* Two attributes below are load-bearing for vertical rhythm:
                         `rows={1}` — without an explicit rows a textarea defaults to TWO rows,
                         so its auto height (and the scrollHeight measured from it) is two lines
@@ -2050,7 +2050,7 @@ const PhraseRow = React.memo(function PhraseRow({
             ) : (
                 <div
                     className={`
-                        phrase-row-text font-lyrics text-[25.2px] md:text-[28.56px] lg:text-[35.28px] font-medium text-stone-600 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap [overflow-wrap:anywhere] select-none py-[2px] px-4 rounded-[12px] transition-all duration-200 w-full border border-transparent
+                        phrase-row-text font-lyrics text-[25.2px] md:text-[28.56px] lg:text-[35.28px] font-medium text-stone-600 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap [overflow-wrap:anywhere] select-none py-0 md:py-[2px] px-4 rounded-[12px] transition-all duration-200 w-full border border-transparent
                         ${isLockedByRemote ? 'cursor-not-allowed border-dashed opacity-70' : 'cursor-grab active:cursor-grabbing hover:border-stone-200/50 hover:bg-stone-50/30 group/line'}
                         ${draggedPhraseId === phrase.id ? 'opacity-30' : ''}
                         ${isCommentTarget ? 'bg-stone-100/80 border-stone-300/80 shadow-[0_0_0_3px_rgba(120,113,108,0.07)]' : ''}
@@ -2179,9 +2179,9 @@ const PhraseRow = React.memo(function PhraseRow({
                                                     // inflates to roughly lyric size instead of simply
                                                     // losing one rule. An inline style cannot be
                                                     // dropped by a stale build or a JIT scan.
-                                                    style={{ fontSize: '0.25em' }}
+                                                    style={{ fontSize: '0.325em' }}
                                                     // Two offsets doing two different jobs, both measured
-                                                    // rather than eyeballed (42px lyrics, 10.5px badge):
+                                                    // rather than eyeballed (42px lyrics, 13.7px badge at 0.325em):
                                                     //
                                                     // -top is in em and so resolves against the BADGE's
                                                     // own font-size. 0.5em leaves 8px between the badge
@@ -3506,7 +3506,7 @@ function AudioCapsulePlayer({
                 {/* Title & Badge */}
                 <div className="flex items-center gap-1 shrink-0">
                     {isStudioMix && (
-                        <span className="px-1.5 py-0.2 text-[7px] font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-600 border border-indigo-100/50 rounded-full select-none shrink-0">
+                        <span className={`px-1.5 py-0.2 text-[7px] font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-600 border border-indigo-100/50 rounded-full select-none shrink-0 ${isTranscribing ? 'hidden sm:inline-block' : ''}`}>
                             Studio
                         </span>
                     )}
@@ -3516,7 +3516,7 @@ function AudioCapsulePlayer({
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); onReopenInStudio(); }}
                                 aria-label={t('studio.reopen_in_studio')}
-                                className={`${btn.plain('bare')} shrink-0 text-indigo-500 transition-colors hover:text-indigo-700 cursor-pointer`}
+                                className={`${btn.plain('bare')} shrink-0 text-indigo-500 transition-colors hover:text-indigo-700 cursor-pointer ${isTranscribing ? 'hidden sm:inline-flex' : ''}`}
                             >
                                 <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
                             </button>
@@ -3528,7 +3528,7 @@ function AudioCapsulePlayer({
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); onAddAsStudioTrack(); }}
                                 aria-label={t('studio.add_to_studio')}
-                                className={`${btn.plain('bare')} shrink-0 text-indigo-500 transition-colors hover:text-indigo-700 cursor-pointer`}
+                                className={`${btn.plain('bare')} shrink-0 text-indigo-500 transition-colors hover:text-indigo-700 cursor-pointer ${isTranscribing ? 'hidden sm:inline-flex' : ''}`}
                             >
                                 <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
                             </button>
@@ -3540,12 +3540,12 @@ function AudioCapsulePlayer({
                             disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
                             style={{ width: `${Math.max(5, (audioNote.title || '').length)}ch` }}
                             aria-label={t('card.rename_recording')}
-                            className="bg-transparent border-none outline-none font-bold text-[9px] text-stone-700 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[40px] max-w-[100px] truncate"
+                            className={`bg-transparent border-none outline-none font-bold text-[9px] text-stone-700 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[40px] truncate ${isTranscribing ? 'max-w-[64px] sm:max-w-[100px]' : 'max-w-[100px]'}`}
                         />
                     </Tooltip>
                 </div>
 
-                <div className="h-2.5 w-px bg-stone-200 shrink-0" />
+                <div className={`h-2.5 w-px bg-stone-200 shrink-0 ${isTranscribing ? 'hidden sm:block' : ''}`} />
 
                 {isTranscribing ? (
                     <ExtractingState compact />
@@ -3973,6 +3973,7 @@ const StudioKnob = ({
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             aria-label={t('card.drag_hint')}
+            data-no-sheet-drag
             className="relative w-[60px] h-[60px] md:w-11 md:h-11 shrink-0 rounded-full bg-white hover:bg-stone-50 active:scale-95 transition-all shadow-[0_2.5px_6px_rgba(0,0,0,0.07)] cursor-ns-resize touch-none flex items-center justify-center border-2 border-stone-200/80"
         >
             <div 
@@ -5413,6 +5414,8 @@ export default function CreatePage() {
     const [studioSettingsOpen, setStudioSettingsOpen] = useState(false);
     /** The metronome's own module, opened from the Metronome row in Settings. */
     const [studioMetronomeSheetOpen, setStudioMetronomeSheetOpen] = useState(false);
+
+
     /**
      * Whether the track sheet's name row has been switched into edit mode.
      *
@@ -5843,6 +5846,61 @@ export default function CreatePage() {
         // Creative Tools Suite State Variables
     const [showToolsPanel, setShowToolsPanel] = useState(false);
     const [activeToolTab, setActiveToolTab] = useState<'tuner' | 'tempo' | 'inspiration' | 'studio'>('tuner');
+
+    /**
+     * The tools panel itself — Creative Tools, Demo Studio, Inspirations. On a
+     * phone it IS a bottom sheet, and it was the one that could not be swiped
+     * away.
+     *
+     * Its sheet range differs per tab: the studio keeps the phone layout to lg,
+     * the other two revert to a centred modal at sm, so the breakpoint is passed
+     * rather than assumed. Read at pointerdown, so switching tabs is picked up.
+     */
+    const toolsPanelSwipe = useSheetSwipe(
+        () => setShowToolsPanel(false),
+        showToolsPanel,
+        activeToolTab === 'studio' ? 1023 : 639,
+    );
+
+    /**
+     * The Demo Studio sheet's two detents on a phone: its usual 88dvh, and full
+     * height when pulled up. Drag the handle at its top —
+     *
+     *   up            → expand to full
+     *   down (full)   → back to 88dvh
+     *   down (88dvh)  → close the panel
+     *
+     * Only the downward drag moves the sheet under the finger; the panel is
+     * anchored to the bottom edge, so translating it UP would open a gap beneath
+     * it rather than reveal more of it. Pulling up snaps on release instead.
+     */
+    const [studioSheetExpanded, setStudioSheetExpanded] = useState(false);
+    const [studioSheetDragY, setStudioSheetDragY] = useState(0);
+    const studioSheetDragFrom = useRef<{ y: number; t: number } | null>(null);
+
+    const onStudioSheetDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!isStudioNarrow || e.pointerType === 'mouse') return;
+        studioSheetDragFrom.current = { y: e.clientY, t: performance.now() };
+    };
+    const onStudioSheetDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!studioSheetDragFrom.current) return;
+        setStudioSheetDragY(Math.max(0, e.clientY - studioSheetDragFrom.current.y));
+    };
+    const onStudioSheetDragEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+        const from = studioSheetDragFrom.current;
+        if (!from) return;
+        const distance = e.clientY - from.y;
+        const velocity = Math.abs(distance) / Math.max(1, performance.now() - from.t);
+        studioSheetDragFrom.current = null;
+        setStudioSheetDragY(0);
+        // A short flick counts as much as a long drag, same rule the sheets use.
+        if (Math.abs(distance) < 70 && velocity < 0.5) return;
+        if (distance < 0) { haptic('tap'); setStudioSheetExpanded(true); }
+        else if (studioSheetExpanded) { haptic('tap'); setStudioSheetExpanded(false); }
+        else { haptic('tap'); setShowToolsPanel(false); }
+    };
+    // A fresh open always starts at the usual height.
+    useEffect(() => { if (!showToolsPanel) setStudioSheetExpanded(false); }, [showToolsPanel]);
 
     useEffect(() => {
         if (typeof window !== 'undefined' && activeToolTab === 'studio') {
@@ -15458,6 +15516,12 @@ export default function CreatePage() {
             setTimeout(() => {
                 setShowToolsPanel(false);
                 setIsSendingToCanvas(false);
+                // Then take the writer to the mix they just sent. Requested AFTER the
+                // panel is dismissed, not before: the scroll measures against the
+                // docked toolbar, and while the studio is still up it would be
+                // measuring against a sheet that is about to leave. The effect on
+                // pendingAudioScrollId waits for the card to exist either way.
+                setPendingAudioScrollId(recId);
             }, 2500);
 
         } catch (err: any) {
@@ -16439,7 +16503,7 @@ export default function CreatePage() {
                                         isThisTrackRecording
                                             ? 'max-lg:bg-white max-lg:rounded-[22px] max-lg:p-0 max-lg:gap-0 lg:bg-stone-200/50'
                                             : isArmed
-                                                ? 'max-lg:-mx-4 max-lg:w-[calc(100%+2rem)] max-lg:px-4 max-lg:py-2.5 max-lg:rounded-none max-lg:bg-[#EFEEE8] lg:bg-stone-200/50 lg:hover:bg-stone-200/60'
+                                                ? 'max-lg:-mx-4 max-lg:w-[calc(100%+2rem)] max-lg:px-4 max-lg:py-2.5 max-lg:rounded-none max-lg:bg-[#EAF3E8] lg:bg-[#EAF3E8] lg:hover:bg-[#DFEEDB]'
                                                 : 'max-lg:gap-0 bg-transparent lg:bg-stone-50/70 lg:hover:bg-stone-100/80'
                                     } ${
                                         // Mid-reorder the grabbed card floats over the list.
@@ -16543,7 +16607,7 @@ export default function CreatePage() {
                                                     // row's band is the surface now — and the name
                                                     // becomes a white pill. touch-none so the
                                                     // long-press drag isn't fought by scrolling.
-                                                    ? 'max-lg:bg-transparent max-lg:border-transparent max-lg:shadow-none max-lg:touch-none lg:bg-stone-200/50 lg:hover:bg-stone-200/60 lg:border-stone-300/50'
+                                                    ? 'max-lg:bg-transparent max-lg:border-transparent max-lg:shadow-none max-lg:touch-none lg:bg-[#EAF3E8] lg:hover:bg-[#DFEEDB] lg:border-[#CFE4CA]'
                                                     : 'max-lg:rounded-t-[20px] max-lg:rounded-b-none max-lg:border-b-0 bg-[#F9F8F6] hover:bg-[#F3F1ED] border-stone-200/40'
                                             }`}
                                         >
@@ -16978,10 +17042,9 @@ export default function CreatePage() {
                                         immediately above already says which track this is, and
                                         the wave is the only thing here worth height. */}
                                     <div
-                                        onPointerDown={(e) => {
+                                        onPointerDown={() => {
                                             if (isCanvasReadOnly) return;
                                             setActiveRecordingTrackId(track.id);
-                                            handleTimelinePointerDown(e);
                                         }}
                                         // Armed beats "has audio" in this order on purpose: the
                                         // point of the tint is to say which track the REC button
@@ -16992,11 +17055,12 @@ export default function CreatePage() {
                                         // lane for the red bar. Rounding lives in the branches
                                         // because two arbitrary values on one element resolve
                                         // by stylesheet order, not intent.
-                                        className={`lg:hidden relative w-full overflow-hidden transition-all cursor-ew-resize ${
+                                        data-no-sheet-drag
+                                        className={`lg:hidden relative w-full overflow-hidden transition-all cursor-pointer ${
                                             isThisTrackRecording
                                                 ? 'h-12 rounded-t-none rounded-b-[20px] bg-gradient-to-r from-[#FF9191] to-[#FF3F3F] flex items-center justify-center'
                                                 : isArmed
-                                                    ? 'h-16 rounded-[14px] bg-white border border-stone-200/70 shadow-[0_1px_4px_rgba(0,0,0,0.04)]'
+                                                    ? 'h-16 rounded-[14px] bg-white border border-[#CFE4CA] shadow-[0_1px_4px_rgba(0,0,0,0.04)]'
                                                     : 'h-12 rounded-t-none rounded-b-[16px] bg-white border border-stone-200/50'
                                         }`}
                                     >
@@ -17033,6 +17097,7 @@ export default function CreatePage() {
                         playhead line below can cross both without a seam. */}
                     {studioTracks.filter(Boolean).length > 0 && (
                         <div
+                            data-no-sheet-drag
                             className="lg:hidden shrink-0 mt-2 relative -mx-4 w-[calc(100%+2rem)] h-11 rounded-t-2xl rounded-b-none bg-stone-100 border border-b-0 border-stone-200/60 shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex items-center cursor-ew-resize select-none"
                             onPointerDown={handleTimelinePointerDown}
                         >
@@ -17063,6 +17128,7 @@ export default function CreatePage() {
                                     this is where the finger goes. */}
                                 {studioState !== 'recording' && (
                                     <div
+                                        data-no-sheet-drag
                                         className="absolute top-0 bottom-0 w-10 -ml-5 z-20 pointer-events-auto touch-none cursor-ew-resize flex justify-center group/ph"
                                         style={{ left: `${playheadPercent}%` }}
                                         onPointerDown={(e) => { e.stopPropagation(); handlePlayheadLinePointerDown(e); }}
@@ -17464,29 +17530,24 @@ export default function CreatePage() {
                         <button
                             onClick={() => { haptic('tap'); setStudioSettingsOpen(true); }}
                             aria-label={t('studio.settings')}
-                            className={`${btn.icon('bare')} relative shrink-0 h-[clamp(44px,12.5vw,56px)] w-[clamp(44px,12.5vw,56px)] border border-stone-200 bg-white`}
+                            className={`${btn.icon('bare')} relative shrink-0 h-[clamp(53px,15vw,67px)] w-[clamp(53px,15vw,67px)] border border-stone-200 bg-white`}
                             type="button"
                         >
-                            <SlidersHorizontal size={22} className="text-stone-700 stroke-[1.8]" />
-                            {/* A dot rather than a number: it says "something is running in
-                                here" without claiming to say what. */}
-                            {(isStudioMetronomeOn || isDirectMonitorEnabled) && (
-                                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-[#82C39B] border-2 border-white" />
-                            )}
+                            <SlidersHorizontal size={26} className="text-stone-700 stroke-[1.8]" />
                         </button>
 
                         {/* Lyrics */}
                         <button
                             onClick={() => { haptic('tap'); setShowStudioLyrics(true); }}
                             aria-label={t('creative.show_lyrics')}
-                            className={`${btn.plain('bare')} shrink-0 h-[clamp(44px,12.5vw,56px)] w-[clamp(44px,12.5vw,56px)] border shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] transition-all ${
+                            className={`${btn.plain('bare')} shrink-0 h-[clamp(53px,15vw,67px)] w-[clamp(53px,15vw,67px)] border shadow-[0_1.5px_4px_rgba(0,0,0,0.05)] transition-all ${
                                 showStudioLyrics
                                     ? 'bg-[#E5E4DE] border-[#D2D1C9] text-stone-800'
                                     : 'bg-white border-stone-200 text-stone-700'
                             }`}
                             type="button"
                         >
-                            <FileText size={22} className="stroke-[1.8]" />
+                            <FileText size={26} className="stroke-[1.8]" />
                         </button>
 
                         {/* Record — the widest of the five, because it is the one they came
@@ -17501,7 +17562,7 @@ export default function CreatePage() {
                             <button
                                 onClick={() => { haptic('impact'); stopStudioRecording(); }}
                                 aria-label={t('studio.recording')}
-                                className={`${btn.plain('bare')} h-[clamp(44px,12.5vw,56px)] min-w-[104px] flex-[2] gap-2 border border-transparent px-4 recording-gradient shadow-[0_6px_20px_rgba(211,47,47,0.28)]`}
+                                className={`${btn.plain('bare')} h-[clamp(53px,15vw,67px)] min-w-[125px] flex-[2] gap-2 border border-transparent px-4 recording-gradient shadow-[0_6px_20px_rgba(211,47,47,0.28)]`}
                                 type="button"
                             >
                                 <span className="w-2.5 h-2.5 rounded-full bg-white/90 shrink-0 animate-pulse" />
@@ -17513,11 +17574,11 @@ export default function CreatePage() {
                             <button
                                 onClick={() => { haptic('impact'); startStudioRecording(); }}
                                 aria-label={t('studio.rec')}
-                                className={`${btn.plain('bare')} h-[clamp(44px,12.5vw,56px)] min-w-[104px] flex-[2] gap-2 border border-stone-200/50 bg-white px-4 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]`}
+                                className={`${btn.plain('bare')} h-[clamp(53px,15vw,67px)] min-w-[125px] flex-[2] gap-2 border border-stone-200/50 bg-white px-4 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)]`}
                                 type="button"
                             >
-                                <span className="w-3.5 h-3.5 bg-[#FF4040] rounded-full shrink-0" />
-                                <span className="text-[15px] font-bold text-[#FF4040] whitespace-nowrap">{t('studio.rec')}</span>
+                                <span className="w-4 h-4 bg-[#FF4040] rounded-full shrink-0" />
+                                <span className="text-[18px] font-bold text-[#FF4040] whitespace-nowrap">{t('studio.rec')}</span>
                             </button>
                         )}
 
@@ -17530,12 +17591,12 @@ export default function CreatePage() {
                             }}
                             disabled={studioDuration === 0 || studioState === 'recording'}
                             aria-label={t('studio.play_pause')}
-                            className={`${btn.icon('bare')} h-[clamp(44px,12.5vw,56px)] w-[clamp(44px,12.5vw,56px)] border border-stone-200 bg-white disabled:opacity-40`}
+                            className={`${btn.icon('bare')} h-[clamp(53px,15vw,67px)] w-[clamp(53px,15vw,67px)] border border-stone-200 bg-white disabled:opacity-40`}
                             type="button"
                         >
                             {studioState === 'playing'
-                                ? <Pause size={22} className="text-stone-700 stroke-[1.8]" />
-                                : <Play size={22} className="text-stone-700 stroke-[1.8]" />}
+                                ? <Pause size={26} className="text-stone-700 stroke-[1.8]" />
+                                : <Play size={26} className="text-stone-700 stroke-[1.8]" />}
                         </button>
 
                         {/* Export — Send to canvas plus the WAV/MP3 downloads */}
@@ -17543,12 +17604,12 @@ export default function CreatePage() {
                             onClick={() => { haptic('tap'); setStudioExportOpen(true); }}
                             disabled={isSendingToCanvas}
                             aria-label={t('creative.export_options')}
-                            className={`${btn.icon('bare')} h-[clamp(44px,12.5vw,56px)] w-[clamp(44px,12.5vw,56px)] border border-stone-200 bg-white disabled:opacity-60`}
+                            className={`${btn.icon('bare')} h-[clamp(53px,15vw,67px)] w-[clamp(53px,15vw,67px)] border border-stone-200 bg-white disabled:opacity-60`}
                             type="button"
                         >
                             {isSendingToCanvas
-                                ? <Loader2 size={22} className="animate-spin text-stone-500 stroke-[1.8]" />
-                                : <ArrowUp size={22} className="text-stone-700 stroke-[1.8]" />}
+                                ? <Loader2 size={26} className="animate-spin text-stone-500 stroke-[1.8]" />
+                                : <ArrowUp size={26} className="text-stone-700 stroke-[1.8]" />}
                         </button>
                     </div>
                 </div>
@@ -18930,6 +18991,7 @@ export default function CreatePage() {
                                     // enough for the cards effect to show the next card peeking
                                     // behind, and no more. Wider than that and the peek runs off
                                     // the viewport (the deck renders overflow-visible on purpose).
+                                    data-no-sheet-drag
                                     className="w-[84vw] h-[max(380px,62dvh)] sm:w-[400px] sm:h-[270px] md:w-[520px] md:h-[340px]"
                                     style={{ overflow: 'visible' }}
                                 >
@@ -19334,7 +19396,8 @@ export default function CreatePage() {
                     // row), and sizing it to its content left a band of dead white between
                     // Add track and the controls. A fixed 88dvh claims the space, and the
                     // track list's flex-1 scroll region absorbs it.
-                    className="flex w-full h-[88dvh] max-h-[88dvh] lg:h-auto lg:max-h-[calc(100dvh-8rem)] text-left items-stretch max-lg:mb-0 mb-3 lg:mb-5 pointer-events-auto select-none relative"
+                    className={`flex w-full ${studioSheetExpanded ? 'h-[100dvh] max-h-[100dvh]' : 'h-[88dvh] max-h-[88dvh]'} lg:h-auto lg:max-h-[calc(100dvh-8rem)] text-left items-stretch max-lg:mb-0 mb-3 lg:mb-5 pointer-events-auto select-none relative transition-[height] duration-250 ease-out`}
+                    style={studioSheetDragY > 0 ? { transform: `translateY(${studioSheetDragY}px)`, transition: 'none' } : undefined}
                 >
                     {/* Left Gray Lyrics Panel with smooth width transition.
                         On a phone it is not a left column at all — a 300px column out of
@@ -19416,6 +19479,19 @@ export default function CreatePage() {
                                 : 'lg:rounded-[36px] xl:rounded-[45px]'
                         } gap-4 lg:gap-6`}
                     >
+                        {/* The sheet's grab handle: pull up for full height, down to go
+                            back, down again to close. */}
+                        <div
+                            className="lg:hidden shrink-0 -mt-1 mb-1 py-2 flex justify-center touch-none cursor-grab active:cursor-grabbing"
+                            data-no-sheet-drag
+                            onPointerDown={onStudioSheetDragStart}
+                            onPointerMove={onStudioSheetDragMove}
+                            onPointerUp={onStudioSheetDragEnd}
+                            onPointerCancel={onStudioSheetDragEnd}
+                        >
+                            <div className="w-10 h-1 rounded-full bg-stone-300" />
+                        </div>
+
                         {/* Content area.
                             The card itself no longer scrolls: it clips, and the track list inside
                             owns the scrolling instead. Scrolling the whole card meant that on a
@@ -20839,7 +20915,7 @@ export default function CreatePage() {
                         // Same signal as the dock itself, so the two can't disagree —
                         // keyed on focus, this padding appeared whenever a field was
                         // focused, keyboard or not.
-                        className={`w-full flex-grow flex-1 flex flex-col z-10 py-6 relative ${
+                        className={`w-full flex-grow flex-1 flex flex-col z-10 py-3 md:py-6 relative ${
                             isDockKeyboardAnchored ? 'pb-16' : ''
                         }`}
                     >
@@ -20858,7 +20934,7 @@ export default function CreatePage() {
                             </div>
                         )}
                         {!isNoteBlank ? (
-                            <div className={`w-full flex flex-col gap-3 mx-auto py-4 transition-all duration-300 ${
+                            <div className={`w-full flex flex-col gap-1 md:gap-3 mx-auto py-1 md:py-4 transition-all duration-300 ${
                                 (showToolsPanel && activeToolTab === 'studio') ? 'max-w-full lg:max-w-[calc(100%-1rem)] xl:max-w-[1560px]' : 'max-w-4xl'
                             }`}>
 
@@ -22080,7 +22156,7 @@ export default function CreatePage() {
                                 chord panel and the word list side by side, which needs
                                 width this screen doesn't have. */}
                             {isMobile && (
-                                <div className="flex bg-stone-100/70 p-1 rounded-[14px] w-full select-none shrink-0">
+                                <div className="flex items-stretch gap-0.5 bg-stone-100/70 p-1.5 rounded-[14px] w-full select-none shrink-0">
                                     {([
                                         ['rhyme', t('canvas.rhyme_lexicon')],
                                         ['synonym', t('lexicon.synonym')],
@@ -22098,7 +22174,7 @@ export default function CreatePage() {
                                             // 15px medium, not 13px bold: at bold these three read as
                                             // three shouted labels competing with the words below,
                                             // which are the actual content of the sheet.
-                                            className={`${btn.segment(mobileWordTab === value, 'bare')} flex-1 py-3 text-[15px] cursor-pointer ${
+                                            className={`${btn.segment(mobileWordTab === value, 'bare')} flex-auto min-w-0 px-2.5 py-3 text-[15px] whitespace-nowrap cursor-pointer ${
                                                 mobileWordTab === value ? 'bg-white font-semibold shadow-xs' : 'font-medium'
                                             }`}
                                         >
@@ -22368,6 +22444,12 @@ export default function CreatePage() {
                                 ? "translate-y-0 sm:translate-y-[-50%] sm:scale-100 opacity-100 visible"
                                 : "translate-y-full sm:translate-y-[-50%] sm:scale-95 opacity-0 invisible")
                     }`}
+                    // The wrapper is pointer-events-none, but events from its
+                    // pointer-events-auto children still bubble through it — so this is
+                    // the right place to listen without having to thread the handlers
+                    // into all three of renderToolsPanel's branches.
+                    {...toolsPanelSwipe.swipeHandlers}
+                    style={toolsPanelSwipe.swipeStyle}
                 >
                     {renderToolsPanel()}
                 </div>
@@ -22488,6 +22570,7 @@ export default function CreatePage() {
                                 style={{
                                     // Inline rather than Tailwind classes: conditional utilities
                                     // built into a template string aren't always generated by JIT.
+                                    backgroundColor: '#ffffff',
                                     transition: 'opacity 500ms ease-out, transform 500ms ease-out',
                                     opacity: isSavingNote ? 0 : 1,
                                     transform: isSavingNote ? 'scale(0.9)' : 'scale(1)',
@@ -22565,6 +22648,26 @@ export default function CreatePage() {
                                 ? 'justify-center gap-3 px-3 py-2 rounded-none border-0 shadow-none'
                                 : 'justify-center md:justify-start gap-3 md:gap-3.5 p-3 px-4 md:p-3 border-t border-stone-200/60 md:border rounded-t-[24px] rounded-b-none md:rounded-full shadow-[0_-6px_28px_rgba(0,0,0,0.07)] md:shadow-[0_16px_48px_rgba(0,0,0,0.08)]'
                         }`}>
+                            <Tooltip label={isCanvasLocked ? t('collab.lock_banner') : (t('canvas.creative_tools') || 'Creative tools')} side="top">
+                            <button
+                                onClick={handleToolsToggle}
+                                data-tour="create-tools"
+                                disabled={isCanvasLocked}
+                                className={`${btn.plain('bare')} h-[65px] w-[65px] md:h-[54px] md:w-[54px] border transition-all duration-200 ${
+                                    isCanvasLocked
+                                        ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
+                                        : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer'
+                                }`}
+                                aria-label="Creative Tools"
+                                type="button"
+                            >
+                                {/* Figma camera icon */}
+                                <svg className="w-[26px] h-[26px] md:w-[22px] md:h-[22px]" width="22" height="22" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M31.4959 9.28033H24.4654V7.87423C24.4654 7.05381 24.1395 6.26699 23.5594 5.68686C22.9793 5.10673 22.1924 4.78082 21.372 4.78082H14.6228C13.8023 4.78082 13.0155 5.10673 12.4354 5.68686C11.8553 6.26699 11.5293 7.05381 11.5293 7.87423V9.28033H4.49886C3.97677 9.28033 3.47607 9.48772 3.1069 9.8569C2.73772 10.2261 2.53033 10.7268 2.53033 11.2489V26.9971C2.53033 27.5192 2.73772 28.0199 3.1069 28.3891C3.47607 28.7583 3.97677 28.9657 4.49886 28.9657H31.4959C32.018 28.9657 32.5187 28.7583 32.8879 28.3891C33.257 28.0199 33.4644 27.5192 33.4644 26.9971V11.2489C33.4644 10.7268 33.257 10.2261 32.8879 9.8569C32.5187 9.48772 32.018 9.28033 31.4959 9.28033ZM13.2167 7.87423C13.2167 7.50131 13.3648 7.14366 13.6285 6.87997C13.8922 6.61628 14.2498 6.46813 14.6228 6.46813H21.372C21.7449 6.46813 22.1026 6.61628 22.3663 6.87997C22.63 7.14366 22.7781 7.50131 22.7781 7.87423V9.28033H13.2167V7.87423ZM4.49886 10.9676H31.4959C31.5705 10.9676 31.642 10.9973 31.6948 11.05C31.7475 11.1027 31.7771 11.1743 31.7771 11.2489V16.0296H26.7152V14.6235C26.7152 14.3997 26.6263 14.1852 26.4681 14.0269C26.3099 13.8687 26.0953 13.7798 25.8715 13.7798C25.6478 13.7798 25.4332 13.8687 25.275 14.0269C25.1167 14.1852 25.0279 14.3997 25.0279 14.6235V16.0296H10.9669V14.6235C10.9669 14.3997 10.878 14.1852 10.7198 14.0269C10.5616 13.8687 10.347 13.7798 10.1232 13.7798C9.89949 13.7798 9.68491 13.8687 9.52669 14.0269C9.36847 14.1852 9.27959 14.3997 9.27959 14.6235V16.0296H4.21764V11.2489C4.21764 11.1743 4.24727 11.1027 4.30001 11.05C4.35275 10.9973 4.42428 10.9676 4.49886 10.9676ZM31.4959 27.2784H4.49886C4.42428 27.2784 4.35275 27.2487 4.30001 27.196C4.24727 27.1432 4.21764 27.0717 4.21764 26.9971V17.7169H9.27959V19.123C9.27959 19.3468 9.36847 19.5613 9.52669 19.7196C9.68491 19.8778 9.89949 19.9667 10.1232 19.9667C10.347 19.9667 10.5616 19.8778 10.7198 19.7196C10.878 19.5613 10.9669 19.3468 10.9669 19.123V17.7169H25.0279V19.123C25.0279 19.3468 25.1167 19.5613 25.275 19.7196C25.4332 19.8778 25.6478 19.9667 25.8715 19.9667C26.0953 19.9667 26.3099 19.8778 26.4681 19.7196C26.6263 19.5613 26.7152 19.3468 26.7152 19.123V17.7169H31.7771V26.9971C31.7771 27.0717 31.7475 27.1432 31.6948 27.196C31.642 27.2487 31.5705 27.2784 31.4959 27.2784Z" fill="#4B4B4B"/>
+                                </svg>
+                            </button>
+                            </Tooltip>
+
                             {/* REC capsule button — hidden entirely while previewing someone else's
                                 pending invite (nothing to explain there). While locked it stays
                                 visible-but-disabled instead, since the lock icon itself is the
@@ -22590,7 +22693,7 @@ export default function CreatePage() {
                                 data-tour="create-record"
                                 hidden={isCanvasPreview && !isRecording}
                                 disabled={isCanvasLocked && !isRecording}
-                                className={`${btn.plain('bare')} h-[54px] gap-2.5 whitespace-nowrap border px-5 transition-all duration-200 ${
+                                className={`${btn.plain('bare')} h-[65px] md:h-[54px] gap-2.5 whitespace-nowrap border px-6 md:px-5 transition-all duration-200 ${
                                     isCanvasLocked && !isRecording
                                         ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
                                         : isRecording
@@ -22620,32 +22723,12 @@ export default function CreatePage() {
                                 ) : (
                                     <>
                                         {/* Static red dot */}
-                                        <div className="w-3 h-3 bg-[#FF4040] rounded-full shrink-0" />
-                                        <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '15px', color: '#FF4040', letterSpacing: '0.02em' }} className="whitespace-nowrap">
+                                        <div className="w-3.5 h-3.5 md:w-3 md:h-3 bg-[#FF4040] rounded-full shrink-0" />
+                                        <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, color: '#FF4040', letterSpacing: '0.02em' }} className="whitespace-nowrap text-[18px] md:text-[15px]">
                                             {t('studio.rec')}
                                         </span>
                                     </>
                                 )}
-                            </button>
-                            </Tooltip>
-
-                            <Tooltip label={isCanvasLocked ? t('collab.lock_banner') : (t('canvas.creative_tools') || 'Creative tools')} side="top">
-                            <button
-                                onClick={handleToolsToggle}
-                                data-tour="create-tools"
-                                disabled={isCanvasLocked}
-                                className={`${btn.plain('bare')} h-[54px] w-[54px] border transition-all duration-200 ${
-                                    isCanvasLocked
-                                        ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
-                                        : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] cursor-pointer'
-                                }`}
-                                aria-label="Creative Tools"
-                                type="button"
-                            >
-                                {/* Figma camera icon */}
-                                <svg width="22" height="22" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M31.4959 9.28033H24.4654V7.87423C24.4654 7.05381 24.1395 6.26699 23.5594 5.68686C22.9793 5.10673 22.1924 4.78082 21.372 4.78082H14.6228C13.8023 4.78082 13.0155 5.10673 12.4354 5.68686C11.8553 6.26699 11.5293 7.05381 11.5293 7.87423V9.28033H4.49886C3.97677 9.28033 3.47607 9.48772 3.1069 9.8569C2.73772 10.2261 2.53033 10.7268 2.53033 11.2489V26.9971C2.53033 27.5192 2.73772 28.0199 3.1069 28.3891C3.47607 28.7583 3.97677 28.9657 4.49886 28.9657H31.4959C32.018 28.9657 32.5187 28.7583 32.8879 28.3891C33.257 28.0199 33.4644 27.5192 33.4644 26.9971V11.2489C33.4644 10.7268 33.257 10.2261 32.8879 9.8569C32.5187 9.48772 32.018 9.28033 31.4959 9.28033ZM13.2167 7.87423C13.2167 7.50131 13.3648 7.14366 13.6285 6.87997C13.8922 6.61628 14.2498 6.46813 14.6228 6.46813H21.372C21.7449 6.46813 22.1026 6.61628 22.3663 6.87997C22.63 7.14366 22.7781 7.50131 22.7781 7.87423V9.28033H13.2167V7.87423ZM4.49886 10.9676H31.4959C31.5705 10.9676 31.642 10.9973 31.6948 11.05C31.7475 11.1027 31.7771 11.1743 31.7771 11.2489V16.0296H26.7152V14.6235C26.7152 14.3997 26.6263 14.1852 26.4681 14.0269C26.3099 13.8687 26.0953 13.7798 25.8715 13.7798C25.6478 13.7798 25.4332 13.8687 25.275 14.0269C25.1167 14.1852 25.0279 14.3997 25.0279 14.6235V16.0296H10.9669V14.6235C10.9669 14.3997 10.878 14.1852 10.7198 14.0269C10.5616 13.8687 10.347 13.7798 10.1232 13.7798C9.89949 13.7798 9.68491 13.8687 9.52669 14.0269C9.36847 14.1852 9.27959 14.3997 9.27959 14.6235V16.0296H4.21764V11.2489C4.21764 11.1743 4.24727 11.1027 4.30001 11.05C4.35275 10.9973 4.42428 10.9676 4.49886 10.9676ZM31.4959 27.2784H4.49886C4.42428 27.2784 4.35275 27.2487 4.30001 27.196C4.24727 27.1432 4.21764 27.0717 4.21764 26.9971V17.7169H9.27959V19.123C9.27959 19.3468 9.36847 19.5613 9.52669 19.7196C9.68491 19.8778 9.89949 19.9667 10.1232 19.9667C10.347 19.9667 10.5616 19.8778 10.7198 19.7196C10.878 19.5613 10.9669 19.3468 10.9669 19.123V17.7169H25.0279V19.123C25.0279 19.3468 25.1167 19.5613 25.275 19.7196C25.4332 19.8778 25.6478 19.9667 25.8715 19.9667C26.0953 19.9667 26.3099 19.8778 26.4681 19.7196C26.6263 19.5613 26.7152 19.3468 26.7152 19.123V17.7169H31.7771V26.9971C31.7771 27.0717 31.7475 27.1432 31.6948 27.196C31.642 27.2487 31.5705 27.2784 31.4959 27.2784Z" fill="#4B4B4B"/>
-                                </svg>
                             </button>
                             </Tooltip>
 
@@ -22658,7 +22741,7 @@ export default function CreatePage() {
                                     setActiveToolTab('studio');
                                 }}
                                 data-tour="create-studio"
-                                className={`${btn.plain('bare')} h-[54px] gap-2.5 border px-3.5 transition-all duration-200 lg:px-5 cursor-pointer ${
+                                className={`${btn.plain('bare')} h-[65px] w-[65px] md:h-[54px] md:w-auto gap-2.5 border px-3.5 transition-all duration-200 lg:px-5 cursor-pointer ${
                                     showToolsPanel && (activeToolTab as string) === 'studio'
                                         ? 'bg-white border-stone-300/70 shadow-[0px_3px_12px_rgba(0,0,0,0.08)]'
                                         : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3px_12px_rgba(0,0,0,0.07)]'
@@ -22667,7 +22750,7 @@ export default function CreatePage() {
                                 type="button"
                             >
                                 {/* Music note icon from Figma */}
-                                <svg width="22" height="22" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <svg className="w-[26px] h-[26px] md:w-[22px] md:h-[22px]" width="22" height="22" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M29.7667 2.70959C29.6655 2.63067 29.5477 2.57585 29.4222 2.54929C29.2968 2.52272 29.1669 2.52513 29.0424 2.55631L11.0424 7.05631C10.86 7.10207 10.6981 7.20746 10.5825 7.35574C10.4668 7.50402 10.404 7.68669 10.404 7.87475V23.9215C9.57323 23.2164 8.52657 22.8163 7.43734 22.7873C6.34811 22.7584 5.28167 23.1023 4.41461 23.7622C3.54755 24.4221 2.93189 25.3584 2.6696 26.4159C2.4073 27.4735 2.5141 28.5889 2.97231 29.5775C3.43052 30.5661 4.21264 31.3685 5.18917 31.8519C6.16569 32.3353 7.27803 32.4706 8.34197 32.2355C9.40591 32.0004 10.3576 31.4089 11.0395 30.559C11.7214 29.7091 12.0926 28.6519 12.0915 27.5622V15.2829L28.404 11.2047V19.4215C27.5732 18.7164 26.5266 18.3163 25.4373 18.2873C24.3481 18.2584 23.2817 18.6023 22.4146 19.2622C21.5475 19.9221 20.9319 20.8584 20.6696 21.9159C20.4073 22.9735 20.5141 24.0889 20.9723 25.0775C21.4305 26.0661 22.2126 26.8685 23.1892 27.3519C24.1657 27.8353 25.278 27.9706 26.342 27.7355C27.4059 27.5004 28.3576 26.9089 29.0395 26.059C29.7214 25.2091 30.0926 24.1519 30.0915 23.0622V3.37475C30.0915 3.24648 30.0622 3.1199 30.0059 3.00464C29.9496 2.88938 29.8678 2.78848 29.7667 2.70959ZM7.31024 30.656C6.69836 30.656 6.10021 30.4745 5.59145 30.1346C5.08268 29.7947 4.68615 29.3115 4.45199 28.7462C4.21783 28.1809 4.15657 27.5588 4.27594 26.9587C4.39531 26.3586 4.68996 25.8073 5.12263 25.3746C5.5553 24.942 6.10655 24.6473 6.70668 24.5279C7.30681 24.4086 7.92886 24.4698 8.49417 24.704C9.05948 24.9382 9.54266 25.3347 9.8826 25.8434C10.2225 26.3522 10.404 26.9504 10.404 27.5622C10.404 28.3828 10.078 29.1697 9.49786 29.7499C8.91766 30.33 8.13076 30.656 7.31024 30.656ZM12.0915 13.5447V8.53287L28.404 4.45475V9.46662L12.0915 13.5447ZM25.3102 26.156C24.6984 26.156 24.1002 25.9745 23.5914 25.6346C23.0827 25.2947 22.6862 24.8115 22.452 24.2462C22.2178 23.6809 22.1566 23.0588 22.2759 22.4587C22.3953 21.8586 22.69 21.3073 23.1226 20.8746C23.5553 20.442 24.1066 20.1473 24.7067 20.0279C25.3068 19.9086 25.9289 19.9698 26.4942 20.204C27.0595 20.4382 27.5427 20.8347 27.8826 21.3434C28.2225 21.8522 28.404 22.4504 28.404 23.0622C28.404 23.8828 28.078 24.6697 27.4979 25.2499C26.9177 25.83 26.1308 26.156 25.3102 26.156Z" fill="#4B4B4B"/>
                                 </svg>
                                 <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px', color: '#656565' }} className="hidden lg:inline">Demo studio</span>
@@ -22680,7 +22763,7 @@ export default function CreatePage() {
                                 onClick={handleInspirationToggle}
                                 data-tour="create-inspirations"
                                 disabled={isCanvasLocked}
-                                className={`${btn.plain('bare')} h-[54px] gap-2.5 border px-3.5 transition-all duration-200 lg:px-5 ${
+                                className={`${btn.plain('bare')} h-[65px] w-[65px] md:h-[54px] md:w-auto gap-2.5 border px-3.5 transition-all duration-200 lg:px-5 ${
                                     isCanvasLocked
                                         ? 'bg-stone-50 border-stone-200/40 opacity-50 cursor-not-allowed'
                                         : 'bg-white border-stone-200/50 shadow-[0px_1.8px_9px_rgba(0,0,0,0.04)] hover:shadow-[0px_3px_12px_rgba(0,0,0,0.07)] cursor-pointer'
@@ -22689,7 +22772,7 @@ export default function CreatePage() {
                                 type="button"
                             >
                                 {/* Inspirations icon from Figma */}
-                                <svg width="22" height="22" viewBox="0 0 35 35" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <svg className="w-[26px] h-[26px] md:w-[22px] md:h-[22px]" width="22" height="22" viewBox="0 0 35 35" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M23.7892 9.29688C23.7892 9.56728 23.7091 9.83161 23.5588 10.0564C23.4086 10.2813 23.1951 10.4565 22.9452 10.56C22.6954 10.6635 22.4205 10.6905 22.1553 10.6378C21.8901 10.585 21.6465 10.4548 21.4553 10.2636C21.2641 10.0724 21.1339 9.82881 21.0811 9.5636C21.0284 9.29839 21.0555 9.0235 21.1589 8.77368C21.2624 8.52385 21.4376 8.31033 21.6625 8.1601C21.8873 8.00987 22.1516 7.92969 22.422 7.92969C22.7846 7.92969 23.1324 8.07373 23.3888 8.33013C23.6452 8.58653 23.7892 8.93427 23.7892 9.29688ZM32.5392 10.9375C32.5394 11.0727 32.5062 11.2059 32.4425 11.3251C32.3788 11.4444 32.2867 11.5461 32.1742 11.6211L29.258 13.5639V16.4062C29.2536 20.1034 27.783 23.648 25.1687 26.2623C22.5544 28.8766 19.0099 30.3472 15.3127 30.3516H3.28142C2.9208 30.3516 2.5675 30.2498 2.26223 30.0578C1.95697 29.8658 1.71214 29.5914 1.55598 29.2664C1.39981 28.9413 1.33864 28.5788 1.37953 28.2205C1.42042 27.8622 1.5617 27.5227 1.78709 27.2412L1.79666 27.2289L13.3986 13.3096V10.5123C13.3986 6.09356 16.9383 2.48145 21.29 2.46094H21.3283C23.0291 2.46042 24.685 3.00676 26.0515 4.0193C27.4181 5.03184 28.4229 6.45692 28.9176 8.08418L32.1742 10.2539C32.2867 10.3289 32.3788 10.4306 32.4425 10.5499C32.5062 10.6691 32.5394 10.8023 32.5392 10.9375ZM30.2396 10.9375L27.7541 9.28047C27.5865 9.16886 27.4658 8.99952 27.415 8.80469C27.064 7.45768 26.276 6.26519 25.1745 5.41409C24.073 4.56298 22.7203 4.10136 21.3283 4.10156H21.2969C17.8461 4.11797 15.0392 6.99453 15.0392 10.5123V13.6062C15.0395 13.7986 14.9723 13.9849 14.8492 14.1326L3.06677 28.2707C3.03572 28.311 3.01655 28.3592 3.0114 28.4099C3.00626 28.4605 3.01535 28.5116 3.03766 28.5573C3.05997 28.6031 3.09461 28.6417 3.13767 28.6688C3.18074 28.696 3.23052 28.7106 3.28142 28.7109H7.09041L16.8699 16.975C17.0097 16.8098 17.2092 16.7066 17.4248 16.6878C17.6404 16.669 17.8547 16.7362 18.021 16.8747C18.1873 17.0133 18.2921 17.2119 18.3126 17.4273C18.3331 17.6428 18.2676 17.8576 18.1304 18.025L9.22595 28.7109H15.3127C18.575 28.7073 21.7026 27.4098 24.0094 25.103C26.3162 22.7962 27.6137 19.6685 27.6174 16.4062V13.125C27.6172 12.9898 27.6504 12.8566 27.7141 12.7374C27.7778 12.6181 27.8699 12.5164 27.9824 12.4414L30.2396 10.9375Z" fill="#4B4B4B"/>
                                 </svg>
                                 <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px', color: '#656565' }} className="hidden lg:inline">Inspirations</span>
