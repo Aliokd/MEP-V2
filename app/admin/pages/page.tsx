@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, ExternalLink, CornerDownRight, Code2, Lock, Download } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, Badge, Button, Input, Select, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
-import { LOCALES, LOCALE_LABELS, localeCompleteness, pageKind, pickLocale, type SitePage } from "@/lib/content";
+import { LOCALES, LOCALE_LABELS, appearsInFooter, isAlwaysInFooter, localeCompleteness, pageKind, pickLocale, type SitePage } from "@/lib/content";
 import PageEditor from "./PageEditor";
 import FaqEditor, { type FaqRow } from "./FaqEditor";
 import CopyEditor, { type CopyRow } from "./CopyEditor";
@@ -301,7 +301,7 @@ export default function ManagePagesPage() {
                                                 </div>
                                             </button>
 
-                                            {page.showInFooter && <Badge tone="neutral">footer</Badge>}
+                                            {appearsInFooter(page) && <Badge tone="neutral">footer</Badge>}
 
                                             <div className="hidden sm:flex items-center gap-1 shrink-0">
                                                 {LOCALES.map((l) => (

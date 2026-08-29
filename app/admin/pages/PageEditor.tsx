@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { X, Save, Archive, Globe, Eye, Pencil } from "lucide-react";
+import { X, Save, Archive, Globe, Eye, Pencil, Lock } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { Badge, Button, Input, Panel, Select, Spinner, Textarea } from "../components/ui";
-import { LOCALES, LOCALE_LABELS, pageKind, pickLocale, type Locale, type LocalizedText, type SitePage, type SitePageKind } from "@/lib/content";
+import { LOCALES, LOCALE_LABELS, isAlwaysInFooter, pageKind, pickLocale, type Locale, type LocalizedText, type SitePage, type SitePageKind } from "@/lib/content";
 import MarkdownToolbar, { useMarkdownShortcuts } from "../components/MarkdownToolbar";
 import MediaUpload from "../components/MediaUpload";
 
@@ -158,6 +158,7 @@ export default function PageEditor({
     };
 
     const parentOptions = allPages.filter((p) => p.id !== page?.id && !p.parentId);
+    const fixedInFooter = isAlwaysInFooter(slug);
     const currentStatus = page?.status || "draft";
 
     return (
@@ -362,20 +363,38 @@ export default function PageEditor({
                             </label>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={() => setShowInFooter((v) => !v)}
-                            className="flex items-center gap-2.5 text-left group"
-                        >
-                            <span
-                                className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-colors ${
-                                    showInFooter ? "bg-green-500 border-green-500" : "border-ink-500 group-hover:border-ink-400"
-                                }`}
+{/* The footer links these pages come what may, so a switch here would
+                            be a control that does nothing. Saying why beats leaving
+                            someone to tick a box and wonder what changed. */}
+                        {fixedInFooter ? (
+                            <div className="flex items-start gap-2.5">
+                                <span className="w-4 h-4 rounded border border-ink-600 bg-ink-700 shrink-0 flex items-center justify-center mt-0.5">
+                                    <Lock className="w-2.5 h-2.5 text-ink-400" />
+                                </span>
+                                <span className="flex flex-col gap-0.5">
+                                    <span className="text-sm text-ink-200">Always linked in the site footer</span>
+                                    <span className="text-[11px] text-ink-500">
+                                        The footer carries /{slugify(slug)} on every page whatever this page says,
+                                        so there is nothing to switch.
+                                    </span>
+                                </span>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setShowInFooter((v) => !v)}
+                                className="flex items-center gap-2.5 text-left group"
                             >
-                                {showInFooter && <span className="w-1.5 h-1.5 rounded-full bg-ink-950" />}
-                            </span>
-                            <span className="text-sm text-ink-200">Link this page in the site footer</span>
-                        </button>
+                                <span
+                                    className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-colors ${
+                                        showInFooter ? "bg-green-500 border-green-500" : "border-ink-500 group-hover:border-ink-400"
+                                    }`}
+                                >
+                                    {showInFooter && <span className="w-1.5 h-1.5 rounded-full bg-ink-950" />}
+                                </span>
+                                <span className="text-sm text-ink-200">Link this page in the site footer</span>
+                            </button>
+                        )}
                     </Panel>
 
                     <div className="flex flex-wrap gap-2 pt-2 border-t border-ink-600">

@@ -3,7 +3,7 @@ import { Heart } from 'lucide-react';
 import { getServerT } from '@/lib/i18n-content';
 import { getCopyOverrides } from '@/lib/siteCopy';
 import { getFooterPages } from '@/lib/sitePages';
-import { pickLocale } from '@/lib/content';
+import { FIXED_FOOTER_LINKS, pickLocale } from '@/lib/content';
 import { localizePath, type Language } from '@/lib/i18n';
 
 /**
@@ -30,15 +30,15 @@ export default async function SiteFooterStrip({
     const cmsPages = await getFooterPages();
 
     const links: { href: string; label: string; path: string }[] = [
-        // The blog's only way in. Without a link here it exists solely in the
-        // sitemap, which is a route for crawlers and not for readers.
-        { path: '/blog', href: localizePath('/blog', language), label: t('blog.title') },
-        { path: '/privacy', href: localizePath('/privacy', language), label: t('privacy.title') },
-        { path: '/terms', href: localizePath('/terms', language), label: t('terms.title') },
-        // The cookie panel has to be reachable from every page, not only from
-        // inside the privacy policy — that is the link the copy promises is
-        // "at the bottom of the page".
-        { path: '/cookies', href: localizePath('/cookies', language), label: t('cookies.page_title') },
+        // The fixed links: the blog's only way in, the legal pages, and the
+        // cookie panel. Taken from the shared list rather than written out here,
+        // so the console can tell which pages are in the footer without keeping
+        // its own copy of the answer.
+        ...FIXED_FOOTER_LINKS.map((link) => ({
+            path: link.path,
+            href: localizePath(link.path, language),
+            label: t(link.labelKey),
+        })),
         ...cmsPages.map((page) => ({
             path: `/${page.slug}`,
             href: localizePath(`/${page.slug}`, language),

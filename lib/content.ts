@@ -161,6 +161,36 @@ export interface PracticeMelodyDoc {
  */
 export type SitePageKind = "legal" | "blog";
 
+/**
+ * Links the site footer always carries, whatever the CMS says.
+ *
+ * These are fixed because the site has to keep them reachable: the legal pages
+ * for their own reasons, and the cookie panel because the privacy copy promises
+ * a link "at the bottom of the page". Their `showInFooter` flag is therefore
+ * beside the point — ticking or unticking it changes nothing.
+ *
+ * Shared so the footer and the console cannot disagree. The console reads it to
+ * decide whether to show the footer badge, which is how "Privacy Policy is in
+ * the footer but not marked as such" came about.
+ */
+export const FIXED_FOOTER_LINKS = [
+    { path: "/blog", labelKey: "blog.title" },
+    { path: "/privacy", labelKey: "privacy.title" },
+    { path: "/terms", labelKey: "terms.title" },
+    { path: "/cookies", labelKey: "cookies.page_title" },
+] as const;
+
+/** True when the footer links this slug regardless of the page's own flag. */
+export function isAlwaysInFooter(slug: string): boolean {
+    const path = `/${(slug || "").replace(/^\//, "")}`;
+    return FIXED_FOOTER_LINKS.some((link) => link.path === path);
+}
+
+/** Whether a page appears in the footer at all — fixed link or ticked flag. */
+export function appearsInFooter(page: { slug: string; showInFooter?: boolean }): boolean {
+    return isAlwaysInFooter(page.slug) || page.showInFooter === true;
+}
+
 /** Normalises a stored kind, including the retired "seo" spelling. */
 export function pageKind(value: unknown): SitePageKind {
     return value === "blog" || value === "seo" ? "blog" : "legal";
