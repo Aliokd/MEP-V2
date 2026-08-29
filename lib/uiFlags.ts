@@ -57,7 +57,7 @@ export const SIGNUPS_OPEN: boolean = false;
  * Null falls back to a per-visitor 72h window anchored in localStorage —
  * review mode, not something to ship while ads run.
  */
-export const WAITLIST_COUNTDOWN_ENDS_AT: string | null = '2026-08-25T07:49:16Z';
+export const WAITLIST_COUNTDOWN_ENDS_AT: string | null = '2026-09-19T00:00:00Z';
 
 /**
  * Launch day, as YYYY-MM-DD. Distinct from the countdown above: that one is the

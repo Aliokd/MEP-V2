@@ -178,13 +178,13 @@ export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps
                         {/* Plain text in both states — no hover pill. The card is
                             already inert, and the countdown below says the same
                             thing without a container appearing under the pointer. */}
-                        <span className="self-start text-lg font-sans text-stone-600">
+                        <span className="self-start text-sm md:text-lg font-sans text-stone-600">
                             {t('learn.coming_soon')}
                         </span>
                     </div>
                     {/* Light pill so the digits stay readable over the dark forest
                         at the bottom of the artwork. */}
-                    <span className="self-end bg-white/80 backdrop-blur-sm text-stone-900 text-lg lg:text-xl font-mono font-semibold tracking-wide px-5 py-2.5 rounded-full">
+                    <span className="self-end bg-white/80 backdrop-blur-sm text-stone-900 text-sm md:text-lg lg:text-xl font-mono font-semibold tracking-wide px-4 py-2 md:px-5 md:py-2.5 rounded-full">
                         {formatCountdown(DEEP_DIVE_LAUNCH_MS - now)}
                     </span>
                 </div>

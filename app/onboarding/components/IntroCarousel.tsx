@@ -2047,6 +2047,14 @@ const DEMO_INSTRUMENTS: Record<DemoTrackType, { src: string; className: string }
     piano: { src: '/assets/studio_piano.png', className: 'max-w-[180%] max-h-[180%] translate-x-[52px] translate-y-3' },
     vocals: { src: '/assets/studio_vocals.png', className: 'max-w-[130%] max-h-[130%] translate-x-3 translate-y-3' },
 };
+// The compact surface's art: the same PNGs a step smaller, tucked into the
+// 128px capsule instead of overshooting it the way the full surface's 130%
+// framing does.
+const DEMO_INSTRUMENTS_COMPACT: Record<DemoTrackType, string> = {
+    guitar: 'max-w-[96%] max-h-[96%] translate-x-2 translate-y-[2px]',
+    piano: 'max-w-[130%] max-h-[130%] translate-x-8 translate-y-2',
+    vocals: 'max-w-[96%] max-h-[96%] translate-x-2 translate-y-2',
+};
 
 const DEMO_TRACKS: DemoTrack[] = [
     { id: 1, type: 'guitar', volume: 70, pan: 0, eq: 0, reverb: 18, compressor: true },
@@ -3330,12 +3338,12 @@ const StudioDemoArt = () => {
                                             {t(`instruments.${track.type}`)}
                                         </span>
                                     </div>
-                                    <div className="pointer-events-none absolute right-0 top-[-6px] flex h-14 w-[155px] shrink-0 items-center justify-end overflow-hidden">
+                                    <div className={`pointer-events-none absolute right-0 top-[-6px] flex h-14 shrink-0 items-center justify-end overflow-hidden ${compact ? 'w-[92px]' : 'w-[155px]'}`}>
                                         <img
                                             src={DEMO_INSTRUMENTS[track.type].src}
                                             alt=""
                                             aria-hidden="true"
-                                            className={`transform select-none object-contain ${DEMO_INSTRUMENTS[track.type].className}`}
+                                            className={`transform select-none object-contain ${compact ? DEMO_INSTRUMENTS_COMPACT[track.type] : DEMO_INSTRUMENTS[track.type].className}`}
                                         />
                                     </div>
                                 </div>
@@ -4083,14 +4091,14 @@ export default function IntroCarousel({ onComplete, startAtEnd = false, onIndexC
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="space-y-8"
+            className="space-y-8 max-md:flex max-md:flex-1 max-md:flex-col"
         >
             {/* Below `md` the mark and the headline ride above the card, at the
                 top of the page, and the card holds nothing but the artwork.
                 See CarouselHeader for why. The pair is wrapped so the gap
                 between them is this block's own, not the 32px the actions row
                 gets from `space-y-8`. */}
-            <div className="space-y-3 md:space-y-0">
+            <div className="space-y-3 md:space-y-0 max-md:flex max-md:flex-1 max-md:flex-col">
             <div className="md:hidden">
                 <CarouselHeader title={title} />
             </div>
@@ -4130,7 +4138,7 @@ export default function IntroCarousel({ onComplete, startAtEnd = false, onIndexC
                 // only axis that can make it bigger there, since every slide's
                 // art is width-bound at that size and extra height would land
                 // as empty card rather than as picture.
-                className={`relative -mx-3 overflow-hidden rounded-[28px] border border-stone-200/70 bg-[#FCF7DE] shadow-[0_8px_30px_rgba(0,0,0,0.02)] md:mx-0 ${
+                className={`relative overflow-hidden rounded-[28px] border border-stone-200/70 bg-[#FCF7DE] shadow-[0_8px_30px_rgba(0,0,0,0.02)] md:mx-0 max-md:flex max-md:flex-[1_0_auto] max-md:flex-col ${slide.id === 'tools' || slide.id === 'collab' ? '-mx-6' : '-mx-3'} ${
                     slide.id === 'collab'
                         // The one slide that does NOT bleed on a phone: its
                         // surface is far taller relative to its width than the
@@ -4204,7 +4212,7 @@ export default function IntroCarousel({ onComplete, startAtEnd = false, onIndexC
                     `key` stays. It isn't for animation — it forces each slide's
                     artwork to mount fresh, so the demos start from the top of
                     their loops rather than resuming mid-take. */}
-                <div key={slide.id} className="relative z-10 md:space-y-2.5">
+                <div key={slide.id} className="relative z-10 md:space-y-2.5 max-md:flex max-md:flex-[1_0_auto] max-md:flex-col">
                     {/* From `md` up the header sits in the card, as it always
                         has. Below that it has already been drawn above the
                         card — see CarouselHeader — and the art box below is
@@ -4233,7 +4241,7 @@ export default function IntroCarousel({ onComplete, startAtEnd = false, onIndexC
                         full-bleed there would need half again as much
                         height as the box has. */}
                     <div
-                        className={`w-full ${
+                        className={`w-full max-md:flex-[1_0_auto] max-md:flex max-md:flex-col max-md:justify-center ${
                             // One height per slide rather than a shared base
                             // with overrides: two `md:h-*` utilities in one
                             // list are resolved by build order, not by this
@@ -4295,7 +4303,7 @@ export default function IntroCarousel({ onComplete, startAtEnd = false, onIndexC
                         <div
                             className={`mx-auto h-full max-w-full ${
                                 slide.id === 'tools'
-                                    ? 'aspect-[880/520]'
+                                    ? 'aspect-[880/520] max-md:h-auto max-md:w-full'
                                     : slide.id === 'collab'
                                         // Below md the compact surface gets an
                                         // exact-ratio box. From `md` the wrapper
@@ -4310,7 +4318,7 @@ export default function IntroCarousel({ onComplete, startAtEnd = false, onIndexC
                                         // clip, where the wide frame counts it
                                         // as bottom margin and any zoom-in
                                         // covers it entirely.
-                                        ? 'aspect-[560/440] md:aspect-auto md:h-full md:w-full'
+                                        ? 'aspect-[560/440] max-md:h-auto max-md:w-full md:aspect-auto md:h-full md:w-full'
                                         // The shapes slide takes no ratio of
                                         // its own — it fills the box and the
                                         // SVG's preserveAspectRatio fits the

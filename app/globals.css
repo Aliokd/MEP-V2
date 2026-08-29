@@ -832,6 +832,14 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
         font-size: clamp(1.125rem, calc(14.5cqw - 10px), 2.0625rem);
     }
 }
+/* A quarter down again on a phone: 33px was the stacked-BANNER size, and a
+   375px screen is not a 760px banner. Only the ceiling moves — on a full-
+   width card the cqw term is far past any ceiling, so the max IS the size. */
+@media (max-width: 767px) {
+    .learn-card-title {
+        font-size: clamp(1rem, calc(14.5cqw - 10px), 1.55rem);
+    }
+}
 
 /* Bank of tips — the notes column's bottom edge.
  *

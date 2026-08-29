@@ -267,7 +267,7 @@ function OnboardingPageInner() {
     const [isVerifying, setIsVerifying] = useState(false);
 
     // The campaign variant — see the ?flow=waitlist note above STEPS.
-    const [waitlistFlow, setWaitlistFlow] = useState(false);
+    const [waitlistFlow, setWaitlistFlow] = useState(!SIGNUPS_OPEN);
     const [waitlistSource, setWaitlistSource] = useState('yt-vsl');
     const { language, t } = useLanguage();
     const { user } = useAuth();
@@ -470,7 +470,7 @@ function OnboardingPageInner() {
      */
     const funnelProps = () => {
         const params = new URLSearchParams(window.location.search);
-        const isCampaign = params.get('flow') === 'waitlist';
+        const isCampaign = params.get('flow') === 'waitlist' || !SIGNUPS_OPEN;
         return {
             flow: isCampaign ? 'waitlist' : 'plain',
             source: isCampaign ? (params.get('from') || 'yt-vsl') : null,
@@ -898,7 +898,7 @@ function OnboardingPageInner() {
                           // was reading as a slab; the paywall keeps 4xl because
                           // its two plans sit side by side.
                           ? currentStep === STEPS.INTRO
-                              ? 'max-w-[716px]'
+                              ? 'max-w-[716px] max-md:flex-1 max-md:flex max-md:flex-col'
                               : 'max-w-4xl'
                           : 'max-w-2xl'
                 }`}
