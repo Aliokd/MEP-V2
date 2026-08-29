@@ -10,6 +10,21 @@ import {
 } from "@/lib/content";
 import ContentEditor from "./ContentEditor";
 import BulkIdeasDialog from "./BulkIdeasDialog";
+import { PRACTICES } from "@/app/platform/practice/data/practices";
+
+/**
+ * "Practice 1 · Master song structure".
+ *
+ * Built from the platform's own ordered list rather than written out here, so
+ * renaming a practice or reordering the set carries through instead of leaving
+ * the console naming an exercise that no longer exists. The number is the
+ * position a songwriter sees in the Practice tab, which is what they will say
+ * out loud when they ask for something to be changed.
+ */
+function practiceTab(index: number): string {
+    const practice = PRACTICES[index];
+    return practice ? `Practice ${index + 1} · ${practice.name}` : `Practice ${index + 1}`;
+}
 
 type Tab = "chapters" | "lessons" | "ideas" | "songs" | "melodies";
 type SectionId = "create" | "learn" | "practice" | "connect";
@@ -19,8 +34,8 @@ const TABS: { id: Tab; label: string; description: string; noun: string }[] = [
     { id: "chapters", label: "Chapters", description: "The top-level sections of the Learn curriculum.", noun: "chapter" },
     { id: "lessons", label: "Lessons", description: "Individual lessons, their video, order and prerequisites.", noun: "lesson" },
     { id: "ideas", label: "Bank of Ideas", description: "Prompts shown in Learn, by category.", noun: "card" },
-    { id: "songs", label: "Practice songs", description: "The library Practice 1 works through, and its rights position.", noun: "song" },
-    { id: "melodies", label: "Melodies", description: "The short phrases Practice 3 plays for a songwriter to answer.", noun: "melody" },
+    { id: "songs", label: practiceTab(0), description: "The songs this practice works through, and their rights position.", noun: "song" },
+    { id: "melodies", label: practiceTab(2), description: "The short phrases this practice plays for a songwriter to answer.", noun: "melody" },
 ];
 
 /**
@@ -41,7 +56,7 @@ const SECTIONS: { id: SectionId; label: string; blurb: string; tabs: Tab[] }[] =
         blurb: "The curriculum, its videos, and the cards in the Bank of Ideas.",
         tabs: ["chapters", "lessons", "ideas"],
     },
-    { id: "practice", label: "Practice", blurb: "The material each practice works through.", tabs: ["songs", "melodies"] },
+    { id: "practice", label: "Practice", blurb: "The material each practice works through. Practices with no authored content of their own are not listed.", tabs: ["songs", "melodies"] },
     { id: "connect", label: "Connect", blurb: "The community feed.", tabs: [] },
 ];
 
