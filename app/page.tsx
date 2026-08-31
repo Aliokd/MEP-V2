@@ -49,8 +49,10 @@ const TopNav = () => {
             </Link>
 
             {/* Desktop Nav */}
+            {/* Q&A is reachable from the footer and by scrolling; in the bar it sat
+                between the logo and the one button anyone is meant to press. The
+                phone bar dropped it for the same reason. */}
             <div className="hidden md:flex items-center gap-10 text-[15px] text-[#363636]">
-                <Link href="#qa" className="hover:text-black transition-colors font-medium">{t('home.nav.qa')}</Link>
                 <div className="flex items-center gap-6">
                     <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
                     <Link href="/signin" className="hover:text-black transition-colors font-medium">{t('home.nav.signin')}</Link>

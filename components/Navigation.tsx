@@ -78,7 +78,6 @@ const Navigation = () => {
             </Link>
 
             <div className="flex items-center gap-10 text-[15px] text-[#363636]">
-                <Link href={`${homeHref}#qa`} className="hover:text-black transition-colors font-medium">{t('home.nav.qa')}</Link>
                 <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
                 {user ? (
                     <div className="flex items-center gap-6">
