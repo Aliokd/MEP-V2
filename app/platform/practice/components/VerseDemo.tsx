@@ -7,7 +7,10 @@ import * as btn from '@/app/platform/components/buttonStyles';
 import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 
 interface VerseDemoProps {
+    /** Close for now; the guide returns on the next visit. */
     onDone: () => void;
+    /** Close and stop auto-appearing. */
+    onNeverAgain: () => void;
 }
 
 /**
@@ -25,7 +28,7 @@ interface VerseDemoProps {
  * word cards are ghost bars rather than words so the scene needs no
  * translation; the verb column wears the same #FBFFED tint as the real step.
  */
-export default function VerseDemo({ onDone }: VerseDemoProps) {
+export default function VerseDemo({ onDone, onNeverAgain }: VerseDemoProps) {
     const { t } = useLanguage();
     const [mounted, setMounted] = useState(false);
     // Swipe the sheet down to dismiss (phones only — see the hook).
@@ -99,15 +102,27 @@ export default function VerseDemo({ onDone }: VerseDemoProps) {
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={onDone}
-                    // Full width and thumb-height on the sheet; the right-aligned pill
-                    // it is on desktop only works when there is a dialog edge to align to.
-                    className={`${btn.primary('touch')} w-full md:w-auto md:self-end cursor-pointer`}
-                >
-                    {t('studio_banner.got_it')}
-                </button>
+                {/* Got it closes this visit's showing; the quiet option beside it
+                    is the only thing that stops the guide auto-appearing. Column-
+                    reversed on the sheet so the primary stays under the thumb. */}
+                <div className="flex flex-col-reverse gap-2 md:flex-row md:items-center md:justify-end md:gap-3">
+                    <button
+                        type="button"
+                        onClick={onNeverAgain}
+                        className={`${btn.ghost('sm')} justify-center cursor-pointer`}
+                    >
+                        {t('practice.dont_show_again')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onDone}
+                        // Full width and thumb-height on the sheet; the right-aligned pill
+                        // it is on desktop only works when there is a dialog edge to align to.
+                        className={`${btn.primary('touch')} w-full md:w-auto cursor-pointer`}
+                    >
+                        {t('studio_banner.got_it')}
+                    </button>
+                </div>
             </div>
 
             <style jsx>{`

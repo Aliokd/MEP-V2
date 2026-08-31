@@ -83,6 +83,7 @@
     "track_name_hint": "What this track is called on the canvas.",
     "studio_badge": "Studio",
     "reopen_in_studio": "Reopen in Demo Studio",
+    "session_draft_hint": "Draft — click to open",
     "add_to_studio": "Add to Demo Studio",
     "take_upload_failed": "Upload failed. Your collaborators can't hear this take yet. Check your connection and record again.",
     "settings": "Studio settings",
@@ -531,6 +532,8 @@
     "recording_status": "Recording...",
     "sending_status": "Sending...",
     "send_to_canvas": "Send to canvas",
+    "studio_save": "Save",
+    "studio_saving": "Saving...",
     "swapping_status": "Swapping...",
     "swap_chord": "Swap",
     "chord_change": "Change chord",
@@ -905,7 +908,8 @@
     "mv_mic_denied": "Veinote could not reach your microphone. Allow it in your browser settings, then try again.",
     "mv_mic_unavailable": "This browser cannot record audio. Try Chrome, Safari or Firefox.",
     "mv_canvas_title": "{melody} — variation",
-    "mv_take_title": "Variation on {melody}"
+    "mv_take_title": "Variation on {melody}",
+    "dont_show_again": "Don't show this again"
   },
   "curriculum": {
     "foundation": "Foundation",

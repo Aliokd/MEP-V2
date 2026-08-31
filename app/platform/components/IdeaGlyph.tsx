@@ -1034,6 +1034,9 @@ export default function IdeaGlyph({ seed, category, className }: IdeaGlyphProps)
             </defs>
             <g
                 ref={groupRef}
+                /* idea-glyph-anim: each direct child drifts slowly between two
+                   positions, staggered — see globals.css. */
+                className="idea-glyph-anim"
                 transform={`translate(60 60) scale(${fit.scale.toFixed(4)}) translate(${(-fit.cx).toFixed(2)} ${(-fit.cy).toFixed(2)})`}
             >
                 {render(set.accent, { hatch: `url(#${hatchId})` })}

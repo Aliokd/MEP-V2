@@ -195,26 +195,26 @@ const CUSTOM: Record<string, (uid: string) => ReactNode> = {
             <defs>
                 {/* Rightward, downward-left, and down the diagonal — each ramp
                     runs from the triangle's centre-adjacent edge to its far tip. */}
-                <linearGradient id={`${uid}-r`} gradientUnits="userSpaceOnUse" x1="110" y1="0" x2="172" y2="0">
+                <linearGradient id={`${uid}-r`} gradientUnits="userSpaceOnUse" x1="110" y1="0" x2="200" y2="0">
                     <stop offset="0" stopColor="currentColor" stopOpacity="0.6" />
                     <stop offset="1" stopColor="currentColor" stopOpacity="0" />
                 </linearGradient>
-                <linearGradient id={`${uid}-bl`} gradientUnits="userSpaceOnUse" x1="110" y1="110" x2="79" y2="141">
+                <linearGradient id={`${uid}-bl`} gradientUnits="userSpaceOnUse" x1="110" y1="110" x2="65" y2="155">
                     <stop offset="0" stopColor="currentColor" stopOpacity="0.45" />
                     <stop offset="1" stopColor="currentColor" stopOpacity="0" />
                 </linearGradient>
-                <linearGradient id={`${uid}-br`} gradientUnits="userSpaceOnUse" x1="110" y1="110" x2="172" y2="172">
+                <linearGradient id={`${uid}-br`} gradientUnits="userSpaceOnUse" x1="110" y1="110" x2="200" y2="200">
                     <stop offset="0" stopColor="currentColor" stopOpacity="0.34" />
                     <stop offset="1" stopColor="currentColor" stopOpacity="0" />
                 </linearGradient>
             </defs>
             {/* The motif, flat: its two halves are the reference the fades leave */}
-            <polygon points={tri(48, 48, 110, 48, 48, 110)} fill="currentColor" fillOpacity="0.32" />
-            <polygon points={tri(110, 48, 110, 110, 48, 110)} fill="currentColor" fillOpacity="0.78" />
+            <polygon points={tri(20, 20, 110, 20, 20, 110)} fill="currentColor" fillOpacity="0.32" />
+            <polygon points={tri(110, 20, 110, 110, 20, 110)} fill="currentColor" fillOpacity="0.78" />
             {/* The variations, each dissolving toward where it is headed */}
-            <polygon points={tri(110, 48, 110, 110, 172, 110)} fill={`url(#${uid}-r)`} />
-            <polygon points={tri(48, 110, 110, 110, 110, 172)} fill={`url(#${uid}-bl)`} />
-            <polygon points={tri(110, 110, 172, 172, 110, 172)} fill={`url(#${uid}-br)`} />
+            <polygon points={tri(110, 20, 110, 110, 200, 110)} fill={`url(#${uid}-r)`} />
+            <polygon points={tri(20, 110, 110, 110, 110, 200)} fill={`url(#${uid}-bl)`} />
+            <polygon points={tri(110, 110, 200, 200, 110, 200)} fill={`url(#${uid}-br)`} />
         </>
     ),
 
@@ -276,6 +276,20 @@ const DEFAULT_ART: Shape[] = [
     { kind: 'circle', cx: 110, cy: 110, r: 11, o: 0.8 },
 ];
 
+/*
+ * Each card's artwork in a monochrome of one brand colour — the four reserved
+ * category accents from the tips artwork, matched by subject: Practice 1 lives
+ * in the exercise's own green family, Composing verses is lyric work (BLUE
+ * belongs to lyrics), and Melody takes the melody purple. Everything here is
+ * drawn in currentColor with opacity ramps, so a single colour on the svg is
+ * all a tint takes; anything unlisted keeps the parent's stone ink.
+ */
+const TINT: Record<string, string> = {
+    'Master song structure': '#5F9857',
+    'Composing verses': '#6FA8D6',
+    'Melody variations': '#9B7BE0',
+};
+
 interface PracticeIllustrationProps {
     /** The practice's stable English name from the catalogue. */
     name: string;
@@ -286,9 +300,10 @@ export default function PracticeIllustration({ name, className }: PracticeIllust
     // useId emits colon-wrapped ids; strip them for safe url(#...) references.
     const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
     const custom = CUSTOM[name];
+    const tint = TINT[name];
     if (custom) {
         return (
-            <svg viewBox="0 0 220 220" className={className} aria-hidden="true" role="presentation">
+            <svg viewBox="0 0 220 220" className={className} style={tint ? { color: tint } : undefined} aria-hidden="true" role="presentation">
                 {custom(uid)}
             </svg>
         );
@@ -297,7 +312,7 @@ export default function PracticeIllustration({ name, className }: PracticeIllust
     const shapes = ART[name] ?? DEFAULT_ART;
 
     return (
-        <svg viewBox="0 0 220 220" className={className} aria-hidden="true" role="presentation">
+        <svg viewBox="0 0 220 220" className={className} style={tint ? { color: tint } : undefined} aria-hidden="true" role="presentation">
             {shapes.map((s, i) => {
                 if (s.kind === 'circle') {
                     return <circle key={i} cx={s.cx} cy={s.cy} r={s.r} fill="currentColor" fillOpacity={s.o} />;

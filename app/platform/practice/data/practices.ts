@@ -37,12 +37,21 @@ export interface PracticeDefinition {
     releaseAt?: string;
     /**
      * Built but held back by a flag rather than waiting to be written. A gated
-     * practice sits outside the release cadence below: it shows a plain
-     * "Coming soon" with no promised date, and — unlike the planned ones —
-     * locking it must not shift anybody else's date, since it can unlock at
-     * any moment without a schedule change.
+     * practice sits outside the release cadence below entirely — it takes no
+     * slot, because locking it must not shift anybody else's date when it can
+     * unlock at any moment without a schedule change — and shows a plain
+     * "Coming soon".
      */
     gated?: boolean;
+    /**
+     * Planned, but not promised for a particular day. It keeps its place in the
+     * cadence — so the practices behind it hold the dates they already had —
+     * and shows a plain "Coming soon" instead of a countdown. What this is for
+     * is the practice at the front of the queue, whose date the anchor has
+     * caught up with: "Coming in 1 day" on something nobody is shipping
+     * tomorrow is a promise the card cannot keep.
+     */
+    undated?: boolean;
 }
 
 const VIDEO_DIR = '/videos/Master%20fundamentals';
@@ -109,6 +118,9 @@ export const PRACTICES: PracticeDefinition[] = [
         name: 'Advanced structures',
         nameKey: 'practice.advanced_structures',
         goalKey: 'practice.goal_advanced_structures',
+        // First in the queue, and the anchor has arrived: plain "Coming soon"
+        // rather than a countdown to a day nothing ships on.
+        undated: true,
         level: 'advanced',
         progress: 0,
         score: 0,
@@ -159,9 +171,14 @@ const RELEASE_CADENCE_DAYS = 14;
     let queue = 0;
     for (const practice of PRACTICES) {
         if (practice.available || practice.releaseAt || practice.gated) continue;
-        practice.releaseAt = new Date(RELEASE_ANCHOR_UTC + queue * RELEASE_CADENCE_DAYS * 86400000)
-            .toISOString()
-            .slice(0, 10);
+        // An undated one still spends its slot — skipping it outright would
+        // hand its date to the practice behind it and simply move the too-soon
+        // countdown one card along.
+        if (!practice.undated) {
+            practice.releaseAt = new Date(RELEASE_ANCHOR_UTC + queue * RELEASE_CADENCE_DAYS * 86400000)
+                .toISOString()
+                .slice(0, 10);
+        }
         queue += 1;
     }
 }

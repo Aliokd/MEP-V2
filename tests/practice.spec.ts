@@ -54,13 +54,18 @@ test.describe('Practice Page', () => {
     await expect(page.getByText('Take a short melody apart', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
 
-    // And on one that isn't built yet, the card can't be started
+    // And on one that isn't built yet, the card can't be started. This one is
+    // undated — first in the queue, and the anchor has caught up with it — so
+    // it promises nothing but "soon", and offers no intro clip
     await page.locator('button[aria-label="Next Practice"]').click();
     await expect(page.getByText('Break the standard form on purpose', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(0);
-    // The unbuilt card counts down in days, and offers no intro clip
-    await expect(page.getByText(/^Coming in \d+ days?$/)).toBeVisible();
+    await expect(page.getByText('Coming soon', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Why / })).toHaveCount(0);
+
+    // The one behind it keeps its promised day, unmoved by the card in front
+    await page.locator('button[aria-label="Next Practice"]').click();
+    await expect(page.getByText(/^Coming in \d+ days?$/)).toBeVisible();
   });
 
   test('the menu lists the roadmap, marking what is not built yet', async ({ page }) => {
@@ -741,15 +746,23 @@ test.describe('Practice Page', () => {
     await expect(scene.locator('.demo-band')).toHaveCSS('animation-name', 'demo-band');
     await expect(scene.locator('.demo-list')).toHaveCSS('animation-name', 'demo-scroll');
 
-    // "Got it" dismisses it and it stays dismissed
+    // "Got it" closes this visit's showing — but the guide returns on the
+    // next opening, because only "don't show again" retires it
     await demo.getByRole('button', { name: 'Got it' }).click();
     await expect(demo).toHaveCount(0);
+    await page.reload();
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await expect(page.locator('[data-structure-demo]')).toBeVisible({ timeout: 20000 });
+
+    // ...and taking up "don't show this again" is what makes it stay away
+    await page.locator('[data-structure-demo]').getByRole('button', { name: "Don't show this again" }).click();
+    await expect(page.locator('[data-structure-demo]')).toHaveCount(0);
     await page.reload();
     await page.getByRole('button', { name: 'Start' }).first().click();
     await expect(page.locator('[data-song-timeline]')).toBeVisible({ timeout: 20000 });
     await expect(page.locator('[data-structure-demo]')).toHaveCount(0);
 
-    // ...and the info icon brings it back on demand
+    // ...while the info icon still brings it back on demand
     await page.locator('[data-demo-replay]').click();
     await expect(page.locator('[data-structure-demo]')).toBeVisible();
     await page.locator('[data-structure-demo]').getByRole('button', { name: 'Got it' }).click();
@@ -775,9 +788,17 @@ test.describe('Practice Page', () => {
     await expect(demo.locator('.vd-line-1')).toHaveCSS('animation-name', 'vd-line-1');
     await expect(demo.locator('svg line')).toHaveCount(2);
 
-    // "Got it" dismisses it and it stays dismissed
+    // "Got it" closes this visit's showing — the guide returns next time
     await demo.getByRole('button', { name: 'Got it' }).click();
     await expect(demo).toHaveCount(0);
+    await page.reload();
+    await page.locator('button[aria-label="Next Practice"]').click();
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await expect(page.locator('[data-verse-demo]')).toBeVisible({ timeout: 20000 });
+
+    // "Don't show this again" is what retires it
+    await page.locator('[data-verse-demo]').getByRole('button', { name: "Don't show this again" }).click();
+    await expect(page.locator('[data-verse-demo]')).toHaveCount(0);
     await page.reload();
     await page.locator('button[aria-label="Next Practice"]').click();
     await page.getByRole('button', { name: 'Start' }).first().click();

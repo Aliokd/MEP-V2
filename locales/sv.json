@@ -83,6 +83,7 @@
     "track_name_hint": "Vad det här spåret heter på arbetsytan.",
     "studio_badge": "Studio",
     "reopen_in_studio": "Öppna igen i Demo Studio",
+    "session_draft_hint": "Utkast — klicka för att öppna",
     "add_to_studio": "Lägg till i Demo Studio",
     "take_upload_failed": "Uppladdningen misslyckades. Dina samarbetspartner kan inte höra den här tagningen ännu. Kontrollera anslutningen och spela in igen.",
     "settings": "Studioinställningar",
@@ -531,6 +532,8 @@
     "recording_status": "Spelar in...",
     "sending_status": "Skickar...",
     "send_to_canvas": "Skicka till canvasen",
+    "studio_save": "Spara",
+    "studio_saving": "Sparar...",
     "swapping_status": "Byter...",
     "swap_chord": "Byt ackord",
     "chord_change": "Byt ackord",
@@ -905,7 +908,8 @@
     "mv_mic_denied": "Veinote kunde inte nå din mikrofon. Tillåt den i webbläsarens inställningar och försök igen.",
     "mv_mic_unavailable": "Den här webbläsaren kan inte spela in ljud. Prova Chrome, Safari eller Firefox.",
     "mv_canvas_title": "{melody} — variation",
-    "mv_take_title": "Variation på {melody}"
+    "mv_take_title": "Variation på {melody}",
+    "dont_show_again": "Visa inte det här igen"
   },
   "curriculum": {
     "foundation": "Grund",

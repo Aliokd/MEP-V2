@@ -599,6 +599,11 @@ interface AudioNote {
     // Present on Demo Studio mixdown cards — lets the card be reopened back into Demo Studio
     // with its original per-track stems, not just the flattened mixdown.
     stemTracks?: SavedStemTrack[];
+    /** THE studio card — one per project, planted the moment the Demo Studio is
+     *  opened on it. It is the studio's face on the canvas: clicking it goes back
+     *  into the studio, and Save updates this card in place rather than minting a
+     *  new mixdown card per save. Empty `url` = draft, nothing saved yet. */
+    isStudioSession?: boolean;
 }
 
 const getAudioNoteTimestamp = (an: AudioNote): number => {
@@ -3072,9 +3077,28 @@ function ImageCapsuleCard({ img, onRename, onDelete, onScan, onPreview, isScanni
  * dividers plus 24 bars came to more than a phone is wide, so the capsule was
  * simply cut off at the screen edge.
  */
-function AudioCapsuleSkeleton({ recording = false }: { recording?: boolean }) {
+function AudioCapsuleSkeleton({ recording = false, seconds = 0 }: { recording?: boolean; seconds?: number }) {
+    const { t } = useLanguage();
+
+    // A LIVE take is the studio's red bar, not a grey skeleton: the gradient and
+    // the running clock are the recording language the Demo Studio already
+    // speaks, and a pulsing placeholder here read as "loading" while the mic was
+    // in fact hot. The grey ghost below stays for the saving/upload phases,
+    // which genuinely are loading.
+    if (recording) {
+        const mm = Math.floor(seconds / 60);
+        const ss = String(Math.floor(seconds % 60)).padStart(2, '0');
+        return (
+            <div className="w-full md:w-[320px] h-[34px] md:h-[42px] rounded-full bg-gradient-to-r from-[#FF9191] to-[#FF3F3F] shadow-[0_8px_30px_rgba(255,64,64,0.25)] flex items-center justify-center z-30 select-none shrink-0">
+                <span className="text-white text-[13px] md:text-[15px] font-semibold tabular-nums">
+                    {t('studio.recording')} {mm}:{ss}
+                </span>
+            </div>
+        );
+    }
+
     return (
-        <div className={`bg-white border rounded-full px-4 md:px-5 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-3 md:gap-4 z-30 select-none w-full md:w-auto min-w-0 md:shrink-0 h-[42px] ${
+        <div className={`bg-white border rounded-full px-3 md:px-5 py-1.5 md:py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)] flex items-center gap-1.5 md:gap-4 z-30 select-none w-auto min-w-0 shrink-0 h-[34px] md:h-[42px] ${
             recording ? 'border-stone-200/60 md:border-[#FF6B6B]/40' : 'border-stone-200/60 animate-pulse'
         }`}>
             {/* A live take says so, where the title will be. */}
@@ -3089,13 +3113,13 @@ function AudioCapsuleSkeleton({ recording = false }: { recording?: boolean }) {
             <div className={`hidden md:block h-4 w-20 rounded ${recording ? 'bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
             <div className="hidden md:block h-4 w-[1px] bg-stone-200 shrink-0" />
             {/* Play Button Placeholder */}
-            <div className={`h-4 w-10 md:w-12 rounded shrink-0 ${recording ? 'bg-stone-200 md:bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
+            <div className={`h-3 md:h-4 w-8 md:w-12 rounded shrink-0 ${recording ? 'bg-stone-200 md:bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
             <div className="hidden md:block h-4 w-[1px] bg-stone-200 shrink-0" />
             {/* Waveform Placeholder. While live the bars breathe on staggered delays,
                 so the row reads as sound arriving rather than as a loading bar.
                 flex-1 on a phone: it gives back whatever the rest of the row needs
                 instead of holding a fixed width and pushing the timer off the end. */}
-            <div className="flex items-center justify-center gap-[2px] h-6 px-1 md:px-1.5 flex-1 min-w-0 md:flex-none overflow-hidden">
+            <div className="flex items-center justify-center gap-[2px] h-5 md:h-6 px-1 md:px-1.5 flex-none overflow-hidden">
                 {Array.from({ length: 24 }).map((_, idx) => (
                     <div
                         key={idx}
@@ -3113,7 +3137,7 @@ function AudioCapsuleSkeleton({ recording = false }: { recording?: boolean }) {
             </div>
             <div className="hidden md:block h-4 w-[1px] bg-stone-200 shrink-0" />
             {/* Timer Placeholder */}
-            <div className={`h-3 w-8 rounded shrink-0 ${recording ? 'bg-stone-200 md:bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
+            <div className={`h-2.5 md:h-3 w-7 md:w-8 rounded shrink-0 ${recording ? 'bg-stone-200 md:bg-[#FF6B6B]/25' : 'bg-stone-200'}`} />
         </div>
     );
 }
@@ -3202,7 +3226,7 @@ function AudioCapsulePlayer({
         return (d && !isNaN(d) && isFinite(d)) ? d : 0;
     });
     const playbackAudioRef = useRef<HTMLAudioElement | null>(null);
-    const isStudioMix = audioNote.id.startsWith('studio-mix-') || audioNote.title?.toLowerCase().includes('studio');
+    const isStudioMix = audioNote.id.startsWith('studio-mix-') || !!audioNote.isStudioSession || audioNote.title?.toLowerCase().includes('studio');
 
     const BAR_COUNT_SMALL = 28;
     const BAR_COUNT_LARGE = 55;
@@ -3470,6 +3494,59 @@ function AudioCapsulePlayer({
         );
     };
 
+    // ─── STUDIO SESSION DRAFT ─────────────────────────────────────────────────
+    // The studio card before anything has been saved into it. There is no take to
+    // play, so none of the player chrome applies — the whole card is a way back
+    // into the Demo Studio, and says so. It grows the full player the moment the
+    // first Save gives it a mixdown.
+    if (audioNote.isStudioSession && !audioNote.url) {
+        return (
+            <div
+                draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
+                data-audio-card={audioNote.id}
+                onClick={(e) => { e.stopPropagation(); onReopenInStudio?.(); }}
+                {...sharedTouchHandlers}
+                className={`relative bg-white border border-stone-200/80 rounded-full flex items-center z-30 transition-all select-none shrink-0 touch-none max-w-full ${
+                    isDocked ? 'px-3 py-0.5 gap-2 h-[22px] shadow-sm' : 'px-3 py-1.5 sm:px-5 sm:py-2 gap-1.5 sm:gap-3 shadow-[0_8px_30px_rgba(0,0,0,0.06)]'
+                } ${
+                    onReopenInStudio ? 'cursor-pointer hover:border-indigo-200 hover:shadow-[0_8px_30px_rgba(79,70,229,0.12)]' : 'cursor-grab active:cursor-grabbing'
+                } ${
+                    draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
+                }`}
+            >
+                <span className={`font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-600 border border-indigo-100/80 rounded-full select-none shrink-0 ${isDocked ? 'px-1.5 py-0.2 text-[7px]' : 'px-2 py-0.5 text-[9px]'}`}>
+                    Studio
+                </span>
+                <span className={`font-bold text-stone-700 whitespace-nowrap truncate ${isDocked ? 'text-[9px]' : 'text-xs'}`}>
+                    {audioNote.title || 'Demo Studio'}
+                </span>
+                <div className={`w-px bg-stone-200 shrink-0 ${isDocked ? 'h-2.5' : 'h-4'}`} />
+                <span className={`text-stone-400 font-medium whitespace-nowrap truncate ${isDocked ? 'text-[8px]' : 'text-[11px]'}`}>
+                    {t('studio.session_draft_hint')}
+                </span>
+                {onReopenInStudio && (
+                    <ArrowUpRight className={`text-indigo-500 shrink-0 ${isDocked ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} strokeWidth={2.5} />
+                )}
+                {!isDocked && (
+                    <>
+                        <div className="h-4 w-px bg-stone-200 shrink-0" />
+                        <Tooltip label={t('card.delete_recording')}>
+                            <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                                aria-label={t('card.delete_recording')}
+                                className={`${CARD_ICON_ACTION} text-stone-400 hover:text-red-500 hover:bg-red-50`}>
+                                <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    <line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+                                </svg>
+                            </button>
+                        </Tooltip>
+                    </>
+                )}
+            </div>
+        );
+    }
+
     // ─── DOCKED (small pill) layout ───────────────────────────────────────────
     if (isDocked) {
         return (
@@ -3510,7 +3587,7 @@ function AudioCapsulePlayer({
                             Studio
                         </span>
                     )}
-                    {!!audioNote.stemTracks?.length && onReopenInStudio && (
+                    {!!(audioNote.stemTracks?.length || audioNote.isStudioSession) && onReopenInStudio && (
                         <Tooltip label={t('studio.reopen_in_studio')}>
                             <button
                                 type="button"
@@ -3522,7 +3599,7 @@ function AudioCapsulePlayer({
                             </button>
                         </Tooltip>
                     )}
-                    {!audioNote.stemTracks?.length && onAddAsStudioTrack && (
+                    {!audioNote.stemTracks?.length && !audioNote.isStudioSession && onAddAsStudioTrack && (
                         <Tooltip label={t('studio.add_to_studio')}>
                             <button
                                 type="button"
@@ -3650,7 +3727,7 @@ function AudioCapsulePlayer({
                         Studio
                     </span>
                 )}
-                {!!audioNote.stemTracks?.length && onReopenInStudio && (
+                {!!(audioNote.stemTracks?.length || audioNote.isStudioSession) && onReopenInStudio && (
                     <Tooltip label={t('studio.reopen_in_studio')}>
                         <button
                             type="button"
@@ -3662,7 +3739,7 @@ function AudioCapsulePlayer({
                         </button>
                     </Tooltip>
                 )}
-                {!audioNote.stemTracks?.length && onAddAsStudioTrack && (
+                {!audioNote.stemTracks?.length && !audioNote.isStudioSession && onAddAsStudioTrack && (
                     <Tooltip label={t('studio.add_to_studio')}>
                         <button
                             type="button"
@@ -4816,6 +4893,27 @@ export default function CreatePage() {
     useEffect(() => () => {
         if (wordSheetCloseTimer.current) clearTimeout(wordSheetCloseTimer.current);
     }, []);
+
+    /**
+     * Switching projects tears the word popover down INSTANTLY.
+     *
+     * Nothing closed it before, so the rhyme/synonym panel for project A's word
+     * stayed mounted over project B — its content answering a word that no
+     * longer exists, its `popoverPosition` measured against a canvas that is
+     * gone. On a phone that stale absolute position can land the panel a screen
+     * or more below the fold, painting its word chips over the projects shelf.
+     *
+     * clearWordPopover, not closeWordPopover: the exit animation is for a sheet
+     * the user dismissed, and animating out a panel for a project they just
+     * left is motion with nothing to say.
+     */
+    const popoverNoteRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (popoverNoteRef.current !== null && popoverNoteRef.current !== selectedNoteId) {
+            clearWordPopover();
+        }
+        popoverNoteRef.current = selectedNoteId;
+    }, [selectedNoteId, clearWordPopover]);
     /** Whether the press that will produce the next click began on something that
      *  owns its own clicks. Read by the canvas click handler — see the comment
      *  there for why the click's own target isn't enough. */
@@ -10036,7 +10134,8 @@ export default function CreatePage() {
                                                 groupId: an.groupId || null,
                                                 phraseId: an.phraseId || null,
                                                 createdAt: an.createdAt || 0,
-                                                ...(an.stemTracks ? { stemTracks: an.stemTracks } : {})
+                                                ...(an.stemTracks ? { stemTracks: an.stemTracks } : {}),
+                                                ...(an.isStudioSession ? { isStudioSession: true } : {})
                                             }));
                                             setDoc(docRef, { audioNotes: cleanAudio, updatedAt: new Date().toISOString() }, { merge: true })
                                                 .catch(err => console.error("Error persisting uploaded audio URL to Firestore:", err));
@@ -10076,7 +10175,8 @@ export default function CreatePage() {
                                                 groupId: an.groupId || null,
                                                 phraseId: an.phraseId || null,
                                                 createdAt: an.createdAt || 0,
-                                                ...(an.stemTracks ? { stemTracks: an.stemTracks } : {})
+                                                ...(an.stemTracks ? { stemTracks: an.stemTracks } : {}),
+                                                ...(an.isStudioSession ? { isStudioSession: true } : {})
                                             }));
                                             setDoc(docRef, { audioNotes: cleanAudio, updatedAt: updated.updatedAt }, { merge: true })
                                                 .catch(err => console.error("Error updating audio project in Firestore:", err));
@@ -10629,13 +10729,16 @@ export default function CreatePage() {
             .slice(0, 2)
             .toUpperCase();
 
-        const studioNote = activeNote.audioNotes?.find(an => 
-            an.id?.startsWith('studio-mix-') || 
-            an.title?.toLowerCase().includes('studio') || 
+        // Only cards that actually hold audio — the studio DRAFT card has an empty
+        // url until the first Save, and must never become the post's attachment.
+        const playableAudio = (activeNote.audioNotes || []).filter(an => an.url);
+        const studioNote = playableAudio.find(an =>
+            an.id?.startsWith('studio-mix-') ||
+            an.title?.toLowerCase().includes('studio') ||
             an.title?.toLowerCase().includes('mixdown')
         );
-        const primaryAudioNote = studioNote || (activeNote.audioNotes && activeNote.audioNotes.length > 0 
-            ? activeNote.audioNotes[activeNote.audioNotes.length - 1] 
+        const primaryAudioNote = studioNote || (playableAudio.length > 0
+            ? playableAudio[playableAudio.length - 1]
             : null);
 
         const postId = 'post-shared-' + Date.now();
@@ -10932,7 +11035,8 @@ export default function CreatePage() {
             phraseId: an.phraseId || null,
             createdAt: an.createdAt || 0,
             authorId: an.authorId || user.uid,
-            ...(an.stemTracks ? { stemTracks: an.stemTracks } : {})
+            ...(an.stemTracks ? { stemTracks: an.stemTracks } : {}),
+            ...(an.isStudioSession ? { isStudioSession: true } : {})
         }));
 
         const existingContributions = (note as any).contributions || {};
@@ -15381,7 +15485,13 @@ export default function CreatePage() {
 
             const wavBlob = bufferToWav(renderedBuffer);
             const localUrl = URL.createObjectURL(wavBlob);
-            const recId = `studio-mix-${Date.now()}`;
+            const initialTargetNoteId = selectedNoteId;
+            const initialTargetNote = activeNote;
+            const finalNoteId = initialTargetNoteId || `n-${Date.now()}`;
+            // One studio card per project — the draft planted when the studio was
+            // opened, or whatever an earlier Save left. Saving writes INTO it.
+            const sessionCard = (initialTargetNote?.audioNotes || []).find(an => an.isStudioSession);
+            const recId = sessionCard?.id || `studio-mix-${Date.now()}`;
             const durationSecs = renderedBuffer.duration;
 
             // Snapshot the current per-track stems (minus the runtime-only audioBuffer) so this
@@ -15396,17 +15506,16 @@ export default function CreatePage() {
             const newAudioNote: AudioNote = {
                 id: recId,
                 url: localUrl,
-                title: 'Demo Studio Mixdown',
+                // A renamed card keeps its name; where the writer docked it, it stays —
+                // Save must not teleport the card or rechristen it.
+                title: sessionCard?.title || 'Demo Studio',
                 duration: durationSecs,
-                groupId: null,
-                phraseId: null,
-                createdAt: Date.now(),
-                stemTracks: stemTracksSnapshot
+                groupId: sessionCard?.groupId ?? null,
+                phraseId: sessionCard?.phraseId ?? null,
+                createdAt: sessionCard?.createdAt || Date.now(),
+                stemTracks: stemTracksSnapshot,
+                isStudioSession: true
             };
-
-            const initialTargetNoteId = selectedNoteId;
-            const initialTargetNote = activeNote;
-            const finalNoteId = initialTargetNoteId || `n-${Date.now()}`;
 
             // 1. Kick off Firebase storage upload immediately in the background
             if (user) {
@@ -15486,7 +15595,8 @@ export default function CreatePage() {
                                 phraseId: null,
                                 createdAt: newAudioNote.createdAt,
                                 authorId: user.uid,
-                                stemTracks: newAudioNote.stemTracks
+                                stemTracks: newAudioNote.stemTracks,
+                                isStudioSession: true
                             }
                         ],
                         audioUrl: localUrl,
@@ -15502,9 +15612,12 @@ export default function CreatePage() {
                     }).catch(err => console.error("Error creating project note in Firestore:", err));
                 }
             } else {
-                // Update existing note
+                // Update existing note — into the session card when there is one,
+                // appended only for legacy projects that never had a studio card.
                 const existingAudioNotes = initialTargetNote.audioNotes || [];
-                const updatedAudioNotes = [...existingAudioNotes, newAudioNote];
+                const updatedAudioNotes = sessionCard
+                    ? existingAudioNotes.map(an => (an.id === recId ? newAudioNote : an))
+                    : [...existingAudioNotes, newAudioNote];
 
                 handleUpdateNote(initialTargetNoteId, {
                     audioNotes: updatedAudioNotes,
@@ -15677,7 +15790,41 @@ export default function CreatePage() {
         window.addEventListener('pointercancel', onUp);
     };
 
+    // Opening the Demo Studio on a project plants its studio card in the flow —
+    // the writer's way back in, there from the very first action. One per
+    // project, because the live session (studioTracks on the project doc) is one
+    // per project: the card is that session's face on the canvas, and every
+    // later Save updates it rather than minting another mixdown card.
+    useEffect(() => {
+        if (!showToolsPanel || activeToolTab !== 'studio') return;
+        if (!selectedNoteId || !activeNote || isCanvasReadOnly) return;
+        if ((activeNote.audioNotes || []).some(an => an.isStudioSession)) return;
+        const draft: AudioNote = {
+            id: `studio-mix-${Date.now()}`,
+            url: '',
+            title: 'Demo Studio',
+            duration: 0,
+            groupId: null,
+            phraseId: null,
+            createdAt: Date.now(),
+            isStudioSession: true,
+        };
+        handleUpdateNote(selectedNoteId, { audioNotes: [...(activeNote.audioNotes || []), draft] });
+        // activeNote/handleUpdateNote deliberately not deps: the guards make re-runs
+        // no-ops, and the note object changes on every keystroke. Deleting the card
+        // while the panel is open therefore sticks — it comes back on the next open.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showToolsPanel, activeToolTab, selectedNoteId, isCanvasReadOnly]);
+
     const handleReopenStudioMix = (audioNote: AudioNote) => {
+        // The project's own studio card is a door, not a snapshot: the live session
+        // already belongs to this project, so nothing gets replaced and there is
+        // nothing to confirm — just go back in.
+        if (audioNote.isStudioSession) {
+            setActiveToolTab('studio');
+            setShowToolsPanel(true);
+            return;
+        }
         if (!audioNote.stemTracks?.length) return;
         requestConfirm({
             title: 'Reopen this Demo Studio mix?',
@@ -17475,10 +17622,10 @@ export default function CreatePage() {
                                     {isSendingToCanvas ? (
                                         <>
                                             <Loader2 size={16} className="animate-spin text-stone-500" />
-                                            <span>{t('creative.sending_status')}</span>
+                                            <span>{t('creative.studio_saving')}</span>
                                         </>
                                     ) : (
-                                        <span>{t('creative.send_to_canvas')}</span>
+                                        <span>{t('creative.studio_save')}</span>
                                     )}
                                 </button>
 
@@ -18068,8 +18215,8 @@ export default function CreatePage() {
                             type="button"
                         >
                             {isSendingToCanvas
-                                ? <><Loader2 size={20} className="animate-spin" />{t('creative.sending_status')}</>
-                                : t('creative.send_to_canvas')}
+                                ? <><Loader2 size={20} className="animate-spin" />{t('creative.studio_saving')}</>
+                                : t('creative.studio_save')}
                         </button>
                         <button
                             onClick={() => { haptic('tap'); setStudioExportOpen(false); handleExportStudioMix('wav'); }}
@@ -21789,7 +21936,7 @@ export default function CreatePage() {
                                         {/* One card across both phases — live while the take runs,
                                             then the saving skeleton — so it never blinks out and
                                             back between recording and saving. */}
-                                        {(isRecording || isRecordingSaving) && <AudioCapsuleSkeleton recording={isRecording} />}
+                                        {(isRecording || isRecordingSaving) && <AudioCapsuleSkeleton recording={isRecording} seconds={recordingTime} />}
                                         {uploadingFiles.filter(f => f.type === 'audio').map(f => (
                                             <AudioCapsuleSkeleton key={f.id} />
                                         ))}

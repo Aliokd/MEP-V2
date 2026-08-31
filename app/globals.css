@@ -841,6 +841,45 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     }
 }
 
+/* Bank of tips — the card artwork breathes.
+ *
+ * Every sub-shape of a glyph drifts between two positions — one pair of
+ * keyframes, alternating, slow — with durations and negative delays varied by
+ * nth-child so the elements move out of phase and the drawing feels alive
+ * rather than bouncing as one block. Negative delays also mean everything is
+ * already mid-motion when a card mounts: no synchronized pop on entry.
+ *
+ * The animation drives the CSS `translate` property, NOT `transform`: several
+ * sub-shapes carry an SVG transform attribute (rotated note heads, the tile
+ * groups), the attribute maps to the `transform` property, and animating that
+ * would replace the rotation outright. `translate` composes with it — and
+ * being pure translation it needs no transform-origin fixups either. Amplitude
+ * is in glyph units, so it scales with the drawing. */
+@keyframes idea-glyph-drift {
+    from { translate: 0 0; }
+    to   { translate: 0 -2.5px; }
+}
+.idea-glyph-anim > * {
+    animation: idea-glyph-drift 3.8s ease-in-out infinite alternate;
+}
+.idea-glyph-anim > :nth-child(2n) {
+    animation-duration: 4.6s;
+    animation-delay: -1.4s;
+}
+.idea-glyph-anim > :nth-child(3n) {
+    animation-duration: 4.2s;
+    animation-delay: -2.6s;
+}
+.idea-glyph-anim > :nth-child(5n) {
+    animation-duration: 5.1s;
+    animation-delay: -0.9s;
+}
+@media (prefers-reduced-motion: reduce) {
+    .idea-glyph-anim > * {
+        animation: none;
+    }
+}
+
 /* Bank of tips — the notes column's bottom edge.
  *
  * The column scrolls with no scrollbar (deliberately: a bar in a card reads as

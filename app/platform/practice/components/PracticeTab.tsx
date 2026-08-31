@@ -234,16 +234,33 @@ export default function PracticeTab() {
      */
     const fieldRefs = useRef<(HTMLInputElement | null)[]>([]);
     /*
-     * First-timer guide, the same arrangement as Master song structure's: false
-     * until the effect below reads storage, so the server render and the first
-     * client render agree on "hidden". Checked when the practice is opened, not
-     * at mount — the gallery is not the moment to explain an exercise.
+     * The how-to guides, one per practice that has one. They appear on EVERY
+     * opening of their practice — the guide's own "don't show this again" is
+     * the only thing that writes the seen-key and retires the auto-show. State
+     * lives here rather than in the exercises because StructurePlayer is keyed
+     * by song: kept there, the guide would re-pop on every song switch instead
+     * of once per visit. Decided in an effect so the server render and the
+     * first client render agree on "hidden"; leaving a practice closes its
+     * guide, so a re-open is a fresh decision.
      */
+    const [showStructureDemo, setShowStructureDemo] = useState(false);
     const [showVerseDemo, setShowVerseDemo] = useState(false);
     useEffect(() => {
-        if (openedPractice !== 'Composing verses') return;
-        if (localStorage.getItem('mep-verse-demo-seen') !== 'true') setShowVerseDemo(true);
+        setShowStructureDemo(
+            openedPractice === 'Master song structure' &&
+            localStorage.getItem('mep-structure-demo-seen') !== 'true',
+        );
+        setShowVerseDemo(
+            openedPractice === 'Composing verses' &&
+            localStorage.getItem('mep-verse-demo-seen') !== 'true',
+        );
     }, [openedPractice]);
+
+    /** Close a guide, and on "don't show again" make that stick. */
+    const closeDemo = (key: string, set: (v: boolean) => void) => (neverAgain: boolean) => {
+        set(false);
+        if (neverAgain) safeLocalStorageSetItem(key, 'true');
+    };
 
     const currentMeta = getPractice(selectedPractice);
 
@@ -649,6 +666,9 @@ export default function PracticeTab() {
                                     onTogglePlay={handleTogglePlay}
                                     onPrevSong={() => stepSong(-1)}
                                     onNextSong={() => stepSong(1)}
+                                    showDemo={showStructureDemo}
+                                    onDemoClose={closeDemo('mep-structure-demo-seen', setShowStructureDemo)}
+                                    onReplayDemo={() => setShowStructureDemo(true)}
                                     headerSlot={
                                         /* The song pill opens the library in place — switching
                                            songs never leaves the exercise */
@@ -676,10 +696,8 @@ export default function PracticeTab() {
 
                     {openedPractice === 'Composing verses' && showVerseDemo && (
                         <VerseDemo
-                            onDone={() => {
-                                setShowVerseDemo(false);
-                                safeLocalStorageSetItem('mep-verse-demo-seen', 'true');
-                            }}
+                            onDone={() => setShowVerseDemo(false)}
+                            onNeverAgain={() => closeDemo('mep-verse-demo-seen', setShowVerseDemo)(true)}
                         />
                     )}
 

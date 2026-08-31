@@ -130,6 +130,15 @@ interface StructurePlayerProps {
     /** Move through the playable library once this song is finished. */
     onPrevSong?: () => void;
     onNextSong?: () => void;
+    /*
+     * The how-to dialog is the parent's, not this component's: this player is
+     * keyed by song, and state kept here would re-show the guide on every song
+     * switch rather than once per visit to the practice.
+     */
+    showDemo: boolean;
+    /** Close the how-to; true means "and never auto-show it again". */
+    onDemoClose: (neverAgain: boolean) => void;
+    onReplayDemo: () => void;
 }
 
 /**
@@ -140,7 +149,7 @@ interface StructurePlayerProps {
  *
  * Mounted with `key={songId}` so a song switch starts the exercise clean.
  */
-export default function StructurePlayer({ songId, headerSlot, audioUrl, sections, isPlaying, onTogglePlay, onPrevSong, onNextSong }: StructurePlayerProps) {
+export default function StructurePlayer({ songId, headerSlot, audioUrl, sections, isPlaying, onTogglePlay, onPrevSong, onNextSong, showDemo, onDemoClose, onReplayDemo }: StructurePlayerProps) {
     const { t } = useLanguage();
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
@@ -155,15 +164,6 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
      * would put them in the lifecycle effect's deps, and a parent re-render
      * would then tear down the element mid-song.
      */
-    /*
-     * The first-run how-to. Decided in an effect rather than the initializer so
-     * the server render and the first client render agree on "hidden".
-     */
-    const [showDemo, setShowDemo] = useState(false);
-    useEffect(() => {
-        if (localStorage.getItem('mep-structure-demo-seen') !== 'true') setShowDemo(true);
-    }, []);
-
     // True between pointer-down and pointer-up on the scrub track.
     const scrubbingRef = useRef(false);
     const isPlayingRef = useRef(isPlaying);
@@ -562,13 +562,12 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
     return (
         <div className="w-full flex flex-col gap-6">
 
-            {/* First time on the exercise: the five-second how-to, once per account */}
+            {/* The five-second how-to — every visit, until its own "don't show
+                again" is taken up. The parent owns when. */}
             {showDemo && (
                 <StructureDemo
-                    onDone={() => {
-                        setShowDemo(false);
-                        safeLocalStorageSetItem('mep-structure-demo-seen', 'true');
-                    }}
+                    onDone={() => onDemoClose(false)}
+                    onNeverAgain={() => onDemoClose(true)}
                 />
             )}
 
@@ -602,7 +601,7 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                             <button
                                 type="button"
                                 data-demo-replay
-                                onClick={() => setShowDemo(true)}
+                                onClick={onReplayDemo}
                                 aria-label={t('practice.demo_title')}
                                 title={t('practice.demo_title')}
                                 className={`${btn.iconGhost('bare')} h-11 w-11 md:h-8 md:w-8 cursor-pointer`}

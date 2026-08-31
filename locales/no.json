@@ -83,6 +83,7 @@
     "track_name_hint": "Hva dette sporet heter på lerretet.",
     "studio_badge": "Studio",
     "reopen_in_studio": "Åpne igjen i Demo Studio",
+    "session_draft_hint": "Utkast — klikk for å åpne",
     "add_to_studio": "Legg til i Demo Studio",
     "take_upload_failed": "Opplastingen mislyktes. Samarbeidspartnerne dine kan ikke høre dette opptaket ennå. Sjekk tilkoblingen og spill inn på nytt.",
     "settings": "Studioinnstillinger",
@@ -531,6 +532,8 @@
     "recording_status": "Spiller inn...",
     "sending_status": "Sender...",
     "send_to_canvas": "Send til canvasen",
+    "studio_save": "Lagre",
+    "studio_saving": "Lagrer...",
     "swapping_status": "Bytter...",
     "swap_chord": "Bytt akkord",
     "chord_change": "Bytt akkord",
@@ -905,7 +908,8 @@
     "mv_mic_denied": "Veinote fikk ikke tilgang til mikrofonen. Tillat den i nettleserinnstillingene, og prøv igjen.",
     "mv_mic_unavailable": "Denne nettleseren kan ikke ta opp lyd. Prøv Chrome, Safari eller Firefox.",
     "mv_canvas_title": "{melody} — variasjon",
-    "mv_take_title": "Variasjon over {melody}"
+    "mv_take_title": "Variasjon over {melody}",
+    "dont_show_again": "Ikke vis dette igjen"
   },
   "curriculum": {
     "foundation": "Grunnlag",
