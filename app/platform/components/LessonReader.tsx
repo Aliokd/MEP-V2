@@ -7,6 +7,11 @@ import LessonBlocks from './LessonBlocks';
 import { useLanguage } from '@/context/LanguageContext';
 import { isBlockRenderable, type LessonBlock } from '@/lib/lessonBlocks';
 import * as btn from './buttonStyles';
+import Confetti, { CONFETTI_MS } from '@/app/onboarding/components/Confetti';
+
+/** Confetti over the green Next pill — the same dark trio the Practice tab
+ *  uses on its green button, because the default burst's greens vanish on it. */
+const BURST_ON_GREEN = ['#363636', '#3F6B3A', '#5F9857'] as const;
 
 interface ReaderLesson {
     id: string;
@@ -79,8 +84,19 @@ export default function LessonReader({
         if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
     }, [index]);
 
+    // Each Next click replays the burst: the key changes so React remounts the
+    // pieces, and the timeout unmounts them once the last one has landed.
+    const [burst, setBurst] = React.useState(0);
+    const burstTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    React.useEffect(() => () => {
+        if (burstTimer.current) clearTimeout(burstTimer.current);
+    }, []);
+
     const goNext = () => {
         if (!currentLesson) return;
+        setBurst(k => k + 1);
+        if (burstTimer.current) clearTimeout(burstTimer.current);
+        burstTimer.current = setTimeout(() => setBurst(0), CONFETTI_MS);
         onComplete(currentLesson.id);
         if (!atEnd) {
             setIndex(i => i + 1);
@@ -205,16 +221,48 @@ export default function LessonReader({
                     >
                         {t('learn.back')}
                     </button>
+
+                    {/* Where you are in the chapter. The fill animates between
+                        lessons; value counts the lesson being read, so the bar
+                        completes exactly when Complete appears. */}
+                    <div
+                        className="flex-1 max-w-md mx-auto"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={flatLessons.length}
+                        aria-valuenow={index + 1}
+                        aria-valuetext={`${index + 1} / ${flatLessons.length}`}
+                    >
+                        <div className="h-1.5 rounded-full bg-stone-200/80 overflow-hidden">
+                            <div
+                                className="h-full rounded-full bg-[#86BE7F] transition-[width] duration-500 ease-out"
+                                style={{ width: `${((index + 1) / Math.max(flatLessons.length, 1)) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+
                     {/* On the last lesson this becomes Complete rather than a dead
                         Next: it is the only thing that marks that lesson MASTERED,
                         which is what feeds the Learn count in Mind Power. Disabling
                         it here meant the final lesson could never be completed. */}
-                    <button
-                        onClick={goNext}
-                        className={`${btn.primary('touch')} cursor-pointer`}
-                    >
-                        {atEnd ? t('common.complete') : t('learn.next')}
-                    </button>
+                    <span className="relative inline-flex">
+                        {/* Keyed on the click counter so a fast second click replays
+                            the burst from the start. `isolate` is load-bearing —
+                            Confetti's pieces sit at -z-10 to burst from behind their
+                            subject, and without a stacking context of their own that
+                            puts them behind the page as well (see PracticeTab). */}
+                        {burst > 0 && (
+                            <span key={burst} className="pointer-events-none absolute inset-0 isolate z-20">
+                                <Confetti colors={BURST_ON_GREEN} />
+                            </span>
+                        )}
+                        <button
+                            onClick={goNext}
+                            className={`${btn.primary('touch')} cursor-pointer`}
+                        >
+                            {atEnd ? t('common.complete') : t('learn.next')}
+                        </button>
+                    </span>
                 </div>
             </div>
         </div>
