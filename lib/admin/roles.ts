@@ -12,11 +12,24 @@ export const ROLE_LABELS: Record<AdminRole, string> = {
     support: "Support",
 };
 
+/**
+ * What a role can do, in the words of someone about to hand it to a colleague.
+ *
+ * These sit under the Grant access dropdown, so they are the last thing read
+ * before a grant is made — which makes an omission here worse than a missing
+ * feature. Two were wrong: the editor's left out every website page, and the
+ * moderator's left out the inbox, where a reply goes out as email from
+ * support@veinote.com. Both understated what was being handed over.
+ *
+ * Keep them in step with ROLE_PERMISSIONS below. The console also lists the raw
+ * permissions beside each role; this is the summary, not the substitute.
+ */
 export const ROLE_DESCRIPTIONS: Record<AdminRole, string> = {
     superadmin: "Full access, including granting roles and destructive user actions.",
-    moderator: "Community feed, reports and user sanctions.",
-    editor: "Learn content, Bank of Ideas, Practice songs and announcements.",
-    support: "Feedback inbox, support tickets and read-only user lookup.",
+    moderator: "Community feed, reports and user sanctions, plus the feedback inbox and replies.",
+    editor:
+        "All content: Learn, Bank of Ideas, Practice, announcements, and every website page — Legal, Blog, Q&A and site copy.",
+    support: "Feedback inbox and support tickets including replies, plus read-only user lookup.",
 };
 
 /**
