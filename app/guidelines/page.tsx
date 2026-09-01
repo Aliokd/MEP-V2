@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Download } from 'lucide-react';
 import type { Metadata } from 'next';
 import SiteFooterStrip from '@/components/SiteFooterStrip';
+import CopyHex from './CopyHex';
 import { resolveServerLocale } from '@/lib/server-locale';
 
 /**
@@ -59,37 +60,63 @@ const QUARTET = [
     { name: 'Vibe', hex: '#F0A8C9' },
 ];
 
+/*
+ * One entry per mark, listing the formats that exist for it rather than a
+ * single "SVG / PNG" link — which is what this was, pointing at one file and
+ * naming two. The PNGs are rendered from the vectors by
+ * scripts/build-brand-rasters.mjs; the icon has no vector, so it offers the
+ * one format it has instead of a button that would 404.
+ */
 const LOGO_DOWNLOADS = [
     {
-        file: '/assets/brand/veinote-wordmark-ink.svg',
         name: 'Wordmark — ink',
         note: 'The primary logo. For paper and any light background.',
         previewClass: 'bg-[#E6E3DB]',
         img: '/assets/brand/veinote-wordmark-ink.svg',
+        svg: '/assets/brand/veinote-wordmark-ink.svg',
+        png: '/assets/brand/veinote-wordmark-ink.png',
     },
     {
-        file: '/assets/brand/veinote-wordmark-white.svg',
         name: 'Wordmark — white',
         note: 'For photography and dark grounds.',
         previewClass: 'bg-[#363636]',
         img: '/assets/brand/veinote-wordmark-white.svg',
+        svg: '/assets/brand/veinote-wordmark-white.svg',
+        png: '/assets/brand/veinote-wordmark-white.png',
     },
     {
-        file: '/assets/brand/veinote-logo-serif.svg',
         name: 'Serif lockup ™',
         note: 'The large display lockup, as used in the site footer.',
         previewClass: 'bg-[#D3D6CB]',
         img: '/assets/brand/veinote-logo-serif.svg',
+        svg: '/assets/brand/veinote-logo-serif.svg',
+        png: '/assets/brand/veinote-logo-serif.png',
     },
     {
-        file: '/assets/brand/veinote-icon.png',
         name: 'Icon',
         note: 'Avatars, favicons, and app-icon contexts.',
         previewClass: 'bg-[#FAF9F5]',
         img: '/assets/brand/veinote-icon.png',
+        png: '/assets/brand/veinote-icon.png',
         iconPreview: true,
     },
 ];
+
+function DownloadPill({ href, label, name }: { href: string; label: string; name: string }) {
+    return (
+        <a
+            href={href}
+            download
+            // The visible text is just the format; the accessible name says
+            // which mark it belongs to, since the page carries seven of them.
+            aria-label={`Download ${name} as ${label}`}
+            className="flex items-center gap-1.5 rounded-full border border-stone-400/60 px-3.5 py-2 text-[13px] font-semibold text-stone-700 hover:bg-white transition-colors"
+        >
+            <Download size={14} className="stroke-[2.25px]" />
+            {label}
+        </a>
+    );
+}
 
 function Swatch({ name, hex, use }: { name: string; hex: string; use?: string }) {
     return (
@@ -97,7 +124,7 @@ function Swatch({ name, hex, use }: { name: string; hex: string; use?: string })
             <div className="h-20" style={{ backgroundColor: hex }} />
             <div className="px-4 py-3">
                 <div className="font-semibold text-[15px] text-stone-800">{name}</div>
-                <div className="font-mono text-xs text-stone-500">{hex}</div>
+                <CopyHex hex={hex} />
                 {use && <div className="text-xs text-stone-500 mt-1 leading-relaxed">{use}</div>}
             </div>
         </div>
@@ -119,14 +146,11 @@ export default async function GuidelinesPage() {
     return (
         <div className="min-h-screen bg-[#E6E3DB] font-sans text-stone-800">
             <div className="max-w-4xl mx-auto px-6 pt-32 pb-24">
-                {/* Hero */}
-                <img
-                    src="/assets/brand/veinote-wordmark-ink.svg"
-                    alt="Veinote"
-                    className="w-[170px] h-auto mb-8 select-none"
-                />
-                <h1 className="text-4xl md:text-6xl font-light tracking-tight leading-[1.08] max-w-2xl">
-                    How Veinote looks, <span className="font-bold">sounds, and behaves</span>
+                {/* Hero. No wordmark above the title: the page hands out the logo
+                    further down, under rules about how to use it, and a loose one
+                    up here was the page breaking its own first instruction. */}
+                <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.08] max-w-2xl">
+                    Guidelines
                 </h1>
                 <p className="text-stone-600 mt-5 max-w-xl leading-relaxed">
                     The shared language for everything we make — extracted from the shipped
@@ -162,7 +186,7 @@ export default async function GuidelinesPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
                     {LOGO_DOWNLOADS.map((logo) => (
                         <div
-                            key={logo.file}
+                            key={logo.name}
                             className="rounded-3xl overflow-hidden border border-stone-300/60 bg-[#F7F6F1] flex flex-col"
                         >
                             <div className={`${logo.previewClass} h-36 flex items-center justify-center p-8`}>
@@ -177,14 +201,12 @@ export default async function GuidelinesPage() {
                                     <div className="font-semibold text-[15px]">{logo.name}</div>
                                     <div className="text-xs text-stone-500 mt-0.5 leading-relaxed">{logo.note}</div>
                                 </div>
-                                <a
-                                    href={logo.file}
-                                    download
-                                    className="shrink-0 flex items-center gap-1.5 rounded-full border border-stone-400/60 px-4 py-2 text-[13px] font-semibold text-stone-700 hover:bg-white transition-colors"
-                                >
-                                    <Download size={14} className="stroke-[2.25px]" />
-                                    SVG / PNG
-                                </a>
+                                {/* One button per format, each naming what it
+                                    actually fetches. */}
+                                <div className="shrink-0 flex items-center gap-2">
+                                    {logo.svg && <DownloadPill href={logo.svg} label="SVG" name={logo.name} />}
+                                    {logo.png && <DownloadPill href={logo.png} label="PNG" name={logo.name} />}
+                                </div>
                             </div>
                         </div>
                     ))}
