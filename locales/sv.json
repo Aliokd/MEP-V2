@@ -1752,6 +1752,9 @@
     "sent_body": "En moderator granskar det här. Vi berättar aldrig vem som har rapporterat.",
     "error": "Det gick inte att skicka rapporten. Försök igen."
   },
+  "guidelines": {
+    "title": "Riktlinjer"
+  },
   "meta": {
     "title": "Veinote — app för låtskrivande: skriv låtar och lär dig hantverket",
     "description": "Lär dig skriva en låt — och faktiskt göra den klar. Skriv texter med rim- och ackordverktyg, och lär dig av platinasäljande låtskrivare. Inga AI-låtar: du skapar dem, du äger dem."

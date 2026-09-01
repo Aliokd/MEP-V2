@@ -62,7 +62,11 @@ const APP_OWNED_SEGMENTS = [
     // — otherwise it reads as a CMS slug and /[slug] answers for it with a 404.
     // 'blog' is the index route listing the posts; the posts themselves are
     // ordinary CMS slugs and stay out of this list.
-    'about', 'privacy', 'terms', 'cookies', 'blog', 'no', 'sv', 'se',
+    // 'guidelines' is the brand-guidelines page — an app route, and deliberately
+    // English-only (it's a media-kit page for marketers/press), so it's claimed
+    // here without joining LOCALIZED_PATHS: /no/guidelines redirects to the
+    // unprefixed URL instead of duplicating an English page under three URLs.
+    'about', 'privacy', 'terms', 'cookies', 'blog', 'guidelines', 'no', 'sv', 'se',
 ] as const;
 
 /** True for a single-segment path that could be a CMS-managed page. */

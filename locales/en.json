@@ -1752,6 +1752,9 @@
     "sent_body": "A moderator will review this. We never tell the other person who reported them.",
     "error": "Couldn't send the report. Please try again."
   },
+  "guidelines": {
+    "title": "Guidelines"
+  },
   "meta": {
     "title": "Veinote — Songwriting App: Write Songs & Learn the Craft",
     "description": "Learn how to write a song — and actually finish it. Lyric canvas, rhyme and chord tools, plus lessons from platinum-selling songwriters. No AI songs: you create them, you own them."

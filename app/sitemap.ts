@@ -60,6 +60,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         localizedEntries(path, lastModified, changeFrequency, priority),
     );
 
+    // English-only pages get a single row — running them through
+    // localizedEntries would emit the same URL three times, since localizePath
+    // leaves a non-localized path unprefixed for every language.
+    const singleEntries: MetadataRoute.Sitemap = [
+        // Brand guidelines and logo downloads.
+        { url: `${SITE_URL}/guidelines`, lastModified, changeFrequency: 'monthly', priority: 0.4 },
+    ];
+
     // CMS-managed pages (/terms, /cookies, …) join the sitemap the moment
     // they're published, without a deploy. listPublishedPages returns [] on any
     // Firestore failure, so an outage costs the sitemap only the CMS rows.
@@ -77,5 +85,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             ),
         );
 
-    return [...staticEntries, ...cmsEntries];
+    return [...staticEntries, ...singleEntries, ...cmsEntries];
 }

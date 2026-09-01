@@ -635,6 +635,8 @@ const NewFooter = () => {
                         {/* The cookie panel, reachable from the bottom of the page —
                             which is where the panel's own copy says to look for it. */}
                         <Link href={localizePath('/cookies', language)} className="font-medium hover:text-black transition-colors">{t('cookies.page_title')}</Link>
+                        {/* Brand guidelines and logo downloads. English-only, so no locale prefix. */}
+                        <Link href="/guidelines" className="font-medium hover:text-black transition-colors">{t('guidelines.title')}</Link>
                     </div>
                 </div>
             </div>

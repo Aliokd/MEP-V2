@@ -178,6 +178,7 @@ export const FIXED_FOOTER_LINKS = [
     { path: "/privacy", labelKey: "privacy.title" },
     { path: "/terms", labelKey: "terms.title" },
     { path: "/cookies", labelKey: "cookies.page_title" },
+    { path: "/guidelines", labelKey: "guidelines.title" },
 ] as const;
 
 /** True when the footer links this slug regardless of the page's own flag. */
