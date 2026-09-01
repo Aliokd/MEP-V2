@@ -8177,7 +8177,7 @@ export default function CreatePage() {
         !selectedNoteId ||
         !activeNote ||
         (activeNote.content.trim() === '' &&
-            (!activeNote.audioNotes || activeNote.audioNotes.length === 0) &&
+            (!activeNote.audioNotes || activeNote.audioNotes.filter(an => !(an.isStudioSession && !an.url)).length === 0) &&
             (!activeNote.images || activeNote.images.length === 0) &&
             (!activeNote.documents || activeNote.documents.length === 0) &&
             // A placed tip is content too. Its placeholder phrase has empty text,
@@ -8320,6 +8320,22 @@ export default function CreatePage() {
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [openCommentThread]);
+
+    /**
+     * On a phone the thread panel is read-only (no composer — see the panel),
+     * so a thread with nothing in it has nothing to show. Close it immediately
+     * rather than rendering an empty box, and clear the state too — an
+     * invisible "open" overlay would still eat the next Back press through
+     * useBackDismiss.
+     */
+    useEffect(() => {
+        if (!isMobile || !openCommentThread) return;
+        const list = openCommentThread === '__project__'
+            ? projectLevelComments
+            : (commentsByAnchor[openCommentThread] || []);
+        if (list.length === 0) closeCommentThread(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isMobile, openCommentThread]);
 
     // Per-line marker data (count + one colour per unique commenter, oldest first),
     // precomputed so each PhraseRow gets plain primitives.
@@ -22252,6 +22268,23 @@ export default function CreatePage() {
                                         </div>
                                     );
                                 })()}
+
+                                {(() => {
+                                    const studioDraft = (activeNote?.audioNotes || []).find(an => an.isStudioSession && !an.url);
+                                    if (!studioDraft) return null;
+                                    return (
+                                        <div className="w-full flex justify-center pointer-events-auto mt-8">
+                                            <AudioCapsulePlayer
+                                                audioNote={studioDraft}
+                                                onRename={(newTitle) => activeNote && handleRenameAudioNote(activeNote.id, studioDraft.id, newTitle)}
+                                                onDelete={() => activeNote && handleDeleteAudioNote(activeNote.id, studioDraft.id)}
+                                                isDocked={false}
+                                                onReopenInStudio={() => handleReopenStudioMix(studioDraft)}
+                                                onDragStart={(e) => e.preventDefault()}
+                                            />
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         )}
                     </div>
@@ -23484,7 +23517,11 @@ export default function CreatePage() {
                                 </div>
                                 )}
 
-                                {/* Composer: just the field and an arrow to send. */}
+                                {/* Composer: just the field and an arrow to send.
+                                    Desktop only — on a phone the panel is read-only, so the
+                                    field never floats over the action dock (an empty thread
+                                    was JUST this field, sitting on the REC row). */}
+                                {!isMobile && (
                                 <div className={`shrink-0 p-2.5 ${threadComments.length > 0 ? 'border-t border-stone-100' : ''}`}>
                                     <div className="relative flex items-center">
                                         <textarea
@@ -23515,6 +23552,7 @@ export default function CreatePage() {
                                         </button>
                                     </div>
                                 </div>
+                                )}
                             </div>
                         </>
                     );
