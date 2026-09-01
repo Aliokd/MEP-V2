@@ -1,7 +1,7 @@
 import "server-only";
 import MarkdownIt from "markdown-it";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { pageKind, pickLocale, type Locale, type SitePage } from "@/lib/content";
+import { blogCategory, pageKind, pickLocale, type Locale, type SitePage } from "@/lib/content";
 
 /**
  * Server-side reads for CMS-managed website pages (privacy, terms, and anything
@@ -54,6 +54,7 @@ function shape(doc: FirebaseFirestore.DocumentSnapshot): SitePage {
         // Leaving these out is why /blog rendered an empty index: every page
         // came back as "legal" because its `kind` was dropped on the way through.
         kind: pageKind(d.kind),
+        category: blogCategory(d.category),
         coverUrl: d.coverUrl || null,
         author: d.author || null,
         publishedAt: d.publishedAt || null,

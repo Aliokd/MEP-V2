@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { X, Save, Archive, Globe, Eye, Pencil, Lock } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { Badge, Button, Input, Panel, Select, Spinner, Textarea } from "../components/ui";
-import { LOCALES, LOCALE_LABELS, isAlwaysInFooter, pageKind, pickLocale, type Locale, type LocalizedText, type SitePage, type SitePageKind } from "@/lib/content";
+import { BLOG_CATEGORIES, LOCALES, LOCALE_LABELS, blogCategory, isAlwaysInFooter, pageKind, pickLocale, type BlogCategory, type Locale, type LocalizedText, type SitePage, type SitePageKind } from "@/lib/content";
 import MarkdownToolbar, { useMarkdownShortcuts } from "../components/MarkdownToolbar";
 import MediaUpload from "../components/MediaUpload";
 
@@ -49,6 +49,7 @@ export default function PageEditor({
     page,
     allPages,
     defaultKind = "legal",
+    defaultCategory = "marketing",
     onClose,
     onSaved,
 }: {
@@ -56,6 +57,8 @@ export default function PageEditor({
     allPages: SitePage[];
     /** Which shelf a brand-new page starts on — the tab it was created from. */
     defaultKind?: SitePageKind;
+    /** And which Blog shelf, for the same reason. */
+    defaultCategory?: BlogCategory;
     onClose: () => void;
     onSaved: () => void;
 }) {
@@ -78,6 +81,7 @@ export default function PageEditor({
     // no value and are policies, which is also the safe default for a new one:
     // an SEO article filed under Legal is odd, a policy lost in SEO is worse.
     const [kind, setKind] = useState<SitePageKind>(page ? pageKind(page.kind) : defaultKind);
+    const [category, setCategory] = useState<BlogCategory>(page ? blogCategory(page.category) : defaultCategory);
 
     const [locale, setLocale] = useState<Locale>("en");
     const [preview, setPreview] = useState(false);
@@ -122,6 +126,7 @@ export default function PageEditor({
                 // Only meaningful on a post, and only sent as a real value there:
                 // a legal page carrying a stray author would be odd in the data
                 // even though nothing renders it.
+                category: kind === "blog" ? category : null,
                 coverUrl: kind === "blog" ? coverUrl || null : null,
                 author: kind === "blog" ? author || null : null,
                 publishedAt: kind === "blog" ? publishedAt || null : null,
@@ -306,6 +311,21 @@ export default function PageEditor({
                         {kind === "blog" && (
                             <Panel className="p-4 flex flex-col gap-3 border-ink-600">
                                 <span className="text-xs text-ink-400">Post details</span>
+
+                                <label className="flex flex-col gap-1.5">
+                                    <span className="text-xs text-ink-400">What it is for</span>
+                                    <Select
+                                        value={category}
+                                        onChange={(e) => setCategory(e.target.value as BlogCategory)}
+                                    >
+                                        {BLOG_CATEGORIES.map((c) => (
+                                            <option key={c.id} value={c.id}>{c.label}</option>
+                                        ))}
+                                    </Select>
+                                    <span className="text-[11px] text-ink-500">
+                                        {BLOG_CATEGORIES.find((c) => c.id === category)?.description}
+                                    </span>
+                                </label>
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <label className="flex flex-col gap-1.5">

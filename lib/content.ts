@@ -192,6 +192,41 @@ export function appearsInFooter(page: { slug: string; showInFooter?: boolean }):
     return isAlwaysInFooter(page.slug) || page.showInFooter === true;
 }
 
+/**
+ * What a blog post is for, which is the question that decides who writes it and
+ * where it belongs — not what it is about.
+ */
+export type BlogCategory = "marketing" | "product" | "business";
+
+export const BLOG_CATEGORIES: { id: BlogCategory; label: string; description: string }[] = [
+    {
+        id: "marketing",
+        label: "Marketing",
+        description: "Written to be found — guides and answers that bring songwriters to Veinote.",
+    },
+    {
+        id: "product",
+        label: "Product",
+        description: "What is new and how to use it — releases, features and walkthroughs.",
+    },
+    {
+        id: "business",
+        label: "Business",
+        description: "The company — announcements, partnerships, and how Veinote is run.",
+    },
+];
+
+/**
+ * Normalises a stored category.
+ *
+ * Marketing is the default because every post written before the split was
+ * written to be found, and because a post filed nowhere would vanish from a
+ * tabbed list entirely — the shelf has to hold everything.
+ */
+export function blogCategory(value: unknown): BlogCategory {
+    return value === "product" || value === "business" ? value : "marketing";
+}
+
 /** Normalises a stored kind, including the retired "seo" spelling. */
 export function pageKind(value: unknown): SitePageKind {
     return value === "blog" || value === "seo" ? "blog" : "legal";
@@ -218,6 +253,8 @@ export interface SitePage {
      * keeps them where their editors expect to find them.
      */
     kind?: SitePageKind;
+    /** Blog posts only. Which shelf of the Blog tab the post sits on. */
+    category?: BlogCategory;
     /** Blog posts only. The cover shown on the index and at the top of the post. */
     coverUrl?: string | null;
     /** Blog posts only. Who wrote it — shown under the title. */

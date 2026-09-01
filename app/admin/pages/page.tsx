@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, ExternalLink, CornerDownRight, Code2, Lock, Download } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, Badge, Button, Input, Select, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
-import { LOCALES, LOCALE_LABELS, appearsInFooter, isAlwaysInFooter, localeCompleteness, pageKind, pickLocale, type SitePage } from "@/lib/content";
+import { BLOG_CATEGORIES, LOCALES, LOCALE_LABELS, appearsInFooter, blogCategory, isAlwaysInFooter, localeCompleteness, pageKind, pickLocale, type BlogCategory, type SitePage } from "@/lib/content";
 import PageEditor from "./PageEditor";
 import FaqEditor, { type FaqRow } from "./FaqEditor";
 import CopyEditor, { type CopyRow } from "./CopyEditor";
@@ -44,6 +44,8 @@ const CODE_ROUTES: { path: string; label: string; why: string }[] = [
 export default function ManagePagesPage() {
     const { adminFetch, can } = useAdmin();
     const [tab, setTab] = useState<Tab>("legal");
+    // Which shelf of the Blog tab is showing. Only consulted there.
+    const [category, setCategory] = useState<BlogCategory>("marketing");
 
     const [pages, setPages] = useState<SitePage[] | null>(null);
     const [faqs, setFaqs] = useState<FaqRow[] | null>(null);
@@ -94,7 +96,9 @@ export default function ManagePagesPage() {
         // One fetch feeds both page tabs; the shelf is a filter, not a query. A
         // page written before the split carries no `kind` and is a policy
         // document, so it belongs under Legal.
-        const shelf = pages.filter((p) => pageKind(p.kind) === tab);
+        const shelf = pages.filter(
+            (p) => pageKind(p.kind) === tab && (tab !== "blog" || blogCategory(p.category) === category),
+        );
         const byOrder = [...shelf].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         const rows: { page: SitePage; depth: number }[] = [];
 
@@ -106,7 +110,7 @@ export default function ManagePagesPage() {
         const placed = new Set(rows.map((r) => r.page.id));
         byOrder.filter((p) => !placed.has(p.id)).forEach((orphan) => rows.push({ page: orphan, depth: 0 }));
         return rows;
-    }, [pages, tab]);
+    }, [pages, tab, category]);
 
 
     /**
@@ -234,6 +238,36 @@ export default function ManagePagesPage() {
                     </button>
                 ))}
             </div>
+
+            {/* What a post is for, which is what decides who writes it. Shown only
+                under Blog: the other tabs have no such division. */}
+            {tab === "blog" && (
+                <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {BLOG_CATEGORIES.map((c) => (
+                            <button
+                                key={c.id}
+                                onClick={() => setCategory(c.id)}
+                                className={`px-3.5 py-1.5 rounded-full text-sm transition-colors ${
+                                    category === c.id
+                                        ? "bg-ink-700 text-ink-100"
+                                        : "text-ink-400 hover:text-ink-100 hover:bg-ink-800"
+                                }`}
+                            >
+                                {c.label}
+                                <span className="ml-1.5 text-[11px] text-ink-500">
+                                    {(pages || []).filter(
+                                        (p) => pageKind(p.kind) === "blog" && blogCategory(p.category) === c.id,
+                                    ).length}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                    <p className="text-xs text-ink-500">
+                        {BLOG_CATEGORIES.find((c) => c.id === category)?.description}
+                    </p>
+                </div>
+            )}
 
             {error && (
                 <Panel className="p-4 border-red-500/30">
@@ -460,6 +494,7 @@ export default function ManagePagesPage() {
                     page={editingPage === "new" ? null : editingPage}
                     // New pages start on whichever shelf you were looking at.
                     defaultKind={tab === "blog" ? "blog" : "legal"}
+                    defaultCategory={category}
                     allPages={pages || []}
                     onClose={() => setEditingPage(null)}
                     onSaved={() => { setEditingPage(null); load(); }}
