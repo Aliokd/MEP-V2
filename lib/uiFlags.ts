@@ -17,15 +17,21 @@ import { localizePath, type Language } from './i18n';
 export const PRACTICE_ENABLED: boolean = true;
 
 /**
- * Practice 3 (Melody variations), gated by environment rather than by hand:
- * the exercise is built and stays fully playable in development, but a
- * production build locks its card behind a plain "Coming soon" — the melody
- * recordings it needs are still placeholders, and shipping an exercise around
- * synthesised beeps would make the practice read as broken rather than early.
- * `NODE_ENV` is inlined at build time, so flipping this on for real is either
- * deleting the check or waiting for the recordings and doing the same.
+ * Practice 3 (Melody variations). Live everywhere now that real melodies are
+ * authored in the admin console.
+ *
+ * It was environment-gated while the only melodies were the synthesised
+ * placeholders in app/platform/practice/data/melodies.ts, whose WAVs .gitignore
+ * keeps out of the repo — shipping that would have been four cards with dead
+ * audio. What unblocked it is the console's `practice_melodies` collection:
+ * useMelodyLibrary replaces the bundled list with the authored one whenever the
+ * fetch returns anything, so production plays real takes and the bundled four
+ * remain a development fallback only.
+ *
+ * Which means this depends on that collection staying populated. Empty it and
+ * the fallback comes back — and in production that fallback is silent.
  */
-export const MELODY_VARIATIONS_ENABLED: boolean = process.env.NODE_ENV !== 'production';
+export const MELODY_VARIATIONS_ENABLED: boolean = true;
 
 /**
  * Pre-launch: the onboarding flow itself is public so the draft can be shared and

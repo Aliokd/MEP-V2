@@ -17,6 +17,8 @@ interface PracticeCardProps {
     comingSoonLabel: string;
     /** Names the intro clip, e.g. "Why Master song structure?". */
     videoLabel: string;
+    /** Shown on the play button of a practice whose clip is not recorded yet. */
+    videoPendingLabel: string;
     onStart: () => void;
     onPlayVideo: () => void;
 }
@@ -29,10 +31,11 @@ export default function PracticeCard({
     startLabel,
     comingSoonLabel,
     videoLabel,
+    videoPendingLabel,
     onStart,
     onPlayVideo,
 }: PracticeCardProps) {
-    const { available, videoUrl } = practice;
+    const { available, videoUrl, videoPending } = practice;
 
     return (
         // Sized against the viewport rather than a flex parent: the practice page
@@ -56,14 +59,19 @@ export default function PracticeCard({
                     </h2>
                 </div>
 
-                {/* The intro clip belongs to a practice you can actually start */}
+                {/* The intro clip belongs to a practice you can actually start.
+                    Where the clip is still unshot the button holds its place but
+                    does nothing: greyed, unfocusable, and saying why on hover —
+                    a live-looking control that opens an empty player is worse
+                    than one that admits it is waiting. */}
                 {available && videoUrl && (
-                    <Tooltip label={videoLabel}>
+                    <Tooltip label={videoPending ? videoPendingLabel : videoLabel}>
                         <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); onPlayVideo(); }}
-                            aria-label={videoLabel}
-                            className={`${btn.icon('lg')} cursor-pointer`}
+                            disabled={videoPending}
+                            onClick={(e) => { e.stopPropagation(); if (!videoPending) onPlayVideo(); }}
+                            aria-label={videoPending ? videoPendingLabel : videoLabel}
+                            className={`${btn.icon('lg')} ${videoPending ? 'opacity-40' : 'cursor-pointer'}`}
                         >
                             <Play className="w-5 h-5 fill-stone-900 text-stone-900 stroke-none ml-0.5" />
                         </button>

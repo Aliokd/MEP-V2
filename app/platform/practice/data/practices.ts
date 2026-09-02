@@ -28,6 +28,14 @@ export interface PracticeDefinition {
      */
     videoUrl?: string;
     posterUrl?: string;
+    /**
+     * The intro clip has not been recorded. The card still shows its play
+     * button — the clip is coming, and dropping the control would move the
+     * title every time one lands — but the button is inert and says so. Set
+     * this rather than clearing videoUrl: the placeholder URL is what the real
+     * recording will replace, and losing it loses the note of where it goes.
+     */
+    videoPending?: boolean;
     /** false → the card shows "coming soon" and cannot be started. */
     available: boolean;
     /**
@@ -108,10 +116,17 @@ export const PRACTICES: PracticeDefinition[] = [
         time: '15 min',
         videoUrl: `${VIDEO_DIR}/chorus.compressed.mp4`,
         posterUrl: `${VIDEO_DIR}/chorus-poster.jpg`,
-        // Playable in development, "Coming soon" in production — the exercise
-        // is built but its melodies are still synthesised placeholders. See
-        // MELODY_VARIATIONS_ENABLED for the whole story.
+        // Nothing has been shot for this one; the URL above is the placeholder
+        // every card started with, and its play button stays inert until a real
+        // walkthrough replaces it.
+        videoPending: true,
+        // Live. Read from the flag rather than written true here so there is one
+        // switch to throw if it ever has to come back down — see
+        // MELODY_VARIATIONS_ENABLED, which also records what it depends on.
         available: MELODY_VARIATIONS_ENABLED,
+        // Redundant while available is true (the walk skips anything available),
+        // and deliberately kept: it is what stops this slot claiming a release
+        // date if the flag is ever flipped back.
         gated: true,
     },
     {

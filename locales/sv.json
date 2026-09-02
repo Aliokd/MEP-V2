@@ -909,7 +909,8 @@
     "mv_mic_unavailable": "Den här webbläsaren kan inte spela in ljud. Prova Chrome, Safari eller Firefox.",
     "mv_canvas_title": "{melody} — variation",
     "mv_take_title": "Variation på {melody}",
-    "dont_show_again": "Visa inte det här igen"
+    "dont_show_again": "Visa inte det här igen",
+    "intro_clip_coming": "Introklipp kommer snart"
   },
   "curriculum": {
     "foundation": "Grund",

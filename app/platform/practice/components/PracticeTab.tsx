@@ -704,6 +704,7 @@ export default function PracticeTab() {
                                             startLabel={t('practice.start_practice')}
                                             comingSoonLabel={countdownLabel(currentMeta)}
                                             videoLabel={t('practice.why_practice').replace('{practice}', t(currentMeta.nameKey))}
+                                            videoPendingLabel={t('practice.intro_clip_coming')}
                                             onStart={() => setOpenedPractice(currentMeta.name)}
                                             onPlayVideo={() => setVideoPractice(currentMeta)}
                                         />

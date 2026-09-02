@@ -909,7 +909,8 @@
     "mv_mic_unavailable": "This browser cannot record audio. Try Chrome, Safari or Firefox.",
     "mv_canvas_title": "{melody} — variation",
     "mv_take_title": "Variation on {melody}",
-    "dont_show_again": "Don't show this again"
+    "dont_show_again": "Don't show this again",
+    "intro_clip_coming": "Intro clip coming soon"
   },
   "curriculum": {
     "foundation": "Foundation",

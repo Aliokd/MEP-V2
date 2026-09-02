@@ -909,7 +909,8 @@
     "mv_mic_unavailable": "Denne nettleseren kan ikke ta opp lyd. Prøv Chrome, Safari eller Firefox.",
     "mv_canvas_title": "{melody} — variasjon",
     "mv_take_title": "Variasjon over {melody}",
-    "dont_show_again": "Ikke vis dette igjen"
+    "dont_show_again": "Ikke vis dette igjen",
+    "intro_clip_coming": "Introklipp kommer snart"
   },
   "curriculum": {
     "foundation": "Grunnlag",
