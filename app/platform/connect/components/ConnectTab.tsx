@@ -153,14 +153,41 @@ function ProjectCanvasInline({ post }: { post: Post }) {
 // ==========================================
 // SUBCOMPONENT: CONNECT POST CARD
 // ==========================================
+
+/**
+ * True only for a pointer that can actually hover — a mouse or a trackpad.
+ *
+ * Feature detection, not a width breakpoint: a touchscreen laptop is wide and a
+ * tablet in landscape is wider still, and on both of those a "hover" is a real
+ * tap that would start playing something the person only meant to scroll past.
+ * `(hover: hover)` asks the question directly.
+ *
+ * Starts false and is decided after mount, so the server and the first client
+ * render agree.
+ */
+function useHoverCapablePointer(): boolean {
+  const [canHover, setCanHover] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const sync = () => setCanHover(query.matches);
+    sync();
+    // Fires when a mouse is plugged into a tablet, or a laptop is undocked.
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+
+  return canHover;
+}
+
 interface PostCardProps {
   post: Post;
-  isActive: boolean;
-  isPaused: boolean;
-  onActive: () => void;
-  onDeactive: (id: string) => void;
-  onClickActive: () => void;
-  onPauseToggle: () => void;
+  /** Owned by the feed — exactly one card is playing at a time. */
+  isPlaying: boolean;
+  onTogglePlay: () => void;
+  /** Reported unconditionally; the feed decides whether hover means anything. */
+  onHoverStart: () => void;
+  onHoverEnd: () => void;
   currentUserDisplayName: string;
   currentUserId: string | null;
   editingPostId: string | null;
@@ -190,12 +217,10 @@ interface PostCardProps {
 
 function ConnectPostCard({
   post,
-  isActive,
-  isPaused,
-  onActive,
-  onDeactive,
-  onClickActive,
-  onPauseToggle,
+  isPlaying,
+  onTogglePlay,
+  onHoverStart,
+  onHoverEnd,
   currentUserDisplayName,
   currentUserId,
   editingPostId,
@@ -240,9 +265,7 @@ function ConnectPostCard({
   const scrollDirectionRef = useRef<'down' | 'up'>('down');
   const frameCountRef = useRef<number>(0);
 
-  // Play states controlled globally by parent activePostId and manuallyPausedPosts states
-  const [isHovered, setIsHovered] = useState(false);
-  const isPlaying = isActive && !isPaused;
+  // `isPlaying` arrives from the feed, which owns the one id that can be playing.
 
   // Playlist states for multi-track audio playback support
   const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
@@ -502,57 +525,35 @@ function ConnectPostCard({
   };
 
   /**
-   * Play, or pause — the single action behind both the round button and the
-   * card itself.
-   *
-   * Playback is `isActive && !isPaused`, and the two controls used to drive one
-   * half each: the card toggled ACTIVE, the button toggled PAUSED. So they
-   * disagreed. Worse on a phone, where `isActive` is set by mouseenter and so
-   * never by touch — the button alone could not start anything until the card
-   * had been tapped first.
+   * The card and the round button are the same action: start this song, or stop
+   * it. Nothing else starts or stops playback — in particular the pointer
+   * leaving the card no longer does, so a song keeps going while you scroll on
+   * or read something else.
    */
-  const togglePlayback = () => {
-    if (isPlaying) {
-      onPauseToggle();
-      return;
-    }
-    // Not playing: bring the card forward if it is not the active one, and
-    // clear any manual pause left over from last time.
-    if (!isActive) onClickActive();
-    if (isPaused) onPauseToggle();
-  };
-
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (
-      target.closest('button') || 
-      target.closest('textarea') || 
-      target.closest('input') || 
-      target.closest('a') || 
+      target.closest('button') ||
+      target.closest('textarea') ||
+      target.closest('input') ||
+      target.closest('a') ||
       target.closest('svg')
     ) {
       return;
     }
-    if (post.attachment) {
-      togglePlayback();
-      return;
-    }
-    onClickActive();
+    if (!post.attachment) return; // nothing to play
+    onTogglePlay();
   };
 
   return (
-    <div 
-      className="relative group" 
-      ref={cardRef} 
-      onMouseEnter={() => {
-        setIsHovered(true);
-        isUserScrollingRef.current = false;
-        onActive();
-      }} 
-      onMouseLeave={() => {
-        setIsHovered(false);
-        onDeactive(post.id);
-      }}
+    <div
+      className="relative group"
+      ref={cardRef}
+      // Also hands the lyric spotlight back to the autoscroll after a manual
+      // drag. Whether the hover starts a preview is the feed's call, not this
+      // card's — see useHoverCapablePointer.
+      onMouseEnter={() => { isUserScrollingRef.current = false; onHoverStart(); }}
+      onMouseLeave={onHoverEnd}
       onClick={handleCardClick}
     >
       {currentAudioSrc && (
@@ -690,8 +691,9 @@ function ConnectPostCard({
             {post.attachment && (
               <button
                 onClick={(e) => {
+                  // Card click would otherwise toggle a second time and cancel this.
                   e.stopPropagation();
-                  togglePlayback();
+                  onTogglePlay();
                 }}
                 // shrink-0 is the circle fix: without it this sat in a flex row
                 // beside a badge that wanted room, so it got squeezed narrower
@@ -1596,21 +1598,31 @@ export default function ConnectTab() {
   // View Project Canvas Modal State
   const [viewingProjectPost, setViewingProjectPost] = useState<Post | null>(null);
 
-  // Active / Autoplay spotlight states
-  const [activePostId, setActivePostId] = useState<string | null>(null);
-  const [clickedActivePostId, setClickedActivePostId] = useState<string | null>(null);
-  const [manuallyPausedPosts, setManuallyPausedPosts] = useState<{ [id: string]: boolean }>({});
+  /**
+   * Playback is two ideas, not three states.
+   *
+   * `playingPostId` is a deliberate choice — a click on the card or its button.
+   * It persists: moving the pointer away, or anywhere else, does not touch it.
+   *
+   * `hoveredPostId` is a passing preview, and only on a pointer that can
+   * genuinely hover. It never overrides a deliberate choice: while something is
+   * pinned, sweeping the mouse down the feed leaves it alone rather than
+   * interrupting the song every time the pointer crosses another card.
+   */
+  const [playingPostId, setPlayingPostId] = useState<string | null>(null);
+  const [hoveredPostId, setHoveredPostId] = useState<string | null>(null);
+  const canHover = useHoverCapablePointer();
 
-  const handlePauseToggle = (postId: string) => {
-    setManuallyPausedPosts(prev => ({
-      ...prev,
-      [postId]: !prev[postId]
-    }));
-  };
+  const previewPostId = canHover && !playingPostId ? hoveredPostId : null;
 
-  const handleDeactive = (postId: string) => {
-    if (clickedActivePostId === postId) return;
-    setActivePostId(prev => (prev === postId ? null : prev));
+  const handleTogglePlay = (postId: string) => {
+    const stopping = playingPostId === postId;
+    setPlayingPostId(stopping ? null : postId);
+    // Stopping with the pointer still resting on the card would otherwise fall
+    // straight back into a hover preview of the very thing just stopped. The
+    // preview resumes on a fresh mouseenter, which is what leaving and coming
+    // back is for.
+    if (stopping) setHoveredPostId(null);
   };
 
   // Real people on the platform, replacing the placeholder roster this row used
@@ -2336,25 +2348,10 @@ export default function ConnectTab() {
               <ConnectPostCard
                 key={post.id}
                 post={post}
-                isActive={activePostId === post.id || clickedActivePostId === post.id}
-                isPaused={!!manuallyPausedPosts[post.id]}
-                onActive={() => {
-                  setActivePostId(post.id);
-                  if (clickedActivePostId !== post.id) {
-                    setClickedActivePostId(null);
-                  }
-                }}
-                onDeactive={handleDeactive}
-                onClickActive={() => {
-                  if (clickedActivePostId === post.id) {
-                    setClickedActivePostId(null);
-                    setActivePostId(null);
-                  } else {
-                    setClickedActivePostId(post.id);
-                    setActivePostId(post.id);
-                  }
-                }}
-                onPauseToggle={() => handlePauseToggle(post.id)}
+                isPlaying={playingPostId === post.id || previewPostId === post.id}
+                onTogglePlay={() => handleTogglePlay(post.id)}
+                onHoverStart={() => setHoveredPostId(post.id)}
+                onHoverEnd={() => setHoveredPostId(prev => (prev === post.id ? null : prev))}
                 currentUserDisplayName={currentUserDisplayName}
                 currentUserId={user?.uid || null}
                 editingPostId={editingPostId}

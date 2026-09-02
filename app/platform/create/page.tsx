@@ -1388,9 +1388,9 @@ const PhraseRow = React.memo(function PhraseRow({
                 data-phrase-id={phrase.id}
             >
                 {dragOverPhraseId === phrase.id && (
-                    <div className="absolute top-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                    <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#B79DF0] rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(183,157,240,0.5)]">
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
                     </div>
                 )}
             </div>
@@ -1870,9 +1870,9 @@ const PhraseRow = React.memo(function PhraseRow({
             )}
             
             {dragOverPhraseId === phrase.id && dropPosition === 'top' && !hasAudioNote && (
-                <div className="absolute top-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#B79DF0] rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(183,157,240,0.5)]">
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
                 </div>
             )}
             
@@ -2065,7 +2065,7 @@ const PhraseRow = React.memo(function PhraseRow({
                     style={isLockedByRemote ? { borderColor: lockerHex } : undefined}
                 >
                     {wordsList.length === 1 && wordsList[0].trim() === '' && dragOverWordIndex?.phraseId === phrase.id && dragOverWordIndex?.wordIndex === -1 ? (
-                        <span className="inline-block border-2 border-dashed border-indigo-400/80 bg-indigo-50/10 text-indigo-500 rounded-[12px] px-6 py-1 text-lg font-normal animate-pulse select-none mx-auto w-fit">
+                        <span className="inline-block border-2 border-dashed border-[#B79DF0] bg-[#B79DF0]/10 text-stone-500 rounded-[12px] px-6 py-1 text-lg font-normal animate-pulse select-none mx-auto w-fit">
                             Drop word here
                         </span>
                     ) : (
@@ -2212,9 +2212,9 @@ const PhraseRow = React.memo(function PhraseRow({
                                             )}
                                             {/* Left drop indicator line */}
                                             {isWordDragOver && dragOverWordIndex?.position === 'left' && (
-                                                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-indigo-500 rounded-full transform -translate-x-1/2 pointer-events-none z-40 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]">
-                                                    <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
-                                                    <div className="absolute bottom-0 translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#B79DF0] rounded-full transform -translate-x-1/2 pointer-events-none z-40 animate-pulse shadow-[0_0_8px_rgba(183,157,240,0.7)]">
+                                                    <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
+                                                    <div className="absolute bottom-0 translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
                                                 </div>
                                             )}
                                             
@@ -2222,9 +2222,9 @@ const PhraseRow = React.memo(function PhraseRow({
                                             
                                             {/* Right drop indicator line */}
                                             {isWordDragOver && dragOverWordIndex?.position === 'right' && (
-                                                <div className="absolute right-0 top-0 bottom-0 w-[3px] bg-indigo-500 rounded-full transform translate-x-1/2 pointer-events-none z-40 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]">
-                                                    <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
-                                                    <div className="absolute bottom-0 translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                <div className="absolute right-0 top-0 bottom-0 w-[3px] bg-[#B79DF0] rounded-full transform translate-x-1/2 pointer-events-none z-40 animate-pulse shadow-[0_0_8px_rgba(183,157,240,0.7)]">
+                                                    <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
+                                                    <div className="absolute bottom-0 translate-y-1/2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
                                                 </div>
                                             )}
                                         </span>
@@ -2239,9 +2239,9 @@ const PhraseRow = React.memo(function PhraseRow({
             )}
 
             {dragOverPhraseId === phrase.id && dropPosition === 'bottom' && (
-                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#B79DF0] rounded-full transform translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(183,157,240,0.5)]">
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
                 </div>
             )}
 
@@ -3509,12 +3509,12 @@ function AudioCapsulePlayer({
                 className={`relative bg-white border border-stone-200/80 rounded-full flex items-center z-30 transition-all select-none shrink-0 touch-none max-w-full ${
                     isDocked ? 'px-3 py-0.5 gap-2 h-[22px] shadow-sm' : 'px-3 py-1.5 sm:px-5 sm:py-2 gap-1.5 sm:gap-3 shadow-[0_8px_30px_rgba(0,0,0,0.06)]'
                 } ${
-                    onReopenInStudio ? 'cursor-pointer hover:border-indigo-200 hover:shadow-[0_8px_30px_rgba(79,70,229,0.12)]' : 'cursor-grab active:cursor-grabbing'
+                    onReopenInStudio ? 'cursor-pointer hover:border-[#A2B0DF]/60 hover:shadow-[0_8px_30px_rgba(162,176,223,0.35)]' : 'cursor-grab active:cursor-grabbing'
                 } ${
                     draggedAudioId === audioNote.id ? 'opacity-30 scale-95' : ''
                 }`}
             >
-                <span className={`font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-600 border border-indigo-100/80 rounded-full select-none shrink-0 ${isDocked ? 'px-1.5 py-0.2 text-[7px]' : 'px-2 py-0.5 text-[9px]'}`}>
+                <span className={`font-bold uppercase tracking-wider bg-gradient-to-r from-[#A2B0DF]/20 to-[#B79DF0]/20 text-[#363636] border border-[#A2B0DF]/40 rounded-full select-none shrink-0 ${isDocked ? 'px-1.5 py-0.2 text-[7px]' : 'px-2 py-0.5 text-[9px]'}`}>
                     Studio
                 </span>
                 <span className={`font-bold text-stone-700 whitespace-nowrap truncate ${isDocked ? 'text-[9px]' : 'text-xs'}`}>
@@ -3525,7 +3525,7 @@ function AudioCapsulePlayer({
                     {t('studio.session_draft_hint')}
                 </span>
                 {onReopenInStudio && (
-                    <ArrowUpRight className={`text-indigo-500 shrink-0 ${isDocked ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} strokeWidth={2.5} />
+                    <ArrowUpRight className={`text-[#A2B0DF] shrink-0 ${isDocked ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`} strokeWidth={2.5} />
                 )}
                 {!isDocked && (
                     <>
@@ -3583,7 +3583,7 @@ function AudioCapsulePlayer({
                 {/* Title & Badge */}
                 <div className="flex items-center gap-1 shrink-0">
                     {isStudioMix && (
-                        <span className={`px-1.5 py-0.2 text-[7px] font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-600 border border-indigo-100/50 rounded-full select-none shrink-0 ${isTranscribing ? 'hidden sm:inline-block' : ''}`}>
+                        <span className={`px-1.5 py-0.2 text-[7px] font-bold uppercase tracking-wider bg-gradient-to-r from-[#A2B0DF]/20 to-[#B79DF0]/20 text-[#363636] border border-[#A2B0DF]/30 rounded-full select-none shrink-0 ${isTranscribing ? 'hidden sm:inline-block' : ''}`}>
                             Studio
                         </span>
                     )}
@@ -3593,7 +3593,7 @@ function AudioCapsulePlayer({
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); onReopenInStudio(); }}
                                 aria-label={t('studio.reopen_in_studio')}
-                                className={`${btn.plain('bare')} shrink-0 text-indigo-500 transition-colors hover:text-indigo-700 cursor-pointer ${isTranscribing ? 'hidden sm:inline-flex' : ''}`}
+                                className={`${btn.plain('bare')} shrink-0 text-[#A2B0DF] transition-colors hover:text-[#363636] cursor-pointer ${isTranscribing ? 'hidden sm:inline-flex' : ''}`}
                             >
                                 <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
                             </button>
@@ -3605,7 +3605,7 @@ function AudioCapsulePlayer({
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); onAddAsStudioTrack(); }}
                                 aria-label={t('studio.add_to_studio')}
-                                className={`${btn.plain('bare')} shrink-0 text-indigo-500 transition-colors hover:text-indigo-700 cursor-pointer ${isTranscribing ? 'hidden sm:inline-flex' : ''}`}
+                                className={`${btn.plain('bare')} shrink-0 text-[#A2B0DF] transition-colors hover:text-[#363636] cursor-pointer ${isTranscribing ? 'hidden sm:inline-flex' : ''}`}
                             >
                                 <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={2.5} />
                             </button>
@@ -3723,7 +3723,7 @@ function AudioCapsulePlayer({
             {/* Title & Badge */}
             <div className="flex items-center gap-1.5 shrink-0">
                 {isStudioMix && (
-                    <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-600 border border-indigo-100/80 rounded-full select-none shrink-0 shadow-sm animate-in fade-in duration-300">
+                    <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-gradient-to-r from-[#A2B0DF]/20 to-[#B79DF0]/20 text-[#363636] border border-[#A2B0DF]/40 rounded-full select-none shrink-0 shadow-sm animate-in fade-in duration-300">
                         Studio
                     </span>
                 )}
@@ -3733,7 +3733,7 @@ function AudioCapsulePlayer({
                             type="button"
                             onClick={(e) => { e.stopPropagation(); onReopenInStudio(); }}
                             aria-label={t('studio.reopen_in_studio')}
-                            className={`${CARD_ICON_ACTION} text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50`}
+                            className={`${CARD_ICON_ACTION} text-[#A2B0DF] hover:text-[#363636] hover:bg-[#A2B0DF]/15`}
                         >
                             <ArrowUpRight className="w-3 h-3" strokeWidth={2.5} />
                         </button>
@@ -3745,7 +3745,7 @@ function AudioCapsulePlayer({
                             type="button"
                             onClick={(e) => { e.stopPropagation(); onAddAsStudioTrack(); }}
                             aria-label={t('studio.add_to_studio')}
-                            className={`${CARD_ICON_ACTION} text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50`}
+                            className={`${CARD_ICON_ACTION} text-[#A2B0DF] hover:text-[#363636] hover:bg-[#A2B0DF]/15`}
                         >
                             <ArrowUpRight className="w-3 h-3" strokeWidth={2.5} />
                         </button>
@@ -14623,9 +14623,9 @@ export default function CreatePage() {
     }, [activeNote?.chords]);
 
     const dropIndicator = (edge: 'top' | 'bottom') => (
-        <div className={`absolute ${edge === 'top' ? 'top-0 -translate-y-1/2' : 'bottom-0 translate-y-1/2'} left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]`}>
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+        <div className={`absolute ${edge === 'top' ? 'top-0 -translate-y-1/2' : 'bottom-0 translate-y-1/2'} left-0 right-0 h-[3px] bg-[#B79DF0] rounded-full transform pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(183,157,240,0.5)]`}>
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
         </div>
     );
 
@@ -16697,7 +16697,7 @@ export default function CreatePage() {
                                         <Tooltip label={`${trackActiveUser.name} is on this track`}>
                                             <div
                                                 className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center font-bold text-[12px] text-white shadow-md border-2 border-white z-30 select-none uppercase transition-transform hover:scale-110"
-                                                style={{ backgroundColor: trackBorderColor || '#818CF8', color: '#1C1917' }}
+                                                style={{ backgroundColor: trackBorderColor || '#A1B5EE', color: '#1C1917' }}
                                             >
                                                 {userInitial}
                                             </div>
@@ -20117,19 +20117,19 @@ export default function CreatePage() {
                     <div
                         onClick={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className="relative bg-[#78B673] text-white rounded-full px-5 py-2 shadow-lg flex items-center justify-between gap-5 sm:gap-7 border border-[#6FA96A] max-w-fit mx-auto transition-all"
+                        className="relative bg-[#78B673] text-white shadow-lg flex border border-[#6FA96A] mx-auto transition-all max-sm:w-full max-sm:max-w-none max-sm:flex-col max-sm:items-stretch max-sm:gap-2.5 max-sm:rounded-[22px] max-sm:px-4 max-sm:py-3 sm:items-center sm:justify-between sm:gap-7 sm:max-w-fit sm:rounded-full sm:px-5 sm:py-2"
                     >
                         <div className="invite-glow-ring" />
                         {/* Status dot + text */}
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
                             <span className="w-2.5 h-2.5 rounded-full bg-[#E5FE6C] animate-pulse shrink-0" />
-                            <span className="font-medium text-[14px] sm:text-[14.5px] text-white tracking-tight whitespace-nowrap">
+                            <span className="font-medium text-[14px] sm:text-[14.5px] text-white tracking-tight whitespace-nowrap truncate min-w-0">
                                 {pendingInvites[0].senderName || "Peter"} invited you for collab
                             </span>
                         </div>
 
                         {/* Actions: Decline & Join */}
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-3 shrink-0 max-sm:justify-end">
                             <button
                                 type="button"
                                 onClick={(e) => {
@@ -21233,9 +21233,9 @@ export default function CreatePage() {
                                                 }}
                                             >
                                                 {dragOverBlockId === blockId && blockDropPosition === 'top' && (
-                                                    <div className="absolute top-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
-                                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
-                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                    <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#B79DF0] rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(183,157,240,0.5)]">
+                                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
+                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
                                                     </div>
                                                 )}
                                                 
@@ -21822,9 +21822,9 @@ export default function CreatePage() {
                                                                         >
                                                                             {/* Horizontal line drop indicator line (top) above the first audio card */}
                                                                             {idx === 0 && dragOverPhraseId === phrase.id && dropPosition === 'top' && (
-                                                                                <div className="absolute top-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
-                                                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
-                                                                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                                                <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#B79DF0] rounded-full transform -translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(183,157,240,0.5)]">
+                                                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
+                                                                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
                                                                                 </div>
                                                                             )}
 
@@ -21935,9 +21935,9 @@ export default function CreatePage() {
                                                 )}
                                                 
                                                 {dragOverBlockId === blockId && blockDropPosition === 'bottom' && (
-                                                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-indigo-500/80 rounded-full transform translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.4)]">
-                                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
-                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow" />
+                                                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#B79DF0] rounded-full transform translate-y-1/2 pointer-events-none z-30 animate-pulse shadow-[0_0_8px_rgba(183,157,240,0.5)]">
+                                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
+                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#B79DF0] shadow" />
                                                     </div>
                                                 )}
                                             </div>

@@ -321,6 +321,53 @@ export default function PracticeTab() {
         selectPractice(practices[(currentIndex + 1) % practices.length], 1);
     };
 
+    /*
+     * Swiping the card is the header arrows, as a gesture: left goes to the
+     * next practice, right to the previous, using the same direction-aware
+     * slide. The card tracks the pointer with damping while the finger is
+     * down, and springs back if the swipe never clears the threshold.
+     */
+    const cardSwipeStartX = useRef<number | null>(null);
+    const [cardDragX, setCardDragX] = useState(0);
+    const [isCardDragging, setIsCardDragging] = useState(false);
+
+    const onCardPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        // Controls keep their own pointer behaviour. setPointerCapture below
+        // retargets pointerup to this container, and a button whose release
+        // lands elsewhere never fires its click — the tips deck's heart bug.
+        if ((e.target as HTMLElement)?.closest('button, a, input, textarea, select, video')) {
+            cardSwipeStartX.current = null;
+            return;
+        }
+        cardSwipeStartX.current = e.clientX;
+        setIsCardDragging(true);
+        e.currentTarget.setPointerCapture(e.pointerId);
+    };
+
+    const onCardPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (cardSwipeStartX.current === null) return;
+        const dx = e.clientX - cardSwipeStartX.current;
+        // Damped and capped, so the card hints at the motion without leaving.
+        setCardDragX(Math.max(-120, Math.min(120, dx * 0.4)));
+    };
+
+    const onCardPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+        const start = cardSwipeStartX.current;
+        cardSwipeStartX.current = null;
+        setIsCardDragging(false);
+        setCardDragX(0);
+        if (start === null) return;
+        const dx = e.clientX - start;
+        if (dx <= -80) handleNextPractice();
+        else if (dx >= 80) handlePrevPractice();
+    };
+
+    const onCardPointerCancel = () => {
+        cardSwipeStartX.current = null;
+        setIsCardDragging(false);
+        setCardDragX(0);
+    };
+
     // Stable across renders: the player keys its audio element off this.
     const handleTogglePlay = useCallback(() => {
         setIsPlaying(playing => !playing);
@@ -618,32 +665,51 @@ export default function PracticeTab() {
                             transition={{ duration: 0.2, ease: "easeInOut" }}
                             className="w-full pb-8 relative overflow-hidden"
                         >
-                            {/* Cards slide past each other in the direction you asked for.
-                                popLayout takes the outgoing card out of flow so both move
-                                at once instead of one waiting for the other. */}
-                            <AnimatePresence mode="popLayout" custom={direction} initial={false}>
-                                <motion.div
-                                    key={selectedPractice}
-                                    custom={direction}
-                                    variants={CARD_SLIDE}
-                                    initial="enter"
-                                    animate="center"
-                                    exit="exit"
-                                    transition={{ duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
-                                >
-                                    <PracticeCard
-                                        practice={currentMeta}
-                                        name={t(currentMeta.nameKey)}
-                                        goal={t(currentMeta.goalKey)}
-                                        level={getTranslatedLevel(currentMeta.level)}
-                                        startLabel={t('practice.start_practice')}
-                                        comingSoonLabel={countdownLabel(currentMeta)}
-                                        videoLabel={t('practice.why_practice').replace('{practice}', t(currentMeta.nameKey))}
-                                        onStart={() => setOpenedPractice(currentMeta.name)}
-                                        onPlayVideo={() => setVideoPractice(currentMeta)}
-                                    />
-                                </motion.div>
-                            </AnimatePresence>
+                            {/* The swipe layer is a plain div, NOT the motion.div
+                                above: framer owns that element's transform, and a
+                                style transform there would be overwritten mid-slide.
+                                touch-pan-y leaves vertical page scrolling native —
+                                a vertical drag scrolls, a horizontal one swipes.
+                                select-none so a desktop drag moves the card instead
+                                of sweeping a text selection across it. */}
+                            <div
+                                className="select-none touch-pan-y"
+                                style={{
+                                    transform: `translateX(${cardDragX}px)`,
+                                    transition: isCardDragging ? 'none' : 'transform 220ms cubic-bezier(0.23, 1, 0.32, 1)',
+                                }}
+                                onPointerDown={onCardPointerDown}
+                                onPointerMove={onCardPointerMove}
+                                onPointerUp={onCardPointerUp}
+                                onPointerCancel={onCardPointerCancel}
+                            >
+                                {/* Cards slide past each other in the direction you asked for.
+                                    popLayout takes the outgoing card out of flow so both move
+                                    at once instead of one waiting for the other. */}
+                                <AnimatePresence mode="popLayout" custom={direction} initial={false}>
+                                    <motion.div
+                                        key={selectedPractice}
+                                        custom={direction}
+                                        variants={CARD_SLIDE}
+                                        initial="enter"
+                                        animate="center"
+                                        exit="exit"
+                                        transition={{ duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
+                                    >
+                                        <PracticeCard
+                                            practice={currentMeta}
+                                            name={t(currentMeta.nameKey)}
+                                            goal={t(currentMeta.goalKey)}
+                                            level={getTranslatedLevel(currentMeta.level)}
+                                            startLabel={t('practice.start_practice')}
+                                            comingSoonLabel={countdownLabel(currentMeta)}
+                                            videoLabel={t('practice.why_practice').replace('{practice}', t(currentMeta.nameKey))}
+                                            onStart={() => setOpenedPractice(currentMeta.name)}
+                                            onPlayVideo={() => setVideoPractice(currentMeta)}
+                                        />
+                                    </motion.div>
+                                </AnimatePresence>
+                            </div>
                         </motion.div>
                     )}
 

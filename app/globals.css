@@ -841,6 +841,27 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     }
 }
 
+/* Skeleton shimmer — a soft highlight sweeping across a stone base, for the
+ * places that hold space while media downloads (the lesson video's poster).
+ * Tones sit inside the app's beige family so the placeholder reads as part of
+ * the page, not as a grey foreign block. Reduced motion keeps the base and
+ * drops the sweep: still clearly a placeholder, nothing moving. */
+@keyframes skeleton-sweep {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+}
+.skeleton-sweep {
+    background: linear-gradient(100deg, #E9E7E1 40%, #F5F4EE 50%, #E9E7E1 60%);
+    background-size: 200% 100%;
+    animation: skeleton-sweep 1.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .skeleton-sweep {
+        animation: none;
+        background: #E9E7E1;
+    }
+}
+
 /* Bank of tips — the card artwork breathes.
  *
  * Every sub-shape of a glyph drifts between two positions — one pair of

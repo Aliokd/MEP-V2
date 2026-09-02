@@ -26,13 +26,37 @@ export default function LessonContent({
     // play overlay only covers the initial poster state, not every pause, so
     // native controls (scrubbing, volume, fullscreen) stay reachable once started.
     const [hasStarted, setHasStarted] = React.useState(false);
+    // False until there is something real to show. The wait the user sees is
+    // almost entirely the poster JPEG downloading — a large photo paints
+    // progressively, so without this the box showed a strip of image over a
+    // grey void. Until ready, a skeleton holds the space and the half-painted
+    // poster stays hidden.
+    const [ready, setReady] = React.useState(false);
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const isInitialMount = React.useRef(true);
 
     // Reset to the poster state whenever the lesson changes
     React.useEffect(() => {
         setHasStarted(false);
+        setReady(false);
     }, [lesson.id]);
+
+    // Poster readiness, watched on a detached Image rather than the <video>:
+    // the video element gives no event for "poster finished downloading".
+    // The browser fetches the URL once, so this costs no second download. A
+    // broken poster counts as ready too — better the video's own frame than a
+    // skeleton that never leaves. Lessons without a poster rely on the video's
+    // onLoadedData below instead.
+    React.useEffect(() => {
+        if (!lesson.posterUrl) return;
+        let cancelled = false;
+        const img = new Image();
+        img.onload = () => { if (!cancelled) setReady(true); };
+        img.onerror = () => { if (!cancelled) setReady(true); };
+        img.src = lesson.posterUrl;
+        if (img.complete) setReady(true);
+        return () => { cancelled = true; };
+    }, [lesson.id, lesson.posterUrl]);
 
     // Pause video immediately when chapter is collapsed/inactive
     React.useEffect(() => {
@@ -89,9 +113,13 @@ export default function LessonContent({
                     controls={hasStarted}
                     preload="auto"
                     poster={lesson.posterUrl}
-                    className="w-full h-full object-cover"
+                    /* Hidden until ready so the progressively-painting poster is
+                       never visible; fades in once whole. */
+                    className={`w-full h-full object-cover transition-opacity duration-300 ${ready ? 'opacity-100' : 'opacity-0'}`}
                     onTimeUpdate={handleTimeUpdate}
                     onPlay={() => setHasStarted(true)}
+                    /* Covers lessons with no poster, and a cached video. */
+                    onLoadedData={() => setReady(true)}
                     onEnded={onVideoEnd}
                 >
                     {t('learn.video_not_supported')}
@@ -102,8 +130,17 @@ export default function LessonContent({
                 </div>
             )}
 
-            {/* Custom Minimalist Play Overlay — poster state only, doesn't reappear on pause */}
-            {lesson.videoUrl && !hasStarted && (
+            {/* Skeleton while the poster downloads — the shimmer sweep, a soft
+                highlight travelling across the stone base (see .skeleton-sweep
+                in globals.css). */}
+            {lesson.videoUrl && !ready && (
+                <div className="absolute inset-0 skeleton-sweep" />
+            )}
+
+            {/* Custom Minimalist Play Overlay — poster state only, doesn't reappear
+                on pause. Gated on `ready` as well: a play button over the skeleton
+                would be an invitation to watch a video that isn't there yet. */}
+            {lesson.videoUrl && ready && !hasStarted && (
                 <div 
                     onClick={handlePlayOverlayClick}
                     className="absolute inset-0 bg-stone-900/10 backdrop-blur-xs flex items-center justify-center cursor-pointer transition-all duration-300 hover:bg-stone-900/25 z-10"
