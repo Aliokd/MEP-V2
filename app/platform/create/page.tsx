@@ -3755,9 +3755,12 @@ function AudioCapsulePlayer({
                     <input
                         type="text" value={audioNote.title || ''} placeholder={t('card.name')}
                         disabled={isTranscribing} onChange={(e) => onRename(e.target.value)}
-                        style={{ width: `${Math.max(6, (audioNote.title || '').length)}ch` }}
+                        // ch measures the '0' glyph and the input is border-box, so a bare
+                        // `${len}ch` width clips wide caps behind its own 12px padding —
+                        // pad the formula instead of letting the title truncate early.
+                        style={{ width: `calc(${Math.max(6, (audioNote.title || '').length)}ch + 16px)` }}
                         aria-label={t('card.rename_recording')}
-                        className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[50px] max-w-[90px] lg:max-w-[200px] truncate"
+                        className="bg-transparent border-none outline-none font-bold text-xs text-stone-800 placeholder:text-stone-400 shrink-0 hover:bg-stone-50 focus:bg-stone-50 rounded px-1.5 py-0.5 focus:ring-1 focus:ring-stone-200 transition-colors disabled:opacity-50 min-w-[50px] max-w-[90px] md:max-w-[200px] truncate"
                     />
                 </Tooltip>
             </div>
@@ -21107,7 +21110,7 @@ export default function CreatePage() {
                                 {((unattachedAudioNotes.length > 0) || uploadingFiles.some(f => f.type === 'audio')) && (
                                     <div className="flex flex-col gap-3 mb-2 px-1 flex-shrink-0 w-full items-center">
                                         {unattachedAudioNotes.map((audioNote) => (
-                                            <div key={audioNote.id} className="w-full max-w-2xl mx-auto">
+                                            <div key={audioNote.id} className="w-full max-w-2xl mx-auto flex justify-center">
                                                 <AudioCapsulePlayer 
                                                     uploadProgress={uploadProgressById[audioNote.id]}
                                                     isDecomposing={decomposingAudioId === audioNote.id}
@@ -21135,7 +21138,7 @@ export default function CreatePage() {
                                             </div>
                                         ))}
                                         {uploadingFiles.filter(f => f.type === 'audio').map(f => (
-                                            <div key={f.id} className="w-full max-w-2xl mx-auto">
+                                            <div key={f.id} className="w-full max-w-2xl mx-auto flex justify-center">
                                                 <AudioCapsuleSkeleton />
                                             </div>
                                         ))}

@@ -79,6 +79,14 @@ function buildCsp(nonce: string): string {
         "media-src 'self' blob: data: https://firebasestorage.googleapis.com https://storage.googleapis.com https://*.firebasestorage.app",
         [
             "connect-src 'self'",
+            // The page's own in-memory blobs. media-src already lets a blob: take
+            // PLAY; this lets code fetch() one back — which is how a not-yet-uploaded
+            // recording reaches transcription, and how the Demo Studio's decomposer
+            // gets its bytes. Without it those paths die with a CSP violation the
+            // moment the asset only exists locally (upload still in flight, or
+            // failed). Safe to allow: a blob: URL can only name data this same
+            // document created — it is not a network destination.
+            'blob:',
             // Firebase: Firestore, Auth, Storage, and the WebSocket transport
             // Firestore falls back to when long-polling is blocked.
             'https://*.googleapis.com',
