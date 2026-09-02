@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { UserPlus, Trash2, RefreshCw } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
+import RequirePermission from "../components/RequirePermission";
 import { PageHeader, Panel, PanelHeader, Badge, Button, Input, Select, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 import { ADMIN_ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS, ROLE_PERMISSIONS, type AdminRole } from "@/lib/admin/roles";
 
@@ -16,7 +17,16 @@ interface AdminRow {
     grantedAt: number | null;
 }
 
+/** Roles are granted here, so only a role that can grant them may see it. */
 export default function TeamPage() {
+    return (
+        <RequirePermission permission="roles.write">
+            <TeamPageInner />
+        </RequirePermission>
+    );
+}
+
+function TeamPageInner() {
     const { adminFetch, user } = useAdmin();
     const [admins, setAdmins] = useState<AdminRow[] | null>(null);
     const [error, setError] = useState<string | null>(null);
