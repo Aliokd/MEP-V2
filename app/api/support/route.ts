@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendMail } from '@/lib/email/send';
 import { createInboxThread, verifyClaimedUser } from '@/lib/inbox';
+import { rateLimitGuard } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
     try {
@@ -12,6 +13,11 @@ export async function POST(request: Request) {
         }
 
         const caller = await verifyClaimedUser(request, userId || 'anonymous');
+
+        // Keyed by account when there is one, by address when there is not —
+        // the anonymous path is the one an abuser would use.
+        const throttled = rateLimitGuard(request, 'support', caller.verified ? caller.uid : undefined);
+        if (throttled) return throttled;
 
         // SupportModal used to write this doc straight from the client, but
         // firestore.rules had no match block for `support_tickets` at all, so every

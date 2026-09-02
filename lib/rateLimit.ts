@@ -56,6 +56,14 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
     // write flood and an inbox flood. A person signs up once; a handful of
     // attempts covers typos and a re-submit.
     waitlist: { limit: 6, windowMs: 60_000 },
+    // The feedback and support forms are public writes that each create an
+    // inbox thread and send a mail to support@. They accept anonymous callers
+    // by design — a locked-out user still needs a way in — which is exactly
+    // why they cannot be unbounded: anonymous means keyed by IP, and an IP with
+    // no ceiling can fill the console and the mailbox in one loop. A person
+    // writes once; a few covers a re-send after a typo.
+    feedback: { limit: 5, windowMs: 60_000 },
+    support: { limit: 5, windowMs: 60_000 },
 };
 
 // Bounded so a flood of distinct clients can't grow this without limit.

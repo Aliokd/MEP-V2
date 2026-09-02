@@ -308,7 +308,9 @@ service cloud.firestore {
       // entirely if any document in the result set fails the rule.
       allow read: if isSignedIn() && (isSender() || isRecipient());
 
-      allow create: if isSignedIn() &&
+      // Same reasoning as messages: an unsolicited request to a stranger is
+      // exactly what a mute should stop.
+      allow create: if isSignedIn() && !isMuted() &&
         request.resource.data.fromUid == request.auth.uid &&
         request.resource.data.toUid is string &&
         request.resource.data.toUid != request.auth.uid &&
@@ -386,7 +388,10 @@ service cloud.firestore {
         // Write-once, in your own name. An edited or deleted message would be
         // indistinguishable from tampering to the other side, and there is no
         // plaintext here for a moderator to act on anyway.
-        allow create: if isSignedIn() && isMember() &&
+        // A muted account can read its threads but not add to them. Without
+        // this a mute stopped feed posts and left the one-to-one channel open,
+        // which is the channel harassment actually uses.
+        allow create: if isSignedIn() && isMember() && !isMuted() &&
           request.resource.data.senderUid == request.auth.uid &&
           request.resource.data.ciphertext is string &&
           request.resource.data.ciphertext.size() > 0 &&

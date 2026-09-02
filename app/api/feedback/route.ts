@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendMail } from '@/lib/email/send';
 import { createInboxThread, verifyClaimedUser } from '@/lib/inbox';
+import { rateLimitGuard } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
     try {
@@ -12,6 +13,11 @@ export async function POST(request: Request) {
         }
 
         const caller = await verifyClaimedUser(request, userId || 'anonymous');
+
+        // Keyed by account when there is one, by address when there is not —
+        // the anonymous path is the one an abuser would use.
+        const throttled = rateLimitGuard(request, 'feedback', caller.verified ? caller.uid : undefined);
+        if (throttled) return throttled;
 
         // Persist first — this used to run through the *client* SDK from a server
         // route, so `request.auth` was null, the rule denied every write, and the

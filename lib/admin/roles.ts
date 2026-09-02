@@ -55,7 +55,6 @@ export type AdminPermission =
     | "users.write"
     | "users.sanction"
     | "users.delete"
-    | "users.impersonate"
     // Content
     | "content.read"
     | "content.write"
@@ -126,7 +125,6 @@ const ALL_PERMISSIONS: AdminPermission[] = [
     "users.write",
     "users.sanction",
     "users.delete",
-    "users.impersonate",
     "content.read",
     "content.write",
     "content.publish",
