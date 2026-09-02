@@ -66,7 +66,9 @@ export default function ContentEditor({
                 title: collection === "songs" || collection === "melodies" ? "" : {},
                 ...(collection === "ideas" ? { category: "lyrics" } : {}),
                 ...(collection === "songs" ? { sections: [], available: false } : {}),
-                ...(collection === "melodies" ? { instrument: "piano", available: false } : {}),
+                // Offered by default: a melody is audio and a title, and there
+                // is no half-finished state worth publishing but withholding.
+                ...(collection === "melodies" ? { instrument: "piano", available: true } : {}),
             } as ContentItem),
     );
     const [locale, setLocale] = useState<Locale>("en");

@@ -39,6 +39,10 @@ const EDITABLE = {
     lessons: { collection: "learn_lessons", label: "lesson" },
     ideas: { collection: "ideas", label: "idea" },
     songs: { collection: "practice_songs", label: "song" },
+    // Mirrors the map in ../route.ts. A collection added there and not here
+    // can be created but never edited, published or archived — the console
+    // reports "Unknown content collection" on the first save after creation.
+    melodies: { collection: "practice_melodies", label: "melody" },
     pages: { collection: "site_pages", label: "page" },
     faqs: { collection: "faqs", label: "faq" },
     copy: { collection: "site_copy", label: "copy" },
