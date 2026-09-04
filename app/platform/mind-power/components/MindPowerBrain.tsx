@@ -83,7 +83,6 @@ type Lines = Partial<Record<RegionKey, string>>;
 
 export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) {
     const [active, setActive] = useState<RegionKey | null>(null);
-    const [touched, setTouched] = useState(false);
     const reduceMotion = useReducedMotion();
     const large = useIsLarge();
 
@@ -135,14 +134,8 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
         setActive(null);
     };
 
-    const select = (region: RegionKey) => {
-        setTouched(true);
-        setActive(region);
-    };
-    const toggle = (region: RegionKey) => {
-        setTouched(true);
-        setActive(prev => (prev === region ? null : region));
-    };
+    const select = (region: RegionKey) => setActive(region);
+    const toggle = (region: RegionKey) => setActive(prev => (prev === region ? null : region));
 
     // ---- Card carousel (below lg) ----
     // The cards ride in a horizontal snap track. Choosing a region — by its
@@ -515,16 +508,6 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
                     </svg>
                 )}
             </div>
-
-            {/* Hint, until the first interaction. */}
-            <p
-                className={`text-center text-[12px] text-stone-500 transition-opacity duration-500 ${
-                    touched ? 'opacity-0' : 'opacity-100'
-                }`}
-                aria-hidden={touched}
-            >
-                {t('progress.mp_hover_hint')}
-            </p>
 
             {/* Below lg: the callouts as a horizontal carousel, the active one lit
                 and brought to the middle. Bleeds to the page edge so the next card

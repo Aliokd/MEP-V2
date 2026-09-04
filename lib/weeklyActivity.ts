@@ -4,6 +4,7 @@ import { safeLocalStorageSetItem } from './storage';
 import {
     scoreWeek,
     creditFor,
+    DAY_ACTIVE_SECONDS,
     WEEKLY_TARGET,
     REST_WEEK_MIN_SECONDS,
     REST_WEEK_WINDOW,
@@ -41,6 +42,8 @@ export const WEEKLY_DAYS_KEY = 'mep-weekly-days';
 export const CRAFT_BASELINE_KEY = 'mep-mind-power-baselines';
 /** Health marks per day: breathing, focus, break. */
 export const HEALTH_MARKS_KEY = 'mep-health-marks';
+/** Every day Veinote was opened, as day keys — showing up, before any minute is counted. */
+export const DAILY_VISITS_KEY = 'mep-daily-visits';
 export const WEEKLY_ACTIVITY_EVENT = 'veinote-weekly-activity-updated';
 
 /**
@@ -59,6 +62,12 @@ export const GOLDEN_MIND_SHOWN_KEY = 'mep-golden-mind-shown';
 export const GOLDEN_MIND_EVENT = 'veinote-golden-mind';
 /** The streak has been introduced to this account: the once-only popup on first sight. */
 export const STREAK_INTRO_KEY = 'mep-streak-intro-shown';
+/** The account's first day in Veinote, as a day key — the day it was created. */
+export const FIRST_DAY_KEY = 'mep-first-day';
+/** History before tracking has been reconstructed for this account (see backfillHistory). */
+export const HISTORY_BACKFILLED_KEY = 'mep-history-backfilled';
+/** Weeks before tracking judged golden from the record that survived. */
+export const LEGACY_GOLDEN_KEY = 'mep-legacy-golden-weeks';
 
 /**
  * The goal that made a week golden before scoring existed: 150 minutes, at
@@ -69,11 +78,11 @@ export const WEEKLY_GOAL_SECONDS = 150 * 60;
 export const WEEKLY_GOAL_MINUTES = WEEKLY_GOAL_SECONDS / 60;
 export const ACTIVITY_TICK_SECONDS = 10;
 /**
- * The streak strip never shows fewer cells than this: a new account's single
- * week is padded out with the weeks ahead, so the strip reads as a timeline
- * from day one rather than a lone brain.
+ * Weeks ahead shown after the current one, so the strip can hold the current
+ * week in the middle with the past on its left and what is coming on its
+ * right — a timeline, not a ledger that ends at today.
  */
-export const STREAK_MIN_WEEKS = 4;
+export const FUTURE_WEEKS = 2;
 
 type WeeklyMap = Record<string, number>;
 type DaysMap = Record<string, Record<string, number>>;
@@ -167,6 +176,16 @@ function readHealth(): HealthMap {
     return readJson<HealthMap>(HEALTH_MARKS_KEY, {});
 }
 
+function readVisits(): string[] {
+    const parsed = readJson<unknown>(DAILY_VISITS_KEY, []);
+    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
+}
+
+function readLegacyGolden(): string[] {
+    const parsed = readJson<unknown>(LEGACY_GOLDEN_KEY, []);
+    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
+}
+
 function readActiveWeekKeys(): string[] {
     const parsed = readJson<unknown>(ACTIVE_WEEKS_KEY, []);
     return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
@@ -225,13 +244,20 @@ export function activeWeekLevel(): number {
  * its baseline, and every later one its latest, so the week's own output is
  * the difference — and stays known after the week has passed.
  */
-function snapshotCraft(week: string): void {
+function snapshotCraft(week: string): boolean {
     const baselines = readBaselines();
     const now: Snapshot = { ...readCraftTotals(), community: readCommunityTotal() };
     const entry = baselines[week];
-    if (!entry) baselines[week] = { start: now, latest: now };
-    else entry.latest = now;
-    safeLocalStorageSetItem(CRAFT_BASELINE_KEY, JSON.stringify(baselines));
+    let changed = false;
+    if (!entry) {
+        baselines[week] = { start: now, latest: now };
+        changed = true;
+    } else if (JSON.stringify(entry.latest) !== JSON.stringify(now)) {
+        entry.latest = now;
+        changed = true;
+    }
+    if (changed) safeLocalStorageSetItem(CRAFT_BASELINE_KEY, JSON.stringify(baselines));
+    return changed;
 }
 
 /**
@@ -278,6 +304,54 @@ export function recordActiveSeconds(seconds: number, now: Date = new Date(), eng
     }
 }
 
+/**
+ * Veinote was opened today. Half a day of consistency on its own, and a day
+ * of the daily streak — recorded once per day, so calling it every tick is free.
+ */
+export function recordVisit(now: Date = new Date()): void {
+    if (typeof window === 'undefined') return;
+    // Note the counters as they stand, so a week's output is current from the
+    // first moment and not only from the first tick — and so a save that moves
+    // them is announced, whether or not it is the day's first visit.
+    const countersMoved = snapshotCraft(weekKey(now));
+    const day = dayKey(now);
+    const visits = readVisits();
+    const firstToday = !visits.includes(day);
+    if (firstToday) {
+        visits.push(day);
+        safeLocalStorageSetItem(DAILY_VISITS_KEY, JSON.stringify(visits));
+    }
+    if (firstToday || countersMoved) window.dispatchEvent(new CustomEvent(WEEKLY_ACTIVITY_EVENT));
+}
+
+/** A day the person was here: a visit mark, or engaged time from before visits were kept. */
+function visitedDays(): Set<string> {
+    const days = new Set(readVisits());
+    for (const week of Object.values(readDays())) {
+        for (const [day, seconds] of Object.entries(week)) {
+            if (seconds > 0) days.add(day);
+        }
+    }
+    return days;
+}
+
+/**
+ * Days in a row with a visit, ending today — or yesterday, if today has not
+ * been opened yet, so a streak is never shown broken before the day is over.
+ */
+export function dayStreak(now: Date = new Date()): number {
+    if (typeof window === 'undefined') return 0;
+    const visited = visitedDays();
+    const cursor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (!visited.has(dateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+    let run = 0;
+    while (visited.has(dateKey(cursor))) {
+        run++;
+        cursor.setDate(cursor.getDate() - 1);
+    }
+    return run;
+}
+
 /** A health habit done today: a breathing exercise, a focus session run to zero, a break taken. */
 export function recordHealthMark(kind: HealthMark, now: Date = new Date()): void {
     if (typeof window === 'undefined') return;
@@ -301,16 +375,22 @@ function weekDayKeys(week: string): string[] {
     });
 }
 
-/** The week's score from its record, or null for a week that predates day records. */
+/** The week's score from its record, or null for a week that predates day records and visits. */
 export function weekScore(week: string): WeekScore | null {
-    const weekDays = readDays()[week];
-    if (!weekDays) return null;
+    const allDays = readDays();
+    const visitsInWeek = weekDayKeys(week).some(d => readVisits().includes(d));
+    if (!allDays[week] && !visitsInWeek) return null;
+    const weekDays = allDays[week] || {};
     const baseline = readBaselines()[week];
     const diff = (k: keyof Snapshot) => (baseline ? Math.max(0, (baseline.latest[k] || 0) - (baseline.start[k] || 0)) : 0);
     const health = readHealth();
-    const healthyDays = weekDayKeys(week).filter(d => Object.values(health[d] || {}).some(n => n > 0)).length;
+    const keys = weekDayKeys(week);
+    const healthyDays = keys.filter(d => Object.values(health[d] || {}).some(n => n > 0)).length;
+    const visits = new Set(readVisits());
+    const visitOnlyDays = keys.filter(d => visits.has(d) && (weekDays[d] || 0) < DAY_ACTIVE_SECONDS).length;
     return scoreWeek({
         daySeconds: Object.values(weekDays),
+        visitOnlyDays,
         craft: {
             words: diff('words'),
             recordingSeconds: diff('recordingSeconds'),
@@ -323,18 +403,68 @@ export function weekScore(week: string): WeekScore | null {
     });
 }
 
-/** Golden under whichever rule the week was recorded: the score, or the old minute goal. */
+/**
+ * Golden under either rule: the score reached the target, or the week had
+ * the old goal's 150 minutes. The minute rule stays for good, not only for
+ * weeks before scoring: the week scoring arrived in had days of time on the
+ * clock and none in the day records, and someone who has been in Veinote
+ * every evening deserves that week — and the streak it starts.
+ */
 export function isGoldenWeek(week: string): boolean {
-    const score = weekScore(week);
-    if (score) return score.golden;
-    return (readWeeklyActivity()[week] || 0) >= WEEKLY_GOAL_SECONDS;
+    return weekGoldenRatio(week) >= 1;
 }
 
-/** 0–1 share of golden for the week, on the same rule. */
-function goldenRatio(week: string): number {
+export interface WeekRecapLocal {
+    minutes: number;
+    /** Days with DAY_ACTIVE_SECONDS or more. */
+    activeDays: number;
+    /** Days with any visit or time at all. */
+    visitDays: number;
+    /** The week's own output; null for a week recorded before the counters were kept. */
+    craft: CraftCounters | null;
+    healthMarks: number;
+    score: WeekScore | null;
+}
+
+/** Everything the local record knows about one week, for looking back at it. */
+export function weekRecapLocal(week: string): WeekRecapLocal {
+    const keys = weekDayKeys(week);
+    const days = readDays()[week] || {};
+    const visits = new Set(readVisits());
+    const health = readHealth();
+    const baseline = readBaselines()[week];
+    const diff = (k: keyof Snapshot) => (baseline ? Math.max(0, (baseline.latest[k] || 0) - (baseline.start[k] || 0)) : 0);
+    return {
+        minutes: Math.round((readWeeklyActivity()[week] || 0) / 60),
+        activeDays: Object.values(days).filter(s => s >= DAY_ACTIVE_SECONDS).length,
+        visitDays: keys.filter(d => visits.has(d) || (days[d] || 0) > 0).length,
+        craft: baseline
+            ? {
+                  words: diff('words'),
+                  recordingSeconds: diff('recordingSeconds'),
+                  sections: diff('sections'),
+                  chapters: diff('chapters'),
+                  practiceSeconds: diff('practiceSeconds'),
+              }
+            : null,
+        healthMarks: keys.reduce((sum, d) => sum + Object.values(health[d] || {}).reduce((a, b) => a + b, 0), 0),
+        score: weekScore(week),
+    };
+}
+
+/** 0–1 share of golden for the week: whichever rule the week is nearer on. */
+export function weekGoldenRatio(week: string): number {
+    if (readLegacyGolden().includes(week)) return 1;
     const score = weekScore(week);
-    if (score) return Math.min(1, score.score / WEEKLY_TARGET);
-    return Math.min(1, (readWeeklyActivity()[week] || 0) / WEEKLY_GOAL_SECONDS);
+    const byScore = score ? score.score / WEEKLY_TARGET : 0;
+    const byMinutes = (readWeeklyActivity()[week] || 0) / WEEKLY_GOAL_SECONDS;
+    return Math.min(1, Math.max(byScore, byMinutes));
+}
+
+/** This week's share of golden — what the header pill and the brain fill to. */
+export function currentWeekRatio(now: Date = new Date()): number {
+    if (typeof window === 'undefined') return 0;
+    return weekGoldenRatio(weekKey(now));
 }
 
 /** The current week has reached the target and its celebration has not been dismissed. */
@@ -353,6 +483,81 @@ export function markGoldenMindShown(now: Date = new Date()): void {
     safeLocalStorageSetItem(GOLDEN_MIND_SHOWN_KEY, JSON.stringify(shown));
 }
 
+// ---- History before tracking ----
+
+export interface HistoryEvidence {
+    /** The account's creation time, as Firebase Auth reports it. */
+    creationTime?: string | null;
+    /** Dates on which something of the person's was made or changed — ISO strings or epoch ms. */
+    activityDates: (string | number)[];
+}
+
+/** A week before tracking is golden on this many distinct days of evidence. */
+const LEGACY_GOLDEN_DAYS = 3;
+/** Nominal credit per day of evidence, so an old week fills a little and can be a rest week. */
+const LEGACY_DAY_SECONDS = DAY_ACTIVE_SECONDS;
+
+/**
+ * Accounts older than Mind Power have history it never saw. What survives is
+ * the account's creation date and the dates their songs were last touched;
+ * this turns that into the record it would have kept: the first day, a
+ * visit on every day with evidence, and a share of the week for each. A
+ * week with LEGACY_GOLDEN_DAYS days of evidence is judged golden — the same
+ * spread-over-days idea the score rewards, from the only signal that is left.
+ *
+ * Runs once per account, and never touches a day from the tracked era
+ * onward: the real record always wins over the reconstruction.
+ */
+export function backfillHistory(evidence: HistoryEvidence, now: Date = new Date()): boolean {
+    if (typeof window === 'undefined') return false;
+    if (localStorage.getItem(HISTORY_BACKFILLED_KEY)) return false;
+
+    // Nothing recorded so far counts as "tracked from today".
+    const trackedDays = [...visitedDays()].sort();
+    const trackedFrom = trackedDays[0] || dayKey(now);
+
+    const created = evidence.creationTime ? new Date(evidence.creationTime) : null;
+    if (created && !Number.isNaN(created.getTime())) {
+        safeLocalStorageSetItem(FIRST_DAY_KEY, dayKey(created));
+    }
+
+    const days = new Set<string>();
+    for (const raw of evidence.activityDates) {
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) continue;
+        const key = dayKey(d);
+        if (key < trackedFrom && key <= dayKey(now)) days.add(key);
+    }
+
+    if (days.size > 0) {
+        const visits = new Set(readVisits());
+        days.forEach(d => visits.add(d));
+        safeLocalStorageSetItem(DAILY_VISITS_KEY, JSON.stringify([...visits].sort()));
+
+        const perWeek = new Map<string, number>();
+        days.forEach(d => {
+            const w = weekKey(parseKey(d) as Date);
+            perWeek.set(w, (perWeek.get(w) || 0) + 1);
+        });
+
+        const map = readWeeklyActivity();
+        const active = new Set(readActiveWeekKeys());
+        const golden = new Set(readLegacyGolden());
+        perWeek.forEach((count, w) => {
+            map[w] = Math.max(map[w] || 0, count * LEGACY_DAY_SECONDS);
+            active.add(w);
+            if (count >= LEGACY_GOLDEN_DAYS) golden.add(w);
+        });
+        safeLocalStorageSetItem(WEEKLY_ACTIVITY_KEY, JSON.stringify(map));
+        safeLocalStorageSetItem(ACTIVE_WEEKS_KEY, JSON.stringify([...active].sort()));
+        safeLocalStorageSetItem(LEGACY_GOLDEN_KEY, JSON.stringify([...golden].sort()));
+    }
+
+    safeLocalStorageSetItem(HISTORY_BACKFILLED_KEY, 'true');
+    window.dispatchEvent(new CustomEvent(WEEKLY_ACTIVITY_EVENT));
+    return true;
+}
+
 // ---- Streaks ----
 
 /**
@@ -366,6 +571,9 @@ export function firstWeekStart(now: Date = new Date()): Date {
     for (const [key, seconds] of Object.entries(readWeeklyActivity())) {
         if (seconds > 0) keys.add(key);
     }
+    // The account's own first day, when known: week 1 is the week it was made.
+    const firstDay = typeof window === 'undefined' ? null : localStorage.getItem(FIRST_DAY_KEY);
+    if (firstDay) keys.add(firstDay);
     let first = current;
     for (const key of keys) {
         const start = parseKey(key);
@@ -430,15 +638,14 @@ export function computeStreak(now: Date = new Date()): Streak {
 
 /**
  * The streak strip: every week from the account's first to the current one,
- * oldest first and numbered from 1, padded with the weeks ahead so there are
- * never fewer than STREAK_MIN_WEEKS cells.
+ * oldest first and numbered from 1, then FUTURE_WEEKS weeks ahead.
  */
 export function streakWeeks(now: Date = new Date()): WeekCell[] {
     const map = readWeeklyActivity();
     const current = weekStart(now);
     const first = firstWeekStart(now);
     const elapsed = Math.round((current.getTime() - first.getTime()) / (7 * 24 * 3600 * 1000));
-    const total = Math.max(elapsed + 1, STREAK_MIN_WEEKS);
+    const total = elapsed + 1 + FUTURE_WEEKS;
     const { restWeeks } = computeStreak(now);
 
     const cells: WeekCell[] = [];
@@ -454,7 +661,7 @@ export function streakWeeks(now: Date = new Date()): WeekCell[] {
             start,
             index: i + 1,
             seconds,
-            ratio: isFuture ? 0 : goldenRatio(key),
+            ratio: isFuture ? 0 : weekGoldenRatio(key),
             score: score ? score.score : null,
             golden: !isFuture && isGoldenWeek(key),
             isRest: restWeeks.has(key),

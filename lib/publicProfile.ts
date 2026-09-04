@@ -59,6 +59,12 @@ export interface PublicProfile {
      * so a pin is never more exact than the city it names.
      */
     location: { cityId: string; label: string; lat: number; lng: number } | null;
+    /**
+     * A couple of lines in the songwriter's own words, or null. Not written
+     * from anywhere yet — the profile shows a sample until it is — but read
+     * here so the day a real one lands it appears without a code change.
+     */
+    bio: string | null;
 }
 
 /**
@@ -99,6 +105,7 @@ export function toPublicProfile(uid: string, data: Record<string, any>): PublicP
         activeMinutes: typeof data.activeMinutes === "number" ? data.activeMinutes : 0,
         publicKey: typeof data.publicKey === "string" && data.publicKey ? data.publicKey : null,
         verified: data.verified === true,
+        bio: typeof data.bio === "string" && data.bio.trim() ? data.bio.trim() : null,
         location: data.location && typeof data.location.lat === "number" && typeof data.location.lng === "number"
             ? {
                 cityId: String(data.location.cityId ?? ""),

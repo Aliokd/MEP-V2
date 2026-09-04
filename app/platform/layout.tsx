@@ -6,8 +6,20 @@ import SupportModal from './components/SupportModal';
 import FeedbackModal from './components/FeedbackModal';
 import MindPowerStatus from './components/MindPowerStatus';
 import GoldenMindCelebration from './components/GoldenMindCelebration';
+import MindPowerPillBrain from './components/MindPowerPillBrain';
 import { MindPowerProgressProvider } from '@/lib/mindPowerContext';
-import { recordActiveSeconds, readActiveWeekCount, ACTIVITY_TICK_SECONDS, WEEKLY_ACTIVITY_EVENT } from '@/lib/weeklyActivity';
+import {
+    recordActiveSeconds,
+    recordVisit,
+    readActiveWeekCount,
+    currentWeekRatio,
+    weekScore,
+    weekKey,
+    backfillHistory,
+    ACTIVITY_TICK_SECONDS,
+    WEEKLY_ACTIVITY_EVENT,
+    HISTORY_BACKFILLED_KEY,
+} from '@/lib/weeklyActivity';
 import { ENGAGED_WINDOW_MS } from '@/lib/mindPowerScore';
 import PlatformOnboarding from './components/PlatformOnboarding';
 import AnnouncementBanner from './components/AnnouncementBanner';
@@ -18,10 +30,10 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { Menu, User, X, Brain, ChevronRight, ChevronLeft, ShieldOff, UsersRound, UserMinus, ArrowRight } from 'lucide-react';
+import { Menu, User, X, ChevronRight, ChevronLeft, ShieldOff, UsersRound, UserMinus, ArrowRight } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getCountFromServer, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getCountFromServer, getDocs, onSnapshot } from 'firebase/firestore';
 import { acknowledgeRemovalNotice } from './create/collabUtils';
 
 /**
@@ -128,7 +140,8 @@ function PlatformLayoutInner({
 
     // Progress breakdowns and state values
     const [progressLevel, setProgressLevel] = useState(1);
-    const [levelProgress, setLevelProgress] = useState(0); // 0-100% toward next level
+    const [levelProgress, setLevelProgress] = useState(0); // 0-100% toward golden this week
+    const [weekPoints, setWeekPoints] = useState(0); // this week's score, for the pill's "+N"
     const [completedLessonsCount, setCompletedLessonsCount] = useState(0);
 
     // Create section sub-metrics
@@ -298,27 +311,20 @@ function PlatformLayoutInner({
         }
     };
 
-    // Overall progress — the four category counters against their goals, averaged.
-    // Drives the header pill's bar. (The level is separate: see below.)
-    useEffect(() => {
-        const wordsCrit     = Math.min(1, wordsTyped / L1_WORDS);
-        const lessonsCrit   = Math.min(1, completedLessonsCount / L1_LESSONS);
-        const practiceCrit  = Math.min(1, practiceMinutes / L1_PRACTICE);
-        const communityCrit = Math.min(1, communityCount / L1_COMMUNITY);
-        const avgProgress   = Math.round(((wordsCrit + lessonsCrit + practiceCrit + communityCrit) / 4) * 100);
-
-        setLevelProgress(avgProgress);
-        safeLocalStorageSetItem('songwriting-progress', avgProgress.toString());
-    }, [wordsTyped, completedLessonsCount, practiceMinutes, communityCount]);
-
-    // The level is tenure, not output: one level per week with time in Veinote.
-    // Re-read whenever the activity tracker records a tick, so the first tick of
-    // a new week moves the level without a reload.
+    // The header pill's bar is this week's progress toward golden — the same
+    // number the Mind Power brain fills to — and the level is tenure: one per
+    // week with time in Veinote. Both re-read whenever the activity tracker
+    // records a tick, so a tick that moves the week moves the pill without a
+    // reload, and the first tick of a new week moves the level.
     useEffect(() => {
         const refresh = () => {
             const weeks = readActiveWeekCount();
             setActiveWeeks(weeks);
             setProgressLevel(Math.max(1, weeks));
+            const percent = Math.round(currentWeekRatio() * 100);
+            setLevelProgress(percent);
+            setWeekPoints(weekScore(weekKey(new Date()))?.score ?? 0);
+            safeLocalStorageSetItem('songwriting-progress', percent.toString());
         };
         refresh();
         window.addEventListener(WEEKLY_ACTIVITY_EVENT, refresh);
@@ -346,11 +352,39 @@ function PlatformLayoutInner({
         fetchCommunityCount();
     }, [user]);
 
+    // Mind Power arrived after many accounts did. Once per account, rebuild the
+    // weeks it never saw from what survives — the creation date and the dates
+    // their songs were last touched — so a long-time songwriter's streak and
+    // level start from their first day, not from the day tracking shipped.
+    // The flag is set only after the songs have been read, so an offline first
+    // visit simply tries again next time.
+    useEffect(() => {
+        if (!user || localStorage.getItem(HISTORY_BACKFILLED_KEY)) return;
+        let cancelled = false;
+        getDocs(query(collection(db, 'projects'), where('ownerId', '==', user.uid)))
+            .then(snap => {
+                if (cancelled) return;
+                const dates: string[] = [];
+                snap.forEach(d => {
+                    const updatedAt = d.data().updatedAt;
+                    if (typeof updatedAt === 'string') dates.push(updatedAt);
+                });
+                backfillHistory({ creationTime: user.metadata?.creationTime ?? null, activityDates: dates });
+            })
+            .catch(err => console.error('Error reading history for Mind Power:', err));
+        return () => {
+            cancelled = true;
+        };
+    }, [user]);
+
     // Listen to songwriting-progress-updated event
     useEffect(() => {
         const handleProgressUpdate = (e: Event) => {
             recalculateProgress();
             fetchCommunityCount();
+            // Note the counters now rather than at the next tick, so the pill can
+            // show the points the action just earned.
+            recordVisit();
 
             const storedQuote = localStorage.getItem('songwriting-progress-quote');
             if (storedQuote) {
@@ -408,6 +442,7 @@ function PlatformLayoutInner({
         // once-a-day milestone celebration.
         const handleCelebrate = () => {
             recalculateProgress();
+            recordVisit();
             setIsQuickGlow(true);
             setShowProgressGlow(true);
             if (glowTimeoutRef.current) clearTimeout(glowTimeoutRef.current);
@@ -440,8 +475,11 @@ function PlatformLayoutInner({
         };
         const events: (keyof WindowEventMap)[] = ['keydown', 'pointerdown', 'pointermove', 'wheel', 'touchstart', 'input'];
         events.forEach(name => window.addEventListener(name, note, { passive: true, capture: true }));
+        // Showing up counts from the first moment, and again after midnight if the tab stays open.
+        recordVisit();
         const id = setInterval(() => {
             if (document.visibilityState !== 'visible') return;
+            recordVisit();
             const engaged = performance.now() - lastInputAt < ENGAGED_WINDOW_MS;
             recordActiveSeconds(ACTIVITY_TICK_SECONDS, new Date(), engaged);
         }, ACTIVITY_TICK_SECONDS * 1000);
@@ -560,12 +598,12 @@ function PlatformLayoutInner({
             >
                 {showCollabCelebrate && <div className="collab-join-gradient-fill" />}
                 <div className="relative flex items-center gap-2.5">
-                    <Brain size={16} className="text-stone-600 shrink-0" strokeWidth={1.5} />
+                    <MindPowerPillBrain percent={levelProgress} points={weekPoints} size="sm" />
                     <MindPowerStatus t={t} isSaving={isQuickGlow} size="sm" />
                 </div>
                 <div className="flex-1 h-2 bg-stone-200/70 rounded-full overflow-hidden relative ml-2">
                     <div
-                        className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out"
+                        className={`h-full rounded-full transition-all duration-500 ease-out ${levelProgress >= 100 ? 'bg-gradient-to-r from-[#C5A059] via-[#DCAE3C] to-[#F1D066]' : 'bg-gradient-to-r from-[#6FAE68] via-[#86BE7F] to-[#A9DE9F]'}`}
                         style={{ width: `${levelProgress}%` }}
                     />
                 </div>
@@ -816,16 +854,16 @@ function PlatformLayoutInner({
                                 data-tour="mind-power"
                                 role="button"
                                 aria-label={t('progress.mind_power_label')}
-                                className="relative flex h-[46px] items-center bg-white/50 hover:bg-white/70 border border-stone-200/80 px-6 py-3 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-sm text-stone-650 font-bold normal-case tracking-normal"
+                                className="relative flex h-[46px] items-center bg-white/50 hover:bg-white/70 border border-stone-200/80 pl-4 pr-5 py-3 rounded-full select-none cursor-pointer transition-all active:scale-95 shadow-2xs font-sans text-sm text-stone-650 font-bold normal-case tracking-normal"
                             >
                                 {showCollabCelebrate && <div className="collab-join-gradient-fill" />}
                                 <div className="relative flex items-center gap-3">
-                                <Brain size={19} className="text-stone-600 shrink-0" strokeWidth={1.5} />
+                                <MindPowerPillBrain percent={levelProgress} points={weekPoints} />
                                 <MindPowerStatus t={t} isSaving={isQuickGlow} />
                                 </div>
                                 <div className="w-28 h-2.5 bg-stone-200/70 rounded-full overflow-hidden relative ml-2">
                                     <div
-                                        className="h-full bg-[#86BE7F] rounded-full transition-all duration-500 ease-out"
+                                        className={`h-full rounded-full transition-all duration-500 ease-out ${levelProgress >= 100 ? 'bg-gradient-to-r from-[#C5A059] via-[#DCAE3C] to-[#F1D066]' : 'bg-gradient-to-r from-[#6FAE68] via-[#86BE7F] to-[#A9DE9F]'}`}
                                         style={{ width: `${levelProgress}%` }}
                                     />
                                 </div>

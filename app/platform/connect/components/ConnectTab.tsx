@@ -1766,16 +1766,11 @@ export default function ConnectTab() {
               )}
             </span>
 
-            {/* Fades in gently on hover. Both lines come from the user's own
-                record — the specialty is their onboarding answer, so a user
-                who skipped the quiz shows only the join date. */}
+            {/* Fades in gently on hover: the specialty, which is their onboarding
+                answer. Nothing else — the join date belongs on the profile, not
+                on a card this small. A user who skipped the quiz shows no line. */}
             <div className="touch-reveal opacity-0 group-hover:opacity-100 mt-2 transition-opacity duration-350 pointer-events-none flex flex-col gap-0.5 text-sm text-stone-400 font-sans">
               {specialty && <div className="leading-snug">{specialty}</div>}
-              {sw.createdAt > 0 && (
-                <div className="leading-snug">
-                  {t('connect.member_since')} {new Date(sw.createdAt).getFullYear()}
-                </div>
-              )}
             </div>
           </div>
 

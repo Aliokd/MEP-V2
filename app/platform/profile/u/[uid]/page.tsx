@@ -128,8 +128,29 @@ export default function SongwriterProfilePage({ params }: { params: Promise<{ ui
                             : ''
                         ].filter(Boolean).join(' · ')}
                     </p>
+                    {/* Their own words when there are any; a sample until then, so
+                        the page shows what a profile is meant to hold. */}
+                    <p className="text-[15px] text-stone-700 leading-relaxed max-w-xl pt-1">
+                        {person.bio ?? t('profile.sample_bio')}
+                    </p>
                 </div>
             </div>
+
+            {/* Photos — the containers only, for now. Large, in a row that
+                scrolls, the way the People carousel does; the pictures come
+                later, and until then the boxes say where they'll go. */}
+            <section aria-label={t('profile.photos_title')} className="space-y-3">
+                <h2 className="text-sm font-sans font-semibold text-stone-700">{t('profile.photos_title')}</h2>
+                <div className="flex gap-4 overflow-x-auto pb-1 -mx-5 px-5 md:mx-0 md:px-0 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                        <div
+                            key={i}
+                            aria-hidden="true"
+                            className="shrink-0 snap-start w-[260px] sm:w-[300px] aspect-[4/5] rounded-[22px] bg-white border border-stone-200/60"
+                        />
+                    ))}
+                </div>
+            </section>
 
             {/* Nobody connects with themself, and arriving here from your own
                 card would otherwise offer exactly that. */}

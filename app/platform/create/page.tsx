@@ -6360,6 +6360,10 @@ export default function CreatePage() {
                 const done: string[] = JSON.parse(localStorage.getItem('mep-completed-songs') || '[]');
                 if (selectedNoteId && !done.includes(selectedNoteId)) {
                     safeLocalStorageSetItem('mep-completed-songs', JSON.stringify([...done, selectedNoteId]));
+                    // And when: the Mind Power week recap names the songs finished that week.
+                    const dates: Record<string, number> = JSON.parse(localStorage.getItem('mep-completed-song-dates') || '{}');
+                    dates[selectedNoteId] = Date.now();
+                    safeLocalStorageSetItem('mep-completed-song-dates', JSON.stringify(dates));
                 }
             } catch { /* counter is cosmetic — never block completing on it */ }
         }, COMPLETING_MS);

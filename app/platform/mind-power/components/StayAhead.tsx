@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Play } from 'lucide-react';
 import BreathingExercise from './BreathingExercise';
 
@@ -12,16 +12,23 @@ import BreathingExercise from './BreathingExercise';
 
 interface StayAheadProps {
     t: (key: string) => string;
+    /**
+     * Rendered full-width above the card row — the focus timer lives here.
+     * A slot rather than a fifth card: the clock needs more room than a card
+     * gives, and it ticks, so the page keeps it in its own component to stop
+     * every second re-rendering the cards beside it.
+     */
+    leading?: ReactNode;
 }
 
 const CARDS = [
     { key: 'breathing', title: 'progress.sa_breathing', sub: null, live: true },
     { key: 'finger', title: 'progress.sa_finger_tips', sub: null, live: false },
     { key: 'yoga', title: 'progress.sa_yoga', sub: null, live: false },
-    { key: 'holistic', title: 'progress.sa_holistic', sub: 'progress.sa_holistic_sub', live: false },
+    { key: 'holistic', title: 'progress.sa_holistic_sub', sub: null, live: false },
 ] as const;
 
-export default function StayAhead({ t }: StayAheadProps) {
+export default function StayAhead({ t, leading }: StayAheadProps) {
     const [breathing, setBreathing] = useState(false);
 
     return (
@@ -32,6 +39,8 @@ export default function StayAhead({ t }: StayAheadProps) {
                 </h2>
                 <p className="text-[12.5px] text-stone-500">{t('progress.stay_ahead_sub')}</p>
             </div>
+
+            {leading}
 
             <div className="mind-power-carousel -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0">
                 {CARDS.map(card => (

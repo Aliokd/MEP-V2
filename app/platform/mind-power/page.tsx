@@ -17,6 +17,7 @@ import {
 import {
     streakWeeks,
     computeStreak,
+    dayStreak,
     weekScore,
     weekKey,
     recordHealthMark,
@@ -66,13 +67,13 @@ export default function MindPowerPage() {
     // Start empty so the server and the first client paint agree, then fill in
     // from localStorage and keep following the layout's activity ticks.
     const [weeks, setWeeks] = useState<WeekCell[]>([]);
-    const [streak, setStreak] = useState({ current: 0, best: 0 });
+    const [streak, setStreak] = useState({ current: 0, best: 0, days: 0 });
     const [thisWeek, setThisWeek] = useState<WeekScore | null>(null);
     useEffect(() => {
         const refresh = () => {
             setWeeks(streakWeeks());
             const { current, best } = computeStreak();
-            setStreak({ current, best });
+            setStreak({ current, best, days: dayStreak() });
             setThisWeek(weekScore(weekKey(new Date())));
         };
         refresh();
@@ -117,20 +118,23 @@ export default function MindPowerPage() {
             {/* The brain and its six regions, filled to this week's progress. */}
             <MindPowerBrain t={t} weeklyRatio={weeks.find(w => w.isCurrent)?.ratio ?? 0} />
 
-            {/* Streaks beside the timer. */}
-            <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-14 lg:gap-16">
-                <StreakGrid weeks={weeks} streak={streak} thisWeek={thisWeek} language={language} t={t} />
+            {/* Streaks take the full width; the brains get the room. The focus
+                timer that used to sit beside them now lives in Stay ahead, with
+                the rest of the body's part. */}
+            <StreakGrid weeks={weeks} streak={streak} thisWeek={thisWeek} language={language} t={t} />
 
-                <section aria-labelledby="mp-timer-heading" className="flex flex-col gap-6">
-                    <h2 id="mp-timer-heading" className="font-lyrics font-normal text-[32px] leading-none text-[#F5F4EE]">
-                        {t('progress.focus_timer')}
-                    </h2>
-                    <FocusTimerBlock t={t} />
-                </section>
-            </div>
-
-            {/* The body's part: breathing, hands, rest. */}
-            <StayAhead t={t} />
+            {/* The body's part: the focus timer first, then breathing, hands, rest. */}
+            <StayAhead
+                t={t}
+                leading={
+                    <div className="flex flex-col gap-4">
+                        <h3 className="font-lyrics font-normal text-[28px] leading-[1.1] text-[#F5F4EE]">
+                            {t('progress.focus_timer')}
+                        </h3>
+                        <FocusTimerBlock t={t} />
+                    </div>
+                }
+            />
 
             {/* What the four areas add up to. */}
             <Activities progress={progress} language={language} t={t} />

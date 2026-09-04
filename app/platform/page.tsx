@@ -87,6 +87,8 @@ export default function PlatformPage() {
         if (data) {
             const masteredIds = data.user.lessonProgress.filter(p => p.status === 'MASTERED').map(p => p.lessonId);
             safeLocalStorageSetItem('mep-completed-lessons', JSON.stringify(masteredIds));
+            // How many chapters there are, so Mind Power can show mastery as a share of the course.
+            if (data.lessonsList.length > 0) safeLocalStorageSetItem('mep-total-lessons', String(data.lessonsList.length));
             window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
         }
     }, [data]);

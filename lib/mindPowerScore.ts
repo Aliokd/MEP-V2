@@ -15,8 +15,13 @@
 /** The weekly score that earns the golden mind and counts toward the streak. */
 export const WEEKLY_TARGET = 70;
 
-/** A day counts for consistency from this much engaged time. */
+/** A day counts in full for consistency from this much engaged time. */
 export const DAY_ACTIVE_SECONDS = 20 * 60;
+/**
+ * A day the person showed up but stayed under that counts this much of a
+ * day. Turning up is most of the habit; the rest is staying.
+ */
+export const VISIT_DAY_CREDIT = 0.5;
 /** Days that count toward consistency, at most. A sixth and seventh add nothing, on purpose. */
 export const CONSISTENCY_DAYS = 5;
 /** Healthy days that count, at most. */
@@ -39,12 +44,19 @@ export interface PartConfig {
     weight: number;
     /** Off until the features that feed it exist; its weight is redistributed. */
     enabled: boolean;
+    /**
+     * A bonus part adds its points on top of the others instead of taking a
+     * share of the 100: the core parts still reach 100 without it, and the
+     * total is capped there. Health is one while only some of its habits
+     * exist — a breath counts, and nobody is penalised for what is not built.
+     */
+    bonus?: boolean;
 }
 
 export const SCORE_PARTS: Record<PartKey, PartConfig> = {
     consistency: { weight: 35, enabled: true },
     craft: { weight: 35, enabled: true },
-    health: { weight: 20, enabled: false },
+    health: { weight: 20, enabled: true, bonus: true },
     community: { weight: 10, enabled: true },
 };
 
@@ -70,6 +82,8 @@ export interface CraftCounters {
 export interface WeekInput {
     /** Engaged seconds per day, in any order; days with none may be left out. */
     daySeconds: number[];
+    /** Days the person opened Veinote without reaching DAY_ACTIVE_SECONDS. */
+    visitOnlyDays: number;
     craft: CraftCounters;
     healthyDays: number;
     communityActions: number;
@@ -83,6 +97,8 @@ export interface PartScore {
     /** What the part is worth in full, after redistribution. */
     max: number;
     enabled: boolean;
+    /** Added on top of the core parts rather than sharing the 100 with them. */
+    bonus: boolean;
 }
 
 export interface WeekScore {
@@ -116,23 +132,28 @@ const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 export function scoreWeek(input: WeekInput): WeekScore {
     const activeDays = input.daySeconds.filter(s => s >= DAY_ACTIVE_SECONDS).length;
     const craftAreas = craftAreasMet(input.craft);
+    const dayCredit = activeDays + input.visitOnlyDays * VISIT_DAY_CREDIT;
 
     const ratios: Record<PartKey, number> = {
-        consistency: clamp01(Math.min(CONSISTENCY_DAYS, activeDays) / CONSISTENCY_DAYS),
+        consistency: clamp01(Math.min(CONSISTENCY_DAYS, dayCredit) / CONSISTENCY_DAYS),
         craft: clamp01(craftAreas / 3),
         health: clamp01(Math.min(HEALTH_DAYS, input.healthyDays) / HEALTH_DAYS),
         community: input.communityActions > 0 ? 1 : 0,
     };
 
-    const enabledWeight = PART_ORDER.reduce((sum, k) => sum + (SCORE_PARTS[k].enabled ? SCORE_PARTS[k].weight : 0), 0);
-    const scale = enabledWeight > 0 ? 100 / enabledWeight : 0;
+    // The core parts share the 100 between them; a bonus part keeps its own weight on top.
+    const coreWeight = PART_ORDER.reduce(
+        (sum, k) => sum + (SCORE_PARTS[k].enabled && !SCORE_PARTS[k].bonus ? SCORE_PARTS[k].weight : 0),
+        0,
+    );
+    const scale = coreWeight > 0 ? 100 / coreWeight : 0;
 
     const parts: PartScore[] = PART_ORDER.map(key => {
-        const { weight, enabled } = SCORE_PARTS[key];
-        const max = enabled ? weight * scale : 0;
-        return { key, ratio: ratios[key], points: enabled ? ratios[key] * max : 0, max, enabled };
+        const { weight, enabled, bonus = false } = SCORE_PARTS[key];
+        const max = !enabled ? 0 : bonus ? weight : weight * scale;
+        return { key, ratio: ratios[key], points: enabled ? ratios[key] * max : 0, max, enabled, bonus };
     });
 
-    const score = Math.round(parts.reduce((sum, p) => sum + p.points, 0));
+    const score = Math.min(100, Math.round(parts.reduce((sum, p) => sum + p.points, 0)));
     return { score, parts, activeDays, craftAreas, golden: score >= WEEKLY_TARGET };
 }

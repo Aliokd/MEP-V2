@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import {
     GOLDEN_MIND_EVENT,
+    WEEKLY_ACTIVITY_EVENT,
     STREAK_INTRO_KEY,
     goldenMindDue,
     markGoldenMindShown,
@@ -15,6 +16,7 @@ import {
     readActiveWeekCount,
     readWeeklyActivity,
     computeStreak,
+    dayStreak,
     streakWeeks,
     weekKey,
 } from '@/lib/weeklyActivity';
@@ -48,6 +50,7 @@ export default function GoldenMindCelebration() {
     const copiedTimer = useRef<number | null>(null);
     const [week, setWeek] = useState<{ index: number; minutes: number } | null>(null);
     const [streak, setStreak] = useState(0);
+    const [days, setDays] = useState(0);
 
     const openRef = useRef(false);
     const close = useCallback(() => {
@@ -63,25 +66,32 @@ export default function GoldenMindCelebration() {
             const current = streakWeeks().find(w => w.isCurrent);
             setWeek(current ? { index: current.index, minutes: Math.round(current.seconds / 60) } : null);
             setStreak(computeStreak().current);
+            setDays(dayStreak());
             setOpen(true);
+        };
+        // An account that already holds a streak when streaks arrive sees it
+        // once, so it knows where to look — checked now, and again whenever the
+        // record changes, since a long-time account's history is rebuilt a
+        // moment after the page loads. Dismissing does not mark the current
+        // week as celebrated: markGoldenMindShown is a no-op until the week is
+        // actually golden, and the flag is what makes this once.
+        let introTimer: number | null = null;
+        const maybeIntro = () => {
+            if (localStorage.getItem(STREAK_INTRO_KEY) || openRef.current) return;
+            if (computeStreak().current < 1) return;
+            safeLocalStorageSetItem(STREAK_INTRO_KEY, 'true');
+            introTimer = window.setTimeout(show, 1200);
         };
         // The preview event (see above) opens it whether or not the week is due.
         window.addEventListener(GOLDEN_MIND_EVENT, show);
-        if (goldenMindDue()) {
-            show();
-        } else if (computeStreak().current >= 1 && !localStorage.getItem(STREAK_INTRO_KEY)) {
-            // An account that already holds a streak when streaks arrive sees it
-            // once, so it knows where to look. Dismissing does not mark the
-            // current week as celebrated: markGoldenMindShown is a no-op until
-            // the week is actually golden, and the flag below is what makes this once.
-            safeLocalStorageSetItem(STREAK_INTRO_KEY, 'true');
-            const id = window.setTimeout(show, 1200);
-            return () => {
-                window.clearTimeout(id);
-                window.removeEventListener(GOLDEN_MIND_EVENT, show);
-            };
-        }
-        return () => window.removeEventListener(GOLDEN_MIND_EVENT, show);
+        window.addEventListener(WEEKLY_ACTIVITY_EVENT, maybeIntro);
+        if (goldenMindDue()) show();
+        else maybeIntro();
+        return () => {
+            if (introTimer !== null) window.clearTimeout(introTimer);
+            window.removeEventListener(GOLDEN_MIND_EVENT, show);
+            window.removeEventListener(WEEKLY_ACTIVITY_EVENT, maybeIntro);
+        };
     }, []);
 
     useEffect(() => {
@@ -162,6 +172,7 @@ export default function GoldenMindCelebration() {
                         {week && (
                             <span className="text-[15px] text-stone-500 tabular-nums">
                                 {t('progress.mp_week_n').replace('{n}', String(week.index))} · {week.minutes} {t('progress.mp_minutes_short')}
+                                {days > 1 && <> · {t('progress.mp_day_streak_other').replace('{n}', String(days))}</>}
                             </span>
                         )}
                         {streak > 0 && (
