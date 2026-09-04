@@ -122,19 +122,18 @@ export function waitlistJoinPath(source: string, language?: Language): string {
  *
  * That path is the only part of collaboration that depends on outbound mail: the
  * invitee has no workspace to see a notification in, so the email IS the
- * invitation. SMTP_PASS is not configured in CI, so the mail silently fails —
- * and the flow's own success message ("An email has been sent to …") would be
- * untrue. Rather than record invitations nobody is ever told about, that branch
- * is refused outright while this is false.
+ * invitation. It was held shut while SMTP_PASS was unset in CI, because the
+ * mail failed silently and the flow still said "An email has been sent to …".
  *
- * Everything else about collaboration is unaffected and stays on: inviting
- * someone who already has an account reaches them through an in-app
- * notification and never touches the mailer.
+ * Open since the condition that closed it was checked rather than assumed:
+ * SMTP_PASS is present in production (the /api/health/ai fingerprint), and the
+ * server accepts those credentials — nodemailer's verify() authenticates
+ * against send.one.com and returns OK.
  *
- * Flip to true once SMTP_PASS is set as a repository secret and outbound mail is
- * confirmed working — see the deploy workflow's secret check.
+ * Set back to false to stop invite mail at the source; the route refuses the
+ * branch on its own, so nothing else has to change.
  */
-export const COLLAB_EMAIL_INVITES_ENABLED: boolean = false;
+export const COLLAB_EMAIL_INVITES_ENABLED: boolean = true;
 
 export function inviteLandingPath(inviteId?: string): string {
     const base = SIGNUPS_OPEN ? '/onboarding' : '/waiting-list';

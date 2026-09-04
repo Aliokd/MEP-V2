@@ -39,13 +39,19 @@ export function collabInviteEmail(
     const t = (key: string) => interpolate(tServer(locale, `email.collab_invite.${key}`, overrides), vars);
 
     const subject = t("subject");
-    const preheader = t("preheader");
+    // The line an inbox shows beside the subject — the same promise as the
+    // button, so it has to pass the same test.
+    const preheader = t(waitlistMode ? "preheader_waitlist" : "preheader");
     const greeting = t("greeting");
     const body1 = t("body_1");
-    const body2 = t("body_2");
+    // The offer is the same either way; what changes is when it starts. While
+    // signups are closed the button leads to the waiting list, so promising
+    // "everything opens the moment you join" would be describing a door the
+    // recipient cannot walk through yet.
+    const body2 = t(waitlistMode ? "body_2_waitlist" : "body_2");
     const featuresTitle = t("features_title");
     const features = tServerList(locale, "email.collab_invite.features");
-    const cta = t("cta");
+    const cta = t(waitlistMode ? "cta_waitlist" : "cta");
     const waitlistNote = t("waitlist_note");
     const ignore = t("ignore");
     const signoff = t("signoff");

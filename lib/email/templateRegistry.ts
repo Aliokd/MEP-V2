@@ -79,12 +79,17 @@ export const EMAIL_TEMPLATES: EmailTemplateDefinition[] = [
         fields: [
             "subject",
             "preheader",
+            "preheader_waitlist",
             "greeting",
             "body_1",
             "body_2",
+            // Shown instead of body_2/cta while signups are closed — the
+            // wording that has to match the waiting list rather than the app.
+            "body_2_waitlist",
             "features_title",
             "features",
             "cta",
+            "cta_waitlist",
             "waitlist_note",
             "ignore",
             "signoff",
