@@ -43,7 +43,7 @@ export default function MySongsPage() {
 
             {songsLoaded && songs.length === 0 && (
                 <div className="py-6 flex flex-col items-start gap-3">
-                    <p className="text-xs text-stone-500">{t('profile.no_songs')}</p>
+                    <p className="text-[13px] text-stone-600">{t('profile.no_songs')}</p>
                     <button
                         onClick={() => leaveProfileTo('/platform/create')}
                         className={`${btn.secondary('xs')} cursor-pointer`}

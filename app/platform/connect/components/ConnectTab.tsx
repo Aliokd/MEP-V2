@@ -7,9 +7,18 @@ import { useSanction } from '@/lib/useSanction';
 import { db } from '@/lib/firebase';
 import { useLanguage } from '@/context/LanguageContext';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, Plus, Check, Clock, UserPlus, Flame, LayoutGrid, ThumbsUp, Repeat, Send, Loader2 } from 'lucide-react';
+import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, Check, Clock, UserPlus, Flame, LayoutGrid, ThumbsUp, Repeat, Send, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ProSongwritersPanel from './ProSongwritersPanel';
+import ConnectTabs, { type ConnectTab as ConnectTabId } from './ConnectTabs';
+import RoomCard from './RoomCard';
+import MaxUpgradeModal from '@/app/platform/components/MaxUpgradeModal';
+import MaxBanner from '@/app/platform/components/MaxBanner';
+import { useUserPlan } from '@/lib/useUserPlan';
+import { joinRoom, useRooms, type Room } from '@/lib/rooms';
+import CreateRoomSheet from './CreateRoomSheet';
+import VerifiedMark from '@/app/platform/components/VerifiedMark';
+import { shortName } from '@/lib/personName';
+import SongwriterMap from './SongwriterMap';
 import {
   fetchPlatformUsers,
   removeConnectionRequest,
@@ -1383,26 +1392,26 @@ function ProjectCanvasModal({ post, onClose }: CanvasModalProps) {
 function ConnectSkeleton() {
   return (
     <div className="w-full max-w-[1000px] mx-auto py-3 px-4 sm:py-4 font-sans mb-12 animate-pulse select-none">
-      {/* 1. Connect row — one stack at every breakpoint, mirroring the loaded
-             layout: the PRO banner on top, songwriters sitting directly on the
-             page below it with no container of their own. */}
-      <div className="flex flex-col gap-8 mb-8">
-        <div className="min-h-[213px] rounded-[24px] bg-stone-300/25" />
-        <div className="min-w-0">
-          <div className="h-5 w-56 bg-stone-300/30 rounded-full mb-5" />
-          <div className="flex gap-4 overflow-hidden">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="min-w-[185px] max-w-[185px] min-h-[165px] bg-white border border-stone-200/60 rounded-[22px] p-5 flex flex-col justify-between relative shrink-0"
-              >
-                <div className="h-5 w-28 bg-stone-300/30 rounded-full" />
-                <div className="absolute bottom-4 right-4 w-5 h-5 bg-stone-300/30 rounded-full" />
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Mirrors the loaded order: tabs, the rooms pitch, the people row, the
+          Max card. */}
+      <div className="flex items-end gap-8 mb-7">
+        {[16, 20, 18, 22].map((w, i) => (
+          <div key={i} className={`h-6 rounded-full bg-stone-300/30`} style={{ width: `${w * 4}px` }} />
+        ))}
       </div>
+      <div className="min-h-[180px] rounded-[22px] bg-white border border-stone-200/60 mb-10" />
+      <div className="flex gap-4 overflow-hidden mb-10">
+        {[...Array(4)].map((_, i) => (
+          <div
+            key={i}
+            className="min-w-[185px] max-w-[185px] min-h-[165px] bg-white border border-stone-200/60 rounded-[22px] p-5 flex flex-col justify-between relative shrink-0"
+          >
+            <div className="h-5 w-28 bg-stone-300/30 rounded-full" />
+            <div className="absolute bottom-4 right-4 w-5 h-5 bg-stone-300/30 rounded-full" />
+          </div>
+        ))}
+      </div>
+      <div className="min-h-[200px] rounded-[22px] bg-white border border-stone-200/60 mb-10" />
 
       {/* 2. Recent songs — heading plus the create button beside it */}
       <div className="flex items-center gap-4 mb-6">
@@ -1459,7 +1468,7 @@ function ConnectSkeleton() {
 // ==========================================
 export default function ConnectTab() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const router = useRouter();
   const { sanction } = useSanction();
   const isMuted = sanction?.type === 'mute';
@@ -1612,6 +1621,187 @@ export default function ConnectTab() {
   const [playingPostId, setPlayingPostId] = useState<string | null>(null);
   const [hoveredPostId, setHoveredPostId] = useState<string | null>(null);
   const canHover = useHoverCapablePointer();
+
+  // ── Page structure: four views over the same content ────────────────────
+  const [activeTab, setActiveTab] = useState<ConnectTabId>('all');
+  // All is people and songs. Rooms and Business each keep to their own tab:
+  // on All they were a "Create a room" pill and an empty state sitting on top
+  // of the feed, pushing the thing people came for down the page.
+  const showRooms  = activeTab === 'rooms';
+  const showPeople = activeTab === 'all' || activeTab === 'people';
+  const showSongs  = activeTab === 'all' || activeTab === 'songs';
+  // No `showBusiness`: the tab never becomes the active view — pressing it
+  // opens the Max popup instead (see the tabs' onChange).
+
+  // Rooms are the Max surface. The listener only opens for someone who can
+  // actually see inside; everyone else gets the pitch instead of a list.
+  const { hasMax, hasPro, loading: planLoading } = useUserPlan();
+  // Two tiers, two doors: Rooms open on Pro, Business on Max.
+  const roomsLocked = !hasPro;
+  const businessLocked = !hasMax;
+  const { open: rooms, history: roomHistory, loading: roomsLoading } = useRooms(hasPro && showRooms);
+  // Which tier the upgrade modal is selling, or null when closed. The Rooms
+  // banner opens it on Pro; the Business and mid-feed banners on Max.
+  const [upgradeFor, setUpgradeFor] = useState<'pro' | 'max' | null>(null);
+  // One Max banner per view, wherever that view has room for it:
+  //   Rooms  — the locked rooms section is the banner.
+  //   All / Songs — it sits in the feed after the second song.
+  //   People — none. It's a roster, and a pitch under it read as an ad.
+  // One banner per view, each selling the tier that opens what it stands in for:
+  //   Rooms    — locked section is the Pro banner.
+  //   Business — locked section is the Max banner.
+  //   All / Songs — the Max banner sits in the feed after the second song.
+  const showRoomsBanner = roomsLocked && !planLoading && activeTab === 'rooms';
+  // No banner inside Business: a non-member never reaches the tab — pressing
+  // it opens the Max popup instead (see the tabs' onChange).
+  const showMidFeedBanner = businessLocked && !planLoading && showSongs;
+
+  const [showCreateRoom, setShowCreateRoom] = useState(false);
+
+  /**
+   * Taking a seat from the card also takes you into the room. Joining is the
+   * moment the chat opens ("the room needs to have chat when someone joins"),
+   * so leaving the person on the list with nothing changed would hide the one
+   * thing that just happened.
+   */
+  const handleJoinRoom = async (room: Room) => {
+    if (!user) return;
+    try {
+      await joinRoom(room, user.uid, currentUserDisplayName);
+      router.push(`/platform/profile/rooms/${room.id}`);
+    } catch (err) {
+      console.error('Error joining room:', err);
+    }
+  };
+
+  /** Arrow buttons beside the people row — one card at a time. */
+  const nudgeSongwriters = (direction: -1 | 1) => {
+    const el = songwritersScrollRef.current;
+    if (!el) return;
+    // Card width plus the gap between cards, so each press lands on a card
+    // edge rather than somewhere in the middle of one.
+    el.scrollBy({ left: direction * (185 + 16), behavior: 'smooth' });
+  };
+
+  /**
+   * The People section's body — skeleton, empty state, and the cards — shared
+   * by both of its layouts. `inCarousel` decides the one thing that differs:
+   * a fixed 185px card that snaps in the scrolling row, or a card that fills
+   * its cell in the grid. Everything else about a card is identical, and lives
+   * here once so the two layouts can't drift apart.
+   */
+  const peopleContent = (inCarousel: boolean) => {
+    const cardWidth = inCarousel ? 'min-w-[185px] max-w-[185px] shrink-0' : 'w-full';
+
+    return (<>
+      {!songwritersLoaded && [...Array(inCarousel ? 3 : 4)].map((_, i) => (
+        <div
+          key={`sw-skeleton-${i}`}
+          className={`${cardWidth} min-h-[165px] bg-white border border-stone-200/60 rounded-[22px] p-5 flex flex-col justify-between relative animate-pulse`}
+        >
+          <div className="h-5 w-28 bg-stone-300/30 rounded-full" />
+          <div className="absolute bottom-4 right-4 w-5 h-5 bg-stone-300/30 rounded-full" />
+        </div>
+      ))}
+
+      {songwritersLoaded && songwriters.length === 0 && (
+        <div className="col-span-full min-h-[165px] flex items-center text-[14px] text-stone-500 font-sans pr-6">
+          {t('connect.no_songwriters')}
+        </div>
+      )}
+
+      {songwriters.map(sw => {
+        const relationship = relationshipWith(sw.uid);
+        const specialty = songwriterTypeLabel(sw.songwriterType);
+        const showsBadge = hasActivityBadge(sw);
+        // One control, four meanings — the icon says which, and the label
+        // spells it out for anyone who can't see the icon. `pending` states
+        // say so in words: an unexplained clock face beside someone's name
+        // doesn't tell you an invite is out.
+        const action = {
+          none:      { icon: Plus,     tone: 'text-[#2c2a29]', label: t('connect.connect_action'), asText: false },
+          declined:  { icon: Plus,     tone: 'text-[#2c2a29]', label: t('connect.connect_action'), asText: false },
+          outgoing:  { icon: Clock,    tone: 'text-stone-400', label: t('connect.invite_sent'),    asText: true },
+          incoming:  { icon: UserPlus, tone: 'text-[#3f6b3a]', label: t('connect.accept_request'), asText: true },
+          connected: { icon: Check,    tone: 'text-stone-600', label: t('connect.connected'),      asText: false },
+        }[relationship];
+        const ActionIcon = action.icon;
+        return (
+        <div
+          key={sw.uid}
+          className={`${cardWidth} min-h-[165px] bg-white border border-stone-200/60 rounded-[22px] p-5 flex flex-col justify-between relative hover:shadow-[0_4px_16px_rgba(0,0,0,0.015)] transition-all duration-300 group ${
+            inCarousel ? (isDraggingSongwriters ? 'snap-none' : 'snap-start') : ''
+          }`}
+        >
+          {/* The card body opens their profile. A button rather than a link
+              so a drag that happens to end here doesn't navigate — the row
+              is drag-to-scroll, and every press has to prove it was a press. */}
+          <button
+            type="button"
+            onClick={() => openSongwriterProfile(sw.uid)}
+            aria-label={`${t('connect.view_profile')} — ${sw.name}`}
+            className="absolute inset-0 rounded-[22px] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-400"
+          />
+
+          {/* Name at top left with hover detail */}
+          <div className="relative pointer-events-none flex flex-col text-left select-none">
+            {/* Time-on-platform badge. Sits above the name rather than beside
+                it: names wrap to two lines here, and a trailing pill would
+                be dragged along to a line of its own anyway. */}
+            {showsBadge && (
+              <span
+                title={t('connect.badge_active_tooltip')}
+                className="inline-flex items-center gap-1 self-start mb-1.5 rounded-full bg-[#86BE7F]/20 px-2 py-0.5 text-[10.5px] font-semibold text-[#3f6b3a]"
+              >
+                <Flame className="w-2.5 h-2.5" />
+                {t('connect.badge_active')}
+              </span>
+            )}
+            {/* First name and last initial — "Knut R." — so the card stays one
+                line. The aria-labels above and below keep the full name. */}
+            <span className="text-[21px] font-sans font-medium text-stone-700 tracking-tight leading-snug break-words pr-2">
+              {shortName(sw.name)}
+              {sw.verified && (
+                <VerifiedMark size={18} label={t('profile.verified_label')} className="ml-1.5" />
+              )}
+            </span>
+
+            {/* Fades in gently on hover. Both lines come from the user's own
+                record — the specialty is their onboarding answer, so a user
+                who skipped the quiz shows only the join date. */}
+            <div className="touch-reveal opacity-0 group-hover:opacity-100 mt-2 transition-opacity duration-350 pointer-events-none flex flex-col gap-0.5 text-sm text-stone-400 font-sans">
+              {specialty && <div className="leading-snug">{specialty}</div>}
+              {sw.createdAt > 0 && (
+                <div className="leading-snug">
+                  {t('connect.member_since')} {new Date(sw.createdAt).getFullYear()}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Connect control at bottom right. Sits above the card-wide
+              profile button, and stops the click there so pressing it
+              answers the invite instead of opening their profile. */}
+          <button
+            onClick={(e) => { e.stopPropagation(); handleConnectSongwriter(sw.uid); }}
+            aria-pressed={relationship === 'connected'}
+            aria-label={`${action.label} — ${sw.name}`}
+            title={action.label}
+            className={
+              action.asText
+                ? 'absolute bottom-3.5 right-3.5 z-10 max-w-[calc(100%-1.75rem)] truncate rounded-full bg-[#F6F6F0] px-3 py-1.5 text-[11.5px] font-semibold text-stone-500 hover:text-stone-800 transition-colors cursor-pointer active:scale-95'
+                : `${btn.iconGhost('xs')} absolute bottom-4 right-4 z-10`
+            }
+          >
+            {action.asText
+              ? action.label
+              : <ActionIcon className={`w-5.5 h-5.5 stroke-[2.5] ${action.tone}`} />}
+          </button>
+        </div>
+        );
+      })}
+    </>);
+  };
 
   const previewPostId = canHover && !playingPostId ? hoveredPostId : null;
 
@@ -1810,7 +2000,9 @@ export default function ConnectTab() {
     // Safety net so a stalled connection can't leave the skeleton up forever
     const timeoutId = setTimeout(() => setIsLoadingPosts(false), 8000);
 
+    let active = true;
     const unsubscribe = onSnapshot(q, async (snapshot) => {
+      if (!active) return;
       if (snapshot.empty) {
         // Seed database if empty. Stay in the loading state — writing the seed
         // triggers another snapshot, which is the one that resolves the skeleton.
@@ -1888,14 +2080,21 @@ export default function ConnectTab() {
         setIsLoadingPosts(false);
       }
     }, (err) => {
+      if (!active) return;
       console.error("Error subscribing to connect posts:", err);
       clearTimeout(timeoutId);
       setIsLoadingPosts(false);
     });
 
     return () => {
+      active = false;
       clearTimeout(timeoutId);
-      unsubscribe();
+      // Deferred, not synchronous — see the matching note in useConnectionState
+      // (lib/connections.ts). A same-tick unsubscribe + resubscribe of this query
+      // (StrictMode, Fast Refresh) races a permission-denied rejection into the
+      // SDK's "Unexpected state (ID: ca9)" assertion, which kills Firestore for
+      // the rest of the page.
+      setTimeout(unsubscribe, 0);
     };
   }, [user]);
 
@@ -2161,16 +2360,147 @@ export default function ConnectTab() {
   return (
     <div className="w-full max-w-[1000px] mx-auto py-3 px-4 sm:py-4 font-sans mb-12">
 
-      {/* 1. The Writers' Room banner on top at every breakpoint — it's the pitch —
-             then the songwriters sitting directly on the page below it. One stack,
-             no side-by-side split to manage across breakpoints any more. */}
-      <div className="flex flex-col gap-8 mb-8 select-none">
-        <ProSongwritersPanel />
+      <ConnectTabs
+        active={activeTab}
+        // Business is the Max popup, for everyone — members included. There is
+        // nothing behind the tab yet, so until Business ships the popup *is*
+        // what the tab means, and the view stays put. When Business exists,
+        // this is where members get routed through instead.
+        onChange={(tab) => {
+          if (tab === 'business') {
+            setUpgradeFor('max');
+            return;
+          }
+          setActiveTab(tab);
+        }}
+        locks={{
+          // Rooms wears its Pro pill only while it's shut — once you're in, the
+          // tab is just Rooms.
+          ...(roomsLocked && !planLoading ? { rooms: 'pro' as const } : {}),
+          // Business wears Max always. It isn't a lock there, it's the name of
+          // the thing: Business *is* the Max tier, for members and not-yet-
+          // members alike.
+          business: 'max' as const,
+        }}
+        t={t}
+      />
 
-        <div className="min-w-0">
-        <h3 className="text-[20px] font-sans font-medium tracking-tight text-stone-850 mb-5">
-          {t('connect.connect_with_songwriters')}
-        </h3>
+      {/* 1. Rooms — collab rooms and live events. The Max surface. */}
+      {showRooms && (
+        <section className="flex flex-col gap-5 mb-10 select-none" aria-label={t('connect.tab_rooms')}>
+          {/* Locked, the rooms section *is* the Max banner — one surface that
+              says what rooms are and opens the upgrade, not a pitch card with a
+              second banner underneath repeating it. */}
+          {showRoomsBanner && (
+            <MaxBanner
+              className="w-full"
+              title={t('connect.rooms_locked_title')}
+              description={t('connect.rooms_locked_desc')}
+              badgeLabel={t('connect.pro.max_badge')}
+              showBadge
+              onClick={() => setUpgradeFor('pro')}
+            />
+          )}
+
+          {/* Full width and first, as in the sketch: creating a room is the
+              primary thing to do here, not a corner control. */}
+          {hasPro && (
+            <button
+              type="button"
+              onClick={() => setShowCreateRoom(true)}
+              className="w-full py-4 rounded-full bg-white border border-stone-200/70 text-[16px] font-semibold text-stone-800 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:text-stone-900 transition-all cursor-pointer active:scale-[0.995] select-none"
+            >
+              {t('connect.room_create')}
+            </button>
+          )}
+
+          {hasPro && roomsLoading && (
+            <div className="h-56 rounded-[22px] bg-white border border-stone-200/60 animate-pulse" />
+          )}
+
+          {hasPro && !roomsLoading && rooms.length === 0 && (
+            <div className="bg-white border border-stone-200/60 rounded-[22px] p-8 text-center text-[14px] text-stone-500">
+              {t('connect.rooms_empty')}
+            </div>
+          )}
+
+          {hasPro && rooms.map((room) => (
+            <RoomCard
+              key={room.id}
+              room={room}
+              viewerUid={user?.uid ?? null}
+              onJoin={handleJoinRoom}
+              t={t}
+              locale={language}
+            />
+          ))}
+
+          {/* Ended rooms stay. What happened in a room is part of the record —
+              the host doesn't delete it, they close it, and it settles here.
+              Only on the Rooms view; on All it would crowd out what's live. */}
+          {hasPro && activeTab === 'rooms' && roomHistory.length > 0 && (
+            <>
+              <h3 className="font-lyrics text-[22px] text-stone-500 mt-4">{t('connect.rooms_history')}</h3>
+              {roomHistory.map((room) => (
+                <RoomCard
+                  key={room.id}
+                  room={room}
+                  viewerUid={user?.uid ?? null}
+                  onJoin={handleJoinRoom}
+                  t={t}
+                  locale={language}
+                />
+              ))}
+            </>
+          )}
+        </section>
+      )}
+
+      <CreateRoomSheet
+        isOpen={showCreateRoom}
+        onClose={() => setShowCreateRoom(false)}
+        onCreated={(id) => router.push(`/platform/profile/rooms/${id}`)}
+      />
+
+      {/* 2. People — the roster as a carousel. Arrows for a pointer; a finger
+             just swipes, so they stay off touch layouts. */}
+      {showPeople && (
+      <div className="flex flex-col gap-8 mb-10 select-none">
+        <div className="min-w-0 relative">
+        {/* The map leads the People view: where everyone is, before who they
+            are. Minimised here; it takes the screen when pressed. */}
+        {activeTab === 'people' && (
+          <div className="mb-6">
+            <SongwriterMap />
+          </div>
+        )}
+
+        {/* Two layouts, one set of cards. On the People view there is nothing
+            else on the page, so the roster gets the room to lay out as a grid;
+            on All it stays a single row you can scroll, beside everything else.
+            `peopleContent` is the shared body — skeleton, empty state, cards —
+            so the two never drift apart. */}
+        {activeTab === 'people' ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {peopleContent(false)}
+          </div>
+        ) : (<>
+        <button
+          type="button"
+          onClick={() => nudgeSongwriters(-1)}
+          aria-label={t('connect.carousel_prev')}
+          className="hidden md:flex absolute -left-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white shadow-[0_6px_20px_rgba(0,0,0,0.10)] items-center justify-center text-stone-500 hover:text-stone-900 transition-colors cursor-pointer active:scale-95"
+        >
+          <ChevronLeft className="w-5 h-5 stroke-[2.25]" />
+        </button>
+        <button
+          type="button"
+          onClick={() => nudgeSongwriters(1)}
+          aria-label={t('connect.carousel_next')}
+          className="hidden md:flex absolute -right-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white shadow-[0_6px_20px_rgba(0,0,0,0.10)] items-center justify-center text-stone-500 hover:text-stone-900 transition-colors cursor-pointer active:scale-95"
+        >
+          <ChevronRight className="w-5 h-5 stroke-[2.25]" />
+        </button>
         <div
           ref={songwritersScrollRef}
           onMouseDown={handleSongwritersMouseDown}
@@ -2186,113 +2516,21 @@ export default function ConnectTab() {
             isDraggingSongwriters ? 'cursor-grabbing select-none scroll-auto' : 'cursor-grab snap-x snap-mandatory scroll-smooth'
           }`}
         >
-          {!songwritersLoaded && [...Array(3)].map((_, i) => (
-            <div
-              key={`sw-skeleton-${i}`}
-              className="min-w-[185px] max-w-[185px] min-h-[165px] bg-white border border-stone-200/60 rounded-[22px] p-5 flex flex-col justify-between relative shrink-0 animate-pulse"
-            >
-              <div className="h-5 w-28 bg-stone-300/30 rounded-full" />
-              <div className="absolute bottom-4 right-4 w-5 h-5 bg-stone-300/30 rounded-full" />
-            </div>
-          ))}
-
-          {songwritersLoaded && songwriters.length === 0 && (
-            <div className="min-h-[165px] flex items-center text-[14px] text-stone-500 font-sans pr-6">
-              {t('connect.no_songwriters')}
-            </div>
-          )}
-
-          {songwriters.map(sw => {
-            const relationship = relationshipWith(sw.uid);
-            const specialty = songwriterTypeLabel(sw.songwriterType);
-            const showsBadge = hasActivityBadge(sw);
-            // One control, four meanings — the icon says which, and the label
-            // spells it out for anyone who can't see the icon. `pending` states
-            // say so in words: an unexplained clock face beside someone's name
-            // doesn't tell you an invite is out.
-            const action = {
-              none:      { icon: Plus,     tone: 'text-[#2c2a29]', label: t('connect.connect_action'), asText: false },
-              declined:  { icon: Plus,     tone: 'text-[#2c2a29]', label: t('connect.connect_action'), asText: false },
-              outgoing:  { icon: Clock,    tone: 'text-stone-400', label: t('connect.invite_sent'),    asText: true },
-              incoming:  { icon: UserPlus, tone: 'text-[#3f6b3a]', label: t('connect.accept_request'), asText: true },
-              connected: { icon: Check,    tone: 'text-stone-600', label: t('connect.connected'),      asText: false },
-            }[relationship];
-            const ActionIcon = action.icon;
-            return (
-            <div
-              key={sw.uid}
-              className={`min-w-[185px] max-w-[185px] min-h-[165px] bg-white border border-stone-200/60 rounded-[22px] p-5 flex flex-col justify-between relative hover:shadow-[0_4px_16px_rgba(0,0,0,0.015)] transition-all duration-300 group ${
-                isDraggingSongwriters ? 'snap-none' : 'snap-start'
-              }`}
-            >
-              {/* The card body opens their profile. A button rather than a link
-                  so a drag that happens to end here doesn't navigate — this row
-                  is drag-to-scroll, and every press has to prove it was a press. */}
-              <button
-                type="button"
-                onClick={() => openSongwriterProfile(sw.uid)}
-                aria-label={`${t('connect.view_profile')} — ${sw.name}`}
-                className="absolute inset-0 rounded-[22px] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-400"
-              />
-
-              {/* Name at top left with hover detail */}
-              <div className="relative pointer-events-none flex flex-col text-left select-none">
-                {/* Time-on-platform badge. Sits above the name rather than beside
-                    it: names wrap to two lines here, and a trailing pill would
-                    be dragged along to a line of its own anyway. */}
-                {showsBadge && (
-                  <span
-                    title={t('connect.badge_active_tooltip')}
-                    className="inline-flex items-center gap-1 self-start mb-1.5 rounded-full bg-[#86BE7F]/20 px-2 py-0.5 text-[10.5px] font-semibold text-[#3f6b3a]"
-                  >
-                    <Flame className="w-2.5 h-2.5" />
-                    {t('connect.badge_active')}
-                  </span>
-                )}
-                <span className="text-[21px] font-sans font-medium text-stone-700 tracking-tight leading-snug break-words pr-2">
-                  {sw.name}
-                </span>
-
-                {/* Fades in gently on hover. Both lines come from the user's own
-                    record — the specialty is their onboarding answer, so a user
-                    who skipped the quiz shows only the join date. */}
-                <div className="touch-reveal opacity-0 group-hover:opacity-100 mt-2 transition-opacity duration-350 pointer-events-none flex flex-col gap-0.5 text-sm text-stone-400 font-sans">
-                  {specialty && <div className="leading-snug">{specialty}</div>}
-                  {sw.createdAt > 0 && (
-                    <div className="leading-snug">
-                      {t('connect.member_since')} {new Date(sw.createdAt).getFullYear()}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Connect control at bottom right. Sits above the card-wide
-                  profile button, and stops the click there so pressing it
-                  answers the invite instead of opening their profile. */}
-              <button
-                onClick={(e) => { e.stopPropagation(); handleConnectSongwriter(sw.uid); }}
-                aria-pressed={relationship === 'connected'}
-                aria-label={`${action.label} — ${sw.name}`}
-                title={action.label}
-                className={
-                  action.asText
-                    ? 'absolute bottom-3.5 right-3.5 z-10 max-w-[calc(100%-1.75rem)] truncate rounded-full bg-[#F6F6F0] px-3 py-1.5 text-[11.5px] font-semibold text-stone-500 hover:text-stone-800 transition-colors cursor-pointer active:scale-95'
-                    : `${btn.iconGhost('xs')} absolute bottom-4 right-4 z-10`
-                }
-              >
-                {action.asText
-                  ? action.label
-                  : <ActionIcon className={`w-5.5 h-5.5 stroke-[2.5] ${action.tone}`} />}
-              </button>
-            </div>
-            );
-          })}
+          {peopleContent(true)}
         </div>
+        </>)}
         </div>
       </div>
+      )}
 
-      {/* 2. Recent songs — the create action lives here now that the top banner is
-             gone, so the entry point sits next to the thing it produces. */}
+      <MaxUpgradeModal
+        isOpen={upgradeFor !== null}
+        onClose={() => setUpgradeFor(null)}
+        plan={upgradeFor ?? 'max'}
+      />
+
+      {/* 4. Songs — the feed. */}
+      {showSongs && (<>
       <div className="flex items-center gap-4 mb-6">
         <h3 className="text-[20px] font-sans font-medium tracking-tight text-stone-850">
           {t('connect.recent_songs')}
@@ -2344,7 +2582,8 @@ export default function ConnectTab() {
               {t('connect.no_posts_found')}
             </motion.div>
           ) : (
-            filteredPosts.map(post => (
+            filteredPosts.flatMap((post, idx) => {
+              const card = (
               <ConnectPostCard
                 key={post.id}
                 post={post}
@@ -2376,10 +2615,30 @@ export default function ConnectTab() {
                 onRepost={handleRepost}
                 dropdownRef={dropdownRef}
               />
-            ))
+              );
+              // The banner lands after the second song — far enough in that the
+              // feed has shown what it is, early enough that it's still seen.
+              // A feed with fewer than two songs has nowhere to put it.
+              if (idx === 1 && showMidFeedBanner) {
+                return [
+                  card,
+                  <MaxBanner
+                    key="max-banner-mid-feed"
+                    className="w-full"
+                    title={t('connect.max_card_title')}
+                    description={t('connect.max_card_desc')}
+                    badgeLabel={t('connect.pro.max_badge')}
+                    showBadge
+                    onClick={() => setUpgradeFor('max')}
+                  />,
+                ];
+              }
+              return [card];
+            })
           )}
         </AnimatePresence>
       </div>
+      </>)}
 
       {/* Read-Only Project Constellation Canvas Modal */}
       <AnimatePresence>

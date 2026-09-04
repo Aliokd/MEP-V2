@@ -4,16 +4,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { User, Mail, PlayCircle, Music, Users, ArrowRight, Camera } from 'lucide-react';
+import { User, Mail, PlayCircle, Music, Users, ArrowRight, Camera, ExternalLink, LogOut } from 'lucide-react';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import SupportModal from '../components/SupportModal';
 import MaxUpgradeModal from '../components/MaxUpgradeModal';
 import MaxBanner from '../components/MaxBanner';
+import VerifiedMark from '../components/VerifiedMark';
+import VerifyModal, { hasRealName } from './components/VerifyModal';
+import { useVerificationRequest, useIsVerified } from '@/lib/verification';
+import { BadgeCheck } from 'lucide-react';
 import { useUserPlan } from '@/lib/useUserPlan';
 import SongCards from './components/SongCards';
 import ConnectionList, { PendingRequests, useConnectionPeople } from './components/ConnectionList';
 import { useMySongs, leaveProfileTo, openSongInCreate, formatSongDate } from './useMySongs';
 import { resetGuide } from '@/lib/onboardingGuide';
 import { writePublicProfile } from '@/lib/publicProfile';
+import { splitName, joinName } from '@/lib/personName';
 import * as btn from '@/app/platform/components/buttonStyles';
 
 /** How many recent songs / connections the profile shelf shows before "See all". */
@@ -25,13 +31,30 @@ export default function ProfilePage() {
     const { t, language } = useLanguage();
     const router = useRouter();
 
+    // `name` stays the one stored value (Auth displayName); the two fields below
+    // are how it is edited, and recompose it on every keystroke.
     const [name, setName] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [pendingEmail, setPendingEmail] = useState('');
+    // Set once the client has a window — reading localStorage during render would
+    // not match the server pass.
+    const [isMockUser, setIsMockUser] = useState(false);
     const [verificationState, setVerificationState] = useState<'idle' | 'pending' | 'success'>('idle');
     const [isSupportOpen, setIsSupportOpen] = useState(false);
     const [showMaxUpgrade, setShowMaxUpgrade] = useState(false);
-    const { hasMax } = useUserPlan();
+    const { hasMax, hasPro } = useUserPlan();
+    // Live, so an admin's approval shows the seal the moment it lands.
+    const { request: verification } = useVerificationRequest(user?.uid ?? null);
+    // The seal follows `publicProfiles.verified` — the field every other surface
+    // shows and the only one the admin decision writes. The request status is a
+    // fallback so an approval that has just landed shows without waiting on the
+    // second listener; an account verified without a request (the script path)
+    // has no request document at all, which is why the public field leads.
+    const publicVerified = useIsVerified(user?.uid ?? null);
+    const isVerified = publicVerified || verification?.status === 'approved';
+    const [showVerify, setShowVerify] = useState(false);
     const [notification, setNotification] = useState('');
     const [photoUrl, setPhotoUrl] = useState('');
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -55,8 +78,12 @@ export default function ProfilePage() {
     useEffect(() => {
         if (user) {
             setName(user.displayName || '');
+            const parts = splitName(user.displayName || '');
+            setFirstName(parts.first);
+            setLastName(parts.last);
             setEmail(user.email || '');
             setPhotoUrl(user.photoURL || '');
+            setIsMockUser(!!localStorage.getItem('playwright_mock_user'));
         }
     }, [user]);
 
@@ -186,29 +213,34 @@ export default function ProfilePage() {
         leaveTo('/platform/create');
     };
 
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        if (hasEmailChanged) {
-            setPendingEmail(email);
-            setVerificationState('pending');
-            if (hasNameChanged) {
-                await updateDisplayName(name);
-            }
-        } else if (hasNameChanged) {
-            await updateDisplayName(name);
-            showNotification('Display name updated successfully.');
+    const handleSignOut = async () => {
+        try {
+            const { signOut } = await import('firebase/auth');
+            const { auth } = await import('@/lib/firebase');
+            await signOut(auth);
+            router.push('/signin');
+        } catch (error) {
+            console.error('Sign out error:', error);
         }
     };
 
-    const updateDisplayName = async (newDisplayName: string) => {
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (hasNameChanged) {
+            const ok = await updateDisplayName(name);
+            if (ok && !hasEmailChanged) showNotification(t('profile.name_updated'));
+        }
+        if (hasEmailChanged) await requestEmailChange(email);
+    };
+
+    /** Returns whether the write landed, so the caller can decide what to say. */
+    const updateDisplayName = async (newDisplayName: string): Promise<boolean> => {
         try {
-            const mockUserJson = localStorage.getItem('playwright_mock_user');
-            if (mockUserJson) {
-                const mockUser = JSON.parse(mockUserJson);
+            if (isMockUser) {
+                const mockUser = JSON.parse(localStorage.getItem('playwright_mock_user') || '{}');
                 mockUser.displayName = newDisplayName;
                 safeLocalStorageSetItem('playwright_mock_user', JSON.stringify(mockUser));
-                return;
+                return true;
             }
 
             const { updateProfile } = await import('firebase/auth');
@@ -220,31 +252,52 @@ export default function ProfilePage() {
                 // public profile, not the Auth record.
                 void writePublicProfile(auth.currentUser.uid, { name: newDisplayName });
             }
+            return true;
         } catch (error) {
             console.error("Error updating display name:", error);
-            showNotification('Failed to update display name.');
+            showNotification(t('profile.name_update_failed'));
+            return false;
         }
     };
 
+    /*
+     * A real email change: Firebase sends a confirmation link to the NEW address
+     * and only switches the account once it is opened — which is what the
+     * "pending" state below describes. (It replaced a prototype that asked the
+     * user to "simulate" the link; that button survives for mock accounts only,
+     * which have no Auth backend to send anything.)
+     */
+    const requestEmailChange = async (newEmail: string) => {
+        setPendingEmail(newEmail);
+        if (isMockUser) {
+            setVerificationState('pending');
+            return;
+        }
+        try {
+            const { verifyBeforeUpdateEmail } = await import('firebase/auth');
+            const { auth } = await import('@/lib/firebase');
+            if (!auth.currentUser) return;
+            await verifyBeforeUpdateEmail(auth.currentUser, newEmail);
+            setVerificationState('pending');
+        } catch (error: any) {
+            console.error("Error requesting email change:", error);
+            setEmail(user?.email || '');
+            showNotification(
+                error?.code === 'auth/requires-recent-login'
+                    ? t('profile.email_requires_recent_login')
+                    : t('profile.error_update_email')
+            );
+        }
+    };
+
+    /** Mock accounts only: stands in for opening the confirmation link. */
     const handleCompleteVerification = async () => {
         try {
-            const mockUserJson = localStorage.getItem('playwright_mock_user');
-            if (mockUserJson) {
-                const mockUser = JSON.parse(mockUserJson);
-                mockUser.email = pendingEmail;
-                safeLocalStorageSetItem('playwright_mock_user', JSON.stringify(mockUser));
-            } else {
-                const { updateEmail } = await import('firebase/auth');
-                const { auth } = await import('@/lib/firebase');
-                if (auth.currentUser) {
-                    await updateEmail(auth.currentUser, pendingEmail);
-                }
-            }
-
+            const mockUser = JSON.parse(localStorage.getItem('playwright_mock_user') || '{}');
+            mockUser.email = pendingEmail;
+            safeLocalStorageSetItem('playwright_mock_user', JSON.stringify(mockUser));
             setVerificationState('success');
             setEmail(pendingEmail);
-            showNotification('Email updated successfully.');
-            
             setTimeout(() => {
                 setVerificationState('idle');
                 window.location.reload();
@@ -286,7 +339,7 @@ export default function ProfilePage() {
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={photoUrl} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
                             ) : (
-                                name.charAt(0) || 'M'
+                                (name || email).charAt(0).toUpperCase() || '·'
                             )}
                             {/* Hover veil with camera — the only hint needed that this is editable */}
                             <span className={`absolute inset-0 rounded-full flex items-center justify-center transition-opacity duration-200 ${
@@ -303,12 +356,18 @@ export default function ProfilePage() {
                         </button>
                         <div>
                             <div className="flex items-center gap-2.5">
-                                <h2 className="text-xl font-sans font-semibold text-stone-900">{name || 'Maestro'}</h2>
+                                <h2 className="text-xl font-sans font-semibold text-stone-900">{name || email}</h2>
                                 {/* Plan badge — the plan card's job moved up here; Pro/Max are
-                                    brand names and stay untranslated. */}
-                                <span className="rounded-full bg-[#86BE7F]/35 px-2.5 py-1 text-[11px] font-bold text-[#24471f] leading-none shrink-0">
-                                    {hasMax ? 'Max' : 'Pro'}
-                                </span>
+                                    brand names and stay untranslated.
+                                    Only shown for an account that actually holds a plan: this
+                                    used to read `hasMax ? 'Max' : 'Pro'`, which labelled every
+                                    free and trial account "Pro". */}
+                                {isVerified && <VerifiedMark size={18} label={t('profile.verified_label')} />}
+                                {(hasMax || hasPro) && (
+                                    <span className="rounded-full bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-[#DCDDD4] leading-none shrink-0">
+                                        {hasMax ? 'Max' : 'Pro'}
+                                    </span>
+                                )}
                             </div>
                             <p className="text-stone-600 text-[13px] font-medium mt-1">{email}</p>
                             {photoNotice && (
@@ -446,16 +505,30 @@ export default function ProfilePage() {
                     {/* Details form */}
                     {verificationState === 'idle' && (
                         <form onSubmit={handleSave} className="space-y-6">
-                            <div className="grid md:grid-cols-2 gap-6">
+                            <div className="grid md:grid-cols-3 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-[13px] text-stone-600 font-medium">{t('profile.display_name')}</label>
+                                    <label className="text-[13px] text-stone-600 font-medium">{t('profile.first_name')}</label>
                                     <div className="flex items-center gap-2.5 border-b border-stone-300 focus-within:border-stone-500 transition-colors py-2">
                                         <User size={15} className="text-stone-400" />
                                         <input
                                             type="text"
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                            placeholder={t('profile.placeholder_name')}
+                                            autoComplete="given-name"
+                                            value={firstName}
+                                            onChange={(e) => { setFirstName(e.target.value); setName(joinName(e.target.value, lastName)); }}
+                                            placeholder={t('profile.placeholder_first_name')}
+                                            className="bg-transparent border-none outline-none w-full font-medium text-stone-800 p-0 focus:ring-0"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[13px] text-stone-600 font-medium">{t('profile.last_name')}</label>
+                                    <div className="flex items-center gap-2.5 border-b border-stone-300 focus-within:border-stone-500 transition-colors py-2">
+                                        <input
+                                            type="text"
+                                            autoComplete="family-name"
+                                            value={lastName}
+                                            onChange={(e) => { setLastName(e.target.value); setName(joinName(firstName, e.target.value)); }}
+                                            placeholder={t('profile.placeholder_last_name')}
                                             className="bg-transparent border-none outline-none w-full font-medium text-stone-800 p-0 focus:ring-0"
                                         />
                                     </div>
@@ -492,24 +565,18 @@ export default function ProfilePage() {
                     {verificationState === 'pending' && (
                         <div className="space-y-4 py-2 border-l-2 border-stone-300 pl-4 animate-in fade-in duration-200">
                             <p className="text-sm font-semibold text-stone-800">{t('profile.verify_title')}</p>
-                            <p className="text-[13px] text-stone-600 leading-relaxed font-medium">
-                                {t('profile.verify_sent')} <span className="font-semibold text-stone-700">{pendingEmail}</span>{t('profile.verify_sent_end')}
+                            <p className="text-[13px] text-stone-600 leading-relaxed">
+                                {t('profile.email_link_sent')} <span className="font-semibold text-stone-800">{pendingEmail}</span>{t('profile.email_link_sent_end')}
                             </p>
                             <div className="flex flex-wrap gap-3 pt-2">
-                                <a
-                                    href="https://mail.google.com"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={btn.secondary('xs')}
-                                >
-                                    {t('profile.open_gmail')}
-                                </a>
-                                <button
-                                    onClick={handleCompleteVerification}
-                                    className={`${btn.secondary('xs')} cursor-pointer`}
-                                >
-                                    {t('profile.simulate_click')}
-                                </button>
+                                {isMockUser && (
+                                    <button
+                                        onClick={handleCompleteVerification}
+                                        className={`${btn.secondary('xs')} cursor-pointer`}
+                                    >
+                                        {t('profile.simulate_click')}
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => {
                                         setVerificationState('idle');
@@ -524,9 +591,9 @@ export default function ProfilePage() {
                     )}
 
                     {verificationState === 'success' && (
-                        <div className="py-2 border-l-2 border-emerald-500 pl-4 animate-in fade-in duration-200">
-                            <p className="text-sm font-semibold text-emerald-700">✓ {t('profile.success_title')}</p>
-                            <p className="text-xs text-emerald-600 font-medium mt-1">{t('profile.success_desc')} {email}{t('profile.returning_platform')}</p>
+                        <div className="py-2 border-l-2 border-[#86BE7F] pl-4">
+                            <p className="text-sm font-semibold text-[#3f6b3a]">{t('profile.success_title')}</p>
+                            <p className="text-[13px] text-stone-600 mt-1">{t('profile.success_desc')} {email}{t('profile.returning_platform')}</p>
                         </div>
                     )}
 
@@ -535,22 +602,30 @@ export default function ProfilePage() {
                     {/* Preferences */}
                     <div className="space-y-1">
                         <h3 className="text-sm font-sans font-semibold text-stone-700 mb-3">{t('profile.preferences')}</h3>
+                        {/* The public profile is a real page (/platform/profile/u/…), so this
+                            is a way to see it — not the decorative toggle it used to be. */}
                         <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
                             <div className="space-y-0.5">
-                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.notifications_title')}</p>
-                                <p className="text-[13px] text-stone-600">{t('profile.notifications_desc')}</p>
+                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.view_public_profile_title')}</p>
+                                <p className="text-[13px] text-stone-600">{t('profile.view_public_profile_desc')}</p>
                             </div>
-                            <div className="w-10 h-6 bg-stone-900/10 rounded-full relative shrink-0 ml-4">
-                                <div className="absolute right-1 top-1 w-4 h-4 bg-stone-900 rounded-full" />
-                            </div>
+                            <button
+                                onClick={() => router.push(`/platform/profile/u/${user.uid}`)}
+                                className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
+                            >
+                                <ExternalLink size={14} />
+                                {t('profile.view_action')}
+                            </button>
                         </div>
+                        {/* Language lives in the sidebar everywhere else — which the profile
+                            doesn't have, so it needs its own row here. */}
                         <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
                             <div className="space-y-0.5">
-                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.public_profile_title')}</p>
-                                <p className="text-[13px] text-stone-600">{t('profile.public_profile_desc')}</p>
+                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.language_title')}</p>
+                                <p className="text-[13px] text-stone-600">{t('profile.language_desc')}</p>
                             </div>
-                            <div className="w-10 h-6 bg-stone-200 rounded-full relative shrink-0 ml-4">
-                                <div className="absolute left-1 top-1 w-4 h-4 bg-stone-400 rounded-full" />
+                            <div className="ml-4 shrink-0">
+                                <LanguageSwitcher />
                             </div>
                         </div>
                         {/* One row, not two: the guide already opens with the welcome
@@ -579,7 +654,43 @@ export default function ProfilePage() {
                                 {t('profile.manage_action')}
                             </button>
                         </div>
-                        <div className="flex items-center justify-between py-4">
+                        {/* Get verified — the seal beside the name. Three requirements
+                            (real name, biography, photo); an admin makes the call, so the
+                            row reads the live request state rather than a local flag. */}
+                        <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
+                            <div className="space-y-0.5">
+                                <p className="font-sans text-sm font-medium text-stone-800 flex items-center gap-2">
+                                    {t('profile.get_verified_title')}
+                                    {isVerified && <VerifiedMark size={15} label={t('profile.verified_label')} />}
+                                </p>
+                                <p className="text-[13px] text-stone-600">
+                                    {isVerified
+                                        ? t('profile.verify_approved')
+                                        : verification?.status === 'pending'
+                                        ? t('profile.verify_pending_desc')
+                                        : verification?.status === 'declined'
+                                        ? (verification.note || t('profile.verify_declined'))
+                                        : t('profile.get_verified_desc')}
+                                </p>
+                            </div>
+                            {!isVerified && (
+                                verification?.status === 'pending' ? (
+                                    <span className="ml-4 shrink-0 whitespace-nowrap rounded-full bg-stone-200/70 px-3.5 py-1.5 text-[12px] font-semibold text-stone-600">
+                                        {t('profile.verify_pending')}
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={() => setShowVerify(true)}
+                                        aria-haspopup="dialog"
+                                        className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
+                                    >
+                                        <BadgeCheck size={14} />
+                                        {verification?.status === 'declined' ? t('profile.verify_try_again') : t('profile.get_verified_action')}
+                                    </button>
+                                )
+                            )}
+                        </div>
+                        <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
                             <div className="space-y-0.5">
                                 <p className="font-sans text-sm font-medium text-stone-800">{t('profile.contact_concierge')}</p>
                                 <p className="text-[13px] text-stone-600">{t('profile.support_desc')}</p>
@@ -592,12 +703,36 @@ export default function ProfilePage() {
                                 {t('profile.support_action')}
                             </button>
                         </div>
+                        {/* Sign out is a sidebar action everywhere else; the profile has no
+                            sidebar. A quiet text button — it's an exit, not a call to action. */}
+                        <div className="flex items-center justify-between py-4">
+                            <div className="space-y-0.5">
+                                <p className="font-sans text-sm font-medium text-stone-800">{t('navigation.logout')}</p>
+                                <p className="text-[13px] text-stone-600">{t('profile.logout_desc')}</p>
+                            </div>
+                            <button
+                                onClick={handleSignOut}
+                                className={`${btn.ghost('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
+                            >
+                                <LogOut size={14} />
+                                {t('navigation.logout')}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
             </div>
 
             <SupportModal isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
+            <VerifyModal
+                isOpen={showVerify}
+                onClose={() => setShowVerify(false)}
+                uid={user.uid}
+                name={name}
+                photoURL={photoUrl}
+                initialBio={verification?.bio}
+                t={t}
+            />
             {/* Same upgrade popup as Connect's PRO panel */}
             <MaxUpgradeModal
                 isOpen={showMaxUpgrade}

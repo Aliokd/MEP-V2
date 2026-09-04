@@ -138,15 +138,37 @@ service cloud.firestore {
           // ECDH public key for direct messages. Public by design: it is what
           // the other person needs to encrypt *to* you, and it reveals nothing.
           // The private half never leaves the owner's browser.
-          "publicKey"
+          "publicKey",
+          // City-level location for the songwriter map. Opt-in and owner-set;
+          // the client only ever writes a city from a fixed list.
+          "location"
+          // NOT "verified". That field is written by the Admin SDK from the
+          // verification console only — listing it here would let any account
+          // verify itself. Its absence is the security property.
         ]);
+      }
+
+      // A location is a city from the fixed list, or nothing. The map queries
+      // on `location.lat`, so a string in that slot must never reach the store.
+      function locationWellFormed() {
+        return !("location" in request.resource.data) ||
+          request.resource.data.location == null ||
+          (
+            request.resource.data.location.lat is number &&
+            request.resource.data.location.lng is number &&
+            request.resource.data.location.lat >= -90 && request.resource.data.location.lat <= 90 &&
+            request.resource.data.location.lng >= -180 && request.resource.data.location.lng <= 180 &&
+            request.resource.data.location.label is string &&
+            request.resource.data.location.cityId is string
+          );
       }
 
       allow read: if isSignedIn();
       allow create, update: if isSignedIn() &&
         request.auth.uid == userId &&
         request.resource.data.get("uid", userId) == userId &&
-        allowedFieldsOnly();
+        allowedFieldsOnly() &&
+        locationWellFormed();
       allow delete: if false;
     }
 
@@ -281,6 +303,126 @@ service cloud.firestore {
         allow delete: if isSignedIn() &&
           isOwner(get(/databases/$(database)/documents/projects/$(projectId)).data);
       }
+    }
+
+    // ---------------------------------------------------------------------
+    // Rooms (Connect: collab rooms and live events)
+    // ---------------------------------------------------------------------
+    // Listing is open to any member — a room is an invitation. Only the host
+    // shapes it; anyone else may only add themself to `participants`, and only
+    // themself: the size check plus the membership check together mean the one
+    // uid that appeared is the caller's.
+    // A room is a gathering with a fixed number of seats. The host takes the
+    // first; anyone signed in may take a free one while the room is open. When
+    // the host ends it, nothing is deleted — it becomes history.
+    match /rooms/{roomId} {
+      function isHost() {
+        return resource.data.hostUid == request.auth.uid;
+      }
+      function isOpen() {
+        return resource.data.get("status", "open") == "open";
+      }
+      function seats() {
+        return resource.data.get("seats", 2);
+      }
+      // Taking one seat: participants grows by exactly you, your name goes in
+      // beside it, and nothing else on the room moves.
+      function isJoiningSelf() {
+        return isOpen() &&
+          changedKeys().hasOnly(["participants", "participantNames"]) &&
+          request.resource.data.participants.size() == resource.data.get("participants", []).size() + 1 &&
+          request.resource.data.participants.size() <= seats() &&
+          request.auth.uid in request.resource.data.participants &&
+          !(request.auth.uid in resource.data.get("participants", []));
+      }
+      // Giving one back. The host's seat isn't theirs to give — they end the room.
+      function isLeavingSelf() {
+        return changedKeys().hasOnly(["participants"]) &&
+          request.auth.uid != resource.data.hostUid &&
+          request.auth.uid in resource.data.get("participants", []) &&
+          !(request.auth.uid in request.resource.data.participants) &&
+          request.resource.data.participants.size() == resource.data.participants.size() - 1;
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.hostUid == request.auth.uid &&
+        request.resource.data.type in ["collab", "live"] &&
+        request.resource.data.topic in ["lyrics", "production", "melody", "instrument", "mentoring", "discussion"] &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.title.size() <= 120 &&
+        // What the host brings — optional, and a sentence or two at most.
+        (!("details" in request.resource.data) ||
+          (request.resource.data.details is string && request.resource.data.details.size() <= 300)) &&
+        request.resource.data.startsAt is number &&
+        // Owner plus at least one other. A room of one is not a room.
+        request.resource.data.seats is int &&
+        request.resource.data.seats >= 2 &&
+        request.resource.data.seats <= 8 &&
+        request.resource.data.participants == [request.auth.uid] &&
+        request.resource.data.status == "open";
+      allow update: if isSignedIn() && (isHost() || isJoiningSelf() || isLeavingSelf());
+      allow delete: if isSignedIn() && isHost();
+
+      // Chat, for the people in the room. Plain text — see the note on
+      // useRoomMessages in lib/rooms.ts for why this isn't end-to-end
+      // encrypted the way direct messages are. Readable after the room has
+      // ended, so history keeps its conversation; writable only while open.
+      match /messages/{messageId} {
+        function room() {
+          return get(/databases/$(database)/documents/rooms/$(roomId)).data;
+        }
+        function isMember() {
+          return request.auth.uid in room().get("participants", []);
+        }
+
+        allow read: if isSignedIn() && isMember();
+        allow create: if isSignedIn() && isMember() &&
+          room().get("status", "open") == "open" &&
+          request.resource.data.senderUid == request.auth.uid &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 &&
+          request.resource.data.text.size() <= 2000;
+        allow update, delete: if false;
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // Verification requests
+    // ---------------------------------------------------------------------
+    // A songwriter asks to be verified by submitting a biography; the photo is
+    // the one already on their profile. Admins review in the console, which
+    // reads and decides through the Admin SDK — so the client only ever
+    // creates or edits its own pending request. `status` is never client-set.
+    match /verification_requests/{userId} {
+      function isOwner() {
+        return request.auth.uid == userId;
+      }
+      function ownerFieldsOnly() {
+        return request.resource.data.keys().hasOnly([
+          "uid", "name", "bio", "photoURL", "status", "submittedAt"
+        ]);
+      }
+
+      allow read: if isSignedIn() && (isOwner() || isAdmin());
+      allow create: if isSignedIn() && isOwner() &&
+        request.resource.data.uid == userId &&
+        request.resource.data.status == "pending" &&
+        request.resource.data.bio is string &&
+        request.resource.data.bio.size() >= 40 &&
+        request.resource.data.bio.size() <= 600 &&
+        request.resource.data.photoURL is string &&
+        request.resource.data.photoURL.size() > 0 &&
+        ownerFieldsOnly();
+      // Re-submitting after a decline re-opens the same document as pending.
+      // An approved request is final from the client's side.
+      allow update: if isSignedIn() && isOwner() &&
+        resource.data.status != "approved" &&
+        request.resource.data.status == "pending" &&
+        request.resource.data.uid == userId &&
+        ownerFieldsOnly();
+      allow delete: if false;
     }
 
     // ---------------------------------------------------------------------

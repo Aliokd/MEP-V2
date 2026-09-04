@@ -170,7 +170,7 @@ export default function WordChordSection({
                             in the sheet's full width the line has room to spare, and
                             stacking them spent a row of height the diagram wanted. */}
                         <div className="min-w-0 flex items-baseline gap-2.5 md:block">
-                            <div className="text-[25px] leading-none font-bold text-stone-900 tracking-tight shrink-0 md:truncate">{browseSymbol}</div>
+                            <div className="font-chords text-[25px] leading-none font-bold text-stone-900 tracking-tight shrink-0 md:truncate">{browseSymbol}</div>
                             <div className="md:mt-1.5 text-[15px] font-medium text-stone-400 truncate">
                                 {chordNotes(browseSymbol).join(' · ')}
                             </div>
@@ -354,7 +354,7 @@ export default function WordChordSection({
                     className={`${btn.plain('bare')} flex-col items-start gap-3 text-left opacity-30 transition-opacity hover:opacity-50 cursor-pointer`}
                 >
                     <div className="min-w-0">
-                        <div className="text-[25px] leading-none font-bold text-stone-900 tracking-tight truncate">{browseSymbol}</div>
+                        <div className="font-chords text-[25px] leading-none font-bold text-stone-900 tracking-tight truncate">{browseSymbol}</div>
                         <div className="mt-1.5 text-[15px] font-medium text-stone-400 truncate">
                             {chordNotes(browseSymbol).join(' · ')}
                         </div>
@@ -396,7 +396,7 @@ export default function WordChordSection({
                 one the easiest to hit by accident while stepping through voicings. */}
             <div className="flex items-start justify-between gap-1 min-w-0">
                 <div className="min-w-0">
-                    <div className="text-[25px] leading-none font-bold text-stone-900 tracking-tight truncate">{symbol}</div>
+                    <div className="font-chords text-[25px] leading-none font-bold text-stone-900 tracking-tight truncate">{symbol}</div>
                     <div className="mt-1.5 text-[15px] font-medium text-stone-400 truncate">
                         {[quality, notes.join(' · ')].filter(Boolean).join(' — ')}
                     </div>

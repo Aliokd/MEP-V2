@@ -11,6 +11,7 @@ import {
     LayoutDashboard, Inbox, Users, Flag, MessagesSquare, BookOpen, ClipboardList, FileText,
     Megaphone, Mail, BarChart3, CreditCard, SlidersHorizontal, ScrollText,
     Shield, LogOut, Menu, X, ExternalLink,
+    BadgeCheck,
 } from "lucide-react";
 import { Spinner } from "./ui";
 
@@ -41,6 +42,7 @@ const NAV: NavGroup[] = [
         label: "Manage",
         items: [
             { href: "/admin/users", label: "Users", icon: Users, permission: "users.read" },
+            { href: "/admin/verification", label: "Verification", icon: BadgeCheck, permission: "users.read" },
             { href: "/admin/content", label: "Content", icon: BookOpen, permission: "content.read" },
             { href: "/admin/pages", label: "Pages", icon: FileText, permission: "content.read" },
             { href: "/admin/announcements", label: "Announcements", icon: Megaphone, permission: "announcements.read" },

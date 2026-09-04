@@ -4,8 +4,11 @@ import MaestroSidebar from './components/MaestroSidebar';
 import { useBackDismiss } from '@/hooks/useBackDismiss';
 import SupportModal from './components/SupportModal';
 import FeedbackModal from './components/FeedbackModal';
-import MindPowerPanel from './components/MindPowerPanel';
 import MindPowerStatus from './components/MindPowerStatus';
+import GoldenMindCelebration from './components/GoldenMindCelebration';
+import { MindPowerProgressProvider } from '@/lib/mindPowerContext';
+import { recordActiveSeconds, readActiveWeekCount, ACTIVITY_TICK_SECONDS, WEEKLY_ACTIVITY_EVENT } from '@/lib/weeklyActivity';
+import { ENGAGED_WINDOW_MS } from '@/lib/mindPowerScore';
 import PlatformOnboarding from './components/PlatformOnboarding';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import * as btn from './components/buttonStyles';
@@ -14,8 +17,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 import Link from 'next/link';
 import { Menu, User, X, Brain, ChevronRight, ChevronLeft, ShieldOff, UsersRound, UserMinus, ArrowRight } from 'lucide-react';
 import Logo from '@/components/Logo';
@@ -80,15 +81,6 @@ function PlatformLayoutInner({
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSupportOpen, setIsSupportOpen] = useState(false);
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
-    /**
-     * Mind Power as a full screen, on a phone only.
-     *
-     * It used to expand in flow inside the 260px drawer, which meant reading a
-     * level, four progress bars and a quote through a rail — and it pushed the
-     * nav it sits above off the bottom. Its own screen has the width the content
-     * was designed for. Desktop keeps the header popover (showTooltip).
-     */
-    const [showMindPowerFull, setShowMindPowerFull] = useState(false);
     // Leaving Profile plays the slide-out first, then navigates; this holds the
     // exit class on the view for that window. Reset on arrival at the new route.
     const [isProfileExiting, setIsProfileExiting] = useState(false);
@@ -156,13 +148,15 @@ function PlatformLayoutInner({
         return parseInt(localStorage.getItem('mep-community-shared-count') || '0');
     });
 
-    // Level milestone criteria (Level 1 → Level 2)
+    // Weeks with time in Veinote — the Mind Power level is one per week.
+    const [activeWeeks, setActiveWeeks] = useState(0);
+
+    // Category goals: what a full ring/bar means for each of the four areas.
     const L1_WORDS   = 200;  // words
     const L1_LESSONS = 2;    // chapters checked
     const L1_PRACTICE = 30;  // minutes
     const L1_COMMUNITY = 2;  // projects shared
 
-    const [showTooltip, setShowTooltip] = useState(false);
     const [activeQuote, setActiveQuote] = useState('Remember, small actions makes progress');
     const [showConfettiOverlay, setShowConfettiOverlay] = useState(false);
     const [showProgressGlow, setShowProgressGlow] = useState(false);
@@ -304,7 +298,8 @@ function PlatformLayoutInner({
         }
     };
 
-    // Overall Mind Power level — combines Create/Learn/Practice/Community into one score
+    // Overall progress — the four category counters against their goals, averaged.
+    // Drives the header pill's bar. (The level is separate: see below.)
     useEffect(() => {
         const wordsCrit     = Math.min(1, wordsTyped / L1_WORDS);
         const lessonsCrit   = Math.min(1, completedLessonsCount / L1_LESSONS);
@@ -312,13 +307,23 @@ function PlatformLayoutInner({
         const communityCrit = Math.min(1, communityCount / L1_COMMUNITY);
         const avgProgress   = Math.round(((wordsCrit + lessonsCrit + practiceCrit + communityCrit) / 4) * 100);
 
-        const allMet = wordsCrit >= 1 && lessonsCrit >= 1 && practiceCrit >= 1 && communityCrit >= 1;
-
-        setProgressLevel(allMet ? 2 : 1);
-        setLevelProgress(allMet ? 100 : avgProgress);
-
+        setLevelProgress(avgProgress);
         safeLocalStorageSetItem('songwriting-progress', avgProgress.toString());
     }, [wordsTyped, completedLessonsCount, practiceMinutes, communityCount]);
+
+    // The level is tenure, not output: one level per week with time in Veinote.
+    // Re-read whenever the activity tracker records a tick, so the first tick of
+    // a new week moves the level without a reload.
+    useEffect(() => {
+        const refresh = () => {
+            const weeks = readActiveWeekCount();
+            setActiveWeeks(weeks);
+            setProgressLevel(Math.max(1, weeks));
+        };
+        refresh();
+        window.addEventListener(WEEKLY_ACTIVITY_EVENT, refresh);
+        return () => window.removeEventListener(WEEKLY_ACTIVITY_EVENT, refresh);
+    }, []);
 
     // Load initial values from localStorage
     useEffect(() => {
@@ -423,16 +428,27 @@ function PlatformLayoutInner({
         };
     }, []);
 
-    // Close popup when clicking outside
+    // Time in Veinote, for Mind Power. A tick is engaged when the tab is
+    // visible and the person touched the keyboard or pointer within the last
+    // minute: a hidden or idle tab is not someone writing, and crediting it
+    // would fill the brain for whoever leaves the app open all day. Only
+    // trusted events count — a script cannot type its way to a golden mind.
     useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
-                setShowProgressPopup(false);
-                setShowTooltip(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
+        let lastInputAt = 0;
+        const note = (e: Event) => {
+            if (e.isTrusted) lastInputAt = performance.now();
+        };
+        const events: (keyof WindowEventMap)[] = ['keydown', 'pointerdown', 'pointermove', 'wheel', 'touchstart', 'input'];
+        events.forEach(name => window.addEventListener(name, note, { passive: true, capture: true }));
+        const id = setInterval(() => {
+            if (document.visibilityState !== 'visible') return;
+            const engaged = performance.now() - lastInputAt < ENGAGED_WINDOW_MS;
+            recordActiveSeconds(ACTIVITY_TICK_SECONDS, new Date(), engaged);
+        }, ACTIVITY_TICK_SECONDS * 1000);
+        return () => {
+            clearInterval(id);
+            events.forEach(name => window.removeEventListener(name, note, { capture: true }));
+        };
     }, []);
 
     // A blocked account is signed out too, but must not be bounced to /signin —
@@ -454,9 +470,6 @@ function PlatformLayoutInner({
     // React throws "Rendered more hooks than during the previous render" —
     // which took out the whole authenticated app, not just the drawer.
     useBackDismiss(isMobileMenuOpen, () => setIsMobileMenuOpen(false));
-    useBackDismiss(showMindPowerFull, () => setShowMindPowerFull(false));
-    // Swipe down to leave, like every other full-bleed surface in the app.
-    const mindPowerSwipe = useSheetSwipe(() => setShowMindPowerFull(false), showMindPowerFull);
 
     if (loading) return (
         <div className="h-screen flex items-center justify-center bg-[#E4E4DF]">
@@ -474,6 +487,42 @@ function PlatformLayoutInner({
     const isProfile = pathname === '/platform/profile' || pathname?.startsWith('/platform/profile/');
 
     const handleBack = () => exitProfile();
+
+    // Mind Power is a page of its own: dark, no sidebar, no header — just the
+    // brain, the streaks and the timer, with a Back button top-left. The layout
+    // still computes the numbers (the header pill needs them on every other
+    // route) and hands them down through context rather than have the page
+    // re-derive the level formula a second time.
+    const isMindPowerPage = pathname === '/platform/mind-power' || !!pathname?.startsWith('/platform/mind-power/');
+
+    // The page draws its own back control, in the header row beside its title.
+    if (isMindPowerPage) {
+        return (
+            <MindPowerProgressProvider
+                value={{
+                    progressLevel,
+                    activeWeeks,
+                    levelProgress,
+                    wordsTyped,
+                    recordingMinutes,
+                    songsCompleted,
+                    wordsGoal: L1_WORDS,
+                    completedLessonsCount,
+                    lessonsGoal: L1_LESSONS,
+                    practiceMinutes,
+                    practiceGoal: L1_PRACTICE,
+                    communityCount,
+                    communityGoal: L1_COMMUNITY,
+                    activeQuote,
+                }}
+            >
+                <div className="min-h-screen bg-[#2a2a2a] text-[#F5F4EE] font-sans selection:bg-[#86BE7F]/30 profile-view-enter">
+                    {children}
+                </div>
+                <GoldenMindCelebration />
+            </MindPowerProgressProvider>
+        );
+    }
 
     /**
      * Tabs that drop the beige panel below md and go straight onto the page.
@@ -503,7 +552,7 @@ function PlatformLayoutInner({
             {showProgressGlow && <div className={`mind-power-glow-ring ${isQuickGlow ? "mind-power-glow-ring--quick" : ""}`} />}
             {showCollabCelebrate && <div className="mind-power-glow-ring mind-power-glow-ring--collab" />}
             <div
-                onClick={() => { setShowMindPowerFull(true); setIsMobileMenuOpen(false); }}
+                onClick={() => { setIsMobileMenuOpen(false); router.push('/platform/mind-power'); }}
                 data-tour="mind-power"
                 role="button"
                 aria-label={t('progress.mind_power_label')}
@@ -540,7 +589,6 @@ function PlatformLayoutInner({
                     {visibleInviteToast && (
                         <div key={visibleInviteToast.id} className="collab-banner-enter pointer-events-auto max-w-full">
                             <div className="relative bg-white rounded-full pl-4 pr-2 py-2 shadow-[0_12px_35px_rgba(0,0,0,0.14)] border border-stone-200/80 flex items-center gap-3 max-w-full">
-                                <div className="invite-glow-ring" />
                                 <div className="relative w-8 h-8 rounded-full bg-[#EAF3E8] text-[#4e7a49] flex items-center justify-center shrink-0">
                                     <UsersRound size={16} strokeWidth={2} />
                                 </div>
@@ -651,55 +699,6 @@ function PlatformLayoutInner({
                     onFeedbackClick={() => setIsFeedbackOpen(true)}
                     mobileTopSlot={mobileMindPower}
                 />
-            )}
-
-            {/* Mind Power, full screen — phone only, portalled to <body> so no
-                transformed or overflow-clipped ancestor in the drawer can crop it.
-                z-[130] puts it above the drawer (79) and the sheets (120), since it
-                is opened FROM the drawer and has to cover it. */}
-            {showMindPowerFull && typeof document !== 'undefined' && createPortal(
-                <div
-                    className="md:hidden fixed inset-0 z-[130] bg-[#E4E4DF] flex flex-col bottom-sheet-enter"
-                    {...mindPowerSwipe.swipeHandlers}
-                    style={mindPowerSwipe.swipeStyle}
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label={t('progress.mind_power_label')}
-                >
-                    <div className="shrink-0 flex items-center justify-between px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
-                        <h2 className="text-[19px] font-sans font-semibold text-stone-900 tracking-tight">
-                            {t('progress.mind_power_label')}
-                        </h2>
-                        <button
-                            type="button"
-                            onClick={() => setShowMindPowerFull(false)}
-                            aria-label={t('common.close')}
-                            className={btn.icon('touch')}
-                        >
-                            <X size={20} className="stroke-[2.2]" />
-                        </button>
-                    </div>
-                    <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-                        <MindPowerPanel
-                            fullWidth
-                            t={t}
-                            progressLevel={progressLevel}
-                            levelProgress={levelProgress}
-                            wordsTyped={wordsTyped}
-                            songsCompleted={songsCompleted}
-                            recordingMinutes={recordingMinutes}
-                            wordsGoal={L1_WORDS}
-                            completedLessonsCount={completedLessonsCount}
-                            lessonsGoal={L1_LESSONS}
-                            practiceMinutes={practiceMinutes}
-                            practiceGoal={L1_PRACTICE}
-                            communityCount={communityCount}
-                            communityGoal={L1_COMMUNITY}
-                            activeQuote={activeQuote}
-                        />
-                    </div>
-                </div>,
-                document.body
             )}
 
             <SupportModal
@@ -813,7 +812,7 @@ function PlatformLayoutInner({
                             {showProgressGlow && <div className={`mind-power-glow-ring ${isQuickGlow ? "mind-power-glow-ring--quick" : ""}`} />}
                             {showCollabCelebrate && <div className="mind-power-glow-ring mind-power-glow-ring--collab" />}
                             <div
-                                onClick={() => setShowTooltip(!showTooltip)}
+                                onClick={() => router.push('/platform/mind-power')}
                                 data-tour="mind-power"
                                 role="button"
                                 aria-label={t('progress.mind_power_label')}
@@ -831,29 +830,6 @@ function PlatformLayoutInner({
                                     />
                                 </div>
                             </div>
-                            
-                            {/* Mind Power panel — appears below the progress pill */}
-                            {showTooltip && (
-                                <div className="absolute top-14 left-1/2 mind-power-panel-enter z-50">
-                                    <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#F5F4EE] border-l border-t border-stone-200/70 rotate-45 z-10" />
-                                    <MindPowerPanel
-                                        t={t}
-                                        progressLevel={progressLevel}
-                                        levelProgress={levelProgress}
-                                        wordsTyped={wordsTyped}
-                                    songsCompleted={songsCompleted}
-                                        recordingMinutes={recordingMinutes}
-                                        wordsGoal={L1_WORDS}
-                                        completedLessonsCount={completedLessonsCount}
-                                        lessonsGoal={L1_LESSONS}
-                                        practiceMinutes={practiceMinutes}
-                                        practiceGoal={L1_PRACTICE}
-                                        communityCount={communityCount}
-                                        communityGoal={L1_COMMUNITY}
-                                        activeQuote={activeQuote}
-                                    />
-                                </div>
-                            )}
                         </div>
 
                         {/* Profile link — user's name. Hidden on Profile itself. */}
@@ -912,6 +888,9 @@ function PlatformLayoutInner({
                 nav items inside it, closed for every other step so it isn't left
                 sitting over the canvas behind the tour card. */}
             <PlatformOnboarding onRequestMobileSidebar={setIsMobileMenuOpen} />
+
+            {/* The week's goal reached: the golden-mind popup, once per week. */}
+            <GoldenMindCelebration />
         </div>
     );
 }

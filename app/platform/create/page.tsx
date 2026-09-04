@@ -62,6 +62,16 @@ const MAX_RECORDING_SECONDS = 600;
  */
 const MAX_TRANSCRIBE_SECONDS = MAX_RECORDING_SECONDS;
 const MAX_TRANSCRIBE_BYTES = 12 * 1024 * 1024;
+/**
+ * Whether "Add to Demo Studio" splits an imported song into stems.
+ *
+ * Off. The band-split (separateIntoStems) measures clean on a test tone and is a
+ * guess on a real song: a piano in the vocal band lands in "Vocals", and a guess
+ * wearing that label confuses more than it helps. An import now goes in as one
+ * stereo playback track instead — see addAsPlaybackTrack. Real source
+ * separation is a model, not a filter; when that arrives this is the switch.
+ */
+const STEM_SPLIT_ON_IMPORT = false;
 
 /**
  * Encode rate for every take we record, canvas and Demo Studio alike.
@@ -684,6 +694,9 @@ interface StudioTrack {
     url: string | null;
     type: 'guitar' | 'piano' | 'drums' | 'vocals' | 'synth' | 'custom';
     muted?: boolean;
+    /** The imported song itself — the whole mix, kept in stereo, to sing and play
+     *  over. Never armed, never counted against the four recordable tracks. */
+    role?: 'playback';
 }
 
 // A StudioTrack snapshot saved onto an AudioNote — everything needed to reload the track
@@ -2205,7 +2218,7 @@ const PhraseRow = React.memo(function PhraseRow({
                                                     // thing the eye reads as misalignment. Matching the
                                                     // literal padding value keeps the two in lockstep;
                                                     // an em value here would drift as the badge resizes.
-                                                    className="chord-anchor absolute -top-[0.5em] left-[3px] font-bold leading-none tracking-tight text-white bg-stone-700 hover:bg-stone-900 px-[0.38em] py-[0.18em] rounded-[0.3em] cursor-pointer whitespace-nowrap z-20 transition-colors"
+                                                    className="chord-anchor absolute -top-[0.5em] left-[3px] font-chords font-bold leading-none tracking-tight text-white bg-stone-700 hover:bg-stone-900 px-[0.38em] py-[0.18em] rounded-[0.3em] cursor-pointer whitespace-nowrap z-20 transition-colors"
                                                 >
                                                     {wordChord.symbol}
                                                 </span>
@@ -4616,8 +4629,42 @@ export default function CreatePage() {
     const [commentsLastReadAt, setCommentsLastReadAt] = useState<number>(0);
     const [showShareModal, setShowShareModal] = useState(false);
     const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+
+    // What the invitations listener returns, minus the ones already answered by
+    // being a member. A doc can sit at "pending" for a project you are in — a
+    // re-invite that could not see you were a member, a claim that copied an
+    // email invite over an accepted one — and each of those put the banner back
+    // over a project you had already joined. Membership is the truth here.
+    const activeInvites = useMemo(() => {
+        if (!user) return [] as any[];
+        return pendingInvites.filter(inv => {
+            const project = notes.find(n => n.id === inv.projectId);
+            if (!project) return true;
+            const isOwner = (project as any).ownerId === user.uid;
+            const isMember = (project.collaborators || []).includes(user.uid);
+            return !isOwner && !isMember;
+        });
+    }, [pendingInvites, notes, user]);
+
+    // And the stale docs get closed, not just hidden: the platform toast reads
+    // the same query on every other tab, so a hidden-here banner would still
+    // follow the writer to Learn and Practice. Once per doc per session.
+    const healedInviteIdsRef = useRef<Set<string>>(new Set());
+    useEffect(() => {
+        if (!user) return;
+        pendingInvites.forEach(inv => {
+            if (activeInvites.some(a => a.id === inv.id)) return;
+            if (healedInviteIdsRef.current.has(inv.id)) return;
+            healedInviteIdsRef.current.add(inv.id);
+            updateDoc(doc(db, "invitations", inv.id), { status: 'accepted' })
+                .catch(err => console.warn('Could not close an already-answered invite:', err));
+        });
+    }, [pendingInvites, activeInvites, user]);
     const [previewInviteId, setPreviewInviteId] = useState<string | null>(null);
-    const currentPendingInvite = pendingInvites.find(inv => inv.projectId === selectedNoteId);
+    // activeInvites, not the raw listener: an answered-but-still-pending doc for a
+    // project you are a member of would otherwise flip your OWN project into the
+    // read-only invite preview.
+    const currentPendingInvite = activeInvites.find(inv => inv.projectId === selectedNoteId);
     const isCanvasPreview = previewInviteId !== null || currentPendingInvite !== undefined;
     // What the sender typed into the share dialog: a name filtering their connections,
     // or an email address for someone the platform has never seen.
@@ -5256,6 +5303,9 @@ export default function CreatePage() {
     useEffect(() => {
         studioTracksRef.current = studioTracks;
     }, [studioTracks]);
+    // The four-track cap counts the writer's own tracks. The playback track is the
+    // song they are recording over, not a place to record — it sits outside the cap.
+    const recordableTrackCount = studioTracks.filter(tr => tr && tr.role !== 'playback').length;
 
     /* ---- Collaborative studio-track sync engine ----
      *
@@ -5278,7 +5328,8 @@ export default function CreatePage() {
         compressor: t.compressor,
         reverb: t.reverb,
         url: (t.url && !t.url.startsWith('blob:')) ? t.url : null,
-        muted: !!t.muted
+        muted: !!t.muted,
+        ...(t.role ? { role: t.role } : {})
     });
     const studioTrackSig = (t: any) => JSON.stringify(serializeStudioTrack(t));
     const studioBaselineRef = useRef<Map<number, string>>(new Map());
@@ -5763,7 +5814,9 @@ export default function CreatePage() {
                 const OfflineContextClass = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
                 const offlineCtx = new OfflineContextClass(1, 1, 44100);
                 const decodedBuffer = await decodeAudioDataPromise(offlineCtx, arrayBuffer);
-                const finalMonoBuffer = downmixToMono(decodedBuffer, offlineCtx);
+                // Takes are mono by design; the playback track is the song as released,
+                // and comes back in stereo.
+                const finalMonoBuffer = track.role === 'playback' ? decodedBuffer : downmixToMono(decodedBuffer, offlineCtx);
                 
                 if (active) {
                     setStudioTracks(prev => {
@@ -5863,7 +5916,7 @@ export default function CreatePage() {
         // Arm a track that actually exists — collaborative projects usually have no track id 1
         // (ids are Date.now() stamps), and recording onto a nonexistent armed track used to
         // discard the take silently.
-        setActiveRecordingTrackId(loadedTracks[0]?.id ?? 1);
+        setActiveRecordingTrackId(loadedTracks.find(tr => tr && tr.role !== 'playback')?.id ?? loadedTracks[0]?.id ?? 1);
         setIsStudioMetronomeOn(true);
         setStudioPlayhead(0);
         setDraggedTrackIndex(null);
@@ -7001,7 +7054,9 @@ export default function CreatePage() {
                         setStudioDuration(maxDur);
                         // If the armed track was deleted remotely, fall back to the first track.
                         setActiveRecordingTrackId(prev =>
-                            mergedLocal.some(t => t.id === prev) ? prev : (mergedLocal[0]?.id ?? 1)
+                            mergedLocal.some(t => t.id === prev)
+                                ? prev
+                                : (mergedLocal.find((t: any) => t && t.role !== 'playback')?.id ?? mergedLocal[0]?.id ?? 1)
                         );
                     }
                 }
@@ -7583,17 +7638,24 @@ export default function CreatePage() {
                 const snapshot = await getDocs(q);
                 if (!snapshot.empty) {
                     const batch = writeBatch(db);
-                    snapshot.forEach(docSnap => {
+                    for (const docSnap of snapshot.docs) {
                         const data = docSnap.data();
                         const newInviteId = `${data.projectId}_${user.uid}`;
                         const newInviteRef = doc(db, "invitations", newInviteId);
-                        batch.set(newInviteRef, {
-                            ...data,
-                            id: newInviteId,
-                            inviteeId: user.uid
-                        });
+                        // If this project's invite was already answered, the email
+                        // copy is just a duplicate to remove — copying it over the
+                        // answered doc used to flip an accepted invite back to pending.
+                        const existing = await getDoc(newInviteRef);
+                        const answered = existing.exists() && existing.data()?.status && existing.data()?.status !== 'pending';
+                        if (!answered) {
+                            batch.set(newInviteRef, {
+                                ...data,
+                                id: newInviteId,
+                                inviteeId: user.uid
+                            });
+                        }
                         batch.delete(docSnap.ref);
-                    });
+                    }
                     await batch.commit();
                     console.log("Claimed pending invitations for email with deterministic IDs:", userEmail);
                 }
@@ -7630,27 +7692,27 @@ export default function CreatePage() {
                 return;
             }
 
-            // Only mark the invite accepted once the membership write itself succeeds —
-            // a rejected/denied collaborators write must never leave the invite doc stuck at "accepted".
-            await updateDoc(doc(db, "projects", projId), {
-                collaborators: arrayUnion(user.uid)
-            });
-
-            await (invite.id !== deterministicId
-                ? setDoc(doc(db, "invitations", deterministicId), {
-                    ...invite,
-                    id: deterministicId,
-                    inviteeId: user.uid,
-                    inviteeName,
-                    status: 'accepted',
-                    senderNotified: false,
-                })
-                : updateDoc(doc(db, "invitations", deterministicId), {
-                    status: 'accepted',
-                    inviteeId: user.uid,
-                    inviteeName,
-                    senderNotified: false,
-                }));
+            // Membership and the invite's status land together or not at all. Two
+            // sequential writes could leave either half behind — a member whose
+            // invite still says pending is exactly the banner-that-won't-go-away.
+            const accepted = {
+                status: 'accepted',
+                inviteeId: user.uid,
+                inviteeName,
+                senderNotified: false,
+            };
+            const batch = writeBatch(db);
+            batch.update(doc(db, "projects", projId), { collaborators: arrayUnion(user.uid) });
+            if (invite.id !== deterministicId) {
+                // The deterministic doc is what the project's read rule checks, so it
+                // has to exist — but the doc the listener found is the one that must
+                // stop saying pending. Both are written; before, only the copy was.
+                batch.set(doc(db, "invitations", deterministicId), { ...invite, id: deterministicId, ...accepted });
+                batch.update(doc(db, "invitations", invite.id), accepted);
+            } else {
+                batch.update(doc(db, "invitations", deterministicId), accepted);
+            }
+            await batch.commit();
 
             // Joining a collab is a moment — the platform layout answers this with a full
             // moving-gradient celebration on the Mind Power pill.
@@ -15026,6 +15088,12 @@ export default function CreatePage() {
         }
 
         const armedTrack = studioTracks.find(t => t.id === activeRecordingTrackId);
+        // The playback track is the song being sung over, never a target for the
+        // mic — REC on it would overwrite the import with a take.
+        if (armedTrack?.role === 'playback') {
+            triggerStudioNotification(t('studio.playback_cannot_record'), 'amber');
+            return;
+        }
         if (armedTrack && (armedTrack.audioBuffer || armedTrack.url)) {
             setConfirmOverwriteStudioRecord({
                 isOpen: true,
@@ -15865,11 +15933,47 @@ export default function CreatePage() {
     // Lets any collaborator pull an already-imported/recorded audio card into their own
     // live Demo Studio session as a new track (distinct from handleReopenStudioMix, which
     // replaces the whole session with a saved mixdown's stems).
+    /**
+     * An imported song goes into the studio as ONE track: the whole mix, in
+     * stereo, at the top of the list — the thing to sing and play over. It is
+     * not a recordable slot, so the four tracks stay free for takes.
+     */
+    const addAsPlaybackTrack = (audioNote: AudioNote) => {
+        const nextId = Date.now();
+        const playback: StudioTrack = {
+            id: nextId,
+            name: (audioNote.title || 'Playback').substring(0, 24),
+            type: 'custom',
+            role: 'playback',
+            volume: 80,
+            pan: 0,
+            // A finished mix is not re-processed: flat EQ, no compressor, no reverb.
+            eq: 0,
+            compressor: false,
+            reverb: 0,
+            audioBuffer: null,
+            url: audioNote.url,
+        };
+        // One playback per session — a second import replaces the first.
+        setStudioTracks(prev => [playback, ...prev.filter(Boolean).filter(tr => tr.role !== 'playback')]);
+        // Keep the mic on the writer's own track, never on the playback.
+        setActiveRecordingTrackId(prev => {
+            const own = studioTracksRef.current.filter(tr => tr && tr.role !== 'playback');
+            return own.some(tr => tr.id === prev) ? prev : (own[0]?.id ?? prev);
+        });
+        stopAllStudioAudio();
+        setStudioState('idle');
+        setStudioPlayhead(0);
+        setActiveToolTab('studio');
+        setShowToolsPanel(true);
+        triggerStudioNotification(t('studio.added_as_playback'), 'emerald');
+    };
+
     /** The pre-decomposition behaviour: the whole mix as ONE studio track. Kept as
      *  the fallback for when splitting cannot run — no room, no bytes, too long —
      *  because a track you can at least play beats an error. */
     const addWholeMixAsStudioTrack = (audioNote: AudioNote) => {
-        if (studioTracks.length >= 4) {
+        if (studioTracks.filter(tr => tr && tr.role !== 'playback').length >= 4) {
             triggerStudioNotification('Studio tracks limit reached (maximum 4 tracks).', 'rose');
             return;
         }
@@ -15922,9 +16026,13 @@ export default function CreatePage() {
      * its single-track behaviour.
      */
     const handleAddAsStudioTrack = async (audioNote: AudioNote) => {
+        if (!STEM_SPLIT_ON_IMPORT) {
+            addAsPlaybackTrack(audioNote);
+            return;
+        }
         // Room check counts REAL tracks — the studio's default empty placeholder
         // rows hold no audio and are replaced, not counted.
-        const occupied = studioTracks.filter(tr => tr.audioBuffer || tr.url);
+        const occupied = studioTracks.filter(tr => tr.role !== 'playback' && (tr.audioBuffer || tr.url));
         if (occupied.length + 3 > 4) {
             triggerStudioNotification(t('studio.decompose_no_room'), 'amber');
             addWholeMixAsStudioTrack(audioNote);
@@ -16003,7 +16111,7 @@ export default function CreatePage() {
             triggerStudioNotification(t('collab.lock_banner'), 'amber');
             return;
         }
-        if (studioTracks.length >= 4) return;
+        if (recordableTrackCount >= 4) return;
         const nextId = Date.now();
         const newTrack: StudioTrack = {
             id: nextId,
@@ -16647,7 +16755,7 @@ export default function CreatePage() {
                                             triggerStudioNotification(`${collaboratorOnTrack.name} is currently recording on this track!`);
                                             return;
                                         }
-                                        setActiveRecordingTrackId(track.id);
+                                        if (track.role !== 'playback') setActiveRecordingTrackId(track.id);
                                         setExpandedTrackId(expandedTrackId === track.id ? null : track.id);
                                     }}
                                     // Two rows on a phone: the instrument capsule full width on
@@ -16669,7 +16777,7 @@ export default function CreatePage() {
                                         isThisTrackRecording
                                             ? 'max-lg:bg-white max-lg:rounded-[22px] max-lg:p-0 max-lg:gap-0 lg:bg-stone-200/50'
                                             : isArmed
-                                                ? 'max-lg:-mx-4 max-lg:w-[calc(100%+2rem)] max-lg:px-4 max-lg:py-2.5 max-lg:rounded-none max-lg:bg-[#EAF3E8] lg:bg-[#EAF3E8] lg:hover:bg-[#DFEEDB]'
+                                                ? 'max-lg:-mx-4 max-lg:w-[calc(100%+2rem)] max-lg:px-4 max-lg:py-2.5 max-lg:rounded-none max-lg:bg-[#F0F0EA] lg:bg-[#F0F0EA] lg:hover:bg-[#E4E4DF]'
                                                 : 'max-lg:gap-0 bg-transparent lg:bg-stone-50/70 lg:hover:bg-stone-100/80'
                                     } ${
                                         // Mid-reorder the grabbed card floats over the list.
@@ -16742,6 +16850,9 @@ export default function CreatePage() {
                                                     triggerStudioNotification(`${collaboratorOnTrack.name} is currently recording on this track!`);
                                                     return;
                                                 }
+                                                // The playback track is what it is — there is no
+                                                // instrument to pick and nothing to arm.
+                                                if (track.role === 'playback') return;
                                                 if (isStudioNarrow) {
                                                     // The tap that ends a long-press reorder fires a
                                                     // click too — swallow it.
@@ -16749,7 +16860,7 @@ export default function CreatePage() {
                                                     // First tap SELECTS. The detail sheet is behind
                                                     // the name pill that appears once selected —
                                                     // that pill has its own handler below.
-                                                    if (!isArmed) {
+                                                    if (!isArmed && track.role !== 'playback') {
                                                         haptic('select');
                                                         setActiveRecordingTrackId(track.id);
                                                     }
@@ -16773,7 +16884,7 @@ export default function CreatePage() {
                                                     // row's band is the surface now — and the name
                                                     // becomes a white pill. touch-none so the
                                                     // long-press drag isn't fought by scrolling.
-                                                    ? 'max-lg:bg-transparent max-lg:border-transparent max-lg:shadow-none max-lg:touch-none lg:bg-[#EAF3E8] lg:hover:bg-[#DFEEDB] lg:border-[#CFE4CA]'
+                                                    ? 'max-lg:bg-transparent max-lg:border-transparent max-lg:shadow-none max-lg:touch-none lg:bg-[#F0F0EA] lg:hover:bg-[#E4E4DF] lg:border-stone-300/50'
                                                     : 'max-lg:rounded-t-[20px] max-lg:rounded-b-none max-lg:border-b-0 bg-[#F9F8F6] hover:bg-[#F3F1ED] border-stone-200/40'
                                             }`}
                                         >
@@ -16852,7 +16963,18 @@ export default function CreatePage() {
                                                 </button>
                                             )}
                                             </div>
-                                            {activeTrackDropdownId !== track.id && (
+                                            {activeTrackDropdownId !== track.id && track.role === 'playback' && (
+                                                /* Kept inside the 80px the name row reserves on its right
+                                                   (pr-[80px]). The badge alone is ~64px at this size; with a
+                                                   glyph beside it the pair overflowed the slot leftwards,
+                                                   under the end of the name. The word is the identity here. */
+                                                <div className="absolute inset-y-0 right-0 w-[80px] shrink-0 flex items-center justify-end pr-2 pointer-events-none" aria-hidden="true">
+                                                    <span className="rounded-full border border-stone-200/70 bg-white/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-stone-500 whitespace-nowrap">
+                                                        {t('studio.playback_badge')}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {activeTrackDropdownId !== track.id && track.role !== 'playback' && (
                                                 <div className="absolute top-[-6px] right-0 w-[155px] h-14 overflow-hidden shrink-0 flex items-center justify-end pointer-events-none">
                                                     <img 
                                                         src={instrumentImages[track.type]} 
@@ -17092,7 +17214,7 @@ export default function CreatePage() {
                                                 triggerStudioNotification(`${collaboratorOnTrack.name} is currently recording on this track!`);
                                                 return;
                                             }
-                                            setActiveRecordingTrackId(track.id);
+                                            if (track.role !== 'playback') setActiveRecordingTrackId(track.id);
                                             handleTimelinePointerDown(e);
                                         }}
                                     >
@@ -17209,7 +17331,7 @@ export default function CreatePage() {
                                         the wave is the only thing here worth height. */}
                                     <div
                                         onPointerDown={() => {
-                                            if (isCanvasReadOnly) return;
+                                            if (isCanvasReadOnly || track.role === 'playback') return;
                                             setActiveRecordingTrackId(track.id);
                                         }}
                                         // Armed beats "has audio" in this order on purpose: the
@@ -17226,7 +17348,7 @@ export default function CreatePage() {
                                             isThisTrackRecording
                                                 ? 'h-12 rounded-t-none rounded-b-[20px] bg-gradient-to-r from-[#FF9191] to-[#FF3F3F] flex items-center justify-center'
                                                 : isArmed
-                                                    ? 'h-16 rounded-[14px] bg-white border border-[#CFE4CA] shadow-[0_1px_4px_rgba(0,0,0,0.04)]'
+                                                    ? 'h-16 rounded-[14px] bg-white border border-stone-300/50 shadow-[0_1px_4px_rgba(0,0,0,0.04)]'
                                                     : 'h-12 rounded-t-none rounded-b-[16px] bg-white border border-stone-200/50'
                                         }`}
                                     >
@@ -17331,7 +17453,7 @@ export default function CreatePage() {
                 {/* ── Pinned foot (phone only): Add track keeps a fixed home instead
                     of drifting to wherever the last track happened to end. */}
                 <div className="lg:hidden shrink-0 w-full flex flex-col gap-2 pt-0 pb-0">
-                    {studioTracks.length < 4 && !isCanvasReadOnly && (
+                    {recordableTrackCount < 4 && !isCanvasReadOnly && (
                         <button
                             onClick={handleAddTrack}
                             className={`${btn.plain('bare')} mt-2 h-14 w-full gap-1.5 border-2 border-dashed border-stone-400 bg-stone-100/80 px-6 text-[16px] font-medium text-stone-700 shadow-sm transition-all duration-200 cursor-pointer`}
@@ -17344,7 +17466,7 @@ export default function CreatePage() {
                 </div>
 
                 {/* Add track, desktop placement — still under the last track card. */}
-                {studioTracks.length < 4 && !isCanvasReadOnly && (
+                {recordableTrackCount < 4 && !isCanvasReadOnly && (
                     <div className="hidden lg:flex h-16 w-full shrink-0 items-center justify-center">
                         <button
                             onClick={handleAddTrack}
@@ -20115,19 +20237,22 @@ export default function CreatePage() {
                 The looping multicolour ring + real entrance animation are deliberate: invites
                 used to appear with no movement at all (the animate-in utilities are no-ops in
                 this project), which made a fresh invite easy to miss entirely. */}
-            {pendingInvites.length > 0 && !isCanvasPreview && (
+            {activeInvites.length > 0 && !isCanvasPreview && (
                 <div className="w-full flex items-center justify-center px-4 pt-1 pb-3 z-30 select-none collab-banner-enter">
+                    {/* White with the toast's shadow, same as the invite surface on every
+                        other tab — the green fill and the travelling gradient ring were
+                        the only things on the canvas shouting, and an invite is a standing
+                        offer, not an alarm. The green is kept for the one thing to press. */}
                     <div
                         onClick={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className="relative bg-[#78B673] text-white shadow-lg flex border border-[#6FA96A] mx-auto transition-all max-sm:w-full max-sm:max-w-none max-sm:flex-col max-sm:items-stretch max-sm:gap-2.5 max-sm:rounded-[22px] max-sm:px-4 max-sm:py-3 sm:items-center sm:justify-between sm:gap-7 sm:max-w-fit sm:rounded-full sm:px-5 sm:py-2"
+                        className="relative bg-white text-stone-800 border border-stone-200/80 shadow-[0_12px_35px_rgba(0,0,0,0.14)] flex mx-auto transition-all max-sm:w-full max-sm:max-w-none max-sm:flex-col max-sm:items-stretch max-sm:gap-2.5 max-sm:rounded-[22px] max-sm:px-4 max-sm:py-3 sm:items-center sm:justify-between sm:gap-7 sm:max-w-fit sm:rounded-full sm:px-5 sm:py-2"
                     >
-                        <div className="invite-glow-ring" />
                         {/* Status dot + text */}
                         <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="w-2.5 h-2.5 rounded-full bg-[#E5FE6C] animate-pulse shrink-0" />
-                            <span className="font-medium text-[14px] sm:text-[14.5px] text-white tracking-tight whitespace-nowrap truncate min-w-0">
-                                {pendingInvites[0].senderName || "Peter"} invited you for collab
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#86BE7F] animate-pulse shrink-0" />
+                            <span className="font-medium text-[14px] sm:text-[14.5px] text-stone-800 tracking-tight whitespace-nowrap truncate min-w-0">
+                                {activeInvites[0].senderName || "Peter"} invited you for collab
                             </span>
                         </div>
 
@@ -20140,10 +20265,10 @@ export default function CreatePage() {
                                     setConfirmCloseCollab({
                                         isOpen: true,
                                         type: 'decline_invite',
-                                        invite: pendingInvites[0]
+                                        invite: activeInvites[0]
                                     });
                                 }}
-                                className={`${btn.plain('bare')} px-1 text-[13.5px] font-medium text-stone-900 transition-colors hover:text-stone-950 cursor-pointer`}
+                                className={`${btn.plain('bare')} px-1 text-[13.5px] font-medium text-stone-500 transition-colors hover:text-stone-900 cursor-pointer`}
                             >
                                 Decline
                             </button>
@@ -20152,7 +20277,7 @@ export default function CreatePage() {
                                 type="button"
                                 onClick={async (e) => {
                                     e.stopPropagation();
-                                    await handleAcceptInvite(pendingInvites[0]);
+                                    await handleAcceptInvite(activeInvites[0]);
                                 }}
                                 className={`${btn.primary('bare')} gap-1 px-4 py-1.5 text-[13.5px] cursor-pointer`}
                             >
@@ -23646,10 +23771,10 @@ export default function CreatePage() {
                             {/* Invites waiting on YOU — someone else's project asking for
                                 an answer. Above the invite form because a decision that is
                                 already pending outranks starting a new one. */}
-                            {pendingInvites.length > 0 && (
+                            {activeInvites.length > 0 && (
                                 <div className="flex flex-col gap-2.5">
                                     <h4 className="text-[13px] font-semibold text-stone-500">{t('collab.pending_invites')}</h4>
-                                    {pendingInvites.map(invite => (
+                                    {activeInvites.map(invite => (
                                         <div key={invite.id} className="flex items-center justify-between gap-3 bg-white border border-stone-200/70 p-4 rounded-[18px]">
                                             <div className="flex flex-col min-w-0">
                                                 <span className="text-[14px] text-stone-800 font-semibold truncate">{invite.senderName} {t('collab.invited_you')}</span>

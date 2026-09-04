@@ -47,6 +47,18 @@ export interface PublicProfile {
     /** Base64 raw ECDH P-256 public key for direct messages, or null before this
      *  account has opened a conversation on any device. See lib/e2ee.ts. */
     publicKey: string | null;
+    /**
+     * Reviewed and approved by an admin. Written ONLY by the Admin SDK — it is
+     * deliberately absent from the client write whitelist in firestore.rules,
+     * so no account can mark itself verified. See lib/verification.ts.
+     */
+    verified: boolean;
+    /**
+     * Where they are, at city precision, or null if they never said. Opt-in:
+     * set from the songwriter map, chosen from the fixed list in lib/cities.ts,
+     * so a pin is never more exact than the city it names.
+     */
+    location: { cityId: string; label: string; lat: number; lng: number } | null;
 }
 
 /**
@@ -86,7 +98,35 @@ export function toPublicProfile(uid: string, data: Record<string, any>): PublicP
         lastActiveAt: parseTime(data.lastActiveAt),
         activeMinutes: typeof data.activeMinutes === "number" ? data.activeMinutes : 0,
         publicKey: typeof data.publicKey === "string" && data.publicKey ? data.publicKey : null,
+        verified: data.verified === true,
+        location: data.location && typeof data.location.lat === "number" && typeof data.location.lng === "number"
+            ? {
+                cityId: String(data.location.cityId ?? ""),
+                label: String(data.location.label ?? ""),
+                lat: data.location.lat,
+                lng: data.location.lng,
+            }
+            : null,
     };
+}
+
+/**
+ * Everyone who has put themself on the map.
+ *
+ * A range on `location.lat` rather than `location != null`: the inequality
+ * form needs a composite index deployed first, while a single-field range on a
+ * nested key is served by the automatic index. Every real latitude clears -90.
+ */
+export async function fetchLocatedProfiles(max = 500): Promise<PublicProfile[]> {
+    const snap = await getDocs(
+        query(collection(db, PUBLIC_PROFILES), where("location.lat", ">", -90), limit(max)),
+    );
+    const rows: PublicProfile[] = [];
+    snap.forEach((d) => {
+        const p = toPublicProfile(d.id, d.data());
+        if (p.location && p.name) rows.push(p);
+    });
+    return rows;
 }
 
 export interface PublicProfileWrite {
@@ -98,6 +138,8 @@ export interface PublicProfileWrite {
     /** Accepts a FieldValue so callers can pass increment() rather than a total. */
     activeMinutes?: number | FieldValue;
     publicKey?: string;
+    /** Pass null to take yourself off the map. */
+    location?: { cityId: string; label: string; lat: number; lng: number } | null;
 }
 
 /**

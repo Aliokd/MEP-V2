@@ -312,7 +312,7 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
                             <div className="text-center min-w-0 w-full">
                                 <p className="text-[15px] sm:text-sm font-medium text-stone-800 truncate">{song.title}</p>
                                 <p className="text-[12.5px] sm:text-[11px] text-stone-500 mt-0.5 flex items-center justify-center gap-1">
-                                    {song.isCompleted && <CheckCircle2 size={12} className="text-[#4e7a49] shrink-0" strokeWidth={2.2} />}
+                                    {song.isCompleted && <CheckCircle2 size={12} className="text-[#3f6b3a] shrink-0" strokeWidth={2.2} />}
                                     {song.updatedAt > 0 ? formatDate(song.updatedAt) : ' '}
                                 </p>
                             </div>
@@ -441,7 +441,7 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
                                 </span>
                             )}
                             {song.isCompleted && (
-                                <span className="flex items-center gap-1.5 text-[#4e7a49]">
+                                <span className="flex items-center gap-1.5 text-[#3f6b3a]">
                                     <CheckCircle2 size={13} strokeWidth={2.2} />
                                     {t('profile.song_completed')}
                                 </span>

@@ -14,6 +14,7 @@ import {
     type PlatformUser,
 } from '@/lib/connections';
 import { ActivityBadge, songwriterTypeLabel } from '../../components/ConnectionList';
+import VerifiedMark from '@/app/platform/components/VerifiedMark';
 
 /**
  * Somebody else's profile.
@@ -118,6 +119,7 @@ export default function SongwriterProfilePage({ params }: { params: Promise<{ ui
                         <h1 className="text-2xl font-sans font-light tracking-tight text-stone-900">
                             {person.name}
                         </h1>
+                        {person.verified && <VerifiedMark size={22} label={t('profile.verified_label')} />}
                         <ActivityBadge person={person} t={t} />
                     </div>
                     <p className="text-sm text-stone-500">

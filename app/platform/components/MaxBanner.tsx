@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Lock } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 
 interface MaxBannerProps {
     /** Headline — the thing being offered, e.g. "Songwriter Room". */
@@ -53,9 +53,12 @@ export default function MaxBanner({
                         </span>
                         <ArrowUpRight className="w-5 h-5 text-stone-600 group-hover:text-stone-900 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 shrink-0" />
                     </div>
+                    {/* Cut from the same cloth as the banner — the same gradient,
+                        so it reads as part of the surface rather than a sticker
+                        on it. The white hairline is what keeps it visible
+                        against that same gradient behind it. */}
                     {showBadge && (
-                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[12px] font-semibold text-stone-900 shadow-sm shrink-0">
-                            <Lock className="w-3 h-3" />
+                        <span className="flex items-center rounded-full bg-gradient-to-br from-[#DFDED6] via-[#D2D1C5] to-[#C2C1B2] border border-white/70 px-3.5 py-1.5 text-[12px] font-semibold text-stone-900 shadow-sm shrink-0">
                             {badgeLabel}
                         </span>
                     )}

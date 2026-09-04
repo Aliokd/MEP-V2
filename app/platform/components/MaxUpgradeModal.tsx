@@ -11,14 +11,10 @@ import {
     getPriceId,
     isPlanPurchasable,
     type BillingPeriod,
+    type PlanId,
 } from '@/lib/paddle/config';
 import { openCheckout } from '@/lib/paddle/checkout';
 import * as btn from './buttonStyles';
-
-// What Max is worth is already written for the onboarding paywall, so this
-// reads the same list rather than forking a second copy of the same selling
-// points — and stays in step when that one is rewritten.
-const MAX_OUTCOME_KEY = 'onboarding.paywall.plans.max.outcome';
 
 // The modal is still server-rendered as part of the client bundle, and
 // useLayoutEffect warns there. Same measurement, no console noise.
@@ -72,6 +68,8 @@ function useAnimatedPrice(target: number, duration = 450): number {
 interface MaxUpgradeModalProps {
     isOpen: boolean;
     onClose: () => void;
+    /** Which tier is being sold. Rooms sell Pro; Business sells Max. Defaults to Max. */
+    plan?: PlanId;
     /** Optional line explaining which locked feature sent the user here. */
     reason?: string;
 }
@@ -81,7 +79,7 @@ interface MaxUpgradeModalProps {
  * user; this one has a narrower job — a Pro user hit a Max-only surface and needs
  * to upgrade without losing their place.
  */
-export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeModalProps) {
+export default function MaxUpgradeModal({ isOpen, onClose, plan = 'max', reason }: MaxUpgradeModalProps) {
     const { t, tList, language } = useLanguage();
     const { user } = useAuth();
     const [billing, setBilling] = useState<BillingPeriod>('yearly');
@@ -89,7 +87,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
     const [checkoutError, setCheckoutError] = useState('');
 
     // Above the early return — hooks can't sit behind a conditional bail-out.
-    const price = FALLBACK_PRICING.max[billing];
+    const price = FALLBACK_PRICING[plan][billing];
     const animatedPrice = useAnimatedPrice(price);
 
     // Sliding indicator behind the billing tabs. Measured rather than assumed:
@@ -135,9 +133,11 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
 
     if (!isOpen || typeof document === 'undefined') return null;
 
-    const maxOutcome = tList<string>(MAX_OUTCOME_KEY);
-    const priceId = getPriceId('max', billing);
-    const canCheckout = isPlanPurchasable('max', billing) && Boolean(user);
+    // What the tier is worth is already written for the onboarding paywall,
+    // so this reads the same list rather than forking a second copy.
+    const maxOutcome = tList<string>(`onboarding.paywall.plans.${plan}.outcome`);
+    const priceId = getPriceId(plan, billing);
+    const canCheckout = isPlanPurchasable(plan, billing) && Boolean(user);
 
     const handleUpgrade = async () => {
         if (!user || !priceId) return;
@@ -171,7 +171,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
             <div
                 role="dialog"
                 aria-modal="true"
-                aria-label={t('connect.pro.modal_title')}
+                aria-label={t(`connect.upgrade.${plan}.title`)}
                 // Scrolls when the content is taller than the viewport, but without
                 // painting a scrollbar — the native one on Windows is a chunky
                 // stepper track that cuts across the rounded corner.
@@ -192,13 +192,13 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                 <div className="sheet-panel-body md:contents flex flex-col gap-6">
                 <div className="space-y-2 pr-10">
                     <span className="inline-block rounded-full bg-[#86BE7F]/20 px-3 py-1 text-[11px] font-bold text-[#3f6b3a]">
-                        {t('onboarding.paywall.plans.max.name')}
+                        {t(`onboarding.paywall.plans.${plan}.name`)}
                     </span>
                     <h3 className="text-2xl font-sans font-light text-stone-800 tracking-[-0.025em] leading-[1.3]">
-                        {t('connect.pro.modal_title')}
+                        {t(`connect.upgrade.${plan}.title`)}
                     </h3>
                     <p className="text-sm text-stone-500 leading-relaxed font-sans font-medium">
-                        {reason || t('connect.pro.modal_subtitle')}
+                        {reason || t(`connect.upgrade.${plan}.subtitle`)}
                     </p>
                 </div>
 
@@ -280,7 +280,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                     >
                         {isOpeningCheckout
                             ? t('onboarding.paywall.opening_checkout')
-                            : t('connect.pro.modal_cta')}
+                            : t(`connect.upgrade.${plan}.cta`)}
                     </button>
                 ) : (
                     // Paddle price ids aren't configured yet, so there is nothing to
@@ -289,7 +289,7 @@ export default function MaxUpgradeModal({ isOpen, onClose, reason }: MaxUpgradeM
                         href="/onboarding?step=paywall"
                         className={`${btn.primaryBlock('lg')} cursor-pointer`}
                     >
-                        {t('connect.pro.modal_cta')}
+                        {t(`connect.upgrade.${plan}.cta`)}
                     </a>
                 )}
                 </div>

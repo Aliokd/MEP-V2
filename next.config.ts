@@ -67,10 +67,16 @@ const nextConfig: NextConfig = {
                     // Full URLs of authenticated pages must not leak to third
                     // parties in the Referer header; project ids live in paths.
                     { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-                    // Recording needs the microphone. Nothing here uses the
-                    // camera, geolocation, or payment APIs, so they stay off —
-                    // including for any third-party iframe the lesson embeds.
-                    { key: 'Permissions-Policy', value: 'camera=(), geolocation=(), payment=(), usb=(), microphone=(self)' },
+                    // Recording needs the microphone; the songwriter map's "use my
+                    // location" needs geolocation. Both are `(self)`: our own
+                    // origin only, so every third-party iframe the lessons embed
+                    // still can't ask for either. Camera, payment and USB stay off
+                    // — nothing uses them.
+                    //
+                    // Note geolocation was `()` for a long time, and that silently
+                    // killed the Create page's "detect my location" too. Opening it
+                    // here brings that back as well.
+                    { key: 'Permissions-Policy', value: 'camera=(), geolocation=(self), payment=(), usb=(), microphone=(self)' },
                     { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
                 ],
             },

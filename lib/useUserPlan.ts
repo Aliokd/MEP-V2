@@ -9,8 +9,10 @@ import { isEntitled, type PlanId } from '@/lib/paddle/config';
 export interface UserPlan {
     plan: PlanId | null;
     subscriptionStatus: string | null;
-    /** True only for a Max plan that is actually paid up (or trialing). */
+    /** Max — paid and entitled, or granted by an admin (`tier` max/comp). */
     hasMax: boolean;
+    /** Pro or above. Everything Max is also Pro. */
+    hasPro: boolean;
     loading: boolean;
 }
 
@@ -30,6 +32,7 @@ export function useUserPlan(): UserPlan {
         plan: null,
         subscriptionStatus: null,
         hasMax: false,
+        hasPro: false,
     });
     const [loading, setLoading] = useState(true);
 
@@ -37,7 +40,7 @@ export function useUserPlan(): UserPlan {
         if (authLoading) return;
 
         if (!user) {
-            setState({ plan: null, subscriptionStatus: null, hasMax: false });
+            setState({ plan: null, subscriptionStatus: null, hasMax: false, hasPro: false });
             setLoading(false);
             return;
         }
@@ -45,13 +48,35 @@ export function useUserPlan(): UserPlan {
         const unsubscribe = onSnapshot(
             doc(db, 'users', user.uid),
             (snap) => {
-                const billing = snap.data()?.billing ?? {};
+                const data = snap.data() ?? {};
+                const billing = data.billing ?? {};
                 const plan = (billing.plan ?? null) as PlanId | null;
                 const subscriptionStatus = (billing.subscriptionStatus ?? null) as string | null;
+
+                // Two things can put an account on Max, and they must agree:
+                //  - a paid subscription, written by the Paddle webhook into
+                //    `billing` and checked for entitlement; or
+                //  - `tier`, which the admin console sets. "max" is a grant, and
+                //    "comp" (complimentary) is the founders/staff case. Both are
+                //    server-written — the rules refuse either from a client — so
+                //    honouring them here hands out nothing a user could self-award.
+                // Before this, the console's tier editor showed "max" as a choice
+                // that unlocked nothing, because only `billing.plan` was read.
+                const tier = typeof data.tier === 'string' ? data.tier : null;
+                const entitled = isEntitled(subscriptionStatus);
+                const paidMax = plan === 'max' && entitled;
+                const grantedMax = tier === 'max' || tier === 'comp';
+                const hasMax = paidMax || grantedMax;
+                // Max includes Pro. Rooms sit on Pro; Business sits on Max.
+                const paidPro = plan === 'pro' && entitled;
+                const grantedPro = tier === 'pro';
+                const hasPro = hasMax || paidPro || grantedPro;
+
                 setState({
                     plan,
                     subscriptionStatus,
-                    hasMax: plan === 'max' && isEntitled(subscriptionStatus),
+                    hasMax,
+                    hasPro,
                 });
                 setLoading(false);
             },
@@ -59,7 +84,7 @@ export function useUserPlan(): UserPlan {
                 // Fail closed: an unreadable billing doc shows the locked state
                 // rather than handing out Max features on an error.
                 console.error('[useUserPlan] Failed to read billing:', err);
-                setState({ plan: null, subscriptionStatus: null, hasMax: false });
+                setState({ plan: null, subscriptionStatus: null, hasMax: false, hasPro: false });
                 setLoading(false);
             },
         );

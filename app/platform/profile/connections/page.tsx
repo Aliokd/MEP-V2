@@ -48,7 +48,7 @@ export default function ConnectionsPage() {
 
             {peopleLoaded && people.length === 0 && requesters.length === 0 && (
                 <div className="py-6 flex flex-col items-start gap-3">
-                    <p className="text-xs text-stone-500">{t('profile.no_connections')}</p>
+                    <p className="text-[13px] text-stone-600">{t('profile.no_connections')}</p>
                     <button
                         onClick={() => leaveProfileTo('/platform/connect')}
                         className={`${btn.secondary('xs')} cursor-pointer`}

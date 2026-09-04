@@ -680,32 +680,6 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
    2s as the button/canvas gradients instead of the 3.4s daily-milestone celebration. */
 .mind-power-glow-ring--quick { animation-duration: 2s; }
 
-/* Collab invite attention ring — the same travelling multicolour border as the Mind Power
-   celebration, but looping at steady opacity: an invite is a standing offer, not a one-shot
-   event, so the ring keeps moving until the invite is answered or dismissed. */
-@keyframes invite-ring-travel {
-    from { background-position: 0% 50%; }
-    to { background-position: 200% 50%; }
-}
-.invite-glow-ring {
-    position: absolute;
-    inset: -3px;
-    border-radius: 9999px;
-    padding: 2px;
-    pointer-events: none;
-    background: linear-gradient(90deg, #86BE7F 0%, #8ec9f0 25%, #b79df0 50%, #f0a8c9 75%, #86BE7F 100%);
-    background-size: 220% 100%;
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    /* The standard property as well as the prefixed one. `mask-composite: exclude`
-       below has no effect without it, and a browser that honours the standard
-       property but not the -webkit- alias punches no hole at all — the ring then
-       renders as a solid filled disc covering the control. */
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    animation: invite-ring-travel 2.6s linear infinite;
-}
-
 /* Invite banner / toast entrance — the `animate-in slide-in-from-top-*` utilities used
    elsewhere are silent no-ops in this project (see the note further down), so the invite
    surfaces get a real hand-rolled drop-in. */
@@ -967,7 +941,6 @@ button:hover > .save-gradient-idle { opacity: 0.72; }
     .mind-power-glow-ring,
     .canvas-save-glow-ring,
     .save-gradient-fill,
-    .invite-glow-ring,
     .collab-join-gradient-fill {
         animation: none;
         opacity: 1;
@@ -2029,4 +2002,50 @@ html, body {
 }
 .verse-card.is-verb:not(.is-static):not(.is-armed):not(.is-linked):hover {
     background-color: #EFF5DA;
+}
+
+/* Mind Power page: the "+" sparks that appear briefly around the brain when the
+   week's level is shown or rises. Each spark plays once and unmounts after. */
+@keyframes mind-power-plus {
+    0%   { opacity: 0;   transform: translateY(6px) scale(0.7); }
+    25%  { opacity: 0.9; transform: translateY(0) scale(1); }
+    70%  { opacity: 0.9; transform: translateY(-4px) scale(1); }
+    100% { opacity: 0;   transform: translateY(-12px) scale(0.9); }
+}
+.mind-power-plus {
+    animation: mind-power-plus 2.4s ease-out forwards;
+}
+
+/* The Mind Power card carousel (small screens): a snap track with no visible
+   scrollbar — the cards themselves, one peeking in from the edge, say it scrolls. */
+.mind-power-carousel {
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.mind-power-carousel::-webkit-scrollbar {
+    display: none;
+}
+
+/* The golden-mind celebration: the card's entrance, and a little confetti. */
+@keyframes golden-pop-in {
+    0%   { opacity: 0; transform: translateY(12px) scale(0.96); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.golden-pop-in {
+    animation: golden-pop-in 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes golden-fade-in {
+    0%   { opacity: 0; }
+    100% { opacity: 1; }
+}
+.golden-fade-in {
+    animation: golden-fade-in 0.3s ease-out both;
+}
+@keyframes golden-confetti {
+    0%   { opacity: 0; transform: translate3d(0, -10px, 0) rotate(0deg); }
+    12%  { opacity: 1; }
+    100% { opacity: 0; transform: translate3d(var(--drift, 0px), 150px, 0) rotate(var(--spin, 300deg)); }
+}
+.golden-confetti {
+    animation: golden-confetti 1.9s cubic-bezier(0.25, 0.6, 0.4, 1) both;
 }

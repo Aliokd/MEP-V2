@@ -12,6 +12,7 @@ import {
     type PlatformUser,
 } from '@/lib/connections';
 import { hasActivityBadge } from '@/lib/publicProfile';
+import VerifiedMark from '@/app/platform/components/VerifiedMark';
 import * as btn from '@/app/platform/components/buttonStyles';
 
 /**
@@ -154,7 +155,8 @@ export function PendingRequests({ requesters, t, onAccept, onDecline }: PendingR
                                         <p className="font-sans text-sm font-medium text-stone-800 truncate">
                                             {person.name}
                                         </p>
-                                        <ActivityBadge person={person} t={t} />
+                                        {person.verified && <VerifiedMark size={15} label={t('profile.verified_label')} />}
+                                    <ActivityBadge person={person} t={t} />
                                     </div>
                                     <p className="text-xs text-stone-500 mt-0.5">
                                         {specialty || t('profile.wants_to_connect')}
@@ -224,6 +226,7 @@ export default function ConnectionList({ connections, t, onDisconnect }: Connect
                                     <p className="font-sans text-sm font-medium text-stone-800 truncate group-hover:text-stone-950 transition-colors">
                                         {person.name}
                                     </p>
+                                    {person.verified && <VerifiedMark size={15} label={t('profile.verified_label')} />}
                                     <ActivityBadge person={person} t={t} />
                                 </div>
                                 {specialty && (

@@ -77,6 +77,11 @@ export default {
         caveat: ["var(--font-app)", "'Helvetica Neue'", "Helvetica", "Arial", "sans-serif"],
         // font-lyrics: the songwriter's own words, everywhere they appear.
         lyrics: ["var(--font-lyrics)", "Georgia", "Times New Roman", "serif"],
+        // font-chords: chord symbols, everywhere THEY appear. Straight Helvetica,
+        // not var(--font-app): a chord name is notation, not prose, and it sits
+        // right on top of the serif lyrics — the plain sans face is what keeps
+        // Cmaj7 reading as a label rather than a word in the song.
+        chords: ["'Helvetica Neue'", "Helvetica", "Arial", "sans-serif"],
       },
       backgroundImage: {
         'glass-gradient': 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%)',

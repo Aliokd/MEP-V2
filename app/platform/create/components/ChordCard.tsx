@@ -105,7 +105,7 @@ export function PlacedChordCard({
                 aria-label={chord.symbol}
                 className={`${btn.plain('bare')} min-w-0 justify-start px-1 text-left cursor-pointer`}
             >
-                <div className="text-[15px] leading-none font-bold text-stone-900 tracking-tight truncate">{chord.symbol}</div>
+                <div className="font-chords text-[15px] leading-none font-bold text-stone-900 tracking-tight truncate">{chord.symbol}</div>
                 {notes.length > 0 && (
                     <div className="mt-1 text-[10.5px] font-medium text-stone-400 truncate">{notes.join(' · ')}</div>
                 )}

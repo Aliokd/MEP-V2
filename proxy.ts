@@ -128,6 +128,12 @@ function buildCsp(nonce: string): string {
             // so re-enabling that permission is a one-line change rather than a
             // one-line change plus a CSP violation nobody connects to it.
             'https://nominatim.openstreetmap.org',
+            // The Google Maps JS API (songwriter map, lib/googleMaps.ts) talks
+            // back to its own host after loading — tile metadata, auth checks.
+            // The script tag itself needs no entry: it is injected by our own
+            // nonced code, which 'strict-dynamic' trusts, and the `https:`
+            // fallback covers the rest. Tiles arrive as images, under img-src.
+            'https://maps.googleapis.com',
         ].join(' '),
         // The lesson embeds (YouTube, Vimeo, Spotify) and the Paddle checkout
         // overlay are the only things allowed to frame inside our pages —

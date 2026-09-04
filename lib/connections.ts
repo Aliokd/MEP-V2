@@ -160,17 +160,20 @@ export function useConnectionState(): ConnectionState {
         // Status is filtered in memory rather than in the query: adding it as a
         // second `where` makes this a composite index that would have to be
         // deployed before the feature works at all.
+        let active = true;
         const listen = (
             field: 'fromUid' | 'toUid',
             apply: (rows: ConnectionRequest[]) => void,
         ) => onSnapshot(
             query(collection(db, CONNECTION_REQUESTS), where(field, '==', user.uid)),
             (snap) => {
+                if (!active) return;
                 const rows: ConnectionRequest[] = [];
                 snap.forEach((d) => rows.push(toRequest(d.id, d.data())));
                 apply(rows);
             },
             (err) => {
+                if (!active) return;
                 console.error(`[useConnectionState] ${field} listener failed:`, err);
                 apply([]);
             },
@@ -178,7 +181,20 @@ export function useConnectionState(): ConnectionState {
 
         const unsubSent = listen('fromUid', setSent);
         const unsubReceived = listen('toUid', setReceived);
-        return () => { unsubSent(); unsubReceived(); };
+        return () => {
+            active = false;
+            // Unsubscribe on the next tick, not synchronously. React StrictMode and
+            // Fast Refresh tear an effect down and set it straight back up in the
+            // same tick; unsubscribing synchronously turns that into removeTarget +
+            // addTarget for the same Firestore target on an open watch stream. If
+            // the server rejects the first listen (permission-denied) while that
+            // pair is in flight, the SDK drops the target's bookkeeping and the late
+            // ack trips "INTERNAL ASSERTION FAILED: Unexpected state (ID: ca9)",
+            // after which the whole Firestore client is dead for the page
+            // (firebase-js-sdk#9267). Deferred, the re-listen joins the listener
+            // that is still open and nothing goes over the wire at all.
+            setTimeout(() => { unsubSent(); unsubReceived(); }, 0);
+        };
     }, [user, authLoading]);
 
     return useMemo(() => {

@@ -161,9 +161,19 @@ jobs:
           # read while finalizing the version (runs #230 and #241). A second
           # attempt is cheap and idempotent: unchanged files are skipped by hash,
           # and re-applying the same function source is a no-op.
+          # Rules ship WITH the code that needs them. They used to be deployed by
+          # hand, which meant a release could land a feature whose collection no
+          # rule allowed yet — the Rooms tab, the songwriter map and verification
+          # all write to collections the live rules had never heard of, so every
+          # first write would have been PERMISSION_DENIED against a UI that looked
+          # finished. firestore.rules is versioned in this repo and reviewed in the
+          # same PR as the code; deploying the two together is what makes that
+          # review mean anything. Rules are validated server-side before they are
+          # applied, and re-applying an unchanged file is a no-op, so this is safe
+          # inside the retry.
           DEPLOY_OK=0
           for attempt in 1 2; do
-            if npx firebase deploy --only hosting --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}" > deploy.log 2>&1; then
+            if npx firebase deploy --only hosting,firestore:rules --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}" > deploy.log 2>&1; then
               DEPLOY_OK=1
               break
             fi

@@ -67,6 +67,10 @@ const APP_OWNED_SEGMENTS = [
     // here without joining LOCALIZED_PATHS: /no/guidelines redirects to the
     // unprefixed URL instead of duplicating an English page under three URLs.
     'about', 'privacy', 'terms', 'cookies', 'blog', 'guidelines', 'no', 'sv', 'se',
+    // 'streak' is the shared golden-mind card (app/streak): a link people send
+    // out of the app, addressed by query string, and not indexed — so an app
+    // route with no localized twins, like guidelines.
+    'streak',
 ] as const;
 
 /** True for a single-segment path that could be a CMS-managed page. */
