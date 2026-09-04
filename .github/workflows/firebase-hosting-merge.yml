@@ -56,6 +56,7 @@ jobs:
           ALT_MAIL_PASS: ${{ secrets.MAIL_PASS }}
           ALT_EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           ALT_ONECOM_PASS: ${{ secrets.ONECOM_PASS }}
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
         run: |
           # Length + hash prefix of the mail password, to compare against
           # /api/health/ai's fingerprint. The value itself never prints —
@@ -91,6 +92,15 @@ jobs:
             echo "::warning::SMTP_PASS is not set — ALL outbound email fails silently in this deploy. Collaboration invites by email are disabled in code to match (lib/uiFlags.ts). Add it at Settings > Secrets and variables > Actions, on the 'Secrets' tab."
           fi
 
+          # Soft, not fatal: the songwriter map degrades to a "not set up yet"
+          # panel without it (lib/googleMaps.ts), and the city picker still
+          # works. But it is the difference between a map and a beige box, and
+          # it is a NEXT_PUBLIC_ value — inlined at build time — so it has to be
+          # here, in the build, not added later at runtime.
+          if [ -z "$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY" ]; then
+            echo "::warning::NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set — the songwriter map will show its 'not set up yet' panel in this deploy. Add it as a GitHub Actions secret with exactly that name."
+          fi
+
           if [ -n "$MISSING" ]; then
             # Presence of near-miss names, never their contents — this reports
             # "something is set, under the wrong name", which is the one thing the
@@ -118,6 +128,11 @@ jobs:
       # while every secret "update" appeared to change nothing (four deploys chased
       # a "stale secret" that was never stale, 2026-08-16). Values are single-quoted
       # so neither firebase-tools' env parser nor dotenv-expand touches a $ inside.
+      # NEXT_PUBLIC_* values are different from the secrets above: Next inlines
+      # them into the client bundle at build time, so they must be in .env when
+      # `next build` runs — both our build here and the one Firebase re-runs on
+      # deploy. Adding one at runtime later does nothing. This is the only
+      # public value the workflow carries; the Firebase web config is in code.
       - name: Create environment configuration
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -125,9 +140,10 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
         run: |
           : > .env
-          for NAME in GEMINI_API_KEY SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS; do
+          for NAME in GEMINI_API_KEY SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS NEXT_PUBLIC_GOOGLE_MAPS_API_KEY; do
             VALUE="${!NAME}"
             case "$VALUE" in *"'"*)
               echo "::error::$NAME contains a single quote, which this quoted .env write cannot carry. Rotate the value or extend this step to escape it."
@@ -146,6 +162,7 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
           # Forces the build Firebase runs to use webpack. firebase-tools spawns a
           # bare `next build` (no CLI flags) but inherits this process env, and in
           # Next 16.1 IS_WEBPACK_TEST is the only env-level webpack switch
