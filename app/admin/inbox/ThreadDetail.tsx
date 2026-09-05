@@ -29,7 +29,7 @@ const CANNED: { label: string; body: string }[] = [
     },
     {
         label: "Bug confirmed",
-        body: "Thanks for reporting this — I've reproduced it on our side, so it's a real bug rather than something on your end.\n\nIt's on the list to fix and I'll let you know here once it ships.",
+        body: "Thanks for reporting this. I've reproduced it on our side, so it's a real bug rather than something on your end.\n\nIt's on the list to fix and I'll let you know here once it ships.",
     },
     {
         label: "Need more detail",
@@ -37,7 +37,7 @@ const CANNED: { label: string; body: string }[] = [
     },
     {
         label: "Fixed and live",
-        body: "This is fixed and live now. Please reload Veinote and it should behave.\n\nThanks for flagging it — it's genuinely useful.",
+        body: "This is fixed and live now. Please reload Veinote and it should behave.\n\nThanks for flagging it, it's genuinely useful.",
     },
 ];
 
@@ -114,7 +114,7 @@ export default function ThreadDetail({
             const done = keepOpen ? "left open, waiting on them" : "marked done";
             setSent(
                 data.emailStatus === "failed"
-                    ? `Saved and ${done}. They'll see it in the platform — but the EMAIL failed: ${data.emailError}`
+                    ? `Saved and ${done}. They'll see it in the platform, but the EMAIL failed: ${data.emailError}`
                     : `Emailed to ${thread.userEmail} and ${done}. They'll also see it in the platform.`,
             );
             setTimeout(() => setSent(null), 8000);
@@ -239,7 +239,7 @@ export default function ThreadDetail({
                             </Select>
                             {t?.assigneeUid ? (
                                 <Button size="sm" variant="ghost" onClick={() => patch({ assign: null })}>
-                                    Assigned to {t.assigneeName} — unassign
+                                    Assigned to {t.assigneeName} (unassign)
                                 </Button>
                             ) : (
                                 <Button size="sm" onClick={() => patch({ assign: "me" })}>Assign to me</Button>
@@ -311,7 +311,7 @@ export default function ThreadDetail({
 
                                             {failed && r.emailError && (
                                                 <p className="text-[11px] text-gold-300 mt-1.5">
-                                                    {r.emailError} — the reader can still see this reply in the platform.
+                                                    {r.emailError}. The reader can still see this reply in the platform.
                                                 </p>
                                             )}
                                         </div>
@@ -362,7 +362,7 @@ export default function ThreadDetail({
                         {/* Internal notes */}
                         <div className="flex flex-col gap-2">
                             <span className="text-xs text-ink-400 flex items-center gap-1.5">
-                                <StickyNote className="w-3 h-3" /> Internal notes — never sent to the user
+                                <StickyNote className="w-3 h-3" /> Internal notes, never sent to the user
                             </span>
                             {detail.notes.map((n) => (
                                 <div key={n.id} className="p-3 rounded-xl bg-ink-850 border border-ink-600">

@@ -65,7 +65,7 @@ const EMPTY_SECTION: Record<string, { title: string; description: string; href?:
     create: {
         title: "The canvas has no authored content",
         description:
-            "Everything in Create is written by the songwriter. The one authored thing it shows — the cards that can be dropped into a lyric flow — is the Bank of Ideas, under Learn.",
+            "Everything in Create is written by the songwriter. The one authored thing it shows (the cards that can be dropped into a lyric flow) is the Bank of Ideas, under Learn.",
     },
     connect: {
         title: "Connect is written by its members",
@@ -178,7 +178,7 @@ export default function ContentPage() {
             setImportNote(
                 data.imported.length > 0
                     ? `Imported ${data.imported.length} ${target === "songs" ? "songs" : "cards"}.`
-                    : "Nothing to import — already in the CMS.",
+                    : "Nothing to import. Already in the CMS.",
             );
             await load();
         } catch (err: any) {
@@ -242,7 +242,7 @@ export default function ContentPage() {
                     >
                         {sectionDef.label}
                         {sectionDef.tabs.length === 0 && (
-                            <span className="ml-1.5 text-[10px] text-ink-600">—</span>
+                            <span className="ml-1.5 text-[10px] text-ink-600">–</span>
                         )}
                     </button>
                 ))}
@@ -312,7 +312,7 @@ export default function ContentPage() {
                     <Upload className="w-4 h-4 text-gold-300 shrink-0" />
                     <p className="text-sm text-gold-200 flex-1 min-w-[240px]">
                         Practice 3 is falling back to four placeholder melodies built into the app,
-                        and their audio was never deployed — so the exercise currently has nothing to
+                        and their audio was never deployed, so the exercise currently has nothing to
                         play. Upload a real take here and it takes over immediately.
                     </p>
                 </Panel>
@@ -322,8 +322,8 @@ export default function ContentPage() {
                 <Panel className="p-4 border-gold-500/30 bg-gold-500/5 flex flex-wrap items-center gap-3">
                     <Download className="w-4 h-4 text-gold-300 shrink-0" />
                     <p className="text-sm text-gold-200 flex-1 min-w-[240px]">
-                        Practice is still playing the songs built into the app. Import them —
-                        structure, timings and all — to manage them here. The moment one song is
+                        Practice is still playing the songs built into the app. Import them,
+                        structure, timings and all, to manage them here. The moment one song is
                         published in the CMS it replaces the built-in list, so import before adding.
                     </p>
                     <Button variant="primary" size="sm" onClick={() => importFromCode("songs")} disabled={importing}>
@@ -338,7 +338,7 @@ export default function ContentPage() {
                     <Download className="w-4 h-4 text-gold-300 shrink-0" />
                     <p className="text-sm text-gold-200 flex-1 min-w-[240px]">
                         The Bank of Ideas is still the 38 cards built into the app. Import them to edit them
-                        here — learners keep seeing them either way.
+                        here. Learners keep seeing them either way.
                     </p>
                     <Button variant="primary" size="sm" onClick={() => importFromCode("ideas")} disabled={importing}>
                         {importing ? <Spinner className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
@@ -397,7 +397,7 @@ export default function ContentPage() {
                                         onClick={() => setEditing(item)}
                                         className="w-full text-left px-4 py-3 hover:bg-ink-800 transition-colors flex items-center gap-3"
                                     >
-                                        <span className="text-xs text-ink-600 tabular-nums w-6 shrink-0">{item.order ?? "—"}</span>
+                                        <span className="text-xs text-ink-600 tabular-nums w-6 shrink-0">{item.order ?? "–"}</span>
                                         <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                                             <span className="text-sm text-ink-100 truncate">{label || item.id}</span>
                                             <span className="text-[11px] text-ink-500 truncate">
@@ -441,7 +441,7 @@ export default function ContentPage() {
                 <Eye className="w-3 h-3" />
                 Readers only ever see published rows.
                 <Archive className="w-3 h-3 ml-2" />
-                Removing content archives it rather than deleting — lesson progress records point at these ids.
+                Removing content archives it rather than deleting, because lesson progress records point at these ids.
             </p>
 
             {bulkOpen && (

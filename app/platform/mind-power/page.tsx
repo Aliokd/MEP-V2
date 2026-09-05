@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
+import { preload } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Play, Pause, RotateCcw, ChevronLeft } from 'lucide-react';
 import Tooltip from '@/components/Tooltip';
@@ -27,6 +28,7 @@ import {
 import type { WeekScore } from '@/lib/mindPowerScore';
 import * as btn from '@/app/platform/components/buttonStyles';
 import MindPowerBrain from './components/MindPowerBrain';
+import { BRAIN_SRC, BRAIN_GOLD_SRC, BRAIN_SM_SRC, BRAIN_GOLD_SM_SRC } from './components/brainGeometry';
 import StreakGrid from './components/StreakGrid';
 import StayAhead from './components/StayAhead';
 import Activities from './components/Activities';
@@ -56,6 +58,14 @@ export default function MindPowerPage() {
     const { t, language } = useLanguage();
     const progress = useMindPowerProgress();
     const router = useRouter();
+
+    // The four brain renders are the page's weight. Ask for them in the first
+    // render, before the components that draw them have mounted, so the big
+    // one is already arriving when the stage appears.
+    preload(BRAIN_SRC, { as: 'image', fetchPriority: 'high' });
+    preload(BRAIN_GOLD_SRC, { as: 'image' });
+    preload(BRAIN_SM_SRC, { as: 'image' });
+    preload(BRAIN_GOLD_SM_SRC, { as: 'image' });
 
     const goBack = () => {
         // A fresh tab landing here directly has no in-app history — falling

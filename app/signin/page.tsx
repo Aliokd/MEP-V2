@@ -14,6 +14,7 @@ import { clearOpenProject } from '@/lib/storage';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizePath } from '@/lib/i18n';
 import { SIGNUPS_OPEN, waitlistJoinPath } from '@/lib/uiFlags';
+import { hasValidInvitePass, forgetInvitePass } from '@/lib/invitePass';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function SignInPage() {
@@ -81,7 +82,13 @@ function SignInPageInner() {
         const user = result.user;
         const profile = await getDoc(doc(db, "users", user.uid));
 
-        if (!profile.exists() && !SIGNUPS_OPEN) {
+        // An invitee who chose "Continue with Google" here rather than in the
+        // onboarding flow. The invite is re-checked with the server, never
+        // trusted from storage — see lib/invitePass.
+        const invited = !profile.exists() && !SIGNUPS_OPEN ? await hasValidInvitePass() : false;
+        if (invited) forgetInvitePass();
+
+        if (!profile.exists() && !SIGNUPS_OPEN && !invited) {
             // Only delete what this sign-in just created. An older account that
             // has somehow lost its profile document is a repair job, not a
             // trespasser, and deleting its auth record would take its identity

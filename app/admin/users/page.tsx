@@ -97,7 +97,7 @@ function UserDirectory() {
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="Users"
-                description="Search by name, email or uid. Search is exact-or-prefix — Firestore has no substring index."
+                description="Search by name, email or uid. Search is exact-or-prefix, because Firestore has no substring index."
                 action={
                     <div className="flex items-center gap-2">
                         <Button onClick={load} disabled={refreshing} size="sm">
@@ -156,7 +156,7 @@ function UserDirectory() {
                     </p>
                     <p className="text-xs text-ink-500 mt-1">
                         {sortField === "lastActiveAt"
-                            ? "Nobody has been recorded as active there yet — activity is only stamped when someone opens the platform."
+                            ? "Nobody has been recorded as active there yet. Activity is only stamped when someone opens the platform."
                             : "Search by full email address or uid to open them; search does not sort, so it finds them."}
                     </p>
                 </Panel>
@@ -210,7 +210,7 @@ function UserDirectory() {
                                             correctly for accounts that predate the stamp. */}
                                         <td className="px-4 py-3 text-xs text-ink-400">{timeAgo(u.activeAt ?? u.lastActiveAt)}</td>
                                         <td className="px-4 py-3 text-xs text-ink-400">
-                                            {u.trialEndsAt ? new Date(u.trialEndsAt).toLocaleDateString() : "—"}
+                                            {u.trialEndsAt ? new Date(u.trialEndsAt).toLocaleDateString() : "–"}
                                         </td>
                                     </tr>
                                 ))}

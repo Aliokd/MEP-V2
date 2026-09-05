@@ -72,7 +72,7 @@ export default function ReportDetail({
     /** Remove the content, optionally sanction the author, then close the row. */
     const removeAndAction = async () => {
         if (!reason.trim()) {
-            setError("A reason is required — it's sent to the author.");
+            setError("A reason is required. It's sent to the author.");
             return;
         }
         setBusy(true);
@@ -146,7 +146,7 @@ export default function ReportDetail({
                                 <TriangleAlert className="w-4 h-4 text-red-300 shrink-0 mt-0.5" />
                                 <p className="text-xs text-red-200 leading-relaxed">
                                     This was reported for self-harm or threats. If someone appears to be in danger,
-                                    escalate rather than resolving it quietly — removal alone doesn&apos;t help the person.
+                                    escalate rather than resolving it quietly. Removal alone doesn&apos;t help the person.
                                 </p>
                             </Panel>
                         )}
@@ -244,7 +244,7 @@ export default function ReportDetail({
                                         Remove content
                                     </Button>
                                     <Button onClick={() => resolve("dismissed")} disabled={busy}>
-                                        <Check className="w-3.5 h-3.5" /> Dismiss — content stays
+                                        <Check className="w-3.5 h-3.5" /> Dismiss (content stays)
                                     </Button>
                                     <Button variant="ghost" onClick={() => resolve("escalated")} disabled={busy}>
                                         Escalate

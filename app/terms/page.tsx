@@ -52,7 +52,7 @@ You retain all ownership rights in any content you create, upload, store, or oth
 
 Veinote does not claim ownership of your content.
 
-By using Veinote, you grant us a limited, non-exclusive licence to host, store, reproduce, process, transmit, and display your content only as necessary to provide, maintain, secure, and support the service — including the collaboration and community features described below, where you choose to use them.
+By using Veinote, you grant us a limited, non-exclusive licence to host, store, reproduce, process, transmit, and display your content only as necessary to provide, maintain, secure, and support the service, including the collaboration and community features described below, where you choose to use them.
 
 This licence does not give Veinote the right to sell, publish, commercially exploit, or otherwise use your private creative content for purposes unrelated to providing the service.
 
@@ -76,11 +76,11 @@ When you publish content to the community:
 
 - you grant Veinote the right to display the published content to other Veinote users for as long as it remains published;
 - you confirm that you have the rights needed to publish it, including the agreement of any co-writers or other contributors;
-- you understand that the published content — including the song, its lyrics, the names of its contributors, and any ownership split recorded for it — will be visible to other Veinote users.
+- you understand that the published content (including the song, its lyrics, the names of its contributors, and any ownership split recorded for it) will be visible to other Veinote users.
 
 Other users may view published content within Veinote. Publishing does not give anyone else the right to copy, distribute, or commercially exploit your content, and it does not transfer any ownership rights.
 
-You can unpublish your content at any time, which removes it from the community. Where published content has been removed — by you or by us — we may retain a copy for a limited period where necessary to handle disputes, comply with legal obligations, or prevent repeated abuse, as described in our Privacy Policy.
+You can unpublish your content at any time, which removes it from the community. Where published content has been removed, by you or by us, we may retain a copy for a limited period where necessary to handle disputes, comply with legal obligations, or prevent repeated abuse, as described in our Privacy Policy.
 
 We may remove or restrict access to published content that is reported to us or that we reasonably believe violates these Terms or applicable law.
 

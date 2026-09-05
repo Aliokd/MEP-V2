@@ -64,16 +64,16 @@ export default function PracticeSectionEditor({
                 lines: [],
             }))));
             setAnalysisNote(
-                `Found ${found.length} sections. The boundaries are usually close and the labels are a guess — play through and correct before publishing.`,
+                `Found ${found.length} sections. The boundaries are usually close and the labels are a guess. Play through and correct before publishing.`,
             );
         } catch (err) {
             const reason = err instanceof AnalysisFailed ? err.reason : "decode";
             setAnalysisNote(
                 reason === "fetch"
-                    ? "Couldn't read the audio back from storage — try again in a moment."
+                    ? "Couldn't read the audio back from storage. Try again in a moment."
                     : reason === "too-short"
-                      ? "The recording is too short to decompose — map it by hand."
-                      : "This recording resisted analysis — map it by hand with the player.",
+                      ? "The recording is too short to decompose. Map it by hand."
+                      : "This recording resisted analysis. Map it by hand with the player.",
             );
         } finally {
             setAnalyzing(false);

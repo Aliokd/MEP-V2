@@ -18,7 +18,7 @@
 export const COOKIES_FALLBACK_MD = `
 ## What these are
 
-A cookie is a small file a site asks your browser to keep. Alongside cookies we use similar browser storage — localStorage and session storage — for the same purposes, and everything on this page applies to those too.
+A cookie is a small file a site asks your browser to keep. Alongside cookies we use similar browser storage (localStorage and session storage) for the same purposes, and everything on this page applies to those too.
 
 ## Who they involve
 
@@ -32,13 +32,13 @@ Payments are handled by our payment partner at checkout, under its own terms.
 
 ## How long your answer lasts
 
-Your answer is stored on this device, in this browser, and stays until you change it here or clear your browser's storage. It is not attached to your account, so signing in on another device means answering again there — and signing in never changes an answer you have already given.
+Your answer is stored on this device, in this browser, and stays until you change it here or clear your browser's storage. It is not attached to your account, so signing in on another device means answering again there, and signing in never changes an answer you have already given.
 
 ## Changing your mind
 
 Use the switches above, at any time. Turning something off stops it immediately; anything already collected under the earlier answer is handled as described in the privacy policy.
 
-Your browser can also block or delete cookies itself, in its own settings. Blocking the strictly necessary ones will stop parts of Veinote from working — staying signed in, most of all.
+Your browser can also block or delete cookies itself, in its own settings. Blocking the strictly necessary ones will stop parts of Veinote from working, staying signed in most of all.
 
 ## Questions
 

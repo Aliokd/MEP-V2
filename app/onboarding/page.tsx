@@ -4,8 +4,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import type { User } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAdditionalUserInfo, signInWithPopup, signOut, updateProfile, type User } from 'firebase/auth';
 import { auth, db, googleProvider } from '@/lib/firebase';
+import { createUserProfile } from '@/lib/userProfile';
+import { rememberInvitePass, forgetInvitePass } from '@/lib/invitePass';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import Tooltip from '@/components/Tooltip';
@@ -22,6 +24,7 @@ import AnalyzingAnswers from './components/AnalyzingAnswers';
 import EmailCapture from './components/EmailCapture';
 import VerdictReveal from './components/VerdictReveal';
 import OtpVerify from './components/OtpVerify';
+import InviteAccountStep from './components/InviteAccountStep';
 import TrialOffer from './components/TrialOffer';
 import WelcomeAboard from './components/WelcomeAboard';
 import { capture } from '@/lib/posthog';
@@ -268,6 +271,20 @@ function OnboardingPageInner() {
 
     // The campaign variant — see the ?flow=waitlist note above STEPS.
     const [waitlistFlow, setWaitlistFlow] = useState(!SIGNUPS_OPEN);
+
+    /**
+     * An invitation, once the server has vouched for it (`?invite=` on arrival).
+     *
+     * It is the one thing that opens the account step while signups are closed:
+     * the person was asked in by someone already here, and the email the link
+     * came to is the check a verification code would otherwise make. So the flow
+     * runs as it will after launch — verdict, offer, plans — and ends on an
+     * account rather than a place in the queue.
+     */
+    const [invite, setInvite] = useState<{ id: string; inviterName: string | null; projectTitle: string | null; email: string } | null>(null);
+    const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+    const [accountError, setAccountError] = useState('');
+    const signupsOpen = SIGNUPS_OPEN || invite !== null;
     const [waitlistSource, setWaitlistSource] = useState('yt-vsl');
     const { language, t } = useLanguage();
     const { user } = useAuth();
@@ -288,7 +305,7 @@ function OnboardingPageInner() {
         // No account, no Paddle, or signups closed: nothing to open. The
         // paywall's own checkout section says so, and `onSkipCheckout` below is
         // what moves the flow on from there.
-        if (!SIGNUPS_OPEN || !account || !priceId || !isPlanPurchasable(choice.plan, choice.billing)) {
+        if (!signupsOpen || !account || !priceId || !isPlanPurchasable(choice.plan, choice.billing)) {
             return;
         }
 
@@ -431,6 +448,69 @@ function OnboardingPageInner() {
         setVerifyError('');
     };
 
+    /**
+     * The invited person's account, made here for real. Creation is also the
+     * terms acceptance (the notice sits on this screen as it does on sign-in),
+     * and the profile write is what the platform's collaborator roster reads.
+     * Once signed in, the workspace claims the invitation by email on its own.
+     */
+    const finishInviteSignup = async (account: User) => {
+        await createUserProfile(account, { answers, locale: language });
+        forgetInvitePass();
+        capture('invite_account_created', { inviteId: invite?.id ?? null });
+        setCurrentStep(STEPS.WELCOME);
+    };
+
+    const handleInviteCreate = async (password: string) => {
+        if (!invite) return;
+        setAccountError('');
+        setIsCreatingAccount(true);
+        try {
+            const cred = await createUserWithEmailAndPassword(auth, invite.email, password);
+            const name = invite.email.split('@')[0];
+            await updateProfile(cred.user, { displayName: name }).catch(() => { /* cosmetic */ });
+            await finishInviteSignup(cred.user);
+        } catch (err: any) {
+            const code = err?.code || '';
+            setAccountError(
+                code === 'auth/email-already-in-use' ? t('onboarding.invite.error_exists')
+                : code === 'auth/weak-password' ? t('onboarding.invite.password_hint')
+                : t('onboarding.invite.error_generic'),
+            );
+        } finally {
+            setIsCreatingAccount(false);
+        }
+    };
+
+    const handleInviteGoogle = async () => {
+        if (!invite) return;
+        setAccountError('');
+        setIsCreatingAccount(true);
+        try {
+            const result = await signInWithPopup(auth, googleProvider);
+            const account = result.user;
+            // The invitation attaches by email. A different Google address would
+            // make an account with no song in it — undone, and said plainly.
+            if ((account.email || '').toLowerCase() !== invite.email.toLowerCase()) {
+                const isNew = getAdditionalUserInfo(result)?.isNewUser === true;
+                try { if (isNew) await account.delete(); else await signOut(auth); } catch { await signOut(auth).catch(() => {}); }
+                setAccountError(t('onboarding.invite.error_wrong_google').replace('{email}', invite.email));
+                return;
+            }
+            if (getAdditionalUserInfo(result)?.isNewUser) {
+                await finishInviteSignup(account);
+            } else {
+                // Already a Veinote account after all — nothing to create, just in.
+                forgetInvitePass();
+                setCurrentStep(STEPS.WELCOME);
+            }
+        } catch (err: any) {
+            if (err?.code !== 'auth/popup-closed-by-user') setAccountError(t('onboarding.invite.error_generic'));
+        } finally {
+            setIsCreatingAccount(false);
+        }
+    };
+
     // Escape backs out of the email page — the same exit as its Back button,
     // kept from the step's dialog days because hands still reach for it.
     useEffect(() => {
@@ -455,6 +535,24 @@ function OnboardingPageInner() {
             setWaitlistFlow(true);
             setWaitlistSource(params.get('from') || 'yt-vsl');
         }
+
+        // An invite link. Checked with the server before it changes anything —
+        // a bad or spent id leaves the visitor on the ordinary pre-launch flow.
+        const inviteId = params.get('invite');
+        if (inviteId) {
+            let cancelled = false;
+            fetch(`/api/collab/invite/lookup?id=${encodeURIComponent(inviteId)}`)
+                .then(res => (res.ok ? res.json() : null))
+                .then(data => {
+                    if (cancelled || !data?.valid) return;
+                    setInvite({ id: inviteId, inviterName: data.inviterName ?? null, projectTitle: data.projectTitle ?? null, email: String(data.inviteeEmail) });
+                    setEmail(String(data.inviteeEmail));
+                    setWaitlistFlow(false);
+                    rememberInvitePass(inviteId);
+                })
+                .catch(() => { /* the ordinary flow stands */ });
+            return () => { cancelled = true; };
+        }
     }, []);
 
     /**
@@ -470,9 +568,10 @@ function OnboardingPageInner() {
      */
     const funnelProps = () => {
         const params = new URLSearchParams(window.location.search);
-        const isCampaign = params.get('flow') === 'waitlist' || !SIGNUPS_OPEN;
+        const isInvite = !!params.get('invite');
+        const isCampaign = !isInvite && (params.get('flow') === 'waitlist' || !SIGNUPS_OPEN);
         return {
-            flow: isCampaign ? 'waitlist' : 'plain',
+            flow: isInvite ? 'invite' : isCampaign ? 'waitlist' : 'plain',
             source: isCampaign ? (params.get('from') || 'yt-vsl') : null,
         };
     };
@@ -1277,7 +1376,22 @@ function OnboardingPageInner() {
                         page uses over the analysis. Frozen is not needed here:
                         nothing on this screen is running but the resend
                         cooldown, which should keep counting. */}
-                    {(currentStep === STEPS.VERIFY || (currentStep === STEPS.EMAIL && isChangingEmail)) && (
+                    {/* An invited person makes a real account here instead of walking
+                        the placeholder code screen — see InviteAccountStep. */}
+                    {currentStep === STEPS.VERIFY && invite && (
+                        <InviteAccountStep
+                            key="invite-account"
+                            email={invite.email}
+                            inviterName={invite.inviterName}
+                            projectTitle={invite.projectTitle}
+                            isSubmitting={isCreatingAccount}
+                            error={accountError}
+                            onCreate={handleInviteCreate}
+                            onGoogle={handleInviteGoogle}
+                        />
+                    )}
+
+                    {!invite && (currentStep === STEPS.VERIFY || (currentStep === STEPS.EMAIL && isChangingEmail)) && (
                         <div className={currentStep === STEPS.EMAIL ? 'hidden' : 'contents'}>
                         <OtpVerify
                             key="verify"
@@ -1312,7 +1426,7 @@ function OnboardingPageInner() {
                     )}
 
                     {currentStep === STEPS.WELCOME && (
-                        <WelcomeAboard key="welcome" signupsOpen={SIGNUPS_OPEN} onRestart={restartFlow} />
+                        <WelcomeAboard key="welcome" signupsOpen={signupsOpen} onRestart={restartFlow} />
                     )}
 
                     {currentStep === STEPS.SECURED && (

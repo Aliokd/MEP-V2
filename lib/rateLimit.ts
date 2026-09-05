@@ -48,6 +48,11 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
     // volume could still be probed, and 10/min is enough to invite a band while
     // being nowhere near enough to sweep a leaked address list.
     'collab-invite': { limit: 10, windowMs: 60_000 },
+    // The onboarding flow asking whether an invite link is good. Unauthenticated
+    // by necessity (the caller has no account yet), read-only, and answered with
+    // the same `valid: false` for every miss — the ceiling is against sweeping
+    // for ids, not against a person reloading the page a few times.
+    'collab-invite-lookup': { limit: 30, windowMs: 60_000 },
     // Unauthenticated by design (see app/api/health/ai), so it gets the tightest
     // ceiling of all — enough to debug with, not enough to prod upstreams for free.
     health: { limit: 10, windowMs: 60_000 },

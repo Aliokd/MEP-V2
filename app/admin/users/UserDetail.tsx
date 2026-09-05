@@ -79,7 +79,7 @@ export default function UserDetail({
 
     const applySanction = () => {
         if (!sanctionReason.trim()) {
-            setError("A reason is required — it is emailed to the user.");
+            setError("A reason is required. It is emailed to the user.");
             return;
         }
         return run(() =>
@@ -138,7 +138,7 @@ export default function UserDetail({
                             <Fact label="Last sign-in" value={timeAgo(detail.auth?.lastSignInAt)} />
                             <Fact label="Songs" value={String(detail.stats.projects)} />
                             <Fact label="Community posts" value={String(detail.stats.posts)} />
-                            <Fact label="Locale" value={u!.locale?.toUpperCase() || "—"} />
+                            <Fact label="Locale" value={u!.locale?.toUpperCase() || "–"} />
                             <Fact label="Reports against" value={String(detail.stats.reportsAgainst)} tone={detail.stats.reportsAgainst > 0 ? "red" : undefined} />
                             <Fact label="Reports filed" value={String(detail.stats.reportsFiled)} />
                             <Fact label="Wrote in" value={String(detail.stats.feedbackCount + detail.stats.supportCount)} />
@@ -230,7 +230,7 @@ export default function UserDetail({
                             <Panel className="p-4 flex flex-col gap-3 border-ink-500">
                                 <span className="text-xs text-ink-400 flex items-center gap-1.5">
                                     <TriangleAlert className="w-3 h-3 text-gold-400" />
-                                    Sanction — the reason is emailed to the user
+                                    Sanction. The reason is emailed to the user
                                 </span>
                                 {u!.sanction?.active ? (
                                     <div className="flex flex-col gap-2">
@@ -250,10 +250,10 @@ export default function UserDetail({
                                     <>
                                         <div className="flex flex-wrap gap-2">
                                             <Select value={sanctionType} onChange={(e) => setSanctionType(e.target.value)}>
-                                                <option value="warn">Warn — record only</option>
-                                                <option value="mute">Mute — no posting</option>
-                                                <option value="suspend">Suspend — no sign-in</option>
-                                                <option value="ban">Ban — permanent</option>
+                                                <option value="warn">Warn (record only)</option>
+                                                <option value="mute">Mute (no posting)</option>
+                                                <option value="suspend">Suspend (no sign-in)</option>
+                                                <option value="ban">Ban (permanent)</option>
                                             </Select>
                                             {(sanctionType === "mute" || sanctionType === "suspend") && (
                                                 <div className="flex items-center gap-1.5">
@@ -336,7 +336,7 @@ export default function UserDetail({
 
 /** Firebase's provider ids, in the words an admin would use. */
 function describeProviders(providers: string[] | undefined): string {
-    if (!providers || providers.length === 0) return "—";
+    if (!providers || providers.length === 0) return "–";
     const names: Record<string, string> = {
         "google.com": "Google",
         password: "Email + password",

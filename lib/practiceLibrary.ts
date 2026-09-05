@@ -94,7 +94,7 @@ export function validateSections(
     const problems: SectionProblem[] = [];
 
     if (sections.length === 0) {
-        problems.push({ index: -1, message: "No sections yet — the exercise has nothing to ask about." });
+        problems.push({ index: -1, message: "No sections yet, so the exercise has nothing to ask about." });
         return problems;
     }
 
@@ -129,7 +129,7 @@ export function validateSections(
         if (times.length > 0 && times.length !== lines.length) {
             problems.push({
                 index: i,
-                message: `${label} has ${times.length} line times for ${lines.length} lines — they must match, or leave the times out.`,
+                message: `${label} has ${times.length} line times for ${lines.length} lines. They must match, or leave the times out.`,
             });
         }
         times.forEach((time, t) => {

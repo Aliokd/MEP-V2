@@ -107,7 +107,7 @@ function LessonPreview({
                 // Matches what the reader falls back to, so an editor can see that
                 // this lesson is still showing generic filler.
                 <p className="text-xs text-stone-500 italic">
-                    Nothing written yet — the lesson shows the generic placeholder text.
+                    Nothing written yet. The lesson shows the generic placeholder text.
                 </p>
             ) : null}
         </div>
@@ -192,12 +192,12 @@ function MelodyPreview({ draft }: { draft: ContentItem }) {
                 <audio controls preload="none" src={asText(draft.audioUrl)} className="w-full" />
             ) : (
                 <div className="rounded-[12px] border border-dashed border-stone-300 bg-white/50 py-4 text-center text-xs text-stone-400">
-                    No audio yet — the card cannot be offered without it
+                    No audio yet. The card cannot be offered without it
                 </div>
             )}
 
             {!draft.available && (
-                <span className="text-[11px] text-stone-400">Not offered yet — Practice 3 will skip it.</span>
+                <span className="text-[11px] text-stone-400">Not offered yet. Practice 3 will skip it.</span>
             )}
         </div>
     );
@@ -222,7 +222,7 @@ function SongPreview({ draft }: { draft: ContentItem }) {
                     </span>
                     <span className="text-sm text-stone-500 font-sans truncate">{asText(draft.artist) || "Unknown artist"}</span>
                     {!draft.available && (
-                        <span className="text-[11px] text-stone-400">Shown greyed out — coming soon</span>
+                        <span className="text-[11px] text-stone-400">Shown greyed out, coming soon</span>
                     )}
                 </div>
             </div>

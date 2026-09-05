@@ -75,9 +75,6 @@ const ACCOUNT_SCOPED_KEYS = [
     'mep-active-weeks',
     'mep-golden-mind-shown',
     'mep-streak-intro-shown',
-    'songwriting-progress',
-    'songwriting-progress-quote',
-    'songwriting-progress-confetti',
     'mep-last-auto-pop-first-action-date',
     'mep-last-auto-pop-major-task-date',
     // Onboarding / first-run surfaces — a fresh account must see these again

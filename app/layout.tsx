@@ -101,7 +101,7 @@ export async function generateMetadata(): Promise<Metadata> {
                     url: '/assets/footer_bg_stockholm.png',
                     width: 1024,
                     height: 529,
-                    alt: 'Veinote — the home of human songwriting',
+                    alt: 'Veinote, the home of human songwriting',
                 },
             ],
         },

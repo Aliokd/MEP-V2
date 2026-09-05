@@ -136,7 +136,11 @@ export function waitlistJoinPath(source: string, language?: Language): string {
 export const COLLAB_EMAIL_INVITES_ENABLED: boolean = true;
 
 export function inviteLandingPath(inviteId?: string): string {
-    const base = SIGNUPS_OPEN ? '/onboarding' : '/waiting-list';
+    // Onboarding whether or not public signups are open. An invited person is
+    // let in ahead of the list: the flow checks the invitation with the server
+    // (/api/collab/invite/lookup) and, when it is good, opens the account step
+    // that SIGNUPS_OPEN keeps shut for everyone else. The waiting list still
+    // accepts `?invite=` for links mailed before this, and forwards them here.
     const query = inviteId ? `?from=invite&invite=${encodeURIComponent(inviteId)}` : '?from=invite';
-    return `${base}${query}`;
+    return `/onboarding${query}`;
 }

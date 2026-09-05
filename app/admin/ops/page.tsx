@@ -146,7 +146,7 @@ export default function OpsPage() {
             <Panel className="overflow-hidden">
                 <PanelHeader
                     title="Email delivery"
-                    subtitle="Every notification the platform sends — replies, removals, welcome mail — goes through this connection."
+                    subtitle="Every notification the platform sends (replies, removals, welcome mail) goes through this connection."
                     action={
                         <Button onClick={checkMail} disabled={mailChecking} size="sm">
                             {mailChecking ? <Spinner className="w-3.5 h-3.5" /> : <RefreshCw className="w-3.5 h-3.5" />}
@@ -183,7 +183,7 @@ export default function OpsPage() {
                             {mail.verified && (
                                 <p className="text-xs text-ink-500">
                                     The login works and the server accepted the connection. If a specific message
-                                    still fails, the problem is that message — a rejected recipient, say — not the
+                                    still fails, the problem is that message (a rejected recipient, say), not the
                                     configuration.
                                 </p>
                             )}
@@ -213,7 +213,7 @@ export default function OpsPage() {
             <Panel className="overflow-hidden">
                 <PanelHeader
                     title="Feature flags"
-                    subtitle="Flags fail open — an unset flag, or Firestore being unreachable, leaves the feature on."
+                    subtitle="Flags fail open: an unset flag, or Firestore being unreachable, leaves the feature on."
                 />
                 {!flags ? (
                     <SkeletonRows rows={6} />

@@ -89,7 +89,6 @@ function PlatformLayoutInner({
     const router = useRouter();
     const pathname = usePathname();
     
-    const [showProgressPopup, setShowProgressPopup] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSupportOpen, setIsSupportOpen] = useState(false);
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -170,8 +169,6 @@ function PlatformLayoutInner({
     const L1_PRACTICE = 30;  // minutes
     const L1_COMMUNITY = 2;  // projects shared
 
-    const [activeQuote, setActiveQuote] = useState('Remember, small actions makes progress');
-    const [showConfettiOverlay, setShowConfettiOverlay] = useState(false);
     const [showProgressGlow, setShowProgressGlow] = useState(false);
     // Complete/Publish glows run at 2s to stay in step with the canvas + button gradients;
     // the daily milestone glow keeps its longer 3.4s celebration.
@@ -321,10 +318,8 @@ function PlatformLayoutInner({
             const weeks = readActiveWeekCount();
             setActiveWeeks(weeks);
             setProgressLevel(Math.max(1, weeks));
-            const percent = Math.round(currentWeekRatio() * 100);
-            setLevelProgress(percent);
+            setLevelProgress(Math.round(currentWeekRatio() * 100));
             setWeekPoints(weekScore(weekKey(new Date()))?.score ?? 0);
-            safeLocalStorageSetItem('songwriting-progress', percent.toString());
         };
         refresh();
         window.addEventListener(WEEKLY_ACTIVITY_EVENT, refresh);
@@ -334,14 +329,6 @@ function PlatformLayoutInner({
     // Load initial values from localStorage
     useEffect(() => {
         recalculateProgress();
-
-        const storedQuote = localStorage.getItem('songwriting-progress-quote');
-        if (storedQuote) {
-            setActiveQuote(storedQuote);
-        } else {
-            safeLocalStorageSetItem('songwriting-progress-quote', 'progress.proverbs.0');
-            setActiveQuote('progress.proverbs.0');
-        }
     }, []);
 
     // Once the user is available: fetch the real Community count, and re-read the local
@@ -377,63 +364,42 @@ function PlatformLayoutInner({
         };
     }, [user]);
 
-    // Listen to songwriting-progress-updated event
+    // A tab reported progress: re-read the counters, note them against the
+    // week so the pill can show the points just earned, and glow the pill on
+    // the first action of the day and the first major task of the day. Any
+    // celebration beyond the glow is Mind Power's — the golden mind popup —
+    // and comes from the week's score, not from here.
     useEffect(() => {
         const handleProgressUpdate = (e: Event) => {
             recalculateProgress();
             fetchCommunityCount();
-            // Note the counters now rather than at the next tick, so the pill can
-            // show the points the action just earned.
             recordVisit();
 
-            const storedQuote = localStorage.getItem('songwriting-progress-quote');
-            if (storedQuote) {
-                setActiveQuote(storedQuote);
-            }
-            
             const customEvent = e as CustomEvent;
             const isMajorTask = customEvent.detail?.triggerType === 'major-task';
-            
-            // Get today's date identifier to track daily triggers
             const todayStr = new Date().toDateString();
             const lastFirstActionDate = localStorage.getItem('mep-last-auto-pop-first-action-date');
             const lastMajorTaskDate = localStorage.getItem('mep-last-auto-pop-major-task-date');
-            
-            let shouldAutoPop = false;
-            
+
+            let shouldGlow = false;
             if (lastFirstActionDate !== todayStr) {
-                // First action of the day!
-                shouldAutoPop = true;
+                shouldGlow = true;
                 safeLocalStorageSetItem('mep-last-auto-pop-first-action-date', todayStr);
             } else if (isMajorTask && lastMajorTaskDate !== todayStr) {
-                // Major task completed today!
-                shouldAutoPop = true;
+                shouldGlow = true;
                 safeLocalStorageSetItem('mep-last-auto-pop-major-task-date', todayStr);
             }
-            
-            if (shouldAutoPop) {
-                // The glow ring alone is enough of a progress hint — don't force the panel open,
-                // let the user click in to see details.
 
-                // Trigger the achievement glow border on every progress update
+            if (shouldGlow) {
                 setShowProgressGlow(true);
                 if (glowTimeoutRef.current) clearTimeout(glowTimeoutRef.current);
                 glowTimeoutRef.current = setTimeout(() => {
                     setShowProgressGlow(false);
                     // This timer shares glowTimeoutRef with handleCelebrate below — if this
-                    // milestone timeout ends up being the one left standing (it can win the
-                    // race depending on dispatch order), it must also clear isQuickGlow, or
-                    // the label gets stuck on "Saving progress..." with nothing left to flip
-                    // it back to "Mind Power".
+                    // one ends up being the one left standing, it must also clear
+                    // isQuickGlow, or the label gets stuck on "Saving progress...".
                     setIsQuickGlow(false);
                 }, 3400);
-
-                // Confetti overlay trigger
-                const isConfetti = localStorage.getItem('songwriting-progress-confetti');
-                if (isConfetti === 'true') {
-                    setShowConfettiOverlay(true);
-                    safeLocalStorageSetItem('songwriting-progress-confetti', 'false');
-                }
             }
         };
 
@@ -558,7 +524,6 @@ function PlatformLayoutInner({
                     practiceGoal: L1_PRACTICE,
                     communityCount,
                     communityGoal: L1_COMMUNITY,
-                    activeQuote,
                 }}
             >
                 <div className="min-h-screen bg-[#2a2a2a] text-[#F5F4EE] font-sans selection:bg-[#86BE7F]/30 profile-view-enter">
@@ -697,41 +662,6 @@ function PlatformLayoutInner({
                             </div>
                         </div>
                     )}
-                </div>
-            )}
-
-            {/* Congratulations Confetti Overlay Modal */}
-            {showConfettiOverlay && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in duration-300">
-                    <div className="bg-white rounded-[32px] p-8 max-w-md w-full mx-4 shadow-2xl text-center flex flex-col items-center gap-6 animate-in zoom-in-95 duration-300">
-                        <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-                                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-                                <path d="M4 22h16" />
-                                <path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34" />
-                                <path d="M12 2a4 4 0 0 0-4 4v5a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4Z" />
-                            </svg>
-                        </div>
-                        
-                        <div className="flex flex-col gap-2">
-                            <h3 className="text-2xl font-bold text-stone-850">{t('platform_layout.outstanding_effort_title')}</h3>
-                            <p className="text-sm text-stone-500 leading-normal">
-                                {t('platform_layout.outstanding_effort_desc')}
-                            </p>
-                        </div>
-                        
-                        <button 
-                            onClick={() => {
-                                setShowConfettiOverlay(false);
-                                safeLocalStorageSetItem('songwriting-progress', '0');
-                                setLevelProgress(0);
-                            }}
-                            className={`${btn.primaryBlock('lg')} cursor-pointer`}
-                        >
-                            {t('platform_layout.start_next_journey')}
-                        </button>
-                    </div>
                 </div>
             )}
 

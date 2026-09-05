@@ -134,7 +134,7 @@ export default function CreateUserDialog({
                         </h2>
                         <p className="text-xs text-ink-500">
                             {created
-                                ? "Pass these details on now — the password can't be shown again."
+                                ? "Pass these details on now. The password can't be shown again."
                                 : "The account works exactly like a normal signup."}
                         </p>
                     </div>
@@ -162,11 +162,11 @@ export default function CreateUserDialog({
 
                         <p className="text-xs text-ink-400 leading-relaxed">
                             {created.emailChoice === "none"
-                                ? "No email was sent — pass these details on yourself."
+                                ? "No email was sent. Pass these details on yourself."
                                 : created.welcomeSent
                                   ? created.emailChoice === "beta"
-                                      ? "The beta invite has gone out, with the password in it — nothing else to send."
-                                      : "A welcome email has gone out, but it doesn't contain the password — send that separately."
+                                      ? "The beta invite has gone out, with the password in it. Nothing else to send."
+                                      : "A welcome email has gone out, but it doesn't contain the password. Send that separately."
                                   : "The email failed to send, so pass these details on yourself. Check Ops → Mail for the reason."}{" "}
                             They can change the password themselves from the sign-in page using
                             &ldquo;Forgot password&rdquo;.
@@ -241,8 +241,8 @@ export default function CreateUserDialog({
                                 </Button>
                             </div>
                             <span className={`text-[11px] ${password.length >= MIN_PASSWORD_LENGTH ? "text-ink-500" : "text-gold-300"}`}>
-                                At least {MIN_PASSWORD_LENGTH} characters. You&apos;ll see it once after creating —
-                                it isn&apos;t stored anywhere readable.
+                                At least {MIN_PASSWORD_LENGTH} characters. You&apos;ll see it once after creating.
+                                It isn&apos;t stored anywhere readable.
                             </span>
                         </div>
 
@@ -290,7 +290,7 @@ export default function CreateUserDialog({
                             </Select>
                             <span className="text-[11px] text-ink-500">
                                 {emailChoice === "beta"
-                                    ? "Sign-in details, the four beta tasks, and the password above — the only email that sends a password."
+                                    ? "Sign-in details, the four beta tasks, and the password above. The only email that sends a password."
                                     : emailChoice === "welcome"
                                       ? "The same one a normal signup gets. It never contains the password."
                                       : "The account is created silently. You hand over the details yourself."}

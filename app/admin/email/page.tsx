@@ -171,7 +171,7 @@ export default function EmailPage() {
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="Email"
-                description="Bulk email to Veinote users. Transactional mail — welcome, replies, moderation notices — is not sent from here and ignores unsubscribes."
+                description="Bulk email to Veinote users. Transactional mail (welcome, replies, moderation notices) is not sent from here and ignores unsubscribes."
                 action={
                     <div className="flex items-center gap-2">
                         <Button onClick={load} size="sm">
@@ -241,7 +241,7 @@ export default function EmailPage() {
                             />
                             <span className="text-[11px] text-ink-500">
                                 <span className="font-mono">{"{{name}}"}</span> is replaced with the recipient&apos;s
-                                name. Plain text — no HTML.
+                                name. Plain text, no HTML.
                             </span>
                         </label>
 
@@ -258,7 +258,7 @@ export default function EmailPage() {
 
                         <div className="flex flex-col gap-2">
                             <span className="text-xs text-ink-400 flex items-center gap-1.5">
-                                <Users className="w-3 h-3" /> Audience — leave empty for everyone
+                                <Users className="w-3 h-3" /> Audience (leave empty for everyone)
                             </span>
                             <div className="flex flex-wrap gap-1.5">
                                 {TIERS.map((tier) => (
@@ -338,7 +338,7 @@ export default function EmailPage() {
                 ) : campaigns.length === 0 ? (
                     <EmptyState
                         title="No campaigns yet"
-                        description="A campaign is a one-off email to a group of users. Drafts are safe — nothing sends until you press Send."
+                        description="A campaign is a one-off email to a group of users. Drafts are safe: nothing sends until you press Send."
                     />
                 ) : (
                     <ul className="divide-y divide-ink-600">

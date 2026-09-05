@@ -181,7 +181,7 @@ export function parseIdeasJson(text: string): ParsedRow[] {
     try {
         data = JSON.parse(text);
     } catch (err: any) {
-        return [{ line: 1, idea: null, errors: [`Not valid JSON — ${err.message}`] }];
+        return [{ line: 1, idea: null, errors: [`Not valid JSON: ${err.message}`] }];
     }
 
     if (!Array.isArray(data)) {

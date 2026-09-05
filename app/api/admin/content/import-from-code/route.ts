@@ -73,7 +73,7 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
         const existing = await ref.get();
 
         if (existing.exists && !force) {
-            skipped.push("privacy — already in the CMS");
+            skipped.push("privacy: already in the CMS");
         } else {
             const title: Record<string, string> = {};
             const description: Record<string, string> = {};
@@ -111,7 +111,7 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
         const existing = await ref.get();
 
         if (existing.exists && !force) {
-            skipped.push("cookies — already in the CMS");
+            skipped.push("cookies: already in the CMS");
         } else {
             const title: Record<string, string> = {};
             const description: Record<string, string> = {};
@@ -161,7 +161,7 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
             const ref = adminDb.collection("faqs").doc(id);
 
             if ((await ref.get()).exists && !force) {
-                skipped.push(`${id} — already in the CMS`);
+                skipped.push(`${id}: already in the CMS`);
                 continue;
             }
 
@@ -219,7 +219,7 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
         for (const idea of byId.values()) {
             const ref = adminDb.collection("ideas").doc(idea.id);
             if ((await ref.get()).exists && !force) {
-                skipped.push(`${idea.id} — already in the CMS`);
+                skipped.push(`${idea.id}: already in the CMS`);
                 continue;
             }
             await ref.set(
@@ -237,7 +237,7 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
         for (const [index, song] of PRACTICE_SONGS.entries()) {
             const ref = adminDb.collection("practice_songs").doc(song.id);
             if ((await ref.get()).exists && !force) {
-                skipped.push(`${song.id} — already in the CMS`);
+                skipped.push(`${song.id}: already in the CMS`);
                 continue;
             }
             const lastSection = song.sections?.[song.sections.length - 1];
@@ -256,7 +256,7 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
                     // These are real commercial recordings; the position was never
                     // recorded in code, so the CMS surfaces the gap instead of
                     // inventing one.
-                    rights: { licence: null, holder: null, notes: "Imported from code — rights not yet recorded." },
+                    rights: { licence: null, holder: null, notes: "Imported from code. Rights not yet recorded." },
                     updatedAt: FieldValue.serverTimestamp(),
                     updatedByEmail: admin.email,
                 },

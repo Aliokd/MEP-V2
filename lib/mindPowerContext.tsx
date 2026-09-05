@@ -32,8 +32,6 @@ export interface MindPowerProgress {
 
     communityCount: number;
     communityGoal: number;
-
-    activeQuote: string;
 }
 
 const MindPowerProgressContext = createContext<MindPowerProgress | null>(null);

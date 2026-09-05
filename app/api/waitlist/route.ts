@@ -231,7 +231,7 @@ export async function POST(request: Request) {
             subject: alreadyOnList
                 ? `[Waitlist] ${email} signed up again`
                 : invite
-                    ? `[Waitlist] ${email} — invited to collaborate`
+                    ? `[Waitlist] ${email}: invited to collaborate`
                     : `[Waitlist] ${email}`,
             text: `${alreadyOnList ? "Someone already on the waitlist submitted again." : "A new person joined the Veinote waitlist."}
 
@@ -239,7 +239,7 @@ Email:    ${email}
 Language: ${locale || "unknown"}
 From:     ${source}
 Position: ${position ?? "unknown"}
-${answers ? `Quiz:     ${JSON.stringify(answers)}\n` : ""}${invite ? `\nSomeone is waiting to write with them:\nInvited by: ${invite.inviterName || "unknown"}\nProject:    ${invite.projectTitle || "untitled"} (${invite.projectId || "unknown id"})\nThey can't accept it until they have an account.\n` : ""}${stored ? "" : "\nWARNING: this address could NOT be written to Firestore — it exists only in this email.\n"}
+${answers ? `Quiz:     ${JSON.stringify(answers)}\n` : ""}${invite ? `\nSomeone is waiting to write with them:\nInvited by: ${invite.inviterName || "unknown"}\nProject:    ${invite.projectTitle || "untitled"} (${invite.projectId || "unknown id"})\nThey can't accept it until they have an account.\n` : ""}${stored ? "" : "\nWARNING: this address could NOT be written to Firestore. It exists only in this email.\n"}
 The full list is in the admin console: https://veinote.com/admin/waiting-list
 
 (Reply to this email to reach them directly.)`,

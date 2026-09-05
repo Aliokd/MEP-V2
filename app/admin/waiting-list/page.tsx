@@ -72,7 +72,7 @@ export default function WaitlistPage() {
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="Waitlist"
-                description="People who asked to be told when Veinote opens. Oldest first — that's the order to invite them in."
+                description="People who asked to be told when Veinote opens. Oldest first, which is the order to invite them in."
                 action={
                     <div className="flex items-center gap-2">
                         <Button onClick={exportCsv} disabled={exporting || !entries?.length} size="sm">
@@ -124,7 +124,7 @@ export default function WaitlistPage() {
                                 {entries.map((entry) => (
                                     <tr key={entry.email} className="hover:bg-ink-800 transition-colors">
                                         <td className="px-4 py-3 text-xs text-ink-500 tabular-nums">
-                                            {entry.position ?? "—"}
+                                            {entry.position ?? "–"}
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2 min-w-0">
@@ -140,8 +140,8 @@ export default function WaitlistPage() {
                                                 {entry.invitedAt && <Badge tone="green">invited</Badge>}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3 text-xs text-ink-400">{entry.locale || "—"}</td>
-                                        <td className="px-4 py-3 text-xs text-ink-400">{entry.source || "—"}</td>
+                                        <td className="px-4 py-3 text-xs text-ink-400">{entry.locale || "–"}</td>
+                                        <td className="px-4 py-3 text-xs text-ink-400">{entry.source || "–"}</td>
                                         <td className="px-4 py-3 text-xs text-ink-400">{timeAgo(entry.createdAt)}</td>
                                     </tr>
                                 ))}

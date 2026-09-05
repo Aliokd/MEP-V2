@@ -109,10 +109,7 @@ export default function Activities({ progress, language, t }: ActivitiesProps) {
     // not flicker while the page is open.
     const quote = useMemo(() => {
         const proverbs = tList<string>('progress.proverbs');
-        if (proverbs.length === 0) {
-            return progress.activeQuote.startsWith('progress.') ? t(progress.activeQuote) : progress.activeQuote;
-        }
-        return proverbs[Math.floor(Math.random() * proverbs.length)];
+        return proverbs.length > 0 ? proverbs[Math.floor(Math.random() * proverbs.length)] : '';
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [language]);
 
@@ -183,7 +180,7 @@ export default function Activities({ progress, language, t }: ActivitiesProps) {
                 </Row>
             </div>
 
-            <p className="text-[13px] italic text-stone-500 leading-relaxed" data-quote>&ldquo;{quote}&rdquo;</p>
+            {quote && <p className="text-[13px] italic text-stone-500 leading-relaxed" data-quote>&ldquo;{quote}&rdquo;</p>}
         </section>
     );
 }

@@ -63,7 +63,7 @@ export default function ReportsPage() {
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="Reports"
-                description="One row per reported thing, however many people reported it. Urgent reasons — self-harm, threats — sort to the top automatically."
+                description="One row per reported thing, however many people reported it. Urgent reasons (self-harm, threats) sort to the top automatically."
                 action={
                     <div className="flex items-center gap-2">
                         <Select value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -84,7 +84,7 @@ export default function ReportsPage() {
                 <Panel className="p-4 border-red-500/40 bg-red-500/5 flex items-center gap-3">
                     <TriangleAlert className="w-4 h-4 text-red-300 shrink-0" />
                     <p className="text-sm text-red-200">
-                        {urgent} urgent {urgent === 1 ? "report" : "reports"} — someone may be at risk. Handle these first.
+                        {urgent} urgent {urgent === 1 ? "report" : "reports"}. Someone may be at risk. Handle these first.
                     </p>
                 </Panel>
             )}

@@ -194,7 +194,7 @@ function InboxQueue() {
                                         <span className="text-sm text-ink-100 font-medium truncate">{thread.subject}</span>
                                         {thread.hasAttachment && <Paperclip className="w-3 h-3 text-ink-500 shrink-0" />}
                                         {!thread.verified && (
-                                            <span title="Identity not verified — the sender's ID token was missing or invalid">
+                                            <span title="Identity not verified: the sender's ID token was missing or invalid">
                                                 <ShieldAlert className="w-3 h-3 text-gold-400 shrink-0" />
                                             </span>
                                         )}

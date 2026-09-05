@@ -157,7 +157,7 @@ function Composer({ onClose, onSaved }: { onClose: () => void; onSaved: () => vo
 
     const save = async (status: string) => {
         if (!title.en?.trim()) {
-            setError("An English title is required — it's the fallback for every other language.");
+            setError("An English title is required. It's the fallback for every other language.");
             return;
         }
         setSaving(true);
@@ -232,7 +232,7 @@ function Composer({ onClose, onSaved }: { onClose: () => void; onSaved: () => vo
                     </label>
 
                     <div className="flex flex-col gap-2">
-                        <span className="text-xs text-ink-400">Audience — leave empty for everyone</span>
+                        <span className="text-xs text-ink-400">Audience (leave empty for everyone)</span>
                         <div className="flex flex-wrap gap-1.5">
                             {TIERS.map((tier) => (
                                 <button

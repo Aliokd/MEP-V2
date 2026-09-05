@@ -61,7 +61,7 @@ export async function openCheckout({ priceId, uid, email, locale, successUrl, in
     const paddle = await loadPaddle();
 
     if (!paddle) {
-        throw new Error('Paddle is not configured — set NEXT_PUBLIC_PADDLE_CLIENT_TOKEN.');
+        throw new Error('Paddle is not configured. Set NEXT_PUBLIC_PADDLE_CLIENT_TOKEN.');
     }
 
     paddle.Checkout.open({

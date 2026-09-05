@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowRight, AlertCircle, Check } from 'lucide-react';
+import { inviteLandingPath } from '@/lib/uiFlags';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizePath } from '@/lib/i18n';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
@@ -31,6 +32,12 @@ function WaitlistPageInner() {
     // Set when a collaboration invite email sent them: the id of the invitation
     // waiting for them, so joining the list can be tied back to who invited them.
     const invite = searchParams.get('invite');
+
+    // Invitations onboard now (inviteLandingPath); links mailed before that
+    // change still point here and are forwarded rather than left on the list.
+    useEffect(() => {
+        if (invite) window.location.replace(inviteLandingPath(invite));
+    }, [invite]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -202,17 +202,17 @@ export const BLOG_CATEGORIES: { id: BlogCategory; label: string; description: st
     {
         id: "marketing",
         label: "Marketing",
-        description: "Written to be found — guides and answers that bring songwriters to Veinote.",
+        description: "Written to be found: guides and answers that bring songwriters to Veinote.",
     },
     {
         id: "product",
         label: "Product",
-        description: "What is new and how to use it — releases, features and walkthroughs.",
+        description: "What is new and how to use it: releases, features and walkthroughs.",
     },
     {
         id: "business",
         label: "Business",
-        description: "The company — announcements, partnerships, and how Veinote is run.",
+        description: "The company: announcements, partnerships, and how Veinote is run.",
     },
 ];
 

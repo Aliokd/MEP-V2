@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/apiAuth";
 import { sendMail } from "@/lib/email/send";
 import { collabInviteEmail } from "@/lib/email/templates/collabInvite";
 import { resolveLocale } from "@/lib/email/locale";
-import { SIGNUPS_OPEN, inviteLandingPath, COLLAB_EMAIL_INVITES_ENABLED } from "@/lib/uiFlags";
+import { inviteLandingPath, COLLAB_EMAIL_INVITES_ENABLED } from "@/lib/uiFlags";
 import { localizePath } from "@/lib/i18n";
 import { TRIAL_DAYS } from "@/lib/paddle/config";
 
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
                 project: invite.projectTitle || "a new song",
                 joinUrl: `${appUrl}${localizePath(path, emailLocale)}?${search}`,
                 trialDays: TRIAL_DAYS,
-                waitlistMode: !SIGNUPS_OPEN,
+                waitlistMode: false,
             },
             await getCopyOverrides(),
         );

@@ -250,9 +250,9 @@ export function SkeletonRows({ rows = 5 }: { rows?: number }) {
 
 /** Compact relative time ("3m", "2h", "5d") for dense admin tables. */
 export function timeAgo(value: number | string | null | undefined): string {
-    if (!value) return "—";
+    if (!value) return "–";
     const ms = typeof value === "number" ? value : Date.parse(value);
-    if (Number.isNaN(ms)) return "—";
+    if (Number.isNaN(ms)) return "–";
 
     const seconds = Math.floor((Date.now() - ms) / 1000);
     if (seconds < 60) return "just now";

@@ -31,7 +31,7 @@ export const POST = withAdmin("announcements.write", async (request, admin) => {
     const body = await request.json();
 
     if (!body.title?.en?.trim()) {
-        return NextResponse.json({ error: "An English title is required — it is the fallback" }, { status: 400 });
+        return NextResponse.json({ error: "An English title is required. It is the fallback" }, { status: 400 });
     }
     if (body.status && !CONTENT_STATUSES.includes(body.status)) {
         return NextResponse.json({ error: `Invalid status "${body.status}"` }, { status: 400 });

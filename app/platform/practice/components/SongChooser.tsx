@@ -81,7 +81,7 @@ export default function SongChooser({ onNext }: SongChooserProps) {
                             data-song-choice={song.id}
                             data-song-locked={locked ? '' : undefined}
                             disabled={locked}
-                            aria-label={locked ? `${song.title} — ${t('common.coming_soon')}` : undefined}
+                            aria-label={locked ? `${song.title}: ${t('common.coming_soon')}` : undefined}
                             onClick={locked ? undefined : () => choose(song)}
                             className={`relative rounded-[20px] border border-stone-200 bg-white overflow-hidden text-left transition-colors
                                 ${locked ? 'cursor-default' : 'cursor-pointer hover:border-stone-400'}`}

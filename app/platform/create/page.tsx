@@ -232,7 +232,6 @@ import {
     removeCollaboratorFromProject,
     notifyCollaboratorRemoved,
     getCollaboratorProfiles,
-    calculateContributionsPercentage,
     MAX_COLLABORATORS,
     MAX_COMMENT_LENGTH,
     subscribeToProjectComments,
@@ -258,6 +257,7 @@ import {
     Pause,
     Square,
     MoreVertical,
+    Send,
     Music,
     Pencil,
     CircleDot,
@@ -4100,8 +4100,16 @@ const StudioKnob = ({
  * attached natively because React registers wheel as passive, and a passive
  * handler cannot stop the page from scrolling too.
  */
-const ScrollStrip = ({ className, ariaLeft, ariaRight, children }: { className: string; ariaLeft: string; ariaRight: string; children: React.ReactNode }) => {
+const ScrollStrip = ({ className, ariaLeft, ariaRight, surface = '#ffffff', children }: { className: string; ariaLeft: string; ariaRight: string; /** The colour the strip sits on — the fades under the arrows are painted in it, so they read as the surface thinning out rather than a white patch laid over it. */ surface?: string; children: React.ReactNode }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
+    // Inline rather than gradient utilities: an arbitrary hex in a `from-[…]` class
+    // only exists if Tailwind saw that exact literal at build time, and a colour
+    // handed in as a prop never is.
+    const fade = (dir: 'right' | 'left') => {
+        const m = /^#?([0-9a-f]{6})$/i.exec(surface.trim());
+        const [r, g, b] = m ? [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)) : [255, 255, 255];
+        return { background: `linear-gradient(to ${dir}, rgb(${r} ${g} ${b}), rgb(${r} ${g} ${b} / 0.85), transparent)` };
+    };
     const [canLeft, setCanLeft] = useState(false);
     const [canRight, setCanRight] = useState(false);
 
@@ -4154,7 +4162,7 @@ const ScrollStrip = ({ className, ariaLeft, ariaRight, children }: { className: 
                 {children}
             </div>
             {canLeft && (
-                <div className="absolute inset-y-0 left-0 w-14 bg-gradient-to-r from-white via-white/85 to-transparent pointer-events-none flex items-center justify-start pb-1">
+                <div style={fade('right')} className="absolute inset-y-0 left-0 w-14 pointer-events-none flex items-center justify-start pb-1">
                     <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); page(-1); }}
@@ -4166,7 +4174,7 @@ const ScrollStrip = ({ className, ariaLeft, ariaRight, children }: { className: 
                 </div>
             )}
             {canRight && (
-                <div className="absolute inset-y-0 right-0 w-14 bg-gradient-to-l from-white via-white/85 to-transparent pointer-events-none flex items-center justify-end pb-1">
+                <div style={fade('left')} className="absolute inset-y-0 right-0 w-14 pointer-events-none flex items-center justify-end pb-1">
                     <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); page(1); }}
@@ -4466,6 +4474,14 @@ export default function CreatePage() {
     // animation before the resting arrow settles back in from below.
     const [isPublishLaunching, setIsPublishLaunching] = useState(false);
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+    /**
+     * The section badge's menu: which section it is open for, and whether it is
+     * showing the actions or the project list behind "Send to another project".
+     * One state for both because the list IS the menu, one level in — closing
+     * either closes the whole thing.
+     */
+    const [sectionMenu, setSectionMenu] = useState<{ groupId: string; mode: 'actions' | 'send' } | null>(null);
+    const [sectionSendQuery, setSectionSendQuery] = useState('');
     const [renameGroupName, setRenameGroupName] = useState<string>('');
     const [isAddMenuSticky, setIsAddMenuSticky] = useState<boolean>(false);
 
@@ -5609,6 +5625,7 @@ export default function CreatePage() {
     const canvasMenuSwipe = useSheetSwipe(() => setShowCanvasMenu(false));
     const wordSheetSwipe = useSheetSwipe(() => closeWordPopover());
     const workspaceMenuSwipe = useSheetSwipe(() => setIsWorkspaceMenuOpen(false));
+    const sectionMenuSwipe = useSheetSwipe(() => setSectionMenu(null));
     const inviteSwipe = useSheetSwipe(() => setShowShareModal(false));
 
     const [activeGuideTab, setActiveGuideTab] = useState<'overview' | 'controls' | 'workflow'>('overview');
@@ -13636,31 +13653,12 @@ export default function CreatePage() {
         }
         return newPhrases;
     }
+    // Tell Mind Power the song moved. What that is worth is the week's business
+    // (see lib/mindPowerScore): the old "+2% per save" bar and its 100% popup
+    // are gone, and the counters it reads are the words on the canvas.
     const triggerProgressBonus = (content: string, isAudio = false) => {
         const words = content.trim().split(/\s+/).filter(w => w.length > 0);
         if (words.length >= 10 || isAudio) {
-            const currentProgressStr = localStorage.getItem('songwriting-progress') || '35';
-            let currentProgress = parseInt(currentProgressStr);
-            const nextProgress = Math.min(100, currentProgress + 2);
-            safeLocalStorageSetItem('songwriting-progress', nextProgress.toString());
-            
-            const proverbs = [
-                "Remember, small actions makes progress",
-                "Every line written brings you closer to your masterpiece.",
-                "Consistency is the key to unlocking your creative genius.",
-                "Great songs are not written, they are rewritten.",
-                "A single word can spark a whole symphony.",
-                "Small steps in songwriting lead to giant leaps in melody.",
-                "You are building your legacy, one lyric at a time.",
-                "Keep pouring your soul into the canvas; it is paying off.",
-                "Crafting art requires patience, and you are doing great."
-            ];
-            const randomQuote = proverbs[Math.floor(Math.random() * proverbs.length)];
-            
-            if (nextProgress === 100) {
-                safeLocalStorageSetItem('songwriting-progress-confetti', 'true');
-            }
-            
             window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
         }
     };
@@ -13683,21 +13681,6 @@ export default function CreatePage() {
             if (activeNote.content !== lastAwardedContent) {
                 triggerProgressBonus(activeNote.content, true);
                 setLastAwardedContent(activeNote.content);
-            }
-            
-            // Collaborative contribution progress integration
-            if (isCollaborative && user) {
-                const percentages = calculateContributionsPercentage(activeNote);
-                const myCont = percentages[user.uid] || 0;
-                if (myCont > 0) {
-                    const bonusAmount = Math.max(1, Math.min(10, Math.round(myCont / 10)));
-                    const currentProgressStr = localStorage.getItem('songwriting-progress') || '35';
-                    let currentProgress = parseInt(currentProgressStr);
-                    const nextProgress = Math.min(100, currentProgress + bonusAmount);
-                    safeLocalStorageSetItem('songwriting-progress', nextProgress.toString());
-                    
-                    window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
-                }
             }
             
             setLastSavedContent(activeNote.content);
@@ -14314,6 +14297,53 @@ export default function CreatePage() {
         handleUpdateNote(selectedNoteId, {
             verses: updatedVerses
         });
+    };
+
+    /**
+     * Copies a section — its name and its lines — into another project, as a new
+     * section at the end of that project's flow. A shortcut for the thing writers
+     * do by hand: a chorus that belongs in the other song, a verse worth keeping
+     * somewhere. Lines come across with fresh ids so the two projects never share
+     * a phrase; audio, images and comments docked to the section stay where they
+     * are, since they belong to the take and the conversation, not to the words.
+     *
+     * Written straight into the target rather than through handleUpdateNote: that
+     * path pushes onto THIS canvas's undo stack and gates on THIS canvas being
+     * editable, and neither belongs to a write into a different project.
+     */
+    const handleSendSectionToProject = (groupId: string, targetNoteId: string) => {
+        if (!activeNote) return;
+        const target = notes.find(n => n.id === targetNoteId);
+        if (!target || target.isLocked) return;
+        const group = (activeNote.verses || []).find(v => v.id === groupId);
+        const lines = (activeNote.phrases || []).filter(p =>
+            p.groupId === groupId && !p.id.startsWith('placeholder-') && p.text.trim() !== '');
+
+        const stamp = Date.now();
+        const newGroupId = `g-${stamp}`;
+        const newVerse: VerseGroup = { id: newGroupId, name: group?.name || t('creative.verse') };
+        const newPhrases = lines.map((p, i) => ({
+            id: `p-${stamp}-${i}`,
+            text: p.text,
+            groupId: newGroupId,
+            ...(user ? { authorId: user.uid } : {}),
+        } as Phrase));
+
+        const verses = [...(target.verses || []), newVerse];
+        const finalPhrases = cleanupAndEnsurePlaceholders([...(target.phrases || []), ...newPhrases], verses);
+        const content = finalPhrases.map(p => p.text).join('\n');
+
+        setNotes(prev => prev.map(n => n.id === targetNoteId
+            ? { ...n, phrases: finalPhrases, verses, content, updatedAt: new Date().toISOString() }
+            : n));
+        if (user) scheduleProjectDocWrite(targetNoteId);
+
+        setSectionMenu(null);
+        setSectionSendQuery('');
+        triggerStudioNotification(
+            t('creative.section_sent').replace('{project}', target.title || t('workspace.untitled_note')),
+            'emerald',
+        );
     };
 
     const cleanupAndEnsurePlaceholders = (phrases: Phrase[], groups: VerseGroup[]): Phrase[] => {
@@ -21682,7 +21712,9 @@ export default function CreatePage() {
                                                                             </div>
                                                                         </div>
                                                                     ) : (
-                                                                        <div className="group/badge bg-white border border-stone-200/60 text-stone-700 px-3.5 py-0.5 text-[11.5px] font-semibold rounded-full select-none flex items-center shadow-[0_2px_8px_rgba(0,0,0,0.05)] h-[25px] w-fit transition-all duration-300 hover:shadow-[0_2px_12px_rgba(0,0,0,0.08)] pointer-events-auto cursor-default z-30 gap-0 hover:gap-2">
+                                                                        <div className={`group/badge bg-white border border-stone-200/60 text-stone-700 px-3.5 py-0.5 text-[11.5px] font-semibold rounded-full select-none flex items-center shadow-[0_2px_8px_rgba(0,0,0,0.05)] h-[25px] w-fit transition-all duration-300 hover:shadow-[0_2px_12px_rgba(0,0,0,0.08)] pointer-events-auto cursor-default z-30 gap-0 hover:gap-2 ${
+                                                                            sectionMenu?.groupId === block.groupId ? 'gap-2' : ''
+                                                                        }`}>
                                                                             {/* Current group name text */}
                                                                             <Tooltip label="Click to rename">
                                                                             <span
@@ -21698,45 +21730,155 @@ export default function CreatePage() {
                                                                             </span>
                                                                             </Tooltip>
 
-                                                                            {/* Divider visible only when hovered */}
-                                                                            <div className="w-0 overflow-hidden opacity-0 group-hover/badge:w-[1px] group-hover/badge:opacity-100 group-hover/badge:mx-1.5 transition-all duration-300 shrink-0">
+                                                                            {/* Divider visible only when hovered — and while the menu is up */}
+                                                                            <div className={`w-0 overflow-hidden opacity-0 group-hover/badge:w-[1px] group-hover/badge:opacity-100 group-hover/badge:mx-1.5 transition-all duration-300 shrink-0 ${
+                                                                                sectionMenu?.groupId === block.groupId ? 'w-[1px] opacity-100 mx-1.5' : ''
+                                                                            }`}>
                                                                                 <div className="w-[1px] h-3 bg-stone-200" />
                                                                             </div>
 
-                                                                            {/* Rename Button (Pencil Icon) */}
-                                                                            <Tooltip label="Rename region">
+                                                                            {/* One menu instead of a pencil and an × revealed on hover:
+                                                                                three actions now, and a row of hover-only glyphs was
+                                                                                already a squint at two. touch-reveal keeps it reachable
+                                                                                where there is no hover. */}
+                                                                            <Tooltip label={t('creative.section_menu')} disabled={sectionMenu?.groupId === block.groupId}>
                                                                             <button
+                                                                                type="button"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
-                                                                                    setEditingGroupId(block.groupId);
-                                                                                    setRenameGroupName(block.groupName || '');
+                                                                                    setSectionSendQuery('');
+                                                                                    setSectionMenu(prev => prev?.groupId === block.groupId ? null : { groupId: block.groupId!, mode: 'actions' });
                                                                                 }}
-                                                                                className={`${btn.plain('bare')} pointer-events-auto w-0 shrink-0 overflow-hidden p-0 text-stone-400 opacity-0 transition-all duration-300 hover:text-stone-800 group-hover/badge:w-4 group-hover/badge:opacity-100 cursor-pointer`}
-                                                                                aria-label="Rename region"
+                                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                                aria-label={t('creative.section_menu')}
+                                                                                aria-expanded={sectionMenu?.groupId === block.groupId}
+                                                                                className={`${btn.plain('bare')} touch-reveal pointer-events-auto w-0 shrink-0 overflow-hidden p-0 text-stone-400 opacity-0 transition-all duration-300 hover:text-stone-800 group-hover/badge:w-4 group-hover/badge:opacity-100 cursor-pointer ${
+                                                                                    sectionMenu?.groupId === block.groupId ? 'w-4 opacity-100 text-stone-800' : ''
+                                                                                }`}
                                                                             >
-                                                                                <Pencil size={11} className="stroke-[2.5]" />
-                                                                            </button>
-                                                                            </Tooltip>
-
-                                                                            {/* Divider before delete */}
-                                                                            <div className="w-0 overflow-hidden opacity-0 group-hover/badge:w-[1px] group-hover/badge:opacity-100 group-hover/badge:mx-1.5 transition-all duration-300 shrink-0">
-                                                                                <div className="w-[1px] h-3 bg-stone-200" />
-                                                                            </div>
-
-                                                                            {/* Delete button */}
-                                                                            <Tooltip label="Delete region">
-                                                                            <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    handleDeleteVerseGroup(block.groupId!);
-                                                                                }}
-                                                                                className={`${btn.plain('bare')} pointer-events-auto h-3.5 w-0 shrink-0 overflow-hidden p-0 text-[13px] font-bold leading-none text-stone-400 opacity-0 transition-all duration-300 hover:text-red-500 group-hover/badge:w-4 group-hover/badge:opacity-100 cursor-pointer`}
-                                                                                aria-label="Delete region"
-                                                                            >
-                                                                                ×
+                                                                                <MoreVertical size={12} className="stroke-[2.5]" />
                                                                             </button>
                                                                             </Tooltip>
                                                                         </div>
+                                                                    )}
+
+                                                                    {/* The section menu. Dropdown under the badge from md up, bottom
+                                                                        sheet below it — the same two shapes the workspace's ⋮ uses.
+                                                                        Portalled on a phone for the same reason as that one: declared
+                                                                        here, its z-index is only local. */}
+                                                                    {sectionMenu?.groupId === block.groupId && portalWhenMobile(
+                                                                        <>
+                                                                            <div
+                                                                                className="fixed inset-0 z-40 max-md:z-[84] max-md:bg-stone-900/40 max-md:backdrop-blur-sm sheet-backdrop-enter"
+                                                                                onClick={(e) => { e.stopPropagation(); setSectionMenu(null); }}
+                                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                            />
+                                                                            <div
+                                                                                {...sectionMenuSwipe.swipeHandlers}
+                                                                                style={isMobile ? sectionMenuSwipe.swipeStyle : undefined}
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                                className="bg-white border-stone-200/80 overflow-y-auto no-scrollbar text-left font-sans
+                                                                                    max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-[85] max-md:w-full max-md:rounded-t-[24px] max-md:rounded-b-none max-md:border-t max-md:pt-3 max-md:pb-[max(1rem,env(safe-area-inset-bottom))] max-md:max-h-[80dvh] max-md:shadow-[0_-8px_40px_rgba(0,0,0,0.18)] bottom-sheet-enter
+                                                                                    max-md:[&_button]:min-h-[54px] max-md:[&_button]:text-[16px] max-md:[&_button]:px-5
+                                                                                    md:absolute md:left-0 md:top-full md:mt-2 md:border md:rounded-[18px] md:shadow-[0_10px_30px_rgba(0,0,0,0.08)] md:py-2 md:min-w-[250px] md:max-w-[320px] md:max-h-[340px] md:z-50"
+                                                                            >
+                                                                                <div className="md:hidden flex justify-center pb-2">
+                                                                                    <div className="w-10 h-1 rounded-full bg-stone-300" />
+                                                                                </div>
+
+                                                                                {sectionMenu.mode === 'actions' ? (
+                                                                                    <>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => {
+                                                                                                setSectionMenu(null);
+                                                                                                setEditingGroupId(block.groupId);
+                                                                                                setRenameGroupName(block.groupName || '');
+                                                                                            }}
+                                                                                            className={`${btn.menuItem()} gap-2.5 text-[13px] cursor-pointer`}
+                                                                                        >
+                                                                                            <Pencil size={14} className="shrink-0" />
+                                                                                            {t('creative.section_edit_name')}
+                                                                                        </button>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => setSectionMenu({ groupId: block.groupId!, mode: 'send' })}
+                                                                                            className={`${btn.menuItem()} gap-2.5 text-[13px] cursor-pointer`}
+                                                                                        >
+                                                                                            <Send size={14} className="shrink-0" />
+                                                                                            {t('creative.section_send')}
+                                                                                            <ChevronRight size={14} className="ml-auto shrink-0 text-stone-400" />
+                                                                                        </button>
+                                                                                        <div className="my-1.5 h-px bg-stone-100" />
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => {
+                                                                                                setSectionMenu(null);
+                                                                                                handleDeleteVerseGroup(block.groupId!);
+                                                                                            }}
+                                                                                            className={`${btn.menuItem('danger')} gap-2.5 text-[13px] cursor-pointer`}
+                                                                                        >
+                                                                                            <Trash2 size={14} className="shrink-0" />
+                                                                                            {t('creative.section_delete')}
+                                                                                        </button>
+                                                                                    </>
+                                                                                ) : (() => {
+                                                                                    const candidates = notes
+                                                                                        .filter(n => n.id !== selectedNoteId && !n.isLocked)
+                                                                                        .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+                                                                                    const q = sectionSendQuery.trim().toLowerCase();
+                                                                                    const shown = q
+                                                                                        ? candidates.filter(n => (n.title || '').toLowerCase().includes(q))
+                                                                                        : candidates;
+                                                                                    return (
+                                                                                        <>
+                                                                                            <div className="flex items-center gap-1.5 px-2 pb-1.5">
+                                                                                                <button
+                                                                                                    type="button"
+                                                                                                    onClick={() => setSectionMenu({ groupId: block.groupId!, mode: 'actions' })}
+                                                                                                    aria-label={t('common.back')}
+                                                                                                    className={`${btn.iconGhost('xs')} cursor-pointer`}
+                                                                                                >
+                                                                                                    <ChevronLeft size={15} />
+                                                                                                </button>
+                                                                                                <span className="text-[12.5px] font-semibold text-stone-600">{t('creative.section_send_title')}</span>
+                                                                                            </div>
+                                                                                            {candidates.length > 6 && (
+                                                                                                <div className="px-2.5 pb-2">
+                                                                                                    <div className="flex items-center gap-2 h-9 px-3 rounded-[12px] bg-stone-100/80 border border-stone-200/60">
+                                                                                                        <Search size={14} className="text-stone-400 shrink-0" />
+                                                                                                        <input
+                                                                                                            autoFocus
+                                                                                                            type="text"
+                                                                                                            value={sectionSendQuery}
+                                                                                                            onChange={(e) => setSectionSendQuery(e.target.value)}
+                                                                                                            placeholder={t('creative.section_send_search')}
+                                                                                                            className="flex-1 min-w-0 bg-transparent border-none outline-none text-[13px] text-stone-800 placeholder:text-stone-400 focus:ring-0"
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            )}
+                                                                                            {shown.length === 0 ? (
+                                                                                                <p className="px-4 py-3 text-[12.5px] text-stone-400">{t('creative.section_send_empty')}</p>
+                                                                                            ) : shown.map(n => (
+                                                                                                <button
+                                                                                                    key={n.id}
+                                                                                                    type="button"
+                                                                                                    onClick={() => handleSendSectionToProject(block.groupId!, n.id)}
+                                                                                                    className={`${btn.menuItem()} gap-2.5 text-[13px] cursor-pointer`}
+                                                                                                >
+                                                                                                    <span className="truncate">{n.title || t('workspace.untitled_note')}</span>
+                                                                                                    {isCollabProject(n) && (
+                                                                                                        <Users size={12} strokeWidth={2.5} className="ml-auto shrink-0 text-[#4e7a49]" />
+                                                                                                    )}
+                                                                                                </button>
+                                                                                            ))}
+                                                                                        </>
+                                                                                    );
+                                                                                })()}
+                                                                            </div>
+                                                                        </>
                                                                     )}
 
                                                                     {(audioByGroupIdMap[block.groupId || ''] || []).map(audioNote => (
@@ -23965,6 +24107,7 @@ export default function CreatePage() {
                                 <div className="flex flex-col gap-2.5">
                                     <h4 className="text-[13px] font-semibold text-stone-500">{t('collab.songwriters_here')}</h4>
                                     <ScrollStrip
+                                        surface="#FAF8F4"
                                         ariaLeft={t('collab.songwriters_scroll_left')}
                                         ariaRight={t('collab.songwriters_scroll_right')}
                                         className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1"

@@ -231,7 +231,7 @@ export default function MaestroSidebar({ isMobileOpen = false, onClose, onSuppor
 
                                 if (item.locked) {
                                     return (
-                                        <Tooltip key={item.label} label={`${item.label} — ${t('common.coming_soon')}`} side="right">
+                                        <Tooltip key={item.label} label={`${item.label}: ${t('common.coming_soon')}`} side="right">
                                             <div
                                                 aria-disabled="true"
                                                 data-tour={tourAnchor(item.href)}

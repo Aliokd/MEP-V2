@@ -28,7 +28,7 @@ export const ROLE_DESCRIPTIONS: Record<AdminRole, string> = {
     superadmin: "Full access, including granting roles and destructive user actions.",
     moderator: "Community feed, reports and user sanctions, plus the feedback inbox and replies.",
     editor:
-        "All content: Learn, Bank of Ideas, Practice, announcements, and every website page — Legal, Blog, Q&A and site copy.",
+        "All content: Learn, Bank of Ideas, Practice, announcements, and every website page: Legal, Blog, Q&A and site copy.",
     support: "Feedback inbox and support tickets including replies, plus read-only user lookup.",
 };
 

@@ -88,7 +88,7 @@ function TeamPageInner() {
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="Admin team"
-                description="Who can get into this console and what they can do. Role changes take effect on the person's next request — their existing session is revoked immediately."
+                description="Who can get into this console and what they can do. Role changes take effect on the person's next request. Their existing session is revoked immediately."
                 action={
                     <Button onClick={load} size="sm">
                         <RefreshCw className="w-3.5 h-3.5" /> Refresh

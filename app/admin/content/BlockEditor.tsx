@@ -92,7 +92,7 @@ export default function BlockEditor({
      */
     const capturePoster = async (blockId: string, probe: VideoProbe, file: File) => {
         if (!probe.poster) {
-            setPosterNote((n) => ({ ...n, [blockId]: "Couldn't capture a frame — this clip shows black until played." }));
+            setPosterNote((n) => ({ ...n, [blockId]: "Couldn't capture a frame. This clip shows black until played." }));
             return;
         }
         setPosterNote((n) => ({ ...n, [blockId]: "Capturing poster…" }));
@@ -220,7 +220,7 @@ export default function BlockEditor({
                                     value={block.url}
                                     onChange={(url) => update(block.id, { url } as any)}
                                     nameHint={nameHint}
-                                    hint="A short snippet — a riff, a chord change, a vocal take."
+                                    hint="A short snippet: a riff, a chord change, a vocal take."
                                 />
                                 <Input
                                     value={localizedValue(block, "title")}
@@ -303,7 +303,7 @@ function EmbedStatus({ url }: { url: string }) {
         return (
             <span className="text-[11px] text-gold-300 flex items-center gap-1.5">
                 <ExternalLink className="w-3 h-3" />
-                Not a recognised provider — this shows as a plain link.
+                Not a recognised provider, so this shows as a plain link.
             </span>
         );
     }

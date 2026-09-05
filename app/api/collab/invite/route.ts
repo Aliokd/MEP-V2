@@ -6,7 +6,7 @@ import { rateLimitGuard } from "@/lib/rateLimit";
 import { sendMail } from "@/lib/email/send";
 import { collabInviteEmail } from "@/lib/email/templates/collabInvite";
 import { resolveLocale } from "@/lib/email/locale";
-import { SIGNUPS_OPEN, inviteLandingPath, COLLAB_EMAIL_INVITES_ENABLED } from "@/lib/uiFlags";
+import { inviteLandingPath, COLLAB_EMAIL_INVITES_ENABLED } from "@/lib/uiFlags";
 import { localizePath } from "@/lib/i18n";
 import { TRIAL_DAYS } from "@/lib/paddle/config";
 import { MAX_COLLABORATORS, MAX_PROJECT_MEMBERS } from "@/lib/collabLimits";
@@ -182,7 +182,9 @@ async function mailInvitation(
                 project: projectTitle,
                 joinUrl: `${appUrl}${localizePath(path, emailLocale)}?${search}`,
                 trialDays: TRIAL_DAYS,
-                waitlistMode: !SIGNUPS_OPEN,
+                // Invitees onboard regardless of SIGNUPS_OPEN — see inviteLandingPath —
+                // so the email promises what the link actually delivers.
+                waitlistMode: false,
             },
             await getCopyOverrides(),
         );

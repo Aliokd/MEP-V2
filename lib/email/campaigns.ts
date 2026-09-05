@@ -164,7 +164,7 @@ export function renderCampaignEmail(
 
     const text = `${paragraphs.join("\n\n")}${
         campaign.ctaLabel && campaign.ctaUrl ? `\n\n${campaign.ctaLabel}: ${campaign.ctaUrl}` : ""
-    }\n\n—\nYou're receiving this because you have a Veinote account.\nUnsubscribe: ${optOut}`;
+    }\n\n--\nYou're receiving this because you have a Veinote account.\nUnsubscribe: ${optOut}`;
 
     return {
         subject,

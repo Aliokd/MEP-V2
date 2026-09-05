@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Check, Pause, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Pause, Info, Share2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { shareStreak } from '@/lib/streakShare';
 import { BRAIN_SM_SRC, BRAIN_GOLD_SM_SRC, fillClipTop } from './brainGeometry';
 import MindPowerHelp from './MindPowerHelp';
 import WeekRecap from './WeekRecap';
@@ -41,6 +43,19 @@ export default function StreakGrid({ weeks, streak, thisWeek, language, t }: Str
     const trackRef = useRef<HTMLDivElement>(null);
     const [helpOpen, setHelpOpen] = useState(false);
     const [recapWeek, setRecapWeek] = useState<WeekCell | null>(null);
+
+    // Share the streak from here too, the same card the celebration shares.
+    const { user } = useAuth();
+    const [copied, setCopied] = useState(false);
+    const copiedTimer = useRef<number | null>(null);
+    const share = async () => {
+        const firstName = (user?.displayName || '').trim().split(' ')[0];
+        const outcome = await shareStreak(t('progress.golden_share_text'), firstName);
+        if (outcome !== 'copied') return;
+        setCopied(true);
+        if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current);
+        copiedTimer.current = window.setTimeout(() => setCopied(false), 2200);
+    };
 
     // The middle of the strip is the focus: whichever week sits there is the
     // selected one, and the panel below describes it. Scrolling, swiping or
@@ -239,6 +254,22 @@ export default function StreakGrid({ weeks, streak, thisWeek, language, t }: Str
                         >
                             <Info size={16} strokeWidth={1.75} aria-hidden />
                         </button>
+                        <button
+                            type="button"
+                            onClick={share}
+                            aria-label={copied ? t('progress.golden_link_copied') : t('progress.golden_share')}
+                            title={t('progress.golden_share')}
+                            data-share-streak
+                            className="-ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full text-stone-500 transition-colors hover:bg-white/[0.08] hover:text-[#F5F4EE] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86BE7F] cursor-pointer"
+                        >
+                            {copied ? <Check size={16} strokeWidth={2.2} aria-hidden /> : <Share2 size={15} strokeWidth={1.75} aria-hidden />}
+                        </button>
+                        <span
+                            className={`text-[12px] text-stone-500 transition-opacity duration-300 ${copied ? 'opacity-100' : 'opacity-0'}`}
+                            aria-live="polite"
+                        >
+                            {copied ? t('progress.golden_link_copied') : ''}
+                        </span>
                     </div>
                     {selectedScore && (
                         <ul className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-[13px] text-stone-500 tabular-nums">

@@ -18,7 +18,7 @@ interface Row {
 type Tab = "pending" | "approved" | "declined";
 
 function when(ms: number): string {
-    return ms ? new Date(ms).toLocaleString() : "—";
+    return ms ? new Date(ms).toLocaleString() : "–";
 }
 
 /**

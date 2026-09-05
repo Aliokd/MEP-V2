@@ -134,7 +134,7 @@ export default function CopyEditor({
                         )}
                         <span className="text-[11px] text-ink-500">
                             Blank in a language falls back to your English text, then to the built-in text.
-                            Nothing here changes the layout — only the words.
+                            Nothing here changes the layout, only the words.
                         </span>
                     </label>
 

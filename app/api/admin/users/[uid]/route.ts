@@ -193,7 +193,7 @@ export const DELETE = withAdmin("users.delete", async (request, admin, ctx: Ctx)
         batch.update(doc.ref, {
             authorId: null,
             author: "Deleted account",
-            avatarFallback: "—",
+            avatarFallback: "–",
             anonymizedAt: FieldValue.serverTimestamp(),
         });
     });

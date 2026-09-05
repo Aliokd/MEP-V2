@@ -54,8 +54,8 @@ export default async function UnsubscribePage({
                         </h1>
                         <p className="text-sm text-stone-600 leading-relaxed">
                             We won&apos;t send you any more update emails. You&apos;ll still get
-                            messages about things you started — a reply to something you wrote to us,
-                            for instance — because those aren&apos;t marketing.
+                            messages about things you started (a reply to something you wrote to us,
+                            for instance), because those aren&apos;t marketing.
                         </p>
                         <p className="text-sm text-stone-600 leading-relaxed">
                             Changed your mind? Write to{" "}

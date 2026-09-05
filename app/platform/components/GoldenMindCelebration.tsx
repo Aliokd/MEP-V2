@@ -12,14 +12,11 @@ import {
     STREAK_INTRO_KEY,
     goldenMindDue,
     markGoldenMindShown,
-    activeWeekLevel,
-    readActiveWeekCount,
-    readWeeklyActivity,
     computeStreak,
     dayStreak,
     streakWeeks,
-    weekKey,
 } from '@/lib/weeklyActivity';
+import { shareStreak } from '@/lib/streakShare';
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import GoldenMindStage from '@/app/platform/mind-power/components/GoldenMindStage';
 import * as btn from './buttonStyles';
@@ -115,35 +112,14 @@ export default function GoldenMindCelebration() {
         router.push('/platform/mind-power');
     };
 
-    // Share: a public card at /streak carrying the numbers in its query string,
-    // through the device's share sheet where there is one, otherwise copied.
+    // Share: the public card at /streak, through the device's share sheet where
+    // there is one, otherwise copied — the same link the streaks strip shares.
     const share = async () => {
-        const params = new URLSearchParams();
-        if (firstName) params.set('name', firstName);
-        params.set('level', String(activeWeekLevel()));
-        params.set('weeks', String(readActiveWeekCount()));
-        params.set('min', String(Math.round((readWeeklyActivity()[weekKey(new Date())] || 0) / 60)));
-        if (streak > 0) params.set('streak', String(streak));
-        const url = `${window.location.origin}/streak?${params.toString()}`;
-        const text = t('progress.golden_share_text');
-
-        if (typeof navigator.share === 'function') {
-            try {
-                await navigator.share({ title: text, text, url });
-                return;
-            } catch (err) {
-                // Closing the sheet is not a failure; anything else falls through to the clipboard.
-                if ((err as DOMException)?.name === 'AbortError') return;
-            }
-        }
-        try {
-            await navigator.clipboard.writeText(url);
-            setCopied(true);
-            if (copiedTimer.current) window.clearTimeout(copiedTimer.current);
-            copiedTimer.current = window.setTimeout(() => setCopied(false), 2200);
-        } catch {
-            // No clipboard either: nothing sensible left to do silently.
-        }
+        const outcome = await shareStreak(t('progress.golden_share_text'), firstName);
+        if (outcome !== 'copied') return;
+        setCopied(true);
+        if (copiedTimer.current) window.clearTimeout(copiedTimer.current);
+        copiedTimer.current = window.setTimeout(() => setCopied(false), 2200);
     };
 
     return createPortal(

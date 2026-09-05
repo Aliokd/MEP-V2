@@ -97,7 +97,7 @@ export const DELETE = withAdmin("roles.write", async (request, admin) => {
     if (snap.data()?.role === "superadmin") {
         const superadmins = await adminDb.collection("admins").where("role", "==", "superadmin").count().get();
         if (superadmins.data().count <= 1) {
-            return NextResponse.json({ error: "This is the last superadmin — grant another first" }, { status: 400 });
+            return NextResponse.json({ error: "This is the last superadmin. Grant another first" }, { status: 400 });
         }
     }
 

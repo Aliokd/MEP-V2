@@ -253,7 +253,7 @@ export default function TemplatesTab() {
 
                                         <div className="flex flex-col gap-2">
                                             <span className="text-[11px] text-ink-500">
-                                                Preview — {template.preview.subject}
+                                                Preview: {template.preview.subject}
                                             </span>
                                             <div className="rounded-xl overflow-hidden bg-white">
                                                 {/* Built by the same code that sends the real email. */}

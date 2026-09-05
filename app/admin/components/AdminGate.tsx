@@ -45,7 +45,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
         return (
             <Denied
                 title="No admin access"
-                body={`${user.email} doesn't have an admin role. If a role was granted just now, sign out and back in — the role travels in your ID token, which refreshes on sign-in.`}
+                body={`${user.email} doesn't have an admin role. If a role was granted just now, sign out and back in. The role travels in your ID token, which refreshes on sign-in.`}
                 action={
                     <Link
                         href="/platform"

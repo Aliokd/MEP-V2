@@ -102,11 +102,11 @@ export default function PageEditor({
     const save = async (status?: string) => {
         const cleanSlug = slugify(slug);
         if (!cleanSlug) {
-            setError("A slug is required — it's the page's URL.");
+            setError("A slug is required. It's the page's URL.");
             return;
         }
         if (!title.en?.trim()) {
-            setError("An English title is required — it's the fallback for the other languages.");
+            setError("An English title is required. It's the fallback for the other languages.");
             return;
         }
 
@@ -220,7 +220,7 @@ export default function PageEditor({
 
                     <label className="flex flex-col gap-1.5">
                         <span className="text-xs text-ink-400">
-                            Description — shown under the title and used as the search-engine summary
+                            Description, shown under the title and used as the search-engine summary
                         </span>
                         <Textarea
                             rows={2}
@@ -236,8 +236,8 @@ export default function PageEditor({
                     {slugify(slug) === "cookies" && (
                         <Panel className="p-3.5 border-ink-600">
                             <p className="text-[11px] text-ink-400 leading-relaxed">
-                                The cookie switches are built into this page and always appear above your text —
-                                they can&apos;t be edited or removed here. Write what someone needs to know
+                                The cookie switches are built into this page and always appear above your text.
+                                They can&apos;t be edited or removed here. Write what someone needs to know
                                 <em> around</em> them, and leave the categories themselves to the panel.
                             </p>
                         </Panel>
@@ -245,7 +245,7 @@ export default function PageEditor({
 
                     <div className="flex flex-col gap-1.5">
                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-ink-400">Content — Markdown</span>
+                            <span className="text-xs text-ink-400">Content (Markdown)</span>
 
                             {/* Hidden while previewing: there is no field to act on. */}
                             {!preview && (
@@ -292,7 +292,7 @@ export default function PageEditor({
 
                         <label className="flex flex-col gap-1.5">
                             <span className="text-xs text-ink-400">
-                                URL slug {!isNew && <span className="text-ink-600">— fixed after creation</span>}
+                                URL slug {!isNew && <span className="text-ink-600">(fixed after creation)</span>}
                             </span>
                             <Input
                                 value={slug}
@@ -348,7 +348,7 @@ export default function PageEditor({
                                     value={coverUrl}
                                     onChange={setCoverUrl}
                                     nameHint={slugify(slug) || "post"}
-                                    hint="Shown beside the post on /blog. Optional — without one the row is text only."
+                                    hint="Shown beside the post on /blog. Optional. Without one the row is text only."
                                 />
                             </Panel>
                         )}
@@ -356,8 +356,8 @@ export default function PageEditor({
                         <label className="flex flex-col gap-1.5">
                             <span className="text-xs text-ink-400">Section</span>
                             <Select value={kind} onChange={(e) => setKind(e.target.value as SitePageKind)}>
-                                <option value="legal">Legal — policies and terms</option>
-                                <option value="blog">Blog — posts listed at /blog</option>
+                                <option value="legal">Legal: policies and terms</option>
+                                <option value="blog">Blog: posts listed at /blog</option>
                             </Select>
                             <span className="text-[11px] text-ink-500">
                                 Which tab of this console the page is listed under. It has no effect
@@ -369,7 +369,7 @@ export default function PageEditor({
                             <label className="flex flex-col gap-1.5">
                                 <span className="text-xs text-ink-400">Parent page</span>
                                 <Select value={parentId} onChange={(e) => setParentId(e.target.value)}>
-                                    <option value="">None — top level</option>
+                                    <option value="">None (top level)</option>
                                     {parentOptions.map((p) => (
                                         <option key={p.id} value={p.slug}>
                                             {pickLocale(p.title, "en") || p.slug}

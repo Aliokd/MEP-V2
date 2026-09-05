@@ -53,7 +53,7 @@ export default function AuditPage() {
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="Audit log"
-                description="Every action taken in this console. Append-only — nobody, including a superadmin, can edit or delete an entry."
+                description="Every action taken in this console. Append-only: nobody, including a superadmin, can edit or delete an entry."
                 action={
                     <Button onClick={load} disabled={refreshing} size="sm">
                         {refreshing ? <Spinner className="w-3.5 h-3.5" /> : <RefreshCw className="w-3.5 h-3.5" />}

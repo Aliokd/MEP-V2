@@ -99,6 +99,6 @@ export const GET = withAdmin("billing.read", async () => {
         trialsLapsed,
         missingPaddleId,
         attention: attention.slice(0, 100),
-        note: "Derived from the billing object on each user document — not reconciled against Paddle.",
+        note: "Derived from the billing object on each user document, not reconciled against Paddle.",
     });
 });

@@ -32,7 +32,7 @@ const CODE_ROUTES: { path: string; label: string; why: string }[] = [
     {
         path: "/",
         label: "Homepage",
-        why: "Bespoke layout — hero, sections and animations. Its wording is editable under Site copy; the Q&A under the Q&A tab.",
+        why: "Bespoke layout: hero, sections and animations. Its wording is editable under Site copy; the Q&A under the Q&A tab.",
     },
     {
         path: "/about",
@@ -167,7 +167,7 @@ export default function ManagePagesPage() {
             setImportNote(
                 data.imported.length > 0
                     ? `Imported ${data.imported.join(", ")}.`
-                    : `Nothing to import — ${data.skipped.join("; ") || "already in the CMS"}.`,
+                    : `Nothing to import: ${data.skipped.join("; ") || "already in the CMS"}.`,
             );
             await load();
         } catch (err: any) {
@@ -284,7 +284,7 @@ export default function ManagePagesPage() {
                                   missingLegal.length > 1 ? "are" : "is"
                               } still the version built in code. Import to edit ${
                                   missingLegal.length > 1 ? "them" : "it"
-                              } here — the live page${missingLegal.length > 1 ? "s keep" : " keeps"} working either way.`
+                              } here. The live page${missingLegal.length > 1 ? "s keep" : " keeps"} working either way.`
                             : "The homepage Q&A is still the version built in code. Import the four questions to edit them here."}
                     </p>
                     <Button variant="primary" size="sm" onClick={importFromCode} disabled={importing}>
@@ -469,7 +469,7 @@ export default function ManagePagesPage() {
                                 <Lock className="w-3.5 h-3.5 text-ink-600 shrink-0" />
                                 <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                                     <span className="text-sm text-ink-300">{route.label}</span>
-                                    <span className="text-[11px] text-ink-500">{route.path} — {route.why}</span>
+                                    <span className="text-[11px] text-ink-500">{route.path}: {route.why}</span>
                                 </div>
                                 <a href={route.path} target="_blank" rel="noreferrer noopener" className="text-ink-500 hover:text-ink-100 shrink-0">
                                     <ExternalLink className="w-3.5 h-3.5" />

@@ -40,7 +40,7 @@ export const POST = withAdmin("content.write", async (request, admin) => {
     }
     if (ideas.length > MAX_ROWS) {
         return NextResponse.json(
-            { error: `That's ${ideas.length} cards — the limit is ${MAX_ROWS} per upload` },
+            { error: `That's ${ideas.length} cards. The limit is ${MAX_ROWS} per upload` },
             { status: 400 },
         );
     }

@@ -37,11 +37,11 @@ export default function CommunityPage() {
     const NOTIFY_MESSAGE: Record<string, string> = {
         sent: "Removed, and the author was emailed the reason.",
         "no-author-id":
-            "Removed — but the author was NOT emailed. This post was shared before Veinote recorded who posted it, so there is no account to write to. If you know who it was, tell them yourself.",
-        "no-account": "Removed — but the author was NOT emailed: their account no longer exists.",
-        "no-email": "Removed — but the author was NOT emailed: there is no address on their account.",
+            "Removed, but the author was NOT emailed. This post was shared before Veinote recorded who posted it, so there is no account to write to. If you know who it was, tell them yourself.",
+        "no-account": "Removed, but the author was NOT emailed: their account no longer exists.",
+        "no-email": "Removed, but the author was NOT emailed: there is no address on their account.",
         "send-failed":
-            "Removed — but the email FAILED to send. Ops & flags has a mail check that says why. Contact the author another way in the meantime.",
+            "Removed, but the email FAILED to send. Ops & flags has a mail check that says why. Contact the author another way in the meantime.",
         skipped: "Removed. No email was requested.",
     };
 

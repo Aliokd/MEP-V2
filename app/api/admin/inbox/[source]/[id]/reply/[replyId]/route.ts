@@ -54,7 +54,7 @@ export const POST = withAdmin("inbox.reply", async (request, admin, ctx: Ctx) =>
             subject,
             // Re-sent as originally written, attributed to whoever wrote it —
             // not to whoever pressed retry.
-            text: `${reply.body}\n\n—\n${reply.authorName || "Veinote Support"}\nVeinote Support\nsupport@veinote.com`,
+            text: `${reply.body}\n\n--\n${reply.authorName || "Veinote Support"}\nVeinote Support\nsupport@veinote.com`,
         });
     } catch (err: any) {
         const emailError = err?.message || "Unknown mail error";

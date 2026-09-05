@@ -75,7 +75,7 @@ export async function GET(request: Request) {
         ok: Boolean(apiKey),
         detail: apiKey
             ? `present (${apiKey.length} chars, fingerprint ${createHash('sha256').update(apiKey).digest('hex').slice(0, 12)})`
-            : 'MISSING — set GEMINI_API_KEY in the deployed environment',
+            : 'MISSING. Set GEMINI_API_KEY in the deployed environment',
     });
 
     // Outbound email arrives by the same route as the key above and failed the
@@ -100,8 +100,8 @@ export async function GET(request: Request) {
         detail: smtpPass
             ? `present (${smtpPass.length} chars, fingerprint ${createHash('sha256').update(smtpPass).digest('hex').slice(0, 12)})`
             : COLLAB_EMAIL_INVITES_ENABLED
-                ? 'MISSING — no email can be sent. Set SMTP_PASS in the repository secrets.'
-                : 'MISSING — no email can be sent (welcome, support replies, moderation notices). Not failing the check because email invitations are disabled in code to match. Set SMTP_PASS in the repository secrets.',
+                ? 'MISSING. No email can be sent. Set SMTP_PASS in the repository secrets.'
+                : 'MISSING. No email can be sent (welcome, support replies, moderation notices). Not failing the check because email invitations are disabled in code to match. Set SMTP_PASS in the repository secrets.',
     });
 
     // Can this environment reach Google at all, and are our pinned models real?

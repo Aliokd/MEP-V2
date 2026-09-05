@@ -37,7 +37,7 @@ export default function FaqEditor({
 
     const save = async (status?: string) => {
         if (!question.en?.trim()) {
-            setError("An English question is required — it's the fallback for the other languages.");
+            setError("An English question is required. It's the fallback for the other languages.");
             return;
         }
 
@@ -134,7 +134,7 @@ export default function FaqEditor({
                             onChange={(e) => setAnswer({ ...answer, [locale]: e.target.value })}
                         />
                         <span className="text-[11px] text-ink-500">
-                            Plain text — the accordion renders it as a paragraph, not Markdown.
+                            Plain text. The accordion renders it as a paragraph, not Markdown.
                         </span>
                     </label>
 

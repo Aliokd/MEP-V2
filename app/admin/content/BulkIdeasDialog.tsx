@@ -87,7 +87,7 @@ export default function BulkIdeasDialog({
                     <div className="flex flex-col gap-1 min-w-0 flex-1">
                         <h2 className="text-base text-ink-100 font-medium">Bulk upload cards</h2>
                         <p className="text-xs text-ink-500">
-                            CSV or JSON. Cards are matched by id — an existing id is updated, a new one is created.
+                            CSV or JSON. Cards are matched by id: an existing id is updated, a new one is created.
                         </p>
                     </div>
                     <button onClick={onClose} className="text-ink-500 hover:text-ink-100 shrink-0">
@@ -118,7 +118,7 @@ export default function BulkIdeasDialog({
                                         </span>
                                         {result.rejected.slice(0, 10).map((r, i) => (
                                             <span key={i} className="text-[11px] text-ink-400">
-                                                {r.id} — {r.reason}
+                                                {r.id}: {r.reason}
                                             </span>
                                         ))}
                                     </div>
@@ -138,7 +138,7 @@ export default function BulkIdeasDialog({
                                     <Download className="w-3.5 h-3.5" /> Download CSV template
                                 </Button>
                                 <span className="text-[11px] text-ink-500">
-                                    Columns are field_locale — title_en, title_no, description_sv, and so on.
+                                    Columns are field_locale: title_en, title_no, description_sv, and so on.
                                 </span>
                             </div>
 
@@ -190,7 +190,7 @@ export default function BulkIdeasDialog({
                                             </span>
                                             {invalid.map((row) => (
                                                 <span key={row.line} className="text-[11px] text-ink-400">
-                                                    Line {row.line} — {row.errors.join("; ")}
+                                                    Line {row.line}: {row.errors.join("; ")}
                                                 </span>
                                             ))}
                                         </Panel>

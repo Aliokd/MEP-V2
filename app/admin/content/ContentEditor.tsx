@@ -94,7 +94,7 @@ export default function ContentEditor({
         if (probe.durationSeconds > 0) setField("durationSeconds", probe.durationSeconds);
 
         if (!probe.poster) {
-            setPosterStatus("Couldn't capture a frame from this video — add a poster by hand.");
+            setPosterStatus("Couldn't capture a frame from this video. Add a poster by hand.");
             return;
         }
         if (draft.posterUrl) {
@@ -109,7 +109,7 @@ export default function ContentEditor({
             setField("posterUrl", await done);
             setPosterStatus("Poster captured from the video's first frame.");
         } catch (err: any) {
-            setPosterStatus(`Poster upload failed (${err.message}) — add one by hand.`);
+            setPosterStatus(`Poster upload failed (${err.message}). Add one by hand.`);
         }
     };
 
@@ -318,7 +318,7 @@ export default function ContentEditor({
                                 value={draft.audioUrl || ""}
                                 onChange={(url) => setField("audioUrl", url)}
                                 nameHint={mediaNameHint}
-                                hint="A short single-note phrase — no chords, no backing. A few seconds is enough."
+                                hint="A short single-note phrase: no chords, no backing. A few seconds is enough."
                             />
 
                             {/* Offered is separate from published, the same as songs:
@@ -341,7 +341,7 @@ export default function ContentEditor({
                                 <span className="flex flex-col">
                                     <span className="text-xs text-ink-300">Offer this melody</span>
                                     <span className="text-[11px] text-ink-500">
-                                        Off keeps it out of Practice 3 entirely — a card with no audio is a dead end.
+                                        Off keeps it out of Practice 3 entirely: a card with no audio is a dead end.
                                     </span>
                                 </span>
                             </label>
@@ -432,7 +432,7 @@ export default function ContentEditor({
 
                             <p className="text-[11px] text-ink-500">
                                 Word-by-word timings from the original import are kept but not editable
-                                here — Practice works in sections, which are mapped above.
+                                here. Practice works in sections, which are mapped above.
                             </p>
                         </>
                     )}
@@ -445,7 +445,7 @@ export default function ContentEditor({
 
                     {isNew && (
                         <Field
-                            label="Id (optional — generated if blank)"
+                            label="Id (optional, generated if blank)"
                             value={draft.id || ""}
                             onChange={(v) => setField("id", v)}
                         />

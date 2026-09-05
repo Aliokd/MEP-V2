@@ -1739,7 +1739,7 @@ export default function ConnectTab() {
           <button
             type="button"
             onClick={() => openSongwriterProfile(sw.uid)}
-            aria-label={`${t('connect.view_profile')} — ${sw.name}`}
+            aria-label={`${t('connect.view_profile')}: ${sw.name}`}
             className="absolute inset-0 rounded-[22px] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-400"
           />
 
@@ -1780,7 +1780,7 @@ export default function ConnectTab() {
           <button
             onClick={(e) => { e.stopPropagation(); handleConnectSongwriter(sw.uid); }}
             aria-pressed={relationship === 'connected'}
-            aria-label={`${action.label} — ${sw.name}`}
+            aria-label={`${action.label}: ${sw.name}`}
             title={action.label}
             className={
               action.asText

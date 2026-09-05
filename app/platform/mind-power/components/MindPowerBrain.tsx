@@ -299,6 +299,7 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
                             width={FRAME_W}
                             height={FRAME_H}
                             draggable={false}
+                            fetchPriority="high"
                             onLoad={measure}
                             className="relative block w-full h-auto select-none"
                             style={{

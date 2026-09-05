@@ -95,7 +95,7 @@ async function syncSubscription(sub: SubscriptionLike, occurredAt: string): Prom
     const entitled = isEntitled(sub.status);
 
     if (priceId && !matched) {
-        console.warn(`Paddle webhook: price ${priceId} does not map to a known plan — check NEXT_PUBLIC_PADDLE_PRICE_* vars`);
+        console.warn(`Paddle webhook: price ${priceId} does not map to a known plan. Check NEXT_PUBLIC_PADDLE_PRICE_* vars`);
     }
 
     await userRef.set(

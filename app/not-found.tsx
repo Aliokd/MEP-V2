@@ -6,7 +6,7 @@ import NotFoundScreen from './not-found-screen';
  * OG card either — a broken link shared in a chat should preview as nothing.
  */
 export const metadata: Metadata = {
-    title: 'Page not found — Veinote',
+    title: 'Page not found | Veinote',
     robots: { index: false, follow: true },
     openGraph: undefined,
     twitter: undefined,

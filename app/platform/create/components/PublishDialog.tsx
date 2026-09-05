@@ -466,7 +466,7 @@ export default function PublishDialog({
      */
     const ownershipBody =
         isSoloSong
-            ? (t('publish.ownership_body_solo') || 'This song is mine alone — all the words and all the music.')
+            ? (t('publish.ownership_body_solo') || 'This song is mine alone: all the words and all the music.')
         : !canEditSplits
             ? (t('publish.ownership_body_readonly') || 'I agree with how this song has been split.')
         : (t('publish.ownership_body') || 'Everyone credited on this song has agreed to how it’s split.');
@@ -572,7 +572,7 @@ export default function PublishDialog({
                             label={t('publish.legal_accept') || 'I agree'}
                         >
                             {t('publish.legal_body')
-                                || 'Everything in this song — the words, the recordings, anything I’ve added — is my own work, or something I have the right to publish.'}
+                                || 'Everything in this song (the words, the recordings, anything I’ve added) is my own work, or something I have the right to publish.'}
                         </ConsentRow>
                     </div>
                     ) : (
@@ -697,7 +697,7 @@ export default function PublishDialog({
                                             <button
                                                 type="button"
                                                 onClick={() => startRenameGuest(m.key, m.name)}
-                                                title={`${m.name} — ${t('publish.rename_credit') || 'Edit name'}`}
+                                                title={`${m.name}: ${t('publish.rename_credit') || 'Edit name'}`}
                                                 className={`${btn.plain('bare')} relative z-30 min-w-0 justify-start truncate pl-4 pr-2 text-[15px] font-medium text-stone-700 decoration-stone-400 underline-offset-4 transition-colors hover:text-stone-900 hover:underline cursor-text`}
                                             >
                                                 {label}
@@ -728,7 +728,7 @@ export default function PublishDialog({
                                             value={percent}
                                             disabled={!canDragRows}
                                             onChange={(e) => setPercent(m.key, Number(e.target.value))}
-                                            aria-label={`${label} — ${partLabel(activePart)}`}
+                                            aria-label={`${label}: ${partLabel(activePart)}`}
                                             className="publish-split-range absolute inset-0 z-20 w-full h-full m-0 cursor-grab active:cursor-grabbing disabled:cursor-default"
                                         />
 

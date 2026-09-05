@@ -398,7 +398,7 @@ export default function WordChordSection({
                 <div className="min-w-0">
                     <div className="font-chords text-[25px] leading-none font-bold text-stone-900 tracking-tight truncate">{symbol}</div>
                     <div className="mt-1.5 text-[15px] font-medium text-stone-400 truncate">
-                        {[quality, notes.join(' · ')].filter(Boolean).join(' — ')}
+                        {[quality, notes.join(' · ')].filter(Boolean).join(' · ')}
                     </div>
                 </div>
 

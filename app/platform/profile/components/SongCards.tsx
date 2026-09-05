@@ -79,8 +79,8 @@ function openSongDocument(song: ProfileSong, ownerName: string, t: (k: string) =
         : `<tr><td colspan="4" class="empty">${esc(t('profile.song_ownership_unagreed'))}</td></tr>`;
 
     const meta = [
-        [t('profile.song_created'), song.createdAt > 0 ? formatDate(song.createdAt) : '—'],
-        [t('profile.song_updated'), song.updatedAt > 0 ? formatDate(song.updatedAt) : '—'],
+        [t('profile.song_created'), song.createdAt > 0 ? formatDate(song.createdAt) : '–'],
+        [t('profile.song_updated'), song.updatedAt > 0 ? formatDate(song.updatedAt) : '–'],
         [t('profile.song_recordings'), String(song.tracks.length)],
         [t('profile.song_collaborators'), String(song.collaborators)],
     ].map(([k, v]) => `<div class="meta-item"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');

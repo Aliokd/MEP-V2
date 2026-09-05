@@ -18,11 +18,11 @@ type SanctionType = (typeof SANCTION_TYPES)[number];
 const SANCTION_COPY: Record<SanctionType, { subject: string; lead: string }> = {
     warn: {
         subject: "A note about your Veinote account",
-        lead: "We're writing about something posted from your Veinote account that doesn't fit our community guidelines. No restrictions have been applied — this is a heads-up.",
+        lead: "We're writing about something posted from your Veinote account that doesn't fit our community guidelines. No restrictions have been applied. This is a heads-up.",
     },
     mute: {
         subject: "Your posting access on Veinote is paused",
-        lead: "Posting and commenting on Connect have been paused on your Veinote account. You can still write, record and keep your songs — this only affects the community feed.",
+        lead: "Posting and commenting on Connect have been paused on your Veinote account. You can still write, record and keep your songs. This only affects the community feed.",
     },
     suspend: {
         subject: "Your Veinote account has been suspended",
@@ -50,7 +50,7 @@ export const POST = withAdmin("users.sanction", async (request, admin, ctx: Ctx)
         return NextResponse.json({ error: `Invalid sanction type "${type}"` }, { status: 400 });
     }
     if (!reason || !String(reason).trim()) {
-        return NextResponse.json({ error: "A reason is required — it is sent to the user" }, { status: 400 });
+        return NextResponse.json({ error: "A reason is required. It is sent to the user" }, { status: 400 });
     }
     if (uid === admin.uid) {
         return NextResponse.json({ error: "You cannot sanction yourself" }, { status: 400 });
@@ -135,7 +135,7 @@ ${String(reason).trim()}
 
 If you think this is wrong, reply to this email and a person will review it. Appeals are read by someone other than the moderator who made the decision.
 
-— Veinote`,
+Veinote`,
             });
             notified = true;
         } catch (err) {

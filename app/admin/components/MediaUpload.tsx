@@ -63,7 +63,7 @@ export default function MediaUpload({
 
         if (file.size > LARGE_FILE_BYTES) {
             setWarning(
-                `${formatBytes(file.size)} — this will be slow to upload and slow for learners to load. Consider compressing with scripts/upload-lesson-video.mjs first.`,
+                `${formatBytes(file.size)}: this will be slow to upload and slow for learners to load. Consider compressing with scripts/upload-lesson-video.mjs first.`,
             );
         }
 
@@ -74,7 +74,7 @@ export default function MediaUpload({
                 const probe = await probeVideo(file);
                 onVideoProbed(probe, file);
             } catch (err: any) {
-                setWarning(err.message + " — uploading anyway, but check it plays.");
+                setWarning(err.message + ". Uploading anyway, but check it plays.");
             }
         }
 

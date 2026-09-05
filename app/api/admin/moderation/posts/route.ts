@@ -90,7 +90,7 @@ export const POST = withAdmin("community.moderate", async (request, admin) => {
         return NextResponse.json({ error: `Invalid action "${action}"` }, { status: 400 });
     }
     if (action === "remove" && (!reason || !String(reason).trim())) {
-        return NextResponse.json({ error: "A reason is required — the author is told why" }, { status: 400 });
+        return NextResponse.json({ error: "A reason is required. The author is told why" }, { status: 400 });
     }
 
     const liveRef = adminDb.collection("connect_posts").doc(postId);
@@ -152,11 +152,11 @@ Reason given by our moderation team:
 ${String(reason).trim()}
 ------------------------------------------
 
-Your song itself is untouched — this only affects what was shared to Connect.
+Your song itself is untouched. This only affects what was shared to Connect.
 
 If you think this is wrong, reply to this email and a person will review it. Appeals are read by someone other than the moderator who made the decision.
 
-— Veinote`,
+Veinote`,
                     });
                     notified = true;
                     notifyStatus = "sent";
@@ -186,7 +186,7 @@ If you think this is wrong, reply to this email and a person will review it. App
             action: "post.remove",
             targetType: "post",
             targetId: postId,
-            targetLabel: `${post.author || "?"} — ${post.projectName || "Untitled"}`,
+            targetLabel: `${post.author || "?"}: ${post.projectName || "Untitled"}`,
             reason: String(reason).trim(),
             after: { notified, notifyStatus, notifyError },
             ...auditContext(request),
@@ -211,7 +211,7 @@ If you think this is wrong, reply to this email and a person will review it. App
         action: "post.restore",
         targetType: "post",
         targetId: postId,
-        targetLabel: `${post.author || "?"} — ${post.projectName || "Untitled"}`,
+        targetLabel: `${post.author || "?"}: ${post.projectName || "Untitled"}`,
         reason: reason || undefined,
         before: { removedByEmail, removalReason },
         ...auditContext(request),

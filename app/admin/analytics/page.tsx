@@ -47,7 +47,7 @@ export default function AnalyticsPage() {
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="Growth"
-                description="Derived from account and project records rather than an event pipeline — good enough to steer by, and honest about what it measures."
+                description="Derived from account and project records rather than an event pipeline: good enough to steer by, and honest about what it measures."
                 action={
                     <div className="flex items-center gap-2">
                         <Select value={days} onChange={(e) => setDays(e.target.value)}>
@@ -82,7 +82,7 @@ export default function AnalyticsPage() {
 
                     <Panel>
                         <PanelHeader
-                            title={`Funnel — accounts created in the last ${data.windowDays} days`}
+                            title={`Funnel: accounts created in the last ${data.windowDays} days`}
                             subtitle="Each step is the same cohort, so the drop-off between rows is real."
                         />
                         <div className="p-5 flex flex-col gap-3">

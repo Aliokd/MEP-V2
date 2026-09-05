@@ -75,7 +75,7 @@ export const POST = withAdmin("inbox.reply", async (request, admin, ctx: Ctx) =>
             to: thread.userEmail,
             replyTo: "support@veinote.com",
             subject,
-            text: `${body}\n\n—\n${admin.name}\nVeinote Support\nsupport@veinote.com`,
+            text: `${body}\n\n--\n${admin.name}\nVeinote Support\nsupport@veinote.com`,
         });
     } catch (err: any) {
         // The reply still stands: stored, attributed, and visible to the user in

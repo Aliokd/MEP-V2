@@ -95,7 +95,7 @@ export async function verifyMailer(): Promise<{ ok: boolean; error?: string }> {
 
 export async function sendMail({ to, subject, html, text, replyTo, fromName }: SendMailOptions): Promise<void> {
     if (!process.env.SMTP_PASS) {
-        throw new Error("SMTP_PASS is not configured — cannot send email.");
+        throw new Error("SMTP_PASS is not configured, so no email can be sent.");
     }
 
     try {
