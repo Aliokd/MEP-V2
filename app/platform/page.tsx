@@ -83,15 +83,6 @@ export default function PlatformPage() {
         }
     }, [user]);
 
-    useEffect(() => {
-        if (data) {
-            const masteredIds = data.user.lessonProgress.filter(p => p.status === 'MASTERED').map(p => p.lessonId);
-            safeLocalStorageSetItem('mep-completed-lessons', JSON.stringify(masteredIds));
-            // How many chapters there are, so Mind Power can show mastery as a share of the course.
-            if (data.lessonsList.length > 0) safeLocalStorageSetItem('mep-total-lessons', String(data.lessonsList.length));
-            window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
-        }
-    }, [data]);
 
     const chapters = useMemo(() => {
         // CMS content wins when there is any, and it is already localized —
@@ -153,6 +144,24 @@ export default function PlatformPage() {
             };
         });
     }, [cms, data, language, t]);
+
+    // What Mind Power shows for Learn: lessons mastered against the lessons in
+    // the curriculum as it stands now. Counted from `chapters`, the same list
+    // the section renders, so CMS and Data Connect agree — the raw Data Connect
+    // lesson list once said 4 when the course had 7. Mastered ids that no
+    // longer exist in the curriculum are dropped rather than counted, which is
+    // what let "8 of 4" happen.
+    useEffect(() => {
+        if (!data) return;
+        const lessonIds = new Set(chapters.flatMap(chapter => chapter.lessons.map(lesson => lesson.id)));
+        const mastered = Array.from(new Set(
+            data.user.lessonProgress.filter(p => p.status === 'MASTERED').map(p => p.lessonId),
+        ));
+        const known = lessonIds.size > 0 ? mastered.filter(id => lessonIds.has(id)) : mastered;
+        safeLocalStorageSetItem('mep-completed-lessons', JSON.stringify(known));
+        if (lessonIds.size > 0) safeLocalStorageSetItem('mep-total-lessons', String(lessonIds.size));
+        window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
+    }, [data, chapters]);
 
     // Only auth gates the section. The landing needs neither the CMS curriculum
     // nor the Data Connect progress, so making it wait on `data` held the whole

@@ -4088,6 +4088,99 @@ const StudioKnob = ({
     );
 };
 
+/**
+ * A row that scrolls sideways, with a way to do so on a desktop.
+ *
+ * The rows this wraps hide their scrollbar (`no-scrollbar`) and scroll by
+ * touch or trackpad — which on a machine with a mouse leaves no way to reach
+ * whatever sits past the edge, and no sign that anything does. Two things fix
+ * that here: an arrow at whichever end has more, which pages the row along;
+ * and the mouse wheel, which the row turns sideways while it has somewhere to
+ * go and hands back to the page the moment it doesn't. The wheel listener is
+ * attached natively because React registers wheel as passive, and a passive
+ * handler cannot stop the page from scrolling too.
+ */
+const ScrollStrip = ({ className, ariaLeft, ariaRight, children }: { className: string; ariaLeft: string; ariaRight: string; children: React.ReactNode }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [canLeft, setCanLeft] = useState(false);
+    const [canRight, setCanRight] = useState(false);
+
+    const checkScroll = () => {
+        const el = scrollRef.current;
+        if (!el) return;
+        setCanLeft(el.scrollLeft > 4);
+        setCanRight(el.scrollWidth - el.scrollLeft - el.clientWidth > 4);
+    };
+
+    // No dependency list on purpose: the strip's contents arrive after a fetch and
+    // grow as people connect, and a re-check after every render is what keeps the
+    // arrows honest without listing every state that can change the row.
+    useEffect(() => {
+        checkScroll();
+        const el = scrollRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver(checkScroll);
+        ro.observe(el);
+        return () => ro.disconnect();
+    });
+
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const onWheel = (e: WheelEvent) => {
+            const overflow = el.scrollWidth - el.clientWidth;
+            if (overflow <= 4) return;                                   // nothing to scroll: leave the page alone
+            if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;        // a real sideways gesture already works
+            const atStart = el.scrollLeft <= 0 && e.deltaY < 0;
+            const atEnd = el.scrollLeft >= overflow - 1 && e.deltaY > 0;
+            if (atStart || atEnd) return;                                // hand the wheel back at either end
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        return () => el.removeEventListener('wheel', onWheel);
+    }, []);
+
+    const page = (dir: -1 | 1) => {
+        const el = scrollRef.current;
+        if (!el) return;
+        // Just under a full width, so the last visible name stays as an anchor.
+        el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' });
+    };
+
+    return (
+        <div className="relative">
+            <div ref={scrollRef} onScroll={checkScroll} className={className}>
+                {children}
+            </div>
+            {canLeft && (
+                <div className="absolute inset-y-0 left-0 w-14 bg-gradient-to-r from-white via-white/85 to-transparent pointer-events-none flex items-center justify-start pb-1">
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); page(-1); }}
+                        aria-label={ariaLeft}
+                        className={`${btn.icon('xs')} pointer-events-auto border border-stone-200/70 shadow-[0_2px_8px_rgba(0,0,0,0.1)] cursor-pointer`}
+                    >
+                        <ChevronLeft size={16} className="text-stone-600" strokeWidth={2.5} />
+                    </button>
+                </div>
+            )}
+            {canRight && (
+                <div className="absolute inset-y-0 right-0 w-14 bg-gradient-to-l from-white via-white/85 to-transparent pointer-events-none flex items-center justify-end pb-1">
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); page(1); }}
+                        aria-label={ariaRight}
+                        className={`${btn.icon('xs')} pointer-events-auto border border-stone-200/70 shadow-[0_2px_8px_rgba(0,0,0,0.1)] cursor-pointer`}
+                    >
+                        <ChevronRight size={16} className="text-stone-600" strokeWidth={2.5} />
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // Wraps a scrollable list and shows a bottom fade + bouncing chevron whenever there's
 // more content below the fold — these lists use `no-scrollbar`, so without this there's
 // no cue at all that the word list continues past what's visible.
@@ -23871,7 +23964,11 @@ export default function CreatePage() {
                             {(songwritersLoading || availableSongwriters.length > 0) && (
                                 <div className="flex flex-col gap-2.5">
                                     <h4 className="text-[13px] font-semibold text-stone-500">{t('collab.songwriters_here')}</h4>
-                                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+                                    <ScrollStrip
+                                        ariaLeft={t('collab.songwriters_scroll_left')}
+                                        ariaRight={t('collab.songwriters_scroll_right')}
+                                        className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1"
+                                    >
                                         {songwritersLoading && availableSongwriters.length === 0
                                             ? [0, 1, 2, 3].map(i => (
                                                 <div key={i} className="flex items-center gap-2 bg-white border border-stone-200/70 rounded-full py-1.5 pl-1.5 pr-4 shrink-0 animate-pulse">
@@ -23906,7 +24003,7 @@ export default function CreatePage() {
                                                     <Plus size={14} className="stroke-[2.5] text-stone-400 shrink-0" />
                                                 </button>
                                             ))}
-                                    </div>
+                                    </ScrollStrip>
                                 </div>
                             )}
 

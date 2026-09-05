@@ -7,6 +7,14 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useConnectionState } from '@/lib/connections';
 import { ROOMS } from '@/lib/rooms';
+import { useTipMarks } from '@/lib/tipMarks';
+import {
+    LYRICS_IDEAS_BY_LANGUAGE,
+    MELODY_IDEAS_BY_LANGUAGE,
+    VIBE_IDEAS_BY_LANGUAGE,
+    CHORDS_IDEAS_BY_LANGUAGE,
+    type IdeaLanguage,
+} from '@/app/platform/data/ideas';
 import type { MindPowerProgress } from '@/lib/mindPowerContext';
 
 /**
@@ -15,10 +23,11 @@ import type { MindPowerProgress } from '@/lib/mindPowerContext';
  *
  * Create, Practice and Connect are counts, set large: words in your songs,
  * minutes recorded, songs finished; minutes practised, songs mapped, melody
- * variations sung; connections and rooms. Learn is the one true percentage —
- * chapters mastered against the chapters there are — because a course has an
- * end and the rest does not. An earlier version showed Practice as a share
- * of a 30-minute goal, which read "100%, Excellent" for good after one
+ * variations sung; connections and rooms. Learn is the one with true
+ * percentages — lectures mastered against the lectures in Master
+ * fundamentals, and tips ticked against the tips in the bank — because both
+ * have an end and the rest does not. An earlier version showed Practice as a
+ * share of a 30-minute goal, which read "100%, Excellent" for good after one
  * afternoon; a number that stops moving is not progress.
  *
  * The numbers come from the layout's Mind Power context, except the ones
@@ -49,29 +58,32 @@ function readInt(key: string): number {
     return parseInt(localStorage.getItem(key) || '0', 10) || 0;
 }
 
-/** A word for a share of the course. */
-function rating(ratio: number, t: (key: string) => string): string {
-    if (ratio >= 1) return t('progress.rating_excellent');
-    if (ratio >= 0.7) return t('progress.rating_great');
-    if (ratio >= 0.4) return t('progress.rating_good');
-    if (ratio > 0) return t('progress.rating_going');
-    return t('progress.rating_start');
+/** The tips shipped with the app for a language — the floor for the bank's size, before the CMS adds any. */
+function builtInTipCount(language: string): number {
+    const lang = (['en', 'no', 'sv'].includes(language) ? language : 'en') as IdeaLanguage;
+    return [LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE, VIBE_IDEAS_BY_LANGUAGE, CHORDS_IDEAS_BY_LANGUAGE].reduce(
+        (sum, byLanguage) => sum + (byLanguage[lang] ?? byLanguage.en).length,
+        0,
+    );
 }
 
 export default function Activities({ progress, language, t }: ActivitiesProps) {
     const { user } = useAuth();
     const { tList } = useLanguage();
     const { connections } = useConnectionState();
+    const { checked: checkedTips } = useTipMarks(user?.uid);
     const [rooms, setRooms] = useState(0);
-    const [local, setLocal] = useState({ totalLessons: 0, songsMapped: 0, melodies: 0 });
+    const [local, setLocal] = useState({ totalLessons: 0, totalTips: 0, songsMapped: 0, melodies: 0 });
     const nf = new Intl.NumberFormat(LOCALE[language] || 'en-GB');
 
-    // The practice lists and the course size live in localStorage, kept by the
-    // Learn and Practice tabs; re-read whenever any tab reports progress.
+    // The practice lists, the course size and the bank size live in
+    // localStorage, kept by the Learn and Practice tabs; re-read whenever any
+    // tab reports progress.
     useEffect(() => {
         const refresh = () =>
             setLocal({
                 totalLessons: readInt('mep-total-lessons'),
+                totalTips: readInt('mep-total-tips'),
                 songsMapped: readList('mep-completed-practices'),
                 melodies: readList('mep-completed-melody-variations'),
             });
@@ -104,10 +116,15 @@ export default function Activities({ progress, language, t }: ActivitiesProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [language]);
 
-    // Learn: mastered against the course, when the course size is known; the
-    // old small goal otherwise, until the Learn tab has been opened once.
-    const totalChapters = local.totalLessons > 0 ? local.totalLessons : progress.lessonsGoal;
-    const learn = Math.min(1, progress.completedLessonsCount / Math.max(1, totalChapters));
+    // Learn, in two parts. Lectures: mastered against Master fundamentals, when
+    // its size is known; the old small goal otherwise, until the Learn tab has
+    // been opened once. Tips: ticked against the bank — at least the tips
+    // built in, more once the bank has been opened and counted the CMS ones.
+    const totalLectures = local.totalLessons > 0 ? local.totalLessons : progress.lessonsGoal;
+    const lectures = Math.min(1, progress.completedLessonsCount / Math.max(1, totalLectures));
+    const totalTips = Math.max(local.totalTips, builtInTipCount(language));
+    const tipsDone = Math.min(checkedTips.size, totalTips);
+    const tips = Math.min(1, tipsDone / Math.max(1, totalTips));
 
     const stat = (value: number, unit: string) => (
         <span className="font-lyrics font-normal text-[30px] sm:text-[36px] leading-none text-stone-200 tabular-nums">
@@ -131,14 +148,24 @@ export default function Activities({ progress, language, t }: ActivitiesProps) {
                     </div>
                 </Row>
 
-                <Bar
-                    label={t('progress.learn')}
-                    ratio={learn}
-                    detail={`${rating(learn, t)} · ${t('progress.act_chapters_of')
-                        .replace('{done}', nf.format(progress.completedLessonsCount))
-                        .replace('{total}', nf.format(totalChapters))}`}
-                    name="learn"
-                />
+                <Row label={t('progress.learn')}>
+                    <div className="flex flex-col gap-4" data-activity="learn">
+                        <Bar
+                            label={t('progress.act_lectures')}
+                            ratio={lectures}
+                            detail={t('progress.act_lectures_of')
+                                .replace('{done}', nf.format(progress.completedLessonsCount))
+                                .replace('{total}', nf.format(totalLectures))}
+                            name="lectures"
+                        />
+                        <Bar
+                            label={t('progress.act_tips')}
+                            ratio={tips}
+                            detail={t('progress.act_tips_of').replace('{done}', nf.format(tipsDone)).replace('{total}', nf.format(totalTips))}
+                            name="tips"
+                        />
+                    </div>
+                </Row>
 
                 <Row label={t('progress.practice')}>
                     <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2" data-activity="practice">
@@ -173,9 +200,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function Bar({ label, ratio, detail, name }: { label: string; ratio: number; detail: string; name: string }) {
     const percent = Math.round(ratio * 100);
     return (
-        <div className="flex flex-col gap-2.5" data-activity={name}>
+        <div className="flex flex-col gap-2" data-activity={name}>
             <div className="flex flex-wrap items-baseline gap-3">
-                <span className="text-[14px] font-medium text-[#A9DE9F]">{label}</span>
+                <span className="text-[14px] text-stone-300">{label}</span>
                 <span className="text-[14px] text-stone-300 tabular-nums">{percent}%</span>
                 <span className="text-[14px] text-stone-500">{detail}</span>
             </div>

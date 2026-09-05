@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Check, Pause, Info } from 'lucide-react';
 import { BRAIN_SM_SRC, BRAIN_GOLD_SM_SRC, fillClipTop } from './brainGeometry';
 import MindPowerHelp from './MindPowerHelp';
 import WeekRecap from './WeekRecap';
-import type { WeekCell, Streak } from '@/lib/weeklyActivity';
+import { weekScore, type WeekCell, type Streak } from '@/lib/weeklyActivity';
 import { WEEKLY_TARGET, type WeekScore, type PartKey } from '@/lib/mindPowerScore';
 
 /**
@@ -39,62 +39,126 @@ const PART_LABEL: Record<PartKey, string> = {
 
 export default function StreakGrid({ weeks, streak, thisWeek, language, t }: StreakGridProps) {
     const trackRef = useRef<HTMLDivElement>(null);
-    const [edges, setEdges] = useState({ start: true, end: true });
     const [helpOpen, setHelpOpen] = useState(false);
     const [recapWeek, setRecapWeek] = useState<WeekCell | null>(null);
 
-    const readEdges = useCallback(() => {
+    // The middle of the strip is the focus: whichever week sits there is the
+    // selected one, and the panel below describes it. Scrolling, swiping or
+    // the arrows move a different week into the middle; clicking a week off
+    // to the side brings it there; clicking the week already in the middle
+    // opens its recap. The weeks ahead can be seen but never take the middle.
+    const [selectedKey, setSelectedKey] = useState<string | null>(null);
+    const selected = weeks.find(w => w.key === selectedKey && !w.isFuture) ?? weeks.find(w => w.isCurrent) ?? null;
+    const selectedScore = selected ? (selected.isCurrent ? thisWeek : weekScore(selected.key)) : null;
+    const selectableCount = weeks.filter(w => !w.isFuture).length;
+    const edges = {
+        start: !selected || selected.index <= 1,
+        end: !selected || selected.index >= selectableCount,
+    };
+
+    const cellFor = (key: string) => trackRef.current?.querySelector<HTMLElement>(`[data-week-key="${key}"]`) ?? null;
+
+    // Scrolls a week into the middle. A scroll the strip starts itself ends on
+    // the week it was aimed at, so when it settles the handler below reads
+    // that same week back and nothing changes — no flag needed.
+    const centreOn = useCallback((key: string, smooth: boolean) => {
         const track = trackRef.current;
-        if (!track) return;
-        const max = track.scrollWidth - track.clientWidth;
-        setEdges({ start: track.scrollLeft <= 1, end: track.scrollLeft >= max - 1 });
+        const cell = cellFor(key);
+        if (!track || !cell) return;
+        const left = cell.offsetLeft - (track.clientWidth - cell.offsetWidth) / 2;
+        if (Math.abs(track.scrollLeft - left) < 1) return;
+        track.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
     }, []);
 
-    // Open with the current week in the middle: the past to its left, the
-    // weeks ahead to its right. Centred again whenever the track changes
-    // size — the first measurement can land before the row has its final
-    // width — until the person scrolls it themselves.
-    const userScrolled = useRef(false);
-    const programmatic = useRef(false);
-    const centreOnCurrent = useCallback(() => {
-        const track = trackRef.current;
-        if (!track) return;
-        const current = track.querySelector<HTMLElement>('[data-current]');
-        const left = current ? current.offsetLeft - (track.clientWidth - current.offsetWidth) / 2 : track.scrollWidth;
-        programmatic.current = true;
-        track.scrollTo({ left, behavior: 'auto' });
-        readEdges();
-    }, [readEdges]);
+    // The latest selection, for handlers that may fire twice before a render.
+    const selectedRef = useRef(selected);
+    selectedRef.current = selected;
 
+    const select = useCallback((key: string, smooth = true) => {
+        setSelectedKey(key);
+        centreOn(key, smooth);
+    }, [centreOn]);
+
+    // Open on the current week, in the middle; keep the selected week in the
+    // middle when the strip changes size, since the first measurement can land
+    // before the row has its final width.
     const count = weeks.length;
     useEffect(() => {
-        if (count === 0) return;
-        userScrolled.current = false;
-        centreOnCurrent();
-    }, [count, centreOnCurrent]);
+        if (count === 0 || !selected) return;
+        centreOn(selected.key, false);
+        // Only on the strip filling in — later selections centre themselves.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [count]);
 
+    // Only a real change of width re-centres — not the observer's first call,
+    // and not the week list being rebuilt on a tick, which must never pull a
+    // scroll in progress back to where it was.
+    const selectedKeyRef = useRef<string | null>(null);
+    selectedKeyRef.current = selected?.key ?? null;
     useEffect(() => {
         const track = trackRef.current;
         if (!track || typeof ResizeObserver === 'undefined') return;
+        let lastWidth = track.clientWidth;
         const ro = new ResizeObserver(() => {
-            if (!userScrolled.current) centreOnCurrent();
-            readEdges();
+            if (track.clientWidth === lastWidth) return;
+            lastWidth = track.clientWidth;
+            if (selectedKeyRef.current) centreOn(selectedKeyRef.current, false);
         });
         ro.observe(track);
         return () => ro.disconnect();
-    }, [centreOnCurrent, readEdges]);
+    }, [centreOn]);
 
+    // When a scroll settles, the week nearest the middle is the choice — unless
+    // it is a week ahead, in which case the strip comes back to the current one.
+    const settleTimer = useRef<number | null>(null);
     const handleScroll = () => {
-        if (programmatic.current) programmatic.current = false;
-        else userScrolled.current = true;
-        readEdges();
+        if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
+        settleTimer.current = window.setTimeout(() => {
+            settleTimer.current = null;
+            const track = trackRef.current;
+            if (!track) return;
+            const middle = track.scrollLeft + track.clientWidth / 2;
+            let nearest: WeekCell | null = null;
+            let best = Infinity;
+            for (const week of weeks) {
+                const cell = cellFor(week.key);
+                if (!cell) continue;
+                const gap = Math.abs(cell.offsetLeft + cell.offsetWidth / 2 - middle);
+                if (gap < best) {
+                    best = gap;
+                    nearest = week;
+                }
+            }
+            if (!nearest) return;
+            if (nearest.isFuture) {
+                const current = weeks.find(w => w.isCurrent);
+                if (current) select(current.key);
+            } else {
+                setSelectedKey(nearest.key);
+            }
+        }, 120);
+    };
+    useEffect(
+        () => () => {
+            if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
+        },
+        [],
+    );
+
+    // The arrows move the focus one week at a time.
+    const page = (direction: -1 | 1) => {
+        const from = selectedRef.current;
+        if (!from) return;
+        const next = weeks.find(w => w.index === from.index + direction);
+        if (next && !next.isFuture) {
+            selectedRef.current = next;
+            select(next.key);
+        }
     };
 
-    const page = (direction: -1 | 1) => {
-        const track = trackRef.current;
-        if (!track) return;
-        userScrolled.current = true;
-        track.scrollBy({ left: direction * track.clientWidth, behavior: 'smooth' });
+    const onWeekClick = (week: WeekCell) => {
+        if (week.key === selected?.key) setRecapWeek(week);
+        else select(week.key);
     };
 
     return (
@@ -135,21 +199,35 @@ export default function StreakGrid({ weeks, streak, thisWeek, language, t }: Str
                     data-streak-track
                     className="mind-power-carousel relative flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
                 >
+                    {/* Room at both ends, so the first and last weeks can reach the middle too. */}
+                    <div className="shrink-0 basis-1/3 lg:basis-[40%]" aria-hidden />
                     {weeks.map(week => (
-                        <WeekBrain key={week.key} week={week} t={t} onOpen={week.isFuture ? undefined : () => setRecapWeek(week)} />
+                        <WeekBrain
+                            key={week.key}
+                            week={week}
+                            t={t}
+                            selected={selected?.key === week.key}
+                            onSelect={week.isFuture ? undefined : () => onWeekClick(week)}
+                        />
                     ))}
+                    <div className="shrink-0 basis-1/3 lg:basis-[40%]" aria-hidden />
                 </div>
 
                 <PageArrow direction={1} disabled={edges.end} onClick={() => page(1)} label={t('progress.mp_later_weeks')} />
             </div>
 
-            {/* This week's score, in its parts, against the target — and how it all works. */}
-            {thisWeek && (
-                <div className="flex flex-col gap-2" data-score-breakdown>
+            {/* The selected week's score in its parts, centred under the strip; this
+                week by default, any past week on a click. From here, the recap. */}
+            {selected && (
+                <div className="flex flex-col items-center gap-3 text-center" data-score-breakdown data-selected-week={selected.index}>
                     <div className="flex items-center gap-3">
-                        <span className="text-[14px] font-medium text-[#A9DE9F]">{t('progress.mp_this_week')}</span>
-                        <span className={`text-[14px] tabular-nums ${thisWeek.golden ? 'text-[#E8CC8C]' : 'text-stone-300'}`}>
-                            {t('progress.mp_score_of').replace('{score}', String(thisWeek.score)).replace('{target}', String(WEEKLY_TARGET))}
+                        <span className="text-[14px] font-medium text-[#A9DE9F]">
+                            {selected.isCurrent ? t('progress.mp_this_week') : t('progress.mp_week_n').replace('{n}', String(selected.index))}
+                        </span>
+                        <span className={`text-[14px] tabular-nums ${selected.golden ? 'text-[#E8CC8C]' : 'text-stone-300'}`}>
+                            {selectedScore
+                                ? t('progress.mp_score_of').replace('{score}', String(selectedScore.score)).replace('{target}', String(WEEKLY_TARGET))
+                                : t('progress.mp_before_scoring').replace('{min}', String(Math.round(selected.seconds / 60)))}
                         </span>
                         <button
                             type="button"
@@ -162,18 +240,28 @@ export default function StreakGrid({ weeks, streak, thisWeek, language, t }: Str
                             <Info size={16} strokeWidth={1.75} aria-hidden />
                         </button>
                     </div>
-                    <ul className="flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-stone-500 tabular-nums">
-                        {thisWeek.parts.filter(p => p.enabled).map(p => (
-                            <li key={p.key} data-part={p.key}>
-                                <span className="text-stone-400">{t(PART_LABEL[p.key])}</span>{' '}
-                                {p.bonus ? '+' : ''}{Math.round(p.points)}/{Math.round(p.max)}
-                            </li>
-                        ))}
-                    </ul>
+                    {selectedScore && (
+                        <ul className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-[13px] text-stone-500 tabular-nums">
+                            {selectedScore.parts.filter(p => p.enabled).map(p => (
+                                <li key={p.key} data-part={p.key}>
+                                    <span className="text-stone-400">{t(PART_LABEL[p.key])}</span>{' '}
+                                    {p.bonus ? '+' : ''}{Math.round(p.points)}/{Math.round(p.max)}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => setRecapWeek(selected)}
+                        data-recap-open
+                        className="text-[13px] text-stone-400 underline decoration-stone-600 underline-offset-4 transition-colors hover:text-[#F5F4EE] hover:decoration-stone-400 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#86BE7F] cursor-pointer"
+                    >
+                        {t('progress.recap_open').replace('{n}', String(selected.index))}
+                    </button>
                 </div>
             )}
 
-            <p className="text-[12px] text-stone-500">
+            <p className="text-center text-[12px] text-stone-500">
                 {t('progress.mp_week_goal_score').replace('{target}', String(WEEKLY_TARGET))}
             </p>
 
@@ -213,7 +301,17 @@ function PageArrow({
  * scaled it up inside a clipped box to fill the cell, and cut the crown off
  * every brain. The cell is a little wider instead, so the model keeps its size.
  */
-function WeekBrain({ week, t, onOpen }: { week: WeekCell; t: (key: string) => string; onOpen?: () => void }) {
+function WeekBrain({
+    week,
+    t,
+    selected,
+    onSelect: onOpen,
+}: {
+    week: WeekCell;
+    t: (key: string) => string;
+    selected: boolean;
+    onSelect?: () => void;
+}) {
     const minutes = Math.round(week.seconds / 60);
     const label = t('progress.mp_week_n').replace('{n}', String(week.index));
     const detail =
@@ -223,22 +321,24 @@ function WeekBrain({ week, t, onOpen }: { week: WeekCell; t: (key: string) => st
     // The green rises from the bottom of the brain itself, not of the image frame.
     const litClip = `inset(${fillClipTop(week.ratio).toFixed(1)}% 0 0 0)`;
 
-    // A week that has happened is a way into its recap: a box rises behind it on
-    // hover and a click opens what was done in it. The current week keeps its
-    // box, so the eye lands on it in the middle of the strip.
+    // A week that has happened can be selected: a box rises behind it on hover,
+    // and a click moves the box there and turns the panel below to that week.
     return (
         <div
             data-week={week.index}
+            data-week-key={week.key}
             data-current={week.isCurrent || undefined}
+            data-selected={selected || undefined}
             data-golden={week.golden || undefined}
             role={onOpen ? 'button' : undefined}
             tabIndex={onOpen ? 0 : undefined}
+            aria-pressed={onOpen ? selected : undefined}
             onClick={onOpen}
             onKeyDown={onOpen ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } } : undefined}
-            aria-label={onOpen ? t('progress.recap_open').replace('{n}', String(week.index)) : undefined}
+            aria-label={onOpen ? (selected ? t('progress.recap_open') : t('progress.mp_week_n')).replace('{n}', String(week.index)) : undefined}
             className={`flex basis-1/3 lg:basis-1/5 shrink-0 snap-center flex-col items-center gap-3 rounded-2xl px-1 py-3 transition-colors duration-200 ${
                 week.isFuture ? 'opacity-40' : ''
-            } ${week.isCurrent ? 'bg-white/[0.06] ring-1 ring-white/10' : ''} ${
+            } ${selected ? 'bg-white/[0.06] ring-1 ring-white/10' : ''} ${
                 onOpen ? 'cursor-pointer hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86BE7F]' : ''
             }`}
             title={week.isFuture ? undefined : `${detail} · ${minutes} ${t('progress.mp_minutes_short')}`}
@@ -273,7 +373,7 @@ function WeekBrain({ week, t, onOpen }: { week: WeekCell; t: (key: string) => st
 
             <span
                 className={`inline-flex items-center gap-1.5 text-[15px] leading-tight tabular-nums ${
-                    week.isCurrent ? 'text-[#F5F4EE]' : 'text-stone-400'
+                    selected ? 'text-[#F5F4EE]' : 'text-stone-400'
                 }`}
             >
                 {label}
@@ -285,8 +385,8 @@ function WeekBrain({ week, t, onOpen }: { week: WeekCell; t: (key: string) => st
                     <Pause size={13} strokeWidth={2.5} className="text-stone-500" aria-label={t('progress.mp_rest_week')} data-week-rest />
                 )}
             </span>
-            {/* The week being written shows where it stands. */}
-            {week.isCurrent && (
+            {/* The week in the middle shows where it stands. */}
+            {selected && (
                 <span className="-mt-1.5 text-[12px] text-stone-500 tabular-nums">{detail}</span>
             )}
         </div>

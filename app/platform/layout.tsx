@@ -523,6 +523,13 @@ function PlatformLayoutInner({
 
     // Profile is a focused, full-width view: no sidebar, just a back button top-left.
     const isProfile = pathname === '/platform/profile' || pathname?.startsWith('/platform/profile/');
+    // Under /platform/profile/ for the focused layout, but not *your* profile:
+    // another songwriter's page, or a room. The back control there is just a
+    // way back — labelling it "My profile" would be naming the wrong place.
+    const isOtherProfile = Boolean(
+        pathname?.startsWith('/platform/profile/u/') || pathname?.startsWith('/platform/profile/rooms/'),
+    );
+    const backLabel = isOtherProfile ? t('common.back') : t('navigation.my_profile');
 
     const handleBack = () => exitProfile();
 
@@ -779,7 +786,7 @@ function PlatformLayoutInner({
                     {isProfile ? (
                         <button
                             onClick={handleBack}
-                            aria-label={t('navigation.my_profile')}
+                            aria-label={backLabel}
                             className={`${btn.iconGhost('sm')} -ml-2`}
                         >
                             <ChevronLeft size={22} className="stroke-[2.2]" />
@@ -831,14 +838,18 @@ function PlatformLayoutInner({
                 <header className={`hidden md:flex items-center justify-between px-4 xl:px-8 pb-6 text-stone-600/70 font-sans text-xs tracking-wider z-40 ${
                     pathname?.startsWith('/platform/create') ? 'pt-6 xl:pt-0' : 'pt-0'
                 }`}>
-                    {/* Back button on Profile (which has no sidebar); plain spacer elsewhere */}
+                    {/* Back button on Profile (which has no sidebar); plain spacer elsewhere.
+                        On your own profile it says where you are; on someone else's it
+                        is only the arrow — there is no short true label for that page. */}
                     {isProfile ? (
                         <button
                             onClick={handleBack}
+                            aria-label={backLabel}
+                            title={isOtherProfile ? backLabel : undefined}
                             className={`${btn.secondary('sm')} normal-case tracking-normal cursor-pointer`}
                         >
                             <ChevronLeft size={16} strokeWidth={2} />
-                            {t('navigation.my_profile')}
+                            {!isOtherProfile && t('navigation.my_profile')}
                         </button>
                     ) : (
                         <div></div>

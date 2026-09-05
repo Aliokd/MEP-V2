@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowUp, ArrowDown, Search, Heart, Check } from 'lucide-reac
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import { stashTipForCanvas } from '@/lib/canvasTips';
+import { safeLocalStorageSetItem } from '@/lib/storage';
 import { toggleTipMark, useTipMarks } from '@/lib/tipMarks';
 import { Idea, IdeaCategory, LYRICS_IDEAS_BY_LANGUAGE, MELODY_IDEAS_BY_LANGUAGE, VIBE_IDEAS_BY_LANGUAGE, CHORDS_IDEAS_BY_LANGUAGE } from '../data/ideas';
 import IdeaGlyph from './IdeaGlyph';
@@ -163,6 +164,13 @@ export default function BankOfIdeas({ onBackToLanding }: BankOfIdeasProps) {
         );
         return [...authored, ...placeholders];
     }, [cmsIdeas, language, t]);
+
+    // How many real tips there are, so Mind Power can show ticked tips as a
+    // share of the bank. Placeholders are not tips.
+    React.useEffect(() => {
+        const real = allIdeas.filter(idea => !idea.id.includes('-placeholder-')).length;
+        if (real > 0) safeLocalStorageSetItem('mep-total-tips', String(real));
+    }, [allIdeas]);
 
     const visibleIdeas = allIdeas
         .filter(idea => activeCategory === 'all' || idea.category === activeCategory)
