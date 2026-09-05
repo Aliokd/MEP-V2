@@ -6,6 +6,7 @@ import SupportModal from './components/SupportModal';
 import FeedbackModal from './components/FeedbackModal';
 import MindPowerStatus from './components/MindPowerStatus';
 import GoldenMindCelebration from './components/GoldenMindCelebration';
+import VerifiedCelebration from './components/VerifiedCelebration';
 import MindPowerPillBrain from './components/MindPowerPillBrain';
 import { MindPowerProgressProvider } from '@/lib/mindPowerContext';
 import {
@@ -530,6 +531,7 @@ function PlatformLayoutInner({
                     {children}
                 </div>
                 <GoldenMindCelebration />
+                <VerifiedCelebration />
             </MindPowerProgressProvider>
         );
     }
@@ -870,6 +872,8 @@ function PlatformLayoutInner({
 
             {/* The week's goal reached: the golden-mind popup, once per week. */}
             <GoldenMindCelebration />
+            {/* The verified seal landed: a congratulations, once per approval. */}
+            <VerifiedCelebration />
         </div>
     );
 }

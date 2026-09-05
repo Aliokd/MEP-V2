@@ -191,9 +191,19 @@ function readActiveWeekKeys(): string[] {
     return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
 }
 
-function readGoldenMindShown(): string[] {
+export function readGoldenMindShown(): string[] {
     const parsed = readJson<unknown>(GOLDEN_MIND_SHOWN_KEY, []);
     return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
+}
+
+/**
+ * Weeks celebrated on another device join the local list, so the popup for a
+ * week never shows twice to one account. Union only: a mark never vanishes.
+ */
+export function mergeGoldenMindShown(keys: string[]): void {
+    if (typeof window === 'undefined' || keys.length === 0) return;
+    const merged = Array.from(new Set([...readGoldenMindShown(), ...keys.filter(k => typeof k === 'string')])).sort();
+    safeLocalStorageSetItem(GOLDEN_MIND_SHOWN_KEY, JSON.stringify(merged));
 }
 
 /** The app's lifetime counters, as the create, learn and practice tabs keep them. */

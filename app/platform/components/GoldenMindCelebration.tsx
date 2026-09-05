@@ -17,6 +17,7 @@ import {
     streakWeeks,
 } from '@/lib/weeklyActivity';
 import { shareStreak } from '@/lib/streakShare';
+import { pullMindPowerMarks, pushMindPowerMarks } from '@/lib/mindPowerSync';
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import GoldenMindStage from '@/app/platform/mind-power/components/GoldenMindStage';
 import * as btn from './buttonStyles';
@@ -50,46 +51,74 @@ export default function GoldenMindCelebration() {
     const [days, setDays] = useState(0);
 
     const openRef = useRef(false);
+    const uid = user?.uid ?? null;
     const close = useCallback(() => {
         openRef.current = false;
         markGoldenMindShown();
+        // Onto the account, so no other device shows this week again.
+        if (uid) pushMindPowerMarks(uid);
         setOpen(false);
-    }, []);
+    }, [uid]);
 
+    // Nothing opens until the account's marks have been pulled: a week
+    // dismissed on the phone must not replay on the laptop. Until then the
+    // ticks that report a due week are ignored — the week stays due, so the
+    // next tick after the pull will still catch it.
+    const syncedRef = useRef(false);
     useEffect(() => {
+        let cancelled = false;
+        syncedRef.current = false;
+
         const show = () => {
             if (openRef.current) return;
             openRef.current = true;
+            // Any celebration is the introduction: a golden week now must not
+            // be followed by the "you have a streak" popup on the next load.
+            safeLocalStorageSetItem(STREAK_INTRO_KEY, 'true');
             const current = streakWeeks().find(w => w.isCurrent);
             setWeek(current ? { index: current.index, minutes: Math.round(current.seconds / 60) } : null);
             setStreak(computeStreak().current);
             setDays(dayStreak());
             setOpen(true);
         };
+        const showIfSynced = () => {
+            if (syncedRef.current) show();
+        };
         // An account that already holds a streak when streaks arrive sees it
-        // once, so it knows where to look — checked now, and again whenever the
-        // record changes, since a long-time account's history is rebuilt a
-        // moment after the page loads. Dismissing does not mark the current
-        // week as celebrated: markGoldenMindShown is a no-op until the week is
-        // actually golden, and the flag is what makes this once.
+        // once, so it knows where to look — checked after the pull, and again
+        // whenever the record changes, since a long-time account's history is
+        // rebuilt a moment after the page loads. Dismissing does not mark the
+        // current week as celebrated: markGoldenMindShown is a no-op until the
+        // week is actually golden, and the flag is what makes this once.
         let introTimer: number | null = null;
         const maybeIntro = () => {
-            if (localStorage.getItem(STREAK_INTRO_KEY) || openRef.current) return;
+            if (!syncedRef.current || openRef.current) return;
+            if (localStorage.getItem(STREAK_INTRO_KEY)) return;
             if (computeStreak().current < 1) return;
             safeLocalStorageSetItem(STREAK_INTRO_KEY, 'true');
+            if (uid) pushMindPowerMarks(uid);
             introTimer = window.setTimeout(show, 1200);
         };
+
         // The preview event (see above) opens it whether or not the week is due.
-        window.addEventListener(GOLDEN_MIND_EVENT, show);
+        window.addEventListener(GOLDEN_MIND_EVENT, showIfSynced);
         window.addEventListener(WEEKLY_ACTIVITY_EVENT, maybeIntro);
-        if (goldenMindDue()) show();
-        else maybeIntro();
+
+        (async () => {
+            if (uid) await pullMindPowerMarks(uid);
+            if (cancelled) return;
+            syncedRef.current = true;
+            if (goldenMindDue()) show();
+            else maybeIntro();
+        })();
+
         return () => {
+            cancelled = true;
             if (introTimer !== null) window.clearTimeout(introTimer);
-            window.removeEventListener(GOLDEN_MIND_EVENT, show);
+            window.removeEventListener(GOLDEN_MIND_EVENT, showIfSynced);
             window.removeEventListener(WEEKLY_ACTIVITY_EVENT, maybeIntro);
         };
-    }, []);
+    }, [uid]);
 
     useEffect(() => {
         if (!open) return;

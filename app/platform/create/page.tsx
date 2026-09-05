@@ -324,7 +324,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-releasing-regret',
         title: 'Letting Go of Regret',
         category: 'Release',
-        bgImage: '/assets/inspiration/therapy_releasing_regret.png',
+        bgImage: '/assets/inspiration/minimal/therapy_releasing_regret.webp',
         questions: [
             'What\'s one memory from your past that still feels heavy?',
             'What would it feel like to finally let that go?',
@@ -337,7 +337,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-finding-stillness',
         title: 'Finding Calm',
         category: 'Calm',
-        bgImage: '/assets/inspiration/therapy_finding_stillness.png',
+        bgImage: '/assets/inspiration/minimal/therapy_finding_stillness.webp',
         questions: [
             'What\'s making your mind feel busy right now?',
             'What would it feel like if everything went quiet for a moment?',
@@ -350,7 +350,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-growth-after-pain',
         title: 'Growing Stronger',
         category: 'Growth',
-        bgImage: '/assets/inspiration/therapy_growth_pain.png',
+        bgImage: '/assets/inspiration/minimal/therapy_growth_pain.webp',
         questions: [
             'What hard time in your life changed you the most?',
             'What\'s one way you\'ve grown since then?',
@@ -363,7 +363,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-embracing-uncertainty',
         title: 'Trusting the Unknown',
         category: 'Trust',
-        bgImage: '/assets/inspiration/therapy_embracing_uncertainty.png',
+        bgImage: '/assets/inspiration/minimal/therapy_embracing_uncertainty.webp',
         questions: [
             'What\'s something in your life that feels uncertain right now?',
             'What would it feel like to take one step without knowing what\'s next?',
@@ -376,7 +376,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-grief-and-honoring',
         title: 'Honoring a Loss',
         category: 'Healing',
-        bgImage: '/assets/inspiration/therapy_grief_honoring.png',
+        bgImage: '/assets/inspiration/minimal/therapy_grief_honoring.webp',
         questions: [
             'What or who are you missing right now?',
             'What\'s one good memory connected to this?',
@@ -389,7 +389,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-overcoming-fear',
         title: 'Facing Fear',
         category: 'Courage',
-        bgImage: '/assets/inspiration/therapy_overcoming_fear.png',
+        bgImage: '/assets/inspiration/minimal/therapy_overcoming_fear.webp',
         questions: [
             'What\'s something you\'re scared to do, but want to do anyway?',
             'What\'s the worst that could happen if you tried?',
@@ -402,7 +402,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-self-compassion',
         title: 'Being Kind to Yourself',
         category: 'Comfort',
-        bgImage: '/assets/inspiration/therapy_self_compassion.png',
+        bgImage: '/assets/inspiration/minimal/therapy_self_compassion.webp',
         questions: [
             'Where have you been hard on yourself lately?',
             'What would you say to a friend going through the same thing?',
@@ -415,7 +415,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-reclaiming-voice',
         title: 'Speaking Your Truth',
         category: 'Voice',
-        bgImage: '/assets/inspiration/therapy_reclaiming_voice.png',
+        bgImage: '/assets/inspiration/minimal/therapy_reclaiming_voice.webp',
         questions: [
             'What have you been holding back from saying?',
             'What would it feel like to finally say it out loud?',
@@ -428,7 +428,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-patience-and-timing',
         title: 'Trusting Your Timing',
         category: 'Patience',
-        bgImage: '/assets/inspiration/therapy_patience_timing.png',
+        bgImage: '/assets/inspiration/minimal/therapy_patience_timing.webp',
         questions: [
             'What are you rushing that maybe needs more time?',
             'What good things have come from waiting, in your life?',
@@ -441,7 +441,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-strength-vulnerability',
         title: 'Strong Enough to Be Open',
         category: 'Openness',
-        bgImage: '/assets/inspiration/therapy_strength_vulnerability.png',
+        bgImage: '/assets/inspiration/minimal/therapy_strength_vulnerability.webp',
         questions: [
             'What\'s something real about you that you usually hide?',
             'Why does showing that feel scary?',
@@ -454,7 +454,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-navigating-darkness',
         title: 'Finding Light in Hard Times',
         category: 'Hope',
-        bgImage: '/assets/inspiration/therapy_navigating_darkness.png',
+        bgImage: '/assets/inspiration/minimal/therapy_navigating_darkness.webp',
         questions: [
             'What\'s making things feel dark for you right now?',
             'What\'s one small good thing you can still see?',
@@ -467,7 +467,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-cleansing-renewal',
         title: 'Starting Fresh',
         category: 'Fresh Start',
-        bgImage: '/assets/inspiration/therapy_cleansing_renewal.png',
+        bgImage: '/assets/inspiration/minimal/therapy_cleansing_renewal.webp',
         questions: [
             'What do you want to leave behind?',
             'What would it feel like to start clean, with nothing weighing you down?',
@@ -480,7 +480,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-staying-grounded',
         title: 'Staying Grounded',
         category: 'Grounded',
-        bgImage: '/assets/inspiration/therapy_staying_grounded.png',
+        bgImage: '/assets/inspiration/minimal/therapy_staying_grounded.webp',
         questions: [
             'What\'s making you feel scattered or overwhelmed right now?',
             'What helps you feel steady when life feels like too much?',
@@ -493,7 +493,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-feeling-connected',
         title: 'Feeling Less Alone',
         category: 'Connection',
-        bgImage: '/assets/inspiration/therapy_feeling_connected.png',
+        bgImage: '/assets/inspiration/minimal/therapy_feeling_connected.webp',
         questions: [
             'When do you feel most alone?',
             'Who do you wish understood what you\'re going through?',
@@ -506,7 +506,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-accepting-change',
         title: 'Accepting Change',
         category: 'Acceptance',
-        bgImage: '/assets/inspiration/therapy_accepting_change.png',
+        bgImage: '/assets/inspiration/minimal/therapy_accepting_change.webp',
         questions: [
             'What change in your life are you fighting right now?',
             'What might this change be teaching you?',
@@ -519,7 +519,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-releasing-anger',
         title: 'Letting Out Anger',
         category: 'Release',
-        bgImage: '/assets/inspiration/therapy_releasing_anger.png',
+        bgImage: '/assets/inspiration/minimal/therapy_releasing_anger.webp',
         questions: [
             'What\'s been making you angry or frustrated lately?',
             'What\'s underneath the anger: hurt, fear, something else?',
@@ -532,7 +532,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-new-beginnings',
         title: 'New Beginnings',
         category: 'Hope',
-        bgImage: '/assets/inspiration/therapy_new_beginnings.png',
+        bgImage: '/assets/inspiration/minimal/therapy_new_beginnings.webp',
         questions: [
             'What\'s one thing you want to start fresh?',
             'What would today look like with a clean start?',
@@ -545,7 +545,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-unconditional-worth',
         title: 'Knowing Your Worth',
         category: 'Worth',
-        bgImage: '/assets/inspiration/therapy_unconditional_worth.png',
+        bgImage: '/assets/inspiration/minimal/therapy_unconditional_worth.webp',
         questions: [
             'Do you feel like you have to earn your worth? Why?',
             'What makes you valuable, even when you\'re not doing anything?',
@@ -558,7 +558,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-healing-child',
         title: 'Remembering How to Play',
         category: 'Play',
-        bgImage: '/assets/inspiration/therapy_healing_child.png',
+        bgImage: '/assets/inspiration/minimal/therapy_healing_child.webp',
         questions: [
             'What did you love doing as a kid, before life got serious?',
             'What would you make today if you weren\'t afraid of getting it wrong?',
@@ -571,7 +571,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-quiet-strength',
         title: 'Quiet Strength',
         category: 'Strength',
-        bgImage: '/assets/inspiration/therapy_quiet_strength.png',
+        bgImage: '/assets/inspiration/minimal/therapy_quiet_strength.webp',
         questions: [
             'What\'s a hard time you\'ve stayed strong through, quietly?',
             'How do you keep going when things get tough?',
@@ -4100,7 +4100,7 @@ const StudioKnob = ({
  * attached natively because React registers wheel as passive, and a passive
  * handler cannot stop the page from scrolling too.
  */
-const ScrollStrip = ({ className, ariaLeft, ariaRight, surface = '#ffffff', children }: { className: string; ariaLeft: string; ariaRight: string; /** The colour the strip sits on — the fades under the arrows are painted in it, so they read as the surface thinning out rather than a white patch laid over it. */ surface?: string; children: React.ReactNode }) => {
+const ScrollStrip = ({ className, wrapperClassName = '', ariaLeft, ariaRight, surface = '#ffffff', children }: { className: string; /** Reaches the positioned outer div — negative margins here let the row bleed out to its container's walls, with the scroller's own padding putting the content back where it was. */ wrapperClassName?: string; ariaLeft: string; ariaRight: string; /** The colour the strip sits on — the fades under the arrows are painted in it, so they read as the surface thinning out rather than a white patch laid over it. */ surface?: string; children: React.ReactNode }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     // Inline rather than gradient utilities: an arbitrary hex in a `from-[…]` class
     // only exists if Tailwind saw that exact literal at build time, and a colour
@@ -4157,12 +4157,12 @@ const ScrollStrip = ({ className, ariaLeft, ariaRight, surface = '#ffffff', chil
     };
 
     return (
-        <div className="relative">
+        <div className={`relative ${wrapperClassName}`}>
             <div ref={scrollRef} onScroll={checkScroll} className={className}>
                 {children}
             </div>
             {canLeft && (
-                <div style={fade('right')} className="absolute inset-y-0 left-0 w-14 pointer-events-none flex items-center justify-start pb-1">
+                <div style={fade('right')} className="absolute inset-y-0 left-0 w-16 pointer-events-none flex items-center justify-start pl-3 pb-1">
                     <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); page(-1); }}
@@ -4174,7 +4174,7 @@ const ScrollStrip = ({ className, ariaLeft, ariaRight, surface = '#ffffff', chil
                 </div>
             )}
             {canRight && (
-                <div style={fade('left')} className="absolute inset-y-0 right-0 w-14 pointer-events-none flex items-center justify-end pb-1">
+                <div style={fade('left')} className="absolute inset-y-0 right-0 w-16 pointer-events-none flex items-center justify-end pr-3 pb-1">
                     <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); page(1); }}
@@ -4252,7 +4252,21 @@ const ScrollableWithCue = ({ className, wrapperClassName = '', children }: { cla
 
 function parseFlexibleDate(dateStr: any): number {
     if (!dateStr) return 0;
-    
+
+    // Not every date here is a string. Notes that came down from Firestore can
+    // carry a Timestamp (a class with toMillis, or its plain {seconds,
+    // nanoseconds} shape once it has been through JSON), and a few paths store
+    // epoch numbers. Every one of those used to fall through the string parsing
+    // below and come out as 0 — which put a note edited ten minutes ago at the
+    // very bottom of every newest-first list.
+    if (typeof dateStr === 'number') return dateStr < 1e12 ? dateStr * 1000 : dateStr;
+    if (typeof dateStr === 'object') {
+        if (typeof dateStr.toMillis === 'function') return dateStr.toMillis();
+        if (typeof dateStr.seconds === 'number') return dateStr.seconds * 1000 + Math.floor((dateStr.nanoseconds || 0) / 1e6);
+        if (dateStr instanceof Date) return dateStr.getTime();
+        return 0;
+    }
+
     // Try standard parsing first
     let parsed = Date.parse(dateStr);
     if (!isNaN(parsed)) return parsed;
@@ -4482,6 +4496,18 @@ export default function CreatePage() {
      */
     const [sectionMenu, setSectionMenu] = useState<{ groupId: string; mode: 'actions' | 'send' } | null>(null);
     const [sectionSendQuery, setSectionSendQuery] = useState('');
+    /**
+     * Where the section menu hangs on desktop, in viewport coordinates.
+     *
+     * It used to sit inside its own badge's layer, positioned under the badge.
+     * Every section's badge is that same layer, and a later one paints over an
+     * earlier one — so the menu ran under the next section's badge (the
+     * "Bridge one" pill cutting through the project list). Portalled to the body
+     * and placed by the trigger's rect instead, it is above everything; `bottom`
+     * is set instead of `top` when the viewport has no room below the trigger.
+     */
+    const [sectionMenuAnchor, setSectionMenuAnchor] = useState<{ top?: number; bottom?: number; left: number; maxH: number } | null>(null);
+    const sectionMenuRef = useRef<HTMLDivElement>(null);
     const [renameGroupName, setRenameGroupName] = useState<string>('');
     const [isAddMenuSticky, setIsAddMenuSticky] = useState<boolean>(false);
 
@@ -5626,6 +5652,23 @@ export default function CreatePage() {
     const wordSheetSwipe = useSheetSwipe(() => closeWordPopover());
     const workspaceMenuSwipe = useSheetSwipe(() => setIsWorkspaceMenuOpen(false));
     const sectionMenuSwipe = useSheetSwipe(() => setSectionMenu(null));
+    // Below isMobile's declaration on purpose — the deps list reads it at render.
+    useEffect(() => {
+        if (!sectionMenu || isMobile) return;
+        // A fixed menu does not travel with the page. Rather than chase the trigger
+        // it closes on scroll — except scrolling inside the menu's own list.
+        const onScroll = (e: Event) => {
+            if (sectionMenuRef.current && e.target instanceof Node && sectionMenuRef.current.contains(e.target)) return;
+            setSectionMenu(null);
+        };
+        const onResize = () => setSectionMenu(null);
+        window.addEventListener('scroll', onScroll, true);
+        window.addEventListener('resize', onResize);
+        return () => {
+            window.removeEventListener('scroll', onScroll, true);
+            window.removeEventListener('resize', onResize);
+        };
+    }, [sectionMenu, isMobile]);
     const inviteSwipe = useSheetSwipe(() => setShowShareModal(false));
 
     const [activeGuideTab, setActiveGuideTab] = useState<'overview' | 'controls' | 'workflow'>('overview');
@@ -6297,8 +6340,6 @@ export default function CreatePage() {
     const [inspirationAnswers, setInspirationAnswers] = useState<Record<string, Record<string, string[]>>>({});
     const [inspirationDragOffset, setInspirationDragOffset] = useState(0);
     const [swipingToBack, setSwipingToBack] = useState(false);
-    const [activeInspirationIndex, setActiveInspirationIndex] = useState(8);
-    const [transitionEnabled, setTransitionEnabled] = useState(true);
     const [isDraggingOverCanvas, setIsDraggingOverCanvas] = useState(false);
     const [inspirationPhraseIndex, setInspirationPhraseIndex] = useState(0);
     const [phraseTransitionClass, setPhraseTransitionClass] = useState('opacity-100 translate-y-0 transition-all duration-500 ease-in-out');
@@ -8348,10 +8389,6 @@ export default function CreatePage() {
         return INSPIRATION_CARDS.map(getTranslatedCard);
     }, [t]);
 
-    const carouselCards = useMemo(() => {
-        const cards = inspirationCards.length > 0 ? inspirationCards.map(getTranslatedCard) : localizedInspirationCards;
-        return cards.slice(0, 8);
-    }, [inspirationCards, localizedInspirationCards]);
     const isNoteBlank = !isCanvasPreview && (
         !selectedNoteId ||
         !activeNote ||
@@ -8386,35 +8423,28 @@ export default function CreatePage() {
         }
     }, [selectedNoteId, isNoteBlank]);
 
-    // Preload inspiration card background images to prevent any rendering delay
+    // Warm the deck's artwork so no card is ever blank mid-swipe. The whole
+    // deck of drawn scenes weighs about what one of the old paintings did, so
+    // all of it goes, but only once the page is idle and never for someone who
+    // has asked their browser to save data.
     useEffect(() => {
-        carouselCards.forEach(card => {
-            const img = new Image();
-            img.src = card.bgImage;
-        });
-    }, [carouselCards]);
-
-    // Auto-scroll the inspirations carousel in the empty canvas state (every 3.5 seconds)
-    useEffect(() => {
-        if (!isNoteBlank) return;
-        const interval = setInterval(() => {
-            setActiveInspirationIndex(prev => prev + 1);
-        }, 3500);
-        return () => clearInterval(interval);
-    }, [isNoteBlank]);
-
-    // Handle seamless wrapping after 240 slides (resets once every 14 hours of continuous viewing)
-    useEffect(() => {
-        if (activeInspirationIndex >= 240) {
-            setTransitionEnabled(false);
-            setActiveInspirationIndex(8);
-            
-            const timer = setTimeout(() => {
-                setTransitionEnabled(true);
-            }, 50);
-            return () => clearTimeout(timer);
+        if (typeof window === 'undefined') return;
+        if ((navigator as any).connection?.saveData) return;
+        const warm = () => {
+            INSPIRATION_CARDS.forEach(card => {
+                const img = new Image();
+                img.decoding = 'async';
+                img.src = card.bgImage;
+            });
+        };
+        const w = window as any;
+        if (typeof w.requestIdleCallback === 'function') {
+            const id = w.requestIdleCallback(warm, { timeout: 4000 });
+            return () => w.cancelIdleCallback?.(id);
         }
-    }, [activeInspirationIndex]);
+        const timer = setTimeout(warm, 1500);
+        return () => clearTimeout(timer);
+    }, []);
     const activeNoteCollabList = activeNote?.collaborators || [];
     const isActiveCollab = !!(selectedNoteId && (
         collaborators.length > 0 ||
@@ -19391,8 +19421,17 @@ export default function CreatePage() {
                                     effect={'cards'}
                                     grabCursor={true}
                                     modules={[EffectCards]}
+                                    // A shorter settle with a spring ease (the timing function
+                                    // lives in globals.css under .inspiration-deck) so a swipe
+                                    // lands quickly and eases into place instead of gliding.
+                                    // The stack behind sits closer and straighter: the default
+                                    // 8px / 2deg per slide fanned twenty cards into a splay.
+                                    speed={260}
+                                    threshold={4}
                                     cardsEffect={{
-                                        slideShadows: false
+                                        slideShadows: false,
+                                        perSlideOffset: 6,
+                                        perSlideRotate: 1.5,
                                     }}
                                     onSwiper={(swiper) => {
                                         inspirationSwiperRef.current = swiper;
@@ -19407,7 +19446,7 @@ export default function CreatePage() {
                                     // behind, and no more. Wider than that and the peek runs off
                                     // the viewport (the deck renders overflow-visible on purpose).
                                     data-no-sheet-drag
-                                    className="w-[84vw] h-[max(380px,62dvh)] sm:w-[400px] sm:h-[270px] md:w-[520px] md:h-[340px]"
+                                    className="inspiration-deck w-[84vw] h-[max(380px,62dvh)] sm:w-[400px] sm:h-[270px] md:w-[520px] md:h-[340px]"
                                     style={{ overflow: 'visible' }}
                                 >
                                     {cards.map((card, idx) => (
@@ -19425,32 +19464,24 @@ export default function CreatePage() {
                                                     setInspirationQuestionIndex(0);
                                                 }}
                                             >
-                                                {/* Background Image Container */}
-                                                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                                                    {/* 1. Blurred Background Layer */}
-                                                    <div 
-                                                        className="absolute inset-0 bg-cover bg-center filter blur-[12px] scale-110"
-                                                        style={{
-                                                            backgroundImage: `url(${card.bgImage})`,
-                                                        }}
-                                                    />
-                                                    {/* 2. Crisp Foreground Layer with radial gradient mask */}
-                                                    <div 
-                                                        className="absolute inset-0 bg-cover bg-center"
-                                                        style={{
-                                                            backgroundImage: `url(${card.bgImage})`,
-                                                            maskImage: 'radial-gradient(circle at center, black 35%, transparent 80%)',
-                                                            WebkitMaskImage: 'radial-gradient(circle at center, black 35%, transparent 80%)'
-                                                        }}
-                                                    />
-                                                </div>
+                                                {/* The drawn scenes are flat and quiet, so the painted
+                                                    cards' blurred under-layer and radial mask (there to
+                                                    calm a busy image) are gone: one layer, and a soft
+                                                    darkening toward the foot for the title. Twenty cards
+                                                    each carrying a 12px blur filter were most of what
+                                                    the deck spent per frame while it moved. */}
+                                                <div
+                                                    className="absolute inset-0 bg-cover bg-center pointer-events-none"
+                                                    style={{ backgroundImage: `url(${card.bgImage})` }}
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-stone-955/20 via-transparent to-transparent pointer-events-none" />
 
-                                                {/* Soft gradient overlay on top of background image to make sure glass overlay stands out */}
-                                                <div className="absolute inset-0 bg-gradient-to-t from-stone-955/25 via-transparent to-transparent pointer-events-none" />
-
-                                                {/* Floating Glassy Overlay Container */}
-                                                <div 
-                                                    className="absolute bottom-3 sm:bottom-5 left-3 sm:left-5 right-3 sm:right-5 bg-white/20 backdrop-blur-[50px] rounded-[18px] sm:rounded-[24px] md:rounded-[30px] pt-3 pb-4 md:pt-4 md:pb-6 pl-6 pr-16 sm:pl-8 sm:pr-20 md:pl-10 md:pr-24 flex flex-col justify-center text-left font-sans select-none min-w-0 shadow-lg hover:bg-white/25 transition-all z-[10]"
+                                                {/* Floating glass title. The backdrop blur is only paid for
+                                                    on the cards that can actually be seen (the active one
+                                                    and the two peeking behind it); the rest of the stack is
+                                                    hidden and gets a plain tint. */}
+                                                <div
+                                                    className={`absolute bottom-3 sm:bottom-5 left-3 sm:left-5 right-3 sm:right-5 bg-white/20 ${Math.abs(idx - currentCardIndex) <= 2 ? 'backdrop-blur-[40px]' : ''} rounded-[18px] sm:rounded-[24px] md:rounded-[30px] pt-3 pb-4 md:pt-4 md:pb-6 pl-6 pr-16 sm:pl-8 sm:pr-20 md:pl-10 md:pr-24 flex flex-col justify-center text-left font-sans select-none min-w-0 shadow-lg hover:bg-white/25 transition-colors z-[10]`}
                                                 >
                                                     <div className="flex flex-col gap-1 md:gap-2">
                                                         <h4 
@@ -19465,9 +19496,11 @@ export default function CreatePage() {
                                                         </span>
                                                     </div>
                                                     
-                                                    {/* Expand arrow */}
+                                                    {/* Expand arrow. Sized in px below sm: Tailwind 3 has no `w-5.5`,
+                                                        so on a phone the icon used to render at 0x0 and the card
+                                                        gave no hint it could be opened. */}
                                                     <div className="absolute right-5 sm:right-7 md:right-9 top-1/2 -translate-y-1/2 flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer shrink-0">
-                                                        <svg viewBox="0 0 24 24" fill="none" className="w-5.5 h-5.5 sm:w-7 sm:h-7 md:w-[30px] md:h-[30px] text-[#F8F8F4]" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                                                        <svg viewBox="0 0 24 24" fill="none" className="w-[22px] h-[22px] sm:w-7 sm:h-7 md:w-[30px] md:h-[30px] text-[#F8F8F4]" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
                                                             <path d="M15 3h6v6"/>
                                                             <path d="M9 21H3v-6"/>
                                                             <path d="M21 3l-7 7"/>
@@ -21747,6 +21780,14 @@ export default function CreatePage() {
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     setSectionSendQuery('');
+                                                                                    const r = e.currentTarget.getBoundingClientRect();
+                                                                                    const below = window.innerHeight - r.bottom - 16;
+                                                                                    const up = below < 240 && r.top > below;
+                                                                                    setSectionMenuAnchor({
+                                                                                        ...(up ? { bottom: window.innerHeight - r.top + 8 } : { top: r.bottom + 8 }),
+                                                                                        left: Math.max(8, Math.min(r.left - 8, window.innerWidth - 300 - 8)),
+                                                                                        maxH: Math.max(200, Math.min(360, up ? r.top - 16 : below)),
+                                                                                    });
                                                                                     setSectionMenu(prev => prev?.groupId === block.groupId ? null : { groupId: block.groupId!, mode: 'actions' });
                                                                                 }}
                                                                                 onMouseDown={(e) => e.stopPropagation()}
@@ -21766,7 +21807,7 @@ export default function CreatePage() {
                                                                         sheet below it — the same two shapes the workspace's ⋮ uses.
                                                                         Portalled on a phone for the same reason as that one: declared
                                                                         here, its z-index is only local. */}
-                                                                    {sectionMenu?.groupId === block.groupId && portalWhenMobile(
+                                                                    {sectionMenu?.groupId === block.groupId && isMounted && createPortal(
                                                                         <>
                                                                             <div
                                                                                 className="fixed inset-0 z-40 max-md:z-[84] max-md:bg-stone-900/40 max-md:backdrop-blur-sm sheet-backdrop-enter"
@@ -21774,14 +21815,19 @@ export default function CreatePage() {
                                                                                 onMouseDown={(e) => e.stopPropagation()}
                                                                             />
                                                                             <div
+                                                                                ref={sectionMenuRef}
                                                                                 {...sectionMenuSwipe.swipeHandlers}
-                                                                                style={isMobile ? sectionMenuSwipe.swipeStyle : undefined}
+                                                                                style={isMobile
+                                                                                    ? sectionMenuSwipe.swipeStyle
+                                                                                    : (sectionMenuAnchor
+                                                                                        ? { top: sectionMenuAnchor.top, bottom: sectionMenuAnchor.bottom, left: sectionMenuAnchor.left, maxHeight: `${sectionMenuAnchor.maxH}px` }
+                                                                                        : undefined)}
                                                                                 onClick={(e) => e.stopPropagation()}
                                                                                 onMouseDown={(e) => e.stopPropagation()}
                                                                                 className="bg-white border-stone-200/80 overflow-y-auto no-scrollbar text-left font-sans
                                                                                     max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-[85] max-md:w-full max-md:rounded-t-[24px] max-md:rounded-b-none max-md:border-t max-md:pt-3 max-md:pb-[max(1rem,env(safe-area-inset-bottom))] max-md:max-h-[80dvh] max-md:shadow-[0_-8px_40px_rgba(0,0,0,0.18)] bottom-sheet-enter
                                                                                     max-md:[&_button]:min-h-[54px] max-md:[&_button]:text-[16px] max-md:[&_button]:px-5
-                                                                                    md:absolute md:left-0 md:top-full md:mt-2 md:border md:rounded-[18px] md:shadow-[0_10px_30px_rgba(0,0,0,0.08)] md:py-2 md:min-w-[250px] md:max-w-[320px] md:max-h-[340px] md:z-50"
+                                                                                    md:fixed md:border md:rounded-[18px] md:shadow-[0_10px_30px_rgba(0,0,0,0.12)] md:py-2 md:w-[300px] md:z-[70]"
                                                                             >
                                                                                 <div className="md:hidden flex justify-center pb-2">
                                                                                     <div className="w-10 h-1 rounded-full bg-stone-300" />
@@ -21826,7 +21872,7 @@ export default function CreatePage() {
                                                                                 ) : (() => {
                                                                                     const candidates = notes
                                                                                         .filter(n => n.id !== selectedNoteId && !n.isLocked)
-                                                                                        .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+                                                                                        .sort((a, b) => getNoteTime(b) - getNoteTime(a));
                                                                                     const q = sectionSendQuery.trim().toLowerCase();
                                                                                     const shown = q
                                                                                         ? candidates.filter(n => (n.title || '').toLowerCase().includes(q))
@@ -21869,16 +21915,20 @@ export default function CreatePage() {
                                                                                                     className={`${btn.menuItem()} gap-2.5 text-[13px] cursor-pointer`}
                                                                                                 >
                                                                                                     <span className="truncate">{n.title || t('workspace.untitled_note')}</span>
-                                                                                                    {isCollabProject(n) && (
-                                                                                                        <Users size={12} strokeWidth={2.5} className="ml-auto shrink-0 text-[#4e7a49]" />
-                                                                                                    )}
+                                                                                                    <span className="ml-auto flex items-center gap-1.5 shrink-0">
+                                                                                                        {isCollabProject(n) && (
+                                                                                                            <Users size={12} strokeWidth={2.5} className="text-[#4e7a49]" />
+                                                                                                        )}
+                                                                                                        <span className="text-[11px] text-stone-400 tabular-nums">{formatRelativeTime(getNoteTime(n))}</span>
+                                                                                                    </span>
                                                                                                 </button>
                                                                                             ))}
                                                                                         </>
                                                                                     );
                                                                                 })()}
                                                                             </div>
-                                                                        </>
+                                                                        </>,
+                                                                        document.body
                                                                     )}
 
                                                                     {(audioByGroupIdMap[block.groupId || ''] || []).map(audioNote => (
@@ -24108,9 +24158,10 @@ export default function CreatePage() {
                                     <h4 className="text-[13px] font-semibold text-stone-500">{t('collab.songwriters_here')}</h4>
                                     <ScrollStrip
                                         surface="#FAF8F4"
+                                        wrapperClassName="-mx-7 md:-mx-9"
                                         ariaLeft={t('collab.songwriters_scroll_left')}
                                         ariaRight={t('collab.songwriters_scroll_right')}
-                                        className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1"
+                                        className="flex items-center gap-2 overflow-x-auto no-scrollbar px-7 md:px-9 pb-1"
                                     >
                                         {songwritersLoading && availableSongwriters.length === 0
                                             ? [0, 1, 2, 3].map(i => (
