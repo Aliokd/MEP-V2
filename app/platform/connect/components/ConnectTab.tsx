@@ -2511,6 +2511,15 @@ export default function ConnectTab() {
             isDraggingSongwriters ? 'cursor-grabbing select-none scroll-auto' : 'cursor-grab snap-x snap-mandatory scroll-smooth'
           }`}
         >
+          {/* The map takes the first slot of the row on All — a preview of
+              where everyone is, the size of one songwriter, before the
+              songwriters themselves. On People it leads as a full banner
+              instead (above), so it is never on the page twice. */}
+          <SongwriterMap
+            variant="card"
+            className={isDraggingSongwriters ? 'snap-none' : 'snap-start'}
+            shouldOpen={() => !hasDraggedSongwritersRef.current}
+          />
           {peopleContent(true)}
         </div>
         </>)}

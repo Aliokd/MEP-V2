@@ -8,6 +8,8 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { safeLocalStorageSetItem } from '@/lib/storage';
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 import VerifiedMark from './VerifiedMark';
 import * as btn from './buttonStyles';
 
@@ -56,6 +58,10 @@ export default function VerifiedCelebration() {
         updateDoc(doc(db, 'users', uid), { verificationCelebratedAt: stamp })
             .catch(err => console.warn('[verification] Could not record the celebration:', err));
     }, [uid]);
+
+    // A bottom sheet on a phone: swipe down or the system Back button closes it.
+    useBackDismiss(open, close);
+    const { swipeHandlers, swipeStyle } = useSheetSwipe(close, open);
 
     useEffect(() => {
         if (!uid) return;
@@ -125,18 +131,22 @@ export default function VerifiedCelebration() {
 
     return createPortal(
         <div
-            className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="sheet-shell fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
             onClick={close}
             role="presentation"
         >
+            {/* Centred card from md up; below that a bottom sheet with a pinned
+                footer, the same shape as the golden-mind celebration. */}
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-label={t('profile.verify_congrats_eyebrow')}
                 onClick={e => e.stopPropagation()}
-                className="golden-pop-in relative w-full max-w-[560px] overflow-hidden rounded-3xl bg-[#2a2a2a] px-8 pb-10 pt-12 text-[#F5F4EE] shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:px-14"
+                className="golden-pop-in sheet-panel relative w-full max-w-[560px] overflow-hidden rounded-3xl bg-[#2a2a2a] px-8 pb-10 pt-12 text-[#F5F4EE] shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:px-14 max-md:px-6 max-md:pb-3 max-md:pt-10"
+                {...swipeHandlers}
+                style={swipeStyle}
             >
-                <div className="relative flex flex-col items-center gap-7 text-center">
+                <div className="sheet-panel-body relative flex flex-col items-center gap-7 text-center">
                     {/* The seal, on paper: the mark is ink on the platform's paper
                         colour wherever it appears, and a dark card is the one place
                         that pairing would vanish — so it brings its own plate. */}
@@ -155,18 +165,21 @@ export default function VerifiedCelebration() {
                         {t('profile.verify_congrats_body')}
                     </p>
 
-                    <div className="flex items-center gap-6 pt-1">
-                        <button
-                            type="button"
-                            onClick={close}
-                            className="text-[18px] text-stone-300 underline decoration-stone-500 underline-offset-4 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#86BE7F] cursor-pointer"
-                        >
-                            {t('profile.verify_congrats_got_it')}
-                        </button>
-                        <button type="button" onClick={seeProfile} className={btn.primary('lg')}>
-                            {t('profile.verify_congrats_cta')}
-                        </button>
-                    </div>
+                </div>
+
+                {/* Two rows on a phone — the text action above, the primary full
+                    width at the bottom — one row from md. Labels never break. */}
+                <div className="sheet-panel-footer mt-7 flex w-full flex-col items-center gap-4 md:mt-8 md:flex-row md:justify-center md:gap-6">
+                    <button
+                        type="button"
+                        onClick={close}
+                        className="whitespace-nowrap px-2 py-2 text-[18px] text-stone-300 underline decoration-stone-500 underline-offset-4 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#86BE7F] cursor-pointer"
+                    >
+                        {t('profile.verify_congrats_got_it')}
+                    </button>
+                    <button type="button" onClick={seeProfile} className={`${btn.primary('lg')} whitespace-nowrap max-md:w-full`}>
+                        {t('profile.verify_congrats_cta')}
+                    </button>
                 </div>
             </div>
         </div>,

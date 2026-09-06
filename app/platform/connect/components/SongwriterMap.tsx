@@ -7,7 +7,7 @@ import { Check, LocateFixed, Maximize2, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { fetchLocatedProfiles, writePublicProfile, type PublicProfile } from '@/lib/publicProfile';
-import { CITIES, findCity, nearestCity, type City } from '@/lib/cities';
+import { CITIES, loadWorldCities, nearestCityIn, searchCities, type City } from '@/lib/cities';
 import { safeLocalStorageGetItem, safeLocalStorageSetItem } from '@/lib/storage';
 import { BANNER_MAP_STYLE, QUIET_MAP_STYLE, isGoogleMapsConfigured, loadGoogleMaps } from '@/lib/googleMaps';
 
@@ -45,7 +45,17 @@ interface Preview {
     city: City;
     name: string;
     photoURL: string | null;
+    /** How far the browser's position was from the city chosen for it; undefined when picked by hand. */
+    distanceKm?: number;
 }
+
+/**
+ * Beyond this, the nearest listed city is probably not *your* city. Bali was
+ * snapping to Jakarta — right country, 960 km out — and nothing said so. Above
+ * the line the preview says how far, and points at the search. With every
+ * city over 100k loaded, a good match is usually well inside this.
+ */
+const FAR_FROM_CITY_KM = 60;
 
 interface PinSpec {
     key: string;
@@ -268,7 +278,24 @@ function MapView({ pins, centre, zoom, interactive, flyTo, className = '' }: Map
     return <div ref={hostRef} className={className} aria-hidden={!interactive} />;
 }
 
-export default function SongwriterMap() {
+interface SongwriterMapProps {
+    /**
+     * How the minimised map is drawn. `banner` is the wide strip that leads
+     * the People view; `card` is a tile the size of a songwriter card, so it
+     * can sit first in the roster row on All. Both open the same full view.
+     */
+    variant?: 'banner' | 'card';
+    /** Extra classes on the minimised element — the carousel's snap class, say. */
+    className?: string;
+    /**
+     * Asked before opening from a press. The roster row is drag-to-scroll, so
+     * a drag that happens to end on the card must not open the map; the row
+     * knows whether the press was a drag, the card does not.
+     */
+    shouldOpen?: () => boolean;
+}
+
+export default function SongwriterMap({ variant = 'banner', className = '', shouldOpen }: SongwriterMapProps = {}) {
     const { user } = useAuth();
     const { t } = useLanguage();
     const router = useRouter();
@@ -283,6 +310,12 @@ export default function SongwriterMap() {
     const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; zoom: number } | null>(null);
     const [pickingCity, setPickingCity] = useState(false);
     const [saving, setSaving] = useState(false);
+    // The world city set, fetched when the map opens. Until it lands, the
+    // hand-picked list stands in so the flow never waits on a download.
+    const [worldCities, setWorldCities] = useState<City[] | null>(null);
+    const [cityQuery, setCityQuery] = useState('');
+    const cityPool = worldCities ?? CITIES;
+    const cityMatches = useMemo(() => searchCities(cityPool, cityQuery), [cityPool, cityQuery]);
 
     const viewerName = user?.displayName || user?.email?.split('@')[0] || '';
 
@@ -336,6 +369,8 @@ export default function SongwriterMap() {
         setFlyTo(null);
         setPreview(null);
         setPickingCity(false);
+        setCityQuery('');
+        if (!worldCities) loadWorldCities().then(setWorldCities).catch((err) => console.error('[map] World cities failed to load:', err));
         const asked = safeLocalStorageGetItem(ASKED_KEY) === '1';
         setStage(user && loaded && !me?.location && !asked ? 'ask' : 'idle');
     };
@@ -362,16 +397,26 @@ export default function SongwriterMap() {
         }
         setStage('locating');
         navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const { city } = nearestCity(pos.coords.latitude, pos.coords.longitude);
-                setPreview({ city, name: viewerName, photoURL: user.photoURL ?? null });
+            async (pos) => {
+                // Snap against the full world set — waited for here if it is
+                // still arriving, so the first fix is never matched against the
+                // thin list and shown as a wrong city.
+                let pool: City[] = cityPool;
+                if (!worldCities) {
+                    try { pool = await loadWorldCities(); setWorldCities(pool); } catch { /* thin list stands in */ }
+                }
+                const { city, distanceKm } = nearestCityIn(pool, pos.coords.latitude, pos.coords.longitude);
+                setPreview({ city, name: viewerName, photoURL: user.photoURL ?? null, distanceKm });
                 setFlyTo({ lat: city.lat, lng: city.lng, zoom: CITY_ZOOM });
                 setStage('preview');
             },
             (err) => {
                 setStage(err.code === err.PERMISSION_DENIED ? 'refused' : 'failed');
             },
-            { enableHighAccuracy: false, timeout: 10_000, maximumAge: 5 * 60_000 },
+            // High accuracy: on a phone that is GPS rather than a cell/IP guess,
+            // which can be a whole city out. It only ever picks a city, so the
+            // precision is spent on choosing the right one, not stored anywhere.
+            { enableHighAccuracy: true, timeout: 15_000, maximumAge: 5 * 60_000 },
         );
     };
 
@@ -397,12 +442,12 @@ export default function SongwriterMap() {
         }
     };
 
-    const previewCity = (cityId: string) => {
-        const city = findCity(cityId);
-        if (!city || !user) return;
+    const previewCity = (city: City) => {
+        if (!user) return;
         setPreview({ city, name: viewerName, photoURL: user.photoURL ?? null });
         setFlyTo({ lat: city.lat, lng: city.lng, zoom: CITY_ZOOM });
         setPickingCity(false);
+        setCityQuery('');
         setStage('preview');
     };
 
@@ -421,32 +466,56 @@ export default function SongwriterMap() {
             {/* Minimised */}
             <button
                 type="button"
-                onClick={open}
+                onClick={() => { if (!shouldOpen || shouldOpen()) open(); }}
                 aria-label={t('connect.map_open')}
-                className="group relative w-full h-[180px] sm:h-[220px] rounded-[22px] overflow-hidden border border-stone-200/60 bg-[#EBEBE3] cursor-pointer text-left select-none active:scale-[0.995] transition-transform"
+                className={`group relative overflow-hidden border border-stone-200/60 bg-[#EBEBE3] cursor-pointer text-left select-none active:scale-[0.995] transition-transform ${
+                    variant === 'card'
+                        // The songwriter card's exact footprint, so the row reads as
+                        // one set of tiles with the map in the first slot.
+                        ? 'min-w-[185px] max-w-[185px] shrink-0 min-h-[165px] rounded-[22px]'
+                        : 'w-full h-[180px] sm:h-[220px] rounded-[22px]'
+                } ${className}`}
             >
                 {/* The Google map, with its logo and attribution hidden — in the
                     banner only. See the styled block below for what that means.
-                    Without a key, the self-drawn pin field stands in. */}
+                    Without a key, the self-drawn pin field stands in. A tile this
+                    small zooms out a step so a region shows, not one city's roads. */}
+                {/* The card carries no pins: at this size a name tag and a photo
+                    cover the map, and the map is the whole point of the tile. */}
                 {loaded && (configured
-                    ? <MapView pins={bannerPins} centre={bannerCentre} zoom={5} interactive={false} className="map-banner absolute inset-0" />
-                    : <BannerPins pins={bannerPins} centre={bannerCentre} />)}
+                    ? <MapView pins={variant === 'card' ? [] : bannerPins} centre={bannerCentre} zoom={variant === 'card' ? 4 : 5} interactive={false} className="map-banner absolute inset-0" />
+                    : <BannerPins pins={variant === 'card' ? [] : bannerPins} centre={bannerCentre} />)}
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#F0F0EA]/90 via-transparent to-transparent" />
-                <div className="pointer-events-none absolute left-5 bottom-4 right-5 flex items-end justify-between gap-3">
-                    <div>
-                        <span className="block text-[18px] font-sans font-medium text-stone-900 tracking-tight leading-snug">
-                            {t('connect.map_title')}
+                {variant === 'card' ? (
+                    <>
+                        {/* Two words, one per line, where the songwriter cards keep
+                            their name; the control bottom-right where their "+" is. */}
+                        <span className="pointer-events-none absolute left-5 top-5 right-5 text-[21px] font-sans font-medium text-stone-700 tracking-tight leading-snug">
+                            {t('connect.map_card_title')}
+                            <br />
+                            {t('connect.map_card_subtitle')}
                         </span>
-                        <span className="block text-[13px] text-stone-600">
-                            {people.length > 0
-                                ? t('connect.map_count').replace('{count}', String(people.length))
-                                : t('connect.map_empty')}
+                        <span className="pointer-events-none absolute bottom-4 right-4 w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-stone-700 group-hover:text-stone-900 transition-colors">
+                            <Maximize2 className="w-3.5 h-3.5" />
+                        </span>
+                    </>
+                ) : (
+                    <div className="pointer-events-none absolute left-5 bottom-4 right-5 flex items-end justify-between gap-3">
+                        <div>
+                            <span className="block text-[18px] font-sans font-medium text-stone-900 tracking-tight leading-snug">
+                                {t('connect.map_title')}
+                            </span>
+                            <span className="block text-[13px] text-stone-600">
+                                {people.length > 0
+                                    ? t('connect.map_count').replace('{count}', String(people.length))
+                                    : t('connect.map_empty')}
+                            </span>
+                        </div>
+                        <span className="w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center text-stone-700 group-hover:text-stone-900 transition-colors shrink-0">
+                            <Maximize2 className="w-4 h-4" />
                         </span>
                     </div>
-                    <span className="w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center text-stone-700 group-hover:text-stone-900 transition-colors shrink-0">
-                        <Maximize2 className="w-4 h-4" />
-                    </span>
-                </div>
+                )}
             </button>
 
             {/* Outside the <button>: a <style> element is not valid inside
@@ -538,6 +607,13 @@ export default function SongwriterMap() {
                                         <p className="text-[13px] text-stone-500 mt-1 leading-snug">
                                             {t('connect.map_preview_desc').replace('{name}', preview.name)}
                                         </p>
+                                        {preview.distanceKm !== undefined && preview.distanceKm > FAR_FROM_CITY_KM && (
+                                            <p className="text-[13px] text-[#8a6d1f] mt-2 leading-snug">
+                                                {t('connect.map_far_from_city')
+                                                    .replace('{city}', preview.city.label)
+                                                    .replace('{km}', String(Math.round(preview.distanceKm)))}
+                                            </p>
+                                        )}
                                     </div>
                                     <button type="button" onClick={() => void saveCity(preview.city)} disabled={saving} className={`${primary} inline-flex items-center justify-center gap-2`}>
                                         <Check className="w-4 h-4 stroke-[2.5]" />
@@ -570,16 +646,36 @@ export default function SongwriterMap() {
                             {stage === 'idle' && pickingCity && (
                                 <div className={`${panel} space-y-3`}>
                                     <p className="text-[13px] font-medium text-stone-700">{t('connect.map_pick_city')}</p>
-                                    <select
-                                        defaultValue={me?.location?.cityId ?? ''}
-                                        onChange={(e) => e.target.value && previewCity(e.target.value)}
-                                        className="w-full bg-[#F6F6F0] border border-stone-200/70 rounded-full px-4 h-11 text-[14px] font-medium outline-none focus:border-stone-400"
-                                    >
-                                        <option value="">{t('connect.map_choose')}</option>
-                                        {CITIES.map((c) => (
-                                            <option key={c.id} value={c.id}>{c.label} · {c.country}</option>
-                                        ))}
-                                    </select>
+                                    {/* Search, not a dropdown: the list is every city over 100k
+                                        in the world, and nobody scrolls six thousand options. */}
+                                    <input
+                                        type="text"
+                                        value={cityQuery}
+                                        onChange={(e) => setCityQuery(e.target.value)}
+                                        placeholder={t('connect.map_search_city')}
+                                        autoFocus
+                                        autoComplete="off"
+                                        className="w-full bg-[#F6F6F0] border border-stone-200/70 rounded-full px-4 h-11 text-[14px] font-medium outline-none focus:border-stone-400 placeholder:text-stone-400"
+                                    />
+                                    {cityQuery.trim() && (
+                                        <div className="max-h-56 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1">
+                                            {cityMatches.length === 0 && (
+                                                <p className="px-3 py-2 text-[13px] text-stone-400">{t('connect.map_no_city_match')}</p>
+                                            )}
+                                            {cityMatches.map((c) => (
+                                                <button
+                                                    key={c.id}
+                                                    type="button"
+                                                    onClick={() => previewCity(c)}
+                                                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#F6F6F0] transition-colors cursor-pointer flex items-baseline justify-between gap-3"
+                                                >
+                                                    <span className="text-[14px] font-medium text-stone-800 truncate">{c.label}</span>
+                                                    <span className="text-[12px] text-stone-400 shrink-0">{c.country}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <p className="text-[10.5px] text-stone-400">{t('connect.map_data_credit')}</p>
                                     <div className="flex items-center justify-between">
                                         <button type="button" onClick={() => setStage('ask')} className={`${quiet} inline-flex items-center gap-1.5`}>
                                             <LocateFixed className="w-3.5 h-3.5" /> {t('connect.map_use_location')}

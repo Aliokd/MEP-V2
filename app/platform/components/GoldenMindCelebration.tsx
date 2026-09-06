@@ -19,6 +19,8 @@ import {
 import { shareStreak } from '@/lib/streakShare';
 import { pullMindPowerMarks, pushMindPowerMarks } from '@/lib/mindPowerSync';
 import { safeLocalStorageSetItem } from '@/lib/storage';
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 import GoldenMindStage from '@/app/platform/mind-power/components/GoldenMindStage';
 import * as btn from './buttonStyles';
 
@@ -59,6 +61,11 @@ export default function GoldenMindCelebration() {
         if (uid) pushMindPowerMarks(uid);
         setOpen(false);
     }, [uid]);
+
+    // On a phone this is a bottom sheet: swiped down to close, and the system
+    // Back button closes it rather than leaving the platform.
+    useBackDismiss(open, close);
+    const { swipeHandlers, swipeStyle } = useSheetSwipe(close, open);
 
     // Nothing opens until the account's marks have been pulled: a week
     // dismissed on the phone must not replay on the laptop. Until then the
@@ -153,25 +160,33 @@ export default function GoldenMindCelebration() {
 
     return createPortal(
         <div
-            className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="sheet-shell fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
             onClick={close}
             role="presentation"
         >
+            {/* Centred card from md up; below that `sheet-shell`/`sheet-panel` turn
+                it into a bottom sheet (see globals.css), the body scrolls if the
+                phone is short, and the footer with the actions stays pinned. */}
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-label={t('progress.golden_aria')}
                 data-golden-mind
                 onClick={e => e.stopPropagation()}
-                className="golden-pop-in relative w-full max-w-[660px] overflow-hidden rounded-3xl bg-[#2a2a2a] px-8 pb-12 pt-6 text-[#F5F4EE] shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:px-14"
+                className="golden-pop-in sheet-panel relative w-full max-w-[660px] overflow-hidden rounded-3xl bg-[#2a2a2a] px-8 pb-12 pt-6 text-[#F5F4EE] shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:px-14 max-md:px-6 max-md:pb-3"
+                {...swipeHandlers}
+                style={swipeStyle}
             >
+                <div className="sheet-panel-body no-scrollbar">
                 {/* The render carries wide transparent margins; the negative margin
-                    takes the bottom one back so the words sit close to the brain. */}
-                <GoldenMindStage play={open} tone="dark" className="mx-auto -mb-[4%] w-[min(100%,440px)]" />
+                    takes the bottom one back so the words sit close to the brain.
+                    Smaller on a phone so the words and both actions fit without
+                    scrolling. */}
+                <GoldenMindStage play={open} tone="dark" className="mx-auto -mb-[4%] w-[min(100%,440px)] max-md:w-[min(74%,320px)]" />
 
                 {/* Below the brain, there from the first frame so nothing waits on the
                     animation: what this is, the message, and the ways out. */}
-                <div className="relative mt-4 flex flex-col items-center gap-7 text-center">
+                <div className="relative mt-4 flex flex-col items-center gap-5 md:gap-7 text-center">
                     <div className="flex flex-col items-center gap-2" data-streak-header>
                         <span className="font-lyrics text-[24px] leading-none text-stone-300">{t('progress.golden_eyebrow')}</span>
                         {week && (
@@ -191,7 +206,16 @@ export default function GoldenMindCelebration() {
                     <h2 className="font-lyrics font-normal text-[26px] sm:text-[32px] leading-[1.15] text-[#F5F4EE] max-w-[22ch]">
                         {title}
                     </h2>
-                    <div className="flex w-full items-center justify-between gap-4 pt-1">
+                </div>
+                </div>
+
+                {/* The ways out. Three actions do not fit one phone-width row
+                    without the labels breaking, so below md they take two rows:
+                    share and "I got it" first, the primary full width underneath.
+                    From md the first row dissolves (`md:contents`) and the three sit
+                    on one line, primary at the right. */}
+                <div className="sheet-panel-footer relative mt-7 flex w-full flex-col gap-4 md:mt-8 md:flex-row md:items-center">
+                    <div className="flex items-center justify-between gap-4 md:contents">
                         <div className="flex items-center gap-3">
                             <button
                                 type="button"
@@ -199,7 +223,7 @@ export default function GoldenMindCelebration() {
                                 data-share
                                 aria-label={copied ? t('progress.golden_link_copied') : t('progress.golden_share')}
                                 title={t('progress.golden_share')}
-                                className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-white/[0.04] text-stone-200 transition-colors hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86BE7F] cursor-pointer"
+                                className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/[0.04] text-stone-200 transition-colors hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86BE7F] cursor-pointer"
                             >
                                 {copied ? <Check size={19} strokeWidth={2.2} aria-hidden /> : <Share2 size={19} strokeWidth={1.9} aria-hidden />}
                             </button>
@@ -210,19 +234,22 @@ export default function GoldenMindCelebration() {
                                 {copied ? t('progress.golden_link_copied') : ''}
                             </span>
                         </div>
-                        <div className="flex items-center gap-6">
-                            <button
-                                type="button"
-                                onClick={close}
-                                className="text-[18px] text-stone-300 underline decoration-stone-500 underline-offset-4 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#86BE7F] cursor-pointer"
-                            >
-                                {t('progress.golden_got_it')}
-                            </button>
-                            <button type="button" onClick={learnMore} className={btn.primary('lg')} data-learn-more>
-                                {t('progress.golden_read_more')}
-                            </button>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={close}
+                            className="shrink-0 whitespace-nowrap px-2 py-2 text-[18px] text-stone-300 underline decoration-stone-500 underline-offset-4 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#86BE7F] cursor-pointer md:ml-auto"
+                        >
+                            {t('progress.golden_got_it')}
+                        </button>
                     </div>
+                    <button
+                        type="button"
+                        onClick={learnMore}
+                        className={`${btn.primary('lg')} whitespace-nowrap max-md:w-full md:ml-6`}
+                        data-learn-more
+                    >
+                        {t('progress.golden_read_more')}
+                    </button>
                 </div>
             </div>
         </div>,

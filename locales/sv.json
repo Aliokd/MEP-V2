@@ -623,7 +623,13 @@
       }
     },
     "map_not_configured": "Kartan är inte uppsatt än: det behövs en Google Maps-nyckel. Du kan fortfarande välja din stad.",
-    "business_soon_desc_locked": "Här kommer Max-medlemmar ta briefer, lägga ut uppdrag och få betalt för samarbeten. Det öppnar här först."
+    "business_soon_desc_locked": "Här kommer Max-medlemmar ta briefer, lägga ut uppdrag och få betalt för samarbeten. Det öppnar här först.",
+    "map_far_from_city": "Närmaste stad på vår lista är {city}, ungefär {km} km bort. Om det inte är där du är, sök efter en närmare.",
+    "map_search_city": "Sök efter din stad",
+    "map_no_city_match": "Ingen stad med det namnet. Prova närmaste storstad.",
+    "map_data_credit": "Stadsdata © GeoNames, CC BY 4.0",
+    "map_card_title": "Låtskrivare",
+    "map_card_subtitle": "Världen över"
   },
   "creative": {
     "new_project": "Nytt projekt",
@@ -1190,6 +1196,7 @@
     "tuning": "Justerar frekvensen...",
     "previous_practice": "Föregående övning",
     "next_practice": "Nästa övning",
+    "choose_practice": "Välj en övning",
     "previous_step": "Föregående steg",
     "next_step": "Nästa steg",
     "apply_connections": "Använd kopplingarna",

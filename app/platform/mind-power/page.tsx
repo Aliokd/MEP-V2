@@ -92,7 +92,9 @@ export default function MindPowerPage() {
     }, []);
 
     return (
-        <main className="mx-auto w-full max-w-[1180px] px-5 sm:px-8 pt-5 sm:pt-8 pb-20 flex flex-col gap-16 md:gap-20">
+        // Tighter stack on a phone (gap-10): the intro, the brain and the first
+        // cards should all be on the first screen, not a scroll apart.
+        <main className="mx-auto w-full max-w-[1180px] px-5 sm:px-8 pt-5 sm:pt-8 pb-20 flex flex-col gap-10 md:gap-20">
             {/* Back, the title beside it, the level at the far end; what this is, beneath. */}
             <header className="flex flex-col gap-3 sm:gap-4">
                 <div className="flex items-center gap-3 sm:gap-4">

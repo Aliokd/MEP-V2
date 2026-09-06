@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 import { createRoom, DETAILS_MAX, MAX_SEATS, MIN_SEATS, ROOM_TOPICS, type RoomTopic, type RoomType } from '@/lib/rooms';
 
 interface CreateRoomSheetProps {
@@ -32,6 +34,12 @@ export default function CreateRoomSheet({ isOpen, onClose, onCreated }: CreateRo
     const [seats, setSeats] = useState(MIN_SEATS);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+
+    // Below md this is a bottom sheet: swiped down or dismissed with the system
+    // Back button like every other sheet. Not while a room is being saved, so a
+    // stray gesture cannot lose the form mid-request.
+    useBackDismiss(isOpen && !saving, onClose);
+    const { swipeHandlers, swipeStyle } = useSheetSwipe(onClose, isOpen && !saving);
 
     if (!isOpen || typeof document === 'undefined') return null;
 
@@ -69,14 +77,19 @@ export default function CreateRoomSheet({ isOpen, onClose, onCreated }: CreateRo
     const label = 'block text-xs text-stone-400 font-medium mb-1.5';
 
     return createPortal(
+        /* Centred dialog from md up; below md `sheet-shell`/`sheet-panel` make it a
+           bottom sheet (globals.css) — the questions scroll in the body, the
+           Create button stays pinned in the footer. */
         <div
-            className="fixed inset-0 bg-stone-900/30 backdrop-blur-lg z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="sheet-shell fixed inset-0 bg-stone-900/30 backdrop-blur-lg z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
             onClick={onClose}
         >
             <form
                 onSubmit={handleSubmit}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gradient-to-b from-[#FAF9F5] via-[#F6F6F0] to-[#EBEBE3] rounded-[24px] border border-stone-200/70 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full max-h-[90dvh] overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-8 flex flex-col gap-5 animate-in zoom-in-95 duration-200 relative"
+                className="sheet-panel bg-gradient-to-b from-[#FAF9F5] via-[#F6F6F0] to-[#EBEBE3] rounded-[24px] border border-stone-200/70 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-md w-full max-h-[90dvh] overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-8 max-md:px-6 max-md:pt-6 max-md:pb-0 flex flex-col gap-5 animate-in zoom-in-95 duration-200 relative"
+                {...swipeHandlers}
+                style={swipeStyle}
             >
                 <button
                     type="button"
@@ -87,6 +100,7 @@ export default function CreateRoomSheet({ isOpen, onClose, onCreated }: CreateRo
                     <X className="w-4 h-4" />
                 </button>
 
+                <div className="sheet-panel-body no-scrollbar md:contents flex flex-col gap-5">
                 <h3 className="text-2xl font-sans font-light text-stone-800 tracking-[-0.025em] leading-[1.3] pr-10">
                     {t('connect.room_create_title')}
                 </h3>
@@ -211,14 +225,17 @@ export default function CreateRoomSheet({ isOpen, onClose, onCreated }: CreateRo
                 </div>
 
                 {error && <p className="text-xs text-red-700">{error}</p>}
+                </div>
 
+                <div className="sheet-panel-footer md:contents">
                 <button
                     type="submit"
                     disabled={!canSubmit}
-                    className="w-full rounded-full bg-[#86BE7F] py-4 text-base font-semibold text-stone-900 transition-all hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full rounded-full bg-[#86BE7F] py-4 text-base font-semibold text-stone-900 whitespace-nowrap transition-all hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                     {saving ? t('connect.room_creating') : t('connect.room_create_cta')}
                 </button>
+                </div>
             </form>
         </div>,
         document.body,

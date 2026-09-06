@@ -88,7 +88,12 @@ export default function LearnLanding({ onStart, onOpenIdeas }: LearnLandingProps
            window minus the sidebar — so at md the three columns were ~180px each
            and the last one ran off the edge. Below xl they stack as full-width
            blocks and the column scrolls. */
-        <div className="w-full flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-3 max-xl:auto-rows-min max-xl:content-start gap-4 px-4 md:px-0 overflow-y-auto xl:overflow-visible">
+        /* Stacked, the cards share the height the screen has left (auto-rows-fr):
+           three equal bands filling the phone, taller on a tall device, and never
+           below their min-height — when the screen is too short for that, the
+           column scrolls instead. A little more air above them on a phone, where
+           they otherwise sat right under the top bar. */
+        <div className="w-full flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-3 max-xl:auto-rows-fr gap-4 px-4 md:px-0 max-md:pt-7 max-md:pb-5 overflow-y-auto xl:overflow-visible">
             <button
                 onClick={onStart}
                 data-tour="learn-fundamentals"

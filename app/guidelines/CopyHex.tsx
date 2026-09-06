@@ -50,9 +50,12 @@ export default function CopyHex({ hex }: { hex: string }) {
             className="group -ml-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 font-mono text-xs text-stone-500 transition-colors hover:bg-stone-900/5 hover:text-stone-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3f6b3a] cursor-pointer"
         >
             {hex}
+            {/* Always visible. It used to appear on hover only, which on a phone
+                is never — so nothing said the code could be copied at all. Quiet
+                at rest, full strength when the pointer or focus is on it. */}
             {copied
                 ? <Check size={12} className="stroke-[2.5] text-[#5F9857]" />
-                : <Copy size={12} className="stroke-[2] opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />}
+                : <Copy size={12} className="stroke-[2] opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />}
             <span className="sr-only" role="status">{copied ? 'Copied' : ''}</span>
         </button>
     );

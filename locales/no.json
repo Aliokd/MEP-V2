@@ -623,7 +623,13 @@
       }
     },
     "map_not_configured": "Kartet er ikke satt opp ennå: det trengs en Google Maps-nøkkel. Du kan fortsatt velge byen din.",
-    "business_soon_desc_locked": "Her vil Max-medlemmer ta briefer, legge ut oppdrag og få betalt for samarbeid. Det åpner her først."
+    "business_soon_desc_locked": "Her vil Max-medlemmer ta briefer, legge ut oppdrag og få betalt for samarbeid. Det åpner her først.",
+    "map_far_from_city": "Nærmeste by på listen vår er {city}, omtrent {km} km unna. Hvis det ikke er der du er, søk etter en nærmere.",
+    "map_search_city": "Søk etter byen din",
+    "map_no_city_match": "Ingen by med det navnet. Prøv nærmeste storby.",
+    "map_data_credit": "Bydata © GeoNames, CC BY 4.0",
+    "map_card_title": "Låtskrivere",
+    "map_card_subtitle": "Verden rundt"
   },
   "creative": {
     "new_project": "Nytt prosjekt",
@@ -1190,6 +1196,7 @@
     "tuning": "Justerer frekvensen...",
     "previous_practice": "Forrige øvelse",
     "next_practice": "Neste øvelse",
+    "choose_practice": "Velg en øvelse",
     "previous_step": "Forrige trinn",
     "next_step": "Neste trinn",
     "apply_connections": "Bruk koblingene",

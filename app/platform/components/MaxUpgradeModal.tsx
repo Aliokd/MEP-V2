@@ -189,9 +189,13 @@ export default function MaxUpgradeModal({ isOpen, onClose, plan = 'max', reason 
                 {/* md:contents dissolves these wrappers on desktop, so the dialog keeps
                     the single flex column it has always been; below md they become the
                     scrolling body and the pinned footer. */}
-                <div className="sheet-panel-body md:contents flex flex-col gap-6">
+                {/* no-scrollbar: below md this body is the scroller, and it was
+                    painting the native track down the sheet's right edge. */}
+                <div className="sheet-panel-body no-scrollbar md:contents flex flex-col gap-6">
                 <div className="space-y-2 pr-10">
-                    <span className="inline-block rounded-full bg-[#86BE7F]/20 px-3 py-1 text-[11px] font-bold text-[#3f6b3a]">
+                    {/* The plan badge as it appears beside the name on Profile — one
+                        badge for a tier, wherever the tier is named. */}
+                    <span className="inline-block rounded-full bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-[#DCDDD4] leading-none">
                         {t(`onboarding.paywall.plans.${plan}.name`)}
                     </span>
                     <h3 className="text-2xl font-sans font-light text-stone-800 tracking-[-0.025em] leading-[1.3]">

@@ -284,7 +284,11 @@ export default function MindPowerBrain({ t, weeklyRatio }: MindPowerBrainProps) 
                     ref={stageRef}
                     // z-10: the brain sits above the leader lines, so a line stops at
                     // the model's surface instead of running across it.
-                    className="relative z-10 mx-auto w-full max-w-[520px]"
+                    // The render carries transparent margins above and below the model.
+                    // Below lg, where the stage stacks between the intro and the region
+                    // cards, the negative margins take those back so the empty band
+                    // does not push the cards under the fold.
+                    className="relative z-10 mx-auto w-full max-w-[520px] max-lg:-mt-10 max-lg:-mb-8"
                     style={{ perspective: 1100 }}
                 >
                     <motion.div

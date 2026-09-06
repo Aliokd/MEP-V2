@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import PracticeCard from './PracticeCard';
 import PracticeVideoModal from './PracticeVideoModal';
@@ -25,6 +26,7 @@ import { useNudge } from '../lib/useNudge';
 import NudgeMessage from './NudgeMessage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBackDismiss } from '@/hooks/useBackDismiss';
+import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 
 /** Starting points for Composing verses. */
 const THEMES = [
@@ -199,6 +201,23 @@ export default function PracticeTab() {
     const [chosenSong, setChosenSong] = useState<ChosenSong | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    /**
+     * Below md the practice menu is a bottom sheet, not a dropdown hung off the
+     * pill. Anchored to the pill it had the pill's width to work with, so most
+     * titles ended in "…" beside their "Coming" badge; as a sheet it gets the
+     * whole screen width, thumb-sized rows, and the same swipe-down and Back
+     * dismissals as every other sheet.
+     */
+    const [isNarrow, setIsNarrow] = useState(false);
+    useEffect(() => {
+        const check = () => setIsNarrow(window.innerWidth < 768);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
+    useBackDismiss(dropdownOpen && isNarrow, () => setDropdownOpen(false));
+    const menuSwipe = useSheetSwipe(() => setDropdownOpen(false), dropdownOpen && isNarrow);
 
     // Composing Verses (Practice 2) State
     const [currentStep, setCurrentStep] = useState(1);
@@ -512,8 +531,11 @@ export default function PracticeTab() {
         goNext();
     };
 
-    // Close dropdown on click outside
+    // Close dropdown on click outside — desktop only. The phone sheet lives in a
+    // portal outside dropdownRef, so this would have closed it on the very
+    // mousedown that precedes a tap on one of its rows.
     useEffect(() => {
+        if (isNarrow) return;
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setDropdownOpen(false);
@@ -521,7 +543,32 @@ export default function PracticeTab() {
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [isNarrow]);
+
+    /** The practice list, rendered into the dropdown on desktop and the sheet on a phone. */
+    const practiceRows = practices.map((p) => {
+        const isSelected = p === selectedPractice;
+        const meta = getPractice(p);
+        return (
+            <button
+                key={p}
+                onClick={() => selectPractice(p)}
+                className={`${btn.menuItem()} justify-between gap-4 px-5 py-3 font-serif text-base font-normal sm:text-lg
+                    ${isSelected
+                        ? 'bg-stone-100 text-stone-900'
+                        : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                    }
+                `}
+            >
+                <span className="truncate">{getTranslatedPracticeName(p)}</span>
+                {!meta.available && (
+                    <span className="shrink-0 whitespace-nowrap rounded-full bg-stone-100 text-stone-400 px-3 py-0.5 text-xs font-sans">
+                        {comingLabel(meta)}
+                    </span>
+                )}
+            </button>
+        );
+    });
 
     return (
         // px-4 below md: the beige panel that used to supply this page's edge
@@ -577,8 +624,38 @@ export default function PracticeTab() {
                         {/* Dropdown Menu — the wrapper owns the horizontal centering, because
                             framer-motion writes an inline transform on the animated element that
                             would override a -translate-x-1/2 utility and shift the panel right. */}
+                        {/* Phone: the list as a bottom sheet, portalled to <body> so no
+                            ancestor's overflow or transform can clip or reposition it. */}
+                        {dropdownOpen && isNarrow && typeof document !== 'undefined' && createPortal(
+                            <div
+                                className="fixed inset-0 z-[120] flex items-end justify-center bg-stone-900/45 backdrop-blur-md sheet-backdrop-enter"
+                                onClick={() => setDropdownOpen(false)}
+                            >
+                                <div
+                                    role="dialog"
+                                    aria-modal="true"
+                                    aria-label={t('practice.choose_practice')}
+                                    data-practice-menu
+                                    className="w-full max-h-[85dvh] bg-white rounded-t-[26px] shadow-[0_-8px_40px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden bottom-sheet-enter"
+                                    onClick={(e) => e.stopPropagation()}
+                                    {...menuSwipe.swipeHandlers}
+                                    style={menuSwipe.swipeStyle}
+                                >
+                                    <div className="shrink-0 pt-2.5 pb-4 flex justify-center">
+                                        <div className="w-10 h-1 rounded-full bg-stone-300" />
+                                    </div>
+                                    {/* Thumb-sized rows, full width: the title gets the room the
+                                        pill-anchored dropdown never had. */}
+                                    <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-[max(1rem,env(safe-area-inset-bottom))] flex flex-col gap-1 [&_button]:min-h-[60px] [&_button]:rounded-2xl [&_.truncate]:whitespace-normal [&_.truncate]:text-left">
+                                        {practiceRows}
+                                    </div>
+                                </div>
+                            </div>,
+                            document.body
+                        )}
+
                         <AnimatePresence>
-                            {dropdownOpen && (
+                            {dropdownOpen && !isNarrow && (
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 z-50">
                                     <motion.div
                                         data-practice-menu
@@ -588,29 +665,7 @@ export default function PracticeTab() {
                                         transition={{ duration: 0.18, ease: "easeOut" }}
                                         className="w-[min(88vw,540px)] max-h-[min(60vh,520px)] overflow-y-auto no-scrollbar bg-white/95 backdrop-blur-md border border-stone-200/60 rounded-[24px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.10)]"
                                     >
-                                        {practices.map((p) => {
-                                            const isSelected = p === selectedPractice;
-                                            const meta = getPractice(p);
-                                            return (
-                                                <button
-                                                    key={p}
-                                                    onClick={() => selectPractice(p)}
-                                                    className={`${btn.menuItem()} justify-between gap-4 px-5 py-3 font-serif text-base font-normal sm:text-lg
-                                                        ${isSelected
-                                                            ? 'bg-stone-100 text-stone-900'
-                                                            : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                                                        }
-                                                    `}
-                                                >
-                                                    <span className="truncate">{getTranslatedPracticeName(p)}</span>
-                                                    {!meta.available && (
-                                                        <span className="shrink-0 whitespace-nowrap rounded-full bg-stone-100 text-stone-400 px-3 py-0.5 text-xs font-sans">
-                                                            {comingLabel(meta)}
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
+                                        {practiceRows}
                                     </motion.div>
                                 </div>
                             )}

@@ -205,17 +205,25 @@ export default function StreakGrid({ weeks, streak, thisWeek, language, t }: Str
                 )}
             </div>
 
-            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 sm:gap-2">
+            {/* On a phone the weeks ARE the control: one big card in the middle
+                with its neighbours peeking in at both edges, which is what says
+                "swipe" — so the arrows only appear from md, where the row is
+                wide enough to page with a mouse. */}
+            <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-center gap-1 sm:gap-2">
                 <PageArrow direction={-1} disabled={edges.start} onClick={() => page(-1)} label={t('progress.mp_earlier_weeks')} />
 
                 <div
                     ref={trackRef}
                     onScroll={handleScroll}
                     data-streak-track
-                    className="mind-power-carousel relative flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
+                    // Edge to edge on a phone (the page's px-5 gutter taken back), so the
+                    // neighbouring weeks run under the screen edge rather than stopping
+                    // short of it — the clearest sign there is more to swipe to.
+                    className="mind-power-carousel relative flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain max-sm:-mx-5 sm:max-md:-mx-8"
                 >
-                    {/* Room at both ends, so the first and last weeks can reach the middle too. */}
-                    <div className="shrink-0 basis-1/3 lg:basis-[40%]" aria-hidden />
+                    {/* Room at both ends, so the first and last weeks can reach the
+                        middle too: half of what the cards leave over. */}
+                    <div className="shrink-0 basis-[19%] md:basis-1/3 lg:basis-[40%]" aria-hidden />
                     {weeks.map(week => (
                         <WeekBrain
                             key={week.key}
@@ -225,7 +233,7 @@ export default function StreakGrid({ weeks, streak, thisWeek, language, t }: Str
                             onSelect={week.isFuture ? undefined : () => onWeekClick(week)}
                         />
                     ))}
-                    <div className="shrink-0 basis-1/3 lg:basis-[40%]" aria-hidden />
+                    <div className="shrink-0 basis-[19%] md:basis-1/3 lg:basis-[40%]" aria-hidden />
                 </div>
 
                 <PageArrow direction={1} disabled={edges.end} onClick={() => page(1)} label={t('progress.mp_later_weeks')} />
@@ -320,7 +328,7 @@ function PageArrow({
             onClick={onClick}
             disabled={disabled}
             aria-label={label}
-            className="flex h-10 w-8 items-center justify-center rounded-full text-[#F5F4EE] transition-opacity duration-300 hover:bg-white/[0.06] disabled:opacity-20 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86BE7F]"
+            className="hidden md:flex h-10 w-8 items-center justify-center rounded-full text-[#F5F4EE] transition-opacity duration-300 hover:bg-white/[0.06] disabled:opacity-20 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86BE7F]"
         >
             <Icon size={26} strokeWidth={1.75} aria-hidden />
         </button>
@@ -367,7 +375,7 @@ function WeekBrain({
             onClick={onOpen}
             onKeyDown={onOpen ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } } : undefined}
             aria-label={onOpen ? (selected ? t('progress.recap_open') : t('progress.mp_week_n')).replace('{n}', String(week.index)) : undefined}
-            className={`flex basis-1/3 lg:basis-1/5 shrink-0 snap-center flex-col items-center gap-3 rounded-2xl px-1 py-3 transition-colors duration-200 ${
+            className={`flex basis-[62%] md:basis-1/3 lg:basis-1/5 shrink-0 snap-center flex-col items-center gap-3 rounded-2xl px-1 py-5 md:py-3 transition-colors duration-200 ${
                 week.isFuture ? 'opacity-40' : ''
             } ${selected ? 'bg-white/[0.06] ring-1 ring-white/10' : ''} ${
                 onOpen ? 'cursor-pointer hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86BE7F]' : ''
@@ -403,7 +411,7 @@ function WeekBrain({
             </div>
 
             <span
-                className={`inline-flex items-center gap-1.5 text-[15px] leading-tight tabular-nums ${
+                className={`inline-flex items-center gap-1.5 whitespace-nowrap text-[17px] md:text-[15px] leading-tight tabular-nums ${
                     selected ? 'text-[#F5F4EE]' : 'text-stone-400'
                 }`}
             >
@@ -418,7 +426,7 @@ function WeekBrain({
             </span>
             {/* The week in the middle shows where it stands. */}
             {selected && (
-                <span className="-mt-1.5 text-[12px] text-stone-500 tabular-nums">{detail}</span>
+                <span className="-mt-1.5 whitespace-nowrap text-[13px] md:text-[12px] text-stone-500 tabular-nums">{detail}</span>
             )}
         </div>
     );

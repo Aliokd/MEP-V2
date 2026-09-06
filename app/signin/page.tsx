@@ -230,7 +230,11 @@ function SignInPageInner() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-6 py-16 sm:py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">
+        // pt-32 on a phone: the wordmark sits in a FIXED nav (py-8 plus the large
+        // logo, ~110px), and with only py-16 the centred column started underneath
+        // it — headline pressed against logo. The top inset now clears the nav
+        // with room to spare; sm and up keep the symmetric py-32.
+        <div className="min-h-screen flex items-center justify-center px-6 pt-32 pb-16 sm:py-32 bg-[#DCDDD4] relative overflow-hidden font-sans">
             <div className="absolute top-8 right-6 md:top-12 md:right-10 z-50">
                 <LanguageSwitcher variant="marketing" direction="down" iconOnly tooltipSide="bottom" />
             </div>

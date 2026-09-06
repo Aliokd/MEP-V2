@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { User, LogOut, ArrowRight } from 'lucide-react';
 import Logo from './Logo';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
@@ -73,11 +74,14 @@ const Navigation = () => {
 
     return (
         <nav className={`${navClasses} flex items-center justify-between font-sans`}>
-            <Link href={homeHref} className="hover:opacity-80 transition-opacity">
+            {/* 96px wordmark on a phone, as on the home page: at 120 it took a third
+                of the bar and left the controls fighting for the rest. */}
+            <Link href={homeHref} className="hover:opacity-80 transition-opacity [&_svg]:w-[96px] md:[&_svg]:w-[120px]">
                 <Logo size="lg" />
             </Link>
 
-            <div className="flex items-center gap-10 text-[15px] text-[#363636]">
+            {/* Desktop: words. */}
+            <div className="hidden md:flex items-center gap-10 text-[15px] text-[#363636]">
                 <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
                 {user ? (
                     <div className="flex items-center gap-6">
@@ -96,6 +100,54 @@ const Navigation = () => {
                         <Link href={signinHref} className="hover:text-black transition-colors font-medium">{t('signin.sign_in')}</Link>
                         <Link href={`${waitlistHref}?from=nav`} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.waitlist')}</Link>
                     </div>
+                )}
+            </div>
+
+            {/* Phone: the home page's bar — icon-only switcher, sign-in as an icon,
+                and the one button that matters with its short label. As words,
+                "Sign in" and "Join the waitlist" wrapped onto two and three lines
+                and the button ran off the edge of the screen. */}
+            <div className="flex md:hidden items-center gap-2.5 text-[15px] text-[#363636]">
+                <LanguageSwitcher variant="marketing" direction="down" iconOnly tooltipSide="bottom" />
+                {user ? (
+                    <>
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            aria-label={t('navigation.logout')}
+                            title={t('navigation.logout')}
+                            className="w-10 h-10 shrink-0 rounded-full bg-white/70 hover:bg-white border border-stone-300/40 flex items-center justify-center text-[#363636] hover:text-black transition-colors active:scale-95 cursor-pointer"
+                        >
+                            <LogOut size={18} strokeWidth={1.8} />
+                        </button>
+                        {/* Icon only: "Enter Platform" as words (longer still in Norwegian
+                            and Swedish) ran the bar off the right edge of a 375px screen. */}
+                        <Link
+                            href="/platform"
+                            aria-label={t('navigation.enter_platform')}
+                            title={t('navigation.enter_platform')}
+                            className="btn-press w-10 h-10 px-0 flex items-center justify-center shrink-0"
+                        >
+                            <ArrowRight size={18} strokeWidth={2.2} />
+                        </Link>
+                    </>
+                ) : (
+                    <>
+                        <Link
+                            href={signinHref}
+                            aria-label={t('signin.sign_in')}
+                            title={t('signin.sign_in')}
+                            className="w-10 h-10 shrink-0 rounded-full bg-white/70 hover:bg-white border border-stone-300/40 flex items-center justify-center text-[#363636] hover:text-black transition-colors active:scale-95"
+                        >
+                            <User size={19} strokeWidth={1.8} />
+                        </Link>
+                        <Link
+                            href={`${waitlistHref}?from=nav`}
+                            className="btn-press px-5 h-10 font-semibold text-[15px] flex items-center justify-center whitespace-nowrap shrink-0"
+                        >
+                            {t('home.nav.waitlist_short')}
+                        </Link>
+                    </>
                 )}
             </div>
         </nav>

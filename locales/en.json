@@ -623,7 +623,13 @@
       }
     },
     "map_not_configured": "The map isn't set up yet: it needs a Google Maps key. You can still choose your city.",
-    "business_soon_desc_locked": "This is where Max members will take briefs, post commissions and get paid for collaborations. It opens here first."
+    "business_soon_desc_locked": "This is where Max members will take briefs, post commissions and get paid for collaborations. It opens here first.",
+    "map_far_from_city": "The nearest city on our list is {city}, about {km} km away. If that's not where you are, search for a closer one.",
+    "map_search_city": "Search for your city",
+    "map_no_city_match": "No city by that name. Try the nearest big city.",
+    "map_data_credit": "City data © GeoNames, CC BY 4.0",
+    "map_card_title": "Songwriters",
+    "map_card_subtitle": "Worldwide"
   },
   "creative": {
     "new_project": "New Project",
@@ -1190,6 +1196,7 @@
     "tuning": "Tuning the frequency...",
     "previous_practice": "Previous Practice",
     "next_practice": "Next Practice",
+    "choose_practice": "Choose a practice",
     "previous_step": "Previous Step",
     "next_step": "Next Step",
     "apply_connections": "Apply connections",
