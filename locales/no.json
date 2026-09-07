@@ -1039,6 +1039,28 @@
     "photos_title": "Bilder"
   },
   "email": {
+    "song_liked": {
+      "subject": "{{actor}} likte sangen din",
+      "preheader": "{{song}} fikk nettopp litt kjærlighet i fellesskapet.",
+      "greeting": "Hei {{name}},",
+      "body_1": "{{actor}} likte nettopp {{song}} i Veinote-fellesskapet.",
+      "body_2": "Et like fra en annen låtskriver er en liten ting som teller. Åpne innlegget for å se hvem andre som lytter.",
+      "cta": "Se sangen din",
+      "untitled": "sangen din",
+      "signoff": "Fortsett å skrive,",
+      "team": "Veinote-teamet"
+    },
+    "song_commented": {
+      "subject": "{{actor}} kommenterte sangen din",
+      "preheader": "{{song}} har fått en ny kommentar.",
+      "greeting": "Hei {{name}},",
+      "body_1": "{{actor}} la igjen en kommentar på {{song}}:",
+      "body_2": "Svar i fellesskapet for å holde samtalen i gang.",
+      "cta": "Les og svar",
+      "untitled": "sangen din",
+      "signoff": "Fortsett å skrive,",
+      "team": "Veinote-teamet"
+    },
     "welcome": {
       "subject": "Velkommen til Veinote, {{name}}",
       "greeting": "Hei {{name}},",

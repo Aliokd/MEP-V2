@@ -98,6 +98,24 @@ export const EMAIL_TEMPLATES: EmailTemplateDefinition[] = [
         listFields: ["features"],
         variables: ["inviter", "project", "days"],
     },
+    {
+        id: "song_liked",
+        label: "Someone liked your song",
+        whenSent:
+            "When a member likes a post in the community. Goes to the person who posted it, once per like, at most 30 a day.",
+        keyPrefix: "song_liked",
+        fields: ["subject", "preheader", "greeting", "body_1", "body_2", "cta", "untitled", "signoff", "team"],
+        variables: ["name", "actor", "song"],
+    },
+    {
+        id: "song_commented",
+        label: "Someone commented on your song",
+        whenSent:
+            "When a member comments on a post in the community. Goes to the person who posted it, with the comment quoted.",
+        keyPrefix: "song_commented",
+        fields: ["subject", "preheader", "greeting", "body_1", "body_2", "cta", "untitled", "signoff", "team"],
+        variables: ["name", "actor", "song"],
+    },
 ];
 
 export function getEmailTemplate(id: string): EmailTemplateDefinition | undefined {

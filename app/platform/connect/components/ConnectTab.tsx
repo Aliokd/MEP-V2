@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useSanction } from '@/lib/useSanction';
 import { db } from '@/lib/firebase';
+import { authedFetch } from '@/lib/authedFetch';
 import { useLanguage } from '@/context/LanguageContext';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, Check, Clock, UserPlus, Flame, LayoutGrid, ThumbsUp, Repeat, Send, Loader2 } from 'lucide-react';
@@ -50,6 +51,8 @@ interface Comment {
   avatarFallback: string;
   time: string;
   body: string;
+  /** Firebase uid of the commenter. Lets the server confirm who wrote it before emailing the post's author. */
+  authorUid?: string;
 }
 
 interface Post {
@@ -75,6 +78,19 @@ interface Post {
   /** Set by the moderation console. Hidden posts stay visible to their author only. */
   hidden?: boolean;
   moderationReason?: string | null;
+}
+
+/**
+ * Tells the server a like or comment landed, so the post's author can be
+ * emailed. Fire and forget: the like or comment is already in Firestore, and
+ * the email is a courtesy on top of it, not a condition of it. The server
+ * checks the post itself before sending anything.
+ */
+function notifyEngagement(postId: string, kind: 'like' | 'comment', commentId?: string) {
+  authedFetch('/api/emails/engagement', {
+    method: 'POST',
+    body: JSON.stringify({ postId, kind, commentId }),
+  }).catch(() => { /* nothing to do: the action itself succeeded */ });
 }
 
 // ==========================================
@@ -2246,6 +2262,7 @@ export default function ConnectTab() {
         likedBy: newLikedBy,
         kudos: newKudos
       });
+      if (!isLiked) notifyEngagement(postId, 'like');
     } catch (err) {
       console.error("Error toggling kudos:", err);
     }
@@ -2299,7 +2316,8 @@ export default function ConnectTab() {
       author: displayName,
       avatarFallback: initials || 'ME',
       time: t('connect.just_now'),
-      body: text
+      body: text,
+      ...(user?.uid ? { authorUid: user.uid } : {})
     };
 
     const postToUpdate = posts.find(p => p.id === postId);
@@ -2311,6 +2329,7 @@ export default function ConnectTab() {
       await updateDoc(doc(db, 'connect_posts', postId), {
         comments: updatedComments
       });
+      notifyEngagement(postId, 'comment', newComment.id);
     } catch (err) {
       console.error("Error adding comment:", err);
     }

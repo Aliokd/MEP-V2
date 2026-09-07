@@ -1039,6 +1039,28 @@
     "photos_title": "Photos"
   },
   "email": {
+    "song_liked": {
+      "subject": "{{actor}} liked your song",
+      "preheader": "{{song}} just got some love in the community.",
+      "greeting": "Hi {{name}},",
+      "body_1": "{{actor}} just liked {{song}} in the Veinote community.",
+      "body_2": "A like from another songwriter is a small thing that counts. Open the post to see who else is listening.",
+      "cta": "See your song",
+      "untitled": "your song",
+      "signoff": "Keep writing,",
+      "team": "The Veinote team"
+    },
+    "song_commented": {
+      "subject": "{{actor}} commented on your song",
+      "preheader": "{{song}} has a new comment.",
+      "greeting": "Hi {{name}},",
+      "body_1": "{{actor}} left a comment on {{song}}:",
+      "body_2": "Reply in the community to keep the conversation going.",
+      "cta": "Read and reply",
+      "untitled": "your song",
+      "signoff": "Keep writing,",
+      "team": "The Veinote team"
+    },
     "welcome": {
       "subject": "Welcome to Veinote, {{name}}",
       "greeting": "Hi {{name}},",

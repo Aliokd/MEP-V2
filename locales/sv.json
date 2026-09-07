@@ -1039,6 +1039,28 @@
     "photos_title": "Bilder"
   },
   "email": {
+    "song_liked": {
+      "subject": "{{actor}} gillade din låt",
+      "preheader": "{{song}} fick just lite kärlek i communityn.",
+      "greeting": "Hej {{name}},",
+      "body_1": "{{actor}} gillade just {{song}} i Veinote-communityn.",
+      "body_2": "Ett gilla från en annan låtskrivare är en liten sak som räknas. Öppna inlägget för att se vilka fler som lyssnar.",
+      "cta": "Se din låt",
+      "untitled": "din låt",
+      "signoff": "Fortsätt skriva,",
+      "team": "Veinote-teamet"
+    },
+    "song_commented": {
+      "subject": "{{actor}} kommenterade din låt",
+      "preheader": "{{song}} har fått en ny kommentar.",
+      "greeting": "Hej {{name}},",
+      "body_1": "{{actor}} lämnade en kommentar på {{song}}:",
+      "body_2": "Svara i communityn för att hålla samtalet igång.",
+      "cta": "Läs och svara",
+      "untitled": "din låt",
+      "signoff": "Fortsätt skriva,",
+      "team": "Veinote-teamet"
+    },
     "welcome": {
       "subject": "Välkommen till Veinote, {{name}}",
       "greeting": "Hej {{name}},",

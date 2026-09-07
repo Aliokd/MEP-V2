@@ -69,6 +69,8 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
     // writes once; a few covers a re-send after a typo.
     feedback: { limit: 5, windowMs: 60_000 },
     support: { limit: 5, windowMs: 60_000 },
+    // Likes and comments: one call per action, and nobody likes twenty songs a minute.
+    engagement: { limit: 20, windowMs: 60_000 },
 };
 
 // Bounded so a flood of distinct clients can't grow this without limit.

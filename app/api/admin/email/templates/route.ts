@@ -10,6 +10,7 @@ import { EMAIL_TEMPLATES, getEmailTemplate, templateKey } from "@/lib/email/temp
 import { welcomeEmail } from "@/lib/email/templates/welcome";
 import { betaWelcomeEmail } from "@/lib/email/templates/betaWelcome";
 import { collabInviteEmail } from "@/lib/email/templates/collabInvite";
+import { songCommentedEmail, songLikedEmail } from "@/lib/email/templates/engagement";
 import { LOCALES } from "@/lib/content";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,24 @@ function renderSample(id: string, locale: EmailLocale, overrides: Awaited<Return
                     joinUrl: `${APP_URL}/signin`,
                     trialDays: 14,
                     waitlistMode: false,
+                },
+                overrides,
+            );
+        case "song_liked":
+            return songLikedEmail(
+                locale,
+                { name: "Alex", actor: "Sofia", song: "Empty Chair", postUrl: `${APP_URL}/platform/connect` },
+                overrides,
+            );
+        case "song_commented":
+            return songCommentedEmail(
+                locale,
+                {
+                    name: "Alex",
+                    actor: "Sofia",
+                    song: "Empty Chair",
+                    comment: "That second verse gave me chills. The line about the kitchen light is the whole song.",
+                    postUrl: `${APP_URL}/platform/connect`,
                 },
                 overrides,
             );
