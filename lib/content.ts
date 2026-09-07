@@ -146,6 +146,21 @@ export interface PracticeMelodyDoc {
 }
 
 /**
+ * A theme for Practice 2 — Composing verses.
+ *
+ * One of the cards a songwriter picks from before writing five nouns and five
+ * verbs. Just a word or two, localized, because a Norwegian songwriter should
+ * be handed "Natur" and not asked to write about "Nature". Nothing is keyed by
+ * the label; renaming one changes what people see and nothing else.
+ */
+export interface PracticeThemeDoc {
+    id: string;
+    title: LocalizedText;
+    order: number;
+    status: ContentStatus;
+}
+
+/**
  * A standalone website page — privacy policy, terms, and anything else editorial
  * that lives on the marketing site rather than inside the platform.
  *

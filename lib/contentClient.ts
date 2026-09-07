@@ -2,7 +2,7 @@
 
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { IdeaDoc, LearnChapter, LearnLesson, PracticeMelodyDoc, PracticeSongDoc } from "@/lib/content";
+import type { IdeaDoc, LearnChapter, LearnLesson, PracticeMelodyDoc, PracticeSongDoc, PracticeThemeDoc } from "@/lib/content";
 
 /**
  * Platform-side reads of CMS content.
@@ -34,6 +34,10 @@ export async function fetchPracticeSongs(): Promise<PracticeSongDoc[]> {
 
 export async function fetchPracticeMelodies(): Promise<PracticeMelodyDoc[]> {
     return byOrder(await fetchPublished<PracticeMelodyDoc>("practice_melodies"));
+}
+
+export async function fetchPracticeThemes(): Promise<PracticeThemeDoc[]> {
+    return byOrder(await fetchPublished<PracticeThemeDoc>("practice_themes"));
 }
 
 export async function fetchLearnChapters(): Promise<LearnChapter[]> {

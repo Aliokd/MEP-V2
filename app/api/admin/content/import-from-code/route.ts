@@ -10,6 +10,7 @@ import { LOCALES, type Locale } from "@/lib/content";
 import { COOKIES_FALLBACK_MD } from "@/lib/cookiePageBody";
 import { LYRICS_IDEAS_BY_LANGUAGE as IDEAS_BY_LANGUAGE } from "@/app/platform/data/ideas";
 import { PRACTICE_SONGS } from "@/app/platform/practice/data/practiceSongs";
+import { PRACTICE_THEMES } from "@/app/platform/practice/data/themes";
 
 export const dynamic = "force-dynamic";
 
@@ -263,6 +264,30 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
                 { merge: true },
             );
             imported.push(song.id);
+        }
+    }
+
+    if (target === "all" || target === "themes") {
+        // The sixteen bundled themes, English only: the code never carried
+        // translations, so the console shows the gap instead of inventing one.
+        for (const [index, theme] of PRACTICE_THEMES.entries()) {
+            const ref = adminDb.collection("practice_themes").doc(theme.id);
+            if ((await ref.get()).exists && !force) {
+                skipped.push(`${theme.id}: already in the CMS`);
+                continue;
+            }
+            await ref.set(
+                {
+                    id: theme.id,
+                    title: { en: theme.label },
+                    order: index,
+                    status: "published",
+                    updatedAt: FieldValue.serverTimestamp(),
+                    updatedByEmail: admin.email,
+                },
+                { merge: true },
+            );
+            imported.push(theme.id);
         }
     }
 

@@ -43,6 +43,7 @@ const EDITABLE = {
     // can be created but never edited, published or archived — the console
     // reports "Unknown content collection" on the first save after creation.
     melodies: { collection: "practice_melodies", label: "melody" },
+    themes: { collection: "practice_themes", label: "theme" },
     pages: { collection: "site_pages", label: "page" },
     faqs: { collection: "faqs", label: "faq" },
     copy: { collection: "site_copy", label: "copy" },

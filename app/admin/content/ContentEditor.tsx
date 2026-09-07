@@ -14,7 +14,7 @@ import type { CmsPracticeSection } from "@/lib/practiceLibrary";
 import type { LessonBlock } from "@/lib/lessonBlocks";
 import { uploadContentMedia, type VideoProbe } from "@/lib/uploadContentMedia";
 
-type Collection = "chapters" | "lessons" | "ideas" | "songs" | "melodies";
+type Collection = "chapters" | "lessons" | "ideas" | "songs" | "themes" | "melodies";
 
 /** Which localized fields each content type has. */
 const LOCALIZED_FIELDS: Record<Collection, { key: string; label: string; long?: boolean }[]> = {
@@ -33,6 +33,7 @@ const LOCALIZED_FIELDS: Record<Collection, { key: string; label: string; long?: 
         { key: "example", label: "Example", long: true },
     ],
     songs: [],
+    themes: [{ key: "title", label: "Theme" }],
     melodies: [],
 };
 

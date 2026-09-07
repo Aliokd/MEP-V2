@@ -26,7 +26,7 @@ function practiceTab(index: number): string {
     return practice ? `Practice ${index + 1} · ${practice.name}` : `Practice ${index + 1}`;
 }
 
-type Tab = "chapters" | "lessons" | "ideas" | "songs" | "melodies";
+type Tab = "chapters" | "lessons" | "ideas" | "songs" | "themes" | "melodies";
 type SectionId = "create" | "learn" | "practice" | "connect";
 
 /** `noun` names what the New button makes here — "New song", not "New". */
@@ -35,6 +35,7 @@ const TABS: { id: Tab; label: string; description: string; noun: string }[] = [
     { id: "lessons", label: "Lessons", description: "Individual lessons, their video, order and prerequisites.", noun: "lesson" },
     { id: "ideas", label: "Bank of Ideas", description: "Prompts shown in Learn, by category.", noun: "card" },
     { id: "songs", label: practiceTab(0), description: "The songs this practice works through, and their rights position.", noun: "song" },
+    { id: "themes", label: practiceTab(1), description: "The starting points a songwriter picks from before writing a verse. Order here is the order of the cards.", noun: "theme" },
     { id: "melodies", label: practiceTab(2), description: "The short phrases this practice plays for a songwriter to answer.", noun: "melody" },
 ];
 
@@ -56,7 +57,7 @@ const SECTIONS: { id: SectionId; label: string; blurb: string; tabs: Tab[] }[] =
         blurb: "The curriculum, its videos, and the cards in the Bank of Ideas.",
         tabs: ["chapters", "lessons", "ideas"],
     },
-    { id: "practice", label: "Practice", blurb: "The material each practice works through. Practices with no authored content of their own are not listed.", tabs: ["songs", "melodies"] },
+    { id: "practice", label: "Practice", blurb: "The material each practice works through. Practices with no authored content of their own are not listed.", tabs: ["songs", "themes", "melodies"] },
     { id: "connect", label: "Connect", blurb: "The community feed.", tabs: [] },
 ];
 
@@ -165,7 +166,7 @@ export default function ContentPage() {
     }, [items]);
 
     /** Brings the 38 cards that ship in app/platform/data/ideas.ts into the CMS. */
-    const importFromCode = async (target: "ideas" | "songs") => {
+    const importFromCode = async (target: "ideas" | "songs" | "themes") => {
         setImporting(true);
         setImportNote(null);
         try {
@@ -177,7 +178,7 @@ export default function ContentPage() {
             if (!res.ok) throw new Error(data.error || "Import failed");
             setImportNote(
                 data.imported.length > 0
-                    ? `Imported ${data.imported.length} ${target === "songs" ? "songs" : "cards"}.`
+                    ? `Imported ${data.imported.length} ${target === "songs" ? "songs" : target === "themes" ? "themes" : "cards"}.`
                     : "Nothing to import. Already in the CMS.",
             );
             await load();
@@ -191,6 +192,7 @@ export default function ContentPage() {
     const ideasMissing = tab === "ideas" && items !== null && items.length === 0;
     const songsMissing = tab === "songs" && items !== null && items.length === 0;
     const melodiesMissing = tab === "melodies" && items !== null && items.length === 0;
+    const themesMissing = tab === "themes" && items !== null && items.length === 0;
 
     const activeSection = SECTIONS.find((s) => s.id === section)!;
     const sectionTabs = TABS.filter((tabDef) => activeSection.tabs.includes(tabDef.id));
@@ -333,6 +335,21 @@ export default function ContentPage() {
                 </Panel>
             )}
 
+            {themesMissing && can("content.publish") && (
+                <Panel className="p-4 border-gold-500/30 bg-gold-500/5 flex flex-wrap items-center gap-3">
+                    <Download className="w-4 h-4 text-gold-300 shrink-0" />
+                    <p className="text-sm text-gold-200 flex-1 min-w-[240px]">
+                        Practice 2 is still showing the sixteen themes built into the app. Import
+                        them to rename, reorder, translate or retire them here. The moment one theme
+                        is published in the CMS it replaces the built-in list, so import before adding.
+                    </p>
+                    <Button variant="primary" size="sm" onClick={() => importFromCode("themes")} disabled={importing}>
+                        {importing ? <Spinner className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+                        Import from code
+                    </Button>
+                </Panel>
+            )}
+
             {ideasMissing && can("content.publish") && (
                 <Panel className="p-4 border-gold-500/30 bg-gold-500/5 flex flex-wrap items-center gap-3">
                     <Download className="w-4 h-4 text-gold-300 shrink-0" />
@@ -377,7 +394,7 @@ export default function ContentPage() {
                     <EmptyState
                         title="Nothing here yet"
                         description={
-                            tab === "ideas" || tab === "songs"
+                            tab === "ideas" || tab === "songs" || tab === "themes"
                                 ? "Use “Import from code” above to bring in the cards that ship with the app, upload a batch, or create one from scratch."
                                 : "Create a chapter or lesson to get started."
                         }

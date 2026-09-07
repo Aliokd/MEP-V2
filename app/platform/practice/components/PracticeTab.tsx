@@ -9,7 +9,7 @@ import PracticeVideoModal from './PracticeVideoModal';
 // ChosenSong shape still names what is being practised, uploads included.
 import { type ChosenSong } from './SongChooser';
 import SongPill from './SongPill';
-import { usePracticeLibrary } from '../lib/library';
+import { usePracticeLibrary, useThemeLibrary } from '../lib/library';
 import StructurePlayer from './StructurePlayer';
 import VerseDemo from './VerseDemo';
 import MelodyVariation from './MelodyVariation';
@@ -27,12 +27,6 @@ import NudgeMessage from './NudgeMessage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBackDismiss } from '@/hooks/useBackDismiss';
 import { useSheetSwipe } from '@/hooks/useSheetSwipe';
-
-/** Starting points for Composing verses. */
-const THEMES = [
-    'Nature', 'Sports', 'Urban life', 'Solitude', 'Memory', 'Ambition', 'Conflict', 'Harmony',
-    'Velocity', 'Starlight', 'The deep', 'Whispers', 'Machines', 'Ritual', 'Digital soul', 'The harvest',
-] as const;
 
 /** The two columns of the linking step, left to right. */
 const NOUN_VERB_SIDES = ['n', 'v'] as const;
@@ -238,6 +232,9 @@ export default function PracticeTab() {
         currentStep,
     );
     const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+    // Starting points for Composing verses, authored in the console and read
+    // in the songwriter's language; the bundled list until that lands.
+    const themes = useThemeLibrary(language);
     const [nouns, setNouns] = useState<string[]>(Array(5).fill(''));
     const [verbs, setVerbs] = useState<string[]>(Array(5).fill(''));
     const [connections, setConnections] = useState<{ n: number; v: number }[]>([]);
@@ -857,10 +854,10 @@ export default function PracticeTab() {
                                 {/* Step 1 — pick a theme */}
                                 {currentStep === 1 && (
                                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
-                                        {THEMES.map(theme => (
+                                        {themes.map(theme => (
                                             <button
-                                                key={theme}
-                                                onClick={() => { setSelectedTheme(theme); setCurrentStep(2); }}
+                                                key={theme.id}
+                                                onClick={() => { setSelectedTheme(theme.label); setCurrentStep(2); }}
                                                 // A theme is one word, so it takes the word size
                                                 // like every other single-word card. The padding
                                                 // and tight leading keep the longer names ("Urban
@@ -868,7 +865,7 @@ export default function PracticeTab() {
                                                 // two-column grid.
                                                 className={`verse-card h-24 rounded-[20px] flex items-center justify-center px-4 text-center leading-tight ${WORD_SIZE} font-sans text-stone-700`}
                                             >
-                                                {theme}
+                                                {theme.label}
                                             </button>
                                         ))}
                                     </div>

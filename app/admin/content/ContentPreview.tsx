@@ -33,7 +33,7 @@ export default function ContentPreview({
     draft,
     locale,
 }: {
-    collection: "chapters" | "lessons" | "ideas" | "songs" | "melodies";
+    collection: "chapters" | "lessons" | "ideas" | "songs" | "themes" | "melodies";
     draft: ContentItem;
     locale: Locale;
 }) {
@@ -55,6 +55,7 @@ export default function ContentPreview({
                 {collection === "chapters" && <ChapterPreview text={text} />}
                 {collection === "songs" && <SongPreview draft={draft} />}
                 {collection === "melodies" && <MelodyPreview draft={draft} />}
+                {collection === "themes" && <ThemePreview text={text} />}
             </div>
         </div>
     );
@@ -169,6 +170,31 @@ function ChapterPreview({ text }: { text: (key: string) => string }) {
  */
 function asText(value: unknown): string {
     return typeof value === "string" ? value : "";
+}
+
+/**
+ * The theme as one card in the "Choose a theme" grid, with three quiet
+ * neighbours so its size reads against the company it keeps. Same card as
+ * PracticeTab's step 1: the word size, the tight leading that keeps "Digital
+ * soul" on one line in a narrow column.
+ */
+function ThemePreview({ text }: { text: (key: string) => string }) {
+    const label = text("title");
+    const card = "h-24 rounded-[20px] flex items-center justify-center px-4 text-center leading-tight text-[1.4rem] font-sans";
+
+    return (
+        <div className="flex flex-col gap-4">
+            <p className="text-lg text-stone-700 text-center">Choose a theme</p>
+            <div className="grid grid-cols-2 gap-4">
+                <div className={`${card} bg-[#FAF9F5] border border-stone-200/80 text-stone-700`}>
+                    {label || <span className="text-stone-300 text-base">Untitled theme</span>}
+                </div>
+                <div className={`${card} bg-[#FAF9F5]/50 border border-dashed border-stone-200 text-stone-300`}>Nature</div>
+                <div className={`${card} bg-[#FAF9F5]/50 border border-dashed border-stone-200 text-stone-300`}>Memory</div>
+                <div className={`${card} bg-[#FAF9F5]/50 border border-dashed border-stone-200 text-stone-300`}>Starlight</div>
+            </div>
+        </div>
+    );
 }
 
 function MelodyPreview({ draft }: { draft: ContentItem }) {

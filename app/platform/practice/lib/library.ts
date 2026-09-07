@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { fetchPracticeMelodies, fetchPracticeSongs } from '@/lib/contentClient';
+import { fetchPracticeMelodies, fetchPracticeSongs, fetchPracticeThemes } from '@/lib/contentClient';
 import { sortSections } from '@/lib/practiceLibrary';
+import { pickLocale, type Locale } from '@/lib/content';
 import { PRACTICE_SONGS, type PracticeSong } from '../data/practiceSongs';
 import { MELODIES, type PracticeMelody } from '../data/melodies';
+import { PRACTICE_THEMES, type PracticeTheme } from '../data/themes';
 
 /**
  * The song library Practice 1 works through.
@@ -98,4 +100,36 @@ export function useMelodyLibrary(): PracticeMelody[] {
     }, []);
 
     return melodies;
+}
+
+/**
+ * The themes Practice 2 offers, in the reader's language.
+ *
+ * Same arrangement again: authored in the console, the bundled sixteen as the
+ * fallback. A published theme with no label in the reader's language falls
+ * back to English rather than to a blank card, and one with no label at all is
+ * left out, because an empty card cannot be chosen for anything.
+ */
+export async function fetchThemeLibrary(locale: Locale): Promise<PracticeTheme[]> {
+    const docs = await fetchPracticeThemes();
+
+    return docs
+        .map((doc) => ({ id: doc.id, label: pickLocale(doc.title || {}, locale).trim() }))
+        .filter((theme) => theme.label.length > 0);
+}
+
+export function useThemeLibrary(locale: Locale): PracticeTheme[] {
+    const [themes, setThemes] = useState<PracticeTheme[]>(PRACTICE_THEMES);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchThemeLibrary(locale)
+            .then((list) => {
+                if (!cancelled && list.length > 0) setThemes(list);
+            })
+            .catch((err) => console.warn('Falling back to the bundled practice themes:', err));
+        return () => { cancelled = true; };
+    }, [locale]);
+
+    return themes;
 }
