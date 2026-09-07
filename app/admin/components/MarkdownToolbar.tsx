@@ -14,7 +14,7 @@ import { applyMarkdown, type MarkdownAction } from "@/lib/markdownEdits";
  * highlight vanished. An effect keyed on the value runs after that commit, which
  * is the only moment the range is safe to set.
  */
-function useSelectionRestore(
+export function useSelectionRestore(
     textareaRef: React.RefObject<HTMLTextAreaElement | null>,
     value: string,
 ) {

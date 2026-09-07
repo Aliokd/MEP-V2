@@ -6,6 +6,7 @@ import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, PanelHeader, Badge, Button, Input, Select, Textarea, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 import { LOCALES, LOCALE_LABELS } from "@/lib/content";
 import TemplatesTab from "./TemplatesTab";
+import DirectTab from "./DirectTab";
 
 interface Campaign {
     id: string;
@@ -38,7 +39,7 @@ const STATUS_TONE: Record<string, "neutral" | "green" | "gold" | "red" | "blue">
 export default function EmailPage() {
     const { adminFetch, can } = useAdmin();
 
-    const [tab, setTab] = useState<"templates" | "campaigns">("templates");
+    const [tab, setTab] = useState<"templates" | "campaigns" | "direct">("templates");
     const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [composing, setComposing] = useState(false);
@@ -171,7 +172,7 @@ export default function EmailPage() {
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="Email"
-                description="Bulk email to Veinote users. Transactional mail (welcome, replies, moderation notices) is not sent from here and ignores unsubscribes."
+                description="Email to Veinote users: bulk campaigns by audience, or direct emails to people you choose. Transactional mail (welcome, replies, moderation notices) is not sent from here and ignores unsubscribes."
                 action={
                     <div className="flex items-center gap-2">
                         <Button onClick={load} size="sm">
@@ -190,6 +191,7 @@ export default function EmailPage() {
                 {([
                     { id: "templates" as const, label: "Templates" },
                     { id: "campaigns" as const, label: "Campaigns" },
+                    { id: "direct" as const, label: "Direct" },
                 ]).map((option) => (
                     <button
                         key={option.id}
@@ -204,6 +206,7 @@ export default function EmailPage() {
             </div>
 
             {tab === "templates" && <TemplatesTab />}
+            {tab === "direct" && <DirectTab />}
 
             {error && tab === "campaigns" && (
                 <Panel className="p-4 border-red-500/30">

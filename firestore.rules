@@ -801,6 +801,13 @@ service cloud.firestore {
     // ---------------------------------------------------------------------
     // Bulk email campaigns. Server-written throughout — an admin drives them
     // through /api/admin/email, never by writing here.
+    // Direct emails: one admin writing to named people. Written only by the
+    // send route, which records who got it and who did not.
+    match /direct_emails/{emailId} {
+      allow read: if hasRole(["superadmin", "editor"]);
+      allow write: if false;
+    }
+
     match /email_campaigns/{campaignId} {
       allow read: if hasRole(["superadmin", "editor"]);
       allow write: if false;
