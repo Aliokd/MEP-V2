@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, X, Sparkles, ImagePlus, Send, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { Search, X, Sparkles, ImagePlus, Send, Clock, CheckCircle2, AlertCircle, SpellCheck, Undo2 } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { Panel, PanelHeader, Badge, Button, Input, Select, Textarea, EmptyState, Spinner, timeAgo } from "../components/ui";
 import MarkdownToolbar, { useMarkdownShortcuts, useSelectionRestore } from "../components/MarkdownToolbar";
@@ -56,6 +56,12 @@ export default function DirectTab() {
     const [brief, setBrief] = useState("");
     const [language, setLanguage] = useState("en");
     const [drafting, setDrafting] = useState(false);
+
+    // Proofreading: the corrected text waits here until the admin applies it,
+    // and the original is kept so applying can be undone.
+    const [proofing, setProofing] = useState(false);
+    const [proof, setProof] = useState<{ subject: string; body: string; changes: string[] } | null>(null);
+    const [beforeProof, setBeforeProof] = useState<{ subject: string; body: string } | null>(null);
 
     // Email
     const [subject, setSubject] = useState("");
@@ -215,6 +221,44 @@ export default function DirectTab() {
         } finally {
             setUploading(null);
         }
+    };
+
+    const proofread = async () => {
+        setProofing(true);
+        setProof(null);
+        setNote(null);
+        try {
+            const res = await adminFetch("/api/admin/email/proofread", {
+                method: "POST",
+                body: JSON.stringify({ subject, body }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Could not proofread");
+            if (!data.changed) {
+                setNote({ tone: "ok", text: "Nothing to fix. The email reads clean." });
+                return;
+            }
+            setProof({ subject: data.subject, body: data.body, changes: data.changes || [] });
+        } catch (err: any) {
+            setNote({ tone: "error", text: err.message });
+        } finally {
+            setProofing(false);
+        }
+    };
+
+    const applyProof = () => {
+        if (!proof) return;
+        setBeforeProof({ subject, body });
+        setSubject(proof.subject);
+        setBody(proof.body);
+        setProof(null);
+    };
+
+    const undoProof = () => {
+        if (!beforeProof) return;
+        setSubject(beforeProof.subject);
+        setBody(beforeProof.body);
+        setBeforeProof(null);
     };
 
     const send = async () => {
@@ -396,7 +440,47 @@ export default function DirectTab() {
                                 />
                             </div>
 
+                            {proof && (
+                                <div className="rounded-xl border border-gold-500/30 bg-gold-500/5 p-4 flex flex-col gap-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-sm text-gold-200">
+                                            {proof.changes.length > 0
+                                                ? `${proof.changes.length} ${proof.changes.length === 1 ? "correction" : "corrections"} suggested`
+                                                : "Corrections suggested"}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <Button size="sm" onClick={() => setProof(null)}>Dismiss</Button>
+                                            <Button size="sm" variant="primary" onClick={applyProof}>Apply</Button>
+                                        </div>
+                                    </div>
+                                    {proof.changes.length > 0 && (
+                                        <ul className="flex flex-col gap-1">
+                                            {proof.changes.map((change, i) => (
+                                                <li key={i} className="text-xs text-ink-300 flex gap-2">
+                                                    <span className="text-gold-400 shrink-0">•</span>
+                                                    <span>{change}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    {proof.subject !== subject && (
+                                        <p className="text-xs text-ink-400">
+                                            Subject becomes: <span className="text-ink-100">{proof.subject}</span>
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="flex flex-wrap items-center gap-3 pt-1">
+                                <Button onClick={proofread} disabled={proofing || (!subject.trim() && !body.trim())} size="sm">
+                                    {proofing ? <Spinner className="w-3.5 h-3.5" /> : <SpellCheck className="w-3.5 h-3.5" />}
+                                    Proofread
+                                </Button>
+                                {beforeProof && (
+                                    <Button onClick={undoProof} size="sm" title="Put back the text from before the corrections">
+                                        <Undo2 className="w-3.5 h-3.5" /> Undo corrections
+                                    </Button>
+                                )}
                                 {canSend ? (
                                     <Button variant="primary" onClick={send} disabled={!ready || sending}>
                                         {sending ? <Spinner className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}

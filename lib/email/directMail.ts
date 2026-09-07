@@ -85,9 +85,18 @@ export function renderDirectEmail(
     // image syntax is reduced to its URL.
     const text = body.replace(/!\[[^\]]*\]\((https?:\/\/[^)]+)\)/g, "$1").trim();
 
-    // The preheader is the first line of the body, which is what a person
-    // writing a personal email would want previewed.
-    const preheader = text.split("\n").map((l) => l.trim()).find(Boolean) || subject;
+    // The preheader is what an inbox shows after the subject, and it runs
+    // straight into the body's first line. Taking the first line made the
+    // snippet read "Hi Ali, Hi Ali, ...", so it is the first line of substance
+    // instead: the greeting is skipped when there is anything after it, and so
+    // are bare URLs (an image dropped in at the top), with markdown markers
+    // stripped so the snippet reads as prose.
+    const lines = text
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l && !/^https?:\/\/\S+$/i.test(l));
+    const candidate = lines.length > 1 ? lines[1] : lines[0];
+    const preheader = (candidate || subject).replace(/[*_`#>]+/g, "").replace(/\s+/g, " ").trim() || subject;
 
     return { subject, html: renderLayout({ preheader, bodyHtml }), text };
 }
