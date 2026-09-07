@@ -75,7 +75,11 @@ interface StoredConsent {
  * changed; done on a schedule it is badgering, and the law and the people both
  * read it that way. Anyone who allowed anything at all is never in scope.
  */
-const REASK_DECLINES_BEFORE = Date.parse('2026-08-28T00:00:00.000Z');
+// The minute the dialog went live (f4ae30f, pushed 07:38Z and serving by
+// 07:48Z), rounded up. Midnight that day was the first draft of this line, and
+// it left a morning's worth of old-bar declines standing as if they had
+// answered the new question.
+const REASK_DECLINES_BEFORE = Date.parse('2026-08-28T08:00:00.000Z');
 
 /** Frozen, so the two common answers keep one identity across renders. */
 export const ACCEPT_ALL: ConsentState = Object.freeze({ necessary: true, analytics: true, replay: true });
