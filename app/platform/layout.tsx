@@ -12,6 +12,7 @@ import { MindPowerProgressProvider } from '@/lib/mindPowerContext';
 import {
     recordActiveSeconds,
     recordVisit,
+    recordCommunityWeeks,
     readActiveWeekCount,
     currentWeekRatio,
     weekScore,
@@ -34,8 +35,9 @@ import Link from 'next/link';
 import { Menu, User, X, ChevronRight, ChevronLeft, ShieldOff, UsersRound, UserMinus, ArrowRight } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getCountFromServer, getDocs, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { acknowledgeRemovalNotice } from './create/collabUtils';
+import { readLyricSize, applyLyricSize } from '@/lib/lyricSize';
 
 /**
  * When to fire the actual navigation during the profile's slide-out
@@ -105,6 +107,9 @@ function PlatformLayoutInner({
         profileExitingRef.current = false;
         setIsProfileExiting(false);
     }, [pathname]);
+    // Paint the saved lyric size before the canvas draws. Device preference, so
+    // it is read straight from localStorage rather than waiting on the account.
+    useEffect(() => { applyLyricSize(readLyricSize()); }, []);
 
     // Being in the platform shell is what "active" means. Throttled inside
     // touchLastActive, so moving between sections costs nothing.
@@ -292,22 +297,35 @@ function PlatformLayoutInner({
         setPracticeMinutes(pracMins);
     };
 
-    // Community: how many projects the user has shared in Connect (Firestore-backed).
-    // Only a successful count updates the value — a failed request leaves the cached count
-    // in place rather than collapsing the Community ring to zero.
-    const fetchCommunityCount = async () => {
+    // Community: the projects the user has shared in Connect, from the posts
+    // that exist right now. A live listener rather than a count, so a share
+    // counts the moment it is posted and stops counting the moment it is
+    // deleted — and so each week's shares are known by the week they were
+    // posted in. Only a delivered snapshot moves the value; a failed listener
+    // leaves the cached count in place rather than collapsing Community to zero.
+    useEffect(() => {
         if (!user) return;
-        try {
-            const snapshot = await getCountFromServer(
-                query(collection(db, 'connect_posts'), where('authorId', '==', user.uid))
-            );
-            const count = snapshot.data().count;
-            setCommunityCount(count);
-            safeLocalStorageSetItem('mep-community-shared-count', count.toString());
-        } catch (error) {
-            console.error('Error fetching community post count:', error);
-        }
-    };
+        const unsub = onSnapshot(
+            query(collection(db, 'connect_posts'), where('authorId', '==', user.uid)),
+            snap => {
+                const byWeek: Record<string, number> = {};
+                snap.forEach(d => {
+                    const createdAt = d.data().createdAt;
+                    if (typeof createdAt !== 'number') return;
+                    const week = weekKey(new Date(createdAt));
+                    byWeek[week] = (byWeek[week] || 0) + 1;
+                });
+                setCommunityCount(snap.size);
+                safeLocalStorageSetItem('mep-community-shared-count', snap.size.toString());
+                const moved = recordCommunityWeeks(byWeek);
+                // Note the new reading against the week; the pill shows the points.
+                recordVisit();
+                if (moved) window.dispatchEvent(new CustomEvent(WEEKLY_ACTIVITY_EVENT));
+            },
+            err => console.error('Error listening to community posts:', err),
+        );
+        return () => unsub();
+    }, [user]);
 
     // The header pill's bar is this week's progress toward golden — the same
     // number the Mind Power brain fills to — and the level is tenure: one per
@@ -332,12 +350,11 @@ function PlatformLayoutInner({
         recalculateProgress();
     }, []);
 
-    // Once the user is available: fetch the real Community count, and re-read the local
-    // progress inputs — on an account switch bindLocalStateToAccount has just purged the
-    // previous account's counters, and values read at mount may predate that purge.
+    // Once the user is available, re-read the local progress inputs — on an account switch
+    // bindLocalStateToAccount has just purged the previous account's counters, and values
+    // read at mount may predate that purge.
     useEffect(() => {
         recalculateProgress();
-        fetchCommunityCount();
     }, [user]);
 
     // Mind Power arrived after many accounts did. Once per account, rebuild the
@@ -373,7 +390,6 @@ function PlatformLayoutInner({
     useEffect(() => {
         const handleProgressUpdate = (e: Event) => {
             recalculateProgress();
-            fetchCommunityCount();
             recordVisit();
 
             const customEvent = e as CustomEvent;

@@ -54,6 +54,12 @@ export interface PublicProfile {
      */
     verified: boolean;
     /**
+     * Whether this songwriter is listed for other people to find. Owner-set
+     * from Profile. Absent means listed — every account that existed before
+     * the switch did, and silently hiding them would be the wrong default.
+     */
+    discoverable: boolean;
+    /**
      * Where they are, at city precision, or null if they never said. Opt-in:
      * set from the songwriter map, chosen from the fixed list in lib/cities.ts,
      * so a pin is never more exact than the city it names.
@@ -67,18 +73,6 @@ export interface PublicProfile {
     bio: string | null;
 }
 
-/**
- * Minutes of engaged time that earn the badge on a songwriter's card.
- *
- * 30 hours: enough that it reads as "this person really uses Veinote" rather
- * than "this person signed up", and reachable inside a couple of months of
- * regular writing. Tune here — nothing else hard-codes the figure.
- */
-export const ACTIVE_BADGE_MINUTES = 30 * 60;
-
-export function hasActivityBadge(profile: Pick<PublicProfile, 'activeMinutes'>): boolean {
-    return (profile.activeMinutes ?? 0) >= ACTIVE_BADGE_MINUTES;
-}
 
 export const PUBLIC_PROFILES = "publicProfiles";
 
@@ -106,6 +100,7 @@ export function toPublicProfile(uid: string, data: Record<string, any>): PublicP
         publicKey: typeof data.publicKey === "string" && data.publicKey ? data.publicKey : null,
         verified: data.verified === true,
         bio: typeof data.bio === "string" && data.bio.trim() ? data.bio.trim() : null,
+        discoverable: data.discoverable !== false,
         location: data.location && typeof data.location.lat === "number" && typeof data.location.lng === "number"
             ? {
                 cityId: String(data.location.cityId ?? ""),
@@ -146,6 +141,7 @@ export interface PublicProfileWrite {
     activeMinutes?: number | FieldValue;
     publicKey?: string;
     /** Pass null to take yourself off the map. */
+    discoverable?: boolean;
     location?: { cityId: string; label: string; lat: number; lng: number } | null;
 }
 
@@ -220,6 +216,8 @@ export async function fetchPublicProfileRoster(
         const profile = toPublicProfile(docSnap.id, docSnap.data());
         // An account that never finished signup has nothing to show on a card.
         if (!profile.name) return;
+        // Opted out of being listed (Profile → public profile switch).
+        if (!profile.discoverable) return;
         users.push(profile);
     });
 

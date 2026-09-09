@@ -4,71 +4,61 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { User, Mail, PlayCircle, Music, Users, ArrowRight, Camera, ExternalLink, LogOut } from 'lucide-react';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { Music, Users, ArrowRight, Camera, LogOut, PlayCircle, LifeBuoy, SlidersHorizontal, Pencil, X, Eye } from 'lucide-react';
 import SupportModal from '../components/SupportModal';
 import MaxUpgradeModal from '../components/MaxUpgradeModal';
-import MaxBanner from '../components/MaxBanner';
 import VerifiedMark from '../components/VerifiedMark';
-import VerifyModal, { hasRealName } from './components/VerifyModal';
-import { useVerificationRequest, useIsVerified } from '@/lib/verification';
-import { BadgeCheck } from 'lucide-react';
+import VerifyModal from './components/VerifyModal';
+import { useIsVerified, useVerificationRequest } from '@/lib/verification';
 import { useUserPlan } from '@/lib/useUserPlan';
 import SongCards from './components/SongCards';
 import ConnectionList, { PendingRequests, useConnectionPeople } from './components/ConnectionList';
 import { useMySongs, leaveProfileTo, openSongInCreate, formatSongDate } from './useMySongs';
 import { resetGuide } from '@/lib/onboardingGuide';
-import { writePublicProfile } from '@/lib/publicProfile';
-import { splitName, joinName } from '@/lib/personName';
+import { writePublicProfile, fetchPublicProfiles } from '@/lib/publicProfile';
 import * as btn from '@/app/platform/components/buttonStyles';
 
-/** How many recent songs / connections the profile shelf shows before "See all". */
-const RECENT_SONGS = 6;
-const RECENT_CONNECTIONS = 5;
+/** How many recent songs / connections the profile shelf shows before "More". */
+const RECENT_SONGS = 4;
+const RECENT_CONNECTIONS = 4;
 
+/** The panels this page is built from — white cards on the platform's ground. */
+const CARD = 'rounded-[16px] bg-white/40 border border-stone-200/70';
+
+/**
+ * The profile: who you are, what you've made, who you know, and the four things
+ * you might want to do next.
+ *
+ * Everything adjustable — your name and email, verification, display size,
+ * subscription, language — lives in Settings. This page had grown into a
+ * settings screen with an avatar on top; the split keeps it about the person.
+ */
 export default function ProfilePage() {
     const { user } = useAuth();
     const { t, language } = useLanguage();
     const router = useRouter();
 
-    // `name` stays the one stored value (Auth displayName); the two fields below
-    // are how it is edited, and recompose it on every keystroke.
     const [name, setName] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
-    const [pendingEmail, setPendingEmail] = useState('');
-    // Set once the client has a window — reading localStorage during render would
-    // not match the server pass.
-    const [isMockUser, setIsMockUser] = useState(false);
-    const [verificationState, setVerificationState] = useState<'idle' | 'pending' | 'success'>('idle');
-    const [isSupportOpen, setIsSupportOpen] = useState(false);
-    const [showMaxUpgrade, setShowMaxUpgrade] = useState(false);
-    const { hasMax, hasPro } = useUserPlan();
-    // Live, so an admin's approval shows the seal the moment it lands.
-    const { request: verification } = useVerificationRequest(user?.uid ?? null);
-    // The seal follows `publicProfiles.verified` — the field every other surface
-    // shows and the only one the admin decision writes. The request status is a
-    // fallback so an approval that has just landed shows without waiting on the
-    // second listener; an account verified without a request (the script path)
-    // has no request document at all, which is why the public field leads.
-    const publicVerified = useIsVerified(user?.uid ?? null);
-    const isVerified = publicVerified || verification?.status === 'approved';
-    const [showVerify, setShowVerify] = useState(false);
-    const [notification, setNotification] = useState('');
     const [photoUrl, setPhotoUrl] = useState('');
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-    // Separate from `notification` (which renders down in the details form) so
-    // photo feedback appears beside the avatar it concerns.
     const [photoNotice, setPhotoNotice] = useState('');
+    const [isSupportOpen, setIsSupportOpen] = useState(false);
+    const [showMaxUpgrade, setShowMaxUpgrade] = useState(false);
+    const [showVerify, setShowVerify] = useState(false);
+    // Per visit, deliberately not remembered: the pitch opens in full every time
+    // the profile is loaded, and closing it only collapses it for this visit.
+    const [verifyPitchMinimized, setVerifyPitchMinimized] = useState(false);
+    // Whether this account is listed in Connect. Null until the public profile
+    // answers, so the switch never flickers from a guessed position.
+    const [isDiscoverable, setIsDiscoverable] = useState<boolean | null>(null);
+
     const photoInputRef = useRef<HTMLInputElement>(null);
     const photoNoticeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    const showPhotoNotice = (msg: string) => {
-        setPhotoNotice(msg);
-        if (photoNoticeTimerRef.current) clearTimeout(photoNoticeTimerRef.current);
-        photoNoticeTimerRef.current = setTimeout(() => setPhotoNotice(''), 4000);
-    };
+    const { hasMax, hasPro } = useUserPlan();
+    const isVerified = useIsVerified(user?.uid ?? null);
+    const { request: verification } = useVerificationRequest(user?.uid ?? null);
     const { songs, songsLoaded } = useMySongs(user, t);
     const { people, peopleLoaded, disconnect, requesters, accept, decline } = useConnectionPeople(user);
 
@@ -78,20 +68,30 @@ export default function ProfilePage() {
     useEffect(() => {
         if (user) {
             setName(user.displayName || '');
-            const parts = splitName(user.displayName || '');
-            setFirstName(parts.first);
-            setLastName(parts.last);
             setEmail(user.email || '');
             setPhotoUrl(user.photoURL || '');
-            setIsMockUser(!!localStorage.getItem('playwright_mock_user'));
         }
     }, [user]);
 
-    const leaveTo = leaveProfileTo;
-    const handleOpenSong = (songId: string) => {
-        if (user) openSongInCreate(user.uid, songId);
+    useEffect(() => {
+        if (!user) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const profiles = await fetchPublicProfiles([user.uid]);
+                if (!cancelled) setIsDiscoverable(profiles[user.uid]?.discoverable ?? true);
+            } catch {
+                if (!cancelled) setIsDiscoverable(true);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [user]);
+
+    const showPhotoNotice = (msg: string) => {
+        setPhotoNotice(msg);
+        if (photoNoticeTimerRef.current) clearTimeout(photoNoticeTimerRef.current);
+        photoNoticeTimerRef.current = setTimeout(() => setPhotoNotice(''), 4000);
     };
-    const formatDate = (ms: number) => formatSongDate(language, ms);
 
     /**
      * Centre-crop to a square and downscale before upload — the avatar renders
@@ -189,16 +189,40 @@ export default function ProfilePage() {
         }
     };
 
-    // Safety check just in case, though layout handles it
     if (!user) return null;
 
-    const hasNameChanged = name !== (user.displayName || '');
-    const hasEmailChanged = email !== (user.email || '');
-    const hasChanges = hasNameChanged || hasEmailChanged;
+    /*
+     * The pitch only runs when there is something to pitch: not already verified
+     * and nothing under review (they have applied — telling them to apply reads
+     * as the app forgetting). A declined request brings it back, since trying
+     * again is the point.
+     */
+    const showVerifyPitch = !isVerified && verification?.status !== 'pending';
 
-    const showNotification = (msg: string) => {
-        setNotification(msg);
-        setTimeout(() => setNotification(''), 4000);
+    /* "Ali, you aren't verified yet" — the phrase carries no capital of its own,
+       so it takes one when there is no name to put in front of it. */
+    const verifyPhrase = t('profile.verify_banner_title');
+    const firstName = (name || '').trim().split(/\s+/)[0];
+    const verifyHeadline = firstName
+        ? `${firstName}, ${verifyPhrase}`
+        : verifyPhrase.charAt(0).toUpperCase() + verifyPhrase.slice(1);
+
+    /* Closing it doesn't end the offer, it just stops it taking the page: the
+       pitch collapses to a single line that still carries the way in, and comes
+       back in full on the next visit. */
+    const dismissVerifyBanner = () => setVerifyPitchMinimized(true);
+
+    /** Listed or not in Connect's roster. Optimistic — it is one boolean. */
+    const togglePublicProfile = async () => {
+        if (isDiscoverable === null) return;
+        const next = !isDiscoverable;
+        setIsDiscoverable(next);
+        try {
+            await writePublicProfile(user.uid, { discoverable: next });
+        } catch (error) {
+            console.error('Error updating profile visibility:', error);
+            setIsDiscoverable(!next);
+        }
     };
 
     /*
@@ -210,7 +234,7 @@ export default function ProfilePage() {
      */
     const handleReplayGuide = () => {
         void resetGuide(user.uid);
-        leaveTo('/platform/create');
+        leaveProfileTo('/platform/create');
     };
 
     const handleSignOut = async () => {
@@ -224,504 +248,346 @@ export default function ProfilePage() {
         }
     };
 
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (hasNameChanged) {
-            const ok = await updateDisplayName(name);
-            if (ok && !hasEmailChanged) showNotification(t('profile.name_updated'));
-        }
-        if (hasEmailChanged) await requestEmailChange(email);
-    };
-
-    /** Returns whether the write landed, so the caller can decide what to say. */
-    const updateDisplayName = async (newDisplayName: string): Promise<boolean> => {
-        try {
-            if (isMockUser) {
-                const mockUser = JSON.parse(localStorage.getItem('playwright_mock_user') || '{}');
-                mockUser.displayName = newDisplayName;
-                safeLocalStorageSetItem('playwright_mock_user', JSON.stringify(mockUser));
-                return true;
-            }
-
-            const { updateProfile } = await import('firebase/auth');
-            const { auth } = await import('@/lib/firebase');
-            if (auth.currentUser) {
-                await updateProfile(auth.currentUser, { displayName: newDisplayName });
-                // Keep the name other people see in step with the one this user
-                // just set — the collaborator list and Connect roster read the
-                // public profile, not the Auth record.
-                void writePublicProfile(auth.currentUser.uid, { name: newDisplayName });
-            }
-            return true;
-        } catch (error) {
-            console.error("Error updating display name:", error);
-            showNotification(t('profile.name_update_failed'));
-            return false;
-        }
-    };
-
-    /*
-     * A real email change: Firebase sends a confirmation link to the NEW address
-     * and only switches the account once it is opened — which is what the
-     * "pending" state below describes. (It replaced a prototype that asked the
-     * user to "simulate" the link; that button survives for mock accounts only,
-     * which have no Auth backend to send anything.)
-     */
-    const requestEmailChange = async (newEmail: string) => {
-        setPendingEmail(newEmail);
-        if (isMockUser) {
-            setVerificationState('pending');
-            return;
-        }
-        try {
-            const { verifyBeforeUpdateEmail } = await import('firebase/auth');
-            const { auth } = await import('@/lib/firebase');
-            if (!auth.currentUser) return;
-            await verifyBeforeUpdateEmail(auth.currentUser, newEmail);
-            setVerificationState('pending');
-        } catch (error: any) {
-            console.error("Error requesting email change:", error);
-            setEmail(user?.email || '');
-            showNotification(
-                error?.code === 'auth/requires-recent-login'
-                    ? t('profile.email_requires_recent_login')
-                    : t('profile.error_update_email')
-            );
-        }
-    };
-
-    /** Mock accounts only: stands in for opening the confirmation link. */
-    const handleCompleteVerification = async () => {
-        try {
-            const mockUser = JSON.parse(localStorage.getItem('playwright_mock_user') || '{}');
-            mockUser.email = pendingEmail;
-            safeLocalStorageSetItem('playwright_mock_user', JSON.stringify(mockUser));
-            setVerificationState('success');
-            setEmail(pendingEmail);
-            setTimeout(() => {
-                setVerificationState('idle');
-                window.location.reload();
-            }, 2000);
-        } catch (error) {
-            console.error("Error updating email:", error);
-            showNotification(t('profile.error_update_email'));
-        }
-    };
+    /** The four things to do next, each its own card with an arrow. */
+    const ActionRow = ({
+        label,
+        icon,
+        onClick,
+        muted = false,
+    }: { label: string; icon: React.ReactNode; onClick: () => void; muted?: boolean }) => (
+        <button
+            onClick={onClick}
+            className={`${CARD} group w-full flex items-center justify-between gap-4 px-5 md:px-6 py-4 text-left transition-all hover:bg-white hover:shadow-[0_2px_10px_rgba(0,0,0,0.04)] active:scale-[0.997] cursor-pointer`}
+        >
+            <span className={`flex items-center gap-3 font-sans text-[15px] font-medium ${muted ? 'text-stone-500' : 'text-stone-800'}`}>
+                <span className={muted ? 'text-stone-400' : 'text-stone-500'}>{icon}</span>
+                {label}
+            </span>
+            <ArrowRight
+                size={17}
+                strokeWidth={2}
+                className={`shrink-0 transition-transform group-hover:translate-x-0.5 ${muted ? 'text-stone-300' : 'text-stone-400'}`}
+            />
+        </button>
+    );
 
     return (
-        <div className="space-y-10 px-5 md:px-0 text-stone-900 font-sans">
-            {/* One full-width column: the plan badge sits beside the name, the Max
-                pitch beside the identity, and subscription/support are options rows —
-                nothing is left for a sidebar to hold. */}
-            <div>
-                <div className="space-y-6 lg:space-y-10">
-                    {/* Identity, with the Max pitch filling the space beside it */}
-                    <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-10">
-                    <div className="flex items-center gap-5 lg:shrink-0">
-                        <input
-                            ref={photoInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handlePhotoSelected}
-                            className="hidden"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => photoInputRef.current?.click()}
-                            disabled={isUploadingPhoto}
-                            aria-label={t('profile.change_photo')}
-                            title={t('profile.change_photo')}
-                            className="relative w-20 h-20 rounded-full overflow-hidden bg-stone-900 flex items-center justify-center text-3xl font-sans text-[#DCDDD4] font-medium shrink-0 group/avatar cursor-pointer"
-                        >
-                            {photoUrl ? (
-                                // Absolutely positioned to fill the circle — as a flex child the
-                                // img could get sized by its intrinsic dimensions instead.
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={photoUrl} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+        <div className="space-y-4 px-5 md:px-0 text-stone-900 font-sans">
+
+            {/* Not verified yet — the pitch, on the brand's paper beige rather
+                than a dark slab, so it sits in the page instead of interrupting
+                it. Hidden once the seal is theirs and while a request is under
+                review; closing it leaves the one-line version below. */}
+            {showVerifyPitch && verifyPitchMinimized && (
+                <section className="rounded-[16px] bg-[#E6E3DB] text-stone-900 px-5 md:px-6 py-3 flex items-center justify-between gap-4">
+                    <p className="text-[14.5px] font-sans font-medium tracking-tight flex items-center gap-2 min-w-0">
+                        <span className="truncate">{verifyHeadline}</span>
+                        <VerifiedMark size={16} label={t('profile.verified_label')} />
+                    </p>
+                    <button
+                        onClick={() => setShowVerify(true)}
+                        aria-haspopup="dialog"
+                        className="shrink-0 whitespace-nowrap rounded-full bg-[#86BE7F] px-4 py-2 text-[13px] font-semibold text-stone-900 hover:bg-[#7cb378] transition-colors cursor-pointer active:scale-[0.98]"
+                    >
+                        {t('profile.get_verified_action')}
+                    </button>
+                </section>
+            )}
+
+            {showVerifyPitch && !verifyPitchMinimized && (
+                <section className="relative rounded-[16px] bg-[#E6E3DB] text-stone-900 p-6 md:p-8 overflow-hidden">
+                    <button
+                        onClick={dismissVerifyBanner}
+                        aria-label={t('common.close')}
+                        className="absolute top-4 right-4 p-1.5 rounded-full text-stone-500 hover:text-stone-900 hover:bg-stone-900/5 transition-colors cursor-pointer"
+                    >
+                        <X size={18} strokeWidth={2} />
+                    </button>
+
+                    <h3 className="text-xl md:text-2xl font-sans font-semibold tracking-tight pr-10 flex items-center gap-2 flex-wrap">
+                        {verifyHeadline}
+                        <VerifiedMark size={20} label={t('profile.verified_label')} />
+                    </h3>
+                    <p className="mt-2 text-[14.5px] text-stone-600 leading-relaxed max-w-xl">
+                        {t('profile.verify_banner_desc')}
+                    </p>
+                    {/* Green fill, dark ink on top — the platform's primary button. */}
+                    <button
+                        onClick={() => setShowVerify(true)}
+                        aria-haspopup="dialog"
+                        className="mt-5 rounded-full bg-[#86BE7F] px-6 py-3 text-[15px] font-semibold text-stone-900 hover:bg-[#7cb378] transition-colors cursor-pointer active:scale-[0.98]"
+                    >
+                        {t('profile.get_verified_action')}
+                    </button>
+                </section>
+            )}
+
+            {/* Identity */}
+            {/* A thin frame, so the photo carries the card rather than floating in
+                it. Literal 5% padding would resolve against the card's *width* —
+                about 50px on a full-width card, the opposite of thin — so this is
+                the same slim proportion expressed against its height. */}
+            <section className={`${CARD} p-3 md:p-4`}>
+                <div className="flex items-start gap-4 md:gap-5">
+                    <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoSelected}
+                        className="hidden"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={isUploadingPhoto}
+                        aria-label={t('profile.change_photo')}
+                        title={t('profile.change_photo')}
+                        className={`relative w-24 h-24 md:w-[120px] md:h-[120px] rounded-[20px] overflow-hidden flex items-center justify-center text-4xl font-sans text-[#DCDDD4] font-medium shrink-0 group/avatar cursor-pointer ${
+                            // The dark tile is the backdrop for the initial. With a photo
+                            // the card shows through the frame instead.
+                            photoUrl ? '' : 'bg-stone-900'
+                        }`}
+                    >
+                        {photoUrl ? (
+                            // A 5% frame on three sides only — top, left and bottom — with
+                            // the photo running out to the right edge, where the tile's own
+                            // rounded corner clips it. The width and height are spelled out
+                            // because insets alone do not size a replaced element: an <img>
+                            // keeps its intrinsic size and overflows the box instead
+                            // (measured: 4px past the corner at 80px).
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={photoUrl} alt="" className="absolute top-[5%] bottom-[5%] left-[5%] right-0 w-[95%] h-[90%] rounded-[14px] object-cover pointer-events-none" />
+                        ) : (
+                            (name || email).charAt(0).toUpperCase() || '·'
+                        )}
+                        {/* Hover veil with camera — the only hint needed that this is
+                            editable. Sits exactly over the photo, frame included out. */}
+                        <span className={`absolute flex items-center justify-center transition-opacity duration-200 ${
+                            photoUrl
+                                ? 'top-[5%] bottom-[5%] left-[5%] right-0 rounded-[14px]'
+                                : 'inset-0 rounded-[18px]'
+                        } ${
+                            isUploadingPhoto
+                                ? 'bg-stone-950/60 opacity-100'
+                                : 'bg-stone-950/45 opacity-0 group-hover/avatar:opacity-100'
+                        }`}>
+                            {isUploadingPhoto ? (
+                                <span className="w-5 h-5 border-2 border-[#DCDDD4]/40 border-t-[#DCDDD4] rounded-full animate-spin" />
                             ) : (
-                                (name || email).charAt(0).toUpperCase() || '·'
+                                <Camera size={20} strokeWidth={2} className="text-[#DCDDD4]" />
                             )}
-                            {/* Hover veil with camera — the only hint needed that this is editable */}
-                            <span className={`absolute inset-0 rounded-full flex items-center justify-center transition-opacity duration-200 ${
-                                isUploadingPhoto
-                                    ? 'bg-stone-950/60 opacity-100'
-                                    : 'bg-stone-950/45 opacity-0 group-hover/avatar:opacity-100'
-                            }`}>
-                                {isUploadingPhoto ? (
-                                    <span className="w-5 h-5 border-2 border-[#DCDDD4]/40 border-t-[#DCDDD4] rounded-full animate-spin" />
-                                ) : (
-                                    <Camera size={20} strokeWidth={2} className="text-[#DCDDD4]" />
-                                )}
-                            </span>
-                        </button>
-                        <div>
-                            <div className="flex items-center gap-2.5">
-                                <h2 className="text-xl font-sans font-semibold text-stone-900">{name || email}</h2>
-                                {/* Plan badge — the plan card's job moved up here; Pro/Max are
-                                    brand names and stay untranslated.
-                                    Only shown for an account that actually holds a plan: this
-                                    used to read `hasMax ? 'Max' : 'Pro'`, which labelled every
-                                    free and trial account "Pro". */}
-                                {isVerified && <VerifiedMark size={18} label={t('profile.verified_label')} />}
+                        </span>
+                    </button>
+
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h2 className="text-xl md:text-2xl font-sans font-medium tracking-tight text-stone-900 truncate">
+                                        {name || email}
+                                    </h2>
+                                    {isVerified && <VerifiedMark size={18} label={t('profile.verified_label')} />}
+                                </div>
+                                <p className="text-stone-600 text-[13px] mt-0.5 truncate">{email}</p>
+                            </div>
+
+                            {/* Plan, and the way up from it. Pro and Max are brand names
+                                and stay untranslated; the badge is hidden entirely for an
+                                account that holds neither. */}
+                            <div className="flex items-center gap-3 shrink-0">
                                 {(hasMax || hasPro) && (
-                                    <span className="rounded-full bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-[#DCDDD4] leading-none shrink-0">
+                                    <span className="rounded-full bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-[#DCDDD4] leading-none">
                                         {hasMax ? 'Max' : 'Pro'}
                                     </span>
                                 )}
-                            </div>
-                            <p className="text-stone-600 text-[13px] font-medium mt-1">{email}</p>
-                            {photoNotice && (
-                                <p className="text-[13px] text-stone-600 font-medium mt-1 animate-in fade-in duration-200">{photoNotice}</p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Max pitch — the same banner Connect uses (MaxBanner), so the
-                        two surfaces cannot drift apart again. */}
-                    {!hasMax && (
-                        <MaxBanner
-                            className="w-full lg:flex-1 lg:min-w-0"
-                            title={t('profile.max_ad_title')}
-                            description={t('profile.max_ad_desc')}
-                            badgeLabel={t('connect.pro.max_badge')}
-                            showBadge
-                            onClick={() => setShowMaxUpgrade(true)}
-                        />
-                    )}
-                    </div>
-
-                    <div className="h-px bg-stone-200/60" />
-
-                    {/* My songs — the most recent few; the arrow opens the full collection */}
-                    <div className="space-y-1">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-sans font-semibold text-stone-700">
-                                {t('profile.my_songs')}
-                                {songsLoaded && songs.length > 0 && (
-                                    <span className="ml-2 text-xs font-medium text-stone-400">{songs.length}</span>
-                                )}
-                            </h3>
-                            {songsLoaded && songs.length > 0 && (
-                                <button
-                                    onClick={() => router.push('/platform/profile/songs')}
-                                    className={`${btn.ghost('xs')} gap-1 cursor-pointer group/all`}
-                                >
-                                    {t('profile.see_all')}
-                                    <ArrowRight size={13} strokeWidth={2.2} className="group-hover/all:translate-x-0.5 transition-transform" />
-                                </button>
-                            )}
-                        </div>
-
-                        {!songsLoaded && (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 py-1">
-                                {[0, 1, 2].map(i => (
-                                    <div key={i} className="h-44 rounded-[20px] bg-stone-200/40 animate-pulse" />
-                                ))}
-                            </div>
-                        )}
-
-                        {songsLoaded && songs.length === 0 && (
-                            <div className="py-6 flex flex-col items-start gap-3">
-                                <p className="text-[13px] text-stone-600">{t('profile.no_songs')}</p>
-                                <button
-                                    onClick={() => leaveTo('/platform/create')}
-                                    className={`${btn.secondary('xs')} cursor-pointer`}
-                                >
-                                    <Music size={14} />
-                                    {t('profile.no_songs_cta')}
-                                </button>
-                            </div>
-                        )}
-
-                        {songsLoaded && songs.length > 0 && (
-                            <SongCards
-                                songs={songs.slice(0, RECENT_SONGS)}
-                                t={t}
-                                formatDate={formatDate}
-                                onOpenInCreate={handleOpenSong}
-                                ownerName={user.displayName || user.email || ''}
-                            />
-                        )}
-                    </div>
-
-                    <div className="h-px bg-stone-200/60" />
-
-                    {/* Connections — the most recent few; the arrow opens the full list */}
-                    <div className="space-y-1">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-sans font-semibold text-stone-700">
-                                {t('profile.connections')}
-                                {peopleLoaded && people.length > 0 && (
-                                    <span className="ml-2 text-xs font-medium text-stone-400">{people.length}</span>
-                                )}
-                            </h3>
-                            {peopleLoaded && people.length > 0 && (
-                                <button
-                                    onClick={() => router.push('/platform/profile/connections')}
-                                    className={`${btn.ghost('xs')} gap-1 cursor-pointer group/all`}
-                                >
-                                    {t('profile.see_all')}
-                                    <ArrowRight size={13} strokeWidth={2.2} className="group-hover/all:translate-x-0.5 transition-transform" />
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Anyone waiting on an answer comes first — it's the only
-                            thing in this section that needs acting on. */}
-                        <PendingRequests requesters={requesters} t={t} onAccept={accept} onDecline={decline} />
-
-                        {!peopleLoaded && (
-                            <div className="space-y-3 py-1">
-                                {[0, 1].map(i => (
-                                    <div key={i} className="h-12 rounded-[12px] bg-stone-200/40 animate-pulse" />
-                                ))}
-                            </div>
-                        )}
-
-                        {peopleLoaded && people.length === 0 && requesters.length === 0 && (
-                            <div className="py-6 flex flex-col items-start gap-3">
-                                <p className="text-[13px] text-stone-600">{t('profile.no_connections')}</p>
-                                <button
-                                    onClick={() => leaveTo('/platform/connect')}
-                                    className={`${btn.secondary('xs')} cursor-pointer`}
-                                >
-                                    <Users size={14} />
-                                    {t('profile.no_connections_cta')}
-                                </button>
-                            </div>
-                        )}
-
-                        {peopleLoaded && people.length > 0 && (
-                            <ConnectionList
-                                connections={people.slice(0, RECENT_CONNECTIONS)}
-                                t={t}
-                                onDisconnect={disconnect}
-                            />
-                        )}
-                    </div>
-
-                    <div className="h-px bg-stone-200/60" />
-
-                    {/* Details form */}
-                    {verificationState === 'idle' && (
-                        <form onSubmit={handleSave} className="space-y-6">
-                            <div className="grid md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[13px] text-stone-600 font-medium">{t('profile.first_name')}</label>
-                                    <div className="flex items-center gap-2.5 border-b border-stone-300 focus-within:border-stone-500 transition-colors py-2">
-                                        <User size={15} className="text-stone-400" />
-                                        <input
-                                            type="text"
-                                            autoComplete="given-name"
-                                            value={firstName}
-                                            onChange={(e) => { setFirstName(e.target.value); setName(joinName(e.target.value, lastName)); }}
-                                            placeholder={t('profile.placeholder_first_name')}
-                                            className="bg-transparent border-none outline-none w-full font-medium text-stone-800 p-0 focus:ring-0"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[13px] text-stone-600 font-medium">{t('profile.last_name')}</label>
-                                    <div className="flex items-center gap-2.5 border-b border-stone-300 focus-within:border-stone-500 transition-colors py-2">
-                                        <input
-                                            type="text"
-                                            autoComplete="family-name"
-                                            value={lastName}
-                                            onChange={(e) => { setLastName(e.target.value); setName(joinName(firstName, e.target.value)); }}
-                                            placeholder={t('profile.placeholder_last_name')}
-                                            className="bg-transparent border-none outline-none w-full font-medium text-stone-800 p-0 focus:ring-0"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[13px] text-stone-600 font-medium">{t('profile.email')}</label>
-                                    <div className="flex items-center gap-2.5 border-b border-stone-300 focus-within:border-stone-500 transition-colors py-2">
-                                        <Mail size={15} className="text-stone-400" />
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            className="bg-transparent border-none outline-none w-full font-medium text-stone-800 p-0 focus:ring-0"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            {hasChanges && (
-                                <div className="pt-1">
+                                {!hasMax && (
                                     <button
-                                        type="submit"
-                                        className={`${btn.primary('sm')} cursor-pointer`}
+                                        onClick={() => setShowMaxUpgrade(true)}
+                                        aria-haspopup="dialog"
+                                        className="group flex items-center gap-1 text-[13px] font-semibold text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
                                     >
-                                        {t('profile.save_details')}
-                                    </button>
-                                </div>
-                            )}
-                            {notification && (
-                                <p className="text-[13px] text-stone-600 font-medium animate-in fade-in duration-200">{notification}</p>
-                            )}
-                        </form>
-                    )}
-
-                    {verificationState === 'pending' && (
-                        <div className="space-y-4 py-2 border-l-2 border-stone-300 pl-4 animate-in fade-in duration-200">
-                            <p className="text-sm font-semibold text-stone-800">{t('profile.verify_title')}</p>
-                            <p className="text-[13px] text-stone-600 leading-relaxed">
-                                {t('profile.email_link_sent')} <span className="font-semibold text-stone-800">{pendingEmail}</span>{t('profile.email_link_sent_end')}
-                            </p>
-                            <div className="flex flex-wrap gap-3 pt-2">
-                                {isMockUser && (
-                                    <button
-                                        onClick={handleCompleteVerification}
-                                        className={`${btn.secondary('xs')} cursor-pointer`}
-                                    >
-                                        {t('profile.simulate_click')}
+                                        {t('profile.upgrade_short')}
+                                        <ArrowRight size={13} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
                                     </button>
                                 )}
-                                <button
-                                    onClick={() => {
-                                        setVerificationState('idle');
-                                        setEmail(user.email || '');
-                                    }}
-                                    className={`${btn.ghost('xs')} cursor-pointer`}
-                                >
-                                    {t('profile.cancel')}
-                                </button>
                             </div>
                         </div>
-                    )}
 
-                    {verificationState === 'success' && (
-                        <div className="py-2 border-l-2 border-[#86BE7F] pl-4">
-                            <p className="text-sm font-semibold text-[#3f6b3a]">{t('profile.success_title')}</p>
-                            <p className="text-[13px] text-stone-600 mt-1">{t('profile.success_desc')} {email}{t('profile.returning_platform')}</p>
-                        </div>
-                    )}
+                        <div className="mt-3.5 flex flex-wrap items-center gap-x-5 gap-y-2">
+                            <button
+                                onClick={() => router.push('/platform/profile/settings')}
+                                className="flex items-center gap-1.5 text-[13px] font-medium text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
+                            >
+                                <Pencil size={13} strokeWidth={2} />
+                                {t('profile.edit_action')}
+                            </button>
 
-                    <div className="h-px bg-stone-200/60" />
+                            {/* A real switch: off takes this account out of Connect's
+                                roster. Disabled until the stored value has arrived. */}
+                            <button
+                                role="switch"
+                                aria-checked={isDiscoverable === true}
+                                aria-label={t('profile.public_profile_switch')}
+                                disabled={isDiscoverable === null}
+                                onClick={togglePublicProfile}
+                                className="flex items-center gap-2 text-[13px] font-medium text-stone-600 hover:text-stone-900 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-default"
+                            >
+                                <span className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${
+                                    isDiscoverable ? 'bg-[#86BE7F]' : 'bg-stone-300'
+                                }`}>
+                                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${
+                                        isDiscoverable ? 'left-[18px]' : 'left-0.5'
+                                    }`} />
+                                </span>
+                                {t('profile.public_profile_switch')}
+                            </button>
 
-                    {/* Preferences */}
-                    <div className="space-y-1">
-                        <h3 className="text-sm font-sans font-semibold text-stone-700 mb-3">{t('profile.preferences')}</h3>
-                        {/* The public profile is a real page (/platform/profile/u/…), so this
-                            is a way to see it — not the decorative toggle it used to be. */}
-                        <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
-                            <div className="space-y-0.5">
-                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.view_public_profile_title')}</p>
-                                <p className="text-[13px] text-stone-600">{t('profile.view_public_profile_desc')}</p>
-                            </div>
+                            {/* The switch says whether people can find you; this says
+                                what they find. Their view of you, not yours. */}
                             <button
                                 onClick={() => router.push(`/platform/profile/u/${user.uid}`)}
-                                className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
+                                className="flex items-center gap-1.5 text-[13px] font-medium text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
                             >
-                                <ExternalLink size={14} />
+                                <Eye size={13} strokeWidth={2} />
                                 {t('profile.view_action')}
                             </button>
                         </div>
-                        {/* Language lives in the sidebar everywhere else — which the profile
-                            doesn't have, so it needs its own row here. */}
-                        <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
-                            <div className="space-y-0.5">
-                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.language_title')}</p>
-                                <p className="text-[13px] text-stone-600">{t('profile.language_desc')}</p>
-                            </div>
-                            <div className="ml-4 shrink-0">
-                                <LanguageSwitcher />
-                            </div>
-                        </div>
-                        {/* One row, not two: the guide already opens with the welcome
-                            video and continues into the Create tour. */}
-                        <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
-                            <div className="space-y-0.5">
-                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.demo_title')}</p>
-                                <p className="text-[13px] text-stone-600">{t('profile.demo_desc')}</p>
-                            </div>
-                            <button
-                                onClick={handleReplayGuide}
-                                className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
-                            >
-                                <PlayCircle size={14} />
-                                {t('profile.demo_action')}
-                            </button>
-                        </div>
-                        <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
-                            <div className="space-y-0.5">
-                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.manage_subscription')}</p>
-                                <p className="text-[13px] text-stone-600">{t('profile.manage_subscription_desc')}</p>
-                            </div>
-                            <button
-                                className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
-                            >
-                                {t('profile.manage_action')}
-                            </button>
-                        </div>
-                        {/* Get verified — the seal beside the name. Three requirements
-                            (real name, biography, photo); an admin makes the call, so the
-                            row reads the live request state rather than a local flag. */}
-                        <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
-                            <div className="space-y-0.5">
-                                <p className="font-sans text-sm font-medium text-stone-800 flex items-center gap-2">
-                                    {t('profile.get_verified_title')}
-                                    {isVerified && <VerifiedMark size={15} label={t('profile.verified_label')} />}
-                                </p>
-                                <p className="text-[13px] text-stone-600">
-                                    {isVerified
-                                        ? t('profile.verify_approved')
-                                        : verification?.status === 'pending'
-                                        ? t('profile.verify_pending_desc')
-                                        : verification?.status === 'declined'
-                                        ? (verification.note || t('profile.verify_declined'))
-                                        : t('profile.get_verified_desc')}
-                                </p>
-                            </div>
-                            {!isVerified && (
-                                verification?.status === 'pending' ? (
-                                    <span className="ml-4 shrink-0 whitespace-nowrap rounded-full bg-stone-200/70 px-3.5 py-1.5 text-[12px] font-semibold text-stone-600">
-                                        {t('profile.verify_pending')}
-                                    </span>
-                                ) : (
-                                    <button
-                                        onClick={() => setShowVerify(true)}
-                                        aria-haspopup="dialog"
-                                        className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
-                                    >
-                                        <BadgeCheck size={14} />
-                                        {verification?.status === 'declined' ? t('profile.verify_try_again') : t('profile.get_verified_action')}
-                                    </button>
-                                )
-                            )}
-                        </div>
-                        <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
-                            <div className="space-y-0.5">
-                                <p className="font-sans text-sm font-medium text-stone-800">{t('profile.contact_concierge')}</p>
-                                <p className="text-[13px] text-stone-600">{t('profile.support_desc')}</p>
-                            </div>
-                            <button
-                                onClick={() => setIsSupportOpen(true)}
-                                aria-haspopup="dialog"
-                                className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
-                            >
-                                {t('profile.support_action')}
-                            </button>
-                        </div>
-                        {/* Sign out is a sidebar action everywhere else; the profile has no
-                            sidebar. A quiet text button — it's an exit, not a call to action. */}
-                        <div className="flex items-center justify-between py-4">
-                            <div className="space-y-0.5">
-                                <p className="font-sans text-sm font-medium text-stone-800">{t('navigation.logout')}</p>
-                                <p className="text-[13px] text-stone-600">{t('profile.logout_desc')}</p>
-                            </div>
-                            <button
-                                onClick={handleSignOut}
-                                className={`${btn.ghost('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
-                            >
-                                <LogOut size={14} />
-                                {t('navigation.logout')}
-                            </button>
-                        </div>
+
+                        {photoNotice && (
+                            <p className="text-[13px] text-stone-600 font-medium mt-2 animate-in fade-in duration-200">{photoNotice}</p>
+                        )}
                     </div>
                 </div>
+            </section>
 
-            </div>
+            {/* My songs */}
+            <section className={`${CARD} p-5 md:p-6 space-y-4`}>
+                <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-[15px] font-sans font-medium text-stone-800">
+                        {t('profile.my_songs')}
+                        {songsLoaded && songs.length > 0 && (
+                            <span className="ml-2 text-[13px] font-normal text-stone-400">{songs.length}</span>
+                        )}
+                    </h3>
+                    {songsLoaded && songs.length > 0 && (
+                        <button
+                            onClick={() => router.push('/platform/profile/songs')}
+                            className="group flex items-center gap-1 text-[13px] font-medium text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
+                        >
+                            {t('profile.see_more')}
+                            <ArrowRight size={13} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
+                        </button>
+                    )}
+                </div>
+
+                {!songsLoaded && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[0, 1, 2, 3].map(i => (
+                            <div key={i} className="h-36 rounded-[14px] bg-stone-200/40 animate-pulse" />
+                        ))}
+                    </div>
+                )}
+
+                {songsLoaded && songs.length === 0 && (
+                    <div className="py-2 flex flex-col items-start gap-3">
+                        <p className="text-[13px] text-stone-600">{t('profile.no_songs')}</p>
+                        <button
+                            onClick={() => leaveProfileTo('/platform/create')}
+                            className={`${btn.secondary('xs')} cursor-pointer`}
+                        >
+                            <Music size={14} />
+                            {t('profile.no_songs_cta')}
+                        </button>
+                    </div>
+                )}
+
+                {songsLoaded && songs.length > 0 && (
+                    <SongCards
+                        songs={songs.slice(0, RECENT_SONGS)}
+                        t={t}
+                        formatDate={(ms) => formatSongDate(language, ms)}
+                        onOpenInCreate={(songId) => openSongInCreate(user.uid, songId)}
+                        gridClassName="grid-cols-2 sm:grid-cols-4"
+                        ownerName={user.displayName || user.email || ''}
+                    />
+                )}
+            </section>
+
+            {/* My connections */}
+            <section className={`${CARD} p-5 md:p-6 space-y-3`}>
+                <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-[15px] font-sans font-medium text-stone-800">
+                        {t('profile.connections')}
+                        {peopleLoaded && people.length > 0 && (
+                            <span className="ml-2 text-[13px] font-normal text-stone-400">{people.length}</span>
+                        )}
+                    </h3>
+                    {peopleLoaded && people.length > 0 && (
+                        <button
+                            onClick={() => router.push('/platform/profile/connections')}
+                            className="group flex items-center gap-1 text-[13px] font-medium text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
+                        >
+                            {t('profile.see_more')}
+                            <ArrowRight size={13} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Anyone waiting on an answer comes first — it's the only thing
+                    in this section that needs acting on. */}
+                <PendingRequests requesters={requesters} t={t} onAccept={accept} onDecline={decline} />
+
+                {!peopleLoaded && (
+                    <div className="space-y-3 py-1">
+                        {[0, 1].map(i => (
+                            <div key={i} className="h-12 rounded-[12px] bg-stone-200/40 animate-pulse" />
+                        ))}
+                    </div>
+                )}
+
+                {peopleLoaded && people.length === 0 && requesters.length === 0 && (
+                    <div className="py-2 flex flex-col items-start gap-3">
+                        <p className="text-[13px] text-stone-600">{t('profile.no_connections')}</p>
+                        <button
+                            onClick={() => leaveProfileTo('/platform/connect')}
+                            className={`${btn.secondary('xs')} cursor-pointer`}
+                        >
+                            <Users size={14} />
+                            {t('profile.no_connections_cta')}
+                        </button>
+                    </div>
+                )}
+
+                {peopleLoaded && people.length > 0 && (
+                    <ConnectionList
+                        connections={people.slice(0, RECENT_CONNECTIONS)}
+                        t={t}
+                        onDisconnect={disconnect}
+                    />
+                )}
+            </section>
+
+            <ActionRow
+                label={t('profile.demo_title')}
+                icon={<PlayCircle size={17} strokeWidth={2} />}
+                onClick={handleReplayGuide}
+            />
+            <ActionRow
+                label={t('profile.support_row_title')}
+                icon={<LifeBuoy size={17} strokeWidth={2} />}
+                onClick={() => setIsSupportOpen(true)}
+            />
+            <ActionRow
+                label={t('profile.settings_title')}
+                icon={<SlidersHorizontal size={17} strokeWidth={2} />}
+                onClick={() => router.push('/platform/profile/settings')}
+            />
+            <ActionRow
+                label={t('navigation.logout')}
+                icon={<LogOut size={17} strokeWidth={2} />}
+                onClick={handleSignOut}
+                muted
+            />
 
             <SupportModal isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
             <VerifyModal
@@ -733,7 +599,6 @@ export default function ProfilePage() {
                 initialBio={verification?.bio}
                 t={t}
             />
-            {/* Same upgrade popup as Connect's PRO panel */}
             <MaxUpgradeModal
                 isOpen={showMaxUpgrade}
                 onClose={() => setShowMaxUpgrade(false)}

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import * as btn from '@/app/platform/components/buttonStyles';
+import { waitlistJoinPath } from '@/lib/uiFlags';
 import GoldenMindStage from '@/app/platform/mind-power/components/GoldenMindStage';
 import type { StreakParams } from './params';
 
@@ -13,7 +14,7 @@ import type { StreakParams } from './params';
  * for paper — so the stage runs in its light tone.
  */
 export default function StreakCard({ name, level, weeks, minutes, streak }: StreakParams) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const title = name ? t('streak_share.title').replace('{name}', name) : t('streak_share.title_noname');
     const line = [
         `${t('progress.level_label')} ${level}`,
@@ -40,7 +41,9 @@ export default function StreakCard({ name, level, weeks, minutes, streak }: Stre
                 <p className="mt-6 max-w-md text-[13.5px] leading-relaxed text-stone-500">
                     {t('streak_share.tagline')}
                 </p>
-                <Link href="/" className={`${btn.primary('md')} mt-8`}>
+                {/* Into the onboarding flow, the same road every other public CTA
+                    takes, tagged so the waitlist shows who came from a shared streak. */}
+                <Link href={waitlistJoinPath('streak', language)} className={`${btn.primary('md')} mt-8`} data-streak-cta>
                     {t('streak_share.cta')}
                 </Link>
             </section>

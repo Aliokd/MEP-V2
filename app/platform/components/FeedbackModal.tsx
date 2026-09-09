@@ -3,6 +3,7 @@ import { useSheetSwipe } from '@/hooks/useSheetSwipe';
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { Check } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { storage } from '@/lib/firebase';
@@ -218,12 +219,10 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                     className="sheet-panel bg-white rounded-[16px] border border-stone-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] max-w-lg w-full p-8 sm:p-10 flex flex-col gap-6 items-center text-center animate-in zoom-in-95 duration-200 relative" {...swipeHandlers} style={swipeStyle}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* Success icon */}
-                    <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mb-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256">
-                            <path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L100,192.69,218.34,74.34a8,8,0,0,1,11.32,11.32Z"></path>
-                        </svg>
-                    </div>
+                    {/* The mark alone: no tinted disc behind it. One shape says
+                        "sent" as plainly as two, and the brand green carries the
+                        meaning without a second container to look at. */}
+                    <Check size={44} strokeWidth={2.5} className="text-[#5F9857] mb-1" aria-hidden />
 
                     <h3 className="text-2xl md:text-3xl font-sans font-light text-stone-700 tracking-tight">
                         {t('feedback_modal.title') || 'Your feedback makes Veinote better for everyone.'}

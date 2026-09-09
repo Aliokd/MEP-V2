@@ -201,6 +201,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallba
 import { createPortal } from 'react-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { safeLocalStorageSetItem } from '@/lib/storage';
+import { writeProjectCraft, bumpProjectRecording, forgetCompletedSong } from '@/lib/weeklyActivity';
 import { setPlaybackAudioSession, setRecordingAudioSession, releaseRecordingAudioSession } from '@/lib/audioSession';
 import { useSheetPresence } from '@/hooks/useSheetPresence';
 import { useSheetSwipe } from '@/hooks/useSheetSwipe';
@@ -324,7 +325,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-releasing-regret',
         title: 'Letting Go of Regret',
         category: 'Release',
-        bgImage: '/assets/inspiration/minimal/therapy_releasing_regret.webp',
+        bgImage: '/assets/inspiration/photo/therapy_releasing_regret.webp',
         questions: [
             'What\'s one memory from your past that still feels heavy?',
             'What would it feel like to finally let that go?',
@@ -337,7 +338,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-finding-stillness',
         title: 'Finding Calm',
         category: 'Calm',
-        bgImage: '/assets/inspiration/minimal/therapy_finding_stillness.webp',
+        bgImage: '/assets/inspiration/photo/therapy_finding_stillness.webp',
         questions: [
             'What\'s making your mind feel busy right now?',
             'What would it feel like if everything went quiet for a moment?',
@@ -350,7 +351,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-growth-after-pain',
         title: 'Growing Stronger',
         category: 'Growth',
-        bgImage: '/assets/inspiration/minimal/therapy_growth_pain.webp',
+        bgImage: '/assets/inspiration/photo/therapy_growth_pain.webp',
         questions: [
             'What hard time in your life changed you the most?',
             'What\'s one way you\'ve grown since then?',
@@ -363,7 +364,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-embracing-uncertainty',
         title: 'Trusting the Unknown',
         category: 'Trust',
-        bgImage: '/assets/inspiration/minimal/therapy_embracing_uncertainty.webp',
+        bgImage: '/assets/inspiration/photo/therapy_embracing_uncertainty.webp',
         questions: [
             'What\'s something in your life that feels uncertain right now?',
             'What would it feel like to take one step without knowing what\'s next?',
@@ -376,7 +377,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-grief-and-honoring',
         title: 'Honoring a Loss',
         category: 'Healing',
-        bgImage: '/assets/inspiration/minimal/therapy_grief_honoring.webp',
+        bgImage: '/assets/inspiration/photo/therapy_grief_honoring.webp',
         questions: [
             'What or who are you missing right now?',
             'What\'s one good memory connected to this?',
@@ -389,7 +390,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-overcoming-fear',
         title: 'Facing Fear',
         category: 'Courage',
-        bgImage: '/assets/inspiration/minimal/therapy_overcoming_fear.webp',
+        bgImage: '/assets/inspiration/photo/therapy_overcoming_fear.webp',
         questions: [
             'What\'s something you\'re scared to do, but want to do anyway?',
             'What\'s the worst that could happen if you tried?',
@@ -402,7 +403,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-self-compassion',
         title: 'Being Kind to Yourself',
         category: 'Comfort',
-        bgImage: '/assets/inspiration/minimal/therapy_self_compassion.webp',
+        bgImage: '/assets/inspiration/photo/therapy_self_compassion.webp',
         questions: [
             'Where have you been hard on yourself lately?',
             'What would you say to a friend going through the same thing?',
@@ -415,7 +416,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-reclaiming-voice',
         title: 'Speaking Your Truth',
         category: 'Voice',
-        bgImage: '/assets/inspiration/minimal/therapy_reclaiming_voice.webp',
+        bgImage: '/assets/inspiration/photo/therapy_reclaiming_voice.webp',
         questions: [
             'What have you been holding back from saying?',
             'What would it feel like to finally say it out loud?',
@@ -428,7 +429,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-patience-and-timing',
         title: 'Trusting Your Timing',
         category: 'Patience',
-        bgImage: '/assets/inspiration/minimal/therapy_patience_timing.webp',
+        bgImage: '/assets/inspiration/photo/therapy_patience_timing.webp',
         questions: [
             'What are you rushing that maybe needs more time?',
             'What good things have come from waiting, in your life?',
@@ -441,7 +442,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-strength-vulnerability',
         title: 'Strong Enough to Be Open',
         category: 'Openness',
-        bgImage: '/assets/inspiration/minimal/therapy_strength_vulnerability.webp',
+        bgImage: '/assets/inspiration/photo/therapy_strength_vulnerability.webp',
         questions: [
             'What\'s something real about you that you usually hide?',
             'Why does showing that feel scary?',
@@ -454,7 +455,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-navigating-darkness',
         title: 'Finding Light in Hard Times',
         category: 'Hope',
-        bgImage: '/assets/inspiration/minimal/therapy_navigating_darkness.webp',
+        bgImage: '/assets/inspiration/photo/therapy_navigating_darkness.webp',
         questions: [
             'What\'s making things feel dark for you right now?',
             'What\'s one small good thing you can still see?',
@@ -467,7 +468,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-cleansing-renewal',
         title: 'Starting Fresh',
         category: 'Fresh Start',
-        bgImage: '/assets/inspiration/minimal/therapy_cleansing_renewal.webp',
+        bgImage: '/assets/inspiration/photo/therapy_cleansing_renewal.webp',
         questions: [
             'What do you want to leave behind?',
             'What would it feel like to start clean, with nothing weighing you down?',
@@ -480,7 +481,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-staying-grounded',
         title: 'Staying Grounded',
         category: 'Grounded',
-        bgImage: '/assets/inspiration/minimal/therapy_staying_grounded.webp',
+        bgImage: '/assets/inspiration/photo/therapy_staying_grounded.webp',
         questions: [
             'What\'s making you feel scattered or overwhelmed right now?',
             'What helps you feel steady when life feels like too much?',
@@ -493,7 +494,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-feeling-connected',
         title: 'Feeling Less Alone',
         category: 'Connection',
-        bgImage: '/assets/inspiration/minimal/therapy_feeling_connected.webp',
+        bgImage: '/assets/inspiration/photo/therapy_feeling_connected.webp',
         questions: [
             'When do you feel most alone?',
             'Who do you wish understood what you\'re going through?',
@@ -506,7 +507,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-accepting-change',
         title: 'Accepting Change',
         category: 'Acceptance',
-        bgImage: '/assets/inspiration/minimal/therapy_accepting_change.webp',
+        bgImage: '/assets/inspiration/photo/therapy_accepting_change.webp',
         questions: [
             'What change in your life are you fighting right now?',
             'What might this change be teaching you?',
@@ -519,7 +520,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-releasing-anger',
         title: 'Letting Out Anger',
         category: 'Release',
-        bgImage: '/assets/inspiration/minimal/therapy_releasing_anger.webp',
+        bgImage: '/assets/inspiration/photo/therapy_releasing_anger.webp',
         questions: [
             'What\'s been making you angry or frustrated lately?',
             'What\'s underneath the anger: hurt, fear, something else?',
@@ -532,7 +533,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-new-beginnings',
         title: 'New Beginnings',
         category: 'Hope',
-        bgImage: '/assets/inspiration/minimal/therapy_new_beginnings.webp',
+        bgImage: '/assets/inspiration/photo/therapy_new_beginnings.webp',
         questions: [
             'What\'s one thing you want to start fresh?',
             'What would today look like with a clean start?',
@@ -545,7 +546,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-unconditional-worth',
         title: 'Knowing Your Worth',
         category: 'Worth',
-        bgImage: '/assets/inspiration/minimal/therapy_unconditional_worth.webp',
+        bgImage: '/assets/inspiration/photo/therapy_unconditional_worth.webp',
         questions: [
             'Do you feel like you have to earn your worth? Why?',
             'What makes you valuable, even when you\'re not doing anything?',
@@ -558,7 +559,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-healing-child',
         title: 'Remembering How to Play',
         category: 'Play',
-        bgImage: '/assets/inspiration/minimal/therapy_healing_child.webp',
+        bgImage: '/assets/inspiration/photo/therapy_healing_child.webp',
         questions: [
             'What did you love doing as a kid, before life got serious?',
             'What would you make today if you weren\'t afraid of getting it wrong?',
@@ -571,7 +572,7 @@ const INSPIRATION_CARDS: InspirationCard[] = [
         id: 'therapy-quiet-strength',
         title: 'Quiet Strength',
         category: 'Strength',
-        bgImage: '/assets/inspiration/minimal/therapy_quiet_strength.webp',
+        bgImage: '/assets/inspiration/photo/therapy_quiet_strength.webp',
         questions: [
             'What\'s a hard time you\'ve stayed strong through, quietly?',
             'How do you keep going when things get tough?',
@@ -1962,7 +1963,7 @@ const PhraseRow = React.memo(function PhraseRow({
                 /* Vertical box metrics here must mirror the read-only `.phrase-row-text`
                    below — py-[2px] plus a 1px transparent border — or swapping between the
                    two on every click visibly nudges the surrounding lines. */
-                <div className="font-lyrics text-[25.2px] md:text-[28.56px] lg:text-[35.28px] font-medium text-stone-600 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4 py-0 md:py-[2px] border border-transparent rounded-[12px]">
+                <div className="font-lyrics lyric-type font-medium text-stone-600 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto w-full px-4 py-0 md:py-[2px] border border-transparent rounded-[12px]">
                     {/* Two attributes below are load-bearing for vertical rhythm:
                         `rows={1}` — without an explicit rows a textarea defaults to TWO rows,
                         so its auto height (and the scrollHeight measured from it) is two lines
@@ -2060,7 +2061,7 @@ const PhraseRow = React.memo(function PhraseRow({
                                 }
                             }
                         }}
-                        className="block w-full bg-transparent border-none outline-none resize-none font-lyrics text-[25.2px] md:text-[28.56px] lg:text-[35.28px] font-medium text-stone-600 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none leading-[1.4] py-0 no-scrollbar"
+                        className="block w-full bg-transparent border-none outline-none resize-none font-lyrics lyric-type font-medium text-stone-600 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none leading-[1.4] py-0 no-scrollbar"
                         style={{ height: 'auto', minHeight: '1.4em' }}
                         inputMode="text"
                     />
@@ -2068,7 +2069,7 @@ const PhraseRow = React.memo(function PhraseRow({
             ) : (
                 <div
                     className={`
-                        phrase-row-text font-lyrics text-[25.2px] md:text-[28.56px] lg:text-[35.28px] font-medium text-stone-600 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap [overflow-wrap:anywhere] select-none py-0 md:py-[2px] px-4 rounded-[12px] transition-all duration-200 w-full border border-transparent
+                        phrase-row-text font-lyrics lyric-type font-medium text-stone-600 leading-[1.4] tracking-[-0.035em] text-center max-w-4xl mx-auto whitespace-pre-wrap [overflow-wrap:anywhere] select-none py-0 md:py-[2px] px-4 rounded-[12px] transition-all duration-200 w-full border border-transparent
                         ${isLockedByRemote ? 'cursor-not-allowed border-dashed opacity-70' : 'cursor-grab active:cursor-grabbing hover:border-stone-200/50 hover:bg-stone-50/30 group/line'}
                         ${draggedPhraseId === phrase.id ? 'opacity-30' : ''}
                         ${isCommentTarget ? 'bg-stone-100/80 border-stone-300/80 shadow-[0_0_0_3px_rgba(120,113,108,0.07)]' : ''}
@@ -4587,21 +4588,25 @@ export default function CreatePage() {
     useEffect(() => {
         if (!isDataLoaded) return;
 
-        const totalWords = notes.reduce((sum, note) => {
+        // Per project, and the whole map at once: Mind Power credits a week with
+        // what each project gained, so words cut, a recording deleted or a project
+        // deleted leave the week's score again. The totals are the plain sums of
+        // what exists — no ratchet — for the same reason.
+        const perProject: Record<string, { words: number; recordingSeconds: number }> = {};
+        let totalWords = 0;
+        let totalRecordingsDuration = 0;
+        for (const note of notes) {
             const words = (note.content || '').trim().split(/\s+/).filter(w => w.length > 0).length;
-            return sum + words;
-        }, 0);
+            const recordingSeconds = Math.round(
+                (note.recordingDuration || 0) + (note.audioNotes || []).reduce((aSum, an) => aSum + (an.duration || 0), 0),
+            );
+            perProject[note.id] = { words, recordingSeconds };
+            totalWords += words;
+            totalRecordingsDuration += recordingSeconds;
+        }
+        writeProjectCraft(perProject);
         safeLocalStorageSetItem('mep-create-words-typed', totalWords.toString());
-
-        const totalRecordingsDuration = notes.reduce((sum, note) => {
-            const noteDuration = note.recordingDuration || 0;
-            const audioNotesDuration = (note.audioNotes || []).reduce((aSum, an) => aSum + (an.duration || 0), 0);
-            return sum + noteDuration + audioNotesDuration;
-        }, 0);
-
-        const currentSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
-        const nextSeconds = Math.max(currentSeconds, totalRecordingsDuration);
-        safeLocalStorageSetItem('mep-create-recording-seconds', nextSeconds.toString());
+        safeLocalStorageSetItem('mep-create-recording-seconds', totalRecordingsDuration.toString());
 
         window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
     }, [notes, isDataLoaded]);
@@ -9783,6 +9788,7 @@ export default function CreatePage() {
                 setRecordingTime(recordingSecondsRef.current);
                 const storedSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
                 safeLocalStorageSetItem('mep-create-recording-seconds', (storedSeconds + 1).toString());
+                bumpProjectRecording(selectedNoteIdRef.current);
                 window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
                 if (recordingSecondsRef.current >= MAX_RECORDING_SECONDS) {
                     // Stop, don't discard — ten minutes of singing is still worth keeping.
@@ -9899,6 +9905,7 @@ export default function CreatePage() {
                 setRecordingTime(recordingSecondsRef.current);
                 const storedSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
                 safeLocalStorageSetItem('mep-create-recording-seconds', (storedSeconds + 1).toString());
+                bumpProjectRecording(selectedNoteIdRef.current);
                 window.dispatchEvent(new CustomEvent('songwriting-progress-updated'));
                 // Paused time doesn't count, but the cap still applies to the take as a
                 // whole — the ref carries the total across pauses.
@@ -13182,6 +13189,9 @@ export default function CreatePage() {
                 // The writer also skips notes gone from state; this closes the gap
                 // before notesRef catches up.
                 cancelProjectDocWrite(id);
+                // A deleted project is no longer a song finished; the notes watcher
+                // below takes its words and recordings out of the week the same way.
+                forgetCompletedSong(id);
                 setNotes(prev => prev.filter(n => n.id !== id));
                 if (selectedNoteId === id) {
                     setSelectedNoteId(null);
@@ -19464,17 +19474,17 @@ export default function CreatePage() {
                                                     setInspirationQuestionIndex(0);
                                                 }}
                                             >
-                                                {/* The drawn scenes are flat and quiet, so the painted
-                                                    cards' blurred under-layer and radial mask (there to
-                                                    calm a busy image) are gone: one layer, and a soft
-                                                    darkening toward the foot for the title. Twenty cards
-                                                    each carrying a 12px blur filter were most of what
-                                                    the deck spent per frame while it moved. */}
+                                                {/* Photographic scenes again (public/assets/inspiration/photo),
+                                                    calmed at export — less colour, less contrast, a warm
+                                                    haze — so they stay quiet behind the words without the
+                                                    per-frame blur filter the old painted cards paid for.
+                                                    One layer, plus a darkening toward the foot so the white
+                                                    title holds against any sky. */}
                                                 <div
                                                     className="absolute inset-0 bg-cover bg-center pointer-events-none"
                                                     style={{ backgroundImage: `url(${card.bgImage})` }}
                                                 />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-stone-955/20 via-transparent to-transparent pointer-events-none" />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-stone-900/40 via-stone-900/10 to-transparent pointer-events-none" />
 
                                                 {/* Floating glass title. The backdrop blur is only paid for
                                                     on the cards that can actually be seen (the active one
@@ -20785,6 +20795,25 @@ export default function CreatePage() {
                     onTouchEnd={(e) => e.stopPropagation()}
                 >
                     <div className="flex-1 min-w-0 flex items-center justify-start gap-1 group relative">
+                        {/* The title box is exactly as wide as its text. An invisible mirror
+                            of the text sets the width and the input lies over it in the same
+                            grid cell, so the BPM pill lands right after the last glyph — the
+                            `ch` estimate this replaces was the width of "0" per character,
+                            and a title full of hyphens, slashes and lowercase came out with a
+                            few characters of slack between the title and the pill. */}
+                        <div
+                            className={`relative inline-grid items-center min-w-0 shrink ${
+                                (isMobile && isEditingTitle)
+                                    ? 'w-full max-w-[calc(100%-44px)]'
+                                    : (isEditingTitle ? 'max-w-[calc(100%-150px)]' : 'max-w-[calc(100%-80px)]')
+                            }`}
+                        >
+                            <span
+                                aria-hidden="true"
+                                className="invisible col-start-1 row-start-1 min-w-[2ch] overflow-hidden whitespace-pre font-medium text-[17px] md:text-[18px] pointer-events-none select-none"
+                            >
+                                {(isRecording ? recordingTitle : (isEditingTitle ? localTitleText : (activeNote ? getTranslatedTitle(activeNote.title) : ''))) || t('creative.project_name')}
+                            </span>
                         <input
                             key="project-title-input"
                             id="project-title-input"
@@ -20830,34 +20859,10 @@ export default function CreatePage() {
                             // legible the moment anyone actually goes to read or change it.
                             // Held at full strength while editing: watching your own typing
                             // through 65% opacity reads as the field being disabled.
-                            className={`bg-transparent border-none outline-none font-medium text-xl md:text-[22px] text-stone-600 placeholder:text-stone-400 transition-[opacity,color] duration-300 min-w-0 shrink opacity-65 group-hover:opacity-100 group-focus-within:opacity-100 ${isCanvasReadOnly ? "cursor-default select-none pointer-events-none" : "cursor-text select-text focus:text-stone-900"}`}
-                            style={{
-                                // Size to the text rather than filling the row, so the save check
-                                // and the BPM pill sit right beside the title instead of being
-                                // pushed out to the far edge of the header. `ch` is the width of
-                                // "0", which overshoots for a proportional face, so scale it down
-                                // rather than padding it out — that slack is what opened the gap.
-                                // Editing on a phone is the one moment the title needs the
-                                // whole row: sized-to-text is what keeps the BPM pill tucked
-                                // beside it at rest, but mid-edit it left three or four
-                                // characters visible on a 360px header. So while editing it
-                                // takes the width and gives back only the save check's 44px —
-                                // the pill is hidden below md for the same reason.
-                                width: (isMobile && isEditingTitle)
-                                    ? '100%'
-                                    : `${Math.min(
-                                        42,
-                                        Math.max(
-                                            8,
-                                            ((isRecording ? recordingTitle : (isEditingTitle ? localTitleText : (activeNote ? getTranslatedTitle(activeNote.title) : ''))) || t('creative.project_name') || '').length * 0.92
-                                        )
-                                    )}ch`,
-                                maxWidth: (isMobile && isEditingTitle)
-                                    ? 'calc(100% - 44px)'
-                                    : (isEditingTitle ? 'calc(100% - 150px)' : 'calc(100% - 80px)')
-                            }}
+                            className={`col-start-1 row-start-1 w-full min-w-0 bg-transparent border-none outline-none font-medium text-[17px] md:text-[18px] text-stone-600 placeholder:text-stone-400 transition-[opacity,color] duration-300 opacity-65 group-hover:opacity-100 group-focus-within:opacity-100 ${isCanvasReadOnly ? "cursor-default select-none pointer-events-none" : "cursor-text select-text focus:text-stone-900"}`}
                             onClick={(e) => e.stopPropagation()}
                         />
+                        </div>
                         {isEditingTitle && !isRecording && !isCanvasReadOnly && (
                             <Tooltip label="Save project name">
                                 <button
@@ -22580,7 +22585,7 @@ export default function CreatePage() {
                                             setIsFocused(false);
                                             setTimeout(updateScrollbarInfo, 50);
                                         }}
-                                        className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-lyrics text-[25.2px] md:text-[28.56px] lg:text-[35.28px] font-medium text-stone-600 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[60dvh] md:max-h-[70dvh] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
+                                        className="w-full px-4 md:px-8 xl:px-16 bg-transparent border-none outline-none resize-none font-lyrics lyric-type font-medium text-stone-600 text-center tracking-[-0.035em] focus:ring-0 focus:outline-none overflow-y-auto max-h-[60dvh] md:max-h-[70dvh] leading-[1.4] no-scrollbar pointer-events-auto relative py-0"
                                         placeholder=""
                                         style={{
                                             height: 'auto',
@@ -22599,7 +22604,7 @@ export default function CreatePage() {
                                     />
                                     {contentVal === '' && (
                                         <div className="absolute inset-x-0 top-0 px-4 md:px-8 xl:px-16 flex items-center justify-center pointer-events-none select-none py-0">
-                                            <span className="relative font-lyrics text-[25.2px] md:text-[28.56px] lg:text-[35.28px] font-medium text-stone-300/80 tracking-[-0.035em] leading-[1.4] text-center flex items-center justify-center">
+                                            <span className="relative font-lyrics lyric-type font-medium text-stone-300/80 tracking-[-0.035em] leading-[1.4] text-center flex items-center justify-center">
                                                 <span className="inline-block w-[2.5px] h-[32px] md:h-[36px] lg:h-[44px] bg-black mr-2 animate-caret-blink shrink-0" />
                                                 {t('creative.type_lyrics_placeholder')}
                                             </span>

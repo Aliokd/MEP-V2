@@ -68,6 +68,14 @@ export const FIRST_DAY_KEY = 'mep-first-day';
 export const HISTORY_BACKFILLED_KEY = 'mep-history-backfilled';
 /** Weeks before tracking judged golden from the record that survived. */
 export const LEGACY_GOLDEN_KEY = 'mep-legacy-golden-weeks';
+/** Words and recorded seconds per project, written by Create for every project that exists. */
+export const PROJECT_CRAFT_KEY = 'mep-project-craft';
+/**
+ * Shares in Connect per week, counted from the posts that still exist, kept
+ * by the platform layout's live listener. The running week follows the
+ * listener; a closed week keeps the number it closed with.
+ */
+export const COMMUNITY_WEEKS_KEY = 'mep-community-weeks';
 
 /**
  * The goal that made a week golden before scoring existed: 150 minutes, at
@@ -86,13 +94,39 @@ export const FUTURE_WEEKS = 2;
 
 type WeeklyMap = Record<string, number>;
 type DaysMap = Record<string, Record<string, number>>;
-/** The lifetime counters at one moment, community included. */
+/** Words and recorded seconds in one project, as it stands now. */
+export interface ProjectCraft {
+    words: number;
+    recordingSeconds: number;
+}
+type ProjectCraftMap = Record<string, ProjectCraft>;
+
+/**
+ * The lifetime counters at one moment, community included — and, where the
+ * record keeps them, the per-project and per-id detail behind the totals.
+ * Totals only go up; the detail is what lets a week go down again when a
+ * share is deleted or a song's words are cut. See craftBetween.
+ */
 interface Snapshot extends CraftCounters {
     community: number;
+    /** Per project, so a deleted project takes only its own words with it. */
+    projects?: ProjectCraftMap;
+    /** Songs completed, by id. */
+    sectionIds?: string[];
+    /** Lessons mastered, by id. */
+    chapterIds?: string[];
 }
 interface CraftBaseline {
     start: Snapshot;
     latest: Snapshot;
+    /**
+     * The week's output, fixed once the week has passed. The running week is
+     * live — undo something and it leaves the score — but a closed week stays
+     * closed, so deleting an old song can never take back a gold already won.
+     * The per-project detail is dropped when this is set; it was only ever
+     * needed while the week could still change.
+     */
+    final?: CraftCounters;
 }
 type BaselineMap = Record<string, CraftBaseline>;
 export type HealthMark = 'breathing' | 'focus' | 'break';
@@ -228,6 +262,95 @@ function readCommunityTotal(): number {
     return parseInt(localStorage.getItem('mep-community-shared-count') || '0', 10) || 0;
 }
 
+function readIds(key: string): string[] {
+    const parsed = readJson<unknown>(key, []);
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+}
+
+/** The per-project record, or null before Create has ever written it. */
+export function readProjectCraft(): ProjectCraftMap | null {
+    if (typeof window === 'undefined') return null;
+    const parsed = readJson<unknown>(PROJECT_CRAFT_KEY, null);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const out: ProjectCraftMap = {};
+    for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
+        if (!value || typeof value !== 'object') continue;
+        const v = value as Partial<ProjectCraft>;
+        out[id] = {
+            words: Math.max(0, Math.floor(Number(v.words) || 0)),
+            recordingSeconds: Math.max(0, Math.floor(Number(v.recordingSeconds) || 0)),
+        };
+    }
+    return out;
+}
+
+/**
+ * Create's reading of every project that exists: the whole map at once, so a
+ * project that was deleted simply is not in it any more.
+ */
+export function writeProjectCraft(map: ProjectCraftMap): void {
+    if (typeof window === 'undefined') return;
+    safeLocalStorageSetItem(PROJECT_CRAFT_KEY, JSON.stringify(map));
+}
+
+/** A second of a take in progress, on the project being recorded; the save rewrites the map from the real durations. */
+export function bumpProjectRecording(projectId: string | null, seconds: number = 1): void {
+    if (typeof window === 'undefined' || !projectId) return;
+    const map = readProjectCraft() || {};
+    const entry = map[projectId] || (map[projectId] = { words: 0, recordingSeconds: 0 });
+    entry.recordingSeconds += seconds;
+    writeProjectCraft(map);
+}
+
+/** A project is gone: it is no longer a song finished, this week or any other. */
+export function forgetCompletedSong(projectId: string): void {
+    if (typeof window === 'undefined') return;
+    const done = readIds('mep-completed-songs');
+    if (done.includes(projectId)) {
+        safeLocalStorageSetItem('mep-completed-songs', JSON.stringify(done.filter(id => id !== projectId)));
+    }
+    const dates = readJson<Record<string, number>>('mep-completed-song-dates', {});
+    if (dates && typeof dates === 'object' && projectId in dates) {
+        delete dates[projectId];
+        safeLocalStorageSetItem('mep-completed-song-dates', JSON.stringify(dates));
+    }
+}
+
+function readCommunityWeeks(): Record<string, number> {
+    const parsed = readJson<unknown>(COMMUNITY_WEEKS_KEY, {});
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out: Record<string, number> = {};
+    for (const [week, n] of Object.entries(parsed as Record<string, unknown>)) {
+        if (typeof n === 'number' && Number.isFinite(n)) out[week] = Math.max(0, Math.floor(n));
+    }
+    return out;
+}
+
+/**
+ * Shares per week from the posts that exist right now. The running week takes
+ * the live number, up or down; a closed week keeps what it has, and only a
+ * week with no number yet is filled from history — which is how weeks before
+ * tracking get their shares counted at all.
+ */
+export function recordCommunityWeeks(sharesByWeek: Record<string, number>, now: Date = new Date()): boolean {
+    if (typeof window === 'undefined') return false;
+    const current = weekKey(now);
+    const weeks = readCommunityWeeks();
+    let changed = false;
+    const live = sharesByWeek[current] || 0;
+    if (weeks[current] !== live) {
+        weeks[current] = live;
+        changed = true;
+    }
+    for (const [week, n] of Object.entries(sharesByWeek)) {
+        if (week === current || week in weeks) continue;
+        weeks[week] = n;
+        changed = true;
+    }
+    if (changed) safeLocalStorageSetItem(COMMUNITY_WEEKS_KEY, JSON.stringify(weeks));
+    return changed;
+}
+
 // ---- Level ----
 
 /**
@@ -256,7 +379,13 @@ export function activeWeekLevel(): number {
  */
 function snapshotCraft(week: string): boolean {
     const baselines = readBaselines();
-    const now: Snapshot = { ...readCraftTotals(), community: readCommunityTotal() };
+    const now: Snapshot = {
+        ...readCraftTotals(),
+        community: readCommunityTotal(),
+        projects: readProjectCraft() ?? undefined,
+        sectionIds: readIds('mep-completed-songs'),
+        chapterIds: readIds('mep-completed-lessons'),
+    };
     const entry = baselines[week];
     let changed = false;
     if (!entry) {
@@ -266,8 +395,67 @@ function snapshotCraft(week: string): boolean {
         entry.latest = now;
         changed = true;
     }
+    // Every other week is over: fix its output and drop the detail behind it.
+    for (const [key, b] of Object.entries(baselines)) {
+        if (key === week || b.final) continue;
+        b.final = craftBetween(b.start, b.latest);
+        delete b.start.projects;
+        delete b.latest.projects;
+        changed = true;
+    }
     if (changed) safeLocalStorageSetItem(CRAFT_BASELINE_KEY, JSON.stringify(baselines));
     return changed;
+}
+
+/**
+ * What a week produced, from its first reading to its latest.
+ *
+ * Where both readings carry detail, the week is the sum of what each project
+ * gained and each id that is new — so cutting words, deleting a project or a
+ * recording, or unmarking a lesson takes exactly that back, and deleting an
+ * old project takes nothing from this week. Where the detail is missing (a
+ * record from before it was kept) the totals' difference stands in, never
+ * below zero.
+ */
+function craftBetween(start: Snapshot, latest: Snapshot): CraftCounters {
+    const gained = (k: keyof CraftCounters) => Math.max(0, (latest[k] || 0) - (start[k] || 0));
+
+    let words = gained('words');
+    let recordingSeconds = gained('recordingSeconds');
+    if (latest.projects && start.projects) {
+        words = 0;
+        recordingSeconds = 0;
+        for (const [id, now] of Object.entries(latest.projects)) {
+            const before = start.projects[id];
+            words += Math.max(0, now.words - (before?.words ?? 0));
+            recordingSeconds += Math.max(0, now.recordingSeconds - (before?.recordingSeconds ?? 0));
+        }
+    }
+
+    const newIds = (after?: string[], before?: string[]) =>
+        after && before ? after.filter(id => !before.includes(id)).length : null;
+    return {
+        words,
+        recordingSeconds,
+        sections: newIds(latest.sectionIds, start.sectionIds) ?? gained('sections'),
+        chapters: newIds(latest.chapterIds, start.chapterIds) ?? gained('chapters'),
+        practiceSeconds: gained('practiceSeconds'),
+    };
+}
+
+/** The week's craft output, or null for a week with no counter record. */
+function weekCraft(week: string): CraftCounters | null {
+    const b = readBaselines()[week];
+    if (!b) return null;
+    return b.final ?? craftBetween(b.start, b.latest);
+}
+
+/** Shares this week: the live count where one is kept, else the counter difference. */
+function weekCommunity(week: string): number {
+    const live = readCommunityWeeks()[week];
+    if (typeof live === 'number') return live;
+    const b = readBaselines()[week];
+    return b ? Math.max(0, (b.latest.community || 0) - (b.start.community || 0)) : 0;
 }
 
 /**
@@ -391,8 +579,6 @@ export function weekScore(week: string): WeekScore | null {
     const visitsInWeek = weekDayKeys(week).some(d => readVisits().includes(d));
     if (!allDays[week] && !visitsInWeek) return null;
     const weekDays = allDays[week] || {};
-    const baseline = readBaselines()[week];
-    const diff = (k: keyof Snapshot) => (baseline ? Math.max(0, (baseline.latest[k] || 0) - (baseline.start[k] || 0)) : 0);
     const health = readHealth();
     const keys = weekDayKeys(week);
     const healthyDays = keys.filter(d => Object.values(health[d] || {}).some(n => n > 0)).length;
@@ -401,15 +587,9 @@ export function weekScore(week: string): WeekScore | null {
     return scoreWeek({
         daySeconds: Object.values(weekDays),
         visitOnlyDays,
-        craft: {
-            words: diff('words'),
-            recordingSeconds: diff('recordingSeconds'),
-            sections: diff('sections'),
-            chapters: diff('chapters'),
-            practiceSeconds: diff('practiceSeconds'),
-        },
+        craft: weekCraft(week) ?? { words: 0, recordingSeconds: 0, sections: 0, chapters: 0, practiceSeconds: 0 },
         healthyDays,
-        communityActions: diff('community'),
+        communityActions: weekCommunity(week),
     });
 }
 
@@ -442,21 +622,11 @@ export function weekRecapLocal(week: string): WeekRecapLocal {
     const days = readDays()[week] || {};
     const visits = new Set(readVisits());
     const health = readHealth();
-    const baseline = readBaselines()[week];
-    const diff = (k: keyof Snapshot) => (baseline ? Math.max(0, (baseline.latest[k] || 0) - (baseline.start[k] || 0)) : 0);
     return {
         minutes: Math.round((readWeeklyActivity()[week] || 0) / 60),
         activeDays: Object.values(days).filter(s => s >= DAY_ACTIVE_SECONDS).length,
         visitDays: keys.filter(d => visits.has(d) || (days[d] || 0) > 0).length,
-        craft: baseline
-            ? {
-                  words: diff('words'),
-                  recordingSeconds: diff('recordingSeconds'),
-                  sections: diff('sections'),
-                  chapters: diff('chapters'),
-                  practiceSeconds: diff('practiceSeconds'),
-              }
-            : null,
+        craft: weekCraft(week),
         healthMarks: keys.reduce((sum, d) => sum + Object.values(health[d] || {}).reduce((a, b) => a + b, 0), 0),
         score: weekScore(week),
     };

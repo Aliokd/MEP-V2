@@ -300,7 +300,7 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
                         <button
                             key={song.id}
                             onClick={() => handleSelect(song)}
-                            className="group flex flex-col items-center gap-3 bg-white/60 hover:bg-white border border-stone-200/70 rounded-[20px] p-4 pt-6 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_6px_18px_rgba(0,0,0,0.07)] transition-all cursor-pointer active:scale-[0.98]"
+                            className="group flex flex-col items-center gap-3 bg-white/40 hover:bg-white border border-stone-200/70 rounded-[14px] p-4 pt-6 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_6px_18px_rgba(0,0,0,0.07)] transition-all cursor-pointer active:scale-[0.98]"
                         >
                             <div
                                 className="song-disc w-32 h-32 sm:w-24 sm:h-24 group-hover:scale-105 transition-transform duration-300"
@@ -323,7 +323,7 @@ export default function SongCards({ songs, t, formatDate, onOpenInCreate, gridCl
                 return (
                     <div
                         key={song.id}
-                        className="col-span-full relative flex flex-col items-center gap-5 bg-white border border-stone-200/70 rounded-[24px] p-7 pt-9 shadow-[0_10px_30px_rgba(0,0,0,0.07)]"
+                        className="col-span-full relative flex flex-col items-center gap-5 bg-white border border-stone-200/70 rounded-[16px] p-7 pt-9 shadow-[0_10px_30px_rgba(0,0,0,0.07)]"
                     >
                         <button
                             onClick={() => handleSelect(song)}

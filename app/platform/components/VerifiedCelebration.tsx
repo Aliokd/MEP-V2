@@ -147,12 +147,9 @@ export default function VerifiedCelebration() {
                 style={swipeStyle}
             >
                 <div className="sheet-panel-body relative flex flex-col items-center gap-7 text-center">
-                    {/* The seal, on paper: the mark is ink on the platform's paper
-                        colour wherever it appears, and a dark card is the one place
-                        that pairing would vanish — so it brings its own plate. */}
-                    <div className="flex h-28 w-28 items-center justify-center rounded-full bg-[#F5F4EE] shadow-[0_12px_40px_rgba(134,190,127,0.35)]">
-                        <VerifiedMark size={64} label={t('profile.verify_congrats_eyebrow')} />
-                    </div>
+                    {/* The seal itself, inverted for the dark card: white rosette,
+                        dark-grey check, no plate behind it. */}
+                    <VerifiedMark size={96} tone="paper" label={t('profile.verify_congrats_eyebrow')} />
 
                     <div className="flex flex-col items-center gap-2">
                         <span className="font-lyrics text-[24px] leading-none text-stone-300">{t('profile.verify_congrats_eyebrow')}</span>

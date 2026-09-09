@@ -64,7 +64,10 @@ export const GET = withAdmin("community.read", async (request) => {
                 body: d.body,
                 lyrics: d.lyrics || [],
                 attachment: d.attachment || null,
-                kudos: d.kudos || 0,
+                // The array, not the stored `kudos` number: that one was kept by
+                // a read-modify-write and could drift under concurrent likes.
+                // The feed counts the array too, so both agree.
+                kudos: (d.likedBy || []).length,
                 commentCount: (d.comments || []).length,
                 reportCount: d.reportCount || 0,
                 isSeed: d.isSeed === true,

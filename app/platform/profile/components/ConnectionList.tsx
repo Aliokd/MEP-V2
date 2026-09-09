@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { User } from 'firebase/auth';
-import { Flame } from 'lucide-react';
 import {
     fetchUsersByUid,
     removeConnectionRequest,
@@ -11,7 +10,6 @@ import {
     type ConnectionRequest,
     type PlatformUser,
 } from '@/lib/connections';
-import { hasActivityBadge } from '@/lib/publicProfile';
 import VerifiedMark from '@/app/platform/components/VerifiedMark';
 import * as btn from '@/app/platform/components/buttonStyles';
 
@@ -102,19 +100,6 @@ export function useConnectionPeople(user: User | null) {
     return { people, peopleLoaded, disconnect, requesters, accept, decline };
 }
 
-/** The time-on-platform badge, shown wherever a songwriter is listed by name. */
-export function ActivityBadge({ person, t }: { person: PlatformUser; t: (key: string) => string }) {
-    if (!hasActivityBadge(person)) return null;
-    return (
-        <span
-            title={t('connect.badge_active_tooltip')}
-            className="inline-flex items-center gap-1 shrink-0 rounded-full bg-[#86BE7F]/20 px-2 py-0.5 text-[10.5px] font-semibold text-[#3f6b3a]"
-        >
-            <Flame className="w-2.5 h-2.5" />
-            {t('connect.badge_active')}
-        </span>
-    );
-}
 
 interface PendingRequestsProps {
     requesters: Array<{ request: ConnectionRequest; person: PlatformUser }>;
@@ -147,8 +132,13 @@ export function PendingRequests({ requesters, t, onAccept, onDecline }: PendingR
                                 href={`/platform/profile/u/${person.uid}`}
                                 className="flex items-center gap-3.5 min-w-0 flex-1 cursor-pointer"
                             >
-                                <div className="w-9 h-9 rounded-full bg-stone-900 flex items-center justify-center text-sm font-sans text-[#DCDDD4] font-medium shrink-0">
-                                    {person.name.charAt(0).toUpperCase()}
+                                <div className="relative w-9 h-9 rounded-full overflow-hidden bg-stone-900 flex items-center justify-center text-sm font-sans text-[#DCDDD4] font-medium shrink-0">
+                                    {person.photoURL ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={person.photoURL} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                                    ) : (
+                                        person.name.charAt(0).toUpperCase()
+                                    )}
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2 min-w-0">
@@ -156,7 +146,6 @@ export function PendingRequests({ requesters, t, onAccept, onDecline }: PendingR
                                             {person.name}
                                         </p>
                                         {person.verified && <VerifiedMark size={15} label={t('profile.verified_label')} />}
-                                    <ActivityBadge person={person} t={t} />
                                     </div>
                                     <p className="text-xs text-stone-500 mt-0.5">
                                         {specialty || t('profile.wants_to_connect')}
@@ -218,8 +207,13 @@ export default function ConnectionList({ connections, t, onDisconnect }: Connect
                             href={`/platform/profile/u/${person.uid}`}
                             className="flex items-center gap-3.5 min-w-0 flex-1 cursor-pointer"
                         >
-                            <div className="w-9 h-9 rounded-full bg-stone-900 flex items-center justify-center text-sm font-sans text-[#DCDDD4] font-medium shrink-0">
-                                {person.name.charAt(0).toUpperCase()}
+                            <div className="relative w-9 h-9 rounded-full overflow-hidden bg-stone-900 flex items-center justify-center text-sm font-sans text-[#DCDDD4] font-medium shrink-0">
+                                {person.photoURL ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={person.photoURL} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                                ) : (
+                                    person.name.charAt(0).toUpperCase()
+                                )}
                             </div>
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 min-w-0">
@@ -227,7 +221,6 @@ export default function ConnectionList({ connections, t, onDisconnect }: Connect
                                         {person.name}
                                     </p>
                                     {person.verified && <VerifiedMark size={15} label={t('profile.verified_label')} />}
-                                    <ActivityBadge person={person} t={t} />
                                 </div>
                                 {specialty && (
                                     <p className="text-xs text-stone-500 mt-0.5">{specialty}</p>

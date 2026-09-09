@@ -13,6 +13,7 @@ import { usePracticeLibrary, useThemeLibrary } from '../lib/library';
 import StructurePlayer from './StructurePlayer';
 import VerseDemo from './VerseDemo';
 import MelodyVariation from './MelodyVariation';
+import MelodyDemo from './MelodyDemo';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
 import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight, RotateCcw, Loader2 } from 'lucide-react';
 import Confetti from '@/app/onboarding/components/Confetti';
@@ -261,6 +262,7 @@ export default function PracticeTab() {
      */
     const [showStructureDemo, setShowStructureDemo] = useState(false);
     const [showVerseDemo, setShowVerseDemo] = useState(false);
+    const [showMelodyDemo, setShowMelodyDemo] = useState(false);
     useEffect(() => {
         setShowStructureDemo(
             openedPractice === 'Master song structure' &&
@@ -269,6 +271,10 @@ export default function PracticeTab() {
         setShowVerseDemo(
             openedPractice === 'Composing verses' &&
             localStorage.getItem('mep-verse-demo-seen') !== 'true',
+        );
+        setShowMelodyDemo(
+            openedPractice === 'Melody variations' &&
+            localStorage.getItem('mep-melody-demo-seen') !== 'true',
         );
     }, [openedPractice]);
 
@@ -357,7 +363,8 @@ export default function PracticeTab() {
         }
         cardSwipeStartX.current = e.clientX;
         setIsCardDragging(true);
-        e.currentTarget.setPointerCapture(e.pointerId);
+        // Can throw for a pointer the browser no longer considers active.
+        try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* swipe still tracks while inside */ }
     };
 
     const onCardPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -376,6 +383,15 @@ export default function PracticeTab() {
         const dx = e.clientX - start;
         if (dx <= -80) handleNextPractice();
         else if (dx >= 80) handlePrevPractice();
+        // A press that never moved is a tap on the card, and the card opens.
+        // The card carries its own onClick for this, but pointer capture above
+        // retargets the click to THIS container, so that handler never fired —
+        // Start worked (buttons are exempt from the capture) and the card
+        // itself did nothing. The threshold keeps a short, aborted swipe from
+        // opening the practice.
+        else if (Math.abs(dx) < 8 && getPractice(selectedPractice).available) {
+            setOpenedPractice(selectedPractice);
+        }
     };
 
     const onCardPointerCancel = () => {
@@ -811,6 +827,13 @@ export default function PracticeTab() {
                         it is the reason this component is as long as it is. */}
                     {openedPractice === 'Melody variations' && (
                         <MelodyVariation key="melody-variations" onBack={() => setOpenedPractice(null)} />
+                    )}
+
+                    {openedPractice === 'Melody variations' && showMelodyDemo && (
+                        <MelodyDemo
+                            onDone={() => setShowMelodyDemo(false)}
+                            onNeverAgain={() => closeDemo('mep-melody-demo-seen', setShowMelodyDemo)(true)}
+                        />
                     )}
 
                     {openedPractice === 'Composing verses' && showVerseDemo && (

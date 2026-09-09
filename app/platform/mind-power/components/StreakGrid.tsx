@@ -7,8 +7,8 @@ import { shareStreak } from '@/lib/streakShare';
 import { BRAIN_SM_SRC, BRAIN_GOLD_SM_SRC, fillClipTop } from './brainGeometry';
 import MindPowerHelp from './MindPowerHelp';
 import WeekRecap from './WeekRecap';
-import { weekScore, type WeekCell, type Streak } from '@/lib/weeklyActivity';
-import { WEEKLY_TARGET, type WeekScore, type PartKey } from '@/lib/mindPowerScore';
+import { weekScore, WEEKLY_GOAL_MINUTES, WEEKLY_GOAL_SECONDS, type WeekCell, type Streak } from '@/lib/weeklyActivity';
+import { WEEKLY_TARGET, CONSISTENCY_DAYS, HEALTH_DAYS, type WeekScore, type PartKey } from '@/lib/mindPowerScore';
 
 /**
  * Streaks: one brain per week, filling green from the bottom with that week's
@@ -38,6 +38,44 @@ const PART_LABEL: Record<PartKey, string> = {
     health: 'progress.score_health',
     community: 'progress.score_community',
 };
+
+/**
+ * What a part was scored on, said the way a person would: what they did this
+ * week, and what fills the rest. "18/44" on its own says nothing about the two
+ * full days and one drop-in behind it, or that three more days would fill it.
+ */
+function partDetail(score: WeekScore, key: PartKey, t: (key: string) => string): string {
+    const d = score.detail;
+    const plural = (base: string, n: number) =>
+        (n === 1 ? t(`${base}_one`) : t(`${base}_other`)).replace('{n}', String(n));
+    switch (key) {
+        case 'consistency': {
+            const had: string[] = [];
+            if (d.activeDays > 0) had.push(plural('progress.mp_full_days', d.activeDays));
+            if (d.visitOnlyDays > 0) had.push(plural('progress.mp_drop_ins', d.visitOnlyDays));
+            if (had.length === 0) return t('progress.mp_detail_consistency_none');
+            return t('progress.mp_detail_consistency')
+                .replace('{list}', had.join(` ${t('progress.mp_and')} `))
+                .replace('{max}', String(CONSISTENCY_DAYS));
+        }
+        case 'craft': {
+            // Done items are named ("Create"); open ones say what to do ("Learn a lesson").
+            const areas = ['create', 'learn', 'practice'] as const;
+            const done = areas.filter(k => d.craftMet[k]).map(k => t(`progress.mp_area_${k}_done`));
+            const open = areas.filter(k => !d.craftMet[k]).map(k => t(`progress.mp_area_${k}`));
+            if (open.length === 0) return t('progress.mp_craft_all');
+            if (done.length === 0) return t('progress.mp_craft_none').replace('{list}', open.join(', '));
+            return `${t('progress.mp_craft_done').replace('{list}', done.join(', '))} ${t('progress.mp_craft_open').replace('{list}', open.join(', '))}`;
+        }
+        case 'health': {
+            const days = Math.min(HEALTH_DAYS, d.healthyDays);
+            return days === 0 ? t('progress.mp_detail_health_none') : plural('progress.mp_detail_health', days);
+        }
+        case 'community':
+            return (d.communityActions > 0 ? t('progress.mp_detail_community_done') : t('progress.mp_detail_community_none'))
+                .replace('{max}', String(score.parts.find(p => p.key === 'community')?.max ?? 0));
+    }
+}
 
 export default function StreakGrid({ weeks, streak, thisWeek, language, t }: StreakGridProps) {
     const trackRef = useRef<HTMLDivElement>(null);
@@ -280,15 +318,51 @@ export default function StreakGrid({ weeks, streak, thisWeek, language, t }: Str
                         </span>
                     </div>
                     {selectedScore && (
-                        <ul className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-[13px] text-stone-500 tabular-nums">
+                        <ul className="flex flex-wrap justify-center gap-x-6 gap-y-4 text-[13px] text-stone-500 tabular-nums">
                             {selectedScore.parts.filter(p => p.enabled).map(p => (
-                                <li key={p.key} data-part={p.key}>
-                                    <span className="text-stone-400">{t(PART_LABEL[p.key])}</span>{' '}
-                                    {p.bonus ? '+' : ''}{Math.round(p.points)}/{Math.round(p.max)}
+                                <li key={p.key} data-part={p.key} className="flex max-w-[190px] flex-col items-center gap-1">
+                                    <span>
+                                        <span className="text-stone-400">{t(PART_LABEL[p.key])}</span>{' '}
+                                        {p.bonus ? '+' : ''}{Math.round(p.points)}/{Math.round(p.max)}
+                                    </span>
+                                    <span className="text-[12px] leading-snug text-stone-500" data-part-detail>
+                                        {partDetail(selectedScore, p.key, t)}
+                                    </span>
                                 </li>
                             ))}
+                            {/* The other way to a full brain: the time rule the brain
+                                also follows, shown beside the parts so the two never
+                                disagree in silence. */}
+                            <li data-part="time" className="flex max-w-[190px] flex-col items-center gap-1">
+                                <span>
+                                    <span className="text-stone-400">{t('progress.mp_time_label')}</span>{' '}
+                                    {Math.round(selected.seconds / 60)}/{WEEKLY_GOAL_MINUTES}
+                                </span>
+                                <span className="text-[12px] leading-snug text-stone-500" data-part-detail>
+                                    {t('progress.mp_detail_time')
+                                        .replace('{min}', String(Math.round(selected.seconds / 60)))
+                                        .replace(/\{goal\}/g, String(WEEKLY_GOAL_MINUTES))}
+                                </span>
+                            </li>
                         </ul>
                     )}
+                    {/* Which rule the brain is on: the score against the target, or
+                        the minutes against the old goal, whichever is nearer. Reading
+                        18 of 70 next to a brain that is half full needs this line. */}
+                    {(() => {
+                        const pct = Math.round(selected.ratio * 100);
+                        const byScore = selectedScore ? selectedScore.score / WEEKLY_TARGET : 0;
+                        const byTime = selected.seconds / WEEKLY_GOAL_SECONDS;
+                        const timeWins = byTime > byScore;
+                        return (
+                            <p className="text-[12px] text-stone-500" data-brain-rule={timeWins ? 'time' : 'score'}>
+                                {(timeWins ? t('progress.mp_brain_by_time') : t('progress.mp_brain_by_score'))
+                                    .replace('{pct}', String(pct))
+                                    .replace('{min}', String(Math.round(selected.seconds / 60)))
+                                    .replace('{goal}', String(WEEKLY_GOAL_MINUTES))}
+                            </p>
+                        );
+                    })()}
                     <button
                         type="button"
                         onClick={() => setRecapWeek(selected)}
@@ -301,7 +375,7 @@ export default function StreakGrid({ weeks, streak, thisWeek, language, t }: Str
             )}
 
             <p className="text-center text-[12px] text-stone-500">
-                {t('progress.mp_week_goal_score').replace('{target}', String(WEEKLY_TARGET))}
+                {t('progress.mp_week_goal_score').replace('{target}', String(WEEKLY_TARGET)).replace('{goal}', String(WEEKLY_GOAL_MINUTES))}
             </p>
 
             <MindPowerHelp open={helpOpen} onClose={() => setHelpOpen(false)} language={language} t={t} />

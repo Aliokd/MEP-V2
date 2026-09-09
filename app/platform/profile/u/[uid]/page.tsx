@@ -13,7 +13,7 @@ import {
     useConnectionState,
     type PlatformUser,
 } from '@/lib/connections';
-import { ActivityBadge, songwriterTypeLabel } from '../../components/ConnectionList';
+import { songwriterTypeLabel } from '../../components/ConnectionList';
 import VerifiedMark from '@/app/platform/components/VerifiedMark';
 
 /**
@@ -111,8 +111,15 @@ export default function SongwriterProfilePage({ params }: { params: Promise<{ ui
     return (
         <div className="space-y-8 max-w-2xl px-5 md:px-0 text-stone-900 font-sans">
             <div className="flex items-start gap-5">
-                <div className="w-20 h-20 shrink-0 bg-stone-900 rounded-full flex items-center justify-center text-3xl font-sans text-[#DCDDD4] font-medium">
-                    {person.name.charAt(0).toUpperCase()}
+                <div className="relative w-20 h-20 shrink-0 bg-stone-900 rounded-full overflow-hidden flex items-center justify-center text-3xl font-sans text-[#DCDDD4] font-medium">
+                    {person.photoURL ? (
+                        // The photo the songwriter set on their own profile — mirrored to
+                        // publicProfiles on upload, which is where this page reads from.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={person.photoURL} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
+                        person.name.charAt(0).toUpperCase()
+                    )}
                 </div>
                 <div className="min-w-0 space-y-1.5 pt-1">
                     <div className="flex items-center gap-2.5 flex-wrap">
@@ -120,7 +127,6 @@ export default function SongwriterProfilePage({ params }: { params: Promise<{ ui
                             {person.name}
                         </h1>
                         {person.verified && <VerifiedMark size={22} label={t('profile.verified_label')} />}
-                        <ActivityBadge person={person} t={t} />
                     </div>
                     <p className="text-sm text-stone-500">
                         {[specialty, person.createdAt > 0

@@ -94,7 +94,7 @@ export interface PartScore {
     /** 0–1 share of the part's goal. */
     ratio: number;
     points: number;
-    /** What the part is worth in full, after redistribution. */
+    /** What the part is worth in full, after redistribution: whole points, the core parts summing to 100. */
     max: number;
     enabled: boolean;
     /** Added on top of the core parts rather than sharing the 100 with them. */
@@ -108,6 +108,17 @@ export interface WeekScore {
     /** Create, Learn, Practice areas that met their threshold, 0–3. */
     craftAreas: number;
     golden: boolean;
+    /** What each part was scored on, so the breakdown can show it rather than only the points. */
+    detail: {
+        activeDays: number;
+        visitOnlyDays: number;
+        /** Full days plus half a day per drop-in, before the five-day cap. */
+        dayCredit: number;
+        craftAreas: number;
+        craftMet: CraftAreas;
+        healthyDays: number;
+        communityActions: number;
+    };
 }
 
 /** How much of a tick to credit, given the engaged seconds already on the day. */
@@ -117,14 +128,26 @@ export function creditFor(seconds: number, daySoFar: number): number {
     return seconds;
 }
 
+export interface CraftAreas {
+    create: boolean;
+    learn: boolean;
+    practice: boolean;
+}
+
+/** Which of the three craft areas met their weekly threshold. */
+export function craftAreaFlags(c: CraftCounters): CraftAreas {
+    return {
+        create:
+            c.words >= CRAFT_THRESHOLDS.words ||
+            c.recordingSeconds >= CRAFT_THRESHOLDS.recordingSeconds ||
+            c.sections >= CRAFT_THRESHOLDS.sections,
+        learn: c.chapters >= CRAFT_THRESHOLDS.chapters,
+        practice: c.practiceSeconds >= CRAFT_THRESHOLDS.practiceSeconds,
+    };
+}
+
 export function craftAreasMet(c: CraftCounters): number {
-    const create =
-        c.words >= CRAFT_THRESHOLDS.words ||
-        c.recordingSeconds >= CRAFT_THRESHOLDS.recordingSeconds ||
-        c.sections >= CRAFT_THRESHOLDS.sections;
-    const learn = c.chapters >= CRAFT_THRESHOLDS.chapters;
-    const practice = c.practiceSeconds >= CRAFT_THRESHOLDS.practiceSeconds;
-    return [create, learn, practice].filter(Boolean).length;
+    return Object.values(craftAreaFlags(c)).filter(Boolean).length;
 }
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -141,19 +164,62 @@ export function scoreWeek(input: WeekInput): WeekScore {
         community: input.communityActions > 0 ? 1 : 0,
     };
 
-    // The core parts share the 100 between them; a bonus part keeps its own weight on top.
-    const coreWeight = PART_ORDER.reduce(
-        (sum, k) => sum + (SCORE_PARTS[k].enabled && !SCORE_PARTS[k].bonus ? SCORE_PARTS[k].weight : 0),
-        0,
-    );
-    const scale = coreWeight > 0 ? 100 / coreWeight : 0;
-
+    const maxima = partMaxima();
     const parts: PartScore[] = PART_ORDER.map(key => {
-        const { weight, enabled, bonus = false } = SCORE_PARTS[key];
-        const max = !enabled ? 0 : bonus ? weight : weight * scale;
-        return { key, ratio: ratios[key], points: enabled ? ratios[key] * max : 0, max, enabled, bonus };
+        const { enabled, bonus = false } = SCORE_PARTS[key];
+        const max = maxima[key];
+        return { key, ratio: ratios[key], points: enabled ? Math.round(ratios[key] * max) : 0, max, enabled, bonus };
     });
 
-    const score = Math.min(100, Math.round(parts.reduce((sum, p) => sum + p.points, 0)));
-    return { score, parts, activeDays, craftAreas, golden: score >= WEEKLY_TARGET };
+    // The score is the sum of the parts as shown, so what is listed always adds up to it.
+    const score = Math.min(100, parts.reduce((sum, p) => sum + p.points, 0));
+    return {
+        score,
+        parts,
+        activeDays,
+        craftAreas,
+        golden: score >= WEEKLY_TARGET,
+        detail: {
+            activeDays,
+            visitOnlyDays: input.visitOnlyDays,
+            dayCredit,
+            craftAreas,
+            craftMet: craftAreaFlags(input.craft),
+            healthyDays: input.healthyDays,
+            communityActions: input.communityActions,
+        },
+    };
+}
+
+/**
+ * What each part is worth in full, in whole points. The core parts share
+ * exactly 100 between them: each takes the floor of its scaled weight, and
+ * the points left over go to the largest remainders — so 35 / 35 / 10 becomes
+ * 44 / 44 / 12, not the 44 / 44 / 13 that rounding each on its own gives. A
+ * bonus part keeps its own weight on top; a disabled part is worth nothing.
+ */
+export function partMaxima(): Record<PartKey, number> {
+    const core = PART_ORDER.filter(k => SCORE_PARTS[k].enabled && !SCORE_PARTS[k].bonus);
+    const coreWeight = core.reduce((sum, k) => sum + SCORE_PARTS[k].weight, 0);
+    const out = {} as Record<PartKey, number>;
+    for (const key of PART_ORDER) {
+        const { weight, enabled, bonus = false } = SCORE_PARTS[key];
+        out[key] = !enabled ? 0 : bonus ? weight : 0;
+    }
+    if (coreWeight === 0) return out;
+    const raw = core.map(k => (SCORE_PARTS[k].weight * 100) / coreWeight);
+    const floors = raw.map(Math.floor);
+    let left = 100 - floors.reduce((a, b) => a + b, 0);
+    const byRemainder = raw
+        .map((r, i) => ({ i, rem: r - floors[i] }))
+        .sort((a, b) => b.rem - a.rem || a.i - b.i);
+    for (const { i } of byRemainder) {
+        if (left <= 0) break;
+        floors[i] += 1;
+        left -= 1;
+    }
+    core.forEach((k, i) => {
+        out[k] = floors[i];
+    });
+    return out;
 }

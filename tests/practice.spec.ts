@@ -15,6 +15,7 @@ test.describe('Practice Page', () => {
       // Pre-dismiss the first-run exercise demos; each has its own test below.
       window.localStorage.setItem('mep-structure-demo-seen', 'true');
       window.localStorage.setItem('mep-verse-demo-seen', 'true');
+      window.localStorage.setItem('mep-melody-demo-seen', 'true');
       // Answer the cookie dialog before it can sit over the page: its modal
       // backdrop is z-[100] and swallows every click in the suite.
       window.localStorage.setItem('veinote-cookie-consent', JSON.stringify({
@@ -806,6 +807,47 @@ test.describe('Practice Page', () => {
     await expect(page.locator('[data-verse-demo]')).toHaveCount(0);
   });
 
+  test('a Melody first-timer gets the listen-then-record demo, once', async ({ page }) => {
+    // Undo the beforeEach pre-dismissal: this test IS the first run
+    await page.evaluate(() => window.localStorage.removeItem('mep-melody-demo-seen'));
+    const openMelody = async () => {
+      await page.locator('button[aria-label="Next Practice"]').click();
+      await page.locator('button[aria-label="Next Practice"]').click();
+      await page.getByRole('button', { name: 'Start' }).first().click();
+    };
+    await page.goto('/platform/practice');
+    await openMelody();
+
+    const demo = page.locator('[data-melody-demo]');
+    await expect(demo).toBeVisible({ timeout: 20000 });
+    await expect(demo.getByText('How it works')).toBeVisible();
+    await expect(demo.getByText('press record', { exact: false })).toBeVisible();
+
+    // The scene is the two controls and their waves, all on one clock. The
+    // bars wave on their own; the rows are what the clock opens and shuts,
+    // so it is the rows that carry the 6s windows.
+    await expect(demo.locator('.md-wave-melody')).toHaveCSS('animation-name', 'md-melody-window');
+    await expect(demo.locator('.md-wave-take')).toHaveCSS('animation-name', 'md-take-window');
+    await expect(demo.locator('.md-bar')).toHaveCount(30);
+    await expect(demo.locator('.md-play')).toHaveCSS('animation-name', 'md-play-button');
+    await expect(demo.locator('.md-rec')).toHaveCSS('animation-name', 'md-rec-button');
+
+    // "Got it" closes this visit's showing — the guide returns next time
+    await demo.getByRole('button', { name: 'Got it' }).click();
+    await expect(demo).toHaveCount(0);
+    await page.reload();
+    await openMelody();
+    await expect(page.locator('[data-melody-demo]')).toBeVisible({ timeout: 20000 });
+
+    // "Don't show this again" is what retires it
+    await page.locator('[data-melody-demo]').getByRole('button', { name: "Don't show this again" }).click();
+    await expect(page.locator('[data-melody-demo]')).toHaveCount(0);
+    await page.reload();
+    await openMelody();
+    await expect(page.locator('main .max-w-6xl p').first()).toHaveText('Choose a melody');
+    await expect(page.locator('[data-melody-demo]')).toHaveCount(0);
+  });
+
   test('the card play button opens the intro video', async ({ page }) => {
     await page.goto('/platform/practice');
 
@@ -832,6 +874,9 @@ test.describe('Practice 3 — melody variations', () => {
         displayName: 'Test Artist',
       }));
       window.localStorage.setItem('mep-welcome-video-seen', 'true');
+      // The how-to guide opens over the exercise on every visit; these tests
+      // are about the exercise, so start past it.
+      window.localStorage.setItem('mep-melody-demo-seen', 'true');
       window.localStorage.setItem('veinote-cookie-consent', JSON.stringify({
         v: 3, analytics: false, replay: false, at: new Date().toISOString(),
       }));

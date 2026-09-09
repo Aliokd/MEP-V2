@@ -48,7 +48,13 @@ const Navigation = () => {
     // design — nav links back into a site you can't sign up for just add noise —
     // so they get the centered logo and nothing else. /waiting-list belongs here: with
     // the full nav it rendered a second logo and a second switcher over the page's.
-    const isAuthPage = pathname === '/signin' || pathname === '/reset-password' || pathname === '/waiting-list';
+    //
+    // A shared song (/song/<id>) is here for the other reason: it is somebody's
+    // link handed to a stranger, and the page has one thing to offer. Enter
+    // Platform and Log out belong to a reader who already has an account, and
+    // over a song someone was sent they were three ways out of it.
+    const isSharedSong = pathname?.startsWith('/song/');
+    const isAuthPage = pathname === '/signin' || pathname === '/reset-password' || pathname === '/waiting-list' || isSharedSong;
 
     const navClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 

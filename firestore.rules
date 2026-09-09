@@ -141,7 +141,11 @@ service cloud.firestore {
           "publicKey",
           // City-level location for the songwriter map. Opt-in and owner-set;
           // the client only ever writes a city from a fixed list.
-          "location"
+          "location",
+          // Owner-set: whether they are listed in Connect's roster. A boolean the
+          // owner may flip about themselves only — the document is already keyed
+          // by uid, so there is nothing here to escalate.
+          "discoverable"
           // NOT "verified". That field is written by the Admin SDK from the
           // verification console only — listing it here would let any account
           // verify itself. Its absence is the security property.

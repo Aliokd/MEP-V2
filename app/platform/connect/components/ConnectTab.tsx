@@ -7,8 +7,9 @@ import { useSanction } from '@/lib/useSanction';
 import { db } from '@/lib/firebase';
 import { authedFetch } from '@/lib/authedFetch';
 import { useLanguage } from '@/context/LanguageContext';
-import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, Check, Clock, UserPlus, Flame, LayoutGrid, ThumbsUp, Repeat, Send, Loader2 } from 'lucide-react';
+import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
+import { Heart, Paperclip, X, Music, Video, Image, FileText, MoreHorizontal, MessageSquare, Trash2, Edit, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, Check, Clock, UserPlus, LayoutGrid, Repeat, Send, Loader2, Link2 } from 'lucide-react';
+import { copySongLink, openSongPreview } from '@/lib/songShare';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConnectTabs, { type ConnectTab as ConnectTabId } from './ConnectTabs';
 import RoomCard from './RoomCard';
@@ -29,7 +30,6 @@ import {
   useConnectionState,
   type PlatformUser,
 } from '@/lib/connections';
-import { hasActivityBadge } from '@/lib/publicProfile';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { setPlaybackAudioSession } from '@/lib/audioSession';
 import ReportDialog from '@/components/ReportDialog';
@@ -53,6 +53,8 @@ interface Comment {
   body: string;
   /** Firebase uid of the commenter. Lets the server confirm who wrote it before emailing the post's author. */
   authorUid?: string;
+  /** Who hearted this comment. The count is this array's length — see the note on Post.kudos. */
+  likedBy?: string[];
 }
 
 interface Post {
@@ -67,6 +69,16 @@ interface Post {
   lyrics: string[];
   attachment: Attachment | null;
   audioNotes?: any[];
+  /**
+   * Hearts, as the length of `likedBy` — never a counter of its own.
+   *
+   * There is still a `kudos` number in Firestore, and it is written alongside
+   * the array for the moderation console, but it is a mirror and not the
+   * truth: it was kept up to date by reading the old value, adding one, and
+   * writing it back, so two people liking at the same moment both wrote the
+   * same number and one like vanished. A length cannot drift like that, and it
+   * is right again the moment the array is.
+   */
   kudos: number;
   liked: boolean;
   likedBy?: string[];
@@ -221,6 +233,10 @@ interface PostCardProps {
   expandedCommentPostId: string | null;
   commentInputTexts: { [postId: string]: string };
   onKudos: (id: string) => void;
+  /** Hearts a single comment. */
+  onCommentLike: (postId: string, commentId: string) => void;
+  /** Puts the song's public link on the clipboard, or into the phone's share sheet. */
+  onShare: (post: Post) => void;
   onCommentToggle: (id: string) => void;
   onCommentChange: (id: string, val: string) => void;
   onCommentSubmit: (e: React.FormEvent, id: string) => void;
@@ -254,6 +270,8 @@ function ConnectPostCard({
   expandedCommentPostId,
   commentInputTexts,
   onKudos,
+  onCommentLike,
+  onShare,
   onCommentToggle,
   onCommentChange,
   onCommentSubmit,
@@ -878,7 +896,12 @@ function ConnectPostCard({
 
             {/* Comment */}
             {(() => {
-              const hasUserCommented = post.comments?.some(c => c.author === currentUserDisplayName);
+              // By uid where the comment carries one — two songwriters can share
+              // a display name, and matching on the name lit this icon for both.
+              // Comments written before uids were stored fall back to the name.
+              const hasUserCommented = post.comments?.some(c =>
+                c.authorUid ? c.authorUid === currentUserId : c.author === currentUserDisplayName
+              );
               return (
                 <button
                   onClick={(e) => {
@@ -906,25 +929,30 @@ function ConnectPostCard({
               );
             })()}
 
-            {/* Repost */}
+            {/* Repost. No number beside it: sharing isn't counted for now, and a
+                figure that sat at 0 said only that nobody had, which is not
+                something a songwriter needs told on their own song. The icon
+                still turns green once you've shared it, so your own state shows. */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onRepost(post.id);
               }}
-              className={`${btn.neutral('xs')} gap-2 text-sm group/btn ${
+              aria-pressed={post.reposted}
+              aria-label={t('connect.repost_action')}
+              title={t('connect.repost_action')}
+              className={`${btn.neutral('xs')} text-sm group/btn ${
                   post.reposted ? 'text-green-600 font-semibold' : 'text-stone-550 hover:text-stone-900'
                 }`}
             >
-              <Repeat 
+              <Repeat
                 className={`w-[17px] h-[17px] transition-all duration-200 group-active/btn:scale-90
-                  ${post.reposted 
-                    ? 'stroke-green-650 font-bold' 
+                  ${post.reposted
+                    ? 'stroke-green-650 font-bold'
                     : 'stroke-stone-500'
                   }
-                `} 
+                `}
               />
-              <span className="font-sans text-[13px] font-medium leading-none">{post.reposts}</span>
             </button>
           </div>
 
@@ -994,6 +1022,16 @@ function ConnectPostCard({
                         gate edit/delete on authorId, so a name match would offer
                         actions the server rejects. Legacy posts written before
                         authorId existed still fall back to the name comparison. */}
+                    {/* Share is above the ownership split, because the person most
+                        likely to share a song is the one who wrote it — the author
+                        used to get Edit and Delete and no way to send it to anyone. */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onShare(post); onMenuToggle(null); }}
+                      className={`${btn.menuItem()} h-14 gap-3 text-[16px] md:h-auto md:gap-2 md:py-2 md:text-xs`}
+                    >
+                      <Link2 className="w-4 h-4 md:w-3 md:h-3 text-stone-500 shrink-0" />
+                      {t('connect.share_link')}
+                    </button>
                     {(post.authorId
                       ? post.authorId === currentUserId
                       : post.author.includes(currentUserDisplayName) || post.author === currentUserDisplayName) ? (
@@ -1014,20 +1052,12 @@ function ConnectPostCard({
                         </button>
                       </>
                     ) : (
-                      <>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); alert("Post shared!"); onMenuToggle(null); }}
-                          className={`${btn.menuItem()} h-14 gap-3 text-[16px] md:h-auto md:gap-2 md:py-2 md:text-xs`}
-                        >
-                          {t('connect.share_link')}
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onReport(post); onMenuToggle(null); }}
-                          className={`${btn.menuItem('danger')} h-14 gap-3 text-[16px] md:h-auto md:gap-2 md:py-2 md:text-xs`}
-                        >
-                          {t('connect.report_post')}
-                        </button>
-                      </>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onReport(post); onMenuToggle(null); }}
+                        className={`${btn.menuItem('danger')} h-14 gap-3 text-[16px] md:h-auto md:gap-2 md:py-2 md:text-xs`}
+                      >
+                        {t('connect.report_post')}
+                      </button>
                     )}
                   </motion.div>
                   </>
@@ -1107,34 +1137,52 @@ function ConnectPostCard({
                     : 'h-auto overflow-visible'
                 }`}
               >
-                {post.comments.map(comment => (
+                {post.comments.map(comment => {
+                  const commentLikedBy = comment.likedBy || [];
+                  const commentLiked = currentUserId ? commentLikedBy.includes(currentUserId) : false;
+                  return (
                   <div key={comment.id} className="flex flex-col gap-1.5 text-left relative">
                     {/* Author Name */}
                     <span className="font-sans font-semibold text-[15.5px] text-stone-550">
                       {comment.author}
                     </span>
-                    
+
                     {/* Comment Body Text */}
                     <p className="font-sans text-[14.5px] text-stone-600/90 leading-relaxed max-w-2xl">
                       {comment.body}
                     </p>
-                    
-                    {/* Bottom Interaction Pill (ThumbsUp + MessageSquare counts) */}
-                    {/* Bottom Interaction (ThumbsUp + MessageSquare counts) - minimal styling */}
+
+                    {/* The same heart as the post above, one size down: filled
+                        black once you've pressed it, outlined until then. It used
+                        to be a thumbs-up printed with a hard-coded 1, beside a
+                        reply counter hard-coded to 0 that answered no press —
+                        replies aren't a feature, so that control is gone rather
+                        than sitting there always reading zero. */}
                     <div className="flex items-center justify-between mt-1.5">
-                      <div className="flex items-center gap-4 text-[12px] text-stone-500 select-none">
-                        <button className={`${btn.neutral('xs')} gap-1`}>
-                          <ThumbsUp className="w-3.5 h-3.5 stroke-stone-400" />
-                          <span>1</span>
-                        </button>
-                        <button className={`${btn.neutral('xs')} gap-1`}>
-                          <MessageSquare className="w-3.5 h-3.5 stroke-stone-400" />
-                          <span>0</span>
+                      <div className="flex items-center gap-4 select-none">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onCommentLike(post.id, comment.id); }}
+                          aria-pressed={commentLiked}
+                          aria-label={`${t('connect.like_comment')}: ${comment.author}`}
+                          className={`${btn.neutral('xs')} gap-1.5 group/btn ${
+                            commentLiked ? 'text-stone-900 font-semibold' : 'text-stone-555 hover:text-stone-900'
+                          }`}
+                        >
+                          <Heart
+                            className={`w-[14px] h-[14px] transition-all duration-200 group-active/btn:scale-90
+                              ${commentLiked
+                                ? 'fill-stone-900 stroke-stone-900'
+                                : 'stroke-stone-500 fill-none'
+                              }
+                            `}
+                          />
+                          <span className="font-sans text-[12px] font-medium leading-none">{commentLikedBy.length}</span>
                         </button>
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -1605,6 +1653,8 @@ export default function ConnectTab() {
   // Edit / Delete / Menu Actions State
   const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
   const [reportingPost, setReportingPost] = useState<Post | null>(null);
+  // Confirmation after a share link is copied. Clears itself; see the effect below.
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
 
@@ -1622,6 +1672,14 @@ export default function ConnectTab() {
 
   // View Project Canvas Modal State
   const [viewingProjectPost, setViewingProjectPost] = useState<Post | null>(null);
+
+  // The share toast takes itself away. Keyed on the message so sharing a second
+  // song restarts the clock rather than inheriting the first one's remainder.
+  useEffect(() => {
+    if (!shareNotice) return;
+    const id = setTimeout(() => setShareNotice(null), 2600);
+    return () => clearTimeout(id);
+  }, [shareNotice]);
 
   /**
    * Playback is two ideas, not three states.
@@ -1646,8 +1704,9 @@ export default function ConnectTab() {
   const showRooms  = activeTab === 'rooms';
   const showPeople = activeTab === 'all' || activeTab === 'people';
   const showSongs  = activeTab === 'all' || activeTab === 'songs';
-  // No `showBusiness`: the tab never becomes the active view — pressing it
-  // opens the Max popup instead (see the tabs' onChange).
+  // Business only becomes the active view for a Max member; a non-member
+  // pressing the tab gets the Max popup instead (see the tabs' onChange).
+  const showBusiness = activeTab === 'business';
 
   // Rooms are the Max surface. The listener only opens for someone who can
   // actually see inside; everyone else gets the pitch instead of a list.
@@ -1729,7 +1788,6 @@ export default function ConnectTab() {
       {songwriters.map(sw => {
         const relationship = relationshipWith(sw.uid);
         const specialty = songwriterTypeLabel(sw.songwriterType);
-        const showsBadge = hasActivityBadge(sw);
         // One control, four meanings — the icon says which, and the label
         // spells it out for anyone who can't see the icon. `pending` states
         // say so in words: an unexplained clock face beside someone's name
@@ -1761,18 +1819,6 @@ export default function ConnectTab() {
 
           {/* Name at top left with hover detail */}
           <div className="relative pointer-events-none flex flex-col text-left select-none">
-            {/* Time-on-platform badge. Sits above the name rather than beside
-                it: names wrap to two lines here, and a trailing pill would
-                be dragged along to a line of its own anyway. */}
-            {showsBadge && (
-              <span
-                title={t('connect.badge_active_tooltip')}
-                className="inline-flex items-center gap-1 self-start mb-1.5 rounded-full bg-[#86BE7F]/20 px-2 py-0.5 text-[10.5px] font-semibold text-[#3f6b3a]"
-              >
-                <Flame className="w-2.5 h-2.5" />
-                {t('connect.badge_active')}
-              </span>
-            )}
             {/* First name and last initial — "Knut R." — so the card stays one
                 line. The aria-labels above and below keep the full name. */}
             <span className="text-[21px] font-sans font-medium text-stone-700 tracking-tight leading-snug break-words pr-2">
@@ -2037,10 +2083,13 @@ export default function ConnectTab() {
               body: defaultPost.body,
               lyrics: defaultPost.lyrics,
               attachment: defaultPost.attachment,
-              kudos: defaultPost.kudos,
+              // Zero, not the demo post's invented figure: the count on screen is
+              // now `likedBy.length`, so a seeded 24 beside an empty array would
+              // be a number no one could ever reach by pressing anything.
+              kudos: 0,
               likedBy: [],
               comments: defaultPost.comments || [],
-              reposts: defaultPost.reposts || 0,
+              reposts: 0,
               repostedBy: [],
               createdAt: Date.now() - (i * 3600000)
             })
@@ -2073,11 +2122,15 @@ export default function ConnectTab() {
             body: data.body || '',
             lyrics: data.lyrics || [],
             attachment: data.attachment || null,
-            kudos: data.kudos || 0,
+            // Counts are the arrays' lengths, not the stored `kudos`/`reposts`
+            // numbers. Those two were maintained by a read-modify-write and had
+            // no way back once they drifted; a length is always the number of
+            // people who actually pressed the button.
+            kudos: (data.likedBy || []).length,
             likedBy: data.likedBy || [],
             liked: data.likedBy?.includes(user?.uid || '') || false,
             comments: data.comments || [],
-            reposts: data.reposts || 0,
+            reposts: (data.repostedBy || []).length,
             repostedBy: data.repostedBy || [],
             reposted: data.repostedBy?.includes(user?.uid || '') || false,
             createdAt: data.createdAt || 0
@@ -2241,7 +2294,17 @@ export default function ConnectTab() {
     });
   };
 
-  // Toggle Kudos (Liking)
+  /**
+   * Toggle a heart.
+   *
+   * `arrayUnion`/`arrayRemove` are resolved by the server against whatever the
+   * document holds at that moment, so two people hearting the same post in the
+   * same second both land. The old version sent a whole array built from this
+   * browser's copy, and the second write erased the first person's like.
+   *
+   * The `kudos` number goes along for the ride because the moderation console
+   * reads it, but nothing on screen does: the feed counts `likedBy`.
+   */
   const handleKudos = async (postId: string) => {
     const userId = user?.uid || '';
     if (!userId) return;
@@ -2249,18 +2312,12 @@ export default function ConnectTab() {
     const postToUpdate = posts.find(p => p.id === postId);
     if (!postToUpdate) return;
 
-    const likedBy = postToUpdate.likedBy || [];
-    const isLiked = likedBy.includes(userId);
-    const newLikedBy = isLiked 
-      ? likedBy.filter(id => id !== userId) 
-      : [...likedBy, userId];
-
-    const newKudos = isLiked ? Math.max(0, postToUpdate.kudos - 1) : postToUpdate.kudos + 1;
+    const isLiked = (postToUpdate.likedBy || []).includes(userId);
 
     try {
       await updateDoc(doc(db, 'connect_posts', postId), {
-        likedBy: newLikedBy,
-        kudos: newKudos
+        likedBy: isLiked ? arrayRemove(userId) : arrayUnion(userId),
+        kudos: increment(isLiked ? -1 : 1),
       });
       if (!isLiked) notifyEngagement(postId, 'like');
     } catch (err) {
@@ -2268,7 +2325,7 @@ export default function ConnectTab() {
     }
   };
 
-  // Toggle Repost
+  // Toggle Repost. Same atomic shape as the heart above.
   const handleRepost = async (postId: string) => {
     const userId = user?.uid || '';
     if (!userId) return;
@@ -2276,22 +2333,63 @@ export default function ConnectTab() {
     const postToUpdate = posts.find(p => p.id === postId);
     if (!postToUpdate) return;
 
-    const repostedBy = postToUpdate.repostedBy || [];
-    const isReposted = repostedBy.includes(userId);
-    const newRepostedBy = isReposted 
-      ? repostedBy.filter(id => id !== userId) 
-      : [...repostedBy, userId];
-
-    const newReposts = isReposted ? Math.max(0, postToUpdate.reposts - 1) : postToUpdate.reposts + 1;
+    const isReposted = (postToUpdate.repostedBy || []).includes(userId);
 
     try {
       await updateDoc(doc(db, 'connect_posts', postId), {
-        repostedBy: newRepostedBy,
-        reposts: newReposts
+        repostedBy: isReposted ? arrayRemove(userId) : arrayUnion(userId),
+        reposts: increment(isReposted ? -1 : 1),
       });
     } catch (err) {
       console.error("Error toggling repost:", err);
     }
+  };
+
+  /**
+   * Toggle a heart on a comment.
+   *
+   * Comments live as an array of objects inside the post, so this has to
+   * rewrite the array — `arrayUnion` cannot reach a field inside one element.
+   * It edits the one comment and leaves the rest exactly as they arrived, so a
+   * comment posted between the read and the write survives.
+   */
+  const handleCommentLike = async (postId: string, commentId: string) => {
+    const userId = user?.uid || '';
+    if (!userId) return;
+
+    const postToUpdate = posts.find(p => p.id === postId);
+    if (!postToUpdate) return;
+
+    const updatedComments = (postToUpdate.comments || []).map((c) => {
+      if (c.id !== commentId) return c;
+      const likedBy = c.likedBy || [];
+      return {
+        ...c,
+        likedBy: likedBy.includes(userId)
+          ? likedBy.filter((id) => id !== userId)
+          : [...likedBy, userId],
+      };
+    });
+
+    try {
+      await updateDoc(doc(db, 'connect_posts', postId), { comments: updatedComments });
+    } catch (err) {
+      console.error("Error toggling comment like:", err);
+    }
+  };
+
+  /**
+   * Share a song: open the page that will be shared, and put its link on the
+   * clipboard ready to paste.
+   *
+   * The tab is opened first and without awaiting anything — see openSongPreview
+   * — so the browser still counts it as the press opening a window rather than
+   * a popup arriving on its own.
+   */
+  const handleShareSong = async (post: Post) => {
+    openSongPreview(post.id);
+    const outcome = await copySongLink(post.id);
+    setShareNotice(outcome === 'copied' ? t('connect.share_copied') : t('connect.share_failed'));
   };
 
   // Create Comment
@@ -2376,12 +2474,13 @@ export default function ConnectTab() {
 
       <ConnectTabs
         active={activeTab}
-        // Business is the Max popup, for everyone — members included. There is
-        // nothing behind the tab yet, so until Business ships the popup *is*
-        // what the tab means, and the view stays put. When Business exists,
-        // this is where members get routed through instead.
+        // Business: nothing is behind the tab yet, so what it does depends on
+        // who is pressing it. A non-member gets the Max popup — the tab is the
+        // pitch. A member is *not* sold what they already own: they land on the
+        // tab's own view, which tells them Business is coming and they're in.
+        // (It used to open the popup for everyone, members included.)
         onChange={(tab) => {
-          if (tab === 'business') {
+          if (tab === 'business' && !hasMax) {
             setUpgradeFor('max');
             return;
           }
@@ -2398,6 +2497,20 @@ export default function ConnectTab() {
         }}
         t={t}
       />
+
+      {/* 0. Business — members only reach this, and only until it ships. A
+          quiet card saying so, in the platform's own voice: no pitch, no
+          checkout, because there is nothing left to sell them. */}
+      {showBusiness && (
+        <section className="mb-10 rounded-[24px] bg-white/60 border border-stone-200/70 p-6 md:p-8">
+          <h3 className="text-[20px] font-sans font-medium tracking-tight text-stone-850">
+            {t('connect.business_soon_title')}
+          </h3>
+          <p className="mt-2 font-sans text-[14.5px] text-stone-600/90 leading-relaxed max-w-2xl">
+            {t('connect.business_soon_desc')}
+          </p>
+        </section>
+      )}
 
       {/* 1. Rooms — collab rooms and live events. The Max surface. */}
       {showRooms && (
@@ -2622,6 +2735,8 @@ export default function ConnectTab() {
                 expandedCommentPostId={expandedCommentPostId}
                 commentInputTexts={commentInputTexts}
                 onKudos={handleKudos}
+                onCommentLike={handleCommentLike}
+                onShare={handleShareSong}
                 onCommentToggle={(id) => setExpandedCommentPostId(expandedCommentPostId === id ? null : id)}
                 onCommentChange={(id, val) => setCommentInputTexts(prev => ({ ...prev, [id]: val }))}
                 onCommentSubmit={handleAddComment}
@@ -2692,6 +2807,24 @@ export default function ConnectTab() {
         targetId={reportingPost?.id || ''}
         targetLabel={reportingPost ? `${reportingPost.author} · ${reportingPost.projectName}` : undefined}
       />
+
+      {/* Says the link is on the clipboard. A toast rather than a dialog: nothing
+          needs answering, and the reader is mid-scroll. */}
+      <AnimatePresence>
+        {shareNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: 0.18 }}
+            role="status"
+            aria-live="polite"
+            className="fixed left-1/2 -translate-x-1/2 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-[110] rounded-full bg-stone-900 px-5 py-3 text-[14px] font-medium text-[#FAF9F5] shadow-[0_8px_30px_rgba(0,0,0,0.2)]"
+          >
+            {shareNotice}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -5,6 +5,12 @@ interface VerifiedMarkProps {
     size?: number;
     label: string;
     className?: string;
+    /**
+     * `ink` (default): ink seal, paper check — the mark as it sits beside a name
+     * on a light surface. `paper`: the inverse, a white seal with a dark-grey
+     * check, for the one place it appears on a dark ground (the celebration).
+     */
+    tone?: 'ink' | 'paper';
 }
 
 /**
@@ -34,7 +40,9 @@ const ROSETTE_PATH = Array.from({ length: POINTS * 2 }, (_, i) => {
  * scalloped edge has to stay crisp when small, and the fill is the platform's
  * ink colour, not a library's.
  */
-export default function VerifiedMark({ size = 16, label, className = '' }: VerifiedMarkProps) {
+export default function VerifiedMark({ size = 16, label, className = '', tone = 'ink' }: VerifiedMarkProps) {
+    const seal = tone === 'paper' ? '#FFFFFF' : '#1c1917';
+    const check = tone === 'paper' ? '#363636' : '#FAF9F5';
     return (
         <svg
             width={size}
@@ -47,18 +55,21 @@ export default function VerifiedMark({ size = 16, label, className = '' }: Verif
             <title>{label}</title>
             <path
                 d={ROSETTE_PATH}
-                fill="#1c1917"
-                stroke="#1c1917"
+                fill={seal}
+                stroke={seal}
                 strokeWidth="1.4"
                 strokeLinejoin="round"
             />
+            {/* The check: rounded at text size, where soft ends read as friendly at
+                16px; square-cut and mitred on the big paper seal, where round ends
+                looked like a marker stroke. */}
             <path
                 d="M7.6 12.4l3 3 5.8-6.2"
                 fill="none"
-                stroke="#FAF9F5"
+                stroke={check}
                 strokeWidth="2.3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                strokeLinecap={tone === 'paper' ? 'butt' : 'round'}
+                strokeLinejoin={tone === 'paper' ? 'miter' : 'round'}
             />
         </svg>
     );

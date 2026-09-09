@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
 import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useLanguage } from '@/context/LanguageContext';
@@ -106,9 +106,9 @@ function ResetPasswordForm() {
                 </div>
             ) : success ? (
                 <div className="space-y-6 text-center flex flex-col items-center py-4">
-                    <div className="p-3 bg-green-500/10 text-green-700 rounded-full w-fit">
-                        <CheckCircle2 size={32} />
-                    </div>
+                    {/* The same plain mark the feedback confirmation uses — the
+                        check on its own, in the brand green. */}
+                    <Check size={40} strokeWidth={2.5} className="text-[#5F9857]" aria-hidden />
                     <h3 className="text-xl font-sans font-light text-stone-900">{t('reset_password.success_title')}</h3>
                     <p className="text-stone-600 text-sm font-medium">
                         {success} {t('reset_password.redirecting')}

@@ -2114,3 +2114,25 @@ html, body {
 .golden-confetti {
     animation: golden-confetti 1.9s cubic-bezier(0.25, 0.6, 0.4, 1) both;
 }
+
+/* Lyric typography on the Create canvas, in three sizes (Profile → Settings →
+   Display). Medium is the original scale, so an untouched account sees exactly
+   what it saw before: the px values below are the ones that used to be written
+   inline as `text-[25.2px] md:text-[28.56px] lg:text-[35.28px]`.
+
+   A scale multiplier rather than three sets of sizes: the responsive steps stay
+   in one place, and a fourth size would be one line. `--lyric-scale` is read off
+   <html data-lyric-size>, set by lib/lyricSize.ts. */
+:root { --lyric-scale: 1; }
+[data-lyric-size="small"] { --lyric-scale: 0.84; }
+[data-lyric-size="large"] { --lyric-scale: 1.2; }
+
+.lyric-type {
+    font-size: calc(25.2px * var(--lyric-scale));
+}
+@media (min-width: 768px) {
+    .lyric-type { font-size: calc(28.56px * var(--lyric-scale)); }
+}
+@media (min-width: 1024px) {
+    .lyric-type { font-size: calc(35.28px * var(--lyric-scale)); }
+}
