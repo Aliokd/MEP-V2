@@ -32,6 +32,10 @@ export const GET = withAdmin("users.read", async (request) => {
             submittedAt: typeof data.submittedAt === "number" ? data.submittedAt : 0,
             reviewedAt: typeof data.reviewedAt === "number" ? data.reviewedAt : null,
             note: data.note ?? null,
+            // True when an admin verified this account directly rather than the
+            // songwriter asking. Shown as a badge, so the queue never implies a
+            // request that was never filed.
+            grantedByAdmin: data.grantedByAdmin === true,
         };
     });
     rows.sort((a, b) => b.submittedAt - a.submittedAt);
