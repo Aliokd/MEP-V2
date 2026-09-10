@@ -240,27 +240,18 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
                 )}
 
                 {/*
-                 * 2 — hear it, read the one thing to change, play your version
-                 * in. One screen, so the melody can be replayed between takes
-                 * without walking back a step. Laid out as the guide draws it:
-                 * the play row, the task, the record card, and the take's row
-                 * arriving under it.
+                 * 2 — read the one thing to change, hear the melody, play your
+                 * version in. One screen, so the melody can be replayed between
+                 * takes without walking back a step. Top to bottom: what to do,
+                 * what to answer, and your answer.
+                 *
+                 * The big record card is scaffolding, not furniture. It is the
+                 * point of the step until there is a take, and once there is one
+                 * it goes: going again is offered on the take's own card, next to
+                 * the thing it would replace.
                  */}
                 {step === 2 && melody && (
                     <div className="flex animate-in flex-col gap-4 duration-300 fade-in">
-                        <MelodyClip
-                            key={melody.audioUrl}
-                            src={melody.audioUrl}
-                            label={melody.title}
-                            meta={t(`practice.mv_instrument_${melody.instrument}`)}
-                            isPlaying={playing === 'original'}
-                            onToggle={() => {
-                                // The microphone would pick the melody up along
-                                // with the answer, so a take in progress ends first.
-                                if (isRecording) stop();
-                                setPlaying(p => (p === 'original' ? null : 'original'));
-                            }}
-                        />
                         <div className="verse-card is-static flex flex-col gap-3 rounded-[20px] px-6 py-6 sm:flex-row sm:items-center sm:justify-between md:px-8">
                             <div className="min-w-0">
                                 <p className="font-sans text-xs uppercase tracking-wide text-stone-400">
@@ -281,37 +272,55 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
                             </button>
                         </div>
 
-                        {/* The record card: tallest thing on the screen, the button
-                            big and centred, because recording is the step's point. */}
-                        <div className="verse-card is-static flex flex-col items-center gap-4 rounded-[20px] px-6 py-12">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    haptic('impact');
-                                    if (isRecording) { stop(); return; }
-                                    // Recording over the top of playback would
-                                    // capture the melody along with the answer.
-                                    setPlaying(null);
-                                    start();
-                                }}
-                                className={`${isRecording ? btn.danger('bare') : btn.primary('bare')} h-20 w-20 cursor-pointer rounded-full`}
-                                aria-label={isRecording ? t('practice.mv_stop') : t('practice.mv_record')}
-                            >
-                                {isRecording
-                                    ? <Square className="h-6 w-6 fill-current stroke-none" />
-                                    : <Mic className="h-7 w-7 stroke-[2]" />}
-                            </button>
-                            <p className="font-sans text-sm tabular-nums text-stone-500">
-                                {isRecording
-                                    ? `${fmt(seconds)} · ${t('practice.mv_stop_hint')}`
-                                    : t(take ? 'practice.mv_record_again_hint' : 'practice.mv_record_hint')}
-                            </p>
-                            {micError && (
-                                <p role="alert" style={{ color: WRONG_TEXT }} className="max-w-md text-center font-sans text-xs">
-                                    {t(`practice.mv_mic_${micError}`)}
+                        <MelodyClip
+                            key={melody.audioUrl}
+                            src={melody.audioUrl}
+                            label={melody.title}
+                            meta={t(`practice.mv_instrument_${melody.instrument}`)}
+                            isPlaying={playing === 'original'}
+                            onToggle={() => {
+                                // The microphone would pick the melody up along
+                                // with the answer, so a take in progress ends first.
+                                if (isRecording) stop();
+                                setPlaying(p => (p === 'original' ? null : 'original'));
+                            }}
+                        />
+
+                        {/* The record card: the button big and centred, because
+                            until there is a take this is the step's whole point.
+                            A refused microphone keeps it up whatever else is on
+                            screen, so its message has somewhere to be said. */}
+                        {(!take || isRecording || micError) && (
+                            <div className="verse-card is-static flex flex-col items-center gap-4 rounded-[20px] px-6 py-12">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        haptic('impact');
+                                        if (isRecording) { stop(); return; }
+                                        // Recording over the top of playback would
+                                        // capture the melody along with the answer.
+                                        setPlaying(null);
+                                        start();
+                                    }}
+                                    className={`${isRecording ? btn.danger('bare') : btn.primary('bare')} h-20 w-20 cursor-pointer rounded-full`}
+                                    aria-label={isRecording ? t('practice.mv_stop') : t('practice.mv_record')}
+                                >
+                                    {isRecording
+                                        ? <Square className="h-6 w-6 fill-current stroke-none" />
+                                        : <Mic className="h-7 w-7 stroke-[2]" />}
+                                </button>
+                                <p className="font-sans text-sm tabular-nums text-stone-500">
+                                    {isRecording
+                                        ? `${fmt(seconds)} · ${t('practice.mv_stop_hint')}`
+                                        : t(take ? 'practice.mv_record_again_hint' : 'practice.mv_record_hint')}
                                 </p>
-                            )}
-                        </div>
+                                {micError && (
+                                    <p role="alert" style={{ color: WRONG_TEXT }} className="max-w-md text-center font-sans text-xs">
+                                        {t(`practice.mv_mic_${micError}`)}
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         {take && !isRecording && (
                             <MelodyClip
@@ -323,6 +332,12 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
                                 tone="take"
                                 isPlaying={playing === 'take'}
                                 onToggle={() => setPlaying(p => (p === 'take' ? null : 'take'))}
+                                redoLabel={t('practice.mv_record_again')}
+                                onRedo={() => {
+                                    haptic('impact');
+                                    setPlaying(null);
+                                    start();
+                                }}
                             />
                         )}
                     </div>

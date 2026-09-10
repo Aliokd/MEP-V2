@@ -14,6 +14,7 @@ import StructurePlayer from './StructurePlayer';
 import VerseDemo from './VerseDemo';
 import MelodyVariation from './MelodyVariation';
 import MelodyDemo from './MelodyDemo';
+import PracticeIllustration from './PracticeIllustration';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
 import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight, RotateCcw, Loader2, Info } from 'lucide-react';
 import Confetti from '@/app/onboarding/components/Confetti';
@@ -576,7 +577,11 @@ export default function PracticeTab() {
             <button
                 key={p}
                 onClick={() => selectPractice(p)}
-                className={`${btn.menuItem()} justify-between gap-4 px-5 py-3 font-serif text-base font-normal sm:text-lg
+                // min-h rather than more padding: every row is the same height
+                // whether it ends in an illustration, a date pill or nothing.
+                // 72px is what an illustration row comes to on its own (48 + the
+                // vertical padding), so this is the floor the others rise to.
+                className={`${btn.menuItem()} min-h-[72px] justify-between gap-4 px-5 py-3 font-serif text-base font-normal sm:text-lg
                     ${isSelected
                         ? 'bg-stone-100 text-stone-900'
                         : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
@@ -584,7 +589,19 @@ export default function PracticeTab() {
                 `}
             >
                 <span className="truncate">{getTranslatedPracticeName(p)}</span>
-                {!meta.available && (
+                {meta.available ? (
+                    /* The card's artwork at row size, so the list reads as the
+                       same set of things the carousel shows. Only for practices
+                       that are built: an unbuilt one has no visual on its card
+                       either, and its date pill takes this spot instead. */
+                    <PracticeIllustration
+                        name={meta.name}
+                        // Carried higher than the card's 60%: these marks fade out
+                        // at their own edges, and at 48px that softness plus 60%
+                        // left the paler ones barely on the page.
+                        className="h-12 w-12 shrink-0 select-none opacity-85 pointer-events-none"
+                    />
+                ) : (
                     <span className="shrink-0 whitespace-nowrap rounded-full bg-stone-100 text-stone-400 px-3 py-0.5 text-xs font-sans">
                         {comingLabel(meta)}
                     </span>

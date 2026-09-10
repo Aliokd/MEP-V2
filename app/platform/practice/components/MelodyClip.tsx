@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, RotateCcw } from 'lucide-react';
 import { setPlaybackAudioSession } from '@/lib/audioSession';
 import * as btn from '@/app/platform/components/buttonStyles';
 
@@ -30,6 +30,13 @@ interface MelodyClipProps {
     knownSeconds?: number;
     /** Marks the take apart from the melody it answers. */
     tone?: 'original' | 'take';
+    /**
+     * Go again, offered on the card itself. A take's replacement belongs beside
+     * the take rather than on a separate control below it, which is the whole
+     * reason the record card goes away once there is something to replace.
+     */
+    onRedo?: () => void;
+    redoLabel?: string;
 }
 
 const fmt = (s: number) => {
@@ -38,7 +45,7 @@ const fmt = (s: number) => {
 };
 
 export default function MelodyClip({
-    src, label, meta, isPlaying, onToggle, knownSeconds, tone = 'original',
+    src, label, meta, isPlaying, onToggle, knownSeconds, tone = 'original', onRedo, redoLabel,
 }: MelodyClipProps) {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const rafRef = useRef<number | null>(null);
@@ -155,6 +162,19 @@ export default function MelodyClip({
                     />
                 </div>
             </div>
+
+            {onRedo && (
+                <button
+                    type="button"
+                    data-clip-redo
+                    onClick={onRedo}
+                    aria-label={redoLabel}
+                    title={redoLabel}
+                    className={`${btn.icon('bare')} h-11 w-11 shrink-0 cursor-pointer`}
+                >
+                    <RotateCcw className="h-4 w-4 stroke-[2.2]" />
+                </button>
+            )}
         </div>
     );
 }

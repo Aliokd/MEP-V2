@@ -42,24 +42,24 @@ test.describe('Practice Page', () => {
 
     // A single card, carrying level, title and the written goal
     await expect(page.getByRole('button', { name: 'Why Master song structure?' })).toHaveCount(1);
-    await expect(page.getByText('Rebuild real songs section by section', { exact: false })).toBeVisible();
+    await expect(page.getByText('Play a real song and name each part', { exact: false })).toBeVisible();
     await expect(page.getByText('Beginner', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
 
     // Next lands on the following practice
     await page.locator('button[aria-label="Next Practice"]').click();
-    await expect(page.getByText('Turn one theme into five singable lines', { exact: false })).toBeVisible();
+    await expect(page.getByText('Pick a theme, write five nouns and five verbs', { exact: false })).toBeVisible();
 
     // Three is built too, and starts
     await page.locator('button[aria-label="Next Practice"]').click();
-    await expect(page.getByText('Take a short melody apart', { exact: false })).toBeVisible();
+    await expect(page.getByText('Listen to a short melody, then record your own version', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
 
     // And on one that isn't built yet, the card can't be started. This one is
     // undated — first in the queue, and the anchor has caught up with it — so
     // it promises nothing but "soon", and offers no intro clip
     await page.locator('button[aria-label="Next Practice"]').click();
-    await expect(page.getByText('Break the standard form on purpose', { exact: false })).toBeVisible();
+    await expect(page.getByText('Work with the shapes that break the usual pattern', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(0);
     await expect(page.getByText('Coming soon', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Why / })).toHaveCount(0);
@@ -924,6 +924,12 @@ test.describe('Practice 3 — melody variations', () => {
     await expect(page.getByText('Record your variation to keep going.')).toBeVisible();
     await expect(ask(page)).toHaveText('Listen, then record your variation');
 
+    // Task first, then the melody it answers, then the record card
+    const cards = () => page.locator('main .verse-card');
+    await expect(cards().nth(0)).toContainText('Your task');
+    await expect(cards().nth(1)).toContainText('Little runner');
+    await expect(cards().nth(2)).toContainText('Play or sing your version');
+
     // A take. Pressing play on the melody mid-take ends the take rather
     // than recording the melody into it — so the take is there, kept.
     await page.getByRole('button', { name: 'Record', exact: true }).click();
@@ -931,7 +937,18 @@ test.describe('Practice 3 — melody variations', () => {
     await page.getByRole('button', { name: 'Little runner', exact: true }).click();
     // Label plus play button — the clip is there once both are.
     await expect(page.getByRole('button', { name: 'Your take', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Record', exact: true })).toBeVisible();
+
+    // The record card has done its job and gone; going again is offered on
+    // the take's own card, beside the thing it would replace.
+    await expect(page.getByRole('button', { name: 'Record', exact: true })).toHaveCount(0);
+    await expect(cards().nth(2)).toContainText('Your take');
+    const redo = cards().nth(2).locator('[data-clip-redo]');
+    await expect(redo).toBeVisible();
+    await redo.click();
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
+    await page.waitForTimeout(1200);
+    await page.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Your take', exact: true })).toBeVisible();
     await next(page).click();
     await expect(ask(page)).toHaveText('Yours against the original');
     await expect(page.getByRole('button', { name: 'The original', exact: true })).toBeVisible();
@@ -941,6 +958,68 @@ test.describe('Practice 3 — melody variations', () => {
     await expect.poll(() => page.evaluate(
       () => localStorage.getItem('mep-completed-melody-variations'),
     )).toContain('little-runner');
+  });
+
+  /*
+   * Continuing in Canvas is supposed to carry the take over as an audio card.
+   * The write itself cannot run here — the mock user is not a Firebase identity,
+   * so setDoc and the Storage upload are both rejected — but the half that broke
+   * is the shape, not the write: Create reads the kind of every non-lyric card
+   * off its placeholder phrase's id prefix, and a take under any other id lands
+   * in the document and is drawn as an empty lyric line.
+   *
+   * So this asserts the contract from the reader's side, on the same cache Create
+   * paints its first frame from.
+   */
+  test('a take handed to Canvas is drawn as an audio card', async ({ page }) => {
+    const built = await page.evaluate(() => {
+      const uid = 'test-user-id';
+      const stamp = Date.now();
+      const noteId = `n-${stamp}`;
+      const group = { id: `v-${stamp}`, name: 'Verse 1' };
+      // The shape lib/createCanvasFromLines.ts assembles for a take.
+      const audioPhraseId = `p-audio-${stamp}`;
+      const phrases = [
+        { id: `p-${stamp}-0`, text: 'Change the ending.', groupId: group.id },
+        { id: audioPhraseId, text: '', groupId: null },
+      ];
+      const project = {
+        id: noteId,
+        title: 'Variation on Little runner',
+        content: phrases.map(p => p.text).join('\n'),
+        folderId: null,
+        updatedAt: new Date(stamp).toISOString(),
+        ownerId: uid,
+        collaborators: [],
+        verses: [group],
+        phrases,
+        audioNotes: [{
+          id: `${stamp}`,
+          url: '/Practice/Melodies/little-runner.wav',
+          title: 'Your take on Little runner',
+          duration: 7,
+          groupId: null,
+          phraseId: audioPhraseId,
+          createdAt: stamp,
+        }],
+        audioUrl: '/Practice/Melodies/little-runner.wav',
+      };
+      // Create's first paint reads the cache under the bound account's uid
+      window.localStorage.setItem('veinote-last-active-uid', uid);
+      window.localStorage.setItem(`veinote-create-notes-${uid}`, JSON.stringify([project]));
+      window.localStorage.setItem(`veinote-selected-note-id-${uid}`, noteId);
+      return { noteId };
+    });
+
+    // Where Continue in Canvas routes to
+    await page.goto(`/platform/create?noteId=${built.noteId}`);
+    await expect(page.getByText('Change the ending.')).toBeVisible({ timeout: 20000 });
+
+    // A real player, titled, not an empty line. The card's title is an input,
+    // being renameable in place, so it is read by value rather than as text.
+    await expect(page.locator('audio')).toHaveCount(1);
+    await expect(page.locator('input[value="Your take on Little runner"]')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
   });
 
   test('the task can be re-dealt, and never repeats itself', async ({ page }) => {

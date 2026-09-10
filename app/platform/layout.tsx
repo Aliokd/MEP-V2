@@ -22,6 +22,7 @@ import {
     WEEKLY_ACTIVITY_EVENT,
     HISTORY_BACKFILLED_KEY,
 } from '@/lib/weeklyActivity';
+import { startMindPowerSync } from '@/lib/mindPowerRecord';
 import { ENGAGED_WINDOW_MS } from '@/lib/mindPowerScore';
 import PlatformOnboarding from './components/PlatformOnboarding';
 import AnnouncementBanner from './components/AnnouncementBanner';
@@ -363,6 +364,13 @@ function PlatformLayoutInner({
     // level start from their first day, not from the day tracking shipped.
     // The flag is set only after the songs have been read, so an offline first
     // visit simply tries again next time.
+    // The record follows the account: what the phone recorded reaches the
+    // laptop and the other way round, so one week scores the same everywhere.
+    useEffect(() => {
+        if (!user) return;
+        return startMindPowerSync(user.uid);
+    }, [user]);
+
     useEffect(() => {
         if (!user || localStorage.getItem(HISTORY_BACKFILLED_KEY)) return;
         let cancelled = false;

@@ -5,6 +5,7 @@ import {
     scoreWeek,
     creditFor,
     DAY_ACTIVE_SECONDS,
+    MAX_DAY_CREDIT_SECONDS,
     WEEKLY_TARGET,
     REST_WEEK_MIN_SECONDS,
     REST_WEEK_WINDOW,
@@ -76,6 +77,16 @@ export const PROJECT_CRAFT_KEY = 'mep-project-craft';
  * listener; a closed week keeps the number it closed with.
  */
 export const COMMUNITY_WEEKS_KEY = 'mep-community-weeks';
+/**
+ * What the account's other devices have recorded, already summed, as pulled
+ * from the account record (see mindPowerRecord). This device's own maps stay
+ * its own; every reader that scores or draws a week adds these in.
+ */
+export const OTHERS_KEY = 'mep-mind-power-others';
+/** Songs that were finished and then deleted, so a union with another device cannot bring them back. */
+export const FORGOTTEN_SONGS_KEY = 'mep-forgotten-songs';
+/** Fired by every writer here: the local record changed and should reach the account. */
+export const MIND_POWER_DIRTY_EVENT = 'veinote-mind-power-dirty';
 
 /**
  * The goal that made a week golden before scoring existed: 150 minutes, at
@@ -115,10 +126,20 @@ interface Snapshot extends CraftCounters {
     sectionIds?: string[];
     /** Lessons mastered, by id. */
     chapterIds?: string[];
+    /**
+     * Counters the device taking this reading had never written (see
+     * absentCraftKeys). A zero here is "not known", not "none": a merge takes
+     * those from a reading that knew, and never lets them win.
+     */
+    absent?: AbsentKey[];
 }
+type AbsentKey = 'words' | 'recordingSeconds' | 'chapters' | 'projects';
 interface CraftBaseline {
     start: Snapshot;
     latest: Snapshot;
+    /** When each reading was taken, so two devices' readings of one week can be ordered. */
+    startedAt?: number;
+    latestAt?: number;
     /**
      * The week's output, fixed once the week has passed. The running week is
      * live — undo something and it leaves the score — but a closed week stays
@@ -194,25 +215,127 @@ function readJson<T>(key: string, fallback: T): T {
     }
 }
 
-export function readWeeklyActivity(): WeeklyMap {
+/**
+ * The account's other devices, summed. Written only by mindPowerRecord when
+ * the account record arrives; read by everything that scores.
+ */
+export interface OthersRecord {
+    days: DaysMap;
+    health: HealthMap;
+    visits: string[];
+    /** Their lifetime practice seconds, added to this device's own. */
+    practiceSeconds: number;
+    /** Their week totals, for weeks before day records (backfilled history). */
+    weekSeconds: WeeklyMap;
+}
+
+const NO_OTHERS: OthersRecord = { days: {}, health: {}, visits: [], practiceSeconds: 0, weekSeconds: {} };
+
+function readOthers(): OthersRecord {
+    const parsed = readJson<Partial<OthersRecord>>(OTHERS_KEY, {});
+    return {
+        days: parsed.days && typeof parsed.days === 'object' ? parsed.days : {},
+        health: parsed.health && typeof parsed.health === 'object' ? parsed.health : {},
+        visits: Array.isArray(parsed.visits) ? parsed.visits.filter((k): k is string => typeof k === 'string') : [],
+        practiceSeconds: typeof parsed.practiceSeconds === 'number' ? parsed.practiceSeconds : 0,
+        weekSeconds: parsed.weekSeconds && typeof parsed.weekSeconds === 'object' ? parsed.weekSeconds : {},
+    };
+}
+
+/** mindPowerRecord hands over what the other devices hold; a change is announced. */
+export function applyOthers(others: OthersRecord): boolean {
+    if (typeof window === 'undefined') return false;
+    const next = JSON.stringify(others);
+    if ((localStorage.getItem(OTHERS_KEY) || '') === next) return false;
+    safeLocalStorageSetItem(OTHERS_KEY, next);
+    return true;
+}
+
+// The maps this device writes are its own. What it *reads* for a score is its
+// own plus the other devices', so the same week scores the same everywhere.
+function readOwnDays(): DaysMap {
+    return readJson<DaysMap>(WEEKLY_DAYS_KEY, {});
+}
+function readOwnHealth(): HealthMap {
+    return readJson<HealthMap>(HEALTH_MARKS_KEY, {});
+}
+function readOwnVisits(): string[] {
+    const parsed = readJson<unknown>(DAILY_VISITS_KEY, []);
+    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
+}
+function readOwnWeeklyActivity(): WeeklyMap {
     return readJson<WeeklyMap>(WEEKLY_ACTIVITY_KEY, {});
 }
 
+/** Engaged seconds per day across every device, each day held to the cap. */
 function readDays(): DaysMap {
-    return readJson<DaysMap>(WEEKLY_DAYS_KEY, {});
+    const own = readOwnDays();
+    const others = readOthers().days;
+    if (Object.keys(others).length === 0) return own;
+    const merged: DaysMap = {};
+    for (const source of [own, others]) {
+        for (const [week, days] of Object.entries(source)) {
+            const target = merged[week] || (merged[week] = {});
+            for (const [day, seconds] of Object.entries(days)) {
+                target[day] = Math.min(MAX_DAY_CREDIT_SECONDS, (target[day] || 0) + (seconds || 0));
+            }
+        }
+    }
+    return merged;
+}
+
+/** Health marks per day across every device: each device's marks were its own, so they add. */
+function readHealth(): HealthMap {
+    const own = readOwnHealth();
+    const others = readOthers().health;
+    if (Object.keys(others).length === 0) return own;
+    const merged: HealthMap = {};
+    for (const source of [own, others]) {
+        for (const [day, marks] of Object.entries(source)) {
+            const target = merged[day] || (merged[day] = {});
+            for (const [kind, n] of Object.entries(marks) as [HealthMark, number][]) {
+                target[kind] = (target[kind] || 0) + (n || 0);
+            }
+        }
+    }
+    return merged;
+}
+
+/** Every day the account showed up, on any device. */
+function readVisits(): string[] {
+    const others = readOthers().visits;
+    if (others.length === 0) return readOwnVisits();
+    return Array.from(new Set([...readOwnVisits(), ...others])).sort();
+}
+
+/**
+ * Week totals across every device. A week with day records is the sum of its
+ * merged days; a week from before day records (backfilled history) keeps the
+ * larger of what any device holds for it.
+ */
+export function readWeeklyActivity(): WeeklyMap {
+    const own = readOwnWeeklyActivity();
+    const others = readOthers();
+    if (Object.keys(others.days).length === 0 && Object.keys(others.weekSeconds).length === 0) return own;
+    const merged: WeeklyMap = { ...own };
+    for (const [week, seconds] of Object.entries(others.weekSeconds)) {
+        merged[week] = Math.max(merged[week] || 0, seconds || 0);
+    }
+    for (const [week, days] of Object.entries(readDays())) {
+        const sum = Object.values(days).reduce((a, b) => a + b, 0);
+        merged[week] = Math.max(merged[week] || 0, sum);
+    }
+    return merged;
 }
 
 function readBaselines(): BaselineMap {
     return readJson<BaselineMap>(CRAFT_BASELINE_KEY, {});
 }
 
-function readHealth(): HealthMap {
-    return readJson<HealthMap>(HEALTH_MARKS_KEY, {});
-}
-
-function readVisits(): string[] {
-    const parsed = readJson<unknown>(DAILY_VISITS_KEY, []);
-    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
+/** Tell the account record something here changed. Urgent means a discrete act, not a tick. */
+export function markMindPowerDirty(urgent: boolean = false): void {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent(MIND_POWER_DIRTY_EVENT, { detail: { urgent } }));
 }
 
 function readLegacyGolden(): string[] {
@@ -222,7 +345,11 @@ function readLegacyGolden(): string[] {
 
 function readActiveWeekKeys(): string[] {
     const parsed = readJson<unknown>(ACTIVE_WEEKS_KEY, []);
-    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
+    const own = Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
+    // A week another device spent time in is a week the account spent time in.
+    const others = Object.entries(readOthers().weekSeconds).filter(([, s]) => s > 0).map(([w]) => w);
+    const otherDays = Object.entries(readOthers().days).filter(([, d]) => Object.values(d).some(s => s > 0)).map(([w]) => w);
+    return Array.from(new Set([...own, ...others, ...otherDays]));
 }
 
 export function readGoldenMindShown(): string[] {
@@ -253,8 +380,26 @@ function readCraftTotals(): CraftCounters {
         recordingSeconds: int('mep-create-recording-seconds'),
         sections: len('mep-completed-songs'),
         chapters: len('mep-completed-lessons'),
-        practiceSeconds: int('mep-practice-seconds'),
+        // Practice minutes are counted on the device they happen on; the account's
+        // total is this device's plus every other's.
+        practiceSeconds: int('mep-practice-seconds') + readOthers().practiceSeconds,
     };
+}
+
+/**
+ * Which counters this device has never written. Words, recordings, lessons and
+ * the per-project map are rebuilt from Firestore only when their tab is opened
+ * here, so on a device that has not opened Create yet they are simply absent —
+ * not zero. A reading must not take an absent counter as a drop.
+ */
+function absentCraftKeys(): Set<AbsentKey> {
+    const absent = new Set<AbsentKey>();
+    if (typeof window === 'undefined') return absent;
+    if (localStorage.getItem('mep-create-words-typed') === null) absent.add('words');
+    if (localStorage.getItem('mep-create-recording-seconds') === null) absent.add('recordingSeconds');
+    if (localStorage.getItem('mep-completed-lessons') === null) absent.add('chapters');
+    if (localStorage.getItem(PROJECT_CRAFT_KEY) === null) absent.add('projects');
+    return absent;
 }
 
 function readCommunityTotal(): number {
@@ -314,6 +459,13 @@ export function forgetCompletedSong(projectId: string): void {
         delete dates[projectId];
         safeLocalStorageSetItem('mep-completed-song-dates', JSON.stringify(dates));
     }
+    // A tombstone, so the account record cannot hand the song back from
+    // another device that still lists it.
+    const forgotten = readIds(FORGOTTEN_SONGS_KEY);
+    if (!forgotten.includes(projectId)) {
+        safeLocalStorageSetItem(FORGOTTEN_SONGS_KEY, JSON.stringify([...forgotten, projectId]));
+    }
+    markMindPowerDirty(true);
 }
 
 function readCommunityWeeks(): Record<string, number> {
@@ -377,8 +529,9 @@ export function activeWeekLevel(): number {
  * its baseline, and every later one its latest, so the week's own output is
  * the difference — and stays known after the week has passed.
  */
-function snapshotCraft(week: string): boolean {
+function snapshotCraft(week: string, at: number = Date.now()): boolean {
     const baselines = readBaselines();
+    const entry = baselines[week];
     const now: Snapshot = {
         ...readCraftTotals(),
         community: readCommunityTotal(),
@@ -386,13 +539,30 @@ function snapshotCraft(week: string): boolean {
         sectionIds: readIds('mep-completed-songs'),
         chapterIds: readIds('mep-completed-lessons'),
     };
-    const entry = baselines[week];
+    // A counter this device has never written keeps the reading the account
+    // already has, and the reading says so, so a merge never takes it for a
+    // drop; see absentCraftKeys.
+    const absent = absentCraftKeys();
+    if (absent.size > 0) now.absent = [...absent].sort();
+    if (entry) {
+        for (const key of absent) {
+            if (key === 'projects') {
+                if (entry.latest.projects) now.projects = entry.latest.projects;
+            } else if (key === 'chapters') {
+                now.chapters = entry.latest.chapters;
+                if (entry.latest.chapterIds) now.chapterIds = entry.latest.chapterIds;
+            } else {
+                now[key] = entry.latest[key];
+            }
+        }
+    }
     let changed = false;
     if (!entry) {
-        baselines[week] = { start: now, latest: now };
+        baselines[week] = { start: now, latest: now, startedAt: at, latestAt: at };
         changed = true;
     } else if (JSON.stringify(entry.latest) !== JSON.stringify(now)) {
         entry.latest = now;
+        entry.latestAt = at;
         changed = true;
     }
     // Every other week is over: fix its output and drop the detail behind it.
@@ -469,29 +639,35 @@ export function recordActiveSeconds(seconds: number, now: Date = new Date(), eng
     const week = weekKey(now);
     const day = dayKey(now);
 
+    let moved = false;
     if (engaged) {
-        const days = readDays();
-        const weekDays = days[week] || (days[week] = {});
-        const credit = creditFor(seconds, weekDays[day] || 0);
+        // The cap is judged against the whole day, every device included, so
+        // two screens cannot earn one day twice over.
+        const daySoFar = readDays()[week]?.[day] || 0;
+        const credit = creditFor(seconds, daySoFar);
         if (credit > 0) {
+            const days = readOwnDays();
+            const weekDays = days[week] || (days[week] = {});
             weekDays[day] = (weekDays[day] || 0) + credit;
             safeLocalStorageSetItem(WEEKLY_DAYS_KEY, JSON.stringify(days));
 
-            // The week total the strip and the level read, kept as the sum of its days.
-            const map = readWeeklyActivity();
+            // This device's week total, kept as the sum of its own days.
+            const map = readOwnWeeklyActivity();
             map[week] = Object.values(weekDays).reduce((sum, s) => sum + s, 0);
             safeLocalStorageSetItem(WEEKLY_ACTIVITY_KEY, JSON.stringify(map));
 
             // First time this week: it joins the permanent tally behind the level.
-            const active = readActiveWeekKeys();
+            const active = readJson<string[]>(ACTIVE_WEEKS_KEY, []);
             if (!active.includes(week)) {
                 active.push(week);
                 safeLocalStorageSetItem(ACTIVE_WEEKS_KEY, JSON.stringify(active));
             }
+            moved = true;
         }
     }
 
-    snapshotCraft(week);
+    if (snapshotCraft(week)) moved = true;
+    if (moved) markMindPowerDirty(false);
     window.dispatchEvent(new CustomEvent(WEEKLY_ACTIVITY_EVENT));
 
     // Over the target and not yet celebrated: the golden mind is due. This
@@ -513,13 +689,16 @@ export function recordVisit(now: Date = new Date()): void {
     // them is announced, whether or not it is the day's first visit.
     const countersMoved = snapshotCraft(weekKey(now));
     const day = dayKey(now);
-    const visits = readVisits();
+    const visits = readOwnVisits();
     const firstToday = !visits.includes(day);
     if (firstToday) {
         visits.push(day);
         safeLocalStorageSetItem(DAILY_VISITS_KEY, JSON.stringify(visits));
     }
-    if (firstToday || countersMoved) window.dispatchEvent(new CustomEvent(WEEKLY_ACTIVITY_EVENT));
+    if (firstToday || countersMoved) {
+        markMindPowerDirty(false);
+        window.dispatchEvent(new CustomEvent(WEEKLY_ACTIVITY_EVENT));
+    }
 }
 
 /** A day the person was here: a visit mark, or engaged time from before visits were kept. */
@@ -553,11 +732,12 @@ export function dayStreak(now: Date = new Date()): number {
 /** A health habit done today: a breathing exercise, a focus session run to zero, a break taken. */
 export function recordHealthMark(kind: HealthMark, now: Date = new Date()): void {
     if (typeof window === 'undefined') return;
-    const marks = readHealth();
+    const marks = readOwnHealth();
     const day = dayKey(now);
     const today = marks[day] || (marks[day] = {});
     today[kind] = (today[kind] || 0) + 1;
     safeLocalStorageSetItem(HEALTH_MARKS_KEY, JSON.stringify(marks));
+    markMindPowerDirty(true);
     window.dispatchEvent(new CustomEvent(WEEKLY_ACTIVITY_EVENT));
 }
 
@@ -714,7 +894,7 @@ export function backfillHistory(evidence: HistoryEvidence, now: Date = new Date(
     }
 
     if (days.size > 0) {
-        const visits = new Set(readVisits());
+        const visits = new Set(readOwnVisits());
         days.forEach(d => visits.add(d));
         safeLocalStorageSetItem(DAILY_VISITS_KEY, JSON.stringify([...visits].sort()));
 
@@ -724,8 +904,8 @@ export function backfillHistory(evidence: HistoryEvidence, now: Date = new Date(
             perWeek.set(w, (perWeek.get(w) || 0) + 1);
         });
 
-        const map = readWeeklyActivity();
-        const active = new Set(readActiveWeekKeys());
+        const map = readOwnWeeklyActivity();
+        const active = new Set(readJson<string[]>(ACTIVE_WEEKS_KEY, []));
         const golden = new Set(readLegacyGolden());
         perWeek.forEach((count, w) => {
             map[w] = Math.max(map[w] || 0, count * LEGACY_DAY_SECONDS);
@@ -738,6 +918,7 @@ export function backfillHistory(evidence: HistoryEvidence, now: Date = new Date(
     }
 
     safeLocalStorageSetItem(HISTORY_BACKFILLED_KEY, 'true');
+    markMindPowerDirty(true);
     window.dispatchEvent(new CustomEvent(WEEKLY_ACTIVITY_EVENT));
     return true;
 }
@@ -854,4 +1035,261 @@ export function streakWeeks(now: Date = new Date()): WeekCell[] {
         });
     }
     return cells;
+}
+
+// ---- The account record ----
+
+/**
+ * What this device contributes to the account, and what the account holds
+ * for everyone. mindPowerRecord carries these to and from Firestore; nothing
+ * in here knows about the network.
+ *
+ * Device parts add across devices (each device's seconds, marks and visits
+ * were its own). Shared parts are account truths merged by rule: unions for
+ * lists, earliest-wins for a week's first reading, latest-wins for its last,
+ * element-wise max for a week that closed on more than one device.
+ */
+export interface DeviceRecord {
+    days: DaysMap;
+    health: HealthMap;
+    visits: string[];
+    practiceSeconds: number;
+    weekSeconds: WeeklyMap;
+    updatedAt: number;
+}
+
+export interface SharedRecord {
+    baselines: BaselineMap;
+    /** Finished songs, by id, with when. */
+    completedSongs: Record<string, number>;
+    forgottenSongs: string[];
+    legacyGolden: string[];
+    firstDay: string | null;
+    activeWeeks: string[];
+    communityWeeks: Record<string, number>;
+    historyBackfilled: boolean;
+}
+
+export function exportDeviceRecord(): DeviceRecord {
+    const own = typeof window === 'undefined' ? '0' : localStorage.getItem('mep-practice-seconds') || '0';
+    return {
+        days: readOwnDays(),
+        health: readOwnHealth(),
+        visits: readOwnVisits(),
+        practiceSeconds: parseInt(own, 10) || 0,
+        weekSeconds: readOwnWeeklyActivity(),
+        updatedAt: Date.now(),
+    };
+}
+
+/**
+ * The per-project detail behind a week is only needed while the week can
+ * still change, and it is the bulk of the record; the account keeps it for
+ * the current and previous week only. Older weeks travel as their final.
+ */
+function trimBaselines(baselines: BaselineMap, now: Date): BaselineMap {
+    const current = weekKey(now);
+    const previous = weekKey(new Date(now.getTime() - 7 * 24 * 3600 * 1000));
+    const out: BaselineMap = {};
+    for (const [week, b] of Object.entries(baselines)) {
+        if (week === current || week === previous) {
+            out[week] = b;
+            continue;
+        }
+        const strip = (s: Snapshot): Snapshot => {
+            const { projects: _projects, ...rest } = s;
+            return rest;
+        };
+        out[week] = {
+            start: strip(b.start),
+            latest: strip(b.latest),
+            startedAt: b.startedAt,
+            latestAt: b.latestAt,
+            final: b.final ?? craftBetween(b.start, b.latest),
+        };
+    }
+    return out;
+}
+
+export function exportSharedRecord(now: Date = new Date()): SharedRecord {
+    const dates = readJson<Record<string, number>>('mep-completed-song-dates', {});
+    const completedSongs: Record<string, number> = {};
+    for (const id of readIds('mep-completed-songs')) {
+        completedSongs[id] = typeof dates[id] === 'number' ? dates[id] : 0;
+    }
+    return {
+        baselines: trimBaselines(readBaselines(), now),
+        completedSongs,
+        forgottenSongs: readIds(FORGOTTEN_SONGS_KEY),
+        legacyGolden: readLegacyGolden(),
+        firstDay: typeof window === 'undefined' ? null : localStorage.getItem(FIRST_DAY_KEY),
+        activeWeeks: readJson<string[]>(ACTIVE_WEEKS_KEY, []),
+        communityWeeks: readCommunityWeeks(),
+        historyBackfilled: typeof window !== 'undefined' && !!localStorage.getItem(HISTORY_BACKFILLED_KEY),
+    };
+}
+
+/** A week's Monday as epoch ms: the earliest a reading of it could have been taken. */
+function weekEpoch(week: string): number {
+    return parseKey(week)?.getTime() ?? 0;
+}
+
+function maxCounters(a: CraftCounters, b: CraftCounters): CraftCounters {
+    return {
+        words: Math.max(a.words, b.words),
+        recordingSeconds: Math.max(a.recordingSeconds, b.recordingSeconds),
+        sections: Math.max(a.sections, b.sections),
+        chapters: Math.max(a.chapters, b.chapters),
+        practiceSeconds: Math.max(a.practiceSeconds, b.practiceSeconds),
+    };
+}
+
+/**
+ * The preferred reading, with the counters it never had taken from the other.
+ * A device that has not opened Create knows nothing about words; the reading
+ * from the device that has is the truth for those, whatever the clock says.
+ */
+function mergeSnapshot(preferred: Snapshot, other: Snapshot): Snapshot {
+    const mine = new Set(preferred.absent || []);
+    const theirs = new Set(other.absent || []);
+    if (mine.size === 0) return preferred;
+    const out: Snapshot = { ...preferred };
+    for (const key of mine) {
+        if (theirs.has(key)) continue;
+        if (key === 'projects') {
+            if (other.projects) out.projects = other.projects;
+        } else if (key === 'chapters') {
+            out.chapters = other.chapters;
+            if (other.chapterIds) out.chapterIds = other.chapterIds;
+            else delete out.chapterIds;
+        } else {
+            out[key] = other[key];
+        }
+    }
+    const still = [...mine].filter(k => theirs.has(k)).sort();
+    if (still.length > 0) out.absent = still;
+    else delete out.absent;
+    return out;
+}
+
+/** One week's baseline from two devices: the earlier start, the later latest, the fuller final. */
+function mergeBaseline(local: CraftBaseline | undefined, remote: CraftBaseline, week: string): CraftBaseline {
+    if (!local) return remote;
+    const stamp = (b: CraftBaseline, key: 'startedAt' | 'latestAt') => b[key] ?? weekEpoch(week);
+    const startFrom = stamp(remote, 'startedAt') < stamp(local, 'startedAt') ? remote : local;
+    const startOther = startFrom === remote ? local : remote;
+    const latestFrom = stamp(remote, 'latestAt') > stamp(local, 'latestAt') ? remote : local;
+    const latestOther = latestFrom === remote ? local : remote;
+    const merged: CraftBaseline = {
+        start: mergeSnapshot(startFrom.start, startOther.start),
+        latest: mergeSnapshot(latestFrom.latest, latestOther.latest),
+        startedAt: startFrom.startedAt ?? local.startedAt ?? remote.startedAt,
+        latestAt: latestFrom.latestAt ?? local.latestAt ?? remote.latestAt,
+    };
+    if (local.final && remote.final) merged.final = maxCounters(local.final, remote.final);
+    else if (local.final || remote.final) merged.final = local.final ?? remote.final;
+    return merged;
+}
+
+/**
+ * Fold the account's shared parts into this device. Returns whether anything
+ * here changed, so the caller can announce it, and only then.
+ */
+export function mergeSharedRecord(remote: Partial<SharedRecord>): boolean {
+    if (typeof window === 'undefined') return false;
+    let changed = false;
+    const write = (key: string, value: unknown) => {
+        const next = JSON.stringify(value);
+        if ((localStorage.getItem(key) || '') !== next) {
+            safeLocalStorageSetItem(key, next);
+            changed = true;
+        }
+    };
+    const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+
+    if (remote.baselines && typeof remote.baselines === 'object') {
+        const local = readBaselines();
+        const merged: BaselineMap = { ...local };
+        for (const [week, b] of Object.entries(remote.baselines)) {
+            if (!b || !b.start || !b.latest) continue;
+            merged[week] = mergeBaseline(local[week], b, week);
+        }
+        write(CRAFT_BASELINE_KEY, merged);
+    }
+
+    const forgotten = new Set([...readIds(FORGOTTEN_SONGS_KEY), ...strings(remote.forgottenSongs)]);
+    if (forgotten.size > 0) write(FORGOTTEN_SONGS_KEY, [...forgotten].sort());
+
+    if (remote.completedSongs && typeof remote.completedSongs === 'object') {
+        const dates = readJson<Record<string, number>>('mep-completed-song-dates', {});
+        const ids = new Set(readIds('mep-completed-songs'));
+        for (const [id, at] of Object.entries(remote.completedSongs)) {
+            if (forgotten.has(id)) continue;
+            ids.add(id);
+            if (typeof at === 'number' && at > 0 && (typeof dates[id] !== 'number' || at < dates[id])) dates[id] = at;
+        }
+        for (const id of forgotten) {
+            ids.delete(id);
+            delete dates[id];
+        }
+        write('mep-completed-songs', [...ids]);
+        write('mep-completed-song-dates', dates);
+    }
+
+    if (Array.isArray(remote.legacyGolden)) {
+        write(LEGACY_GOLDEN_KEY, [...new Set([...readLegacyGolden(), ...strings(remote.legacyGolden)])].sort());
+    }
+
+    if (Array.isArray(remote.activeWeeks)) {
+        write(ACTIVE_WEEKS_KEY, [...new Set([...readJson<string[]>(ACTIVE_WEEKS_KEY, []), ...strings(remote.activeWeeks)])].sort());
+    }
+
+    if (typeof remote.firstDay === 'string' && remote.firstDay) {
+        const local = localStorage.getItem(FIRST_DAY_KEY);
+        if (!local || remote.firstDay < local) {
+            safeLocalStorageSetItem(FIRST_DAY_KEY, remote.firstDay);
+            changed = true;
+        }
+    }
+
+    if (remote.communityWeeks && typeof remote.communityWeeks === 'object') {
+        // Closed weeks keep their number; only a week with none yet is filled.
+        const local = readCommunityWeeks();
+        let filled = false;
+        for (const [week, n] of Object.entries(remote.communityWeeks)) {
+            if (typeof n === 'number' && !(week in local)) {
+                local[week] = n;
+                filled = true;
+            }
+        }
+        if (filled) write(COMMUNITY_WEEKS_KEY, local);
+    }
+
+    if (remote.historyBackfilled && !localStorage.getItem(HISTORY_BACKFILLED_KEY)) {
+        safeLocalStorageSetItem(HISTORY_BACKFILLED_KEY, 'true');
+        changed = true;
+    }
+
+    return changed;
+}
+
+/** Sum the other devices' records into the shape the readers add in. */
+export function sumDeviceRecords(records: DeviceRecord[]): OthersRecord {
+    const out: OthersRecord = { days: {}, health: {}, visits: [], practiceSeconds: 0, weekSeconds: {} };
+    const visits = new Set<string>();
+    for (const r of records) {
+        for (const [week, days] of Object.entries(r.days || {})) {
+            const target = out.days[week] || (out.days[week] = {});
+            for (const [day, s] of Object.entries(days)) target[day] = (target[day] || 0) + (s || 0);
+        }
+        for (const [day, marks] of Object.entries(r.health || {})) {
+            const target = out.health[day] || (out.health[day] = {});
+            for (const [kind, n] of Object.entries(marks) as [HealthMark, number][]) target[kind] = (target[kind] || 0) + (n || 0);
+        }
+        for (const v of r.visits || []) visits.add(v);
+        out.practiceSeconds += r.practiceSeconds || 0;
+        for (const [week, s] of Object.entries(r.weekSeconds || {})) out.weekSeconds[week] = Math.max(out.weekSeconds[week] || 0, s || 0);
+    }
+    out.visits = [...visits].sort();
+    return out;
 }

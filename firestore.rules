@@ -117,6 +117,14 @@ service cloud.firestore {
       allow update: if isSignedIn() && request.auth.uid == userId &&
         !changedKeys().hasAny(["tier", "billing", "sanction", "suspendedUntil", "bannedAt"]);
       allow delete: if false;
+
+      // The Mind Power record: each device's minutes, marks and visits under
+      // its own id, plus the account's shared parts, merged by the client
+      // (lib/mindPowerRecord.ts). The owner's alone; nothing in it is shown
+      // to anyone else.
+      match /mindPower/{docId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
     }
 
     // The public slice of a user account: display name, avatar, songwriter type

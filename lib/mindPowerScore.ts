@@ -30,6 +30,12 @@ export const HEALTH_DAYS = 5;
 /** The soft daily cap: full credit to two hours, half credit to three, none past that. */
 export const FULL_CREDIT_DAY_SECONDS = 120 * 60;
 export const HALF_CREDIT_DAY_SECONDS = 180 * 60;
+/**
+ * The most a day can ever be credited: the full two hours plus half of the
+ * third. The cap is applied tick by tick on the device doing the work, so a
+ * day summed across two devices is clamped here to keep the same ceiling.
+ */
+export const MAX_DAY_CREDIT_SECONDS = FULL_CREDIT_DAY_SECONDS + (HALF_CREDIT_DAY_SECONDS - FULL_CREDIT_DAY_SECONDS) / 2;
 
 /** A minute is engaged if there was input within this long. */
 export const ENGAGED_WINDOW_MS = 60 * 1000;

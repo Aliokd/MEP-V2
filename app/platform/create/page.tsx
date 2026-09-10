@@ -201,7 +201,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallba
 import { createPortal } from 'react-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { safeLocalStorageSetItem } from '@/lib/storage';
-import { writeProjectCraft, bumpProjectRecording, forgetCompletedSong } from '@/lib/weeklyActivity';
+import { writeProjectCraft, bumpProjectRecording, forgetCompletedSong, markMindPowerDirty } from '@/lib/weeklyActivity';
 import { setPlaybackAudioSession, setRecordingAudioSession, releaseRecordingAudioSession } from '@/lib/audioSession';
 import { useSheetPresence } from '@/hooks/useSheetPresence';
 import { useSheetSwipe } from '@/hooks/useSheetSwipe';
@@ -6520,6 +6520,8 @@ export default function CreatePage() {
                     const dates: Record<string, number> = JSON.parse(localStorage.getItem('mep-completed-song-dates') || '{}');
                     dates[selectedNoteId] = Date.now();
                     safeLocalStorageSetItem('mep-completed-song-dates', JSON.stringify(dates));
+                    // A finished song reaches the account record straight away.
+                    markMindPowerDirty(true);
                 }
             } catch { /* counter is cosmetic — never block completing on it */ }
         }, COMPLETING_MS);

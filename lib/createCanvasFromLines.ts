@@ -48,6 +48,30 @@ export interface CanvasAudio {
     title: string;
 }
 
+/**
+ * What to call the uploaded file. MediaRecorder gives webm on Chrome and
+ * Firefox but mp4 on Safari, so the extension has to come from the blob:
+ * storing an iPhone take as ".webm" leaves a file whose name contradicts its
+ * contents, which anything that trusts the name rather than the content type
+ * then refuses to play.
+ */
+const AUDIO_EXTENSIONS: [string, string][] = [
+    ['audio/webm', 'webm'],
+    ['audio/mp4', 'm4a'],
+    ['audio/mpeg', 'mp3'],
+    ['audio/ogg', 'ogg'],
+    ['audio/aac', 'aac'],
+    ['audio/wav', 'wav'],
+];
+
+function audioExtension(blob: Blob): string {
+    // The type carries its codecs too ("audio/webm;codecs=opus"), hence prefix
+    // matching rather than a lookup.
+    const type = (blob.type || '').toLowerCase();
+    const hit = AUDIO_EXTENSIONS.find(([mime]) => type.startsWith(mime));
+    return hit ? hit[1] : 'webm';
+}
+
 export interface CanvasDraft {
     title: string;
     /** One entry per lyric line, in order. Blank entries are dropped. */
@@ -106,6 +130,22 @@ export async function createCanvasFromLines(
      * audio included — and the upload has to land before the document is written,
      * or the canvas would reference a file that is not there yet.
      *
+     * Two details are load-bearing, and getting either wrong writes a canvas
+     * where the take is in the document but nothing is drawn for it:
+     *
+     *   - The phrase id must be `p-audio-<audio note id>`. Create reads the kind
+     *     of every non-lyric card off its placeholder's id prefix (p-image-,
+     *     p-docblock-, p-chord-, p-tip-, and this one). Any other id and the
+     *     placeholder is treated as an ordinary lyric line: an empty one.
+     *   - The take stays outside the section even when the lines are in one.
+     *     A section draws its audio docked on the header rail, where a card
+     *     shrinks to a chip with its title cut off; loose in the flow it is
+     *     drawn full width, which is the right weight for the thing the
+     *     songwriter just recorded.
+     *
+     * Both mirror handlePlaceAudioAsLineAt in app/platform/create/page.tsx,
+     * which is what runs when a recording is dragged into the flow by hand.
+     *
      * A failed upload is not a failed canvas: the words still travel, and losing
      * the take silently is better than throwing the whole thing away. It is only
      * reported to the console, the same as every other upload path here.
@@ -114,12 +154,17 @@ export async function createCanvasFromLines(
     let audioUrl: string | undefined;
     if (draft.audio) {
         const recId = `${stamp}`;
-        const audioPhraseId = `p-${stamp}-audio`;
+        const audioPhraseId = `p-audio-${recId}`;
         try {
-            const fileRef = storageRef(storage, `users/${uid}/recordings/${noteId}_RecId_${recId}.webm`);
-            await uploadBytes(fileRef, draft.audio.blob);
+            const ext = audioExtension(draft.audio.blob);
+            const fileRef = storageRef(storage, `users/${uid}/recordings/${noteId}_RecId_${recId}.${ext}`);
+            // The blob's own type, so Storage serves it back with the content
+            // type the card's <audio> needs rather than octet-stream.
+            await uploadBytes(fileRef, draft.audio.blob, {
+                contentType: draft.audio.blob.type || 'audio/webm',
+            });
             audioUrl = await getDownloadURL(fileRef);
-            phrases.push({ id: audioPhraseId, text: '', groupId: group ? group.id : null });
+            phrases.push({ id: audioPhraseId, text: '', groupId: null });
             audioNotes.push({
                 id: recId,
                 url: audioUrl,

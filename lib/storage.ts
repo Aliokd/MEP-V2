@@ -66,6 +66,8 @@ const ACCOUNT_SCOPED_KEYS = [
     'mep-community-shared-count',
     'mep-community-weeks',
     'mep-project-craft',
+    'mep-mind-power-others',
+    'mep-forgotten-songs',
     'mep-weekly-active-seconds',
     'mep-weekly-days',
     'mep-mind-power-baselines',

@@ -30,8 +30,8 @@ const CARD = 'rounded-[16px] bg-white/40 border border-stone-200/70';
  * cut to sit flush with the card — the record runs off the top edge, the plinth
  * off the bottom — so each is drawn at its own aspect and never letterboxed.
  */
-const EMPTY_SONGS_ART = { src: '/assets/Empty%20state/No%20songs.png', aspect: 'sm:aspect-[1079/738]' };
-const EMPTY_CONNECTIONS_ART = { src: '/assets/Empty%20state/No%20connections.png', aspect: 'sm:aspect-[1005/738]' };
+const EMPTY_SONGS_ART = { src: '/assets/Empty%20state/No%20songs.png', aspect: 'aspect-[1079/738]' };
+const EMPTY_CONNECTIONS_ART = { src: '/assets/Empty%20state/No%20connections.png', aspect: 'aspect-[1005/738]' };
 
 /**
  * A section with nothing in it yet: the section's name in serif, one line on
@@ -66,13 +66,13 @@ function EmptyHero({
                         <ArrowRight size={14} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
                     </button>
                 </div>
-                {/* The picture always stands beside the text, never under it: its cut
-                    edges only read as intended on the card's own edges. Wide screens
-                    show it whole, sized by height; a phone gets a narrow slice of it,
-                    cropped from the sides, with the statue kept in the middle. */}
-                <div className={`relative shrink-0 self-stretch w-[38%] max-w-[150px] sm:w-auto sm:max-w-none sm:h-60 ${art.aspect}`}>
+                {/* The picture is shown whole at every width, never cropped: it
+                    always stands beside the text, drawn at its own aspect, sized by
+                    height on wide screens and by width on a phone. Its cut edges land
+                    on the card's own top and bottom either way. */}
+                <div className={`relative shrink-0 self-end w-[42%] max-w-[220px] sm:w-auto sm:max-w-none sm:h-60 ${art.aspect}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={art.src} alt="" className="absolute inset-0 h-full w-full object-cover object-center sm:object-contain sm:object-bottom" draggable={false} />
+                    <img src={art.src} alt="" className="block h-full w-full object-contain object-bottom" draggable={false} />
                 </div>
             </div>
         </section>
