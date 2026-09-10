@@ -12,8 +12,12 @@ interface Row {
     status: "pending" | "approved" | "declined";
     submittedAt: number;
     reviewedAt: number | null;
+    /** When the mark was given, for the people the Approved tab reads from the seal. */
+    verifiedAt?: number | null;
     note: string | null;
     grantedByAdmin?: boolean;
+    /** False when someone carries the mark without ever having filed a request. */
+    requested?: boolean;
 }
 
 interface Candidate {
@@ -39,11 +43,14 @@ type Tab = "pending" | "approved" | "declined" | "users";
 type PeopleFilter = "all" | "verified" | "unverified";
 
 const TAB_LABELS: Record<Tab, string> = {
+    users: "All users",
     pending: "Pending",
     approved: "Approved",
     declined: "Declined",
-    users: "All users",
 };
+
+/** Everyone first: the usual question is "is this person verified", not "who is waiting". */
+const TAB_ORDER: Tab[] = ["users", "pending", "approved", "declined"];
 
 function when(ms: number): string {
     return ms ? new Date(ms).toLocaleString() : "–";
@@ -55,7 +62,7 @@ function when(ms: number): string {
  * declining sends a note back. Both are audited.
  */
 export default function VerificationPage() {
-    const [tab, setTab] = useState<Tab>("pending");
+    const [tab, setTab] = useState<Tab>("users");
     const [rows, setRows] = useState<Row[]>([]);
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState<string | null>(null);
@@ -96,7 +103,7 @@ export default function VerificationPage() {
     const load = useCallback(async () => {
         // The All users tab has its own list; clearing here keeps the request
         // cards from sitting under it as though they belonged to it.
-        if (tab === "users") { setRows([]); return; }
+        if (tab === "users") { setRows([]); setLoading(false); return; }
         setLoading(true);
         // Cleared, not left in place: the previous tab's cards would otherwise
         // sit under "Loading…" as if they belonged to this one, which is how an
@@ -332,7 +339,7 @@ export default function VerificationPage() {
             </section>
 
             <div className="flex gap-1 rounded-full bg-ink-900 p-1 w-fit">
-                {(["pending", "approved", "declined", "users"] as Tab[]).map((k) => (
+                {TAB_ORDER.map((k) => (
                     <button
                         key={k}
                         type="button"
@@ -459,10 +466,20 @@ export default function VerificationPage() {
                                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#86BE7F]/15 text-[#86BE7F]">
                                         verified by an admin
                                     </span>
+                                ) : r.requested === false ? (
+                                    // Carries the mark with nothing on file: verified by
+                                    // script, before this console existed.
+                                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-ink-800 text-ink-400">
+                                        no request on file
+                                    </span>
                                 ) : (
                                     <span className="text-xs text-ink-400">submitted {when(r.submittedAt)}</span>
                                 )}
-                                {r.reviewedAt && <span className="text-xs text-ink-400">reviewed {when(r.reviewedAt)}</span>}
+                                {r.reviewedAt
+                                    ? <span className="text-xs text-ink-400">reviewed {when(r.reviewedAt)}</span>
+                                    : r.verifiedAt
+                                      ? <span className="text-xs text-ink-400">verified {when(r.verifiedAt)}</span>
+                                      : null}
                             </div>
                             {r.bio && <p className="text-sm text-ink-200 whitespace-pre-wrap leading-relaxed">{r.bio}</p>}
                             {r.note && <p className="text-xs text-ink-400">Note: {r.note}</p>}

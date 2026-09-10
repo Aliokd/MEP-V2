@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAdmin } from "@/lib/admin/auth";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { readDocs } from "@/lib/admin/batchRead";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +15,6 @@ export const dynamic = "force-dynamic";
  */
 const CAP = 500;
 
-/** getAll takes a bounded argument list, so reads go out in chunks this size. */
-const READ_CHUNK = 300;
-
 function toMillis(value: unknown): number | null {
     if (!value) return null;
     if (typeof (value as any)?.toMillis === "function") return (value as any).toMillis();
@@ -26,16 +24,6 @@ function toMillis(value: unknown): number | null {
         return Number.isNaN(parsed) ? null : parsed;
     }
     return null;
-}
-
-async function readAll(collection: string, uids: string[]): Promise<Map<string, FirebaseFirestore.DocumentData>> {
-    const found = new Map<string, FirebaseFirestore.DocumentData>();
-    for (let i = 0; i < uids.length; i += READ_CHUNK) {
-        const refs = uids.slice(i, i + READ_CHUNK).map((uid) => adminDb.collection(collection).doc(uid));
-        const snaps = await adminDb.getAll(...refs);
-        snaps.forEach((snap) => { if (snap.exists) found.set(snap.id, snap.data() || {}); });
-    }
-    return found;
 }
 
 export const GET = withAdmin("users.read", async () => {
@@ -49,8 +37,8 @@ export const GET = withAdmin("users.read", async () => {
     const uids = docs.map((d) => d.id);
 
     const [profiles, requests] = await Promise.all([
-        readAll("publicProfiles", uids),
-        readAll("verification_requests", uids),
+        readDocs("publicProfiles", uids),
+        readDocs("verification_requests", uids),
     ]);
 
     const rows = docs.map((doc) => {
