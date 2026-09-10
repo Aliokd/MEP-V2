@@ -22,7 +22,28 @@ interface Candidate {
     email: string;
 }
 
-type Tab = "pending" | "approved" | "declined";
+/** One account in the All users tab: who they are, and whether they carry the mark. */
+interface Person {
+    uid: string;
+    name: string;
+    email: string;
+    photoURL: string;
+    createdAt: number | null;
+    verified: boolean;
+    verifiedAt: number | null;
+    requestStatus: "pending" | "approved" | "declined" | null;
+    grantedByAdmin: boolean;
+}
+
+type Tab = "pending" | "approved" | "declined" | "users";
+type PeopleFilter = "all" | "verified" | "unverified";
+
+const TAB_LABELS: Record<Tab, string> = {
+    pending: "Pending",
+    approved: "Approved",
+    declined: "Declined",
+    users: "All users",
+};
 
 function when(ms: number): string {
     return ms ? new Date(ms).toLocaleString() : "–";
@@ -48,7 +69,34 @@ export default function VerificationPage() {
     const [granting, setGranting] = useState(false);
     const [grantNote, setGrantNote] = useState<string | null>(null);
 
+    // The All users tab: every account in one go, searched and filtered here
+    // rather than over the wire — the whole list is a few dozen rows.
+    const [people, setPeople] = useState<Person[]>([]);
+    const [peopleLoading, setPeopleLoading] = useState(false);
+    const [peopleQuery, setPeopleQuery] = useState("");
+    const [peopleFilter, setPeopleFilter] = useState<PeopleFilter>("all");
+    const [truncated, setTruncated] = useState(false);
+    const [verifyingUid, setVerifyingUid] = useState<string | null>(null);
+
+    const loadPeople = useCallback(async () => {
+        setPeopleLoading(true);
+        try {
+            const res = await authedFetch("/api/admin/verification/users");
+            const data = await res.json();
+            setPeople(data.users ?? []);
+            setTruncated(Boolean(data.truncated));
+        } catch (err) {
+            console.error("Could not load users:", err);
+            setPeople([]);
+        } finally {
+            setPeopleLoading(false);
+        }
+    }, []);
+
     const load = useCallback(async () => {
+        // The All users tab has its own list; clearing here keeps the request
+        // cards from sitting under it as though they belonged to it.
+        if (tab === "users") { setRows([]); return; }
         setLoading(true);
         // Cleared, not left in place: the previous tab's cards would otherwise
         // sit under "Loading…" as if they belonged to this one, which is how an
@@ -67,6 +115,38 @@ export default function VerificationPage() {
     }, [tab]);
 
     useEffect(() => { void load(); }, [load]);
+    useEffect(() => { if (tab === "users") void loadPeople(); }, [tab, loadPeople]);
+
+    /** Verify one person straight from the list. */
+    const verifyOne = async (person: Person) => {
+        const who = person.name || person.email || person.uid;
+        if (!window.confirm(`Give the verified mark to ${who}? They see the congratulations popup straight away.`)) return;
+        setVerifyingUid(person.uid);
+        try {
+            const res = await authedFetch("/api/admin/verification/grant", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ uids: [person.uid] }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Could not verify");
+            await loadPeople();
+        } catch (err) {
+            console.error("Could not verify:", err);
+            window.alert(err instanceof Error ? err.message : "Could not verify");
+        } finally {
+            setVerifyingUid(null);
+        }
+    };
+
+    const visiblePeople = people.filter((p) => {
+        if (peopleFilter === "verified" && !p.verified) return false;
+        if (peopleFilter === "unverified" && p.verified) return false;
+        const q = peopleQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${p.name} ${p.email} ${p.uid}`.toLowerCase().includes(q);
+    });
+    const verifiedCount = people.filter((p) => p.verified).length;
 
     // People search for the direct-verify picker, debounced. Anyone with an
     // account can be verified, so this is the whole user list, not the queue.
@@ -167,8 +247,10 @@ export default function VerificationPage() {
             </header>
 
             {/* Verifying someone who never asked. The queue below answers
-                requests; this is the team deciding on its own. */}
-            <section className="rounded-2xl border border-ink-800 bg-ink-900/60 p-5 space-y-3">
+                requests; this is the team deciding on its own. Hidden on the
+                All users tab, which verifies from the row itself and would
+                otherwise put a second search box on the same screen. */}
+            <section className={`rounded-2xl border border-ink-800 bg-ink-900/60 p-5 space-y-3 ${tab === "users" ? "hidden" : ""}`}>
                 <div>
                     <h2 className="text-sm font-medium text-ink-100">Verify someone directly</h2>
                     <p className="text-xs text-ink-400">
@@ -250,22 +332,116 @@ export default function VerificationPage() {
             </section>
 
             <div className="flex gap-1 rounded-full bg-ink-900 p-1 w-fit">
-                {(["pending", "approved", "declined"] as Tab[]).map((k) => (
+                {(["pending", "approved", "declined", "users"] as Tab[]).map((k) => (
                     <button
                         key={k}
                         type="button"
                         onClick={() => setTab(k)}
-                        className={`px-4 py-1.5 rounded-full text-sm capitalize transition-colors ${
+                        className={`px-4 py-1.5 rounded-full text-sm transition-colors ${
                             tab === k ? "bg-ink-700 text-ink-100" : "text-ink-400 hover:text-ink-200"
                         }`}
                     >
-                        {k}
+                        {TAB_LABELS[k]}
                     </button>
                 ))}
             </div>
 
-            {loading && <p className="text-sm text-ink-400">Loading…</p>}
-            {!loading && rows.length === 0 && (
+            {tab === "users" && (
+                <section className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="relative flex-1 min-w-[260px]">
+                            <Search className="w-3.5 h-3.5 text-ink-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input
+                                value={peopleQuery}
+                                onChange={(e) => setPeopleQuery(e.target.value)}
+                                placeholder="Search by name or email"
+                                className="w-full bg-ink-950 border border-ink-800 rounded-lg pl-8 pr-3 py-2 text-sm text-ink-100 placeholder:text-ink-500 outline-none focus:border-ink-600"
+                            />
+                        </div>
+
+                        <div className="flex gap-1 rounded-full bg-ink-900 p-1">
+                            {([
+                                { id: "all" as const, label: `All ${people.length}` },
+                                { id: "verified" as const, label: `Verified ${verifiedCount}` },
+                                { id: "unverified" as const, label: `Not verified ${people.length - verifiedCount}` },
+                            ]).map((f) => (
+                                <button
+                                    key={f.id}
+                                    type="button"
+                                    onClick={() => setPeopleFilter(f.id)}
+                                    className={`px-3 py-1.5 rounded-full text-xs transition-colors ${
+                                        peopleFilter === f.id ? "bg-ink-700 text-ink-100" : "text-ink-400 hover:text-ink-200"
+                                    }`}
+                                >
+                                    {f.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {truncated && (
+                        <p className="text-xs text-gold-300">
+                            Showing the first 500 accounts. There are more than this list can hold.
+                        </p>
+                    )}
+
+                    {peopleLoading && <p className="text-sm text-ink-400">Loading…</p>}
+                    {!peopleLoading && visiblePeople.length === 0 && (
+                        <p className="text-sm text-ink-400">Nobody matches that.</p>
+                    )}
+
+                    <ul className="rounded-2xl border border-ink-800 bg-ink-900/60 divide-y divide-ink-800 overflow-hidden">
+                        {visiblePeople.map((p) => (
+                            <li key={p.uid} className="flex items-center gap-4 px-4 py-3">
+                                {p.photoURL
+                                    ? <img src={p.photoURL} alt="" className="w-9 h-9 rounded-full object-cover shrink-0 bg-ink-800" />
+                                    : <div className="w-9 h-9 rounded-full bg-ink-800 shrink-0" />}
+
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm text-ink-100 truncate">{p.name || "No name"}</p>
+                                    <p className="text-xs text-ink-500 truncate">{p.email || p.uid}</p>
+                                </div>
+
+                                {/* Someone waiting on a decision is worth seeing here too:
+                                    the queue is where it gets answered. */}
+                                {!p.verified && p.requestStatus === "pending" && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setTab("pending")}
+                                        className="text-[11px] px-2 py-0.5 rounded-full bg-gold-500/15 text-gold-300 hover:bg-gold-500/25 transition-colors shrink-0"
+                                    >
+                                        asked to be verified
+                                    </button>
+                                )}
+
+                                {p.verified ? (
+                                    <span
+                                        title={p.verifiedAt ? `Verified ${when(p.verifiedAt)}` : undefined}
+                                        className="inline-flex items-center gap-1.5 text-xs text-[#86BE7F] shrink-0"
+                                    >
+                                        <BadgeCheck className="w-4 h-4" /> Verified
+                                    </span>
+                                ) : (
+                                    <>
+                                        <span className="text-xs text-ink-500 shrink-0">Not verified</span>
+                                        <button
+                                            type="button"
+                                            disabled={verifyingUid === p.uid}
+                                            onClick={() => verifyOne(p)}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#86BE7F] text-ink-950 hover:brightness-105 transition-all disabled:opacity-50 shrink-0"
+                                        >
+                                            {verifyingUid === p.uid ? "Verifying…" : "Verify"}
+                                        </button>
+                                    </>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
+
+            {tab !== "users" && loading && <p className="text-sm text-ink-400">Loading…</p>}
+            {tab !== "users" && !loading && rows.length === 0 && (
                 <p className="text-sm text-ink-400">Nothing {tab} right now.</p>
             )}
 
