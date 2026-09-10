@@ -129,7 +129,7 @@ interface CraftBaseline {
     final?: CraftCounters;
 }
 type BaselineMap = Record<string, CraftBaseline>;
-export type HealthMark = 'breathing' | 'focus' | 'break';
+export type HealthMark = 'breathing' | 'focus' | 'break' | 'session';
 type HealthMap = Record<string, Partial<Record<HealthMark, number>>>;
 
 export interface WeekCell {

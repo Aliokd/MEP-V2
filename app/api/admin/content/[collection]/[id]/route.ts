@@ -44,6 +44,7 @@ const EDITABLE = {
     // reports "Unknown content collection" on the first save after creation.
     melodies: { collection: "practice_melodies", label: "melody" },
     themes: { collection: "practice_themes", label: "theme" },
+    stayahead: { collection: "stay_ahead_sessions", label: "session" },
     pages: { collection: "site_pages", label: "page" },
     faqs: { collection: "faqs", label: "faq" },
     copy: { collection: "site_copy", label: "copy" },

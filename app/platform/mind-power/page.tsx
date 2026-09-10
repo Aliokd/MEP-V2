@@ -138,14 +138,8 @@ export default function MindPowerPage() {
             {/* The body's part: the focus timer first, then breathing, hands, rest. */}
             <StayAhead
                 t={t}
-                leading={
-                    <div className="flex flex-col gap-4">
-                        <h3 className="font-lyrics font-normal text-[28px] leading-[1.1] text-[#F5F4EE]">
-                            {t('progress.focus_timer')}
-                        </h3>
-                        <FocusTimerBlock t={t} />
-                    </div>
-                }
+                locale={language}
+                leading={<FocusTimerBlock t={t} />}
             />
 
             {/* What the four areas add up to. */}
@@ -172,7 +166,13 @@ function FocusTimerBlock({ t }: { t: (key: string) => string }) {
     }, [isComplete]);
 
     return (
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.05] px-6 py-10 flex flex-col items-center gap-7">
+        // The name sits inside the card, top left, so the clock is labelled by the
+        // thing it is in rather than by a heading floating above it.
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.05] px-6 pb-10 pt-7 flex flex-col items-center gap-7">
+            <h3 className="w-full font-lyrics font-normal text-[28px] leading-[1.1] text-[#F5F4EE]">
+                {t('progress.focus_timer')}
+            </h3>
+
             <span
                 className={`font-lyrics font-light text-[72px] sm:text-[96px] leading-none tabular-nums tracking-tight ${
                     isComplete ? 'text-[#A9DE9F]' : 'text-[#F5F4EE]'

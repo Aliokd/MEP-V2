@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { Music, Users, ArrowRight, Camera, LogOut, PlayCircle, LifeBuoy, SlidersHorizontal, Pencil, X, Eye } from 'lucide-react';
+import { ArrowRight, Camera, Pencil, X, Eye } from 'lucide-react';
 import SupportModal from '../components/SupportModal';
 import MaxUpgradeModal from '../components/MaxUpgradeModal';
 import VerifiedMark from '../components/VerifiedMark';
@@ -16,7 +16,6 @@ import ConnectionList, { PendingRequests, useConnectionPeople } from './componen
 import { useMySongs, leaveProfileTo, openSongInCreate, formatSongDate } from './useMySongs';
 import { resetGuide } from '@/lib/onboardingGuide';
 import { writePublicProfile, fetchPublicProfiles } from '@/lib/publicProfile';
-import * as btn from '@/app/platform/components/buttonStyles';
 
 /** How many recent songs / connections the profile shelf shows before "More". */
 const RECENT_SONGS = 4;
@@ -24,6 +23,61 @@ const RECENT_CONNECTIONS = 4;
 
 /** The panels this page is built from — white cards on the platform's ground. */
 const CARD = 'rounded-[16px] bg-white/40 border border-stone-200/70';
+
+/*
+ * The empty states are pictures first: Atlas holding a record where the songs
+ * will go, a philosopher at a laptop where the connections will. Both PNGs are
+ * cut to sit flush with the card — the record runs off the top edge, the plinth
+ * off the bottom — so each is drawn at its own aspect and never letterboxed.
+ */
+const EMPTY_SONGS_ART = { src: '/assets/Empty%20state/No%20songs.png', aspect: 'sm:aspect-[1079/738]' };
+const EMPTY_CONNECTIONS_ART = { src: '/assets/Empty%20state/No%20connections.png', aspect: 'sm:aspect-[1005/738]' };
+
+/**
+ * A section with nothing in it yet: the section's name in serif, one line on
+ * what to do about it, and the one button that does it.
+ */
+function EmptyHero({
+    title,
+    desc,
+    cta,
+    art,
+    onClick,
+}: {
+    title: string;
+    desc: string;
+    cta: string;
+    art: { src: string; aspect: string };
+    onClick: () => void;
+}) {
+    return (
+        <section className={`${CARD} overflow-hidden`}>
+            <div className="flex items-stretch">
+                <div className="flex-1 min-w-0 p-5 sm:p-8 flex flex-col justify-center items-start">
+                    <h3 className="font-serif font-normal text-2xl sm:text-3xl text-stone-900 leading-tight">{title}</h3>
+                    <p className="mt-1.5 text-[14.5px] text-stone-600">{desc}</p>
+                    {/* The section's primary action, so it takes the ink button
+                        (the same one that stays off secondary controls). */}
+                    <button
+                        onClick={onClick}
+                        className="group mt-5 inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-5 py-2.5 text-[14px] font-semibold text-[#DCDDD4] hover:bg-stone-800 transition-colors cursor-pointer active:scale-[0.98]"
+                    >
+                        {cta}
+                        <ArrowRight size={14} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                </div>
+                {/* The picture always stands beside the text, never under it: its cut
+                    edges only read as intended on the card's own edges. Wide screens
+                    show it whole, sized by height; a phone gets a narrow slice of it,
+                    cropped from the sides, with the statue kept in the middle. */}
+                <div className={`relative shrink-0 self-stretch w-[38%] max-w-[150px] sm:w-auto sm:max-w-none sm:h-60 ${art.aspect}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={art.src} alt="" className="absolute inset-0 h-full w-full object-cover object-center sm:object-contain sm:object-bottom" draggable={false} />
+                </div>
+            </div>
+        </section>
+    );
+}
 
 /**
  * The profile: who you are, what you've made, who you know, and the four things
@@ -248,25 +302,17 @@ export default function ProfilePage() {
         }
     };
 
-    /** The four things to do next, each its own card with an arrow. */
-    const ActionRow = ({
-        label,
-        icon,
-        onClick,
-        muted = false,
-    }: { label: string; icon: React.ReactNode; onClick: () => void; muted?: boolean }) => (
+    /** The things to do next, each its own card with an arrow. */
+    const ActionRow = ({ label, onClick }: { label: string; onClick: () => void }) => (
         <button
             onClick={onClick}
             className={`${CARD} group w-full flex items-center justify-between gap-4 px-5 md:px-6 py-4 text-left transition-all hover:bg-white hover:shadow-[0_2px_10px_rgba(0,0,0,0.04)] active:scale-[0.997] cursor-pointer`}
         >
-            <span className={`flex items-center gap-3 font-sans text-[15px] font-medium ${muted ? 'text-stone-500' : 'text-stone-800'}`}>
-                <span className={muted ? 'text-stone-400' : 'text-stone-500'}>{icon}</span>
-                {label}
-            </span>
+            <span className="font-sans text-[15px] font-medium text-stone-800">{label}</span>
             <ArrowRight
                 size={17}
                 strokeWidth={2}
-                className={`shrink-0 transition-transform group-hover:translate-x-0.5 ${muted ? 'text-stone-300' : 'text-stone-400'}`}
+                className="shrink-0 text-stone-400 transition-transform group-hover:translate-x-0.5"
             />
         </button>
     );
@@ -342,7 +388,7 @@ export default function ProfilePage() {
                         disabled={isUploadingPhoto}
                         aria-label={t('profile.change_photo')}
                         title={t('profile.change_photo')}
-                        className={`relative w-24 h-24 md:w-[120px] md:h-[120px] rounded-[20px] overflow-hidden flex items-center justify-center text-4xl font-sans text-[#DCDDD4] font-medium shrink-0 group/avatar cursor-pointer ${
+                        className={`relative w-28 h-28 md:w-[150px] md:h-[150px] rounded-[20px] overflow-hidden flex items-center justify-center text-4xl font-sans text-[#DCDDD4] font-medium shrink-0 group/avatar cursor-pointer ${
                             // The dark tile is the backdrop for the initial. With a photo
                             // the card shows through the frame instead.
                             photoUrl ? '' : 'bg-stone-900'
@@ -379,7 +425,10 @@ export default function ProfilePage() {
                         </span>
                     </button>
 
-                    <div className="min-w-0 flex-1">
+                    {/* The photo sets the card's height; the text sits between its top
+                        and bottom edges, the name up top and the controls down at the
+                        foot. */}
+                    <div className="min-w-0 flex-1 self-stretch flex flex-col justify-between py-1 md:py-2">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
@@ -387,33 +436,31 @@ export default function ProfilePage() {
                                         {name || email}
                                     </h2>
                                     {isVerified && <VerifiedMark size={18} label={t('profile.verified_label')} />}
+                                    {/* Pro and Max are brand names and stay untranslated; an
+                                        account holding neither gets no pill at all. */}
+                                    {(hasMax || hasPro) && (
+                                        <span className="rounded-full bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-[#DCDDD4] leading-none">
+                                            {hasMax ? 'Max' : 'Pro'}
+                                        </span>
+                                    )}
                                 </div>
                                 <p className="text-stone-600 text-[13px] mt-0.5 truncate">{email}</p>
                             </div>
 
-                            {/* Plan, and the way up from it. Pro and Max are brand names
-                                and stay untranslated; the badge is hidden entirely for an
-                                account that holds neither. */}
-                            <div className="flex items-center gap-3 shrink-0">
-                                {(hasMax || hasPro) && (
-                                    <span className="rounded-full bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-[#DCDDD4] leading-none">
-                                        {hasMax ? 'Max' : 'Pro'}
-                                    </span>
-                                )}
-                                {!hasMax && (
-                                    <button
-                                        onClick={() => setShowMaxUpgrade(true)}
-                                        aria-haspopup="dialog"
-                                        className="group flex items-center gap-1 text-[13px] font-semibold text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
-                                    >
-                                        {t('profile.upgrade_short')}
-                                        <ArrowRight size={13} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
-                                    </button>
-                                )}
-                            </div>
+                            {/* The way up, top right, for anyone not already there. */}
+                            {!hasMax && (
+                                <button
+                                    onClick={() => setShowMaxUpgrade(true)}
+                                    aria-haspopup="dialog"
+                                    className="group shrink-0 flex items-center gap-1 text-[13px] font-semibold text-stone-700 hover:text-stone-900 transition-colors cursor-pointer"
+                                >
+                                    {t('profile.go_max')}
+                                    <ArrowRight size={13} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
+                                </button>
+                            )}
                         </div>
 
-                        <div className="mt-3.5 flex flex-wrap items-center gap-x-5 gap-y-2">
+                        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
                             <button
                                 onClick={() => router.push('/platform/profile/settings')}
                                 className="flex items-center gap-1.5 text-[13px] font-medium text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
@@ -422,8 +469,19 @@ export default function ProfilePage() {
                                 {t('profile.edit_action')}
                             </button>
 
-                            {/* A real switch: off takes this account out of Connect's
-                                roster. Disabled until the stored value has arrived. */}
+                            {/* What people find when they look you up: their view of
+                                you, not yours. */}
+                            <button
+                                onClick={() => router.push(`/platform/profile/u/${user.uid}`)}
+                                className="flex items-center gap-1.5 text-[13px] font-medium text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
+                            >
+                                <Eye size={13} strokeWidth={2} />
+                                {t('profile.see_public_profile')}
+                            </button>
+
+                            {/* ...and whether they can find you at all. A real switch: off
+                                takes this account out of Connect's roster. Disabled until
+                                the stored value has arrived. */}
                             <button
                                 role="switch"
                                 aria-checked={isDiscoverable === true}
@@ -439,17 +497,9 @@ export default function ProfilePage() {
                                         isDiscoverable ? 'left-[18px]' : 'left-0.5'
                                     }`} />
                                 </span>
-                                {t('profile.public_profile_switch')}
-                            </button>
-
-                            {/* The switch says whether people can find you; this says
-                                what they find. Their view of you, not yours. */}
-                            <button
-                                onClick={() => router.push(`/platform/profile/u/${user.uid}`)}
-                                className="flex items-center gap-1.5 text-[13px] font-medium text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
-                            >
-                                <Eye size={13} strokeWidth={2} />
-                                {t('profile.view_action')}
+                                <span className="tabular-nums">
+                                    {isDiscoverable === null ? '' : isDiscoverable ? t('common.on') : t('common.off')}
+                                </span>
                             </button>
                         </div>
 
@@ -460,134 +510,123 @@ export default function ProfilePage() {
                 </div>
             </section>
 
-            {/* My songs */}
-            <section className={`${CARD} p-5 md:p-6 space-y-4`}>
-                <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-[15px] font-sans font-medium text-stone-800">
-                        {t('profile.my_songs')}
-                        {songsLoaded && songs.length > 0 && (
-                            <span className="ml-2 text-[13px] font-normal text-stone-400">{songs.length}</span>
+            {/* My songs. With none yet, the whole section is the invitation to
+                write one. */}
+            {songsLoaded && songs.length === 0 ? (
+                <EmptyHero
+                    title={t('profile.my_songs')}
+                    desc={t('profile.empty_songs_desc')}
+                    cta={t('profile.empty_songs_cta')}
+                    art={EMPTY_SONGS_ART}
+                    onClick={() => leaveProfileTo('/platform/create')}
+                />
+            ) : (
+                <section className={`${CARD} p-5 md:p-6 space-y-4`}>
+                    <div className="flex items-center justify-between gap-3">
+                        <h3 className="text-[15px] font-sans font-medium text-stone-800">
+                            {t('profile.my_songs')}
+                            {songsLoaded && (
+                                <span className="ml-2 text-[13px] font-normal text-stone-400">{songs.length}</span>
+                            )}
+                        </h3>
+                        {songsLoaded && (
+                            <button
+                                onClick={() => router.push('/platform/profile/songs')}
+                                className="group flex items-center gap-1 text-[13px] font-medium text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
+                            >
+                                {t('profile.see_more')}
+                                <ArrowRight size={13} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
+                            </button>
                         )}
-                    </h3>
-                    {songsLoaded && songs.length > 0 && (
-                        <button
-                            onClick={() => router.push('/platform/profile/songs')}
-                            className="group flex items-center gap-1 text-[13px] font-medium text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
-                        >
-                            {t('profile.see_more')}
-                            <ArrowRight size={13} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
-                        </button>
+                    </div>
+
+                    {!songsLoaded && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {[0, 1, 2, 3].map(i => (
+                                <div key={i} className="h-36 rounded-[14px] bg-stone-200/40 animate-pulse" />
+                            ))}
+                        </div>
                     )}
-                </div>
 
-                {!songsLoaded && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {[0, 1, 2, 3].map(i => (
-                            <div key={i} className="h-36 rounded-[14px] bg-stone-200/40 animate-pulse" />
-                        ))}
-                    </div>
-                )}
+                    {songsLoaded && (
+                        <SongCards
+                            songs={songs.slice(0, RECENT_SONGS)}
+                            t={t}
+                            formatDate={(ms) => formatSongDate(language, ms)}
+                            onOpenInCreate={(songId) => openSongInCreate(user.uid, songId)}
+                            gridClassName="grid-cols-2 sm:grid-cols-4"
+                            ownerName={user.displayName || user.email || ''}
+                        />
+                    )}
+                </section>
+            )}
 
-                {songsLoaded && songs.length === 0 && (
-                    <div className="py-2 flex flex-col items-start gap-3">
-                        <p className="text-[13px] text-stone-600">{t('profile.no_songs')}</p>
-                        <button
-                            onClick={() => leaveProfileTo('/platform/create')}
-                            className={`${btn.secondary('xs')} cursor-pointer`}
-                        >
-                            <Music size={14} />
-                            {t('profile.no_songs_cta')}
-                        </button>
-                    </div>
-                )}
-
-                {songsLoaded && songs.length > 0 && (
-                    <SongCards
-                        songs={songs.slice(0, RECENT_SONGS)}
-                        t={t}
-                        formatDate={(ms) => formatSongDate(language, ms)}
-                        onOpenInCreate={(songId) => openSongInCreate(user.uid, songId)}
-                        gridClassName="grid-cols-2 sm:grid-cols-4"
-                        ownerName={user.displayName || user.email || ''}
-                    />
-                )}
-            </section>
-
-            {/* My connections */}
-            <section className={`${CARD} p-5 md:p-6 space-y-3`}>
-                <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-[15px] font-sans font-medium text-stone-800">
-                        {t('profile.connections')}
+            {/* Connections. Same idea: nobody yet (and nobody asking) makes the
+                section the way into Connect. */}
+            {peopleLoaded && people.length === 0 && requesters.length === 0 ? (
+                <EmptyHero
+                    title={t('profile.connections')}
+                    desc={t('profile.empty_connections_desc')}
+                    cta={t('profile.empty_connections_cta')}
+                    art={EMPTY_CONNECTIONS_ART}
+                    onClick={() => leaveProfileTo('/platform/connect')}
+                />
+            ) : (
+                <section className={`${CARD} p-5 md:p-6 space-y-3`}>
+                    <div className="flex items-center justify-between gap-3">
+                        <h3 className="text-[15px] font-sans font-medium text-stone-800">
+                            {t('profile.connections')}
+                            {peopleLoaded && people.length > 0 && (
+                                <span className="ml-2 text-[13px] font-normal text-stone-400">{people.length}</span>
+                            )}
+                        </h3>
                         {peopleLoaded && people.length > 0 && (
-                            <span className="ml-2 text-[13px] font-normal text-stone-400">{people.length}</span>
+                            <button
+                                onClick={() => router.push('/platform/profile/connections')}
+                                className="group flex items-center gap-1 text-[13px] font-medium text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
+                            >
+                                {t('profile.see_more')}
+                                <ArrowRight size={13} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
+                            </button>
                         )}
-                    </h3>
-                    {peopleLoaded && people.length > 0 && (
-                        <button
-                            onClick={() => router.push('/platform/profile/connections')}
-                            className="group flex items-center gap-1 text-[13px] font-medium text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
-                        >
-                            {t('profile.see_more')}
-                            <ArrowRight size={13} strokeWidth={2.2} className="group-hover:translate-x-0.5 transition-transform" />
-                        </button>
+                    </div>
+
+                    {/* Anyone waiting on an answer comes first — it's the only thing
+                        in this section that needs acting on. */}
+                    <PendingRequests requesters={requesters} t={t} onAccept={accept} onDecline={decline} />
+
+                    {!peopleLoaded && (
+                        <div className="space-y-3 py-1">
+                            {[0, 1].map(i => (
+                                <div key={i} className="h-12 rounded-[12px] bg-stone-200/40 animate-pulse" />
+                            ))}
+                        </div>
                     )}
-                </div>
 
-                {/* Anyone waiting on an answer comes first — it's the only thing
-                    in this section that needs acting on. */}
-                <PendingRequests requesters={requesters} t={t} onAccept={accept} onDecline={decline} />
+                    {peopleLoaded && people.length > 0 && (
+                        <ConnectionList
+                            connections={people.slice(0, RECENT_CONNECTIONS)}
+                            t={t}
+                            onDisconnect={disconnect}
+                        />
+                    )}
+                </section>
+            )}
 
-                {!peopleLoaded && (
-                    <div className="space-y-3 py-1">
-                        {[0, 1].map(i => (
-                            <div key={i} className="h-12 rounded-[12px] bg-stone-200/40 animate-pulse" />
-                        ))}
-                    </div>
-                )}
+            <ActionRow label={t('profile.demo_title')} onClick={handleReplayGuide} />
+            <ActionRow label={t('profile.support_row_title')} onClick={() => setIsSupportOpen(true)} />
+            <ActionRow label={t('profile.settings_title')} onClick={() => router.push('/platform/profile/settings')} />
 
-                {peopleLoaded && people.length === 0 && requesters.length === 0 && (
-                    <div className="py-2 flex flex-col items-start gap-3">
-                        <p className="text-[13px] text-stone-600">{t('profile.no_connections')}</p>
-                        <button
-                            onClick={() => leaveProfileTo('/platform/connect')}
-                            className={`${btn.secondary('xs')} cursor-pointer`}
-                        >
-                            <Users size={14} />
-                            {t('profile.no_connections_cta')}
-                        </button>
-                    </div>
-                )}
-
-                {peopleLoaded && people.length > 0 && (
-                    <ConnectionList
-                        connections={people.slice(0, RECENT_CONNECTIONS)}
-                        t={t}
-                        onDisconnect={disconnect}
-                    />
-                )}
-            </section>
-
-            <ActionRow
-                label={t('profile.demo_title')}
-                icon={<PlayCircle size={17} strokeWidth={2} />}
-                onClick={handleReplayGuide}
-            />
-            <ActionRow
-                label={t('profile.support_row_title')}
-                icon={<LifeBuoy size={17} strokeWidth={2} />}
-                onClick={() => setIsSupportOpen(true)}
-            />
-            <ActionRow
-                label={t('profile.settings_title')}
-                icon={<SlidersHorizontal size={17} strokeWidth={2} />}
-                onClick={() => router.push('/platform/profile/settings')}
-            />
-            <ActionRow
-                label={t('navigation.logout')}
-                icon={<LogOut size={17} strokeWidth={2} />}
-                onClick={handleSignOut}
-                muted
-            />
+            {/* Signing out is not a destination, so it gets no card: a line of
+                text at the foot of the page. */}
+            <div className="px-5 md:px-6 pt-1">
+                <button
+                    onClick={handleSignOut}
+                    className="text-[14px] font-medium text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
+                >
+                    {t('navigation.logout')}
+                </button>
+            </div>
 
             <SupportModal isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
             <VerifyModal

@@ -1,6 +1,6 @@
 "use client";
 
-import { Music } from "lucide-react";
+import { Check, Music } from "lucide-react";
 import IdeaGlyph from "@/app/platform/components/IdeaGlyph";
 import LessonBlocks from "@/app/platform/components/LessonBlocks";
 import { pickLocale, type Locale, type LocalizedText } from "@/lib/content";
@@ -33,11 +33,17 @@ export default function ContentPreview({
     draft,
     locale,
 }: {
-    collection: "chapters" | "lessons" | "ideas" | "songs" | "themes" | "melodies";
+    collection: "chapters" | "lessons" | "ideas" | "songs" | "themes" | "melodies" | "stayahead";
     draft: ContentItem;
     locale: Locale;
 }) {
     const text = (key: string) => pickLocale((draft[key] as LocalizedText) || {}, locale);
+
+    // Mind Power is the one dark surface in the platform, so its preview is dark
+    // for exactly the reason every other preview is paper: a preview that
+    // borrowed the wrong palette would be lying about the part it is best
+    // placed to show.
+    const onDark = collection === "stayahead";
 
     return (
         <div className="flex flex-col gap-3">
@@ -49,14 +55,69 @@ export default function ContentPreview({
             </div>
 
             {/* The platform's own surface colour, so contrast reads truthfully. */}
-            <div className="rounded-[20px] bg-[#E4E4DF] p-5 font-sans text-stone-900">
+            <div
+                className={`rounded-[20px] p-5 font-sans ${
+                    onDark ? "bg-[#2B2B2B] text-[#F5F4EE]" : "bg-[#E4E4DF] text-stone-900"
+                }`}
+            >
                 {collection === "lessons" && <LessonPreview draft={draft} locale={locale} text={text} />}
                 {collection === "ideas" && <IdeaPreview draft={draft} text={text} />}
                 {collection === "chapters" && <ChapterPreview text={text} />}
                 {collection === "songs" && <SongPreview draft={draft} />}
                 {collection === "melodies" && <MelodyPreview draft={draft} />}
                 {collection === "themes" && <ThemePreview text={text} />}
+                {collection === "stayahead" && <StayAheadPreview draft={draft} locale={locale} text={text} />}
             </div>
+        </div>
+    );
+}
+
+/** The Stay ahead sheet, as the sequence's first session. */
+function StayAheadPreview({
+    draft,
+    locale,
+    text,
+}: {
+    draft: ContentItem;
+    locale: Locale;
+    text: (key: string) => string;
+}) {
+    const title = text("title");
+    const description = text("description");
+    const blocks = ((draft.blocks as LessonBlock[]) || []).filter((b) => isBlockRenderable(b, locale));
+
+    return (
+        <div className="flex flex-col gap-5">
+            <div className="flex items-start gap-4">
+                <h1 className="font-lyrics font-normal text-[26px] leading-[1.15] text-[#F5F4EE]">
+                    {/* The number comes from the session's place in the sequence,
+                        which only the platform knows; 1 stands in for it here. */}
+                    1. {title || <span className="text-stone-500">Untitled session</span>}
+                </h1>
+                <span className="ml-auto shrink-0 inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-[13px] text-stone-300">
+                    <Check className="w-3.5 h-3.5" /> Mark complete
+                </span>
+            </div>
+
+            {description && (
+                <p className="whitespace-pre-line text-[15px] leading-relaxed text-stone-400">{description}</p>
+            )}
+
+            {asText(draft.videoUrl) ? (
+                <video
+                    src={asText(draft.videoUrl)}
+                    poster={asText(draft.posterUrl) || undefined}
+                    controls
+                    preload="none"
+                    className="w-full rounded-[18px] border border-white/10 bg-black"
+                />
+            ) : blocks.length === 0 ? (
+                <div className="flex aspect-video w-full items-center justify-center rounded-[18px] border border-dashed border-white/15 bg-white/[0.03] text-xs text-stone-500">
+                    No video and no blocks yet
+                </div>
+            ) : null}
+
+            {blocks.length > 0 && <LessonBlocks blocks={blocks} locale={locale} tone="dark" />}
         </div>
     );
 }

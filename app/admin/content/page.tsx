@@ -5,7 +5,7 @@ import { Plus, RefreshCw, Eye, Archive, Upload, Download } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { PageHeader, Panel, Badge, Button, Select, EmptyState, SkeletonRows, Spinner, timeAgo } from "../components/ui";
 import {
-    LOCALES, LOCALE_LABELS, localeCompleteness, pickLocale,
+    LOCALES, LOCALE_LABELS, STAY_AHEAD_TRACKS, localeCompleteness, pickLocale,
     type ContentStatus, type LocalizedText,
 } from "@/lib/content";
 import ContentEditor from "./ContentEditor";
@@ -26,8 +26,8 @@ function practiceTab(index: number): string {
     return practice ? `Practice ${index + 1} · ${practice.name}` : `Practice ${index + 1}`;
 }
 
-type Tab = "chapters" | "lessons" | "ideas" | "songs" | "themes" | "melodies";
-type SectionId = "create" | "learn" | "practice" | "connect";
+type Tab = "chapters" | "lessons" | "ideas" | "songs" | "themes" | "melodies" | "stayahead";
+type SectionId = "create" | "learn" | "practice" | "connect" | "mindpower";
 
 /** `noun` names what the New button makes here — "New song", not "New". */
 const TABS: { id: Tab; label: string; description: string; noun: string }[] = [
@@ -37,6 +37,13 @@ const TABS: { id: Tab; label: string; description: string; noun: string }[] = [
     { id: "songs", label: practiceTab(0), description: "The songs this practice works through, and their rights position.", noun: "song" },
     { id: "themes", label: practiceTab(1), description: "The starting points a songwriter picks from before writing a verse. Order here is the order of the cards.", noun: "theme" },
     { id: "melodies", label: practiceTab(2), description: "The short phrases this practice plays for a songwriter to answer.", noun: "melody" },
+    {
+        id: "stayahead",
+        label: "Stay ahead",
+        description:
+            "The sessions behind the Stay ahead cards on Mind Power. Each one names the card it belongs to, and order here is the order they are read in. A card says “Coming soon” until its first session is published.",
+        noun: "session",
+    },
 ];
 
 /**
@@ -59,6 +66,12 @@ const SECTIONS: { id: SectionId; label: string; blurb: string; tabs: Tab[] }[] =
     },
     { id: "practice", label: "Practice", blurb: "The material each practice works through. Practices with no authored content of their own are not listed.", tabs: ["songs", "themes", "melodies"] },
     { id: "connect", label: "Connect", blurb: "The community feed.", tabs: [] },
+    {
+        id: "mindpower",
+        label: "Mind Power",
+        blurb: "The body's part in the songwriting: the sessions behind the Stay ahead cards.",
+        tabs: ["stayahead"],
+    },
 ];
 
 /** What to say in a section that holds no editable content. */
@@ -396,7 +409,9 @@ export default function ContentPage() {
                         description={
                             tab === "ideas" || tab === "songs" || tab === "themes"
                                 ? "Use “Import from code” above to bring in the cards that ship with the app, upload a batch, or create one from scratch."
-                                : "Create a chapter or lesson to get started."
+                                : tab === "stayahead"
+                                  ? "Add the first session and its card opens on Mind Power. Until then all three cards read “Coming soon”."
+                                  : "Create a chapter or lesson to get started."
                         }
                         action={can("content.write") ? <Button onClick={() => setEditing("new")}><Plus className="w-3.5 h-3.5" /> New</Button> : undefined}
                     />
@@ -420,6 +435,7 @@ export default function ContentPage() {
                                             <span className="text-[11px] text-ink-500 truncate">
                                                 {item.artist && `${item.artist} · `}
                                                 {item.category && `${item.category} · `}
+                                                {item.track && `${STAY_AHEAD_TRACKS.find((tr) => tr.id === item.track)?.label || item.track} · `}
                                                 {item.updatedAt ? `edited ${timeAgo(item.updatedAt)}` : "never edited"}
                                                 {item.updatedByEmail && ` by ${item.updatedByEmail}`}
                                             </span>

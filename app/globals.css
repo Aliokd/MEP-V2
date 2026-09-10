@@ -2136,3 +2136,26 @@ html, body {
 @media (min-width: 1024px) {
     .lyric-type { font-size: calc(35.28px * var(--lyric-scale)); }
 }
+
+/* The Stay ahead sheet arriving from the right. Short and eased out, so it
+   reads as the card opening rather than a panel being flown in. */
+@keyframes stay-ahead-in {
+    from {
+        transform: translateX(3%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.stay-ahead-sheet {
+    animation: stay-ahead-in 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stay-ahead-sheet {
+        animation: none;
+    }
+}

@@ -161,6 +161,42 @@ export interface PracticeThemeDoc {
 }
 
 /**
+ * The Stay ahead cards on Mind Power, and the sessions behind them.
+ *
+ * The cards themselves stay in code: there are four, they are named in the
+ * locales, and one of them (the breathing exercise) is an interactive thing
+ * rather than a video. What an editor fills is the sequence inside a card —
+ * "1. Relaxation fundamentals", "2. …" — so a session names its track rather
+ * than belonging to a CMS-authored parent. One collection, no join, and a card
+ * turns itself on the moment its first session is published.
+ */
+export type StayAheadTrack = "yoga" | "finger" | "holistic";
+
+export const STAY_AHEAD_TRACKS: { id: StayAheadTrack; label: string }[] = [
+    { id: "yoga", label: "Yoga and relaxation" },
+    { id: "finger", label: "Finger tips" },
+    { id: "holistic", label: "Body, rest and mind" },
+];
+
+export interface StayAheadSessionDoc {
+    id: string;
+    /** Which Stay ahead card this session sits behind. */
+    track: StayAheadTrack;
+    title: LocalizedText;
+    /** The standfirst under the title, before the video. */
+    description?: LocalizedText;
+    /** The session's own video. Optional: a session can be text and blocks alone. */
+    videoUrl?: string;
+    posterUrl?: string | null;
+    /** Anything beyond the video: prose, images, audio, embeds. */
+    blocks?: LessonBlock[];
+    durationSeconds?: number;
+    order: number;
+    status: ContentStatus;
+    publishAt?: string | null;
+}
+
+/**
  * A standalone website page — privacy policy, terms, and anything else editorial
  * that lives on the marketing site rather than inside the platform.
  *

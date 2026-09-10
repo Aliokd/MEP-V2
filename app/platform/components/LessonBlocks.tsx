@@ -20,9 +20,55 @@ import {
  *
  * The locale is passed in rather than read from context so the admin preview can
  * render a language the person editing is not currently browsing in.
+ *
+ * Two tones, because the same blocks are read on two surfaces: Learn is paper,
+ * and the Stay ahead sheet on Mind Power is the dark stage. Only the colours
+ * differ — every shape, and every rule about what may be drawn, is shared.
  */
-export default function LessonBlocks({ blocks, locale }: { blocks: LessonBlock[]; locale: Locale }) {
+export type BlockTone = "paper" | "dark";
+
+const TONE = {
+    paper: {
+        text: "text-stone-700",
+        caption: "text-stone-500",
+        frame: "border-stone-200",
+        panel: "border-stone-200 bg-white/70",
+        panelText: "text-stone-700",
+        embed: "border-stone-200 bg-black/5",
+        link: "text-stone-700",
+        callout: {
+            warning: "border-amber-300/70 bg-amber-50/60",
+            tip: "border-[#86BE7F]/50 bg-[#eaf5ec]/50",
+            note: "border-stone-300/70 bg-white/60",
+        },
+    },
+    dark: {
+        text: "text-stone-300",
+        caption: "text-stone-500",
+        frame: "border-white/10",
+        panel: "border-white/10 bg-white/[0.04]",
+        panelText: "text-stone-200",
+        embed: "border-white/10 bg-black/30",
+        link: "text-stone-300",
+        callout: {
+            warning: "border-amber-400/30 bg-amber-400/[0.07]",
+            tip: "border-[#86BE7F]/35 bg-[#86BE7F]/[0.08]",
+            note: "border-white/10 bg-white/[0.04]",
+        },
+    },
+} as const;
+
+export default function LessonBlocks({
+    blocks,
+    locale,
+    tone = "paper",
+}: {
+    blocks: LessonBlock[];
+    locale: Locale;
+    tone?: BlockTone;
+}) {
     const language = locale;
+    const c = TONE[tone];
 
     const visible = blocks.filter((block) => isBlockRenderable(block, language));
     if (visible.length === 0) return null;
@@ -38,7 +84,7 @@ export default function LessonBlocks({ blocks, locale }: { blocks: LessonBlock[]
                                 {paragraphs.map((html, i) => (
                                     <p
                                         key={i}
-                                        className="text-[17px] md:text-sm text-stone-700 leading-relaxed font-sans"
+                                        className={`text-[17px] md:text-sm ${c.text} leading-relaxed font-sans`}
                                         dangerouslySetInnerHTML={{ __html: html }}
                                     />
                                 ))}
@@ -50,16 +96,16 @@ export default function LessonBlocks({ blocks, locale }: { blocks: LessonBlock[]
                         const paragraphs = renderParagraphs(pickLocale(block.body, language));
                         const tone =
                             block.tone === "warning"
-                                ? "border-amber-300/70 bg-amber-50/60"
+                                ? c.callout.warning
                                 : block.tone === "tip"
-                                  ? "border-[#86BE7F]/50 bg-[#eaf5ec]/50"
-                                  : "border-stone-300/70 bg-white/60";
+                                  ? c.callout.tip
+                                  : c.callout.note;
                         return (
                             <div key={block.id} className={`rounded-2xl border p-5 flex flex-col gap-2 ${tone}`}>
                                 {paragraphs.map((html, i) => (
                                     <p
                                         key={i}
-                                        className="text-[17px] md:text-sm text-stone-700 leading-relaxed font-sans"
+                                        className={`text-[17px] md:text-sm ${c.text} leading-relaxed font-sans`}
                                         dangerouslySetInnerHTML={{ __html: html }}
                                     />
                                 ))}
@@ -76,10 +122,10 @@ export default function LessonBlocks({ blocks, locale }: { blocks: LessonBlock[]
                                     src={block.url}
                                     alt={pickLocale(block.alt, language)}
                                     loading="lazy"
-                                    className="w-full rounded-[18px] border border-stone-200"
+                                    className={`w-full rounded-[18px] border ${c.frame}`}
                                 />
                                 {pickLocale(block.caption, language) && (
-                                    <figcaption className="text-xs text-stone-500 font-sans">
+                                    <figcaption className={`text-xs ${c.caption} font-sans`}>
                                         {pickLocale(block.caption, language)}
                                     </figcaption>
                                 )}
@@ -88,9 +134,9 @@ export default function LessonBlocks({ blocks, locale }: { blocks: LessonBlock[]
 
                     case "audio":
                         return (
-                            <div key={block.id} className="flex flex-col gap-2 rounded-[18px] border border-stone-200 bg-white/70 p-4">
+                            <div key={block.id} className={`flex flex-col gap-2 rounded-[18px] border ${c.panel} p-4`}>
                                 {pickLocale(block.title, language) && (
-                                    <span className="text-sm font-medium text-stone-700 font-sans">
+                                    <span className={`text-sm font-medium ${c.panelText} font-sans`}>
                                         {pickLocale(block.title, language)}
                                     </span>
                                 )}
@@ -108,7 +154,7 @@ export default function LessonBlocks({ blocks, locale }: { blocks: LessonBlock[]
                                 preload="metadata"
                                 poster={block.posterUrl || undefined}
                                 src={block.url}
-                                className="w-full rounded-[18px] border border-stone-200 bg-black"
+                                className={`w-full rounded-[18px] border ${c.frame} bg-black`}
                             />
                         );
 
@@ -124,7 +170,7 @@ export default function LessonBlocks({ blocks, locale }: { blocks: LessonBlock[]
                                     href={block.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-sm text-stone-700 underline underline-offset-4 hover:opacity-70 font-sans break-all"
+                                    className={`text-sm ${c.link} underline underline-offset-4 hover:opacity-70 font-sans break-all`}
                                 >
                                     {block.url}
                                 </a>
@@ -135,7 +181,7 @@ export default function LessonBlocks({ blocks, locale }: { blocks: LessonBlock[]
                         return (
                             <div
                                 key={block.id}
-                                className="w-full overflow-hidden rounded-[18px] border border-stone-200 bg-black/5"
+                                className={`w-full overflow-hidden rounded-[18px] border ${c.embed}`}
                                 style={fixedHeight ? { height: embed.aspect } : { position: "relative", paddingBottom: embed.aspect }}
                             >
                                 <iframe

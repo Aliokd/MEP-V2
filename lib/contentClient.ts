@@ -2,7 +2,15 @@
 
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { IdeaDoc, LearnChapter, LearnLesson, PracticeMelodyDoc, PracticeSongDoc, PracticeThemeDoc } from "@/lib/content";
+import type {
+    IdeaDoc,
+    LearnChapter,
+    LearnLesson,
+    PracticeMelodyDoc,
+    PracticeSongDoc,
+    PracticeThemeDoc,
+    StayAheadSessionDoc,
+} from "@/lib/content";
 
 /**
  * Platform-side reads of CMS content.
@@ -38,6 +46,11 @@ export async function fetchPracticeMelodies(): Promise<PracticeMelodyDoc[]> {
 
 export async function fetchPracticeThemes(): Promise<PracticeThemeDoc[]> {
     return byOrder(await fetchPublished<PracticeThemeDoc>("practice_themes"));
+}
+
+/** Every published Stay ahead session, in order. The caller groups them by track. */
+export async function fetchStayAheadSessions(): Promise<StayAheadSessionDoc[]> {
+    return byOrder(await fetchPublished<StayAheadSessionDoc>("stay_ahead_sessions"));
 }
 
 export async function fetchLearnChapters(): Promise<LearnChapter[]> {

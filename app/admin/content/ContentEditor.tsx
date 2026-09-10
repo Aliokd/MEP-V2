@@ -4,7 +4,7 @@ import { useState } from "react";
 import { X, Save, Archive, Globe, Eye, Check } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 import { Badge, Button, Input, Panel, Select, Spinner, Textarea } from "../components/ui";
-import { LOCALES, LOCALE_LABELS, IDEA_CATEGORIES, type LocalizedText, type Locale } from "@/lib/content";
+import { LOCALES, LOCALE_LABELS, IDEA_CATEGORIES, STAY_AHEAD_TRACKS, type LocalizedText, type Locale } from "@/lib/content";
 import type { ContentItem } from "./page";
 import MediaUpload from "../components/MediaUpload";
 import BlockEditor from "./BlockEditor";
@@ -14,7 +14,7 @@ import type { CmsPracticeSection } from "@/lib/practiceLibrary";
 import type { LessonBlock } from "@/lib/lessonBlocks";
 import { uploadContentMedia, type VideoProbe } from "@/lib/uploadContentMedia";
 
-type Collection = "chapters" | "lessons" | "ideas" | "songs" | "themes" | "melodies";
+type Collection = "chapters" | "lessons" | "ideas" | "songs" | "themes" | "melodies" | "stayahead";
 
 /** Which localized fields each content type has. */
 const LOCALIZED_FIELDS: Record<Collection, { key: string; label: string; long?: boolean }[]> = {
@@ -35,6 +35,10 @@ const LOCALIZED_FIELDS: Record<Collection, { key: string; label: string; long?: 
     songs: [],
     themes: [{ key: "title", label: "Theme" }],
     melodies: [],
+    stayahead: [
+        { key: "title", label: "Title" },
+        { key: "description", label: "Description", long: true },
+    ],
 };
 
 export default function ContentEditor({
@@ -66,6 +70,9 @@ export default function ContentEditor({
                 order: 0,
                 title: collection === "songs" || collection === "melodies" ? "" : {},
                 ...(collection === "ideas" ? { category: "lyrics" } : {}),
+                // Yoga is where the sequence starts, and picking the wrong card
+                // is a one-field fix, so a default beats an empty select.
+                ...(collection === "stayahead" ? { track: "yoga" } : {}),
                 ...(collection === "songs" ? { sections: [], available: false } : {}),
                 // Offered by default: a melody is audio and a title, and there
                 // is no half-finished state worth publishing but withholding.
@@ -283,6 +290,53 @@ export default function ContentEditor({
                                 label="Duration (seconds)"
                                 value={String(draft.durationSeconds ?? "")}
                                 onChange={(v) => setField("durationSeconds", Number(v) || 0)}
+                            />
+
+                            <BlockEditor
+                                blocks={(draft.blocks as LessonBlock[]) || []}
+                                locale={locale}
+                                nameHint={mediaNameHint}
+                                onChange={(blocks) => setField("blocks", blocks)}
+                            />
+                        </>
+                    )}
+
+                    {collection === "stayahead" && (
+                        <>
+                            <label className="flex flex-col gap-1.5">
+                                <span className="text-xs text-ink-400">Card</span>
+                                <Select
+                                    value={draft.track || "yoga"}
+                                    onChange={(e) => setField("track", e.target.value)}
+                                    className="w-64"
+                                >
+                                    {STAY_AHEAD_TRACKS.map((tr) => (
+                                        <option key={tr.id} value={tr.id}>{tr.label}</option>
+                                    ))}
+                                </Select>
+                                <span className="text-[11px] text-ink-500">
+                                    Which Stay ahead card opens this session. The breathing exercise is not
+                                    listed: it is an exercise the app runs, not a video.
+                                </span>
+                            </label>
+
+                            <MediaUpload
+                                label="Video"
+                                kind="video"
+                                value={draft.videoUrl || ""}
+                                onChange={(url) => setField("videoUrl", url)}
+                                nameHint={mediaNameHint}
+                                onVideoProbed={handleVideoProbed}
+                                hint="Optional. A session can be text and blocks alone. Duration is read from the file, and the first frame becomes the poster."
+                            />
+
+                            <MediaUpload
+                                label="Poster image"
+                                kind="poster"
+                                value={draft.posterUrl || ""}
+                                onChange={(url) => setField("posterUrl", url)}
+                                nameHint={mediaNameHint}
+                                hint={posterStatus || "Shown before playback starts."}
                             />
 
                             <BlockEditor
