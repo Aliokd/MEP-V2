@@ -62,6 +62,11 @@ export default function MelodyDemo({ onDone, onNeverAgain }: MelodyDemoProps) {
                 <div>
                     <h3 className="font-serif font-normal text-2xl text-stone-900">{t('practice.melody_demo_title')}</h3>
                     <p className="mt-2 text-sm font-sans text-stone-500 leading-relaxed">{t('practice.melody_demo_desc')}</p>
+                    {/* The how is above; this is the one line on why it is worth doing */}
+                    <p className="mt-3 text-sm font-sans text-stone-500 leading-relaxed">
+                        <span className="font-semibold text-stone-700">{t('practice.demo_why_label')}</span>{' '}
+                        {t('practice.melody_demo_why')}
+                    </p>
                 </div>
 
                 {/* The scene: listen, then answer */}

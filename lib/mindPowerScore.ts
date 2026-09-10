@@ -38,7 +38,16 @@ export const ENGAGED_WINDOW_MS = 60 * 1000;
 export const REST_WEEK_MIN_SECONDS = 60 * 60;
 export const REST_WEEK_WINDOW = 8;
 
-export type PartKey = 'consistency' | 'craft' | 'health' | 'community';
+/**
+ * Engaged time in the week that earns the whole time bonus. The old goal's
+ * 150 minutes, kept as a number people already know — but as points inside
+ * the score now, not as a second way of being golden beside it. Two rules
+ * gave two numbers, and a brain two thirds full over a score of 26 of 70
+ * read as a mistake however carefully it was explained.
+ */
+export const TIME_GOAL_SECONDS = 150 * 60;
+
+export type PartKey = 'consistency' | 'craft' | 'time' | 'health' | 'community';
 
 export interface PartConfig {
     weight: number;
@@ -56,11 +65,13 @@ export interface PartConfig {
 export const SCORE_PARTS: Record<PartKey, PartConfig> = {
     consistency: { weight: 35, enabled: true },
     craft: { weight: 35, enabled: true },
+    /** Minutes of real work, on top: long evenings count for more than the day they fall on. */
+    time: { weight: 20, enabled: true, bonus: true },
     health: { weight: 20, enabled: true, bonus: true },
     community: { weight: 10, enabled: true },
 };
 
-export const PART_ORDER: PartKey[] = ['consistency', 'craft', 'health', 'community'];
+export const PART_ORDER: PartKey[] = ['consistency', 'craft', 'time', 'health', 'community'];
 
 /** The small weekly threshold in each craft area. Any one of the Create three is enough. */
 export const CRAFT_THRESHOLDS = {
@@ -84,6 +95,8 @@ export interface WeekInput {
     daySeconds: number[];
     /** Days the person opened Veinote without reaching DAY_ACTIVE_SECONDS. */
     visitOnlyDays: number;
+    /** Engaged seconds across the week, after the daily soft cap. */
+    engagedSeconds: number;
     craft: CraftCounters;
     healthyDays: number;
     communityActions: number;
@@ -114,6 +127,7 @@ export interface WeekScore {
         visitOnlyDays: number;
         /** Full days plus half a day per drop-in, before the five-day cap. */
         dayCredit: number;
+        engagedSeconds: number;
         craftAreas: number;
         craftMet: CraftAreas;
         healthyDays: number;
@@ -160,6 +174,7 @@ export function scoreWeek(input: WeekInput): WeekScore {
     const ratios: Record<PartKey, number> = {
         consistency: clamp01(Math.min(CONSISTENCY_DAYS, dayCredit) / CONSISTENCY_DAYS),
         craft: clamp01(craftAreas / 3),
+        time: clamp01(input.engagedSeconds / TIME_GOAL_SECONDS),
         health: clamp01(Math.min(HEALTH_DAYS, input.healthyDays) / HEALTH_DAYS),
         community: input.communityActions > 0 ? 1 : 0,
     };
@@ -183,6 +198,7 @@ export function scoreWeek(input: WeekInput): WeekScore {
             activeDays,
             visitOnlyDays: input.visitOnlyDays,
             dayCredit,
+            engagedSeconds: input.engagedSeconds,
             craftAreas,
             craftMet: craftAreaFlags(input.craft),
             healthyDays: input.healthyDays,

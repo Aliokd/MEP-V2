@@ -15,7 +15,7 @@ import VerseDemo from './VerseDemo';
 import MelodyVariation from './MelodyVariation';
 import MelodyDemo from './MelodyDemo';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
-import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight, RotateCcw, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight, RotateCcw, Loader2, Info } from 'lucide-react';
 import Confetti from '@/app/onboarding/components/Confetti';
 import * as btn from '@/app/platform/components/buttonStyles';
 import { SECTION_TEXT, TAG_BG, WRONG_TEXT } from '../data/sections';
@@ -266,7 +266,10 @@ export default function PracticeTab() {
     useEffect(() => {
         setShowStructureDemo(
             openedPractice === 'Master song structure' &&
-            localStorage.getItem('mep-structure-demo-seen') !== 'true',
+            // "-off", not "-seen" like the other two: the guide once wrote
+            // "-seen" after a single showing, so everyone from then carries
+            // it. Only an explicit "Don't show again" writes this one.
+            localStorage.getItem('mep-structure-demo-off') !== 'true',
         );
         setShowVerseDemo(
             openedPractice === 'Composing verses' &&
@@ -283,6 +286,13 @@ export default function PracticeTab() {
         set(false);
         if (neverAgain) safeLocalStorageSetItem(key, 'true');
     };
+
+    /** The header's info button: bring the open practice's how-to back. */
+    const replayDemo: (() => void) | null =
+        openedPractice === 'Master song structure' ? () => setShowStructureDemo(true)
+            : openedPractice === 'Composing verses' ? () => setShowVerseDemo(true)
+                : openedPractice === 'Melody variations' ? () => setShowMelodyDemo(true)
+                    : null;
 
     const currentMeta = getPractice(selectedPractice);
 
@@ -719,6 +729,22 @@ export default function PracticeTab() {
                             {getTranslatedPracticeName(openedPractice)}
                         </h2>
 
+                        {/* Replays the practice's how-to. Beside the title on every
+                            practice, so it is found in the same place whichever one
+                            you are in — it used to sit at the far right of the song
+                            timeline, where only Master song structure had one. */}
+                        {replayDemo && (
+                            <button
+                                type="button"
+                                data-demo-replay
+                                onClick={replayDemo}
+                                aria-label={t('practice.demo_title')}
+                                title={t('practice.demo_title')}
+                                className={`${btn.iconGhost('bare')} -ml-2 h-9 w-9 shrink-0 cursor-pointer`}
+                            >
+                                <Info className="h-4 w-4" />
+                            </button>
+                        )}
                     </div>
                 )}
 
@@ -802,8 +828,7 @@ export default function PracticeTab() {
                                     onPrevSong={() => stepSong(-1)}
                                     onNextSong={() => stepSong(1)}
                                     showDemo={showStructureDemo}
-                                    onDemoClose={closeDemo('mep-structure-demo-seen', setShowStructureDemo)}
-                                    onReplayDemo={() => setShowStructureDemo(true)}
+                                    onDemoClose={closeDemo('mep-structure-demo-off', setShowStructureDemo)}
                                     headerSlot={
                                         /* The song pill opens the library in place — switching
                                            songs never leaves the exercise */

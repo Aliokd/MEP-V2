@@ -83,7 +83,7 @@ const ACCOUNT_SCOPED_KEYS = [
     'mep-welcome-video-seen',
     'mep-tour-platform-seen',
     'mep-tour-create-seen',
-    'mep-structure-demo-seen',
+    'mep-structure-demo-off',
     'mep-verse-demo-seen',
     'mep-melody-demo-seen',
     'mep_studio_info_banner_shown',

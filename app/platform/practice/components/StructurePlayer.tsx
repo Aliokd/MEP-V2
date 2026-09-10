@@ -2,7 +2,7 @@
 
 import { safeLocalStorageSetItem } from '@/lib/storage';
 import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Check, Info, Music4, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Music4, RotateCcw } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import SongTimeline from './SongTimeline';
 import StructureDemo from './StructureDemo';
@@ -138,7 +138,6 @@ interface StructurePlayerProps {
     showDemo: boolean;
     /** Close the how-to; true means "and never auto-show it again". */
     onDemoClose: (neverAgain: boolean) => void;
-    onReplayDemo: () => void;
 }
 
 /**
@@ -149,7 +148,7 @@ interface StructurePlayerProps {
  *
  * Mounted with `key={songId}` so a song switch starts the exercise clean.
  */
-export default function StructurePlayer({ songId, headerSlot, audioUrl, sections, isPlaying, onTogglePlay, onPrevSong, onNextSong, showDemo, onDemoClose, onReplayDemo }: StructurePlayerProps) {
+export default function StructurePlayer({ songId, headerSlot, audioUrl, sections, isPlaying, onTogglePlay, onPrevSong, onNextSong, showDemo, onDemoClose }: StructurePlayerProps) {
     const { t } = useLanguage();
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
@@ -583,32 +582,21 @@ export default function StructurePlayer({ songId, headerSlot, audioUrl, sections
                 <SongTimeline
                     heading={headerSlot}
                     trailing={
-                        <div className="flex items-center gap-2">
-                            {/* Only once there is something to clear. Placed before the
-                                info icon so that icon keeps its spot at the right edge. */}
-                            {identified.length > 0 && (
-                                <button
-                                    type="button"
-                                    data-start-over
-                                    onClick={startOver}
-                                    aria-label={t('practice.start_over')}
-                                    title={t('practice.start_over')}
-                                    className={`${btn.iconGhost('bare')} h-11 w-11 md:h-8 md:w-8 cursor-pointer`}
-                                >
-                                    <RotateCcw className="w-5 h-5 md:w-4 md:h-4" />
-                                </button>
-                            )}
+                        /* Only once there is something to clear. The how-to's info
+                           button used to sit beside this; it now lives in the practice
+                           header, next to the title, the same on every practice. */
+                        identified.length > 0 ? (
                             <button
                                 type="button"
-                                data-demo-replay
-                                onClick={onReplayDemo}
-                                aria-label={t('practice.demo_title')}
-                                title={t('practice.demo_title')}
+                                data-start-over
+                                onClick={startOver}
+                                aria-label={t('practice.start_over')}
+                                title={t('practice.start_over')}
                                 className={`${btn.iconGhost('bare')} h-11 w-11 md:h-8 md:w-8 cursor-pointer`}
                             >
-                                <Info className="w-6 h-6 md:w-4 md:h-4" />
+                                <RotateCcw className="w-5 h-5 md:w-4 md:h-4" />
                             </button>
-                        </div>
+                        ) : null
                     }
                     authored={resolvedSections}
                     duration={duration}

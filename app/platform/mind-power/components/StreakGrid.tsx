@@ -7,8 +7,8 @@ import { shareStreak } from '@/lib/streakShare';
 import { BRAIN_SM_SRC, BRAIN_GOLD_SM_SRC, fillClipTop } from './brainGeometry';
 import MindPowerHelp from './MindPowerHelp';
 import WeekRecap from './WeekRecap';
-import { weekScore, WEEKLY_GOAL_MINUTES, WEEKLY_GOAL_SECONDS, type WeekCell, type Streak } from '@/lib/weeklyActivity';
-import { WEEKLY_TARGET, CONSISTENCY_DAYS, HEALTH_DAYS, type WeekScore, type PartKey } from '@/lib/mindPowerScore';
+import { weekScore, type WeekCell, type Streak } from '@/lib/weeklyActivity';
+import { WEEKLY_TARGET, CONSISTENCY_DAYS, HEALTH_DAYS, TIME_GOAL_SECONDS, type WeekScore, type PartKey } from '@/lib/mindPowerScore';
 
 /**
  * Streaks: one brain per week, filling green from the bottom with that week's
@@ -35,6 +35,7 @@ interface StreakGridProps {
 const PART_LABEL: Record<PartKey, string> = {
     consistency: 'progress.score_consistency',
     craft: 'progress.score_craft',
+    time: 'progress.score_time',
     health: 'progress.score_health',
     community: 'progress.score_community',
 };
@@ -67,6 +68,10 @@ function partDetail(score: WeekScore, key: PartKey, t: (key: string) => string):
             if (done.length === 0) return t('progress.mp_craft_none').replace('{list}', open.join(', '));
             return `${t('progress.mp_craft_done').replace('{list}', done.join(', '))} ${t('progress.mp_craft_open').replace('{list}', open.join(', '))}`;
         }
+        case 'time':
+            return t('progress.mp_detail_time')
+                .replace('{min}', String(Math.round(d.engagedSeconds / 60)))
+                .replace('{goal}', String(TIME_GOAL_SECONDS / 60));
         case 'health': {
             const days = Math.min(HEALTH_DAYS, d.healthyDays);
             return days === 0 ? t('progress.mp_detail_health_none') : plural('progress.mp_detail_health', days);
@@ -330,39 +335,8 @@ export default function StreakGrid({ weeks, streak, thisWeek, language, t }: Str
                                     </span>
                                 </li>
                             ))}
-                            {/* The other way to a full brain: the time rule the brain
-                                also follows, shown beside the parts so the two never
-                                disagree in silence. */}
-                            <li data-part="time" className="flex max-w-[190px] flex-col items-center gap-1">
-                                <span>
-                                    <span className="text-stone-400">{t('progress.mp_time_label')}</span>{' '}
-                                    {Math.round(selected.seconds / 60)}/{WEEKLY_GOAL_MINUTES}
-                                </span>
-                                <span className="text-[12px] leading-snug text-stone-500" data-part-detail>
-                                    {t('progress.mp_detail_time')
-                                        .replace('{min}', String(Math.round(selected.seconds / 60)))
-                                        .replace(/\{goal\}/g, String(WEEKLY_GOAL_MINUTES))}
-                                </span>
-                            </li>
                         </ul>
                     )}
-                    {/* Which rule the brain is on: the score against the target, or
-                        the minutes against the old goal, whichever is nearer. Reading
-                        18 of 70 next to a brain that is half full needs this line. */}
-                    {(() => {
-                        const pct = Math.round(selected.ratio * 100);
-                        const byScore = selectedScore ? selectedScore.score / WEEKLY_TARGET : 0;
-                        const byTime = selected.seconds / WEEKLY_GOAL_SECONDS;
-                        const timeWins = byTime > byScore;
-                        return (
-                            <p className="text-[12px] text-stone-500" data-brain-rule={timeWins ? 'time' : 'score'}>
-                                {(timeWins ? t('progress.mp_brain_by_time') : t('progress.mp_brain_by_score'))
-                                    .replace('{pct}', String(pct))
-                                    .replace('{min}', String(Math.round(selected.seconds / 60)))
-                                    .replace('{goal}', String(WEEKLY_GOAL_MINUTES))}
-                            </p>
-                        );
-                    })()}
                     <button
                         type="button"
                         onClick={() => setRecapWeek(selected)}
@@ -375,7 +349,7 @@ export default function StreakGrid({ weeks, streak, thisWeek, language, t }: Str
             )}
 
             <p className="text-center text-[12px] text-stone-500">
-                {t('progress.mp_week_goal_score').replace('{target}', String(WEEKLY_TARGET)).replace('{goal}', String(WEEKLY_GOAL_MINUTES))}
+                {t('progress.mp_week_goal_score').replace('{target}', String(WEEKLY_TARGET))}
             </p>
 
             <MindPowerHelp open={helpOpen} onClose={() => setHelpOpen(false)} language={language} t={t} />
@@ -426,7 +400,9 @@ function WeekBrain({
     onSelect?: () => void;
 }) {
     const minutes = Math.round(week.seconds / 60);
-    const label = t('progress.mp_week_n').replace('{n}', String(week.index));
+    // The running week is "This week", the same words the breakdown under the
+    // strip uses for it; every other week keeps its number.
+    const label = week.isCurrent ? t('progress.mp_this_week') : t('progress.mp_week_n').replace('{n}', String(week.index));
     const detail =
         week.score !== null
             ? t('progress.mp_score_of').replace('{score}', String(week.score)).replace('{target}', String(WEEKLY_TARGET))

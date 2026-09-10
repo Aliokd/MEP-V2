@@ -9,6 +9,7 @@ import {
     WEEKLY_TARGET,
     DAY_ACTIVE_SECONDS,
     CRAFT_THRESHOLDS,
+    TIME_GOAL_SECONDS,
     PART_ORDER,
     type PartKey,
 } from '@/lib/mindPowerScore';
@@ -25,6 +26,7 @@ const LOCALE: Record<string, string> = { en: 'en-GB', no: 'nb-NO', sv: 'sv-SE' }
 const PART_LABEL: Record<PartKey, string> = {
     consistency: 'progress.score_consistency',
     craft: 'progress.score_craft',
+    time: 'progress.score_time',
     health: 'progress.score_health',
     community: 'progress.score_community',
 };
@@ -63,6 +65,7 @@ export default function MindPowerHelp({ open, onClose, language, t }: MindPowerH
     const example = scoreWeek({
         daySeconds: EXAMPLE_DAYS.map(d => d.minutes * 60),
         visitOnlyDays: EXAMPLE_DAYS.filter(d => d.visit).length,
+        engagedSeconds: EXAMPLE_DAYS.reduce((sum, d) => sum + d.minutes * 60, 0),
         craft: { words: EXAMPLE_WORDS, recordingSeconds: 0, sections: 0, chapters: 1, practiceSeconds: 0 },
         healthyDays: EXAMPLE_DAYS.filter(d => d.breathing).length,
         communityActions: 1,
@@ -114,6 +117,10 @@ export default function MindPowerHelp({ open, onClose, language, t }: MindPowerH
                                 words: CRAFT_THRESHOLDS.words,
                                 practice: CRAFT_THRESHOLDS.practiceSeconds / 60,
                             })}
+                        </li>
+                        <li>
+                            <span className="text-[#A9DE9F]">{t('progress.score_time')}.</span>{' '}
+                            {fill('progress.help_part_time', { goal: TIME_GOAL_SECONDS / 60 })}
                         </li>
                         <li>
                             <span className="text-[#A9DE9F]">{t('progress.score_health')}.</span> {t('progress.help_part_health')}

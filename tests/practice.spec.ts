@@ -13,7 +13,7 @@ test.describe('Practice Page', () => {
       }));
       window.localStorage.setItem('mep-welcome-video-seen', 'true');
       // Pre-dismiss the first-run exercise demos; each has its own test below.
-      window.localStorage.setItem('mep-structure-demo-seen', 'true');
+      window.localStorage.setItem('mep-structure-demo-off', 'true');
       window.localStorage.setItem('mep-verse-demo-seen', 'true');
       window.localStorage.setItem('mep-melody-demo-seen', 'true');
       // Answer the cookie dialog before it can sit over the page: its modal
@@ -471,7 +471,7 @@ test.describe('Practice Page', () => {
 
   test('the first-run guide holds the song until it is dismissed', async ({ page }) => {
     // This test is the first run, so undo the beforeEach pre-dismissal
-    await page.evaluate(() => window.localStorage.removeItem('mep-structure-demo-seen'));
+    await page.evaluate(() => window.localStorage.removeItem('mep-structure-demo-off'));
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
 
@@ -728,8 +728,13 @@ test.describe('Practice Page', () => {
   });
 
   test('a first-timer gets the one-step demo, once', async ({ page }) => {
-    // Undo the beforeEach pre-dismissal: this test IS the first run
-    await page.evaluate(() => window.localStorage.removeItem('mep-structure-demo-seen'));
+    // Undo the beforeEach pre-dismissal: this test IS the first run. The
+    // retired "-seen" key is planted too: the guide once wrote it after a
+    // single showing, and whoever carries it must still get the guide.
+    await page.evaluate(() => {
+      window.localStorage.removeItem('mep-structure-demo-off');
+      window.localStorage.setItem('mep-structure-demo-seen', 'true');
+    });
     await page.goto('/platform/practice');
     await page.getByRole('button', { name: 'Start' }).first().click();
 
@@ -902,8 +907,9 @@ test.describe('Practice 3 — melody variations', () => {
     await page.getByRole('button', { name: /Little runner/ }).click();
     await next(page).click();
 
-    // Listening: the clip really advances, rather than merely claiming to
-    await expect(ask(page)).toHaveText('Listen, then read your task');
+    // Listening and recording share a screen. First, the clip really
+    // advances, rather than merely claiming to
+    await expect(ask(page)).toHaveText('Listen, then record your variation');
     const bar = () => page.evaluate(() => {
       const el = document.querySelector('main .verse-card div[style*="width"]') as HTMLElement;
       return parseFloat(el.style.width) || 0;
@@ -915,17 +921,17 @@ test.describe('Practice 3 — melody variations', () => {
 
     // Next with no take shakes and says so, as everywhere else in Practice
     await next(page).click();
-    await expect(ask(page)).toHaveText('Record your variation');
-    await next(page).click();
     await expect(page.getByText('Record your variation to keep going.')).toBeVisible();
-    await expect(ask(page)).toHaveText('Record your variation');
+    await expect(ask(page)).toHaveText('Listen, then record your variation');
 
-    // A take, then the comparison
+    // A take. Pressing play on the melody mid-take ends the take rather
+    // than recording the melody into it — so the take is there, kept.
     await page.getByRole('button', { name: 'Record', exact: true }).click();
     await page.waitForTimeout(2200);
-    await page.getByRole('button', { name: 'Stop', exact: true }).click();
+    await page.getByRole('button', { name: 'Little runner', exact: true }).click();
     // Label plus play button — the clip is there once both are.
     await expect(page.getByRole('button', { name: 'Your take', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Record', exact: true })).toBeVisible();
     await next(page).click();
     await expect(ask(page)).toHaveText('Yours against the original');
     await expect(page.getByRole('button', { name: 'The original', exact: true })).toBeVisible();
@@ -941,7 +947,8 @@ test.describe('Practice 3 — melody variations', () => {
     await open(page);
     await page.getByRole('button', { name: /Morning line/ }).click();
     await next(page).click();
-    const task = () => page.locator('main .verse-card').last().innerText();
+    // The task card by its eyebrow: the record card sits below it now
+    const task = () => page.locator('main .verse-card', { hasText: 'Your task' }).innerText();
     for (let i = 0; i < 6; i++) {
       const before = await task();
       await page.getByRole('button', { name: 'Give me another task' }).click();
@@ -952,7 +959,6 @@ test.describe('Practice 3 — melody variations', () => {
   test('only one clip sounds at a time', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: /Open question/ }).click();
-    await next(page).click();
     await next(page).click();
     await page.getByRole('button', { name: 'Record', exact: true }).click();
     await page.waitForTimeout(1600);

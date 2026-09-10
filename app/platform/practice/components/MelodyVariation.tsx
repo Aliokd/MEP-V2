@@ -38,7 +38,8 @@ const ACTION_SIZE = `${ACTION_H} gap-2.5 px-8 text-base font-semibold`;
 /** Dark tones only: the burst crosses the green button and the beige panel. */
 const BURST_ON_GREEN = ['#363636', '#3F6B3A', '#5F9857'] as const;
 
-const STEPS = [1, 2, 3, 4] as const;
+/** Choose, then listen and record on one screen, then compare. */
+const STEPS = [1, 2, 3] as const;
 /** A take longer than this is a performance, not a variation. */
 const MAX_TAKE_SECONDS = 90;
 
@@ -86,7 +87,7 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
 
     const stepDone = useCallback((s: number) => {
         if (s === 1) return melody !== null;
-        if (s === 3) return take !== null;
+        if (s === 2) return take !== null;
         return true;
     }, [melody, take]);
 
@@ -99,7 +100,7 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
      */
     const creditedRef = useRef<string | null>(null);
     useEffect(() => {
-        if (step !== 4 || !melody || !take) return;
+        if (step !== 3 || !melody || !take) return;
         if (creditedRef.current === melody.id) return;
         creditedRef.current = melody.id;
 
@@ -125,7 +126,7 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
         // Leaving a step stops whatever it was playing — walking away from a
         // screen and still hearing it is the kind of thing that gets called a bug.
         setPlaying(null);
-        setStep(s => Math.min(4, s + 1));
+        setStep(s => Math.min(3, s + 1));
     };
 
     const goBack = () => {
@@ -176,12 +177,11 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
     const ASKS: Record<number, string> = {
         1: t('practice.mv_ask_choose'),
         2: t('practice.mv_ask_listen'),
-        3: t('practice.mv_ask_record'),
-        4: t('practice.mv_ask_compare'),
+        3: t('practice.mv_ask_compare'),
     };
     const NUDGES: Record<number, string> = {
         1: t('practice.mv_nudge_choose'),
-        3: t('practice.mv_nudge_record'),
+        2: t('practice.mv_nudge_record'),
     };
 
     return (
@@ -239,7 +239,13 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
                     </div>
                 )}
 
-                {/* 2 — hear it, and read the one thing to change */}
+                {/*
+                 * 2 — hear it, read the one thing to change, play your version
+                 * in. One screen, so the melody can be replayed between takes
+                 * without walking back a step. Laid out as the guide draws it:
+                 * the play row, the task, the record card, and the take's row
+                 * arriving under it.
+                 */}
                 {step === 2 && melody && (
                     <div className="flex animate-in flex-col gap-4 duration-300 fade-in">
                         <MelodyClip
@@ -248,7 +254,12 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
                             label={melody.title}
                             meta={t(`practice.mv_instrument_${melody.instrument}`)}
                             isPlaying={playing === 'original'}
-                            onToggle={() => setPlaying(p => (p === 'original' ? null : 'original'))}
+                            onToggle={() => {
+                                // The microphone would pick the melody up along
+                                // with the answer, so a take in progress ends first.
+                                if (isRecording) stop();
+                                setPlaying(p => (p === 'original' ? null : 'original'));
+                            }}
                         />
                         <div className="verse-card is-static flex flex-col gap-3 rounded-[20px] px-6 py-6 sm:flex-row sm:items-center sm:justify-between md:px-8">
                             <div className="min-w-0">
@@ -269,20 +280,10 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
                                 <Shuffle className="h-4 w-4 stroke-[2.2]" />
                             </button>
                         </div>
-                    </div>
-                )}
 
-                {/* 3 — play your version in */}
-                {step === 3 && melody && (
-                    <div className="flex animate-in flex-col gap-4 duration-300 fade-in">
-                        <div className="verse-card is-static rounded-[20px] px-6 py-4 md:px-8">
-                            <p className="font-sans text-xs uppercase tracking-wide text-stone-400">
-                                {t('practice.mv_your_task')}
-                            </p>
-                            <p className="mt-1 font-serif text-[1.2rem] text-stone-900">{t(task.labelKey)}</p>
-                        </div>
-
-                        <div className="verse-card is-static flex flex-col items-center gap-4 rounded-[20px] px-6 py-10">
+                        {/* The record card: tallest thing on the screen, the button
+                            big and centred, because recording is the step's point. */}
+                        <div className="verse-card is-static flex flex-col items-center gap-4 rounded-[20px] px-6 py-12">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -327,8 +328,8 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
                     </div>
                 )}
 
-                {/* 4 — one against the other */}
-                {step === 4 && melody && take && (
+                {/* 3 — one against the other */}
+                {step === 3 && melody && take && (
                     <div className="flex animate-in flex-col gap-3 duration-300 fade-in">
                         <MelodyClip
                             key={melody.audioUrl}
@@ -352,7 +353,7 @@ export default function MelodyVariation({ onBack }: MelodyVariationProps) {
                 )}
 
                 {/* The way through */}
-                {step === 4 ? (
+                {step === 3 ? (
                     <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
                         <button
                             type="button"

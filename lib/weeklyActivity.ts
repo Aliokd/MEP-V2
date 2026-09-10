@@ -587,6 +587,7 @@ export function weekScore(week: string): WeekScore | null {
     return scoreWeek({
         daySeconds: Object.values(weekDays),
         visitOnlyDays,
+        engagedSeconds: readWeeklyActivity()[week] || 0,
         craft: weekCraft(week) ?? { words: 0, recordingSeconds: 0, sections: 0, chapters: 0, practiceSeconds: 0 },
         healthyDays,
         communityActions: weekCommunity(week),
@@ -594,11 +595,11 @@ export function weekScore(week: string): WeekScore | null {
 }
 
 /**
- * Golden under either rule: the score reached the target, or the week had
- * the old goal's 150 minutes. The minute rule stays for good, not only for
- * weeks before scoring: the week scoring arrived in had days of time on the
- * clock and none in the day records, and someone who has been in Veinote
- * every evening deserves that week — and the streak it starts.
+ * Golden: the score reached the target. A week from before scoring, with
+ * time on the clock and no day records, is judged by the old goal's 150
+ * minutes instead — someone who was in Veinote every evening deserves that
+ * week and the streak it starts. For scored weeks the minutes are inside the
+ * score (the time part), not a second rule beside it.
  */
 export function isGoldenWeek(week: string): boolean {
     return weekGoldenRatio(week) >= 1;
@@ -632,13 +633,16 @@ export function weekRecapLocal(week: string): WeekRecapLocal {
     };
 }
 
-/** 0–1 share of golden for the week: whichever rule the week is nearer on. */
+/**
+ * 0–1 share of golden for the week: the score against the target, which is
+ * the one number the brain, the pill and the breakdown all show. Only a week
+ * with no score at all (before scoring existed) is read by its minutes.
+ */
 export function weekGoldenRatio(week: string): number {
     if (readLegacyGolden().includes(week)) return 1;
     const score = weekScore(week);
-    const byScore = score ? score.score / WEEKLY_TARGET : 0;
-    const byMinutes = (readWeeklyActivity()[week] || 0) / WEEKLY_GOAL_SECONDS;
-    return Math.min(1, Math.max(byScore, byMinutes));
+    if (score) return Math.min(1, score.score / WEEKLY_TARGET);
+    return Math.min(1, (readWeeklyActivity()[week] || 0) / WEEKLY_GOAL_SECONDS);
 }
 
 /** This week's share of golden — what the header pill and the brain fill to. */
