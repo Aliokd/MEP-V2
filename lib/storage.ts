@@ -63,6 +63,7 @@ const ACCOUNT_SCOPED_KEYS = [
     'mep-completed-song-dates',
     'mep-completed-practices',
     'mep-completed-melody-variations',
+    'mep-completed-chord-progressions',
     'mep-community-shared-count',
     'mep-community-weeks',
     'mep-project-craft',
@@ -88,6 +89,7 @@ const ACCOUNT_SCOPED_KEYS = [
     'mep-structure-demo-off',
     'mep-verse-demo-seen',
     'mep-melody-demo-seen',
+    'mep-chord-demo-seen',
     'mep_studio_info_banner_shown',
     // Session-ish account state
     'mep-focus-timer-duration',

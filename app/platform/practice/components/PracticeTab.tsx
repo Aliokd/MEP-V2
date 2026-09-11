@@ -14,6 +14,8 @@ import StructurePlayer from './StructurePlayer';
 import VerseDemo from './VerseDemo';
 import MelodyVariation from './MelodyVariation';
 import MelodyDemo from './MelodyDemo';
+import ChordProgression from './ChordProgression';
+import ChordDemo from './ChordDemo';
 import PracticeIllustration from './PracticeIllustration';
 import { PRACTICE_NAMES, getPractice, type PracticeDefinition } from '../data/practices';
 import { ChevronLeft, ChevronRight, ChevronDown, Check, ArrowLeft, ArrowRight, RotateCcw, Loader2, Info } from 'lucide-react';
@@ -264,6 +266,7 @@ export default function PracticeTab() {
     const [showStructureDemo, setShowStructureDemo] = useState(false);
     const [showVerseDemo, setShowVerseDemo] = useState(false);
     const [showMelodyDemo, setShowMelodyDemo] = useState(false);
+    const [showChordDemo, setShowChordDemo] = useState(false);
     useEffect(() => {
         setShowStructureDemo(
             openedPractice === 'Master song structure' &&
@@ -280,6 +283,10 @@ export default function PracticeTab() {
             openedPractice === 'Melody variations' &&
             localStorage.getItem('mep-melody-demo-seen') !== 'true',
         );
+        setShowChordDemo(
+            openedPractice === 'Chord progressions' &&
+            localStorage.getItem('mep-chord-demo-seen') !== 'true',
+        );
     }, [openedPractice]);
 
     /** Close a guide, and on "don't show again" make that stick. */
@@ -293,7 +300,8 @@ export default function PracticeTab() {
         openedPractice === 'Master song structure' ? () => setShowStructureDemo(true)
             : openedPractice === 'Composing verses' ? () => setShowVerseDemo(true)
                 : openedPractice === 'Melody variations' ? () => setShowMelodyDemo(true)
-                    : null;
+                    : openedPractice === 'Chord progressions' ? () => setShowChordDemo(true)
+                        : null;
 
     const currentMeta = getPractice(selectedPractice);
 
@@ -875,6 +883,18 @@ export default function PracticeTab() {
                         <MelodyDemo
                             onDone={() => setShowMelodyDemo(false)}
                             onNeverAgain={() => closeDemo('mep-melody-demo-seen', setShowMelodyDemo)(true)}
+                        />
+                    )}
+
+                    {/* Practice 4, its own file like the two before it */}
+                    {openedPractice === 'Chord progressions' && (
+                        <ChordProgression key="chord-progressions" onBack={() => setOpenedPractice(null)} />
+                    )}
+
+                    {openedPractice === 'Chord progressions' && showChordDemo && (
+                        <ChordDemo
+                            onDone={() => setShowChordDemo(false)}
+                            onNeverAgain={() => closeDemo('mep-chord-demo-seen', setShowChordDemo)(true)}
                         />
                     )}
 

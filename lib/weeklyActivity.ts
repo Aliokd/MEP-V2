@@ -387,6 +387,19 @@ function readCraftTotals(): CraftCounters {
 }
 
 /**
+ * Practice time for the whole account: this device's seconds plus every other
+ * device's, as the account record carries them. Practice is counted on the
+ * device it happens on and nowhere else, so a reading that stops at the local
+ * counter is one device's evenings, not the account's — 279 minutes on the
+ * laptop and 0 on the phone, for the same person.
+ */
+export function accountPracticeSeconds(): number {
+    if (typeof window === 'undefined') return 0;
+    const own = parseInt(localStorage.getItem('mep-practice-seconds') || '0', 10) || 0;
+    return own + readOthers().practiceSeconds;
+}
+
+/**
  * Which counters this device has never written. Words, recordings, lessons and
  * the per-project map are rebuilt from Firestore only when their tab is opened
  * here, so on a device that has not opened Create yet they are simply absent —
@@ -1068,6 +1081,17 @@ export interface SharedRecord {
     activeWeeks: string[];
     communityWeeks: Record<string, number>;
     historyBackfilled: boolean;
+    /**
+     * The lifetime counters a device only learns by opening the tab that
+     * rebuilds them (words and recordings from the songs, on Create; mastered
+     * lessons from the course, on Learn). Carried here so a device that has not
+     * opened those tabs yet shows the account's numbers rather than zeros —
+     * Mind Power on a new phone read "0 words" beside a laptop that said 4,000.
+     * A device adopts them only where it has nothing of its own; its own
+     * rebuild stays the truth once it has one. `at` is when they were read.
+     */
+    craftTotals?: { words: number; recordingSeconds: number; at: number };
+    completedLessons?: string[];
 }
 
 export function exportDeviceRecord(): DeviceRecord {
@@ -1117,7 +1141,10 @@ export function exportSharedRecord(now: Date = new Date()): SharedRecord {
     for (const id of readIds('mep-completed-songs')) {
         completedSongs[id] = typeof dates[id] === 'number' ? dates[id] : 0;
     }
-    return {
+    // Only what this device has actually rebuilt goes up; an absent counter is
+    // unknown here, not zero, and must not overwrite a device that knows.
+    const absent = absentCraftKeys();
+    const record: SharedRecord = {
         baselines: trimBaselines(readBaselines(), now),
         completedSongs,
         forgottenSongs: readIds(FORGOTTEN_SONGS_KEY),
@@ -1127,6 +1154,15 @@ export function exportSharedRecord(now: Date = new Date()): SharedRecord {
         communityWeeks: readCommunityWeeks(),
         historyBackfilled: typeof window !== 'undefined' && !!localStorage.getItem(HISTORY_BACKFILLED_KEY),
     };
+    if (typeof window !== 'undefined' && !absent.has('words') && !absent.has('recordingSeconds')) {
+        record.craftTotals = {
+            words: parseInt(localStorage.getItem('mep-create-words-typed') || '0', 10) || 0,
+            recordingSeconds: parseInt(localStorage.getItem('mep-create-recording-seconds') || '0', 10) || 0,
+            at: now.getTime(),
+        };
+    }
+    if (!absent.has('chapters')) record.completedLessons = readIds('mep-completed-lessons');
+    return record;
 }
 
 /** A week's Monday as epoch ms: the earliest a reading of it could have been taken. */
@@ -1263,6 +1299,27 @@ export function mergeSharedRecord(remote: Partial<SharedRecord>): boolean {
             }
         }
         if (filled) write(COMMUNITY_WEEKS_KEY, local);
+    }
+
+    // Lifetime counters this device has never rebuilt: take the account's, so
+    // Mind Power reads the same here as on the device that did. A device with
+    // its own reading keeps it — that reading came from the songs themselves.
+    {
+        const absent = absentCraftKeys();
+        const totals = remote.craftTotals;
+        if (totals && typeof totals === 'object') {
+            if (absent.has('words') && typeof totals.words === 'number') {
+                safeLocalStorageSetItem('mep-create-words-typed', String(Math.max(0, Math.round(totals.words))));
+                changed = true;
+            }
+            if (absent.has('recordingSeconds') && typeof totals.recordingSeconds === 'number') {
+                safeLocalStorageSetItem('mep-create-recording-seconds', String(Math.max(0, Math.round(totals.recordingSeconds))));
+                changed = true;
+            }
+        }
+        if (absent.has('chapters') && Array.isArray(remote.completedLessons)) {
+            write('mep-completed-lessons', strings(remote.completedLessons));
+        }
     }
 
     if (remote.historyBackfilled && !localStorage.getItem(HISTORY_BACKFILLED_KEY)) {

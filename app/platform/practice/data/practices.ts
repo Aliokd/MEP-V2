@@ -130,6 +130,21 @@ export const PRACTICES: PracticeDefinition[] = [
         gated: true,
     },
     {
+        // Moved up from ninth to be the fourth practice built. It needs no
+        // content: chords come from theory and the sound from the canvas's
+        // strum synth, so there was nothing to wait for.
+        name: 'Chord progressions',
+        nameKey: 'practice.chord_progressions',
+        goalKey: 'practice.goal_chord_progressions',
+        level: 'beginner',
+        progress: 0,
+        score: 0,
+        time: '10 min',
+        // No walkthrough shot yet, and no placeholder clip either: the card
+        // shows no play button at all until videoUrl/posterUrl are filled in.
+        available: true,
+    },
+    {
         name: 'Advanced structures',
         nameKey: 'practice.advanced_structures',
         goalKey: 'practice.goal_advanced_structures',
@@ -166,7 +181,6 @@ export const PRACTICES: PracticeDefinition[] = [
     ...planned('Rhyme without cliché', 'rhyme_without_cliche', 'intermediate'),
     ...planned('Rhythm and phrasing', 'rhythm_and_phrasing', 'intermediate'),
     ...planned('Telling a story', 'telling_a_story', 'intermediate'),
-    ...planned('Chord progressions', 'chord_progressions', 'beginner'),
     ...planned('Imagery and detail', 'imagery_and_detail', 'intermediate'),
     ...planned('Titles that stick', 'titles_that_stick', 'beginner'),
     ...planned('Bridges that turn', 'bridges_that_turn', 'advanced'),

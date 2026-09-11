@@ -88,6 +88,21 @@ export interface CanvasDraft {
      * person who created it and is silent forever after.
      */
     audio?: CanvasAudio;
+    /**
+     * Chord symbols to stand in the flow as chord cards, in this order, after
+     * the lines. Each becomes a placed card of its own rather than a mark pinned
+     * to a word — there may be no words for it to pin to.
+     */
+    chords?: string[];
+}
+
+/** A chord standing in the flow. Matches Create's `ChordMark` (lib/chords). */
+interface FlowChord {
+    id: string;
+    symbol: string;
+    phraseId: string;
+    wordIndex: number;
+    placed: boolean;
 }
 
 /**
@@ -179,6 +194,28 @@ export async function createCanvasFromLines(
         }
     }
 
+    /*
+     * Chords, if any. Same construction as the take: a `p-chord-<id>`
+     * placeholder holds each card's slot in the flow, and the prefix is what
+     * Create reads the card's kind off. The mark itself carries no phraseId and
+     * wordIndex -1, which is Create's own shape for a chord that stands in the
+     * song rather than over a word (handleAddChordCard). `placed` is what draws
+     * it as the compact capsule rather than the open picker.
+     */
+    const chords: FlowChord[] = (draft.chords ?? [])
+        .map(s => s.trim())
+        .filter(s => s !== '')
+        .map((symbol, i) => ({
+            id: `chord-${stamp}-${i}`,
+            symbol,
+            phraseId: '',
+            wordIndex: -1,
+            placed: true,
+        }));
+    for (const chord of chords) {
+        phrases.push({ id: `p-chord-${chord.id}`, text: '', groupId: null });
+    }
+
     const project = {
         id: noteId,
         title: draft.title,
@@ -192,6 +229,7 @@ export async function createCanvasFromLines(
         verses: group ? [group] : [],
         phrases,
         ...(audioNotes.length ? { audioNotes, audioUrl } : {}),
+        ...(chords.length ? { chords } : {}),
     };
 
     try {

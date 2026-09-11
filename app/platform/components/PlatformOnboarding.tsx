@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
-import { readCachedGuideSeen, fetchGuideSeen, markGuideSeen, consumeGuideReplayIntent } from '@/lib/onboardingGuide';
+import { readCachedGuideSeen, fetchGuideSeen, markGuideSeen, consumeGuideReplayIntent, ensureGuideSeenOnAccount } from '@/lib/onboardingGuide';
 import OnboardingTour, { TourStep } from './OnboardingTour';
 
 /**
@@ -76,10 +76,13 @@ export default function PlatformOnboarding({ onRequestMobileSidebar }: PlatformO
         const cached = readCachedGuideSeen(user.uid);
         if (cached !== null) {
             setSeen(cached);
+            // This browser knows the guide was seen; make sure the account does
+            // too, so a new phone or a private window does not run it again.
+            if (cached) void ensureGuideSeenOnAccount(user.uid);
             return;
         }
         let cancelled = false;
-        fetchGuideSeen(user.uid).then(value => {
+        fetchGuideSeen(user.uid, user.metadata?.creationTime ?? null).then(value => {
             if (!cancelled) setSeen(value);
         });
         return () => { cancelled = true; };

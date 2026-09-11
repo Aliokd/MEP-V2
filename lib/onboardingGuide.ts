@@ -25,19 +25,63 @@ export function readCachedGuideSeen(uid: string): boolean | null {
 }
 
 /**
+ * The account stamp shipped on 2026-08-07. Before that, having seen the guide was
+ * remembered by the browser alone — so an account created earlier can be fully
+ * onboarded and still carry no stamp, and a fresh device (a new phone, a private
+ * window) reads "never seen" and runs the guide again for a daily user. Such an
+ * account is treated as onboarded, and stamped, so the question is settled for
+ * every device after this one.
+ */
+const GUIDE_STAMPED_SINCE = Date.parse('2026-08-08T00:00:00Z');
+
+function isPreStampAccount(creationTime?: string | null): boolean {
+    if (!creationTime) return false;
+    const created = Date.parse(creationTime);
+    return Number.isFinite(created) && created < GUIDE_STAMPED_SINCE;
+}
+
+/**
  * Whether this account has already been through the guide. Falls back to the cached
  * value if Firestore is unreachable, and to "already seen" if there's no cache either —
  * a read failure should never re-run onboarding for an established user.
+ *
+ * @param creationTime The account's creation time as Firebase Auth reports it;
+ *   lets an account from before the stamp existed count as onboarded.
  */
-export async function fetchGuideSeen(uid: string): Promise<boolean> {
+export async function fetchGuideSeen(uid: string, creationTime?: string | null): Promise<boolean> {
     try {
         const snap = await getDoc(doc(db, 'users', uid));
-        const seen = !!snap.data()?.onboarding?.guideSeenAt;
+        let seen = !!snap.data()?.onboarding?.guideSeenAt;
+        if (!seen && isPreStampAccount(creationTime)) {
+            seen = true;
+            void markGuideSeen(uid);
+        }
         safeLocalStorageSetItem(localKey(uid), seen ? 'true' : 'false');
         return seen;
     } catch (err) {
         console.warn('[Guide] Could not read guide state from Firestore:', err);
         return readCachedGuideSeen(uid) ?? true;
+    }
+}
+
+/**
+ * A device that remembers the guide as seen makes sure the account remembers it
+ * too. The cached "true" short-circuits the Firestore read on every later visit,
+ * so a stamp that was never written (an account from before stamps, a write that
+ * failed) would otherwise stay missing for as long as the person kept using the
+ * same browser — and every other device would replay the guide. Once per account
+ * per session; a failed read simply tries again next time.
+ */
+const healedFor = new Set<string>();
+export async function ensureGuideSeenOnAccount(uid: string): Promise<void> {
+    if (healedFor.has(uid)) return;
+    healedFor.add(uid);
+    try {
+        const snap = await getDoc(doc(db, 'users', uid));
+        if (!snap.data()?.onboarding?.guideSeenAt) await markGuideSeen(uid);
+    } catch (err) {
+        healedFor.delete(uid);
+        console.warn('[Guide] Could not check the account for the guide stamp:', err);
     }
 }
 

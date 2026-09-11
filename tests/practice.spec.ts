@@ -16,6 +16,7 @@ test.describe('Practice Page', () => {
       window.localStorage.setItem('mep-structure-demo-off', 'true');
       window.localStorage.setItem('mep-verse-demo-seen', 'true');
       window.localStorage.setItem('mep-melody-demo-seen', 'true');
+      window.localStorage.setItem('mep-chord-demo-seen', 'true');
       // Answer the cookie dialog before it can sit over the page: its modal
       // backdrop is z-[100] and swallows every click in the suite.
       window.localStorage.setItem('veinote-cookie-consent', JSON.stringify({
@@ -55,6 +56,12 @@ test.describe('Practice Page', () => {
     await expect(page.getByText('Listen to a short melody, then record your own version', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
 
+    // Four is built as well. It has no walkthrough clip, so no play button
+    await page.locator('button[aria-label="Next Practice"]').click();
+    await expect(page.getByText('Build progressions that leave room for a melody', { exact: false })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: /^Why / })).toHaveCount(0);
+
     // And on one that isn't built yet, the card can't be started. This one is
     // undated — first in the queue, and the anchor has caught up with it — so
     // it promises nothing but "soon", and offers no intro clip
@@ -78,8 +85,8 @@ test.describe('Practice Page', () => {
 
     // Names only — no level column — and a chip on everything unbuilt
     await expect(menu.getByText('beginner')).toHaveCount(0);
-    // One fewer each time a practice ships: three of the fifteen are built.
-    await expect(menu.getByText(/^Coming /)).toHaveCount(12);
+    // One fewer each time a practice ships: four of the fifteen are built.
+    await expect(menu.getByText(/^Coming /)).toHaveCount(11);
   });
 
   test('starting a practice lands straight in the exercise, with the library on the pill', async ({ page }) => {
@@ -853,6 +860,44 @@ test.describe('Practice Page', () => {
     await expect(page.locator('[data-melody-demo]')).toHaveCount(0);
   });
 
+  test('a Chord progressions first-timer gets the fill-and-play demo, once', async ({ page }) => {
+    // Undo the beforeEach pre-dismissal: this test IS the first run
+    await page.evaluate(() => window.localStorage.removeItem('mep-chord-demo-seen'));
+    const openChords = async () => {
+      for (let i = 0; i < 3; i++) await page.locator('button[aria-label="Next Practice"]').click();
+      await page.getByRole('button', { name: 'Start' }).first().click();
+    };
+    await page.goto('/platform/practice');
+    await openChords();
+
+    const demo = page.locator('[data-chord-demo]');
+    await expect(demo).toBeVisible({ timeout: 20000 });
+    await expect(demo.getByText('How it works')).toBeVisible();
+    await expect(demo.getByText('Tap a bar, then a chord', { exact: false })).toBeVisible();
+    await expect(demo.getByText('Why?')).toBeVisible();
+
+    // The scene: four bars, the last one filled by the click, then the run
+    await expect(demo.locator('.cd-bar')).toHaveCount(4);
+    await expect(demo.locator('.cd-fill')).toHaveCSS('animation-name', 'cd-fill');
+    await expect(demo.locator('.cd-play')).toHaveCSS('animation-name', 'cd-play');
+    await expect(demo.locator('.cd-bar-3')).toHaveCSS('animation-name', 'cd-bar-3');
+
+    // "Got it" closes this visit's showing — the guide returns next time
+    await demo.getByRole('button', { name: 'Got it' }).click();
+    await expect(demo).toHaveCount(0);
+    await page.reload();
+    await openChords();
+    await expect(page.locator('[data-chord-demo]')).toBeVisible({ timeout: 20000 });
+
+    // "Don't show this again" is what retires it
+    await page.locator('[data-chord-demo]').getByRole('button', { name: "Don't show this again" }).click();
+    await expect(page.locator('[data-chord-demo]')).toHaveCount(0);
+    await page.reload();
+    await openChords();
+    await expect(page.locator('main .max-w-6xl p').first()).toHaveText('Choose a key');
+    await expect(page.locator('[data-chord-demo]')).toHaveCount(0);
+  });
+
   test('the card play button opens the intro video', async ({ page }) => {
     await page.goto('/platform/practice');
 
@@ -1052,5 +1097,147 @@ test.describe('Practice 3 — melody variations', () => {
     await expect.poll(playingCount).toBe(1);
     await page.getByRole('button', { name: 'Your take', exact: true }).click();
     await expect.poll(playingCount).toBe(1);
+  });
+});
+
+test.describe('Practice 4 — chord progressions', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/signin');
+    await page.evaluate(() => {
+      window.localStorage.setItem('playwright_mock_user', JSON.stringify({
+        uid: 'test-user-id',
+        email: 'testuser@vaynote.com',
+        displayName: 'Test Artist',
+      }));
+      window.localStorage.setItem('mep-welcome-video-seen', 'true');
+      // The how-to guide opens over the exercise on every visit; these tests
+      // are about the exercise, so start past it.
+      window.localStorage.setItem('mep-chord-demo-seen', 'true');
+      window.localStorage.setItem('veinote-cookie-consent', JSON.stringify({
+        v: 3, analytics: false, replay: false, at: new Date().toISOString(),
+      }));
+    });
+  });
+
+  /** Three clicks along the carousel: structure, verses, melodies, chords. */
+  async function open(page: import('@playwright/test').Page) {
+    await page.goto('/platform/practice');
+    for (let i = 0; i < 3; i++) await page.locator('button[aria-label="Next Practice"]').click();
+    await page.getByRole('button', { name: 'Start' }).first().click();
+    await expect(page.locator('main .max-w-6xl p').first()).toHaveText('Choose a key');
+  }
+
+  const ask = (page: import('@playwright/test').Page) =>
+    page.locator('main .max-w-6xl p').first();
+  const next = (page: import('@playwright/test').Page) =>
+    page.getByRole('button', { name: 'Next', exact: true }).last();
+  // Eyebrow, chord, numeral — three spans, read apart so they join with spaces
+  const bars = (page: import('@playwright/test').Page) =>
+    page.locator('[data-cp-bar]').evaluateAll(els => els.map(e =>
+      [...e.querySelectorAll('span')].map(s => (s.textContent || '').trim()).filter(Boolean).join(' ')));
+
+  test('choose a key, fill the bars, hear it, and see it named', async ({ page }) => {
+    await open(page);
+
+    // Next with no key shakes and says so, as everywhere else in Practice
+    await next(page).click();
+    await expect(page.getByText('Choose a key to keep going.')).toBeVisible();
+    await page.locator('[data-cp-key="G"]').click();
+    await next(page).click();
+
+    // The chips are the key's own seven chords, tonic first
+    await expect(ask(page)).toHaveText('Fill the four bars');
+    const chips = await page.locator('[data-cp-chip]').evaluateAll(els => els.map(e => e.getAttribute('data-cp-chip')));
+    expect(chips).toEqual(['G', 'Am', 'Bm', 'C', 'D', 'Em', 'F#dim']);
+
+    // Half-filled, Next shakes; each chip fills the next empty bar and shows
+    // its numeral under the chord
+    await page.locator('[data-cp-chip="G"]').click();
+    await page.locator('[data-cp-chip="D"]').click();
+    await next(page).click();
+    await expect(page.getByText('Fill all four bars to keep going.')).toBeVisible();
+    await page.locator('[data-cp-chip="Em"]').click();
+    await page.locator('[data-cp-chip="C"]').click();
+    expect(await bars(page)).toEqual(['Bar 1 G I', 'Bar 2 D V', 'Bar 3 Em vi', 'Bar 4 C IV']);
+
+    // Play lights the bars in turn — the first now, the second a bar later
+    const liveBars = () => page.locator('[data-cp-bar]').evaluateAll(els =>
+      els.map((e, i) => getComputedStyle(e).backgroundColor === 'rgb(251, 255, 237)' ? i : -1).filter(i => i >= 0));
+    await page.locator('[data-cp-play]').click();
+    await expect.poll(liveBars).toEqual([0]);
+    await expect.poll(liveBars, { timeout: 4000 }).toEqual([1]);
+    await page.locator('[data-cp-play]').click();
+    await expect.poll(liveBars).toEqual([]);
+
+    // The finish: written in numerals, and named, because this one has a name
+    await next(page).click();
+    await expect(ask(page)).toHaveText('Your progression');
+    await expect(page.getByText('I – V – vi – IV', { exact: false })).toBeVisible();
+    await expect(page.getByText('The four-chord song')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continue in Canvas' })).toBeVisible();
+
+    // Finishing is recorded under its own key, per key and pattern
+    await expect.poll(() => page.evaluate(
+      () => localStorage.getItem('mep-completed-chord-progressions'),
+    )).toContain('G:G D Em C');
+  });
+
+  test('a tapped bar takes the next chord, and a new key empties the bars', async ({ page }) => {
+    await open(page);
+    await page.locator('[data-cp-key="C"]').click();
+    await next(page).click();
+    await page.locator('[data-cp-chip="C"]').click();
+    await page.locator('[data-cp-chip="F"]').click();
+    // Go back to bar one and replace it
+    await page.locator('[data-cp-bar="0"]').click();
+    await page.locator('[data-cp-chip="Am"]').click();
+    expect(await bars(page)).toEqual(['Bar 1 Am vi', 'Bar 2 F IV', 'Bar 3 ·', 'Bar 4 ·']);
+
+    // Changing key throws the bars away — they would be in the wrong key
+    await page.getByRole('button', { name: 'Previous step' }).click();
+    await page.locator('[data-cp-key="Em"]').click();
+    await next(page).click();
+    expect(await bars(page)).toEqual(['Bar 1 ·', 'Bar 2 ·', 'Bar 3 ·', 'Bar 4 ·']);
+    const chips = await page.locator('[data-cp-chip]').evaluateAll(els => els.map(e => e.getAttribute('data-cp-chip')));
+    expect(chips[0]).toBe('Em');
+  });
+
+  /*
+   * Continuing in Canvas hands the four chords over as chord cards. As with
+   * the take in Practice 3, the write itself cannot run under the mock user,
+   * so the reader's side of the contract is asserted on Create's own cache:
+   * `p-chord-<id>` placeholders, marks with wordIndex -1 and `placed`, and a
+   * canvas that is only chords must not be mistaken for an empty one.
+   */
+  test('a progression handed to Canvas is drawn as chord cards', async ({ page }) => {
+    const noteId = await page.evaluate(() => {
+      const uid = 'test-user-id';
+      const stamp = Date.now();
+      const id = `n-${stamp}`;
+      const chords = ['G', 'D', 'Em', 'C'].map((symbol, i) => ({
+        id: `chord-${stamp}-${i}`, symbol, phraseId: '', wordIndex: -1, placed: true,
+      }));
+      const phrases = [
+        { id: `p-${stamp}-0`, text: '', groupId: null },
+        ...chords.map(c => ({ id: `p-chord-${c.id}`, text: '', groupId: null })),
+      ];
+      window.localStorage.setItem('veinote-last-active-uid', uid);
+      window.localStorage.setItem(`veinote-create-notes-${uid}`, JSON.stringify([{
+        id, title: 'Progression in G major',
+        content: phrases.map(p => p.text).join('\n'),
+        folderId: null, updatedAt: new Date(stamp).toISOString(), ownerId: uid,
+        collaborators: [], verses: [], phrases, chords,
+      }]));
+      window.localStorage.setItem(`veinote-selected-note-id-${uid}`, id);
+      return id;
+    });
+
+    await page.goto(`/platform/create?noteId=${noteId}`);
+    const cards = page.locator('[data-phrase-id^="p-chord-"]');
+    await expect(cards).toHaveCount(4, { timeout: 20000 });
+    await expect(cards.nth(0)).toContainText('G');
+    await expect(cards.nth(2)).toContainText('Em');
+    // Not the empty-canvas illustration
+    await expect(page.getByText('Type your lyrics', { exact: false })).toHaveCount(0);
   });
 });

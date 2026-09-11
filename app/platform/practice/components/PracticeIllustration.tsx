@@ -123,14 +123,6 @@ const ART: Record<string, Shape[]> = {
         { kind: 'rect', x: 172, y: 134, w: 16, h: 32, o: 0.25 },
     ],
 
-    // Translucent chords climbing, each new one leaning on the last.
-    'Chord progressions': [
-        { kind: 'rect', x: 42, y: 118, w: 56, h: 56, o: 0.25 },
-        { kind: 'rect', x: 74, y: 100, w: 56, h: 56, o: 0.38 },
-        { kind: 'rect', x: 106, y: 82, w: 56, h: 56, o: 0.52 },
-        { kind: 'rect', x: 138, y: 64, w: 56, h: 56, o: 0.7 },
-    ],
-
     // A wash of atmosphere, and the two sharp details that make it real.
     'Imagery and detail': [
         { kind: 'rect', x: 40, y: 50, w: 116, h: 116, o: 0.09 },
@@ -219,6 +211,48 @@ const CUSTOM: Record<string, (uid: string) => ReactNode> = {
     ),
 
     /*
+     * One circle cut on the diagonal, its two halves eased apart: a whole that
+     * is two things leaning on each other, which is what a progression is. Each
+     * half fades along the cut — the upper one full at its top-right shoulder
+     * and thinning toward the lower-left, the lower one the reverse — so the
+     * weight sits at the two far corners and the middle, where they nearly
+     * meet, is the lightest. Gradients in user space, one per half, running
+     * the length of the cut in opposite directions.
+     *
+     * Geometry: r=92 about (110,110); the cut meets the rim at (45,175) and
+     * (175,45). Each half is shifted 3px off the cut, perpendicular, to open
+     * the seam.
+     */
+    'Chord progressions': (uid) => (
+        <>
+            <defs>
+                <linearGradient id={`${uid}-up`} gradientUnits="userSpaceOnUse" x1="175" y1="45" x2="45" y2="175">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="0.88" />
+                    <stop offset="0.55" stopColor="currentColor" stopOpacity="0.32" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.04" />
+                </linearGradient>
+                <linearGradient id={`${uid}-lo`} gradientUnits="userSpaceOnUse" x1="45" y1="175" x2="175" y2="45">
+                    <stop offset="0" stopColor="currentColor" stopOpacity="0.88" />
+                    <stop offset="0.55" stopColor="currentColor" stopOpacity="0.32" />
+                    <stop offset="1" stopColor="currentColor" stopOpacity="0.04" />
+                </linearGradient>
+            </defs>
+            {/* Upper-left half: from the lower-left rim point clockwise over the top */}
+            <path
+                d="M 44.95 175.05 A 92 92 0 0 1 175.05 44.95 Z"
+                fill={`url(#${uid}-up)`}
+                transform="translate(-3 -3)"
+            />
+            {/* Lower-right half: the same two points, round the bottom */}
+            <path
+                d="M 44.95 175.05 A 92 92 0 0 0 175.05 44.95 Z"
+                fill={`url(#${uid}-lo)`}
+                transform="translate(3 3)"
+            />
+        </>
+    ),
+
+    /*
      * A pinwheel of nine blades — one phrase turned nine ways round a single
      * centre, which is the practice. Each blade is the same circle set on a
      * ring and eclipsed by its neighbour one step round, so what survives is a
@@ -288,6 +322,10 @@ const TINT: Record<string, string> = {
     'Master song structure': '#5F9857',
     'Composing verses': '#6FA8D6',
     'Melody variations': '#9B7BE0',
+    // Gold from the supporting palette: the brand's chord colour is the same
+    // green Master song structure already wears, and two green cards in a
+    // row would read as one practice twice.
+    'Chord progressions': '#C5A059',
 };
 
 interface PracticeIllustrationProps {

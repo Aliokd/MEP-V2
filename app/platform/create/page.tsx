@@ -5320,6 +5320,9 @@ export default function CreatePage() {
 
     useEffect(() => {
         const handleWelcomeClosed = () => {
+            // Not on a phone: the keyboard would rise over the canvas the video
+            // just introduced. They tap to start writing.
+            if (isMobile) return;
             if (textareaRef.current) {
                 setTimeout(() => {
                     if (textareaRef.current) {
@@ -5332,7 +5335,7 @@ export default function CreatePage() {
         return () => {
             window.removeEventListener('mep-welcome-video-closed', handleWelcomeClosed);
         };
-    }, []);
+    }, [isMobile]);
     const draggedPhraseIdRef = useRef<string | null>(null);
     const draggedGroupIdRef = useRef<string | null>(null);
     const draggedAudioIdRef = useRef<string | null>(null);
@@ -6380,9 +6383,11 @@ export default function CreatePage() {
     const isRecordingRef = useRef(isRecording);
     const isPausedRef = useRef(isPaused);
 
-    // Auto focus the textarea once folders/notes have finished loading in editing mode
+    // Auto focus the textarea once folders/notes have finished loading in editing mode.
+    // Desktop only: on a phone a programmatic focus raises the keyboard the moment
+    // the canvas appears, over the very thing the person came to look at.
     useEffect(() => {
-        if (isDataLoaded) {
+        if (isDataLoaded && !isMobile) {
             const timer = setTimeout(() => {
                 if (textareaRef.current) {
                     textareaRef.current.focus();
@@ -6390,7 +6395,7 @@ export default function CreatePage() {
             }, 150);
             return () => clearTimeout(timer);
         }
-    }, [isDataLoaded]);
+    }, [isDataLoaded, isMobile]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -8408,14 +8413,21 @@ export default function CreatePage() {
             // counting as blank — the onboarding empty state kept rendering and
             // the card, though placed, was never drawn.
             (!activeNote.tips || activeNote.tips.length === 0) &&
+            // Same for a chord standing in the flow: its placeholder line is
+            // empty text, so a canvas that is nothing but a progression (the
+            // way Practice 4 hands one over) counted as blank and drew nothing.
+            // A chord over a word needs no clause of its own — the word is text.
+            (!activeNote.chords || activeNote.chords.filter(c => c.wordIndex < 0 && c.symbol).length === 0) &&
             (!activeNote.verses || activeNote.verses.length === 0) &&
             (!activeNote.phrases || activeNote.phrases.filter(p => p.text.trim() !== '').length === 0)
         )
     );
 
-    // Auto-focus the onboarding textarea when a blank project/note is selected or created
+    // Auto-focus the onboarding textarea when a blank project/note is selected or created.
+    // Desktop only — see the load-time focus above; the person taps the canvas
+    // when they are ready to write.
     useEffect(() => {
-        if (selectedNoteId && isNoteBlank) {
+        if (selectedNoteId && isNoteBlank && !isMobile) {
             // Skip while the first-time welcome video overlay hasn't been dismissed yet —
             // focusing this textarea pops the mobile keyboard on top of the video.
             if (typeof window !== 'undefined' && !localStorage.getItem('mep-welcome-video-seen')) {
@@ -8428,7 +8440,7 @@ export default function CreatePage() {
             }, 100);
             return () => clearTimeout(timer);
         }
-    }, [selectedNoteId, isNoteBlank]);
+    }, [selectedNoteId, isNoteBlank, isMobile]);
 
     // Warm the deck's artwork so no card is ever blank mid-swipe. The whole
     // deck of drawn scenes weighs about what one of the old paintings did, so

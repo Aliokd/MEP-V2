@@ -25,18 +25,41 @@ interface RemoteMarks {
 
 let pulledForUid: string | null = null;
 
-/** Once per uid per session. Resolves either way; offline just means device-local marks for now. */
+/**
+ * Once per uid per session. Resolves either way; offline just means device-local marks for now.
+ *
+ * Pulls the account's marks into this device, and — the other direction — sends
+ * up any mark this device holds that the account does not. Marks made before
+ * they were carried on the account (a golden week dismissed on the laptop last
+ * month) lived in that browser alone, and every new device replayed them; the
+ * first visit from the device that holds them now heals the account.
+ */
 export async function pullMindPowerMarks(uid: string): Promise<void> {
     if (pulledForUid === uid) return;
     pulledForUid = uid;
     try {
+        const localGolden = readGoldenMindShown();
+        const localIntro = typeof window !== 'undefined' && localStorage.getItem(STREAK_INTRO_KEY) === 'true';
+
         const snap = await getDoc(doc(db, 'users', uid));
         const remote = snap.exists() ? (snap.data().mindPower as RemoteMarks | undefined) : undefined;
-        if (!remote) return;
-        if (Array.isArray(remote.goldenShownWeeks)) {
-            mergeGoldenMindShown(remote.goldenShownWeeks.filter((k): k is string => typeof k === 'string'));
+        const remoteGolden = Array.isArray(remote?.goldenShownWeeks)
+            ? remote.goldenShownWeeks.filter((k): k is string => typeof k === 'string')
+            : [];
+
+        if (remoteGolden.length > 0) mergeGoldenMindShown(remoteGolden);
+        // Any celebration is the introduction: an account with a celebrated week
+        // behind it has met its streak, whether or not the intro flag itself made
+        // it onto the account.
+        if (remote?.streakIntroShown === true || remoteGolden.length > 0) {
+            safeLocalStorageSetItem(STREAK_INTRO_KEY, 'true');
         }
-        if (remote.streakIntroShown === true) safeLocalStorageSetItem(STREAK_INTRO_KEY, 'true');
+
+        const remoteSet = new Set(remoteGolden);
+        const accountIsBehind =
+            localGolden.some(k => !remoteSet.has(k)) ||
+            (localIntro && remote?.streakIntroShown !== true);
+        if (accountIsBehind) pushMindPowerMarks(uid);
     } catch {
         // Offline or a rules hiccup: let a later mount try again.
         pulledForUid = null;

@@ -21,6 +21,7 @@ import {
     ACTIVITY_TICK_SECONDS,
     WEEKLY_ACTIVITY_EVENT,
     HISTORY_BACKFILLED_KEY,
+    accountPracticeSeconds,
 } from '@/lib/weeklyActivity';
 import { startMindPowerSync } from '@/lib/mindPowerRecord';
 import { ENGAGED_WINDOW_MS } from '@/lib/mindPowerScore';
@@ -282,8 +283,10 @@ function PlatformLayoutInner({
         const recordingSeconds = parseInt(localStorage.getItem('mep-create-recording-seconds') || '0');
         const recMins = parseFloat((recordingSeconds / 60).toFixed(1));
 
-        // Practice: minutes spent on Practice page (no cap)
-        const practiceSeconds = parseInt(localStorage.getItem('mep-practice-seconds') || '0');
+        // Practice: minutes spent on Practice, on this device AND the account's
+        // others. Practice is counted where it happens, so the local counter
+        // alone is one device's share, not the person's total.
+        const practiceSeconds = accountPracticeSeconds();
         const pracMins = parseFloat((practiceSeconds / 60).toFixed(1));
 
         // Distinct songs the user has pressed Complete on — surfaced in the panel so the
@@ -335,6 +338,10 @@ function PlatformLayoutInner({
     // reload, and the first tick of a new week moves the level.
     useEffect(() => {
         const refresh = () => {
+            // The account record arriving fires this too: the other devices'
+            // practice, words and lessons have just landed, so the tab counts
+            // are re-read along with the week.
+            recalculateProgress();
             const weeks = readActiveWeekCount();
             setActiveWeeks(weeks);
             setProgressLevel(Math.max(1, weeks));
