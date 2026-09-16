@@ -3,7 +3,7 @@ import type { User } from "firebase/auth";
 import { db } from "@/lib/firebase";
 import { authedFetch } from "@/lib/authedFetch";
 import { writePublicProfile } from "@/lib/publicProfile";
-import { TERMS_VERSION } from "@/lib/legalVersions";
+import { newUserProfile } from "@/lib/userProfileShape";
 import type { Language } from "@/context/LanguageContext";
 
 interface CreateUserProfileOptions {
@@ -21,32 +21,15 @@ interface CreateUserProfileOptions {
 export async function createUserProfile(user: User, options: CreateUserProfileOptions = {}): Promise<void> {
     const name = options.name ?? user.displayName ?? "Guest User";
 
-    await setDoc(doc(db, "users", user.uid), {
+    // The document shape lives in lib/userProfileShape.ts, shared with the
+    // server-side signup in /api/onboarding/start so both kinds of account
+    // are born identical.
+    await setDoc(doc(db, "users", user.uid), newUserProfile({
         uid: user.uid,
         name,
         email: user.email || "",
-        answers: options.answers || {},
-        createdAt: new Date().toISOString(),
-        tier: "trial",
-        lastActiveAt: new Date().toISOString(),
-        // Signup happens behind the sign-in page's "By continuing, you agree to
-        // our Terms & Conditions" notice, so creation is the acceptance. Later
-        // sign-ins re-record this when the version bumps — see lib/termsAcceptance.
-        terms: {
-            acceptedVersion: TERMS_VERSION,
-            acceptedAt: new Date().toISOString(),
-        },
-        billing: {
-            plan: null,
-            paddleCustomerId: null,
-            paddleSubscriptionId: null,
-            subscriptionStatus: null,
-            trialEndsAt: null,
-            currentPeriodEnd: null,
-            welcomeEmailSent: false,
-            trialReminderSentAt: null,
-        },
-    });
+        answers: options.answers,
+    }));
 
     // The public slice of the account, mirrored so collaborator names and the
     // Connect roster can be read without users/{uid} being world-readable.

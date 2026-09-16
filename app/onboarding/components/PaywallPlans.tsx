@@ -3,17 +3,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowLeft, ArrowRight, BookOpen, Check, Gauge, Lock, MicVocal, Users } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, BookOpen, Check, Gauge, Loader2, Lock, MicVocal, Users } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import {
     FALLBACK_PRICING,
     TRIAL_DAYS,
+    isPaddleConfigured,
     isPlanPurchasable,
     type BillingPeriod as Billing,
     type PlanId,
 } from '@/lib/paddle/config';
-import { CHECKOUT_FRAME_CLASS } from '@/lib/paddle/checkout';
-import CheckoutPreviewForm from './CheckoutPreviewForm';
+import { CHECKOUT_FRAME_CLASS, fallbackPrice, fetchLocalizedPricing, type LocalizedPricing } from '@/lib/paddle/checkout';
 import Confetti, { CONFETTI_MS } from './Confetti';
 import { PRIMARY_BUTTON_BLOCK, SECONDARY_BUTTON } from './buttonStyles';
 
@@ -29,12 +29,38 @@ import { PRIMARY_BUTTON_BLOCK, SECONDARY_BUTTON } from './buttonStyles';
  */
 const SUCCESS_HOLD_MS = CONFETTI_MS + 700;
 
-// Prices and price ids both live in lib/paddle/config.ts — see the note there
-// on which figures are confirmed and which are still placeholders.
+// The dollar figures the screen paints first, and stays on when Paddle is not
+// configured. Once it is, Paddle's price preview replaces them with the
+// visitor's own currency; see `usePricing` below.
 const PLAN_PRICING = FALLBACK_PRICING;
 
 // Derived rather than hard-coded so the badge can never drift from the prices.
 const SAVINGS_PCT = Math.round((1 - PLAN_PRICING.pro.yearly / PLAN_PRICING.pro.monthly) * 100);
+
+/**
+ * Prices as the visitor will actually be charged them.
+ *
+ * Paddle localizes by IP (kronor in Stockholm, kroner in Oslo, tax folded in
+ * where the country adds it), and the checkout prices the transaction that
+ * way whatever this screen said. So this screen asks Paddle the same question
+ * once, on mount, and paints the dollar fallback only until the answer lands.
+ * A failed preview keeps the fallback: a price in the wrong currency is still
+ * a price, and the checkout corrects it before any money moves.
+ */
+function usePricing(locale: string): LocalizedPricing {
+    const [pricing, setPricing] = useState<LocalizedPricing>({});
+
+    useEffect(() => {
+        if (!isPaddleConfigured()) return;
+        let cancelled = false;
+        fetchLocalizedPricing(locale)
+            .then((result) => { if (!cancelled) setPricing(result); })
+            .catch((err) => console.warn('Paddle price preview failed; showing fallback prices:', err));
+        return () => { cancelled = true; };
+    }, [locale]);
+
+    return pricing;
+}
 
 /**
  * The four groups every plan is described in, in the order they are read.
@@ -92,20 +118,28 @@ const splitEmphasis = (text: string) => text.split('**');
  * `?step=paywall` (the in-platform Max upgrade, where the visitor is already
  * signed in) and the onboarding flow share one component.
  */
-export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSubmitting = false, error = '' }: {
+export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, completed = false, onCompleted, isSubmitting = false, error = '' }: {
     /** Omitted when the paywall is reached directly via `?step=paywall`. */
     onBack?: () => void;
     onCheckout: (plan: PlanId, billing: Billing) => void;
     /**
-     * The way on when there is no checkout to run — signups closed, Paddle not
-     * configured, no price id. The preview panel below offers it as a button so
-     * the flow stays walkable end to end without a payment processor.
+     * The way on when there is no checkout to run: Paddle not configured, or
+     * no price id for this plan. The section says payments are unavailable
+     * and offers this as the button, so nobody is stranded on a screen that
+     * cannot take a card.
      */
     onSkipCheckout?: () => void;
+    /**
+     * Paddle reported the checkout completed. The success beat plays and
+     * `onCompleted` is called once it has been seen.
+     */
+    completed?: boolean;
+    onCompleted?: () => void;
     isSubmitting?: boolean;
     error?: string;
 }) {
-    const { t, tList } = useLanguage();
+    const { t, tList, language } = useLanguage();
+    const pricing = usePricing(language);
     const [billing, setBilling] = useState<Billing>('yearly');
     const [plan, setPlan] = useState<PlanId>('pro');
     /**
@@ -118,12 +152,9 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
      * of leaving a form for the plan they just navigated away from.
      */
     const [checkingOut, setCheckingOut] = useState<PlanId | null>(null);
-    /**
-     * Whether the preview checkout has been confirmed and the success beat is
-     * playing. Only ever true in preview — a live Paddle checkout runs its own
-     * confirmation and takes the browser from there.
-     */
-    const [confirmed, setConfirmed] = useState(false);
+    // The success beat: Paddle said the card went through, and the frame it
+    // rendered into is swapped for the confirmation until the flow moves on.
+    const confirmed = completed;
     const checkoutRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -165,7 +196,7 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
     const fill = (key: string) => t(key).replace('{days}', String(TRIAL_DAYS));
     const title = fill('onboarding.paywall.title');
 
-    const price = PLAN_PRICING[plan][billing];
+    const price = pricing[plan]?.[billing] ?? fallbackPrice(plan, billing);
     const outcome = tList<string>(`onboarding.paywall.plans.${plan}.outcome`);
     const other: PlanId = plan === 'pro' ? 'max' : 'pro';
     const purchasable = isPlanPurchasable(plan, billing);
@@ -216,48 +247,32 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
     /**
      * What the one fixed button does, and says, at each stage.
      *
-     * It is a single control doing three different jobs in sequence rather
-     * than a button that opens the section and a second "Continue" living
-     * inside it — the placeholder card used to carry its own, and having both
-     * on screen at once was the same next step offered twice, a few inches
-     * apart. Now there is exactly one place to press, and it relabels itself
-     * as what pressing it would do changes.
+     * It is a single control doing two jobs in sequence rather than a button
+     * that opens the section and a second "Continue" living inside it.
      *
      * - Nothing opened yet: "Try for $0.00" opens the payment section.
-     * - Opened, and there is a real card form to fill in (Paddle is live and
-     *   this plan is purchasable): the form owns its own submit control, and
-     *   this button has nothing honest left to do — wiring it to skip ahead
-     *   here would be a live "Continue" that actually bypasses payment, so it
-     *   steps aside rather than staying lit.
-     * - Opened, and there is nothing to fill in (the preview placeholder,
-     *   which is what this environment shows without Paddle configured):
-     *   "Continue" is the way past a step that was never going to charge
-     *   anyone, and it is what `onSkipCheckout` is for.
+     * - Opened, and there is a real card form (Paddle is live and this plan
+     *   is purchasable): the form owns its own submit control, and this
+     *   button has nothing honest left to do. Wiring it to skip ahead would
+     *   be a live "Continue" that bypasses payment, so it steps aside.
+     * - Opened, and there is nothing to fill in (Paddle not configured, or
+     *   no price for this plan): the section says so, and "Continue without
+     *   a plan" is the way past a step that cannot take a card today.
      */
     const showForm = checkingOut && purchasable;
-    const showPlaceholder = checkingOut && !purchasable;
-
-    /**
-     * Takes the card in the preview: marks it done, lets the moment play, and
-     * moves the flow on by itself.
-     *
-     * Nothing is charged and nothing is sent — see CheckoutPreviewForm. What
-     * this reproduces is the shape of the real thing, which is that confirming
-     * a payment is the last press a visitor makes on this screen.
-     */
-    const confirmPreviewCheckout = () => setConfirmed(true);
+    const showUnavailable = checkingOut && !purchasable;
 
     useEffect(() => {
         if (!confirmed) return;
-        const id = setTimeout(() => onSkipCheckout?.(), SUCCESS_HOLD_MS);
+        const id = setTimeout(() => onCompleted?.(), SUCCESS_HOLD_MS);
         return () => clearTimeout(id);
-        // `onSkipCheckout` is a fresh arrow from the page on every render;
+        // `onCompleted` is a fresh arrow from the page on every render;
         // depending on it would restart the hold on each one.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [confirmed]);
 
-    const barAction = showPlaceholder
-        ? { label: t('onboarding.paywall.checkout_continue'), onClick: confirmPreviewCheckout }
+    const barAction = showUnavailable
+        ? { label: t('onboarding.paywall.unavailable_cta'), onClick: () => onSkipCheckout?.() }
         : { label: isSubmitting ? t('onboarding.paywall.opening_checkout') : t('onboarding.paywall.cta'), onClick: startCheckout };
 
     return (
@@ -379,10 +394,12 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
 
                     <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
                         <span className="text-5xl font-sans font-bold tracking-tight text-stone-900 md:text-6xl">
-                            ${price}
+                            {price.monthly}
                         </span>
                         <span className="text-[13px] font-medium text-stone-500">
-                            {t(`onboarding.paywall.billing.billed_${billing}`)}
+                            {billing === 'yearly'
+                                ? t('onboarding.paywall.billing.billed_yearly_amount').replace('{amount}', price.perPeriod)
+                                : t(`onboarding.paywall.billing.billed_${billing}`)}
                         </span>
                     </div>
                 </div>
@@ -611,17 +628,6 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
                                 <h2 className="text-[19px] font-sans font-semibold text-[#363636]">
                                     {t('onboarding.paywall.checkout_title')}
                                 </h2>
-                                {/* Small, but present. The form below takes
-                                    card input and does nothing with it — see
-                                    the note at the top of CheckoutPreviewForm —
-                                    and a card form that says nothing about that
-                                    is one somebody could type a real card
-                                    into. */}
-                                {showPlaceholder && (
-                                    <span className="rounded-full border border-stone-300/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-stone-500">
-                                        {t('onboarding.paywall.checkout_preview_tag')}
-                                    </span>
-                                )}
                             </div>
                             <span className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-stone-500">
                                 <Lock size={13} className="stroke-[2.5px]" />
@@ -630,25 +636,39 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, isSub
                         </div>
                     )}
 
-                    {/* What Paddle renders into. Always in the tree while the
-                        section is open, purchasable or not — the placeholder
-                        below sits beside it rather than in its place, so the
-                        target can never be missing at the moment Paddle looks
-                        for it. */}
-                    {!confirmed && <div className={CHECKOUT_FRAME_CLASS} />}
+                    {/* What Paddle renders into. In the tree from the moment
+                        the section opens, so the target can never be missing
+                        at the moment Paddle looks for it. While Paddle is
+                        loading its frame the box shows a spinner rather than
+                        nothing: a press that appears to do nothing for two
+                        seconds is a press that gets made twice. */}
+                    {showForm && !confirmed && (
+                        <div className="relative min-h-[120px]">
+                            {isSubmitting && (
+                                <div className="absolute inset-0 flex items-center justify-center gap-2 text-[13px] font-semibold text-stone-500" aria-live="polite">
+                                    <Loader2 size={16} className="animate-spin" />
+                                    {t('onboarding.paywall.opening_checkout')}
+                                </div>
+                            )}
+                            <div className={CHECKOUT_FRAME_CLASS} />
+                        </div>
+                    )}
 
-                    {/* No price id, no Paddle key, or signups closed: nothing
-                        will render into the frame above, so the form that
-                        Paddle would have drawn is stood in for here — the
-                        flow's last screen is the one that most needs walking
-                        before it goes live, and an empty box is not something
-                        anyone can review.
-
-                        It accepts anything and submits nowhere; read the note
-                        at the top of CheckoutPreviewForm before touching it.
+                    {/* No Paddle key, or no price id for this plan: there is
+                        no card form to draw, and the honest thing is to say
+                        so rather than stand in a form that takes nothing.
                         The way on is the fixed bar's button, which relabels
-                        itself to "Continue" whenever this is what's showing. */}
-                    {showPlaceholder && !confirmed && <CheckoutPreviewForm />}
+                        itself whenever this is what's showing. */}
+                    {showUnavailable && !confirmed && (
+                        <div role="status" className="space-y-2 rounded-2xl bg-white/60 p-5 text-center">
+                            <p className="text-[15px] font-semibold text-stone-900">
+                                {t('onboarding.paywall.unavailable_title')}
+                            </p>
+                            <p className="text-[13.5px] font-medium leading-relaxed text-stone-600">
+                                {t('onboarding.paywall.unavailable_body')}
+                            </p>
+                        </div>
+                    )}
 
                     {/* The card has gone in. The form is replaced rather than
                         covered — what was being filled in is finished, and

@@ -34,21 +34,24 @@ export const PRACTICE_ENABLED: boolean = true;
 export const MELODY_VARIATIONS_ENABLED: boolean = true;
 
 /**
- * Pre-launch: the onboarding flow itself is public so the draft can be shared and
- * reviewed, but the account step is closed. Reviewers walk every screen —
- * including the offer, the plans and the welcome — while the two steps that would
- * touch the outside world are skipped: no Firebase account is created and Paddle
- * is never opened. `Pay $0.00` goes straight to the welcome screen, which swaps
- * its door into the product for the waiting list.
+ * Whether the onboarding flow ends in a real account and a real checkout.
  *
- * Flip to `true` to reopen public signups. Nothing else needs changing: the
- * signup form and the checkout call are both still wired up behind this flag.
+ * Open since 2026-09-16. Before that the flow was walkable end to end for
+ * review while the two steps that touch the outside world were held shut: no
+ * account was created at the email step and Paddle was never opened. Both are
+ * live now: the email step creates the account through /api/onboarding/start,
+ * the plans open Paddle's inline checkout, and the code at the end verifies
+ * the address through /api/onboarding/verify.
+ *
+ * Set back to `false` to close signups again. The marketing CTAs (signupPath)
+ * return to the waiting-list campaign, the email step joins the list instead
+ * of creating an account, and the sign-in page undoes any brand-new Google
+ * account. Nothing else needs changing.
  *
  * Lives here rather than in app/onboarding/page.tsx because the collaboration
- * invite email has to point somewhere too, and sending an invitee to a signup
- * form that cannot create an account is worse than sending them to the list.
+ * invite email and every CTA on the marketing site have to agree with it.
  */
-export const SIGNUPS_OPEN: boolean = false;
+export const SIGNUPS_OPEN: boolean = true;
 
 /**
  * The ANCHOR of the special offer's rolling global window, as an ISO timestamp
@@ -90,23 +93,22 @@ export const FOUNDER_SPOTS_TOTAL = 100;
 export const FOUNDER_SPOTS_LEFT = FOUNDER_SPOTS_TOTAL - FOUNDER_SPOTS_TAKEN;
 
 /**
- * Where every "Join the waitlist" button on the marketing site goes: the
- * campaign flow, not the bare form.
+ * Where every primary CTA on the marketing site goes: the onboarding flow.
  *
- * They used to land on /waiting-list — one field and a button. That page still
- * exists and still works (the invite email and the signed-out Google path use
- * it), but a visitor who arrives with enough interest to press a CTA is worth
- * showing what they are joining: the five slides, the quiz, and the offer with
- * its clock. The address is captured at the end of that either way, by the same
- * API, so nothing is lost by the longer road.
+ * With signups open that is the real thing: the five slides, the quiz, the
+ * verdict, the offer, the plans, a card and a code, ending in an account with
+ * a trial running. With signups closed it is the same flow in its waiting-list
+ * dress (`?flow=waitlist`), which captures the address at the email step and
+ * ends on the secured screen instead.
  *
- * `source` is kept as `?from=` and recorded on the waitlist row, so the admin
- * list still says which surface each person came from. Add any new value to
- * KNOWN_SOURCES in app/api/waitlist/route.ts or it lands as "direct".
+ * `source` is kept as `?from=` either way and recorded on the account (or the
+ * waitlist row), so the console can still say which surface each person came
+ * from. It is sanitised server-side; anything unknown lands as "direct".
  */
-export function waitlistJoinPath(source: string, language?: Language): string {
+export function signupPath(source: string, language?: Language): string {
     const base = language ? localizePath('/onboarding', language) : '/onboarding';
-    return `${base}?flow=waitlist&from=${encodeURIComponent(source)}`;
+    const from = `from=${encodeURIComponent(source)}`;
+    return SIGNUPS_OPEN ? `${base}?${from}` : `${base}?flow=waitlist&${from}`;
 }
 
 /**

@@ -4,16 +4,20 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import { createUserWithEmailAndPassword, getAdditionalUserInfo, signInWithPopup, signOut, updateProfile, type User } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAdditionalUserInfo, signInWithCustomToken, signInWithPopup, signOut, updateProfile, type User } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { CheckoutEventNames } from '@paddle/paddle-js';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/userProfile';
+import { authedFetch } from '@/lib/authedFetch';
 import { rememberInvitePass, forgetInvitePass } from '@/lib/invitePass';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import Tooltip from '@/components/Tooltip';
 import { getPriceId, isPlanPurchasable, type BillingPeriod, type PlanId } from '@/lib/paddle/config';
-import { openCheckout } from '@/lib/paddle/checkout';
+import { closeCheckout, onPaddleEvent, openCheckout, updateCheckoutPrice } from '@/lib/paddle/checkout';
 import { SIGNUPS_OPEN } from '@/lib/uiFlags';
+import { localizePath } from '@/lib/i18n';
 import IntroCarousel from './components/IntroCarousel';
 import PaywallPlans from './components/PaywallPlans';
 import QuestionCards from './components/QuestionCards';
@@ -55,9 +59,10 @@ import WaitlistSecured from './components/WaitlistSecured';
  * the account rather than merely recording an address, and why verification is
  * a flag flipped on an existing account rather than the thing that creates one.
  *
- * Checkout is not a step — it's Paddle's own overlay, opened over the paywall.
- * Its successUrl lands back on `?step=welcome`; see the note on that param
- * below for why verify isn't reachable that way.
+ * Checkout is not a step: it is Paddle's inline frame, rendered into the
+ * paywall. Paddle reports `checkout.completed` through its event callback,
+ * and that is what moves the flow on to the code. No redirect: the page never
+ * leaves, so nothing built up on the way here is lost.
  */
 const STEPS = {
     INTRO: 'intro',
@@ -75,7 +80,9 @@ const STEPS = {
 
 /**
  * `?flow=waitlist` turns this page into the ad campaign's landing flow, for as
- * long as signups are closed. Same intro carousel — the five slides showing
+ * long as signups are closed. With SIGNUPS_OPEN true the param is ignored and
+ * the same link lands in the real flow, `?from=` kept for attribution, so an
+ * ad that went live before launch keeps working after it. Same intro carousel — the five slides showing
  * the platform earn their place even after the ad's video, because the VSL
  * sells the idea and the slides show the product — same quiz, same analysis,
  * same verdict. Two differences:
@@ -96,19 +103,14 @@ const STEPS = {
  */
 
 // The two steps that can be linked to directly: the plans (the in-platform Max
-// upgrade sends people here) and the welcome screen (where Paddle returns after
-// a successful checkout). The rest assume state built up on the way there and
-// would land the visitor on a half-filled form.
+// upgrade sends people here) and the welcome screen. The rest assume state
+// built up on the way there and would land the visitor on a half-filled form.
 const ADDRESSABLE_STEPS = new Set([STEPS.PAYWALL, STEPS.WELCOME]);
 
 /**
- * Pre-launch, the account step of this flow is closed — see SIGNUPS_OPEN in
- * lib/uiFlags.ts for the full reasoning. It moved there because the collaboration
- * invite email needs the same answer when it decides where to send someone who
- * has no account yet.
- *
- * This replaced a redirect that sent signed-out visitors to the waiting list —
- * which made the draft impossible to show anyone without an account.
+ * Whether the account step of this flow is open is decided by SIGNUPS_OPEN in
+ * lib/uiFlags.ts. It lives there because the collaboration invite email and
+ * every CTA on the marketing site need the same answer.
  */
 
 // Only the stable ids and answer values live here — every visible label is
@@ -243,11 +245,21 @@ function OnboardingPageInner() {
     const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
-    // The plan chosen on the paywall, kept here because the account step sits
-    // between the choice and the checkout that acts on it.
+    // The plan chosen on the paywall.
     const [checkoutChoice, setCheckoutChoice] = useState<{ plan: PlanId; billing: BillingPeriod } | null>(null);
     const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
     const [checkoutError, setCheckoutError] = useState('');
+    /**
+     * Whether Paddle currently has a checkout rendered into the paywall's
+     * frame. A second `Checkout.open` on top of a live one stacks frames;
+     * while one is open, a change of plan or billing period is an
+     * `updateItems` instead.
+     */
+    const checkoutOpen = useRef(false);
+    // Paddle reported `checkout.completed`: the card is in and the
+    // subscription exists. The paywall plays its success beat and then the
+    // flow moves on to the code.
+    const [checkoutCompleted, setCheckoutCompleted] = useState(false);
 
     // Signup, split across the two ends of the flow: the address is taken at
     // the email step and the code that verifies it at the very end.
@@ -268,9 +280,23 @@ function OnboardingPageInner() {
     const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
     const [verifyError, setVerifyError] = useState('');
     const [isVerifying, setIsVerifying] = useState(false);
+    /**
+     * Whether the signed-in account still owes the code at the end.
+     *
+     * Set when the email step creates or resumes an unverified account, and
+     * read back off the user doc when someone arrives already signed in as
+     * one (closed the tab mid-flow yesterday, say). It decides whether the
+     * step after the checkout is the code or the welcome: an account made by
+     * Google sign-in, or verified on an earlier visit, is not asked twice.
+     */
+    const [pendingVerification, setPendingVerification] = useState(false);
+    // A refusal on the email step that needs more than a shake: the address
+    // already has an account, and the way in is the sign-in page.
+    const [emailErrorAction, setEmailErrorAction] = useState<{ label: string; href: string } | null>(null);
 
-    // The campaign variant — see the ?flow=waitlist note above STEPS.
-    const [waitlistFlow, setWaitlistFlow] = useState(!SIGNUPS_OPEN);
+    // The campaign variant. Off whenever signups are open; see the
+    // ?flow=waitlist note above STEPS.
+    const [waitlistFlow, setWaitlistFlow] = useState(false);
 
     /**
      * An invitation, once the server has vouched for it (`?invite=` on arrival).
@@ -286,32 +312,45 @@ function OnboardingPageInner() {
     const [accountError, setAccountError] = useState('');
     const signupsOpen = SIGNUPS_OPEN || invite !== null;
     const [waitlistSource, setWaitlistSource] = useState('yt-vsl');
+    // Which CTA sent them (`?from=`), recorded on the account by the start route.
+    const [signupSource, setSignupSource] = useState('direct');
     const { language, t } = useLanguage();
     const { user } = useAuth();
 
     /**
      * Hands the chosen plan to Paddle, which renders into the paywall itself
-     * rather than over it — see the checkout section in PaywallPlans.
+     * rather than over it. See the checkout section in PaywallPlans.
      *
-     * Everything that would make that impossible — signups closed, no account,
-     * Paddle not configured, no price id for this plan — leaves the visitor on
+     * Everything that would make that impossible (signups closed, no account,
+     * Paddle not configured, no price id for this plan) leaves the visitor on
      * the paywall, where that section explains itself and offers the way on.
-     * The step is not advanced from here for those cases: the paywall asked for
-     * a checkout and it is the screen that should show what came of it.
+     * The step is not advanced from here for those cases: the paywall asked
+     * for a checkout and it is the screen that should show what came of it.
+     *
+     * A checkout that is already open is re-priced in place rather than
+     * opened again; see `checkoutOpen`.
      */
     const startCheckout = async (account: User | null, choice: { plan: PlanId; billing: BillingPeriod }) => {
         const priceId = getPriceId(choice.plan, choice.billing);
 
-        // No account, no Paddle, or signups closed: nothing to open. The
-        // paywall's own checkout section says so, and `onSkipCheckout` below is
-        // what moves the flow on from there.
         if (!signupsOpen || !account || !priceId || !isPlanPurchasable(choice.plan, choice.billing)) {
             return;
         }
 
         setCheckoutError('');
-        setIsOpeningCheckout(true);
         setCurrentStep(STEPS.PAYWALL);
+
+        if (checkoutOpen.current) {
+            try {
+                await updateCheckoutPrice(priceId);
+            } catch (err) {
+                console.error('Paddle checkout failed to update:', err);
+                setCheckoutError(t('onboarding.paywall.checkout_error'));
+            }
+            return;
+        }
+
+        setIsOpeningCheckout(true);
         try {
             await openCheckout({
                 priceId,
@@ -319,20 +358,68 @@ function OnboardingPageInner() {
                 email: account.email,
                 locale: language,
                 // Into the page, not over it. The frame is already mounted by
-                // the time this runs — the paywall opens its section on the
+                // the time this runs: the paywall opens its section on the
                 // press and calls up from the paint after it.
                 inline: true,
-                // Paddle owns the browser from here — this is how the flow gets
-                // its last screen back.
-                successUrl: `${window.location.origin}/onboarding?step=${STEPS.WELCOME}`,
             });
-        } catch (err: any) {
+            checkoutOpen.current = true;
+        } catch (err) {
             console.error('Paddle checkout failed to open:', err);
             setCheckoutError(t('onboarding.paywall.checkout_error'));
         } finally {
             setIsOpeningCheckout(false);
         }
     };
+
+    /**
+     * What Paddle says while its checkout is up. `completed` is the one that
+     * matters: the card is in, the subscription exists, and the webhook is
+     * about to write it to the account. The flow does not wait for that
+     * write; the plan hook is live and the product will reflect it the
+     * moment it lands.
+     */
+    useEffect(() => {
+        return onPaddleEvent((event) => {
+            if (event.name === CheckoutEventNames.CHECKOUT_COMPLETED) {
+                checkoutOpen.current = false;
+                capture('checkout_completed', {
+                    plan: checkoutChoice?.plan ?? null,
+                    billing: checkoutChoice?.billing ?? null,
+                    transactionId: event.data?.transaction_id ?? null,
+                });
+                setCheckoutCompleted(true);
+            } else if (event.name === CheckoutEventNames.CHECKOUT_CLOSED) {
+                checkoutOpen.current = false;
+            } else if (
+                event.name === CheckoutEventNames.CHECKOUT_ERROR
+                || event.name === CheckoutEventNames.CHECKOUT_PAYMENT_ERROR
+            ) {
+                // Paddle could not open or take the payment (an account not
+                // yet enabled for checkout, a declined card). Said on the
+                // paywall rather than left in the console: the alternative is
+                // an empty frame under a button that appeared to do nothing.
+                console.error('Paddle checkout error:', event);
+                setCheckoutError(t('onboarding.paywall.checkout_error'));
+            }
+        });
+    }, [checkoutChoice]);
+
+    // Leaving the paywall takes the checkout with it: the frame it rendered
+    // into is unmounted, and Paddle should not think it still has one open.
+    useEffect(() => {
+        if (currentStep === STEPS.PAYWALL) return;
+        if (checkoutOpen.current) {
+            checkoutOpen.current = false;
+            void closeCheckout();
+        }
+    }, [currentStep]);
+
+    /**
+     * The step after the card: the code, unless this account has already
+     * been verified (Google sign-in, or a finished earlier visit), in which
+     * case there is nothing left to check and the welcome is next.
+     */
+    const stepAfterCheckout = () => setCurrentStep(pendingVerification ? STEPS.VERIFY : STEPS.WELCOME);
 
     const handlePlanChosen = (plan: PlanId, billing: BillingPeriod) => {
         const choice = { plan, billing };
@@ -342,36 +429,27 @@ function OnboardingPageInner() {
     };
 
     /**
-     * The email step. Records the address and moves on to the verdict.
+     * The email step. Creates the account and moves on to the verdict.
      *
-     * NOT YET WIRED to anything: it does not create the Firebase account it is
-     * supposed to, which is the piece that has to exist before Paddle can be
-     * handed a uid. Until that lands, `startCheckout` still falls through to
-     * its no-account branch, exactly as it does pre-launch — so nothing is
-     * half-charged, and the flow is walkable end to end for review.
+     * /api/onboarding/start makes (or resumes) an unverified account for the
+     * address, mails it a six-digit code, and hands back a custom token; the
+     * browser signs in with that so a real uid exists before the checkout
+     * opens, which is the one hard constraint this ordering rests on. The
+     * code is checked at the very end by handleVerify.
      *
-     * When the backend arrives this posts { email, answers, locale } to a route
-     * that creates the unverified user and returns its uid, and the error path
-     * below surfaces a refusal (an address already fully signed up, say) rather
-     * than swallowing it.
+     * An address that already has a finished account is refused with a link
+     * to sign in. That is the one refusal that needs words rather than a
+     * shake: nothing about the address is wrong, it is just not new.
      */
     const handleEmailSubmit = async (submitted: string) => {
         setEmail(submitted);
         setEmailError('');
-        // Correcting an address goes straight back to the code, which is now
-        // waiting at the new one. Everything between here and there has already
-        // been read once.
-        if (isChangingEmail) {
-            setIsChangingEmail(false);
-            setVerifyError('');
-            setCurrentStep(STEPS.VERIFY);
-            return;
-        }
+        setEmailErrorAction(null);
 
-        // The campaign flow is the one place this step already lands somewhere
-        // real: the address joins the waitlist, quiz answers attached, before
-        // the verdict opens. A refusal keeps the dialog up — losing the lead
-        // silently would defeat the whole funnel.
+        // The campaign flow is the one place this step lands somewhere other
+        // than an account: the address joins the waitlist, quiz answers
+        // attached. A refusal keeps the form up; losing the lead silently
+        // would defeat the whole funnel.
         if (waitlistFlow) {
             setIsSubmittingEmail(true);
             try {
@@ -395,10 +473,6 @@ function OnboardingPageInner() {
                 }
                 const joined = await res.json().catch(() => ({}));
                 capture('waitlist_joined', { source: waitlistSource, position: joined.position ?? null });
-                // Straight to the confirmation. The verdict is skipped in this
-                // flow: the plan is emailed with the offer rather than read
-                // here, so a reveal between the join and the confirmation
-                // would delay the one thing they are waiting to be told.
                 setCurrentStep(STEPS.SECURED);
             } catch (err) {
                 console.error('Waitlist signup failed:', err);
@@ -410,7 +484,74 @@ function OnboardingPageInner() {
             return;
         }
 
-        setCurrentStep(STEPS.VERDICT);
+        setIsSubmittingEmail(true);
+        try {
+            // authedFetch so a signed-in pending account correcting its
+            // address is recognised as such and moved, not duplicated.
+            const res = await authedFetch('/api/onboarding/start', {
+                method: 'POST',
+                body: JSON.stringify({
+                    email: submitted,
+                    locale: language,
+                    source: signupSource,
+                    answers,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                capture('signup_start_failed', { status: res.status, error: data.error ?? null });
+                if (data.error === 'account-exists') {
+                    setEmailError(t('onboarding.email.errors.account_exists'));
+                    setEmailErrorAction({
+                        label: t('onboarding.email.errors.sign_in'),
+                        href: `${localizePath('/signin', language)}?email=${encodeURIComponent(submitted)}`,
+                    });
+                } else if (data.error === 'invalid-email') {
+                    setEmailError(t('onboarding.email.invalid'));
+                } else if (data.error === 'cooldown') {
+                    // The code from a moment ago is still good; go on and type it.
+                    setPendingVerification(true);
+                    if (isChangingEmail) {
+                        setIsChangingEmail(false);
+                        setCurrentStep(STEPS.VERIFY);
+                    } else {
+                        setCurrentStep(STEPS.VERDICT);
+                    }
+                } else if (data.error === 'mail-unavailable' || data.error === 'mail-failed') {
+                    setEmailError(t('onboarding.email.errors.mail_failed'));
+                } else {
+                    setEmailError(t('onboarding.email.errors.failed'));
+                }
+                return;
+            }
+
+            // Signed in as the new account from here on. Skipped when the
+            // browser already holds it (correcting the address on a pending
+            // account), since the session is the same one.
+            if (auth.currentUser?.uid !== data.uid) {
+                await signInWithCustomToken(auth, data.token);
+            }
+            setPendingVerification(true);
+            capture(data.resumed ? 'signup_resumed' : 'signup_started', { source: signupSource });
+
+            // Correcting an address goes straight back to the code, which is
+            // now waiting at the new one. Everything between here and there
+            // has already been read once.
+            if (isChangingEmail) {
+                setIsChangingEmail(false);
+                setVerifyError('');
+                setCurrentStep(STEPS.VERIFY);
+                return;
+            }
+            setCurrentStep(STEPS.VERDICT);
+        } catch (err) {
+            console.error('Signup failed:', err);
+            capture('signup_start_failed', { status: 'network' });
+            setEmailError(t('onboarding.email.errors.failed'));
+        } finally {
+            setIsSubmittingEmail(false);
+        }
     };
 
     /**
@@ -422,6 +563,7 @@ function OnboardingPageInner() {
      */
     const closeEmailStep = () => {
         setEmailError('');
+        setEmailErrorAction(null);
         // Closing goes back where it was opened from, which is the code screen
         // when the address was being corrected — dropping someone onto the
         // analysis from there would rewind the whole flow for a dialog they
@@ -435,17 +577,74 @@ function OnboardingPageInner() {
     };
 
     /**
-     * The code at the end. Also not yet wired: any six digits are accepted, so
-     * the screen can be walked. The real one posts the code, gets a custom
-     * token back, signs in, and only then lands on welcome.
+     * The code at the end. /api/onboarding/verify checks it against the
+     * signed-in account, marks the address verified, ends every other session
+     * on the account and hands back a fresh token for this one. Signing in
+     * with that token is what makes this browser the one that survives.
      */
-    const handleVerify = (_code: string) => {
+    const handleVerify = async (code: string) => {
+        if (isVerifying) return;
         setVerifyError('');
-        setCurrentStep(STEPS.WELCOME);
+        setIsVerifying(true);
+        try {
+            const res = await authedFetch('/api/onboarding/verify', {
+                method: 'POST',
+                body: JSON.stringify({ code }),
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                capture('signup_verify_failed', { status: res.status, error: data.error ?? null });
+                setVerifyError(
+                    data.error === 'code-expired' ? t('onboarding.verify.errors.expired')
+                    : data.error === 'code-locked' ? t('onboarding.verify.errors.locked')
+                    : data.error === 'code-invalid' ? t('onboarding.verify.invalid')
+                    : t('onboarding.verify.errors.failed'),
+                );
+                return;
+            }
+
+            if (data.token) await signInWithCustomToken(auth, data.token);
+            setPendingVerification(false);
+            capture('signup_verified', { source: signupSource });
+
+            // The welcome mail goes out now, not at creation: an address that
+            // was never confirmed should not be written to. The route takes
+            // its uid from the token and sends each account's exactly once.
+            authedFetch('/api/emails/welcome', {
+                method: 'POST',
+                body: JSON.stringify({ locale: language }),
+            }).catch((err) => console.error('Failed to trigger welcome email:', err));
+
+            setCurrentStep(STEPS.WELCOME);
+        } catch (err) {
+            console.error('Verification failed:', err);
+            setVerifyError(t('onboarding.verify.errors.failed'));
+        } finally {
+            setIsVerifying(false);
+        }
     };
 
-    const handleResendCode = () => {
+    /**
+     * A fresh code to the same address. The start route is the sender: with
+     * the account's own token attached it recognises the account and only
+     * re-issues, and its cooldown matches the screen's, so a press the screen
+     * allowed is never refused.
+     */
+    const handleResendCode = async () => {
         setVerifyError('');
+        try {
+            const res = await authedFetch('/api/onboarding/start', {
+                method: 'POST',
+                body: JSON.stringify({ email, locale: language }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                if (data.error !== 'cooldown') setVerifyError(t('onboarding.verify.errors.resend_failed'));
+            }
+        } catch {
+            setVerifyError(t('onboarding.verify.errors.resend_failed'));
+        }
     };
 
     /**
@@ -531,10 +730,11 @@ function OnboardingPageInner() {
         const params = new URLSearchParams(window.location.search);
         const step = params.get('step');
         if (step && ADDRESSABLE_STEPS.has(step)) setCurrentStep(step);
-        if (params.get('flow') === 'waitlist') {
+        if (params.get('flow') === 'waitlist' && !SIGNUPS_OPEN) {
             setWaitlistFlow(true);
             setWaitlistSource(params.get('from') || 'yt-vsl');
         }
+        if (params.get('from')) setSignupSource(params.get('from') || 'direct');
 
         // An invite link. Checked with the server before it changes anything —
         // a bad or spent id leaves the visitor on the ordinary pre-launch flow.
@@ -556,6 +756,34 @@ function OnboardingPageInner() {
     }, []);
 
     /**
+     * Someone arriving already signed in as an account this flow made and
+     * never finished (the tab closed between the card and the code, say).
+     * The user doc says so; the email is theirs; and the code screen is
+     * still owed at the end. Any other signed-in account is simply not asked
+     * for an address it already has.
+     */
+    useEffect(() => {
+        if (!user) {
+            setPendingVerification(false);
+            return;
+        }
+        if (user.email) setEmail((current) => current || user.email!);
+        if (user.emailVerified !== false) {
+            setPendingVerification(false);
+            return;
+        }
+        let cancelled = false;
+        getDoc(doc(db, 'users', user.uid))
+            .then((snap) => {
+                if (cancelled) return;
+                const signup = snap.data()?.signup;
+                setPendingVerification(signup?.method === 'onboarding' && !signup?.verifiedAt);
+            })
+            .catch(() => { /* unreadable doc: not a pending onboarding account */ });
+        return () => { cancelled = true; };
+    }, [user]);
+
+    /**
      * The funnel, as events. The whole flow lives on one URL, so pageview
      * analytics see an arrival and nothing else — every step between the ad
      * click and the joined list would be invisible without these. Sent through
@@ -569,7 +797,7 @@ function OnboardingPageInner() {
     const funnelProps = () => {
         const params = new URLSearchParams(window.location.search);
         const isInvite = !!params.get('invite');
-        const isCampaign = !isInvite && (params.get('flow') === 'waitlist' || !SIGNUPS_OPEN);
+        const isCampaign = !isInvite && !SIGNUPS_OPEN;
         return {
             flow: isInvite ? 'invite' : isCampaign ? 'waitlist' : 'plain',
             source: isCampaign ? (params.get('from') || 'yt-vsl') : null,
@@ -743,17 +971,6 @@ function OnboardingPageInner() {
             }),
         [answers, t],
     );
-
-    const restartFlow = () => {
-        setAnswers({});
-        setSelectedOption(null);
-        setDeckState({ decisions: [], written: [] });
-        setCurrentQuestionIndex(0);
-        setCheckoutChoice(null);
-        setCheckoutError('');
-        setIntroStartAtEnd(false);
-        setCurrentStep(STEPS.INTRO);
-    };
 
     /**
      * Records a choice — and nothing else. Answering used to advance the quiz
@@ -1305,7 +1522,10 @@ function OnboardingPageInner() {
                             onBack={() => setCurrentStep(STEPS.QUIZ)}
                             frozen={currentStep === STEPS.EMAIL}
                             waitlist={waitlistFlow}
-                            onComplete={() => setCurrentStep(STEPS.EMAIL)}
+                            // A signed-in visitor already has an address on
+                            // file; asking for it again would only make a
+                            // second account. Straight to the verdict.
+                            onComplete={() => setCurrentStep(user && !waitlistFlow ? STEPS.VERDICT : STEPS.EMAIL)}
                         />
                         </div>
                     )}
@@ -1327,6 +1547,7 @@ function OnboardingPageInner() {
                                 initialEmail={email}
                                 isSubmitting={isSubmittingEmail}
                                 error={emailError}
+                                errorAction={emailErrorAction}
                                 changing={isChangingEmail}
                                 waitlist={waitlistFlow}
                                 onSubmit={handleEmailSubmit}
@@ -1415,18 +1636,20 @@ function OnboardingPageInner() {
                             // directly — there is nothing behind them.
                             onBack={checkoutChoice || answerLabels.length ? () => setCurrentStep(STEPS.OFFER) : undefined}
                             onCheckout={handlePlanChosen}
-                            // Nothing to charge — pre-launch, or Paddle not
-                            // configured. The code screen is the next step
-                            // either way, and it is the one that still needs
-                            // reviewing before payments are live.
-                            onSkipCheckout={() => setCurrentStep(STEPS.VERIFY)}
+                            // Paddle is not configured, or this plan has no
+                            // price id: nothing can be charged, and the
+                            // paywall says so. The flow goes on without a
+                            // plan; one can be chosen from Settings later.
+                            onSkipCheckout={stepAfterCheckout}
+                            completed={checkoutCompleted}
+                            onCompleted={stepAfterCheckout}
                             isSubmitting={isOpeningCheckout}
                             error={checkoutError}
                         />
                     )}
 
                     {currentStep === STEPS.WELCOME && (
-                        <WelcomeAboard key="welcome" signupsOpen={signupsOpen} onRestart={restartFlow} />
+                        <WelcomeAboard key="welcome" />
                     )}
 
                     {currentStep === STEPS.SECURED && (

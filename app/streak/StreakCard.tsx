@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import * as btn from '@/app/platform/components/buttonStyles';
-import { waitlistJoinPath } from '@/lib/uiFlags';
+import { signupPath } from '@/lib/uiFlags';
 import GoldenMindStage from '@/app/platform/mind-power/components/GoldenMindStage';
 import type { StreakParams } from './params';
 
@@ -43,7 +43,7 @@ export default function StreakCard({ name, level, weeks, minutes, streak }: Stre
                 </p>
                 {/* Into the onboarding flow, the same road every other public CTA
                     takes, tagged so the waitlist shows who came from a shared streak. */}
-                <Link href={waitlistJoinPath('streak', language)} className={`${btn.primary('md')} mt-8`} data-streak-cta>
+                <Link href={signupPath('streak', language)} className={`${btn.primary('md')} mt-8`} data-streak-cta>
                     {t('streak_share.cta')}
                 </Link>
             </section>

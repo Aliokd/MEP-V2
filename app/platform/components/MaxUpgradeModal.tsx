@@ -6,6 +6,8 @@ import { createPortal } from 'react-dom';
 import { AlertCircle, Check, X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
+import { useUserPlan } from '@/lib/useUserPlan';
+import { authedFetch } from '@/lib/authedFetch';
 import {
     FALLBACK_PRICING,
     getPriceId,
@@ -82,9 +84,14 @@ interface MaxUpgradeModalProps {
 export default function MaxUpgradeModal({ isOpen, onClose, plan = 'max', reason }: MaxUpgradeModalProps) {
     const { t, tList, language } = useLanguage();
     const { user } = useAuth();
+    // Whether the account already pays for something. A subscriber is moved
+    // to the new plan in place (see handleUpgrade); only an account with no
+    // subscription goes through checkout.
+    const { paid, billing: currentBilling } = useUserPlan();
     const [billing, setBilling] = useState<BillingPeriod>('yearly');
     const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
     const [checkoutError, setCheckoutError] = useState('');
+    const [changed, setChanged] = useState(false);
 
     // Above the early return — hooks can't sit behind a conditional bail-out.
     const price = FALLBACK_PRICING[plan][billing];
@@ -145,6 +152,28 @@ export default function MaxUpgradeModal({ isOpen, onClose, plan = 'max', reason 
         setCheckoutError('');
         setIsOpeningCheckout(true);
         try {
+            // An existing subscription is changed, never duplicated: a second
+            // checkout would open a second subscription beside the first and
+            // charge for both. The server prorates; the webhook writes the
+            // new plan to the account and the modal closes on that.
+            if (paid && currentBilling.hasSubscription) {
+                const res = await authedFetch('/api/paddle/change-plan', {
+                    method: 'POST',
+                    body: JSON.stringify({ plan, billing }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    // No live subscription after all: fall through to checkout.
+                    if (data.error !== 'no-subscription') {
+                        setCheckoutError(t('connect.upgrade.change_error'));
+                        return;
+                    }
+                } else {
+                    setChanged(true);
+                    return;
+                }
+            }
+
             await openCheckout({
                 priceId,
                 uid: user.uid,
@@ -275,7 +304,12 @@ export default function MaxUpgradeModal({ isOpen, onClose, plan = 'max', reason 
                 </div>
 
                 <div className="sheet-panel-footer md:contents">
-                {canCheckout ? (
+                {changed ? (
+                    <div role="status" className="flex items-center justify-center gap-2 rounded-2xl bg-[#86BE7F]/20 px-4 py-3.5 text-[14px] font-semibold text-[#3f6b3a]">
+                        <Check size={16} className="stroke-[3px]" />
+                        {t('connect.upgrade.changed')}
+                    </div>
+                ) : canCheckout ? (
                     <button
                         type="button"
                         onClick={handleUpgrade}

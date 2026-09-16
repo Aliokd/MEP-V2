@@ -618,7 +618,9 @@
         "title": "Business är en del av Max",
         "subtitle": "Gå med professionella låtskrivare, ta briefer, gör business.",
         "cta": "Uppgradera till Max"
-      }
+      },
+      "changed": "Klart. Din plan är ändrad, och du ser det i profilen om en stund.",
+      "change_error": "Vi kunde inte ändra din plan just nu. Försök igen."
     },
     "map_not_configured": "Kartan är inte uppsatt än: det behövs en Google Maps-nyckel. Du kan fortfarande välja din stad.",
     "business_soon_desc_locked": "Här kommer Max-medlemmar ta briefer, lägga ut uppdrag och få betalt för samarbeten. Det öppnar här först.",
@@ -995,7 +997,7 @@
     "empty_songs_cta": "Skapa",
     "empty_connections_desc": "Anslut till låtskrivare idag",
     "empty_connections_cta": "Anslut",
-    "see_more":"Mer",
+    "see_more": "Mer",
     "support_row_title": "Få support",
     "settings_title": "Inställningar",
     "settings_desc": "Visning, prenumeration, språk och hjälp.",
@@ -1096,7 +1098,24 @@
     "verify_resubmit": "Uppdatera och skicka igen",
     "verify_chars": "tecken",
     "sample_bio": "Låtskrivare som börjar med en melodi och hittar orden efteråt. Skriver pop och folk, mest på natten, och letar alltid efter någon att göra klart en refräng med.",
-    "photos_title": "Bilder"
+    "photos_title": "Bilder",
+    "billing": {
+      "no_plan": "Ingen plan än",
+      "no_plan_desc": "Starta dina {days} dagar med premiumåtkomst gratis.",
+      "choose_plan": "Välj en plan",
+      "trialing": "Gratis provperiod, slutar {date}",
+      "active_renews": "Förnyas {date}",
+      "active_period": "{period} fakturering",
+      "cancels": "Avslutas {date}",
+      "past_due": "Betalningen misslyckades. Uppdatera kortet för att behålla åtkomsten.",
+      "paused": "Pausad",
+      "canceled": "Avslutad",
+      "granted": "Kostnadsfri åtkomst",
+      "yearly": "Årlig",
+      "monthly": "Månatlig",
+      "opening": "Öppnar...",
+      "portal_error": "Vi kunde inte öppna din betalningssida. Försök igen."
+    }
   },
   "email": {
     "song_liked": {
@@ -1181,6 +1200,14 @@
       "signoff": "Tack för att du bygger det här tillsammans med oss,",
       "team": "Veinote-teamet",
       "contact": "veinote.com"
+    },
+    "verify_code": {
+      "subject": "{{code}} är din Veinote-kod",
+      "greeting": "Hej,",
+      "body": "Här är koden som slutför registreringen. Skriv in den i de sex rutorna på sidan du kom från.",
+      "expiry": "Den gäller i {{minutes}} minuter.",
+      "ignore": "Om du inte har registrerat dig hos Veinote kan du bortse från det här mejlet. Inget händer utan koden.",
+      "team": "Veinote-teamet"
     }
   },
   "practice": {
@@ -1513,7 +1540,9 @@
       "signin": "Logga in",
       "join": "Gå med nu",
       "waitlist": "Ställ dig i kön",
-      "waitlist_short": "Väntelista"
+      "waitlist_short": "Väntelista",
+      "start": "Kom igång gratis",
+      "start_short": "Starta"
     },
     "hero": {
       "title_1": "Hela din",
@@ -1774,7 +1803,13 @@
       "consent_cookies": "cookieanvändning",
       "change_title": "Vad är din e-postadress?",
       "change_subtitle": "Vi skickar en ny kod dit.",
-      "change_cta": "Ändra nu"
+      "change_cta": "Ändra nu",
+      "errors": {
+        "account_exists": "Den adressen har redan ett Veinote-konto.",
+        "sign_in": "Logga in i stället",
+        "mail_failed": "Vi kunde inte skicka koden till den adressen. Kontrollera den och försök igen om en stund.",
+        "failed": "Något gick fel hos oss. Försök igen."
+      }
     },
     "verdict": {
       "sections": {
@@ -1876,7 +1911,8 @@
         "monthly": "Månadsvis",
         "save_badge": "Spara {pct} %",
         "billed_yearly": "per månad, faktureras årsvis",
-        "billed_monthly": "per månad, faktureras månadsvis"
+        "billed_monthly": "per månad, faktureras månadsvis",
+        "billed_yearly_amount": "per månad, {amount} faktureras årsvis"
       },
       "recommended": "Populärast",
       "max_intro": "Allt i Pro, plus",
@@ -1992,20 +2028,11 @@
       "checkout_title": "Betaluppgifter",
       "checkout_secure": "Säker",
       "checkout_continue": "Gå vidare",
-      "checkout_form": {
-        "card_number": "Kortnummer",
-        "expiry": "Giltigt t.o.m.",
-        "expiry_placeholder": "MM/ÅÅ",
-        "cvc": "Säkerhetskod",
-        "name": "Namn på kortet",
-        "name_placeholder": "Som det står på kortet",
-        "country": "Land",
-        "postal": "Postnummer",
-        "due_today": "Att betala i dag"
-      },
-      "checkout_preview_tag": "Förhandsvisning",
       "checkout_success": "Du är med.",
-      "checkout_success_note": "Dina {days} dagar börjar nu."
+      "checkout_success_note": "Dina {days} dagar börjar nu.",
+      "unavailable_title": "Betalning är inte tillgänglig just nu",
+      "unavailable_body": "Du kan fortsätta utan en plan och välja en senare under Inställningar. Inget debiteras i dag oavsett.",
+      "unavailable_cta": "Fortsätt utan plan"
     },
     "verify": {
       "title": "En sista sak",
@@ -2016,7 +2043,13 @@
       "resend": "Fick du den inte? Skicka igen",
       "resend_in": "Skicka igen om {s}s",
       "change_email": "Fel adress? Ändra den",
-      "invalid": "Koden stämde inte. Kolla det senaste mejlet och försök igen."
+      "invalid": "Koden stämde inte. Kolla det senaste mejlet och försök igen.",
+      "errors": {
+        "expired": "Koden har gått ut. Skicka en ny och försök igen.",
+        "locked": "För många försök. Skicka en ny kod och försök igen.",
+        "failed": "Vi kunde inte kontrollera koden just nu. Försök igen.",
+        "resend_failed": "Vi kunde inte skicka en ny kod. Försök igen om en stund."
+      }
     },
     "auth": {
       "title": "Säkra din plats",
@@ -2038,9 +2071,16 @@
         "community": "Dela en låt. Feedback från en annan låtskrivare slår ännu en timme ensam med den."
       },
       "cta": "Öppna Veinote",
-      "prelaunch": {
-        "body": "Konton är inte öppna än. Veinote är fortfarande i sluten testning, så inget skapades och inget kort debiterades. Här slutar förhandsvisningen.",
-        "restart": "Gå igenom det igen"
+      "password": {
+        "title": "Lägg till ett lösenord till nästa gång",
+        "body": "Valfritt. Utan lösenord kommer du ändå in via ”Glömt lösenord?” på inloggningssidan.",
+        "placeholder": "Minst {n} tecken",
+        "save": "Spara",
+        "saved": "Lösenordet är sparat. Logga in med det nästa gång.",
+        "too_short": "Använd minst {n} tecken.",
+        "failed": "Vi kunde inte spara lösenordet. Du kan sätta ett senare under Inställningar.",
+        "show": "Visa lösenord",
+        "hide": "Dölj lösenord"
       }
     },
     "waitlist": {

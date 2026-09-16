@@ -61,6 +61,19 @@ export const AI_RATE_LIMITS: Record<string, RateLimitRule> = {
     // write flood and an inbox flood. A person signs up once; a handful of
     // attempts covers typos and a re-submit.
     waitlist: { limit: 6, windowMs: 60_000 },
+    // The onboarding email step: creates an account and sends a code, both on
+    // an unauthenticated call. Six a minute covers a typo and a resend; the
+    // route also refuses to re-send to the same account inside its own
+    // cooldown, so the ceiling here is against sweeping addresses.
+    'onboarding-start': { limit: 6, windowMs: 60_000 },
+    // Guessing the six digits. The route locks the code after a handful of
+    // wrong tries regardless; this just keeps the lock from being the only
+    // thing standing between a script and a million attempts.
+    'onboarding-verify': { limit: 10, windowMs: 60_000 },
+    // Billing routes: opening the customer portal and changing plan. Each
+    // makes a Paddle API call on the caller's behalf; nobody needs more than
+    // a few a minute.
+    'paddle-billing': { limit: 10, windowMs: 60_000 },
     // The feedback and support forms are public writes that each create an
     // inbox thread and send a mail to support@. They accept anonymous callers
     // by design — a locked-out user still needs a way in — which is exactly

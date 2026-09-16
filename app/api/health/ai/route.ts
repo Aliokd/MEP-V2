@@ -104,6 +104,27 @@ export async function GET(request: Request) {
                 : 'MISSING. No email can be sent (welcome, support replies, moderation notices). Not failing the check because email invitations are disabled in code to match. Set SMTP_PASS in the repository secrets.',
     });
 
+    // Paddle, presence only. Advisory: the paywall degrades on purpose without
+    // it (see PaywallPlans), but a production deploy where this reads MISSING
+    // is one where nobody can start a trial, and the webhook 500s on every
+    // Paddle notification until both secrets are set.
+    const paddleApiKey = process.env.PADDLE_API_KEY;
+    const paddleWebhookSecret = process.env.PADDLE_WEBHOOK_SECRET;
+    const paddleClientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
+    const paddleMissing = [
+        !paddleApiKey && 'PADDLE_API_KEY',
+        !paddleWebhookSecret && 'PADDLE_WEBHOOK_SECRET',
+        !paddleClientToken && 'NEXT_PUBLIC_PADDLE_CLIENT_TOKEN',
+    ].filter(Boolean);
+    checks.push({
+        name: 'paddle',
+        ok: paddleMissing.length === 0,
+        advisory: true,
+        detail: paddleMissing.length === 0
+            ? `present (${process.env.NEXT_PUBLIC_PADDLE_ENV === 'production' ? 'production' : 'SANDBOX'}, api key fingerprint ${createHash('sha256').update(paddleApiKey!).digest('hex').slice(0, 12)})`
+            : `MISSING: ${paddleMissing.join(', ')}. The paywall says payments are unavailable and no trial can start. See docs/paddle-setup.md.`,
+    });
+
     // Can this environment reach Google at all, and are our pinned models real?
     if (apiKey) {
         checks.push(

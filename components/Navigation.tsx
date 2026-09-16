@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { splitLocale, localizePath } from '@/lib/i18n';
-import { waitlistJoinPath } from '@/lib/uiFlags';
+import { signupPath } from '@/lib/uiFlags';
 import { useLanguage } from '@/context/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
 
@@ -66,7 +66,7 @@ const Navigation = () => {
     // link, instead of dropping them back onto the English URL.
     const homeHref = localizePath('/', language);
     const signinHref = localizePath('/signin', language);
-    const waitlistHref = waitlistJoinPath('nav', language);
+    const signupHref = signupPath('nav', language);
 
     if (isAuthPage) {
         return (
@@ -104,7 +104,7 @@ const Navigation = () => {
                 ) : (
                     <div className="flex items-center gap-6">
                         <Link href={signinHref} className="hover:text-black transition-colors font-medium">{t('signin.sign_in')}</Link>
-                        <Link href={`${waitlistHref}?from=nav`} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.waitlist')}</Link>
+                        <Link href={signupHref} className="bg-[#86BE7F] hover:opacity-90 text-stone-900 px-4 py-1.5 rounded-[15px] font-semibold transition-all">{t('home.nav.start')}</Link>
                     </div>
                 )}
             </div>
@@ -148,10 +148,10 @@ const Navigation = () => {
                             <User size={19} strokeWidth={1.8} />
                         </Link>
                         <Link
-                            href={`${waitlistHref}?from=nav`}
+                            href={signupHref}
                             className="btn-press px-5 h-10 font-semibold text-[15px] flex items-center justify-center whitespace-nowrap shrink-0"
                         >
-                            {t('home.nav.waitlist_short')}
+                            {t('home.nav.start_short')}
                         </Link>
                     </>
                 )}

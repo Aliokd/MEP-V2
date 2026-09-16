@@ -13,7 +13,7 @@ import { recordTermsAcceptance } from '@/lib/termsAcceptance';
 import { clearOpenProject } from '@/lib/storage';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizePath } from '@/lib/i18n';
-import { SIGNUPS_OPEN, waitlistJoinPath } from '@/lib/uiFlags';
+import { SIGNUPS_OPEN, signupPath } from '@/lib/uiFlags';
 import { hasValidInvitePass, forgetInvitePass } from '@/lib/invitePass';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
@@ -433,7 +433,7 @@ function SignInPageInner() {
                     <div className="mt-8 pt-8 border-t border-stone-200/80 text-center">
                         <p className="text-sm text-stone-600 font-sans font-medium">
                             {t('signin.new_to_veinote')}{' '}
-                            <Link href={waitlistJoinPath('signin', language)} className="text-stone-900 transition-colors underline-offset-4 hover:underline font-bold">{t('home.nav.waitlist')}</Link>
+                            <Link href={signupPath('signin', language)} className="text-stone-900 transition-colors underline-offset-4 hover:underline font-bold">{t('signin.join')}</Link>
                         </p>
                     </div>
                 </div>

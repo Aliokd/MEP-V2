@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { Paddle, Environment, EventName } from "@paddle/paddle-node-sdk";
+import { EventName } from "@paddle/paddle-node-sdk";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { PADDLE_ENVIRONMENT, planFromPriceId, isEntitled } from "@/lib/paddle/config";
+import { planFromPriceId, isEntitled } from "@/lib/paddle/config";
+import { getPaddle } from "@/lib/paddle/server";
 
 // Signature verification needs the untouched request body, so this route must
 // run on Node (not edge) and must never be statically optimized.
@@ -26,19 +27,14 @@ interface SubscriptionLike {
     customerId: string;
     customData: unknown;
     currentBillingPeriod: { startsAt: string; endsAt: string } | null;
+    /** When the card is next charged; null once cancelled. */
+    nextBilledAt: string | null;
+    /** A cancellation, pause or resume that Paddle will apply later. */
+    scheduledChange: { action: string; effectiveAt: string } | null;
     items: Array<{
         price: { id: string } | null;
         trialDates: { startsAt: string; endsAt: string } | null;
     }>;
-}
-
-function getPaddleClient(): Paddle | null {
-    const apiKey = process.env.PADDLE_API_KEY;
-    if (!apiKey) return null;
-
-    return new Paddle(apiKey, {
-        environment: PADDLE_ENVIRONMENT === "production" ? Environment.production : Environment.sandbox,
-    });
 }
 
 /**
@@ -108,7 +104,14 @@ async function syncSubscription(sub: SubscriptionLike, occurredAt: string): Prom
                 paddleSubscriptionId: sub.id,
                 subscriptionStatus: sub.status,
                 currentPeriodEnd: sub.currentBillingPeriod?.endsAt ?? null,
+                nextBilledAt: sub.nextBilledAt ?? null,
                 trialEndsAt: item?.trialDates?.endsAt ?? null,
+                // "Cancels on the 3rd" is the one thing Settings has to be
+                // able to say that the status alone does not: a cancelled
+                // subscription stays `active` until the period ends.
+                scheduledChange: sub.scheduledChange
+                    ? { action: sub.scheduledChange.action, effectiveAt: sub.scheduledChange.effectiveAt }
+                    : null,
                 lastEventAt: occurredAt,
             },
         },
@@ -120,7 +123,7 @@ async function syncSubscription(sub: SubscriptionLike, occurredAt: string): Prom
 
 export async function POST(request: Request) {
     const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET;
-    const paddle = getPaddleClient();
+    const paddle = getPaddle();
 
     if (!paddle || !webhookSecret) {
         console.error("Paddle webhook hit but PADDLE_API_KEY / PADDLE_WEBHOOK_SECRET are not set.");

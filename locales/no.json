@@ -618,7 +618,9 @@
         "title": "Business er en del av Max",
         "subtitle": "Bli med profesjonelle låtskrivere, ta briefer, gjør business.",
         "cta": "Oppgrader til Max"
-      }
+      },
+      "changed": "Ferdig. Planen din er endret, og du ser det i profilen om et øyeblikk.",
+      "change_error": "Vi fikk ikke endret planen din akkurat nå. Prøv igjen."
     },
     "map_not_configured": "Kartet er ikke satt opp ennå: det trengs en Google Maps-nøkkel. Du kan fortsatt velge byen din.",
     "business_soon_desc_locked": "Her vil Max-medlemmer ta briefer, legge ut oppdrag og få betalt for samarbeid. Det åpner her først.",
@@ -995,7 +997,7 @@
     "empty_songs_cta": "Lag",
     "empty_connections_desc": "Koble deg til låtskrivere i dag",
     "empty_connections_cta": "Koble til",
-    "see_more":"Mer",
+    "see_more": "Mer",
     "support_row_title": "Få support",
     "settings_title": "Innstillinger",
     "settings_desc": "Visning, abonnement, språk og hjelp.",
@@ -1096,7 +1098,24 @@
     "verify_resubmit": "Oppdater og send på nytt",
     "verify_chars": "tegn",
     "sample_bio": "Låtskriver som starter med en melodi og finner ordene etterpå. Skriver pop og folk, mest om natten, og ser alltid etter noen å gjøre ferdig et refreng med.",
-    "photos_title": "Bilder"
+    "photos_title": "Bilder",
+    "billing": {
+      "no_plan": "Ingen plan ennå",
+      "no_plan_desc": "Start dine {days} dager med premiumtilgang gratis.",
+      "choose_plan": "Velg en plan",
+      "trialing": "Gratis prøveperiode, slutter {date}",
+      "active_renews": "Fornyes {date}",
+      "active_period": "{period} fakturering",
+      "cancels": "Avsluttes {date}",
+      "past_due": "Betalingen feilet. Oppdater kortet for å beholde tilgangen.",
+      "paused": "Satt på pause",
+      "canceled": "Avsluttet",
+      "granted": "Gratis tilgang",
+      "yearly": "Årlig",
+      "monthly": "Månedlig",
+      "opening": "Åpner...",
+      "portal_error": "Vi fikk ikke åpnet betalingssiden din. Prøv igjen."
+    }
   },
   "email": {
     "song_liked": {
@@ -1181,6 +1200,14 @@
       "signoff": "Takk for at du bygger dette sammen med oss,",
       "team": "Veinote-teamet",
       "contact": "veinote.com"
+    },
+    "verify_code": {
+      "subject": "{{code}} er Veinote-koden din",
+      "greeting": "Hei,",
+      "body": "Her er koden som fullfører registreringen. Skriv den inn i de seks feltene på siden du kom fra.",
+      "expiry": "Den gjelder i {{minutes}} minutter.",
+      "ignore": "Hvis du ikke har registrert deg hos Veinote, kan du se bort fra denne e-posten. Ingenting skjer uten koden.",
+      "team": "Veinote-teamet"
     }
   },
   "practice": {
@@ -1513,7 +1540,9 @@
       "signin": "Logg inn",
       "join": "Bli med",
       "waitlist": "Sett deg på ventelisten",
-      "waitlist_short": "Venteliste"
+      "waitlist_short": "Venteliste",
+      "start": "Kom i gang gratis",
+      "start_short": "Start"
     },
     "hero": {
       "title_1": "Hele din",
@@ -1774,7 +1803,13 @@
       "consent_cookies": "bruk av informasjonskapsler",
       "change_title": "Hva er e-postadressen din?",
       "change_subtitle": "Vi sender en ny kode dit.",
-      "change_cta": "Endre nå"
+      "change_cta": "Endre nå",
+      "errors": {
+        "account_exists": "Den adressen har allerede en Veinote-konto.",
+        "sign_in": "Logg inn i stedet",
+        "mail_failed": "Vi fikk ikke sendt koden til den adressen. Sjekk den og prøv igjen om et øyeblikk.",
+        "failed": "Noe gikk galt hos oss. Prøv igjen."
+      }
     },
     "verdict": {
       "sections": {
@@ -1876,7 +1911,8 @@
         "monthly": "Månedlig",
         "save_badge": "Spar {pct} %",
         "billed_yearly": "per måned, fakturert årlig",
-        "billed_monthly": "per måned, fakturert månedlig"
+        "billed_monthly": "per måned, fakturert månedlig",
+        "billed_yearly_amount": "per måned, {amount} faktureres årlig"
       },
       "recommended": "Mest valgt",
       "max_intro": "Alt i Pro, pluss",
@@ -1992,20 +2028,11 @@
       "checkout_title": "Betalingsdetaljer",
       "checkout_secure": "Sikker",
       "checkout_continue": "Gå videre",
-      "checkout_form": {
-        "card_number": "Kortnummer",
-        "expiry": "Utløper",
-        "expiry_placeholder": "MM/ÅÅ",
-        "cvc": "Sikkerhetskode",
-        "name": "Navn på kortet",
-        "name_placeholder": "Som det står på kortet",
-        "country": "Land",
-        "postal": "Postnummer",
-        "due_today": "Å betale i dag"
-      },
-      "checkout_preview_tag": "Forhåndsvisning",
       "checkout_success": "Du er inne.",
-      "checkout_success_note": "De {days} dagene dine starter nå."
+      "checkout_success_note": "De {days} dagene dine starter nå.",
+      "unavailable_title": "Betaling er ikke tilgjengelig akkurat nå",
+      "unavailable_body": "Du kan fortsette uten en plan og velge en senere under Innstillinger. Ingenting belastes i dag uansett.",
+      "unavailable_cta": "Fortsett uten plan"
     },
     "verify": {
       "title": "Én siste ting",
@@ -2016,7 +2043,13 @@
       "resend": "Fikk du den ikke? Send på nytt",
       "resend_in": "Send på nytt om {s}s",
       "change_email": "Feil adresse? Endre den",
-      "invalid": "Koden stemte ikke. Sjekk den siste e-posten og prøv igjen."
+      "invalid": "Koden stemte ikke. Sjekk den siste e-posten og prøv igjen.",
+      "errors": {
+        "expired": "Koden har utløpt. Send en ny og prøv igjen.",
+        "locked": "For mange forsøk. Send en ny kode og prøv igjen.",
+        "failed": "Vi fikk ikke sjekket koden akkurat nå. Prøv igjen.",
+        "resend_failed": "Vi fikk ikke sendt en ny kode. Prøv igjen om et øyeblikk."
+      }
     },
     "auth": {
       "title": "Sikre plassen din",
@@ -2038,9 +2071,16 @@
         "community": "Del én låt. Tilbakemelding fra en annen låtskriver slår enda en time alene med den."
       },
       "cta": "Åpne Veinote",
-      "prelaunch": {
-        "body": "Kontoer er ikke åpne ennå. Veinote er fortsatt i lukket testing, så ingenting ble opprettet og ingen kort ble belastet. Her stopper forhåndsvisningen.",
-        "restart": "Gå gjennom det på nytt"
+      "password": {
+        "title": "Legg til et passord til neste gang",
+        "body": "Valgfritt. Uten passord kommer du fortsatt inn via «Glemt passord?» på innloggingssiden.",
+        "placeholder": "Minst {n} tegn",
+        "save": "Lagre",
+        "saved": "Passordet er lagret. Logg inn med det neste gang.",
+        "too_short": "Bruk minst {n} tegn.",
+        "failed": "Vi fikk ikke lagret passordet. Du kan sette et senere under Innstillinger.",
+        "show": "Vis passord",
+        "hide": "Skjul passord"
       }
     },
     "waitlist": {

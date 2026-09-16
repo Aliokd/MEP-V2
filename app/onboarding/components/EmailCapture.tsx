@@ -54,11 +54,17 @@ const SHAKE_TIMING = { duration: 0.42, ease: [0.36, 0.07, 0.19, 0.97] as const }
 // is a reveal as the section scrolls into view rather than the answer to a
 // question someone just asked.
 
-export default function EmailCapture({ initialEmail = '', isSubmitting = false, error = '', changing = false, waitlist = false, onSubmit }: {
+export default function EmailCapture({ initialEmail = '', isSubmitting = false, error = '', errorAction = null, changing = false, waitlist = false, onSubmit }: {
     initialEmail?: string;
     isSubmitting?: boolean;
     /** Set by the page when the address is refused upstream. */
     error?: string;
+    /**
+     * A way out of the refusal, when there is one: the address already has
+     * an account, and the sign-in page is where it goes. Shown as a link
+     * under the field; the shake alone cannot say "you are already here".
+     */
+    errorAction?: { label: string; href: string } | null;
     /**
      * The campaign flow's framing: the address joins the waitlist rather than
      * creating an account, so "First, create your account" would be describing
@@ -263,12 +269,30 @@ export default function EmailCapture({ initialEmail = '', isSubmitting = false, 
                     />
                 </motion.div>
 
-                {/* Announced, not shown. The shake is the whole visible reply —
-                    a sentence under the field said the same thing twice and
-                    turned a nudge into a telling-off. It stays in the DOM for
-                    screen readers, which cannot see a field move. */}
-                {message && (
+                {/* A missing or malformed address is announced, not shown:
+                    the shake is the whole visible reply, and a sentence under
+                    the field would say the same thing twice. It stays in the
+                    DOM for screen readers, which cannot see a field move.
+
+                    A refusal from the server is different. Nothing about the
+                    address is wrong, so a shake would be lying about what
+                    happened; those are written out, with the way on when
+                    there is one. */}
+                {message && !error && (
                     <p role="status" className="sr-only">{message}</p>
+                )}
+                {error && (
+                    <p role="alert" className="text-center text-[13px] font-medium leading-relaxed text-stone-800">
+                        {error}
+                        {errorAction && (
+                            <>
+                                {' '}
+                                <Link href={errorAction.href} className="font-semibold text-stone-900 underline underline-offset-4 hover:text-stone-600">
+                                    {errorAction.label}
+                                </Link>
+                            </>
+                        )}
+                    </p>
                 )}
 
                 <button

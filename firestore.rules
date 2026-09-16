@@ -741,6 +741,12 @@ service cloud.firestore {
     // notification. Reads are closed to everyone — the console reads it through
     // /api/admin/waitlist, so a list of strangers' email addresses is never
     // exposed to a browser holding an ordinary token.
+    // The six-digit codes that finish an onboarding signup, keyed by uid and
+    // holding a hash rather than the code. Written and read by the Admin SDK
+    // only (/api/onboarding/start and /verify); no client rule, so nothing in
+    // the browser can read a code or mint one. See lib/onboardingCodes.ts.
+    // (No match block on purpose: an unmatched path is denied.)
+
     match /waitlist/{entryId} {
       allow read, write: if false;
     }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import * as btn from '@/app/platform/components/buttonStyles';
-import { waitlistJoinPath } from '@/lib/uiFlags';
+import { signupPath } from '@/lib/uiFlags';
 
 export interface PublicSong {
     id: string;
@@ -189,7 +189,7 @@ export default function PublicSongCard({ song }: { song: PublicSong }) {
 
                 {/* A way in, the same road every other public CTA takes. */}
                 <div className="mt-10 text-center">
-                    <Link href={waitlistJoinPath('song', language)} className={btn.primary('md')}>
+                    <Link href={signupPath('song', language)} className={btn.primary('md')}>
                         {t('connect.share_cta')}
                     </Link>
                 </div>

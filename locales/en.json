@@ -618,7 +618,9 @@
         "title": "Business is part of Max",
         "subtitle": "Join pro songwriters, take briefs, do business.",
         "cta": "Upgrade to Max"
-      }
+      },
+      "changed": "Done. Your plan has changed, and you'll see it in your profile in a moment.",
+      "change_error": "We couldn't change your plan just now. Please try again."
     },
     "map_not_configured": "The map isn't set up yet: it needs a Google Maps key. You can still choose your city.",
     "business_soon_desc_locked": "This is where Max members will take briefs, post commissions and get paid for collaborations. It opens here first.",
@@ -1096,7 +1098,24 @@
     "verify_resubmit": "Update and resubmit",
     "verify_chars": "characters",
     "sample_bio": "Songwriter who starts with a melody and finds the words after. Writes pop and folk, mostly at night, and is always looking for someone to finish a chorus with.",
-    "photos_title": "Photos"
+    "photos_title": "Photos",
+    "billing": {
+      "no_plan": "No plan yet",
+      "no_plan_desc": "Start your {days} days of premium access for free.",
+      "choose_plan": "Choose a plan",
+      "trialing": "Free trial, ends {date}",
+      "active_renews": "Renews {date}",
+      "active_period": "{period} billing",
+      "cancels": "Cancels {date}",
+      "past_due": "Payment failed. Update your card to keep access.",
+      "paused": "Paused",
+      "canceled": "Cancelled",
+      "granted": "Complimentary access",
+      "yearly": "Yearly",
+      "monthly": "Monthly",
+      "opening": "Opening...",
+      "portal_error": "We couldn't open your billing page. Please try again."
+    }
   },
   "email": {
     "song_liked": {
@@ -1181,6 +1200,14 @@
       "signoff": "Thanks for building this with us,",
       "team": "The Veinote team",
       "contact": "veinote.com"
+    },
+    "verify_code": {
+      "subject": "{{code}} is your Veinote code",
+      "greeting": "Hi,",
+      "body": "Here is the code that finishes your signup. Type it into the six boxes on the page you came from.",
+      "expiry": "It works for {{minutes}} minutes.",
+      "ignore": "If you didn't sign up for Veinote, you can ignore this email. Nothing happens without the code.",
+      "team": "The Veinote team"
     }
   },
   "practice": {
@@ -1513,7 +1540,9 @@
       "signin": "Sign in",
       "join": "Join now",
       "waitlist": "Join the waitlist",
-      "waitlist_short": "Waitlist"
+      "waitlist_short": "Waitlist",
+      "start": "Start for free",
+      "start_short": "Start"
     },
     "hero": {
       "title_1": "The complete",
@@ -1774,7 +1803,13 @@
       "consent_cookies": "Cookie Use",
       "change_title": "What's your email?",
       "change_subtitle": "We'll send a new code to this address.",
-      "change_cta": "Change now"
+      "change_cta": "Change now",
+      "errors": {
+        "account_exists": "That address already has a Veinote account.",
+        "sign_in": "Sign in instead",
+        "mail_failed": "We couldn't send the code to that address. Check it and try again in a moment.",
+        "failed": "Something went wrong on our side. Please try again."
+      }
     },
     "verdict": {
       "sections": {
@@ -1876,7 +1911,8 @@
         "monthly": "Monthly",
         "save_badge": "Save {pct}%",
         "billed_yearly": "per month, billed yearly",
-        "billed_monthly": "per month, billed monthly"
+        "billed_monthly": "per month, billed monthly",
+        "billed_yearly_amount": "per month, {amount} billed yearly"
       },
       "recommended": "Popular",
       "max_intro": "Everything in Pro, plus",
@@ -1992,20 +2028,11 @@
       "checkout_title": "Payment details",
       "checkout_secure": "Secure",
       "checkout_continue": "Continue",
-      "checkout_form": {
-        "card_number": "Card number",
-        "expiry": "Expiry",
-        "expiry_placeholder": "MM/YY",
-        "cvc": "Security code",
-        "name": "Name on card",
-        "name_placeholder": "As printed on the card",
-        "country": "Country",
-        "postal": "Postal code",
-        "due_today": "Due today"
-      },
-      "checkout_preview_tag": "Preview",
       "checkout_success": "You're in.",
-      "checkout_success_note": "Your {days} days start now."
+      "checkout_success_note": "Your {days} days start now.",
+      "unavailable_title": "Payments are not available right now",
+      "unavailable_body": "You can carry on without a plan and pick one later from Settings. Nothing is charged today either way.",
+      "unavailable_cta": "Continue without a plan"
     },
     "verify": {
       "title": "One last thing",
@@ -2016,7 +2043,13 @@
       "resend": "Didn't get it? Send it again",
       "resend_in": "Send it again in {s}s",
       "change_email": "Wrong address? Change it",
-      "invalid": "That code didn't match. Check the latest email and try again."
+      "invalid": "That code didn't match. Check the latest email and try again.",
+      "errors": {
+        "expired": "That code has expired. Send a new one and try again.",
+        "locked": "Too many tries. Send a new code and try again.",
+        "failed": "We couldn't check the code just now. Please try again.",
+        "resend_failed": "We couldn't send a new code. Please try again in a moment."
+      }
     },
     "auth": {
       "title": "Secure your path",
@@ -2038,9 +2071,16 @@
         "community": "Share one song. Feedback from another songwriter beats another hour alone with it."
       },
       "cta": "Open Veinote",
-      "prelaunch": {
-        "body": "Accounts aren't open yet. Veinote is still in private testing, so nothing was created and no card was charged. This is where the preview ends.",
-        "restart": "Go through it again"
+      "password": {
+        "title": "Add a password for next time",
+        "body": "Optional. Without one you can still get in with the \"Forgot password?\" link on the sign-in page.",
+        "placeholder": "At least {n} characters",
+        "save": "Save",
+        "saved": "Password saved. Sign in with it next time.",
+        "too_short": "Use at least {n} characters.",
+        "failed": "We couldn't save that password. You can set one later from Settings.",
+        "show": "Show password",
+        "hide": "Hide password"
       }
     },
     "waitlist": {

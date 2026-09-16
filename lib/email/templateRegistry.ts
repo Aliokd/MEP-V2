@@ -37,6 +37,14 @@ export const EMAIL_TEMPLATES: EmailTemplateDefinition[] = [
         variables: ["name"],
     },
     {
+        id: "verify_code",
+        label: "Verification code",
+        whenSent: "At the end of onboarding, once the card is in: the six-digit code that verifies the address.",
+        keyPrefix: "verify_code",
+        fields: ["subject", "greeting", "body", "expiry", "ignore", "team"],
+        variables: ["code", "minutes"],
+    },
+    {
         id: "beta_welcome",
         label: "Beta tester invite",
         whenSent:

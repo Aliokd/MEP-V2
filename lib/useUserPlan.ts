@@ -4,17 +4,53 @@ import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { isEntitled, type PlanId } from '@/lib/paddle/config';
+import { isEntitled, type BillingPeriod, type PlanId } from '@/lib/paddle/config';
+
+/**
+ * The subscription as the webhook last wrote it, for screens that describe it
+ * rather than gate on it (Settings). Every date is an ISO string or null.
+ */
+export interface BillingDetails {
+    billingPeriod: BillingPeriod | null;
+    /** True once a Paddle subscription has ever been attached to the account. */
+    hasSubscription: boolean;
+    trialEndsAt: string | null;
+    nextBilledAt: string | null;
+    currentPeriodEnd: string | null;
+    /** A cancellation Paddle will apply at `effectiveAt`, if one is scheduled. */
+    scheduledChange: { action: string; effectiveAt: string } | null;
+}
 
 export interface UserPlan {
     plan: PlanId | null;
     subscriptionStatus: string | null;
-    /** Max — paid and entitled, or granted by an admin (`tier` max/comp). */
+    /** Max: paid and entitled, or granted by an admin (`tier` max/comp). */
     hasMax: boolean;
     /** Pro or above. Everything Max is also Pro. */
     hasPro: boolean;
+    /** Whether `hasPro`/`hasMax` comes from a paid, entitled Paddle subscription rather than an admin grant. */
+    paid: boolean;
+    billing: BillingDetails;
     loading: boolean;
 }
+
+const EMPTY_BILLING: BillingDetails = {
+    billingPeriod: null,
+    hasSubscription: false,
+    trialEndsAt: null,
+    nextBilledAt: null,
+    currentPeriodEnd: null,
+    scheduledChange: null,
+};
+
+const EMPTY: Omit<UserPlan, 'loading'> = {
+    plan: null,
+    subscriptionStatus: null,
+    hasMax: false,
+    hasPro: false,
+    paid: false,
+    billing: EMPTY_BILLING,
+};
 
 /**
  * Reads the current user's billing tier from users/{uid}.
@@ -28,19 +64,14 @@ export interface UserPlan {
  */
 export function useUserPlan(): UserPlan {
     const { user, loading: authLoading } = useAuth();
-    const [state, setState] = useState<Omit<UserPlan, 'loading'>>({
-        plan: null,
-        subscriptionStatus: null,
-        hasMax: false,
-        hasPro: false,
-    });
+    const [state, setState] = useState<Omit<UserPlan, 'loading'>>(EMPTY);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (authLoading) return;
 
         if (!user) {
-            setState({ plan: null, subscriptionStatus: null, hasMax: false, hasPro: false });
+            setState(EMPTY);
             setLoading(false);
             return;
         }
@@ -72,11 +103,23 @@ export function useUserPlan(): UserPlan {
                 const grantedPro = tier === 'pro';
                 const hasPro = hasMax || paidPro || grantedPro;
 
+                const scheduled = billing.scheduledChange;
                 setState({
                     plan,
                     subscriptionStatus,
                     hasMax,
                     hasPro,
+                    paid: (paidMax || paidPro),
+                    billing: {
+                        billingPeriod: (billing.billingPeriod ?? null) as BillingPeriod | null,
+                        hasSubscription: typeof billing.paddleSubscriptionId === 'string' && billing.paddleSubscriptionId.length > 0,
+                        trialEndsAt: typeof billing.trialEndsAt === 'string' ? billing.trialEndsAt : null,
+                        nextBilledAt: typeof billing.nextBilledAt === 'string' ? billing.nextBilledAt : null,
+                        currentPeriodEnd: typeof billing.currentPeriodEnd === 'string' ? billing.currentPeriodEnd : null,
+                        scheduledChange: scheduled && typeof scheduled.effectiveAt === 'string'
+                            ? { action: String(scheduled.action ?? ''), effectiveAt: scheduled.effectiveAt }
+                            : null,
+                    },
                 });
                 setLoading(false);
             },
@@ -84,7 +127,7 @@ export function useUserPlan(): UserPlan {
                 // Fail closed: an unreadable billing doc shows the locked state
                 // rather than handing out Max features on an error.
                 console.error('[useUserPlan] Failed to read billing:', err);
-                setState({ plan: null, subscriptionStatus: null, hasMax: false, hasPro: false });
+                setState(EMPTY);
                 setLoading(false);
             },
         );

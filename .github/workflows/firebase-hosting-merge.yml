@@ -57,6 +57,14 @@ jobs:
           ALT_EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           ALT_ONECOM_PASS: ${{ secrets.ONECOM_PASS }}
           NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          PADDLE_API_KEY: ${{ secrets.PADDLE_API_KEY }}
+          PADDLE_WEBHOOK_SECRET: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_PADDLE_ENV: ${{ secrets.NEXT_PUBLIC_PADDLE_ENV }}
+          NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: ${{ secrets.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN }}
+          NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY }}
+          NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY }}
+          NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY }}
+          NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY }}
         run: |
           # Length + hash prefix of the mail password, to compare against
           # /api/health/ai's fingerprint. The value itself never prints —
@@ -101,6 +109,26 @@ jobs:
             echo "::warning::NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set — the songwriter map will show its 'not set up yet' panel in this deploy. Add it as a GitHub Actions secret with exactly that name."
           fi
 
+          # Soft, not fatal, because the paywall degrades on purpose: without the
+          # client token it says payments are unavailable and lets people continue
+          # without a plan. But signups are open, so a deploy without these is a
+          # deploy where nobody can start a trial. All eight are GitHub Actions
+          # secrets; docs/paddle-setup.md says where each one comes from.
+          PADDLE_MISSING=""
+          for NAME in PADDLE_API_KEY PADDLE_WEBHOOK_SECRET NEXT_PUBLIC_PADDLE_CLIENT_TOKEN \
+                      NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY \
+                      NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY; do
+            if [ -z "${!NAME}" ]; then
+              PADDLE_MISSING="$PADDLE_MISSING $NAME"
+            fi
+          done
+          if [ -n "$PADDLE_MISSING" ]; then
+            echo "::warning::Paddle is not fully configured:$PADDLE_MISSING — the paywall will say payments are unavailable in this deploy and no trial can start. See docs/paddle-setup.md."
+          fi
+          if [ "$NEXT_PUBLIC_PADDLE_ENV" != "production" ]; then
+            echo "::warning::NEXT_PUBLIC_PADDLE_ENV is not 'production', so this deploy talks to the Paddle SANDBOX: test cards only, no real money. Set it to 'production' with live credentials when going live."
+          fi
+
           if [ -n "$MISSING" ]; then
             # Presence of near-miss names, never their contents — this reports
             # "something is set, under the wrong name", which is the one thing the
@@ -133,6 +161,12 @@ jobs:
       # `next build` runs — both our build here and the one Firebase re-runs on
       # deploy. Adding one at runtime later does nothing. This is the only
       # public value the workflow carries; the Firebase web config is in code.
+      # Paddle rides the same path. The two secrets are server-only (the webhook
+      # and the billing routes read them at runtime); the NEXT_PUBLIC_ values are
+      # the client token, the environment and the four price ids, inlined into the
+      # bundle at build time like the Maps key. Empty values are written as empty
+      # strings, which the app reads as "Paddle not configured": the paywall says
+      # payments are unavailable rather than showing a checkout that cannot open.
       - name: Create environment configuration
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -141,9 +175,20 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          PADDLE_API_KEY: ${{ secrets.PADDLE_API_KEY }}
+          PADDLE_WEBHOOK_SECRET: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_PADDLE_ENV: ${{ secrets.NEXT_PUBLIC_PADDLE_ENV }}
+          NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: ${{ secrets.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN }}
+          NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY }}
+          NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY }}
+          NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY }}
+          NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY }}
         run: |
           : > .env
-          for NAME in GEMINI_API_KEY SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS NEXT_PUBLIC_GOOGLE_MAPS_API_KEY; do
+          for NAME in GEMINI_API_KEY SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS NEXT_PUBLIC_GOOGLE_MAPS_API_KEY \
+                      PADDLE_API_KEY PADDLE_WEBHOOK_SECRET NEXT_PUBLIC_PADDLE_ENV NEXT_PUBLIC_PADDLE_CLIENT_TOKEN \
+                      NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY \
+                      NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY; do
             VALUE="${!NAME}"
             case "$VALUE" in *"'"*)
               echo "::error::$NAME contains a single quote, which this quoted .env write cannot carry. Rotate the value or extend this step to escape it."
@@ -163,6 +208,14 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          PADDLE_API_KEY: ${{ secrets.PADDLE_API_KEY }}
+          PADDLE_WEBHOOK_SECRET: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_PADDLE_ENV: ${{ secrets.NEXT_PUBLIC_PADDLE_ENV }}
+          NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: ${{ secrets.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN }}
+          NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY }}
+          NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY }}
+          NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_MAX_YEARLY }}
+          NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY: ${{ secrets.NEXT_PUBLIC_PADDLE_PRICE_MAX_MONTHLY }}
           # Forces the build Firebase runs to use webpack. firebase-tools spawns a
           # bare `next build` (no CLI flags) but inherits this process env, and in
           # Next 16.1 IS_WEBPACK_TEST is the only env-level webpack switch
@@ -200,6 +253,12 @@ jobs:
               sleep 20
             fi
           done
+          # The log is printed here and attached to the run as an artifact below.
+          # It used to be POSTed to three anonymous public pastebins as well
+          # (paste.c-net.org, ix.io, file.io) — a copy of every deploy's output,
+          # with project ids, function URLs and file listings, on hosts nobody
+          # here controls, retained on their terms. The Actions log already
+          # holds the same text under the repo's own access control.
           cat deploy.log
           if [ "$DEPLOY_OK" = "1" ]; then
             echo "::notice file=.github,line=1::Firebase deploy succeeded. Full log in the deploy-log artifact of this run."
@@ -207,6 +266,14 @@ jobs:
             echo "::error file=.github,line=1::Firebase deploy failed. Full log in the deploy-log artifact of this run."
             exit 1
           fi
+      - name: Keep the deploy log with the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-log
+          path: deploy.log
+          if-no-files-found: ignore
+          retention-days: 30
       # A deploy that ships is not a deploy that works. Twice in one day the
       # pipeline went green while every AI route in production was down — first a
       # bundler-specific module alias, then an admin-app registration that only
@@ -241,17 +308,3 @@ jobs:
           done
           echo "::error::Production is UNHEALTHY after this deploy. The failing check is named in the JSON above."
           exit 1
-          # The log is printed here and attached to the run as an artifact below.
-          # It used to be POSTed to three anonymous public pastebins as well
-          # (paste.c-net.org, ix.io, file.io) — a copy of every deploy's output,
-          # with project ids, function URLs and file listings, on hosts nobody
-          # here controls, retained on their terms. The Actions log already
-          # holds the same text under the repo's own access control.
-      - name: Keep the deploy log with the run
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: deploy-log
-          path: deploy.log
-          if-no-files-found: ignore
-          retention-days: 30

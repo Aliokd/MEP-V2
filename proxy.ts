@@ -73,7 +73,11 @@ function buildCsp(nonce: string): string {
         `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https:${
             process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"
         }`,
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        // cdn.paddle.com: Paddle.js loads its checkout stylesheet from there
+        // into our page (the inline frame's chrome, not the iframe's own
+        // content). Without it the frame renders unstyled and the console
+        // logs a style-src violation on every checkout open.
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.paddle.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https:",
         "media-src 'self' blob: data: https://firebasestorage.googleapis.com https://storage.googleapis.com https://*.firebasestorage.app",

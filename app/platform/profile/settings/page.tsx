@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { User, Mail, BadgeCheck } from 'lucide-react';
+import { User, Mail, BadgeCheck, CreditCard, Loader2 } from 'lucide-react';
+import Link from 'next/link';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import VerifiedMark from '../../components/VerifiedMark';
 import VerifyModal from '../components/VerifyModal';
@@ -11,7 +12,44 @@ import { useLyricSize, LYRIC_SIZES, type LyricSize } from '@/lib/lyricSize';
 import { splitName, joinName } from '@/lib/personName';
 import { writePublicProfile } from '@/lib/publicProfile';
 import { safeLocalStorageSetItem } from '@/lib/storage';
+import { authedFetch } from '@/lib/authedFetch';
+import { useUserPlan } from '@/lib/useUserPlan';
+import { TRIAL_DAYS } from '@/lib/paddle/config';
 import * as btn from '@/app/platform/components/buttonStyles';
+
+/**
+ * The subscription row, in one sentence.
+ *
+ * What the account is on and what happens to it next, from the fields the
+ * Paddle webhook writes: the trial's end, the next charge, a cancellation
+ * already scheduled. A cancelled subscription stays `active` until its period
+ * runs out, which is why the scheduled change is read before the status.
+ */
+function describeBilling(
+    plan: ReturnType<typeof useUserPlan>,
+    t: (key: string) => string,
+    locale: string,
+): string {
+    const date = (iso: string | null) =>
+        iso ? new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso)) : '';
+    const { subscriptionStatus: status, billing } = plan;
+
+    if (!plan.paid) {
+        if (plan.hasPro || plan.hasMax) return t('profile.billing.granted');
+        if (status === 'past_due') return t('profile.billing.past_due');
+        if (status === 'paused') return t('profile.billing.paused');
+        if (status === 'canceled') return t('profile.billing.canceled');
+        return t('profile.billing.no_plan_desc').replace('{days}', String(TRIAL_DAYS));
+    }
+    if (billing.scheduledChange?.action === 'cancel') {
+        return t('profile.billing.cancels').replace('{date}', date(billing.scheduledChange.effectiveAt));
+    }
+    if (status === 'past_due') return t('profile.billing.past_due');
+    if (status === 'trialing') return t('profile.billing.trialing').replace('{date}', date(billing.trialEndsAt ?? billing.nextBilledAt));
+    if (billing.nextBilledAt) return t('profile.billing.active_renews').replace('{date}', date(billing.nextBilledAt));
+    if (billing.billingPeriod) return t('profile.billing.active_period').replace('{period}', t(`profile.billing.${billing.billingPeriod}`));
+    return t('profile.manage_subscription_desc');
+}
 
 /**
  * Settings. Lives under /platform/profile so the layout gives it the same
@@ -24,7 +62,9 @@ import * as btn from '@/app/platform/components/buttonStyles';
  */
 export default function SettingsPage() {
     const { user } = useAuth();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    const plan = useUserPlan();
+    const [openingPortal, setOpeningPortal] = useState(false);
 
     // `name` is the one stored value (Auth displayName); the two fields below
     // are how it is edited, and recompose it on every keystroke.
@@ -65,6 +105,31 @@ export default function SettingsPage() {
     const showNotification = (msg: string) => {
         setNotification(msg);
         setTimeout(() => setNotification(''), 4000);
+    };
+
+    /**
+     * Paddle's customer portal, where the card, the plan and the invoices
+     * live. The server mints a short-lived URL for this account's customer
+     * id (/api/paddle/portal); nothing about the customer reaches the
+     * browser but the page it may open. Opened in a new tab: it is Paddle's
+     * page, and Settings should still be here when it is closed.
+     */
+    const openBillingPortal = async () => {
+        if (openingPortal) return;
+        setOpeningPortal(true);
+        try {
+            const res = await authedFetch('/api/paddle/portal', { method: 'POST' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.url) {
+                showNotification(t('profile.billing.portal_error'));
+                return;
+            }
+            window.open(data.url, '_blank', 'noopener');
+        } catch {
+            showNotification(t('profile.billing.portal_error'));
+        } finally {
+            setOpeningPortal(false);
+        }
     };
 
     const sizeLabel: Record<LyricSize, string> = {
@@ -327,14 +392,41 @@ export default function SettingsPage() {
                     )}
                 </div>
 
+                {/* The plan, and the one control that acts on it. A paying
+                    account gets Paddle's portal (card, cancel, invoices); an
+                    account with nothing to manage gets the plans. Pro and Max
+                    are brand names and stay untranslated. */}
                 <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
                     <div className="space-y-0.5">
-                        <p className="font-sans text-sm font-medium text-stone-800">{t('profile.manage_subscription')}</p>
-                        <p className="text-[13px] text-stone-600">{t('profile.manage_subscription_desc')}</p>
+                        <p className="font-sans text-sm font-medium text-stone-800">
+                            {t('profile.current_plan')}{': '}
+                            <span className="font-semibold">
+                                {plan.loading ? '' : plan.hasMax ? 'Max' : plan.hasPro ? 'Pro' : t('profile.billing.no_plan')}
+                            </span>
+                        </p>
+                        <p className="text-[13px] text-stone-600">
+                            {plan.loading ? '' : describeBilling(plan, t, language)}
+                        </p>
                     </div>
-                    <button className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}>
-                        {t('profile.manage_action')}
-                    </button>
+                    {!plan.loading && (plan.billing.hasSubscription ? (
+                        <button
+                            type="button"
+                            onClick={openBillingPortal}
+                            disabled={openingPortal}
+                            className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer disabled:cursor-not-allowed`}
+                        >
+                            {openingPortal ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
+                            {openingPortal ? t('profile.billing.opening') : t('profile.manage_action')}
+                        </button>
+                    ) : !plan.hasPro && (
+                        <Link
+                            href="/onboarding?step=paywall"
+                            className={`${btn.secondary('sm')} ml-4 shrink-0 whitespace-nowrap cursor-pointer`}
+                        >
+                            <CreditCard size={14} />
+                            {t('profile.billing.choose_plan')}
+                        </Link>
+                    ))}
                 </div>
 
                 <div className="flex items-center justify-between py-4">

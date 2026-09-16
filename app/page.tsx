@@ -12,7 +12,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useFaqs, useFooterLinks } from "@/context/SitePagesContext";
 import { pickLocale } from "@/lib/content";
 import { localizePath } from "@/lib/i18n";
-import { waitlistJoinPath, FOUNDER_SPOTS_TOTAL } from "@/lib/uiFlags";
+import { signupPath, FOUNDER_SPOTS_TOTAL } from "@/lib/uiFlags";
 import { useFounderSpots } from "@/lib/founderSpots";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
@@ -56,7 +56,7 @@ const TopNav = () => {
                 <div className="flex items-center gap-6">
                     <LanguageSwitcher variant="marketing" direction="down" tooltipSide="bottom" />
                     <Link href="/signin" className="hover:text-black transition-colors font-medium">{t('home.nav.signin')}</Link>
-                    <Link href={waitlistJoinPath('nav', language)} className="btn-press px-5 py-2 font-semibold">{t('home.nav.waitlist')}</Link>
+                    <Link href={signupPath('nav', language)} className="btn-press px-5 py-2 font-semibold">{t('home.nav.start')}</Link>
                 </div>
             </div>
 
@@ -77,10 +77,10 @@ const TopNav = () => {
                     <User size={19} strokeWidth={1.8} />
                 </Link>
                 <Link
-                    href={waitlistJoinPath('nav', language)}
+                    href={signupPath('nav', language)}
                     className="btn-press px-5 h-10 font-semibold text-[15px] flex items-center justify-center whitespace-nowrap shrink-0"
                 >
-                    {t('home.nav.waitlist_short')}
+                    {t('home.nav.start_short')}
                 </Link>
             </div>
         </nav>
@@ -115,10 +115,10 @@ const HeroSection = () => {
                         {t('home.hero.description')}
                     </p>
                     <Link
-                        href={waitlistJoinPath('hero', language)}
+                        href={signupPath('hero', language)}
                         className="btn-press px-8 py-4 text-xl font-semibold inline-flex items-center gap-3 select-none"
                     >
-                        <span>{t('home.nav.waitlist')}</span>
+                        <span>{t('home.nav.start')}</span>
                         <ArrowRight className="w-5 h-5 stroke-[2.5px]" />
                     </Link>
                 </div>
@@ -301,10 +301,10 @@ const UrgencySection = () => {
 
                 {/* CTA Button */}
                 <Link
-                    href={waitlistJoinPath('urgency', language)}
+                    href={signupPath('urgency', language)}
                     className="btn-press px-8 py-4 text-xl font-semibold inline-flex items-center gap-3 select-none"
                 >
-                    <span>{t('home.nav.waitlist')}</span>
+                    <span>{t('home.nav.start')}</span>
                     <ArrowRight className="w-5 h-5 stroke-[2.5px]" />
                 </Link>
             </div>
@@ -619,7 +619,7 @@ const NewFooter = () => {
                     row, where the distinction costs more than it says. */}
                 <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:flex md:items-center md:gap-6 text-[15px] text-[#363636]">
                     <div className="flex flex-col gap-3 md:contents">
-                        <Link href={waitlistJoinPath('footer', language)} className="font-bold hover:text-black transition-colors">{t('home.nav.waitlist')}</Link>
+                        <Link href={signupPath('footer', language)} className="font-bold hover:text-black transition-colors">{t('home.nav.start')}</Link>
                         <Link href={localizePath('/blog', language)} className="font-medium hover:text-black transition-colors">{t('blog.title')}</Link>
                         <Link href="/about" className="font-medium hover:text-black transition-colors">{t('home.footer.about')}</Link>
                         <Link href="#qa" className="font-medium hover:text-black transition-colors">{t('home.nav.qa')}</Link>
