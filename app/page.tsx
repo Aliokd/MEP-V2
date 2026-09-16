@@ -649,7 +649,7 @@ const NewFooter = () => {
                         {/* A way to reach a person, from the homepage, as an address
                             rather than a form: it is what a payment provider's
                             reviewer and a stuck visitor both look for. */}
-                        <a href="mailto:tech@veinote.com" className="font-medium hover:text-black transition-colors">tech@veinote.com</a>
+                        <a href="mailto:contact@veinote.com" className="font-medium hover:text-black transition-colors">contact@veinote.com</a>
                     </div>
                 </div>
             </div>

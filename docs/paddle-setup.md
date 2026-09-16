@@ -93,7 +93,7 @@ all of which exist:
 - On-site prices that match the catalog: the homepage offer line reads the Pro
   yearly figure from `FALLBACK_PRICING`, so keep that constant in step with the
   Paddle prices.
-- A contact email reachable from the homepage: `tech@veinote.com` in the footer.
+- A contact email reachable from the homepage: `contact@veinote.com` in the footer.
 
 ## 6. Where the values go
 

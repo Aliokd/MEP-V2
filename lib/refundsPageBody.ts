@@ -58,5 +58,5 @@ Cancelling a subscription stops future charges. It does not delete your account 
 
 ## Contact
 
-Questions about a charge: support@veinote.com. Technical questions about Veinote: tech@veinote.com.
+Questions about a charge: support@veinote.com. Anything else: contact@veinote.com.
 `;
