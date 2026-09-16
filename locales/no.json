@@ -1553,7 +1553,8 @@
     "urgency": {
       "title": "Sikre plassen din",
       "spots_line_1": "Kun {n} plasser igjen",
-      "spots_line_2": "før tidlig tilgang stenger."
+      "spots_line_2": "før tidlig tilgang stenger.",
+      "offer": "3 dager gratis, deretter Pro fra {price} i måneden, fakturert årlig."
     },
     "banner": {
       "text": "Her er grunnen til at de fleste musikere aldri fullfører låtene sine.",
@@ -1600,7 +1601,8 @@
       "privacy": "Personvern",
       "designed": "Laget av mennesker med kjærlighet, i Stockholm.",
       "tagline_1": "Oppdag nye ideer, bygg ferdighetene dine og bli en del av et voksende fellesskap av låtskrivere.",
-      "tagline_2": "Lær. Skap. Øv. Del."
+      "tagline_2": "Lær. Skap. Øv. Del.",
+      "refunds": "Refusjon"
     },
     "redirecting": "Sender deg videre til plattformen..."
   },
@@ -2427,5 +2429,9 @@
     "awaiting_peer_key": "Venter på at {name} åpner en samtale for første gang. Før det finnes ingen nøkkel å kryptere til.",
     "not_connected": "Ikke koblet til",
     "not_connected_desc": "Samtaler åpner seg når dere er koblet til hverandre."
+  },
+  "refunds": {
+    "title": "Refusjonsvilkår",
+    "effective_date": "Gjelder fra september 2026"
   }
 }

@@ -24,6 +24,9 @@ const PAGES: { path: string; changeFrequency: 'weekly' | 'monthly' | 'yearly'; p
     // must be listed here. A slug in APP_OWNED_SEGMENTS that isn't in this
     // array is in neither half of the sitemap.
     { path: '/terms', changeFrequency: 'yearly', priority: 0.3 },
+    // The refund policy: same arrangement as /terms, and Paddle's reviewers
+    // look for it by URL.
+    { path: '/refunds', changeFrequency: 'yearly', priority: 0.3 },
     // Same rule as /terms: an app route whose slug is in APP_OWNED_SEGMENTS is
     // skipped by the CMS branch below, so if it isn't listed here it is nowhere.
     { path: '/cookies', changeFrequency: 'yearly', priority: 0.3 },

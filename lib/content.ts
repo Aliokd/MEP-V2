@@ -228,6 +228,7 @@ export const FIXED_FOOTER_LINKS = [
     { path: "/blog", labelKey: "blog.title" },
     { path: "/privacy", labelKey: "privacy.title" },
     { path: "/terms", labelKey: "terms.title" },
+    { path: "/refunds", labelKey: "refunds.title" },
     { path: "/cookies", labelKey: "cookies.page_title" },
     { path: "/guidelines", labelKey: "guidelines.title" },
 ] as const;

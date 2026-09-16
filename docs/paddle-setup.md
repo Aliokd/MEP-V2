@@ -82,6 +82,19 @@ Paddle > Checkout > Checkout settings.
   reminder the day before the first charge, and Paddle sends that one; the
   app does not have its own scheduler for it.
 
+## 5b. What Paddle checks on the site
+
+Seller verification and domain approval look for three things on veinote.com,
+all of which exist:
+
+- Terms, privacy and a **refund policy**, publicly reachable. The refund policy
+  is `/refunds` (code fallback in `lib/refundsPageBody.ts`, CMS-editable once
+  imported from the admin Pages tab), linked from every footer.
+- On-site prices that match the catalog: the homepage offer line reads the Pro
+  yearly figure from `FALLBACK_PRICING`, so keep that constant in step with the
+  Paddle prices.
+- A contact email reachable from the homepage: `tech@veinote.com` in the footer.
+
 ## 6. Where the values go
 
 Production reads its environment from the `.env` the deploy workflow writes,

@@ -32,6 +32,7 @@ export const LOCALIZED_PATHS = [
     '/about',
     '/privacy',
     '/terms',
+    '/refunds',
     '/cookies',
     '/blog',
     '/signin',
@@ -66,7 +67,9 @@ const APP_OWNED_SEGMENTS = [
     // English-only (it's a media-kit page for marketers/press), so it's claimed
     // here without joining LOCALIZED_PATHS: /no/guidelines redirects to the
     // unprefixed URL instead of duplicating an English page under three URLs.
-    'about', 'privacy', 'terms', 'cookies', 'blog', 'guidelines', 'no', 'sv', 'se',
+    // 'refunds' is the refund policy, an app route with a code fallback like
+    // /terms, so it must be claimed here too.
+    'about', 'privacy', 'terms', 'refunds', 'cookies', 'blog', 'guidelines', 'no', 'sv', 'se',
     // 'streak' is the shared golden-mind card (app/streak): a link people send
     // out of the app, addressed by query string, and not indexed — so an app
     // route with no localized twins, like guidelines.

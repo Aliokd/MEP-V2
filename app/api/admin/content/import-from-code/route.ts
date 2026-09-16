@@ -8,6 +8,7 @@ import no from "@/locales/no.json";
 import sv from "@/locales/sv.json";
 import { LOCALES, type Locale } from "@/lib/content";
 import { COOKIES_FALLBACK_MD } from "@/lib/cookiePageBody";
+import { REFUNDS_FALLBACK_MD } from "@/lib/refundsPageBody";
 import { LYRICS_IDEAS_BY_LANGUAGE as IDEAS_BY_LANGUAGE } from "@/app/platform/data/ideas";
 import { PRACTICE_SONGS } from "@/app/platform/practice/data/practiceSongs";
 import { PRACTICE_THEMES } from "@/app/platform/practice/data/themes";
@@ -151,6 +152,49 @@ export const POST = withAdmin("content.publish", async (request, admin) => {
                 { merge: true },
             );
             imported.push("cookies");
+        }
+    }
+
+    if (wantsLegal("refunds")) {
+        const ref = adminDb.collection("site_pages").doc("refunds");
+        const existing = await ref.get();
+
+        if (existing.exists && !force) {
+            skipped.push("refunds: already in the CMS");
+        } else {
+            const title: Record<string, string> = {};
+            const description: Record<string, string> = {};
+            const body: Record<string, string> = {};
+
+            for (const locale of LOCALES) {
+                const bundle = BUNDLES[locale];
+                title[locale] = bundle?.refunds?.title || "Refund Policy";
+                description[locale] = bundle?.refunds?.effective_date || "";
+                // English for every locale, like the cookie page: the same text
+                // the route renders as its fallback, so importing changes who
+                // can edit the words, not which words are on the page.
+                body[locale] = REFUNDS_FALLBACK_MD.trim();
+            }
+
+            await ref.set(
+                {
+                    id: "refunds",
+                    slug: "refunds",
+                    title,
+                    description,
+                    body,
+                    parentId: null,
+                    order: 15,
+                    status: "published",
+                    kind: "legal",
+                    // /refunds is a fixed footer link on every page already.
+                    showInFooter: false,
+                    updatedAt: FieldValue.serverTimestamp(),
+                    updatedByEmail: admin.email,
+                },
+                { merge: true },
+            );
+            imported.push("refunds");
         }
     }
 

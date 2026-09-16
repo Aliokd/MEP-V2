@@ -73,6 +73,11 @@ export default async function SiteFooterStrip({
                         {link.label}
                     </Link>
                 ))}
+                {/* Same address the homepage footer carries: one way to reach a
+                    person from every public page. */}
+                <a href="mailto:tech@veinote.com" className="hover:text-black transition-colors font-medium">
+                    tech@veinote.com
+                </a>
             </div>
         </section>
     );

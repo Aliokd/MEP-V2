@@ -183,6 +183,7 @@ export default function ManagePagesPage() {
     const CODE_BACKED_LEGAL: { slug: string; label: string }[] = [
         { slug: "privacy", label: "privacy policy" },
         { slug: "cookies", label: "cookie settings page" },
+        { slug: "refunds", label: "refund policy" },
     ];
     const missingLegal =
         tab === "legal" && pages !== null
@@ -487,6 +488,8 @@ export default function ManagePagesPage() {
                 <br />
                 The privacy policy keeps its own layout: publish a page with the slug{" "}
                 <span className="text-ink-400">privacy</span> and it takes over from the version built in code.
+                The same goes for <span className="text-ink-400">terms</span>, <span className="text-ink-400">refunds</span> and{" "}
+                <span className="text-ink-400">cookies</span>.
             </p>
 
             {editingPage && (

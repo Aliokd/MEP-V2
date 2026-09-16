@@ -1553,7 +1553,8 @@
     "urgency": {
       "title": "Säkra din plats",
       "spots_line_1": "Bara {n} platser kvar",
-      "spots_line_2": "innan tidig tillgång stänger."
+      "spots_line_2": "innan tidig tillgång stänger.",
+      "offer": "3 dagar gratis, sedan Pro från {price} i månaden, faktureras årsvis."
     },
     "banner": {
       "text": "Här är varför de flesta musiker aldrig gör klart sina låtar.",
@@ -1600,7 +1601,8 @@
       "privacy": "Integritet",
       "designed": "Skapat av människor med kärlek, i Stockholm.",
       "tagline_1": "Upptäck nya idéer, bygg dina färdigheter och bli en del av en växande gemenskap av låtskrivare.",
-      "tagline_2": "Lär. Skapa. Öva. Dela."
+      "tagline_2": "Lär. Skapa. Öva. Dela.",
+      "refunds": "Återbetalning"
     },
     "redirecting": "Skickar dig vidare till plattformen..."
   },
@@ -2427,5 +2429,9 @@
     "awaiting_peer_key": "Väntar på att {name} öppnar ett samtal för första gången. Innan dess finns ingen nyckel att kryptera till.",
     "not_connected": "Inte ansluten",
     "not_connected_desc": "Samtal öppnas när ni är anslutna till varandra."
+  },
+  "refunds": {
+    "title": "Återbetalningspolicy",
+    "effective_date": "Gäller från september 2026"
   }
 }

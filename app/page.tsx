@@ -13,6 +13,7 @@ import { useFaqs, useFooterLinks } from "@/context/SitePagesContext";
 import { pickLocale } from "@/lib/content";
 import { localizePath } from "@/lib/i18n";
 import { signupPath, FOUNDER_SPOTS_TOTAL } from "@/lib/uiFlags";
+import { FALLBACK_PRICING } from "@/lib/paddle/config";
 import { useFounderSpots } from "@/lib/founderSpots";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
@@ -277,11 +278,14 @@ const UrgencySection = () => {
                     />
                 </div>
 
-                {/* The offer, in the same words the join dialog uses — one
-                    string, so the discount is stated identically on both sides
-                    of the click. */}
+                {/* The offer, stated in the terms the checkout actually
+                    charges: the trial, then the entry price from the Paddle
+                    catalog. The figure comes from FALLBACK_PRICING so this line
+                    and the paywall can never disagree. The old "50% off your
+                    first 3 months" was a waiting-list promise no price in the
+                    catalog carries. */}
                 <p className="mb-8 max-w-md text-[15px] font-semibold text-stone-800 md:mb-10 md:text-[17px]">
-                    {t('onboarding.waitlist.email_offer')}
+                    {t('home.urgency.offer').replace('{price}', `$${FALLBACK_PRICING.pro.yearly}`)}
                 </p>
 
                 {/* Animated counter, out of the founding total */}
@@ -626,6 +630,7 @@ const NewFooter = () => {
                     </div>
                     <div className="flex flex-col gap-3 md:contents">
                         <Link href="/privacy" className="font-medium hover:text-black transition-colors">{t('home.footer.privacy')}</Link>
+                        <Link href={localizePath('/refunds', language)} className="font-medium hover:text-black transition-colors">{t('home.footer.refunds')}</Link>
                         {/* Terms, and anything else ticked "show in footer" in the CMS. */}
                         {cmsLinks.map((page) => (
                             <Link
@@ -641,6 +646,10 @@ const NewFooter = () => {
                         <Link href={localizePath('/cookies', language)} className="font-medium hover:text-black transition-colors">{t('cookies.page_title')}</Link>
                         {/* Brand guidelines and logo downloads. English-only, so no locale prefix. */}
                         <Link href="/guidelines" className="font-medium hover:text-black transition-colors">{t('guidelines.title')}</Link>
+                        {/* A way to reach a person, from the homepage, as an address
+                            rather than a form: it is what a payment provider's
+                            reviewer and a stuck visitor both look for. */}
+                        <a href="mailto:tech@veinote.com" className="font-medium hover:text-black transition-colors">tech@veinote.com</a>
                     </div>
                 </div>
             </div>

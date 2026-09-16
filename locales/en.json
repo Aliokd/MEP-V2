@@ -1553,7 +1553,8 @@
     "urgency": {
       "title": "Secure your spot",
       "spots_line_1": "Only {n} spots left",
-      "spots_line_2": "before early access closes."
+      "spots_line_2": "before early access closes.",
+      "offer": "3 days free, then Pro from {price} a month, billed yearly."
     },
     "banner": {
       "text": "Here's why most musicians never finish their songs.",
@@ -1600,7 +1601,8 @@
       "privacy": "Privacy",
       "designed": "Designed by humans with love, in Stockholm.",
       "tagline_1": "Discover new ideas, build your skills, and become part of a growing community of songwriters.",
-      "tagline_2": "Learn. Create. Practice. Connect."
+      "tagline_2": "Learn. Create. Practice. Connect.",
+      "refunds": "Refunds"
     },
     "redirecting": "Redirecting to platform..."
   },
@@ -2427,5 +2429,9 @@
     "awaiting_peer_key": "Waiting for {name} to open a discussion for the first time. Until then there's no key to encrypt to.",
     "not_connected": "Not connected",
     "not_connected_desc": "Discussions are open once you're both connected."
+  },
+  "refunds": {
+    "title": "Refund Policy",
+    "effective_date": "Effective September 2026"
   }
 }
