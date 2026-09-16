@@ -259,8 +259,14 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, compl
      *   no price for this plan): the section says so, and "Continue without
      *   a plan" is the way past a step that cannot take a card today.
      */
-    const showForm = checkingOut && purchasable;
-    const showUnavailable = checkingOut && !purchasable;
+    // A checkout Paddle refused to open (an account not yet enabled for
+    // live checkout, say) is the same situation as no Paddle at all from
+    // where the visitor stands: no card can be taken today. The frame comes
+    // down, the notice goes up, and the bar offers the way on. Without this
+    // the error line sat under a bar with no button, which is a dead end on
+    // the one screen that must never have one.
+    const showForm = checkingOut && purchasable && !error;
+    const showUnavailable = checkingOut && (!purchasable || Boolean(error));
 
     useEffect(() => {
         if (!confirmed) return;
