@@ -2034,7 +2034,9 @@
       "checkout_success_note": "Your {days} days start now.",
       "unavailable_title": "Payments are not available right now",
       "unavailable_body": "You can carry on without a plan and pick one later from Settings. Nothing is charged today either way.",
-      "unavailable_cta": "Continue without a plan"
+      "unavailable_cta": "Continue without a plan",
+      "opening_soon_title": "Card payments open in a few days",
+      "opening_soon_body": "Our payment provider is finishing the setup. Start your free days now and add a plan from Settings once payments open. Nothing is charged today either way."
     },
     "verify": {
       "title": "One last thing",

@@ -118,7 +118,7 @@ const splitEmphasis = (text: string) => text.split('**');
  * `?step=paywall` (the in-platform Max upgrade, where the visitor is already
  * signed in) and the onboarding flow share one component.
  */
-export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, completed = false, onCompleted, isSubmitting = false, error = '' }: {
+export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, completed = false, onCompleted, refused = false, isSubmitting = false, error = '' }: {
     /** Omitted when the paywall is reached directly via `?step=paywall`. */
     onBack?: () => void;
     onCheckout: (plan: PlanId, billing: Billing) => void;
@@ -135,6 +135,13 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, compl
      */
     completed?: boolean;
     onCompleted?: () => void;
+    /**
+     * Paddle refused the checkout because the seller account is not yet
+     * enabled for live payments. The notice then says payments open soon,
+     * which is true, rather than that they are unavailable, which reads as
+     * broken.
+     */
+    refused?: boolean;
     isSubmitting?: boolean;
     error?: string;
 }) {
@@ -671,10 +678,10 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, compl
                     {showUnavailable && !confirmed && (
                         <div role="status" className="space-y-2 rounded-2xl bg-white/60 p-5 text-center">
                             <p className="text-[15px] font-semibold text-stone-900">
-                                {t('onboarding.paywall.unavailable_title')}
+                                {t(refused ? 'onboarding.paywall.opening_soon_title' : 'onboarding.paywall.unavailable_title')}
                             </p>
                             <p className="text-[13.5px] font-medium leading-relaxed text-stone-600">
-                                {t('onboarding.paywall.unavailable_body')}
+                                {t(refused ? 'onboarding.paywall.opening_soon_body' : 'onboarding.paywall.unavailable_body')}
                             </p>
                         </div>
                     )}

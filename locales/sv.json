@@ -2034,7 +2034,9 @@
       "checkout_success_note": "Dina {days} dagar börjar nu.",
       "unavailable_title": "Betalning är inte tillgänglig just nu",
       "unavailable_body": "Du kan fortsätta utan en plan och välja en senare under Inställningar. Inget debiteras i dag oavsett.",
-      "unavailable_cta": "Fortsätt utan plan"
+      "unavailable_cta": "Fortsätt utan plan",
+      "opening_soon_title": "Kortbetalning öppnar om några dagar",
+      "opening_soon_body": "Vår betalningsleverantör håller på att slutföra uppsättningen. Starta dina gratisdagar nu och lägg till en plan under Inställningar när betalning öppnar. Inget debiteras i dag oavsett."
     },
     "verify": {
       "title": "En sista sak",

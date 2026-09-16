@@ -260,6 +260,11 @@ function OnboardingPageInner() {
     // subscription exists. The paywall plays its success beat and then the
     // flow moves on to the code.
     const [checkoutCompleted, setCheckoutCompleted] = useState(false);
+    // Paddle refused because the seller account is not yet enabled for live
+    // checkout (`transaction_checkout_not_enabled`). Not an outage and not
+    // the visitor's doing, so the paywall says payments open soon rather than
+    // that something is wrong.
+    const [checkoutRefused, setCheckoutRefused] = useState(false);
 
     // Signup, split across the two ends of the flow: the address is taken at
     // the email step and the code that verifies it at the very end.
@@ -399,6 +404,7 @@ function OnboardingPageInner() {
                 // paywall rather than left in the console: the alternative is
                 // an empty frame under a button that appeared to do nothing.
                 console.error('Paddle checkout error:', event);
+                setCheckoutRefused(event.detail === 'transaction_checkout_not_enabled');
                 setCheckoutError(t('onboarding.paywall.checkout_error'));
             }
         });
@@ -1643,6 +1649,7 @@ function OnboardingPageInner() {
                             onSkipCheckout={stepAfterCheckout}
                             completed={checkoutCompleted}
                             onCompleted={stepAfterCheckout}
+                            refused={checkoutRefused}
                             isSubmitting={isOpeningCheckout}
                             error={checkoutError}
                         />
