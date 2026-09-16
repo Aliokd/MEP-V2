@@ -67,13 +67,43 @@ interface PinSpec {
     onClick?: () => void;
 }
 
+/**
+ * Escapes a string for interpolation into markup, in text or in a quoted
+ * attribute. `name` and `photoURL` come from OTHER users' publicProfiles, which
+ * any account writes for itself — so they are untrusted input landing in
+ * innerHTML. The nonce CSP stops an injected <script> from running, but not a
+ * crafted <img onerror> once that policy is ever relaxed, and not a phishing
+ * overlay dressed up as part of the map.
+ */
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/** Only an https URL is ever used as a pin image; anything else falls back to the initial. */
+function safeImageUrl(photoURL: string | null): string | null {
+    if (!photoURL) return null;
+    try {
+        const url = new URL(photoURL);
+        return url.protocol === 'https:' ? url.toString() : null;
+    } catch {
+        return null;
+    }
+}
+
 function pinHtml(name: string, photoURL: string | null, highlight: boolean): string {
     const ring = highlight ? '#86BE7F' : '#ffffff';
-    const inner = photoURL
-        ? `<img src="${photoURL}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:9999px" />`
-        : `<span style="font:600 15px Inter,system-ui,sans-serif;color:#44403c">${(name[0] || '?').toUpperCase()}</span>`;
+    const safeName = escapeHtml(name);
+    const imageUrl = safeImageUrl(photoURL);
+    const inner = imageUrl
+        ? `<img src="${escapeHtml(imageUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:9999px" />`
+        : `<span style="font:600 15px Inter,system-ui,sans-serif;color:#44403c">${escapeHtml((name[0] || '?').toUpperCase())}</span>`;
     const label = highlight
-        ? `<div style="position:absolute;left:50%;top:-30px;transform:translateX(-50%);white-space:nowrap;background:#1c1917;color:#FAF9F5;font:600 12px Inter,system-ui,sans-serif;padding:4px 10px;border-radius:9999px;box-shadow:0 4px 12px rgba(0,0,0,.18)">${name}</div>`
+        ? `<div style="position:absolute;left:50%;top:-30px;transform:translateX(-50%);white-space:nowrap;background:#1c1917;color:#FAF9F5;font:600 12px Inter,system-ui,sans-serif;padding:4px 10px;border-radius:9999px;box-shadow:0 4px 12px rgba(0,0,0,.18)">${safeName}</div>`
         : '';
     return `
       <div style="position:relative;width:44px;height:52px">

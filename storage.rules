@@ -1,8 +1,26 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // A user's own uploads: recordings, studio stems, lyric photos and the
+    // documents the import reads. Private to the owner.
+    //
+    // The size and type ceilings are the server-side twin of the client caps in
+    // app/platform/create/page.tsx (30MB audio, images re-encoded to ~300KB,
+    // 3MB documents). Without them the only limit was the one in the browser,
+    // which any account can skip by calling the Storage SDK directly — and a
+    // bucket that accepts anything of any size is a free file host billed to
+    // this project. 60MB leaves headroom over the largest legitimate upload
+    // (a long WAV recording); the type list is every kind the app writes plus
+    // octet-stream, which is what a Blob with no declared type arrives as.
+    //
+    // Deletes have no request.resource, so they are allowed separately.
     match /users/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId &&
+        request.resource.size < 60 * 1024 * 1024 &&
+        request.resource.contentType.matches(
+          '(audio|image|video)/.*|application/pdf|application/msword|application/vnd\\.openxmlformats-officedocument\\..*|text/.*|application/octet-stream|application/json'
+        );
     }
 
     // Editorial content (lesson videos, posters, practice audio).

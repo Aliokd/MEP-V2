@@ -111,11 +111,38 @@ service cloud.firestore {
       // up. The public fields now live in publicProfiles/{uid} (below) and every
       // cross-user read goes there instead, which lets this close.
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      // A new profile is born unpaid and unsanctioned. The update rule below
+      // has always kept `tier` and `billing` out of a client's hands, but
+      // create had no such check — so a script signing in with Google and
+      // writing users/{uid} with tier "max" before the app's own setDoc ran
+      // would have kept it (delete is closed, and update refuses to touch the
+      // field). The shape written here is lib/userProfileShape.ts: tier
+      // "trial", every billing pointer null. A merge write that creates the
+      // doc without those keys (profile photo before the profile exists) is
+      // fine — the defaults below make an absent key read as the safe value.
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.data.get("tier", "trial") == "trial" &&
+        request.resource.data.get("billing", {}).get("plan", null) == null &&
+        request.resource.data.get("billing", {}).get("subscriptionStatus", null) == null &&
+        request.resource.data.get("billing", {}).get("paddleSubscriptionId", null) == null &&
+        request.resource.data.get("billing", {}).get("paddleCustomerId", null) == null &&
+        !request.resource.data.keys().hasAny(["sanction", "suspendedUntil", "bannedAt", "createdByAdmin"]);
       // A user owns their profile, but must not be able to grant themselves a
       // paid tier or lift a sanction — those fields are server-written only.
+      //
+      // `email` is in the list because the server resolves people BY it:
+      // /api/collab/invite looks the invitee up with users.where("email", ==)
+      // and mints the invitation for whichever account it finds, and the admin
+      // console's user search and campaign mail do the same. An owner who could
+      // set their own email to someone else's would be handed that person's
+      // invitations. The address comes from Auth at creation and changes only
+      // through the server (the onboarding change-address path). `uid`,
+      // `createdAt` and `signup` are identity and provenance, written once.
       allow update: if isSignedIn() && request.auth.uid == userId &&
-        !changedKeys().hasAny(["tier", "billing", "sanction", "suspendedUntil", "bannedAt"]);
+        !changedKeys().hasAny([
+          "tier", "billing", "sanction", "suspendedUntil", "bannedAt",
+          "email", "uid", "createdAt", "signup", "createdByAdmin"
+        ]);
       allow delete: if false;
 
       // The Mind Power record: each device's minutes, marks and visits under
@@ -176,10 +203,26 @@ service cloud.firestore {
       }
 
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn() &&
+      allow create: if isSignedIn() &&
         request.auth.uid == userId &&
         request.resource.data.get("uid", userId) == userId &&
         allowedFieldsOnly() &&
+        locationWellFormed();
+      // On update the check is on the keys the write CHANGES, not on the whole
+      // document. `allowedFieldsOnly()` reads request.resource.data, which for
+      // an update is the merged result — so once the console had written
+      // `verified` onto a profile, every later owner write (lastActiveAt, a
+      // new photo, the discoverable toggle) carried that key along and was
+      // refused. Verified songwriters were the one group who could not update
+      // their own profile. Diffing keeps the property that matters: the owner
+      // still cannot set or clear `verified`, because it is not in the list.
+      allow update: if isSignedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.get("uid", userId) == userId &&
+        changedKeys().hasOnly([
+          "uid", "name", "photoURL", "songwriterType", "createdAt", "lastActiveAt",
+          "activeMinutes", "publicKey", "location", "discoverable"
+        ]) &&
         locationWellFormed();
       allow delete: if false;
     }
@@ -240,10 +283,32 @@ service cloud.firestore {
         isInvitedTo(resource.data) ||
         (isModerator() && resource.data.get("reportCount", 0) > 0)
       );
+      // A collaborator leaving: the only change to the roster is their own
+      // name coming off it (create/page.tsx, the arrayRemove on leave).
+      function isLeavingProject() {
+        return request.auth.uid in resource.data.get("collaborators", []) &&
+          resource.data.get("collaborators", []).toSet().difference(request.resource.data.get("collaborators", []).toSet()) == [request.auth.uid].toSet() &&
+          request.resource.data.get("collaborators", []).toSet().difference(resource.data.get("collaborators", []).toSet()).size() == 0;
+      }
+      // Who may change the roster: the owner (invites go through the server,
+      // but the owner clears it from the client when they leave), an invitee
+      // accepting, or a collaborator removing themself. A collaborator could
+      // otherwise rewrite the whole list — drop the others, add anyone — and
+      // even hand themself `ownerId`, since membership alone unlocked every
+      // field. `ownerId` never changes through a client write at all.
+      function rosterChangeAllowed() {
+        return !("collaborators" in changedKeys()) ||
+          isOwner(resource.data) ||
+          isAcceptingOwnInvite() ||
+          isLeavingProject();
+      }
       // Cap total project membership at 5 (owner + 4 collaborators).
       // MAX_COLLABORATORS lives in app/platform/create/collabUtils.ts — keep the literal below in sync.
       allow update: if isSignedIn() &&
         (isMember(resource.data) || isAcceptingOwnInvite()) &&
+        request.resource.data.get("ownerId", "") == resource.data.get("ownerId", "") &&
+        !changedKeys().hasAny(["reportCount", "hidden", "moderation"]) &&
+        rosterChangeAllowed() &&
         (
           !("collaborators" in request.resource.data) ||
           request.resource.data.collaborators.size() <= resource.data.get("collaborators", []).size() ||
@@ -429,11 +494,16 @@ service cloud.firestore {
         ownerFieldsOnly();
       // Re-submitting after a decline re-opens the same document as pending.
       // An approved request is final from the client's side.
+      //
+      // Checked on the CHANGED keys: a declined request carries the console's
+      // `reviewedAt` / `reviewedBy`, and a whole-document key check would have
+      // refused the resubmission for carrying them. The owner still cannot
+      // touch those fields — only the listed ones may change.
       allow update: if isSignedIn() && isOwner() &&
         resource.data.status != "approved" &&
         request.resource.data.status == "pending" &&
         request.resource.data.uid == userId &&
-        ownerFieldsOnly();
+        changedKeys().hasOnly(["uid", "name", "bio", "photoURL", "status", "submittedAt"]);
       allow delete: if false;
     }
 
@@ -559,10 +629,17 @@ service cloud.firestore {
     // Collaboration invitations
     // ---------------------------------------------------------------------
     match /invitations/{inviteId} {
+      // The email branch needs a VERIFIED address. Accounts can be created for
+      // any typed address (the onboarding email step makes one before the code
+      // is entered), so an unverified `token.email` is just a claim — and this
+      // is what decides who may read, accept or delete an invitation sent to
+      // that address.
       function isSenderOrInvitee(data) {
         return data.senderId == request.auth.uid ||
           data.inviteeId == request.auth.uid ||
-          (data.inviteeId == "" && data.inviteeEmail == request.auth.token.email);
+          (data.inviteeId == "" &&
+            request.auth.token.get("email_verified", false) == true &&
+            data.inviteeEmail == request.auth.token.email);
       }
 
       allow read, update, delete: if isSignedIn() && isSenderOrInvitee(resource.data);

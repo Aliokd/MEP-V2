@@ -33,6 +33,22 @@ const nextConfig: NextConfig = {
                 headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
             },
             /**
+             * The site's own media under public/ — hero and section videos, the
+             * practice covers, onboarding cards. Firebase Hosting's default for
+             * these is max-age=3600, so a returning visitor re-downloads the
+             * homepage videos every hour. A week is long enough to matter and
+             * short enough that a replaced file (same name, new bytes — how the
+             * media here gets updated) is everywhere within days; the CDN copy
+             * is purged on every deploy regardless. Not `immutable`, for the
+             * same reason. Next's hashed /_next/static files are already cached
+             * for a year by Next itself, and these paths are not covered by
+             * proxy.ts, so this is the only owner of the header here.
+             */
+            {
+                source: '/(videos|assets|Practice|Create|onboarding-cards|onboarding-moods)/:path*',
+                headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' }],
+            },
+            /**
              * Baseline security headers for every response. The site shipped with
              * none of these, which left the authenticated app framable by any
              * origin — a click on an invisible overlay lands on whatever control

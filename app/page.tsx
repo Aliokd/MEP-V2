@@ -173,7 +173,11 @@ const BlobsSection = () => {
         <section className="bg-[#E6E3DB] pb-0 flex flex-col items-center overflow-hidden">
             <div className="text-center mb-0 relative w-full flex flex-col items-center">
                 <div className="w-full">
-                    <img src="/assets/Up.png" alt="My song Finished" className="w-full h-auto block" />
+                    {/* Up.webp is the 1920px WebP derivative of the 3840px PNG this used to
+                        load: 35 KB instead of 2.3 MB for a full-bleed image that is never
+                        shown wider than the viewport. The PNG master is kept out of the
+                        repo, like the other public/ masters. */}
+                    <img src="/assets/Up.webp" alt="My song Finished" className="w-full h-auto block" />
                 </div>
                 <span className="font-sans font-extralight text-5xl md:text-7xl lg:text-8xl text-stone-500 -mt-[3.5%] tracking-wide px-6 z-10 relative">{t('home.blobs.and')}</span>
             </div>

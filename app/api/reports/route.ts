@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { checkRateLimit, type RateLimitRule } from "@/lib/rateLimit";
 import {
     highestPriority,
     isReportReason,
@@ -11,6 +12,10 @@ import {
 } from "@/lib/reports";
 
 export const dynamic = "force-dynamic";
+
+// Generous for a person (nobody reports twenty things a minute by hand),
+// nowhere near enough for a script to flood the moderation queue.
+const REPORTS_RATE_LIMIT: RateLimitRule = { limit: 20, windowMs: 60_000 };
 
 /**
  * User-facing report endpoint.
@@ -37,14 +42,31 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
+    // Every report is a Firestore write plus a document read, and an urgent
+    // reason escalates straight into the moderation queue — so one account
+    // must not be able to file them in a loop. Keyed by the verified uid.
+    const throttled = checkRateLimit(`reports:uid:${reporterUid}`, REPORTS_RATE_LIMIT);
+    if (!throttled.allowed) {
+        return NextResponse.json(
+            { error: "Too many reports. Please wait a moment and try again.", retryAfter: throttled.retryAfterSeconds },
+            { status: 429, headers: { "Retry-After": String(throttled.retryAfterSeconds) } },
+        );
+    }
+
     const body = await request.json();
     const { targetType, targetId, reason, note } = body;
 
     if (!isReportTargetType(targetType)) {
         return NextResponse.json({ error: "Invalid target type" }, { status: 400 });
     }
-    if (!targetId || typeof targetId !== "string") {
+    // A Firestore document id: no slashes (a "/" makes .doc() throw and the
+    // route 500), no dots-only names, and nothing anywhere near the 1500-byte
+    // ceiling. The same shape the client ids actually have.
+    if (!targetId || typeof targetId !== "string" || !/^[^/]{1,200}$/.test(targetId) || targetId === "." || targetId === "..") {
         return NextResponse.json({ error: "Missing target" }, { status: 400 });
+    }
+    if (body.postId !== undefined && (typeof body.postId !== "string" || !/^[^/]{1,200}$/.test(body.postId))) {
+        return NextResponse.json({ error: "Invalid post" }, { status: 400 });
     }
     if (!isReportReason(reason)) {
         return NextResponse.json({ error: "Invalid reason" }, { status: 400 });

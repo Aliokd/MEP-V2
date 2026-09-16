@@ -3,6 +3,10 @@ import { sendMail } from '@/lib/email/send';
 import { createInboxThread, verifyClaimedUser } from '@/lib/inbox';
 import { rateLimitGuard } from '@/lib/rateLimit';
 
+// One address, no display-name syntax, no comments, no lists — the only shape a
+// Reply-To from this form should ever have.
+const EMAIL_SHAPE = /^[^\s@<>,;()"]+@[^\s@<>,;()"]+\.[^\s@<>,;()"]+$/;
+
 export async function POST(request: Request) {
     try {
         const body = await request.json();
@@ -10,6 +14,23 @@ export async function POST(request: Request) {
 
         if (!userEmail || !subject || !message) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        }
+        // Shape and size checks before anything reaches the mailer. `userName`
+        // becomes the From display name and `userEmail` the Reply-To, and this
+        // route is reachable without an account — so an unbounded address list
+        // here is the input nodemailer's addressparser is slowest on. The caps
+        // are far above anything a person types into the feedback form.
+        if (typeof userEmail !== 'string' || !EMAIL_SHAPE.test(userEmail) || userEmail.length > 254) {
+            return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 });
+        }
+        if (typeof subject !== 'string' || subject.length > 200 || typeof message !== 'string' || message.length > 10_000) {
+            return NextResponse.json({ error: 'Message is too long' }, { status: 400 });
+        }
+        if (userName !== undefined && userName !== null && (typeof userName !== 'string' || userName.length > 120)) {
+            return NextResponse.json({ error: 'Name is too long' }, { status: 400 });
+        }
+        if (attachmentUrl !== undefined && attachmentUrl !== null && (typeof attachmentUrl !== 'string' || attachmentUrl.length > 2000)) {
+            return NextResponse.json({ error: 'Attachment link is not valid' }, { status: 400 });
         }
 
         const caller = await verifyClaimedUser(request, userId || 'anonymous');

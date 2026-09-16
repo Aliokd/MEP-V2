@@ -3,6 +3,7 @@ import { featureGuard } from '@/lib/featureFlags';
 import { GEMINI_VISION_MODELS } from '@/lib/geminiModels';
 import { requireUser } from '@/lib/apiAuth';
 import { rateLimitGuard, createCallBudget } from '@/lib/rateLimit';
+import { fetchAllowedUrl, vetRemoteUrl } from '@/lib/safeRemoteUrl';
 
 async function extractPdfTextViaGemini(buffer: Buffer): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -133,7 +134,15 @@ export async function POST(request: Request) {
         }
         buffer = Buffer.from(match[2], 'base64');
       } else if (documentUrl.startsWith('http://') || documentUrl.startsWith('https://')) {
-        const fileRes = await fetch(documentUrl);
+        // Vetted against the Storage allowlist, never fetched as given. With the
+        // `.txt` branch below returning the response body verbatim, an unvetted
+        // fetch here was a full read primitive against anything the server could
+        // reach. See lib/safeRemoteUrl.ts.
+        const vetted = vetRemoteUrl(documentUrl);
+        if (!vetted.ok) {
+          return NextResponse.json({ error: vetted.reason || 'That document url is not allowed' }, { status: 400 });
+        }
+        const fileRes = await fetchAllowedUrl(vetted.url!, { timeoutMs: 15_000 });
         if (!fileRes.ok) {
           return NextResponse.json({ error: `Failed to fetch document: HTTP ${fileRes.status}` }, { status: 502 });
         }

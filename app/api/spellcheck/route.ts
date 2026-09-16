@@ -4,8 +4,20 @@ import { GEMINI_TEXT_MODELS } from '@/lib/geminiModels';
 import { requireUser } from '@/lib/apiAuth';
 import { rateLimitGuard } from '@/lib/rateLimit';
 
-// Simple cache to store spellcheck results
+// Simple cache to store spellcheck results. Bounded: it lives for the life of
+// the instance and is fed by every word a signed-in user clicks, so without a
+// ceiling it grows until the function runs out of memory. Insertion order is
+// the eviction order (a Map iterates oldest-first), which is close enough to
+// LRU for a cache whose entries are a few hundred bytes each.
+const SPELLCHECK_CACHE_MAX = 2000;
 const spellcheckCache = new Map<string, any>();
+function rememberSpellcheck(key: string, value: any) {
+    if (spellcheckCache.size >= SPELLCHECK_CACHE_MAX) {
+        const oldest = spellcheckCache.keys().next().value;
+        if (oldest !== undefined) spellcheckCache.delete(oldest);
+    }
+    spellcheckCache.set(key, value);
+}
 
 export async function GET(request: Request) {
     // Kill switch: an admin can disable this endpoint from the console
@@ -99,7 +111,7 @@ Return only valid JSON matching the schema, with no markdown code blocks or wrap
     const parsedResults = JSON.parse(textResponse.trim());
     
     // Store in cache
-    spellcheckCache.set(cacheKey, parsedResults);
+    rememberSpellcheck(cacheKey, parsedResults);
     
     return NextResponse.json(parsedResults);
 

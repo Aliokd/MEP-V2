@@ -190,7 +190,7 @@ jobs:
           # inside the retry.
           DEPLOY_OK=0
           for attempt in 1 2; do
-            if npx firebase deploy --only hosting,firestore:rules --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}" > deploy.log 2>&1; then
+            if npx firebase deploy --only hosting,firestore:rules,storage --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}" > deploy.log 2>&1; then
               DEPLOY_OK=1
               break
             fi
@@ -201,17 +201,10 @@ jobs:
             fi
           done
           cat deploy.log
-          LOG_URL=$(curl -s --data-binary @deploy.log https://paste.c-net.org/ || true)
-          if [ -z "$LOG_URL" ] || ! echo "$LOG_URL" | grep -q "http"; then
-            LOG_URL=$(curl -s -F 'f:1=<-' ix.io < deploy.log || true)
-          fi
-          if [ -z "$LOG_URL" ] || ! echo "$LOG_URL" | grep -q "http"; then
-            LOG_URL=$(curl -s -F "file=@deploy.log" https://file.io | grep -o '"link":"[^"]*' | cut -d'"' -f3 || true)
-          fi
           if [ "$DEPLOY_OK" = "1" ]; then
-            echo "::notice file=.github,line=1::Firebase deploy succeeded. Logs: $LOG_URL"
+            echo "::notice file=.github,line=1::Firebase deploy succeeded. Full log in the deploy-log artifact of this run."
           else
-            echo "::error file=.github,line=1::Firebase deploy failed. Logs: $LOG_URL"
+            echo "::error file=.github,line=1::Firebase deploy failed. Full log in the deploy-log artifact of this run."
             exit 1
           fi
       # A deploy that ships is not a deploy that works. Twice in one day the
@@ -248,3 +241,17 @@ jobs:
           done
           echo "::error::Production is UNHEALTHY after this deploy. The failing check is named in the JSON above."
           exit 1
+          # The log is printed here and attached to the run as an artifact below.
+          # It used to be POSTed to three anonymous public pastebins as well
+          # (paste.c-net.org, ix.io, file.io) — a copy of every deploy's output,
+          # with project ids, function URLs and file listings, on hosts nobody
+          # here controls, retained on their terms. The Actions log already
+          # holds the same text under the repo's own access control.
+      - name: Keep the deploy log with the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-log
+          path: deploy.log
+          if-no-files-found: ignore
+          retention-days: 30

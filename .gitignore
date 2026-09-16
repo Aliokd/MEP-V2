@@ -117,3 +117,38 @@ vendor/lexicon/nst/
 # it puts the project file up for download. Same rule as the .mp4 masters above.
 /public/Create/*.aep
 /public/Create/*.aep Logs/
+
+# Unreferenced media that used to ship with every deploy (2026-09-16 launch
+# audit): the 34 MB hero_video.mp4 nothing loads (the page plays the .webm), a
+# second copy of the practice mp3s at the public root, section backgrounds and
+# illustrations no component names, and the Up.png master whose 1920px WebP
+# derivative is what the home page now loads. Everything under public/ is
+# served, so an unused file is not just dead weight in the repo — it is a
+# public URL. Kept on disk for whoever wants the originals; not deployed.
+/public/videos/hero_video.mp4
+/public/videos/Welcome - onboarding/
+/public/assets/Peter video.mp4
+/public/assets/Footer bg (2).png
+/public/assets/Footer bg.png
+/public/assets/Canvas empty/Bottom.png
+/public/assets/Canvas empty/Top looped.mp4
+/public/Do You Love - Peter Nordberg.mp3
+/public/shape_of_you.mp3
+/public/assets/Up.png
+/public/assets/landscape.png
+/public/assets/guitarist.png
+/public/assets/musician_mindset.png
+/public/assets/maestro.png
+/public/assets/playing_instruments.png
+/public/assets/synesthesia.png
+/public/assets/produce_music.png
+/public/assets/fundamentals.png
+/public/assets/learn_to_sing.png
+/public/assets/pillar_*.png
+/public/assets/pencil.png
+/public/assets/Learn/Fundamentals.mp4
+
+# Editor scratch payloads and local trace files. scratch_6332.json was a
+# 37 KB editor dump of app source; trace.cjs carried a local machine path.
+/scratch_*.json
+/trace.cjs

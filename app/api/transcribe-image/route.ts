@@ -3,6 +3,7 @@ import { featureGuard } from '@/lib/featureFlags';
 import { GEMINI_VISION_MODELS } from '@/lib/geminiModels';
 import { requireUser } from '@/lib/apiAuth';
 import { rateLimitGuard, withGeminiRetry, quotaError, createCallBudget } from '@/lib/rateLimit';
+import { fetchAllowedUrl, vetRemoteUrl } from '@/lib/safeRemoteUrl';
 
 export async function POST(request: Request) {
     // Kill switch: an admin can disable this endpoint from the console
@@ -54,7 +55,16 @@ export async function POST(request: Request) {
                 mimeType = matches[1];
                 base64Data = matches[2];
             } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-                const imageResponse = await fetch(imageUrl);
+                // Vetted against the Storage allowlist, never fetched as given. The
+                // same SSRF that was closed in /api/transcribe, /api/download-audio
+                // and /api/classify-instrument was still open here: a signed-in
+                // caller could point the server at the metadata service or at
+                // anything else reachable from inside the VPC. See lib/safeRemoteUrl.ts.
+                const vetted = vetRemoteUrl(imageUrl);
+                if (!vetted.ok) {
+                    return NextResponse.json({ error: vetted.reason || 'That image url is not allowed' }, { status: 400 });
+                }
+                const imageResponse = await fetchAllowedUrl(vetted.url!, { timeoutMs: 15_000 });
                 if (!imageResponse.ok) {
                     throw new Error(`Failed to fetch image from remote URL: ${imageResponse.statusText}`);
                 }
