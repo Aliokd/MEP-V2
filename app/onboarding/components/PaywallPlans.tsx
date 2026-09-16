@@ -549,7 +549,10 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, compl
                     ref={barRef}
                     className="fixed inset-x-0 bottom-0 z-40 space-y-3 rounded-t-[32px] bg-[#DCDDD4]/45 px-4 pb-4 pt-4 backdrop-blur-2xl backdrop-saturate-150 sm:px-6"
                 >
-                    {error && (
+                    {/* Not alongside the unavailable notice: that notice already
+                        says what happened and what to do, and "try again" under
+                        it would contradict the way on it just offered. */}
+                    {error && !showUnavailable && (
                         <div className="mx-auto flex max-w-4xl items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-left text-xs text-red-700">
                             <AlertCircle size={16} className="shrink-0" />
                             <span>{error}</span>
