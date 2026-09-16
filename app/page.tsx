@@ -12,9 +12,8 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useFaqs, useFooterLinks } from "@/context/SitePagesContext";
 import { pickLocale } from "@/lib/content";
 import { localizePath } from "@/lib/i18n";
-import { signupPath, FOUNDER_SPOTS_TOTAL } from "@/lib/uiFlags";
+import { signupPath } from "@/lib/uiFlags";
 import { FALLBACK_PRICING } from "@/lib/paddle/config";
-import { useFounderSpots } from "@/lib/founderSpots";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const TopNav = () => {
@@ -198,53 +197,7 @@ const BlobsSection = () => {
 
 const UrgencySection = () => {
     const { t, language } = useLanguage();
-    // Live from GET /api/waitlist: the anchor plus every real signup since the
-    // counter went live, same figure the join dialog shows. Read through a ref
-    // where the animation needs it — the observer callback closes over mount
-    // state, and the fetch has long settled by the time anyone scrolls here.
-    const liveTaken = useFounderSpots();
-    const liveTakenRef = useRef(liveTaken);
-    liveTakenRef.current = liveTaken;
-    const [count, setCount] = useState(0);
-    const [barWidth, setBarWidth] = useState(0);
-    const [hasAnimated, setHasAnimated] = useState(false);
     const sectionRef = useRef<HTMLElement>(null);
-
-    useEffect(() => {
-        const section = sectionRef.current;
-        if (!section) return;
-
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting && !hasAnimated) {
-                    setHasAnimated(true);
-
-                    // Kick off progress bar CSS transition
-                    setTimeout(() => setBarWidth(liveTakenRef.current), 50);
-
-                    // Count-up from 0 to the live count over 1600ms with
-                    // easeOut.
-                    const target = liveTakenRef.current;
-                    const duration = 1600;
-                    const startTime = performance.now();
-
-                    const tick = (now: number) => {
-                        const elapsed = now - startTime;
-                        const progress = Math.min(elapsed / duration, 1);
-                        // easeOutCubic
-                        const eased = 1 - Math.pow(1 - progress, 3);
-                        setCount(Math.round(eased * target));
-                        if (progress < 1) requestAnimationFrame(tick);
-                    };
-                    requestAnimationFrame(tick);
-                }
-            },
-            { threshold: 0.3 }
-        );
-
-        observer.observe(section);
-        return () => observer.disconnect();
-    }, [hasAnimated]);
 
     return (
         <section ref={sectionRef} className="bg-[#EDFF8E] py-24 md:py-32 px-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
@@ -267,17 +220,6 @@ const UrgencySection = () => {
                     {t('home.urgency.title')}
                 </h2>
 
-                {/* Animated progress bar */}
-                <div className="w-full max-w-2xl h-3 rounded-full overflow-hidden mb-8 md:mb-10" style={{ background: '#D5E776' }}>
-                    <div
-                        className="h-full bg-stone-900 rounded-full"
-                        style={{
-                            width: `${barWidth}%`,
-                            transition: 'width 1.6s cubic-bezier(0.33, 1, 0.68, 1)',
-                        }}
-                    />
-                </div>
-
                 {/* The offer, stated in the terms the checkout actually
                     charges: the trial, then the entry price from the Paddle
                     catalog. The figure comes from FALLBACK_PRICING so this line
@@ -288,20 +230,12 @@ const UrgencySection = () => {
                     {t('home.urgency.offer').replace('{price}', `$${FALLBACK_PRICING.pro.yearly}`)}
                 </p>
 
-                {/* Animated counter, out of the founding total */}
-                <div className="flex items-baseline justify-center gap-1 leading-none mb-6 md:mb-8">
-                    <span className="text-[7rem] md:text-[9rem] lg:text-[11rem] font-sans font-bold tracking-tighter text-stone-900 leading-none tabular-nums">
-                        {count}
-                    </span>
-                    <span className="text-[4rem] md:text-[5.5rem] lg:text-[6.5rem] font-sans font-light tracking-tight text-stone-900/60 leading-none">/{FOUNDER_SPOTS_TOTAL}</span>
-                </div>
-
-                {/* Urgency Description. The remainder is computed, not written
-                    into the copy — a hard-coded "13" outlived the number it was
-                    derived from once already. */}
-                <p className="text-stone-700 text-[15px] md:text-[17px] font-medium max-w-md mb-10 leading-relaxed">
-                    {t('home.urgency.spots_line_1').replace('{n}', String(FOUNDER_SPOTS_TOTAL - liveTaken))}<br className="hidden md:block" /> {t('home.urgency.spots_line_2')}
-                </p>
+                {/* No counter and no "spots left" any more. Both counted
+                    waiting-list signups against a founding hundred, and with
+                    signups open nothing joins that list: the number would
+                    have frozen where it stood, next to a sentence about early
+                    access closing on a page that sells an open subscription.
+                    What is left is the offer and the door. */}
 
                 {/* CTA Button */}
                 <Link
