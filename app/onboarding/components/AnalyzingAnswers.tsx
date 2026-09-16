@@ -435,6 +435,11 @@ export default function AnalyzingAnswers({ answers, onComplete, onBack, frozen =
                     is left — so this has to, and a bar alone says "some of it".
                     Digits rather than a sentence: nothing to translate, and it
                     reads the same in every language the flow is in. */}
+                {/* Not when nothing was answered: the list above is already
+                    hidden then, and a bar reading "0/0" under an empty scan
+                    is a screen counting nothing. Every question is optional,
+                    so this is a real path, not an edge case. */}
+                {answers.length > 0 && (
                 <div className="flex items-center gap-4">
                     <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-stone-900/10">
                         <motion.div
@@ -448,6 +453,7 @@ export default function AnalyzingAnswers({ answers, onComplete, onBack, frozen =
                         {read}/{answers.length}
                     </span>
                 </div>
+                )}
                 </div>
               </div>
             </div>
