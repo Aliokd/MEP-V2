@@ -255,7 +255,19 @@ export async function POST(request: Request) {
     // route revokes every session older than itself once the code is in, so
     // a token handed out here for an address someone else then claims does
     // not outlive their claim.
-    const token = await adminAuth.createCustomToken(uid);
+    let token: string;
+    try {
+        token = await adminAuth.createCustomToken(uid);
+    } catch (error) {
+        // On Cloud Run the Admin SDK signs custom tokens through the IAM
+        // Credentials API, which needs the runtime service account to hold
+        // roles/iam.serviceAccountTokenCreator on itself. Without it this is
+        // the one line of the route that fails, after the account exists and
+        // the code has gone out. Named so the log says what to grant rather
+        // than surfacing as an anonymous 500.
+        console.error("[onboarding/start] createCustomToken failed (grant roles/iam.serviceAccountTokenCreator to the runtime service account):", error);
+        return NextResponse.json({ error: "token-failed" }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true, uid, token, resumed });
 }
