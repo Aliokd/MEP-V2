@@ -32,10 +32,18 @@ import { useLanguage } from '@/context/LanguageContext';
  *   instead — the shape is the same as the testimonials' `image`.
  */
 
-/** Poster frames from the fundamentals lessons, used at thumbnail size. */
+/**
+ * Poster frames from the fundamentals lessons, used at thumbnail size.
+ *
+ * Cut from the lesson videos with ffmpeg (8 s in, 640 px wide, webp) and
+ * committed here rather than pointed at under /videos: that folder holds
+ * the multi-hundred-megabyte sources and is gitignored, so the posters it
+ * used to reference were never deployed and the verdict page shipped two
+ * broken images from the day it went live.
+ */
 const LESSONS = [
-    { poster: '/videos/Master%20fundamentals/intro-v2-poster.jpg' },
-    { poster: '/videos/Master%20fundamentals/verse-poster.jpg' },
+    { poster: '/onboarding-cards/lesson-intro.webp' },
+    { poster: '/onboarding-cards/lesson-verse.webp' },
 ] as const;
 
 /**
