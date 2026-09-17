@@ -542,27 +542,26 @@ const NewFooter = () => {
                 "Terms and conditions" broke across three lines while Q&A sat alone
                 off the right edge. A grid gives every link the same cell instead of
                 letting the longest one dictate the layout. */}
-            <div className="relative z-10 w-full px-6 md:px-[10%] pt-8 md:pt-12 flex flex-col md:flex-row md:justify-between md:items-center gap-6 md:gap-0">
-                {/* Established moves to the bottom of the footer on a phone — it is a
-                    footnote, not a heading, and it was the first thing read. */}
-                <div className="hidden md:flex items-center gap-6 text-[15px] text-[#363636] font-medium">
-                    <span>{t('home.footer.established')}</span>
-                </div>
-
-                {/* Two named columns rather than one grid flowing row-major: the
-                    left is where you GO (join, read, learn about us, ask), the
-                    right is the legal shelf. A single ordered list filled across
-                    the rows instead of down them, so the grouping was whatever the
-                    order happened to produce. From md they flatten back into one
-                    row, where the distinction costs more than it says. */}
-                <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:flex md:items-center md:gap-6 text-[15px] text-[#363636]">
-                    <div className="flex flex-col gap-3 md:contents">
+            {/* Three named columns at every width, each under a small heading.
+                They used to flatten into one row from md up, and at desktop
+                widths that row was the cluttered part: ten items of uneven
+                length shared one line, so "Terms and conditions" and "Cookie
+                settings" folded onto two lines while "Q&A" sat in a gap. The
+                columns are what a reader scans anyway: where you GO (join, read,
+                learn about us, ask), the legal shelf, and the company itself.
+                Established lives in that last column on desktop; on a phone it
+                stays at the very bottom, where a footnote belongs. */}
+            <div className="relative z-10 w-full px-6 md:px-[10%] pt-8 md:pt-12">
+                <div className="mx-auto w-full max-w-[880px] grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-8 text-[15px] text-[#363636]">
+                    <div className="flex flex-col gap-3">
+                        <span className="text-[13px] text-[#363636]/60 font-medium">{t('home.footer.group_explore')}</span>
                         <Link href={signupPath('footer', language)} className="font-bold hover:text-black transition-colors">{t('home.nav.start')}</Link>
                         <Link href={localizePath('/blog', language)} className="font-medium hover:text-black transition-colors">{t('blog.title')}</Link>
                         <Link href="/about" className="font-medium hover:text-black transition-colors">{t('home.footer.about')}</Link>
                         <Link href="#qa" className="font-medium hover:text-black transition-colors">{t('home.nav.qa')}</Link>
                     </div>
-                    <div className="flex flex-col gap-3 md:contents">
+                    <div className="flex flex-col gap-3">
+                        <span className="text-[13px] text-[#363636]/60 font-medium">{t('home.footer.group_legal')}</span>
                         <Link href="/privacy" className="font-medium hover:text-black transition-colors">{t('home.footer.privacy')}</Link>
                         <Link href={localizePath('/refunds', language)} className="font-medium hover:text-black transition-colors">{t('home.footer.refunds')}</Link>
                         {/* Terms, and anything else ticked "show in footer" in the CMS. */}
@@ -578,12 +577,18 @@ const NewFooter = () => {
                         {/* The cookie panel, reachable from the bottom of the page —
                             which is where the panel's own copy says to look for it. */}
                         <Link href={localizePath('/cookies', language)} className="font-medium hover:text-black transition-colors">{t('cookies.page_title')}</Link>
+                    </div>
+                    {/* Full width on a phone: the two-column grid leaves ~150px per
+                        cell there, and the email address is wider than that. */}
+                    <div className="flex flex-col gap-3 col-span-2 sm:col-span-1">
+                        <span className="text-[13px] text-[#363636]/60 font-medium">{t('home.footer.group_company')}</span>
                         {/* Brand guidelines and logo downloads. English-only, so no locale prefix. */}
                         <Link href="/guidelines" className="font-medium hover:text-black transition-colors">{t('guidelines.title')}</Link>
                         {/* A way to reach a person, from the homepage, as an address
                             rather than a form: it is what a payment provider's
                             reviewer and a stuck visitor both look for. */}
                         <a href="mailto:contact@veinote.com" className="font-medium hover:text-black transition-colors">contact@veinote.com</a>
+                        <span className="hidden md:inline text-[#363636]/70">{t('home.footer.established')}</span>
                     </div>
                 </div>
             </div>

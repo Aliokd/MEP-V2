@@ -58,12 +58,19 @@ export default async function SiteFooterStrip({
         .filter((link, index, all) => all.findIndex((other) => other.path === link.path) === index);
 
     return (
-        <section className="px-6 md:px-[10%] pb-16 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-stone-400/20 pt-10">
-            <div className="flex items-center gap-2 text-[14px] text-[#363636] font-medium bg-white/30 backdrop-blur-lg border border-white/40 px-5 py-2.5 rounded-full">
-                <Heart className="w-4 h-4 fill-[#363636] stroke-none shrink-0" />
-                <span>{t('home.footer.designed')}</span>
+        <section className="px-6 md:px-[10%] pb-16 flex flex-col md:flex-row md:items-start items-center justify-between gap-6 md:gap-10 border-t border-stone-400/20 pt-10">
+            {/* The pill holds one line, always. It used to share the row's width with
+                the links on equal terms, so once the links outgrew their half the pill
+                gave way first and its sentence wrapped inside the badge. Now the pill
+                keeps its natural width and the links are the side that wraps; same
+                phone treatment as the homepage's copy of this badge. */}
+            <div className="shrink-0 max-w-full flex items-center gap-2 text-[12px] md:text-[14px] text-[#363636] font-medium tracking-tight md:tracking-normal bg-white/30 backdrop-blur-lg border border-white/40 px-3.5 py-2 md:px-5 md:py-2.5 rounded-full">
+                <Heart className="w-3.5 h-3.5 md:w-4 md:h-4 fill-[#363636] stroke-none shrink-0" />
+                <span className="whitespace-nowrap">{t('home.footer.designed')}</span>
             </div>
-            <div className="flex items-center gap-6 text-[14px] text-[#363636] flex-wrap justify-center">
+            {/* Free to run onto several lines; each row ends at the right edge on
+                desktop so the block reads as one column of links, not scattered. */}
+            <div className="min-w-0 flex items-center gap-x-6 gap-y-3 text-[14px] text-[#363636] flex-wrap justify-center md:justify-end md:pt-2.5">
                 {links.map((link) => (
                     <Link
                         key={link.path}

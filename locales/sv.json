@@ -1596,6 +1596,9 @@
       ]
     },
     "footer": {
+      "group_explore": "Utforska",
+      "group_legal": "Juridiskt",
+      "group_company": "Veinote",
       "established": "Grundat 2026",
       "about": "Om oss",
       "privacy": "Integritet",

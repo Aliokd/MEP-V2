@@ -1596,6 +1596,9 @@
       ]
     },
     "footer": {
+      "group_explore": "Explore",
+      "group_legal": "Legal",
+      "group_company": "Veinote",
       "established": "Established in 2026",
       "about": "About",
       "privacy": "Privacy",

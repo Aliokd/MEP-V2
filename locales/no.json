@@ -1596,6 +1596,9 @@
       ]
     },
     "footer": {
+      "group_explore": "Utforsk",
+      "group_legal": "Juridisk",
+      "group_company": "Veinote",
       "established": "Etablert i 2026",
       "about": "Om oss",
       "privacy": "Personvern",
