@@ -463,13 +463,13 @@
     "connect_with_songwriters": "Connect with Songwriters",
     "pro": {
       "title": "Songwriter Room",
-      "max_badge": "Max",
+      "max_badge": "Pro",
       "locked_desc": "Upgrade to ask your questions and work directly with professional songwriters.",
       "unlocked_desc": "Ask your questions and work directly with professional songwriters.",
       "modal_title": "Connect with professional songwriters",
-      "modal_subtitle": "Direct access to pro songwriters is part of the Max plan.",
-      "modal_cta": "Upgrade to Max",
-      "pro_badge": "Pro"
+      "modal_subtitle": "Direct access to pro songwriters is part of the Pro plan.",
+      "modal_cta": "Upgrade to Pro",
+      "pro_badge": "Plan"
     },
     "recent_songs": "Recent songs",
     "create_song_cta": "Create a song",
@@ -524,7 +524,7 @@
     "rooms_empty": "No rooms scheduled yet.",
     "rooms_locked_title": "Rooms with professional songwriters",
     "rooms_locked_desc": "Collab rooms on the canvas and live events in Stockholm. Bring a question, or a song that’s stuck.",
-    "max_card_title": "Upgrade to Max",
+    "max_card_title": "Upgrade to Pro",
     "max_card_desc": "Join pro songwriters, do business",
     "carousel_prev": "Previous songwriters",
     "carousel_next": "More songwriters",
@@ -607,23 +607,23 @@
     "business_locked_title": "Business, for working songwriters",
     "business_locked_desc": "Commissions, briefs and paid collaborations with pro songwriters. The part of Veinote where songs become work.",
     "business_soon_title": "Business is on its way",
-    "business_soon_desc": "This is where Max members will take briefs, post commissions and get paid for collaborations. You're in. We'll open it here first.",
+    "business_soon_desc": "This is where Pro members will take briefs, post commissions and get paid for collaborations. You're in. We'll open it here first.",
     "upgrade": {
       "pro": {
-        "title": "Rooms are part of Pro",
+        "title": "Rooms come with a plan",
         "subtitle": "Collab rooms on the canvas and live events. Bring a question, or a song that's stuck.",
-        "cta": "Upgrade to Pro"
+        "cta": "Choose a plan"
       },
       "max": {
-        "title": "Business is part of Max",
+        "title": "Business is part of Pro",
         "subtitle": "Join pro songwriters, take briefs, do business.",
-        "cta": "Upgrade to Max"
+        "cta": "Upgrade to Pro"
       },
       "changed": "Done. Your plan has changed, and you'll see it in your profile in a moment.",
       "change_error": "We couldn't change your plan just now. Please try again."
     },
     "map_not_configured": "The map isn't set up yet: it needs a Google Maps key. You can still choose your city.",
-    "business_soon_desc_locked": "This is where Max members will take briefs, post commissions and get paid for collaborations. It opens here first.",
+    "business_soon_desc_locked": "This is where Pro members will take briefs, post commissions and get paid for collaborations. It opens here first.",
     "map_far_from_city": "The nearest city on our list is {city}, about {km} km away. If that's not where you are, search for a closer one.",
     "map_search_city": "Search for your city",
     "map_no_city_match": "No city by that name. Try the nearest big city.",
@@ -961,7 +961,7 @@
   "profile": {
     "title": "Profile & settings",
     "subtitle": "Manage your account details and preferences.",
-    "tier": "Pro plan",
+    "tier": "Your plan",
     "first_name": "First name",
     "last_name": "Last name",
     "placeholder_first_name": "Your first name",
@@ -978,7 +978,7 @@
     "current_plan": "Current plan",
     "virtuoso_membership": "Pro",
     "manage_subscription": "Manage subscription",
-    "upgrade_to_max": "Upgrade to Max",
+    "upgrade_to_max": "Upgrade to Pro",
     "need_assistance": "Need help?",
     "contact_concierge": "Contact support",
     "error_update_email": "Failed to update email. Please try logging in again.",
@@ -991,7 +991,7 @@
     "support_action": "Get help",
     "edit_action": "Edit",
     "public_profile_switch": "Public profile",
-    "go_max": "Go Max",
+    "go_max": "Go Pro",
     "see_public_profile": "See public profile",
     "empty_songs_desc": "Create your first song in Veinote",
     "empty_songs_cta": "Create",
@@ -1071,7 +1071,7 @@
     "song_pause": "Pause",
     "song_previous": "Previous recording",
     "song_next": "Next recording",
-    "max_ad_title": "Go further with Max",
+    "max_ad_title": "Go further with Pro",
     "max_ad_desc": "Direct access to pro songwriters, unlimited projects, and first access to new tools.",
     "change_photo": "Change profile photo",
     "photo_updated": "Profile photo updated.",
@@ -1114,7 +1114,8 @@
       "yearly": "Yearly",
       "monthly": "Monthly",
       "opening": "Opening...",
-      "portal_error": "We couldn't open your billing page. Please try again."
+      "portal_error": "We couldn't open your billing page. Please try again.",
+      "plan_base": "Veinote"
     }
   },
   "email": {
@@ -1554,7 +1555,7 @@
       "title": "Start writing today",
       "spots_line_1": "Only {n} spots left",
       "spots_line_2": "before early access closes.",
-      "offer": "3 days free, then Pro from {price} a month, billed yearly."
+      "offer": "3 days free, then from {price} a month, billed yearly."
     },
     "banner": {
       "text": "Here's why most musicians never finish their songs.",
@@ -1920,11 +1921,11 @@
         "billed_yearly_amount": "per month, {amount} billed yearly"
       },
       "recommended": "Popular",
-      "max_intro": "Everything in Pro, plus",
+      "max_intro": "Everything in Veinote, plus",
       "coming_soon": "Coming soon",
       "plans": {
         "pro": {
-          "name": "Pro",
+          "name": "",
           "tagline": "Most popular, for songwriters building the habit",
           "outcome": [
             "Become a master songwriter and take your craft to the next level",
@@ -1977,12 +1978,12 @@
           }
         },
         "max": {
-          "name": "Max",
+          "name": "Pro",
           "tagline": "For working songwriters and teams",
           "outcome": [
-            "Everything Pro gives you, with the ceilings taken off",
+            "Everything Veinote gives you, with the ceilings taken off",
             "Direct access to premium songwriters",
-            "Pro collaboration opportunities",
+            "Professional collaboration opportunities",
             "Premium group discussions: ask anything, get real answers",
             "Books and the full package"
           ],
@@ -1990,14 +1991,14 @@
             "tools": {
               "title": "Unlock all tools",
               "items": [
-                "Every tool in Pro",
+                "Every tool in Veinote",
                 "First access to new tools as they land"
               ]
             },
             "materials": {
               "title": "Material that gets you writing",
               "items": [
-                "Everything in Pro",
+                "Everything in Veinote",
                 "Books and the full package",
                 "Direct access to premium songwriters"
               ]
@@ -2005,9 +2006,9 @@
             "community": {
               "title": "Socialize with songwriters",
               "items": [
-                "Everything in Pro",
+                "Everything in Veinote",
                 "Premium group discussions: ask anything, get real answers",
-                "Pro collaboration opportunities"
+                "Professional collaboration opportunities"
               ]
             },
             "capacity": {
@@ -2028,8 +2029,8 @@
       "outcome_label": "What's the outcome?",
       "no_ads": "No ads in Veinote. Ever.",
       "cancel_note": "Start free. Cancel any time.",
-      "see_max": "Check the Max plan",
-      "see_pro": "Back to the Pro plan",
+      "see_max": "Check the Pro plan",
+      "see_pro": "Back to the other plan",
       "checkout_title": "Payment details",
       "checkout_secure": "Secure",
       "checkout_continue": "Continue",

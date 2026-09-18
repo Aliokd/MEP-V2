@@ -463,13 +463,13 @@
     "connect_with_songwriters": "Kom i kontakt med låtskrivare",
     "pro": {
       "title": "Låtskrivarrummet",
-      "max_badge": "Max",
+      "max_badge": "Pro",
       "locked_desc": "Uppgradera för att ställa dina frågor och jobba direkt med professionella låtskrivare.",
       "unlocked_desc": "Ställ dina frågor och jobba direkt med professionella låtskrivare.",
       "modal_title": "Kom i kontakt med professionella låtskrivare",
-      "modal_subtitle": "Direktkontakt med professionella låtskrivare ingår i Max.",
-      "modal_cta": "Uppgradera till Max",
-      "pro_badge": "Pro"
+      "modal_subtitle": "Direkt tillgång till professionella låtskrivare ingår i Pro-planen.",
+      "modal_cta": "Uppgradera till Pro",
+      "pro_badge": "Plan"
     },
     "recent_songs": "Senaste låtarna",
     "create_song_cta": "Skapa en låt",
@@ -524,7 +524,7 @@
     "rooms_empty": "Inga rum planerade än.",
     "rooms_locked_title": "Rum med professionella låtskrivare",
     "rooms_locked_desc": "Samarbetsrum på arbetsytan och live-event i Stockholm. Ta med en fråga, eller en låt som fastnat.",
-    "max_card_title": "Uppgradera till Max",
+    "max_card_title": "Uppgradera till Pro",
     "max_card_desc": "Gå med professionella låtskrivare, gör affärer",
     "carousel_prev": "Föregående låtskrivare",
     "carousel_next": "Fler låtskrivare",
@@ -607,23 +607,23 @@
     "business_locked_title": "Business, för låtskrivare som jobbar",
     "business_locked_desc": "Uppdrag, briefer och betalda samarbeten med professionella låtskrivare. Delen av Veinote där låtar blir arbete.",
     "business_soon_title": "Business är på väg",
-    "business_soon_desc": "Här kommer Max-medlemmar ta briefer, lägga ut uppdrag och få betalt för samarbeten. Du är inne. Vi öppnar det här först.",
+    "business_soon_desc": "Här kommer Pro-medlemmar ta briefer, lägga ut uppdrag och få betalt för samarbeten. Du är inne. Vi öppnar det här först.",
     "upgrade": {
       "pro": {
-        "title": "Rum är en del av Pro",
+        "title": "Rum ingår med en plan",
         "subtitle": "Samarbetsrum på arbetsytan och live-event. Ta med en fråga, eller en låt som fastnat.",
-        "cta": "Uppgradera till Pro"
+        "cta": "Välj en plan"
       },
       "max": {
-        "title": "Business är en del av Max",
+        "title": "Business ingår i Pro",
         "subtitle": "Gå med professionella låtskrivare, ta briefer, gör business.",
-        "cta": "Uppgradera till Max"
+        "cta": "Uppgradera till Pro"
       },
       "changed": "Klart. Din plan är ändrad, och du ser det i profilen om en stund.",
       "change_error": "Vi kunde inte ändra din plan just nu. Försök igen."
     },
     "map_not_configured": "Kartan är inte uppsatt än: det behövs en Google Maps-nyckel. Du kan fortfarande välja din stad.",
-    "business_soon_desc_locked": "Här kommer Max-medlemmar ta briefer, lägga ut uppdrag och få betalt för samarbeten. Det öppnar här först.",
+    "business_soon_desc_locked": "Här kommer Pro-medlemmar ta briefer, lägga ut uppdrag och få betalt för samarbeten. Det öppnar här först.",
     "map_far_from_city": "Närmaste stad på vår lista är {city}, ungefär {km} km bort. Om det inte är där du är, sök efter en närmare.",
     "map_search_city": "Sök efter din stad",
     "map_no_city_match": "Ingen stad med det namnet. Prova närmaste storstad.",
@@ -961,7 +961,7 @@
   "profile": {
     "title": "Profil & inställningar",
     "subtitle": "Hantera dina kontouppgifter och inställningar.",
-    "tier": "Pro-plan",
+    "tier": "Din plan",
     "first_name": "Förnamn",
     "last_name": "Efternamn",
     "placeholder_first_name": "Ditt förnamn",
@@ -978,7 +978,7 @@
     "current_plan": "Nuvarande abonnemang",
     "virtuoso_membership": "Pro",
     "manage_subscription": "Hantera abonnemang",
-    "upgrade_to_max": "Uppgradera till Max",
+    "upgrade_to_max": "Uppgradera till Pro",
     "need_assistance": "Behöver du hjälp?",
     "contact_concierge": "Kontakta support",
     "error_update_email": "Det gick inte att uppdatera e-postadressen. Logga in igen och försök på nytt.",
@@ -991,7 +991,7 @@
     "support_action": "Få hjälp",
     "edit_action": "Redigera",
     "public_profile_switch": "Offentlig profil",
-    "go_max": "Bli Max",
+    "go_max": "Bli Pro",
     "see_public_profile": "Se offentlig profil",
     "empty_songs_desc": "Skapa din första låt i Veinote",
     "empty_songs_cta": "Skapa",
@@ -1071,7 +1071,7 @@
     "song_pause": "Paus",
     "song_previous": "Föregående inspelning",
     "song_next": "Nästa inspelning",
-    "max_ad_title": "Kom längre med Max",
+    "max_ad_title": "Kom längre med Pro",
     "max_ad_desc": "Direkt tillgång till proffslåtskrivare, obegränsade projekt och tidig tillgång till nya verktyg.",
     "change_photo": "Byt profilbild",
     "photo_updated": "Profilbilden är uppdaterad.",
@@ -1114,7 +1114,8 @@
       "yearly": "Årlig",
       "monthly": "Månatlig",
       "opening": "Öppnar...",
-      "portal_error": "Vi kunde inte öppna din betalningssida. Försök igen."
+      "portal_error": "Vi kunde inte öppna din betalningssida. Försök igen.",
+      "plan_base": "Veinote"
     }
   },
   "email": {
@@ -1554,7 +1555,7 @@
       "title": "Börja skriva i dag",
       "spots_line_1": "Bara {n} platser kvar",
       "spots_line_2": "innan tidig tillgång stänger.",
-      "offer": "3 dagar gratis, sedan Pro från {price} i månaden, faktureras årsvis."
+      "offer": "3 dagar gratis, sedan från {price} i månaden, faktureras årsvis."
     },
     "banner": {
       "text": "Här är varför de flesta musiker aldrig gör klart sina låtar.",
@@ -1920,11 +1921,11 @@
         "billed_yearly_amount": "per månad, {amount} faktureras årsvis"
       },
       "recommended": "Populärast",
-      "max_intro": "Allt i Pro, plus",
+      "max_intro": "Allt i Veinote, plus",
       "coming_soon": "Kommer snart",
       "plans": {
         "pro": {
-          "name": "Pro",
+          "name": "",
           "tagline": "Populärast, för dig som skriver regelbundet",
           "outcome": [
             "Bli en skicklig låtskrivare och ta hantverket ett steg längre",
@@ -1977,12 +1978,12 @@
           }
         },
         "max": {
-          "name": "Max",
+          "name": "Pro",
           "tagline": "För låtskrivare som lever på det",
           "outcome": [
-            "Allt du får i Pro, utan taken",
+            "Allt Veinote ger dig, utan tak",
             "Direkt tillgång till premiumlåtskrivare",
-            "Möjligheter till professionella samarbeten",
+            "Professionella samarbetsmöjligheter",
             "Premium gruppdiskussioner: fråga vad som helst, få riktiga svar",
             "Böcker och hela paketet"
           ],
@@ -1990,14 +1991,14 @@
             "tools": {
               "title": "Alla verktyg öppna",
               "items": [
-                "Alla verktyg i Pro",
+                "Alla verktyg i Veinote",
                 "Först ut på nya verktyg när de kommer"
               ]
             },
             "materials": {
               "title": "Material som får dig att skriva",
               "items": [
-                "Allt i Pro",
+                "Allt i Veinote",
                 "Böcker och hela paketet",
                 "Direkt tillgång till premiumlåtskrivare"
               ]
@@ -2005,9 +2006,9 @@
             "community": {
               "title": "Lär känna andra låtskrivare",
               "items": [
-                "Allt i Pro",
+                "Allt i Veinote",
                 "Premium gruppdiskussioner: fråga vad som helst, få riktiga svar",
-                "Möjligheter till professionella samarbeten"
+                "Professionella samarbetsmöjligheter"
               ]
             },
             "capacity": {
@@ -2028,8 +2029,8 @@
       "outcome_label": "Vad får du ut av det?",
       "no_ads": "Ingen reklam i Veinote. Aldrig.",
       "cancel_note": "Börja gratis. Avsluta när du vill.",
-      "see_max": "Se Max-planen",
-      "see_pro": "Tillbaka till Pro-planen",
+      "see_max": "Se Pro-planen",
+      "see_pro": "Tillbaka till den andra planen",
       "checkout_title": "Betaluppgifter",
       "checkout_secure": "Säker",
       "checkout_continue": "Gå vidare",

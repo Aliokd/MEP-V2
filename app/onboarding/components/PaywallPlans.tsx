@@ -377,9 +377,15 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, compl
                             {/* Bold and a size up from the tagline under it —
                                 which plan this is should read before which
                                 plan does what. */}
-                            <span className="text-3xl font-sans font-bold tracking-tight text-stone-900 md:text-4xl">
-                                {t(`onboarding.paywall.plans.${plan}.name`)}
-                            </span>
+                            {/* The standard plan has no name of its own (the
+                                product is the plan); only the upper tier, Pro,
+                                is named. An empty span would still hold the
+                                gap, so it is left out entirely. */}
+                            {t(`onboarding.paywall.plans.${plan}.name`) && (
+                                <span className="text-3xl font-sans font-bold tracking-tight text-stone-900 md:text-4xl">
+                                    {t(`onboarding.paywall.plans.${plan}.name`)}
+                                </span>
+                            )}
                             {plan === 'pro' && (
                                 <span className="rounded-full bg-[#86BE7F]/20 px-3 py-1 text-[11px] font-bold text-[#3f6b3a]">
                                     {t('onboarding.paywall.recommended')}

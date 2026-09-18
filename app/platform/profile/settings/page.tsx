@@ -394,14 +394,15 @@ export default function SettingsPage() {
 
                 {/* The plan, and the one control that acts on it. A paying
                     account gets Paddle's portal (card, cancel, invoices); an
-                    account with nothing to manage gets the plans. Pro and Max
-                    are brand names and stay untranslated. */}
+                    account with nothing to manage gets the plans. The upper
+                    tier is "Pro" (untranslated); the standard plan has no
+                    name and reads as the product itself. */}
                 <div className="flex items-center justify-between py-4 border-b border-stone-200/60">
                     <div className="space-y-0.5">
                         <p className="font-sans text-sm font-medium text-stone-800">
                             {t('profile.current_plan')}{': '}
                             <span className="font-semibold">
-                                {plan.loading ? '' : plan.hasMax ? 'Max' : plan.hasPro ? 'Pro' : t('profile.billing.no_plan')}
+                                {plan.loading ? '' : plan.hasMax ? 'Pro' : plan.hasPro ? t('profile.billing.plan_base') : t('profile.billing.no_plan')}
                             </span>
                         </p>
                         <p className="text-[13px] text-stone-600">

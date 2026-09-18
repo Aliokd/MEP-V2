@@ -7,7 +7,7 @@ interface MaxBannerProps {
     title: string;
     /** One line of pitch under it. */
     description: string;
-    /** The lock pill's label ("Max"). */
+    /** The lock pill's label ("Pro"). */
     badgeLabel: string;
     /** Hidden for subscribers, and while the plan is still resolving. */
     showBadge: boolean;

@@ -436,11 +436,11 @@ export default function ProfilePage() {
                                         {name || email}
                                     </h2>
                                     {isVerified && <VerifiedMark size={18} label={t('profile.verified_label')} />}
-                                    {/* Pro and Max are brand names and stay untranslated; an
-                                        account holding neither gets no pill at all. */}
-                                    {(hasMax || hasPro) && (
+                                    {/* Only the upper tier is named (Pro, untranslated); the
+                                        standard plan has no label, so it gets no pill. */}
+                                    {hasMax && (
                                         <span className="rounded-full bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-[#DCDDD4] leading-none">
-                                            {hasMax ? 'Max' : 'Pro'}
+                                            Pro
                                         </span>
                                     )}
                                 </div>

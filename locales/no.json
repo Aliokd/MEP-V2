@@ -463,13 +463,13 @@
     "connect_with_songwriters": "Kom i kontakt med låtskrivere",
     "pro": {
       "title": "Låtskriverrommet",
-      "max_badge": "Max",
+      "max_badge": "Pro",
       "locked_desc": "Oppgrader for å stille spørsmålene dine og jobbe direkte med profesjonelle låtskrivere.",
       "unlocked_desc": "Still spørsmålene dine og jobb direkte med profesjonelle låtskrivere.",
       "modal_title": "Kom i kontakt med profesjonelle låtskrivere",
-      "modal_subtitle": "Direkte tilgang til profesjonelle låtskrivere er en del av Max.",
-      "modal_cta": "Oppgrader til Max",
-      "pro_badge": "Pro"
+      "modal_subtitle": "Direkte tilgang til profesjonelle låtskrivere er en del av Pro-planen.",
+      "modal_cta": "Oppgrader til Pro",
+      "pro_badge": "Plan"
     },
     "recent_songs": "Siste sanger",
     "create_song_cta": "Lag en sang",
@@ -524,7 +524,7 @@
     "rooms_empty": "Ingen rom planlagt ennå.",
     "rooms_locked_title": "Rom med profesjonelle låtskrivere",
     "rooms_locked_desc": "Samarbeidsrom på lerretet og live-arrangementer i Stockholm. Ta med et spørsmål, eller en sang som står fast.",
-    "max_card_title": "Oppgrader til Max",
+    "max_card_title": "Oppgrader til Pro",
     "max_card_desc": "Bli med profesjonelle låtskrivere, gjør forretninger",
     "carousel_prev": "Forrige låtskrivere",
     "carousel_next": "Flere låtskrivere",
@@ -607,23 +607,23 @@
     "business_locked_title": "Business, for låtskrivere som jobber",
     "business_locked_desc": "Oppdrag, briefer og betalte samarbeid med profesjonelle låtskrivere. Delen av Veinote der sanger blir arbeid.",
     "business_soon_title": "Business er på vei",
-    "business_soon_desc": "Her vil Max-medlemmer ta briefer, legge ut oppdrag og få betalt for samarbeid. Du er inne. Vi åpner det her først.",
+    "business_soon_desc": "Her vil Pro-medlemmer ta briefer, legge ut oppdrag og få betalt for samarbeid. Du er inne. Vi åpner det her først.",
     "upgrade": {
       "pro": {
-        "title": "Rom er en del av Pro",
+        "title": "Rom følger med en plan",
         "subtitle": "Samarbeidsrom på lerretet og live-arrangementer. Ta med et spørsmål, eller en sang som står fast.",
-        "cta": "Oppgrader til Pro"
+        "cta": "Velg en plan"
       },
       "max": {
-        "title": "Business er en del av Max",
+        "title": "Business er en del av Pro",
         "subtitle": "Bli med profesjonelle låtskrivere, ta briefer, gjør business.",
-        "cta": "Oppgrader til Max"
+        "cta": "Oppgrader til Pro"
       },
       "changed": "Ferdig. Planen din er endret, og du ser det i profilen om et øyeblikk.",
       "change_error": "Vi fikk ikke endret planen din akkurat nå. Prøv igjen."
     },
     "map_not_configured": "Kartet er ikke satt opp ennå: det trengs en Google Maps-nøkkel. Du kan fortsatt velge byen din.",
-    "business_soon_desc_locked": "Her vil Max-medlemmer ta briefer, legge ut oppdrag og få betalt for samarbeid. Det åpner her først.",
+    "business_soon_desc_locked": "Her vil Pro-medlemmer ta briefer, legge ut oppdrag og få betalt for samarbeid. Det åpner her først.",
     "map_far_from_city": "Nærmeste by på listen vår er {city}, omtrent {km} km unna. Hvis det ikke er der du er, søk etter en nærmere.",
     "map_search_city": "Søk etter byen din",
     "map_no_city_match": "Ingen by med det navnet. Prøv nærmeste storby.",
@@ -961,7 +961,7 @@
   "profile": {
     "title": "Profil og innstillinger",
     "subtitle": "Administrer kontodetaljer og preferanser.",
-    "tier": "Pro-plan",
+    "tier": "Planen din",
     "first_name": "Fornavn",
     "last_name": "Etternavn",
     "placeholder_first_name": "Fornavnet ditt",
@@ -978,7 +978,7 @@
     "current_plan": "Gjeldende abonnement",
     "virtuoso_membership": "Pro",
     "manage_subscription": "Administrer abonnement",
-    "upgrade_to_max": "Oppgrader til Max",
+    "upgrade_to_max": "Oppgrader til Pro",
     "need_assistance": "Trenger du hjelp?",
     "contact_concierge": "Kontakt support",
     "error_update_email": "Kunne ikke oppdatere e-postadressen. Logg inn på nytt og prøv igjen.",
@@ -991,7 +991,7 @@
     "support_action": "Få hjelp",
     "edit_action": "Rediger",
     "public_profile_switch": "Offentlig profil",
-    "go_max": "Bli Max",
+    "go_max": "Bli Pro",
     "see_public_profile": "Se offentlig profil",
     "empty_songs_desc": "Lag din første sang i Veinote",
     "empty_songs_cta": "Lag",
@@ -1071,7 +1071,7 @@
     "song_pause": "Pause",
     "song_previous": "Forrige innspilling",
     "song_next": "Neste innspilling",
-    "max_ad_title": "Kom lenger med Max",
+    "max_ad_title": "Kom lenger med Pro",
     "max_ad_desc": "Direkte tilgang til proffe låtskrivere, ubegrensede prosjekter og tidlig tilgang til nye verktøy.",
     "change_photo": "Bytt profilbilde",
     "photo_updated": "Profilbildet er oppdatert.",
@@ -1114,7 +1114,8 @@
       "yearly": "Årlig",
       "monthly": "Månedlig",
       "opening": "Åpner...",
-      "portal_error": "Vi fikk ikke åpnet betalingssiden din. Prøv igjen."
+      "portal_error": "Vi fikk ikke åpnet betalingssiden din. Prøv igjen.",
+      "plan_base": "Veinote"
     }
   },
   "email": {
@@ -1554,7 +1555,7 @@
       "title": "Begynn å skrive i dag",
       "spots_line_1": "Kun {n} plasser igjen",
       "spots_line_2": "før tidlig tilgang stenger.",
-      "offer": "3 dager gratis, deretter Pro fra {price} i måneden, fakturert årlig."
+      "offer": "3 dager gratis, deretter fra {price} i måneden, fakturert årlig."
     },
     "banner": {
       "text": "Her er grunnen til at de fleste musikere aldri fullfører låtene sine.",
@@ -1920,11 +1921,11 @@
         "billed_yearly_amount": "per måned, {amount} faktureres årlig"
       },
       "recommended": "Mest valgt",
-      "max_intro": "Alt i Pro, pluss",
+      "max_intro": "Alt i Veinote, pluss",
       "coming_soon": "Kommer snart",
       "plans": {
         "pro": {
-          "name": "Pro",
+          "name": "",
           "tagline": "Mest populær, for deg som skriver jevnlig",
           "outcome": [
             "Bli en dyktig låtskriver og ta håndverket et steg videre",
@@ -1977,12 +1978,12 @@
           }
         },
         "max": {
-          "name": "Max",
+          "name": "Pro",
           "tagline": "For låtskrivere som lever av det",
           "outcome": [
-            "Alt du får i Pro, uten takene",
+            "Alt Veinote gir deg, uten tak",
             "Direkte tilgang til premium-låtskrivere",
-            "Muligheter for profesjonelt samarbeid",
+            "Profesjonelle samarbeidsmuligheter",
             "Premium gruppediskusjoner: spør om hva som helst, få ekte svar",
             "Bøker og hele pakken"
           ],
@@ -1990,14 +1991,14 @@
             "tools": {
               "title": "Alle verktøyene åpne",
               "items": [
-                "Alle verktøyene i Pro",
+                "Alle verktøy i Veinote",
                 "Først ut på nye verktøy når de kommer"
               ]
             },
             "materials": {
               "title": "Stoff som får deg til å skrive",
               "items": [
-                "Alt i Pro",
+                "Alt i Veinote",
                 "Bøker og hele pakken",
                 "Direkte tilgang til premium-låtskrivere"
               ]
@@ -2005,9 +2006,9 @@
             "community": {
               "title": "Bli kjent med andre låtskrivere",
               "items": [
-                "Alt i Pro",
+                "Alt i Veinote",
                 "Premium gruppediskusjoner: spør om hva som helst, få ekte svar",
-                "Muligheter for profesjonelt samarbeid"
+                "Profesjonelle samarbeidsmuligheter"
               ]
             },
             "capacity": {
@@ -2028,8 +2029,8 @@
       "outcome_label": "Hva sitter du igjen med?",
       "no_ads": "Ingen reklame i Veinote. Aldri.",
       "cancel_note": "Start gratis. Avslutt når du vil.",
-      "see_max": "Se Max-planen",
-      "see_pro": "Tilbake til Pro-planen",
+      "see_max": "Se Pro-planen",
+      "see_pro": "Tilbake til den andre planen",
       "checkout_title": "Betalingsdetaljer",
       "checkout_secure": "Sikker",
       "checkout_continue": "Gå videre",

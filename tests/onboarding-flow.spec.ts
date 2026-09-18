@@ -122,8 +122,10 @@ test.describe('Onboarding flow', () => {
         await expect(page).toHaveURL(/at=offer/);
         await page.getByRole('button', { name: /Start my 3 days free/ }).click();
         await expect(page).toHaveURL(/at=paywall/);
-        await expect(page.getByText('Pro', { exact: true }).first()).toBeVisible();
+        // The standard plan carries no name, only its price; "Pro" is the
+        // upper tier, reached through the link under the plan.
         await expect(page.getByText('$19')).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Check the Pro plan' })).toBeVisible();
 
         // Paddle is not configured here, so opening the payment section says
         // so and offers the way on. No card form is ever drawn.
