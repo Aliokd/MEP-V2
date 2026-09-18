@@ -100,6 +100,12 @@ test.describe('Onboarding flow', () => {
     });
 
     test('a signed-in visitor skips the email step and reaches the welcome through the plans', async ({ page }) => {
+        // Whatever the environment holds, this test walks the no-payment
+        // path: with Paddle's script unreachable the checkout cannot open,
+        // and the paywall falls back to "payments unavailable" exactly as it
+        // does when Paddle is not configured at all. A developer's .env.local
+        // with sandbox keys must not turn this into a real card form.
+        await page.route('**/*.paddle.com/**', (route) => route.abort());
         await page.addInitScript(() => {
             window.localStorage.setItem('playwright_mock_user', JSON.stringify({
                 uid: 'onboarding-test-user',
