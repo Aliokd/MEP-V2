@@ -404,7 +404,13 @@ function OnboardingPageInner() {
                 // paywall rather than left in the console: the alternative is
                 // an empty frame under a button that appeared to do nothing.
                 console.error('Paddle checkout error:', event);
-                setCheckoutRefused(event.detail === 'transaction_checkout_not_enabled');
+                // Both are seller-side setup states, not outages: the account
+                // not yet enabled for live checkout, and the default payment
+                // link not yet saved in Paddle's checkout settings.
+                setCheckoutRefused(
+                    event.detail === 'transaction_checkout_not_enabled'
+                    || event.detail === 'transaction_default_checkout_url_not_set',
+                );
                 setCheckoutError(t('onboarding.paywall.checkout_error'));
             }
         });
