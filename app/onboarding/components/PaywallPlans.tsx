@@ -97,6 +97,24 @@ const GROUPS = [
 const splitEmphasis = (text: string) => text.split('**');
 
 /**
+ * The two card marks beside "Secure", drawn rather than fetched: no request
+ * leaves the page for a logo, and they render before Paddle's frame does,
+ * which is the moment they are for. Both are the brands' own colours at
+ * wordmark scale; the frame below shows the full set of what is accepted.
+ */
+const CardMarks = () => (
+    <span aria-hidden="true" className="flex items-center gap-1.5">
+        <span className="rounded-[4px] bg-[#1434CB] px-1.5 py-[3px] text-[9px] font-bold italic leading-none tracking-tight text-white">
+            VISA
+        </span>
+        <span className="flex items-center">
+            <span className="h-4 w-4 rounded-full bg-[#EB001B]" />
+            <span className="-ml-1.5 h-4 w-4 rounded-full bg-[#F79E1B] mix-blend-multiply" />
+        </span>
+    </span>
+);
+
+/**
  * The plans, and the last screen before money changes hands.
  *
  * One plan at a time. Two columns side by side made the page a comparison
@@ -645,9 +663,12 @@ export default function PaywallPlans({ onBack, onCheckout, onSkipCheckout, compl
                                     {t('onboarding.paywall.checkout_title')}
                                 </h2>
                             </div>
-                            <span className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-stone-500">
-                                <Lock size={13} className="stroke-[2.5px]" />
-                                {t('onboarding.paywall.checkout_secure')}
+                            <span className="flex shrink-0 items-center gap-3">
+                                <span className="flex items-center gap-1.5 text-[12px] font-semibold text-stone-500">
+                                    <Lock size={13} className="stroke-[2.5px]" />
+                                    {t('onboarding.paywall.checkout_secure')}
+                                </span>
+                                <CardMarks />
                             </span>
                         </div>
                     )}
